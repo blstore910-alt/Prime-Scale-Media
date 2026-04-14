@@ -1,0 +1,20 @@
+export type Commission = {
+  idx: number;
+  id: string;
+  created_at: string;
+  referral_link_id: string;
+  tenant_id: string;
+  type: string;
+  amount: number;
+  currency: string;
+  status: string | null;
+  topup_id: string | null;
+  subscription_id: string | null;
+  subscription_invoice_id: string | null;
+  affiliate_advertiser_tenant_client_code: string | null;
+  affiliate_advertiser_email: string | null;
+  affiliate_advertiser_name: string | null;
+  referred_advertiser_tenant_client_code: string | null;
+  referred_advertiser_email: string | null;
+  referred_advertiser_name: string | null;
+};

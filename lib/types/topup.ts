@@ -1,0 +1,31 @@
+import { AdAccount } from "./account";
+import { Advertiser } from "./advertiser";
+
+export type Topup = {
+  number: number;
+  id: string;
+  advertiser_id: string;
+  account_id: string;
+  created_at: string;
+  amount_received: string;
+  amount_usd: string | number;
+  topup_amount: string | number;
+  fee: string | number;
+  fee_amount: string | number;
+  status: string;
+  tenant_id: string;
+  payment_slip: string;
+  type: string;
+  advertiser?: Advertiser;
+  account?: AdAccount;
+  currency: string;
+  source: string | null;
+  topup_currency: string | null;
+  verified_at: string | null;
+  is_deleted: boolean;
+  affiliate_id?: string | null;
+  eur_value: number | null;
+  eur_topup: number | null;
+  topup_usd: string | number | null;
+  rate: number | null;
+};
