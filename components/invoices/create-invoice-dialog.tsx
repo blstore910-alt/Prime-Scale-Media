@@ -29,14 +29,11 @@ import { CURRENCIES } from "@/lib/constants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import dayjs from "dayjs";
 import { useEffect } from "react";
 import { Controller, Resolver, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
-import useCreateSubscription from "./use-create-subscription";
-import { getTodayDateValue } from "./subscription-utils";
-import SubscriptionDatePicker from "./subscription-date-picker";
+import useCreateInvoice from "./use-create-invoice";
 
 type AdvertiserQueryRow = {
   id: string;
@@ -44,42 +41,23 @@ type AdvertiserQueryRow = {
   profile: { full_name: string | null } | { full_name: string | null }[] | null;
 };
 
-const subscriptionFormSchema = z.object({
+const invoiceFormSchema = z.object({
   advertiser_id: z.string().min(1, "Advertiser is required"),
   currency: z.enum(["EUR", "USD"]),
   amount: z.coerce.number().gt(0, "Amount must be greater than 0"),
-  start_date: z
-    .string()
-    .min(1, "Start date is required")
-    .refine(
-      (value) =>
-        !dayjs(value).startOf("day").isBefore(dayjs().startOf("day"), "day"),
-      "Start date cannot be before today",
-    ),
 });
 
-type SubscriptionFormValues = z.infer<typeof subscriptionFormSchema>;
+type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 
-function getAdvertiserName(
-  profile: AdvertiserQueryRow["profile"],
-): string | null {
-  if (Array.isArray(profile)) {
-    return profile[0]?.full_name ?? null;
-  }
-
-  return profile?.full_name ?? null;
-}
-
-function getDefaultValues(): SubscriptionFormValues {
+function getDefaultValues(): InvoiceFormValues {
   return {
     advertiser_id: "",
     currency: "EUR",
     amount: 0,
-    start_date: getTodayDateValue(),
   };
 }
 
-export default function CreateSubscriptionDialog({
+export default function CreateInvoiceDialog({
   open,
   onOpenChange,
   defaultAdvertiserId,
@@ -89,7 +67,7 @@ export default function CreateSubscriptionDialog({
   defaultAdvertiserId?: string;
 }) {
   const { profile } = useAppContext();
-  const { createSubscription, isPending } = useCreateSubscription();
+  const { createInvoice, isPending } = useCreateInvoice();
 
   const defaultValues = getDefaultValues();
   if (defaultAdvertiserId) {
@@ -101,14 +79,11 @@ export default function CreateSubscriptionDialog({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<SubscriptionFormValues>({
+  } = useForm<InvoiceFormValues>({
     defaultValues,
-    resolver: zodResolver(
-      subscriptionFormSchema,
-    ) as Resolver<SubscriptionFormValues>,
+    resolver: zodResolver(invoiceFormSchema) as Resolver<InvoiceFormValues>,
   });
 
-  // Update form when defaultAdvertiserId changes
   useEffect(() => {
     const newDefaultValues = getDefaultValues();
     if (defaultAdvertiserId) {
@@ -123,7 +98,7 @@ export default function CreateSubscriptionDialog({
     isError: isAdvertisersError,
     error: advertisersError,
   } = useQuery<AdvertiserQueryRow[]>({
-    queryKey: ["advertisers", profile?.tenant_id, "subscriptions"],
+    queryKey: ["advertisers", profile?.tenant_id, "invoices"],
     enabled: profile?.role === "admin" && !!profile?.tenant_id,
     queryFn: async () => {
       const supabase = createClient();
@@ -146,28 +121,30 @@ export default function CreateSubscriptionDialog({
   );
 
   const advertiserOptions = advertisers.map((advertiser) => {
-    const fullName = getAdvertiserName(advertiser.profile) ?? "-";
+    const fullName = Array.isArray(advertiser.profile)
+      ? (advertiser.profile[0]?.full_name ?? null)
+      : (advertiser.profile?.full_name ?? null);
 
     return {
       value: advertiser.id,
       label: (
         <span className="inline-flex w-full justify-between">
           <span>{advertiser.tenant_client_code ?? "-"}</span>
-          <span className="ml-2">{fullName}</span>
+          <span className="ml-2">{fullName ?? "-"}</span>
         </span>
       ),
     };
   });
 
-  const onSubmit = (values: SubscriptionFormValues) => {
-    createSubscription(values, {
+  const onSubmit = (values: InvoiceFormValues) => {
+    createInvoice(values, {
       onSuccess: () => {
-        toast.success("Subscription created successfully.");
+        toast.success("Invoice created successfully.");
         reset(getDefaultValues());
         onOpenChange(false);
       },
       onError: (error) => {
-        toast.error("Failed to create subscription", {
+        toast.error("Failed to create invoice", {
           description: error.message,
         });
       },
@@ -190,21 +167,21 @@ export default function CreateSubscriptionDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New Subscription</DialogTitle>
+          <DialogTitle>Create Invoice</DialogTitle>
           <DialogDescription>
-            Add a subscription for one advertiser.
+            Create a manual invoice for an advertiser.
           </DialogDescription>
         </DialogHeader>
 
         <form
-          id="subscription-form"
+          id="invoice-form"
           className="space-y-4"
           onSubmit={handleSubmit(onSubmit)}
         >
           <SelectField
             label="Select Advertiser"
             name="advertiser_id"
-            id="subscription-advertiser-select"
+            id="invoice-advertiser-select"
             control={control}
             options={advertiserOptions}
             placeholder={
@@ -224,7 +201,7 @@ export default function CreateSubscriptionDialog({
           <Field
             data-invalid={Boolean(errors.amount) || Boolean(errors.currency)}
           >
-            <FieldLabel htmlFor="subscription-amount">Amount</FieldLabel>
+            <FieldLabel htmlFor="invoice-amount">Amount</FieldLabel>
             <InputGroup className="gap-0">
               <Controller
                 name="currency"
@@ -237,7 +214,7 @@ export default function CreateSubscriptionDialog({
                       onValueChange={field.onChange}
                     >
                       <SelectTrigger
-                        id="subscription-currency-select"
+                        id="invoice-currency-select"
                         aria-invalid={Boolean(errors.currency)}
                         className="h-9 min-w-22 rounded-none border-0 bg-transparent text-left"
                       >
@@ -261,7 +238,7 @@ export default function CreateSubscriptionDialog({
                 render={({ field }) => (
                   <InputGroupInput
                     {...field}
-                    id="subscription-amount"
+                    id="invoice-amount"
                     type="number"
                     min={0}
                     step="0.01"
@@ -275,40 +252,16 @@ export default function CreateSubscriptionDialog({
             {errors.currency && <FieldError errors={[errors.currency]} />}
             {errors.amount && <FieldError errors={[errors.amount]} />}
           </Field>
-
-          <Controller
-            name="start_date"
-            control={control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="subscription-start-date">
-                  Start Date
-                </FieldLabel>
-                <div id="subscription-start-date">
-                  <SubscriptionDatePicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    disableBeforeToday
-                    className="w-full"
-                    align="start"
-                  />
-                </div>
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
         </form>
 
         <DialogFooter>
           <Button
-            form="subscription-form"
+            form="invoice-form"
             type="submit"
             disabled={isPending || isAdvertisersLoading || isAdvertisersError}
           >
             {isPending && <Loader2 className="animate-spin" />}
-            Create Subscription
+            Create Invoice
           </Button>
         </DialogFooter>
       </DialogContent>

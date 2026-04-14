@@ -254,7 +254,9 @@ function buildInvoiceHtml(
   const vatNo = compactText(company?.vat_no) || "N/A";
   const invoiceNumber = String(invoice.number).padStart(6, "0");
   const isWalletTopupInvoice = invoiceTypeKey === "wallet_topup";
-  const referenceNo = isWalletTopupInvoice ? getReferenceNoFromItems(items) : "";
+  const referenceNo = isWalletTopupInvoice
+    ? getReferenceNoFromItems(items)
+    : "";
   const invoiceReferenceHtml = isWalletTopupInvoice
     ? `<div class="invoice-reference">Ref: ${escapeHtml(referenceNo || "N/A")}</div>`
     : "";
@@ -262,7 +264,8 @@ function buildInvoiceHtml(
   const isPaid = normalizedStatus === "paid";
   const statusText = formatLabel(normalizedStatus) || "Unpaid";
   const statusClass = isPaid ? "paid" : "unpaid";
-  const paidAt = isPaid && invoice.paid_at ? formatIsoDate(invoice.paid_at) : "";
+  const paidAt =
+    isPaid && invoice.paid_at ? formatIsoDate(invoice.paid_at) : "";
   const settlementLabel = isPaid ? "Amount Paid" : "Amount Due";
   const paymentDateHtml =
     paidAt && paidAt !== "N/A"
@@ -307,7 +310,8 @@ function buildInvoiceHtml(
     const amount =
       toNumber(item.amount) > 0 ? toNumber(item.amount) : quantity * rate + tax;
     const itemType = compactText(item.name).toLowerCase() || invoiceTypeKey;
-    const baseDescription = formatLabel(item.name ?? invoiceTypeKey) || "Line item";
+    const baseDescription =
+      formatLabel(item.name ?? invoiceTypeKey) || "Line item";
     const itemDetails: string[] = [];
 
     if (itemType === "wallet_topup") {
@@ -356,7 +360,7 @@ function buildInvoiceHtml(
       (row) => `
         <tr>
           <td class="center">${row.index}</td>
-          <td class="item-name">${escapeHtml(row.description)}</td>
+          <td class="item-name capitalize">${escapeHtml(row.description)}</td>
           <td class="num">${formatAmount(row.quantity)}</td>
           <td class="num">${formatAmount(row.rate)}</td>
           <td class="num">${escapeHtml(formatTaxPercentage(row.tax))}</td>
@@ -533,6 +537,9 @@ function buildInvoiceHtml(
       .signature {
         margin-top: 58px;
         font-size: 11px;
+      }
+      .capitalize {
+        text-transform: capitalize;
       }
     </style>
   </head>

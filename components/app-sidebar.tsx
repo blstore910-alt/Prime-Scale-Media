@@ -121,11 +121,6 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
           icon: Coins,
         },
         {
-          title: "Extra Ad Accounts",
-          url: "/extra-ad-accounts",
-          icon: IconAd,
-        },
-        {
           title: "Invoices",
           url: "/invoices",
           icon: IconReceipt,
@@ -137,7 +132,7 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
         },
         {
           title: "Wallet Topups",
-          url: "/wallet-transactions",
+          url: "/wallet-topups",
           icon: ClipboardListIcon,
         },
       ],

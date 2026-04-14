@@ -21,6 +21,7 @@ export type Subscription = {
   status: SubscriptionStatus;
   created_at: string;
   updated_at: string;
+  currency: "EUR" | "USD";
   advertiser?: SubscriptionAdvertiser;
   next_payment_date?: string | null;
 };
