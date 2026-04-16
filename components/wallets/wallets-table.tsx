@@ -22,7 +22,14 @@ import { DATE_FORMAT, DATE_TIME_FORMAT } from "@/lib/constants";
 import { WalletWithAdvertiser } from "@/lib/types/wallet";
 import { useAppContext } from "@/context/app-provider";
 import dayjs from "dayjs";
-import { AlertCircle, Eye, Loader2, MoreHorizontal, Pencil, Search } from "lucide-react";
+import {
+  AlertCircle,
+  Eye,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Search,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMediaQuery } from "usehooks-ts";
 import { Button } from "../ui/button";
@@ -57,17 +64,17 @@ const sortOptions = [
 
 export default function WalletsTable() {
   const { wallets, isLoading, isError, error } = useWallets();
-  const { profile } = useAppContext();
+  const { profile, isSuperAdmin } = useAppContext();
   const isTabletScreen = useMediaQuery("(min-width: 768px)");
   const isAdmin = profile?.role === "admin";
+
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
-  const [editingWallet, setEditingWallet] = useState<WalletWithAdvertiser | null>(
-    null,
-  );
+  const [editingWallet, setEditingWallet] =
+    useState<WalletWithAdvertiser | null>(null);
   const [minTopupWallet, setMinTopupWallet] =
     useState<WalletWithAdvertiser | null>(null);
 
@@ -279,13 +286,15 @@ export default function WalletsTable() {
                   >
                     View details
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setEditingWallet(wallet)}
-                  >
-                    Edit balances
-                  </Button>
+                  {isSuperAdmin && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setEditingWallet(wallet)}
+                    >
+                      Edit balances
+                    </Button>
+                  )}
                   {isAdmin && (
                     <Button
                       variant="outline"

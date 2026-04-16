@@ -53,7 +53,7 @@ export default function UserDetailsSheet({
       const { data, error } = await supabase
         .from("user_profiles")
         .select(
-          "*, advertiser:advertisers(*, subscriptions(amount, start_date, status),  wallet_topups:wallet_topups(amount, currency, status))",
+          "*, advertiser:advertisers(*, subscriptions(amount, start_date, status),  wallet_topups:wallet_topups(amount, currency, status), companies(*))",
         )
         .eq("id", profileId)
         .single();
@@ -69,6 +69,10 @@ export default function UserDetailsSheet({
 
   const advertiser =
     data?.advertiser && data.advertiser.length > 0 ? data.advertiser[0] : null;
+  const company =
+    advertiser?.companies && advertiser.companies.length > 0
+      ? advertiser.companies[0]
+      : null;
 
   const clientCode = advertiser?.tenant_client_code;
 
@@ -196,6 +200,14 @@ export default function UserDetailsSheet({
                         ? dayjs(data.updated_at).format(DATE_TIME_FORMAT)
                         : "—"}
                     </div>
+                    <div>
+                      <span className="font-medium text-foreground">
+                        Referred By:{" "}
+                      </span>
+                      {data.referral_status === "referred"
+                        ? data.referred_by || "—"
+                        : "Not Referred"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -220,9 +232,87 @@ export default function UserDetailsSheet({
                 </div>
               </div>
             </div>
-            <UserAccounts advertiserId={advertiser.id} />
-            <UserSubscriptionDetails subscriptions={advertiser.subscriptions} />
-            <UserWalletTopups walletTopups={advertiser.wallet_topups} />
+            <Card className="p-4">
+              <h3 className="font-semibold">Company Details</h3>
+              {company ? (
+                <div className="mt-2 grid sm:grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Name:
+                    </span>{" "}
+                    {company.name || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Official Email:
+                    </span>{" "}
+                    {company.official_email || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Phone:
+                    </span>{" "}
+                    {company.phone || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Website:
+                    </span>{" "}
+                    {company.website_url || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      VAT No:
+                    </span>{" "}
+                    {company.is_not_vat ? "Not Applicable" : company.vat_no || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Registration No:
+                    </span>{" "}
+                    {company.registration_no || "—"}
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="font-medium text-muted-foreground">
+                      Address:
+                    </span>{" "}
+                    {company.address || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Country:
+                    </span>{" "}
+                    {company.country || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      State:
+                    </span>{" "}
+                    {company.state || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">
+                      Zip Code:
+                    </span>{" "}
+                    {company.zipcode || "—"}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">
+                  No company details found.
+                </p>
+              )}
+            </Card>
+
+            {advertiser ? (
+              <>
+                <UserAccounts advertiserId={advertiser.id} />
+                <UserSubscriptionDetails
+                  subscriptions={advertiser.subscriptions}
+                />
+                <UserWalletTopups walletTopups={advertiser.wallet_topups} />
+              </>
+            ) : null}
 
             <div className="space-y-4">
               <label htmlFor="notes" className="mb-2 block font-medium">
@@ -239,6 +329,7 @@ export default function UserDetailsSheet({
                 {note !== initialNotes && (
                   <Button
                     onClick={() => {
+                      if (!advertiser) return;
                       updateAdvertiser(
                         { id: advertiser.id, payload: { note } },
                         {

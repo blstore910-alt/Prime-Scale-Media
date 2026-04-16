@@ -3,8 +3,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 type ReferralProfileShape =
-  | { status?: string | null }
-  | Array<{ status?: string | null }>
+  | { status?: string | null; full_name?: string | null }
   | null
   | undefined;
 
@@ -102,9 +101,7 @@ export async function GET(request: NextRequest) {
     if (referralCode) {
       const { data: advertiser, error: referralError } = await admin
         .from("advertisers")
-        .select(
-          "id, tenant_id, commission_type, commission_currency, commission_monthly, commission_pct, commission_onetime, profile:user_profiles(status)",
-        )
+        .select("*, profile:user_profiles(*)")
         .eq("tenant_client_code", referralCode)
         .maybeSingle();
       if (referralError) {
@@ -136,7 +133,9 @@ export async function GET(request: NextRequest) {
         full_name: fullName,
         email: user.email,
         referral_status: referralAdvertiser ? "referred" : null,
-        referred_by: referralAdvertiser ? referralAdvertiser.id : null,
+        referred_by: referralAdvertiser
+          ? referralAdvertiser?.profile?.full_name
+          : null,
       })
       .select()
       .single();
