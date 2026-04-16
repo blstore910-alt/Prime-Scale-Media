@@ -1,19 +1,8 @@
 import CommissionsTable from "@/components/commissions/commissions-table";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("*")
-    .eq("user_id", user?.user?.id)
-    .single();
-
-  const isAdmin = profile?.role === "admin";
-
-  if (!isAdmin) redirect("/");
+  await requireSuperAdmin("/dashboard");
 
   return (
     <div className="flex flex-1 flex-col">

@@ -1,7 +1,10 @@
 import InvitesHeader from "@/components/invites/invites-header";
 import InvitesTable from "@/components/invites/invites-table";
+import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 
-export default function Page() {
+export default async function Page() {
+  await requireSuperAdmin("/dashboard");
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">

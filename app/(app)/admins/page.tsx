@@ -1,36 +1,8 @@
 import AdminsTable from "@/components/admins/admins-table";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !userData.user) {
-    redirect("/auth/login");
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("id, user_id, tenant_id")
-    .eq("user_id", userData.user.id)
-    .single();
-
-  if (profileError || !profile?.tenant_id) {
-    redirect("/dashboard");
-  }
-
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", profile.tenant_id)
-    .maybeSingle();
-
-  const ownerId = tenant?.owner_id;
-
-  if (ownerId !== userData.user.id) {
-    redirect("/dashboard");
-  }
+  await requireSuperAdmin("/dashboard");
 
   return (
     <div className="flex flex-1 flex-col">

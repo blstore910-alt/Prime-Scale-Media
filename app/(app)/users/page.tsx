@@ -1,7 +1,10 @@
 import UserTable from "@/components/admin/users/user-table";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import React from "react";
 
-export default function Page() {
+export default async function Page() {
+  await requireAdmin("/dashboard");
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">
