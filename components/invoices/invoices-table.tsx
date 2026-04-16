@@ -40,6 +40,8 @@ export default function InvoicesTable() {
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
 
+  const isAdmin = profile?.role === "admin";
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(t);
@@ -189,8 +191,13 @@ export default function InvoicesTable() {
             <TableHeader className="sticky top-0 z-10 bg-muted">
               <TableRow>
                 <TableHead>Invoice #</TableHead>
-                <TableHead>Advertiser</TableHead>
-                <TableHead>Company</TableHead>
+                {isAdmin && (
+                  <>
+                    {" "}
+                    <TableHead>Advertiser</TableHead>
+                    <TableHead>Company</TableHead>
+                  </>
+                )}
                 <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
