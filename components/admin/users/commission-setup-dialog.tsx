@@ -91,7 +91,7 @@ function buildInitialValues(advertiser: Advertiser | null): CommissionState {
     commission_pct: toInputValue(advertiser?.commission_pct),
     commission_onetime: toInputValue(advertiser?.commission_onetime),
     commission_monthly: toInputValue(advertiser?.commission_monthly),
-    commission_currency: advertiser?.commission_currency ?? "USD",
+    commission_currency: advertiser?.commission_currency ?? "EUR",
   };
 }
 

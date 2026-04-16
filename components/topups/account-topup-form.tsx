@@ -21,7 +21,6 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { ScrollArea } from "../ui/scroll-area";
 import { Skeleton } from "../ui/skeleton";
 import { useCreateAccountTopup } from "./use-create-account-topup";
-import { parse } from "path";
 
 type CurrencyCode = "USD" | "EUR";
 
@@ -221,7 +220,7 @@ export default function AccountTopupForm({
   }, [setValue, watch, isHKMeta]);
   return (
     <form onSubmit={handleSubmit((values) => mutate(values))}>
-      <ScrollArea className="max-h-[70vh] pr-2">
+      <ScrollArea className="max-h-[90vh] sm:max-h-[80vh] md:max-h-[70vh] pr-2">
         <div className="px-1 space-y-4">
           <SelectField
             label="Ad Account"
@@ -250,7 +249,7 @@ export default function AccountTopupForm({
                 <RadioGroup
                   value={field.value}
                   onValueChange={field.onChange}
-                  className="grid gap-3 sm:grid-cols-2"
+                  className="grid gap-3 grid-cols-2"
                 >
                   <CurrencyChoice
                     id="wallet-usd"

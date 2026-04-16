@@ -1,21 +1,13 @@
 import { useAppContext } from "@/context/app-provider";
-import { CURRENCY_SYMBOLS, DATE_FORMAT, TOPUP_TYPES } from "@/lib/constants";
+import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
 import { Topup } from "@/lib/types/topup";
 import { cn } from "@/lib/utils";
 import dayjs from "dayjs";
-import {
-  CheckCircle2,
-  Eye,
-  Loader2,
-  MinusCircle,
-  ReceiptText,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, Eye, Loader2, MinusCircle, XCircle } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardTitle } from "../ui/card";
-import PaymentSlipPreview from "./payment-slip-preview";
 import useUpdateTopup from "./use-update-topup";
 
 export default function TopupCard({
@@ -42,7 +34,7 @@ export default function TopupCard({
         ? "bg-yellow-500"
         : topup.status === "rejected"
           ? "bg-destructive"
-        : "bg-gray-500";
+          : "bg-gray-500";
 
   const { isPending, updateTopup } = useUpdateTopup();
   const [previewSlip, setPreviewSlip] = useState(false);
@@ -93,69 +85,42 @@ export default function TopupCard({
         </div>
 
         <div className="space-y-2">
-          <div className="grid grid-cols-3">
-            <div className="flex gap-1 flex-col ">
-              <span className="text-sm text-muted-foreground">Fee:</span>
-              <span className="font-semibold">{topup.fee}%</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm text-muted-foreground">Type:</span>
-              <span className="font-medium text-sm">
-                {TOPUP_TYPES.find((t) => t.value === topup.type)?.label}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">
+                Payment Amount
               </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-3">
-            <div className="flex flex-col justify-between">
-              <span className="text-sm text-muted-foreground">Received:</span>
               <span className="font-semibold">
                 {CURRENCY_SYMBOLS[topup.currency]} {topup.amount_received}
               </span>
             </div>
-
-            <div className="flex flex-col justify-between">
-              <span className="text-sm text-muted-foreground">USD Value:</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">Fee Amount</span>
               <span className="font-semibold">
-                {CURRENCY_SYMBOLS["USD"]} {topup.amount_usd}
+                {CURRENCY_SYMBOLS[topup.currency]} {topup.fee_amount}
               </span>
             </div>
-
-            <div className="flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-muted-foreground">
-                Topup Amount:
+                Topup Amount
               </span>
               <span className="font-semibold">
-                {CURRENCY_SYMBOLS[topup.currency || "USD"]} {topup.topup_amount}
+                {CURRENCY_SYMBOLS[topup.currency]} {topup.topup_amount}
+                {topup.currency === "EUR" && topup.topup_usd ? (
+                  <span className="text-sm text-muted-foreground ml-1">
+                    ({CURRENCY_SYMBOLS["USD"]} {topup.topup_usd})
+                  </span>
+                ) : topup.currency === "USD" && topup.eur_topup ? (
+                  <span className="text-sm text-muted-foreground ml-1">
+                    ({CURRENCY_SYMBOLS["EUR"]} {topup.eur_topup})
+                  </span>
+                ) : null}
               </span>
             </div>
           </div>
-
-          {/* {topup.platform === "eu-meta-premium" && (
-            <div className="grid grid-cols-3">
-              <p className="text-sm text-muted-foreground">EU Values:</p>
-              <p>&nbsp;</p>
-              <p className="font-semibold">
-                €{topup.eur_value}/${topup.eur_topup}
-              </p>
-            </div>
-          )} */}
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
-          {topup.payment_slip && (
-            <Button
-              variant="outline"
-              className="flex-1 min-w-[120px]"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPreviewSlip(true);
-              }}
-            >
-              <ReceiptText className="mr-2 h-4 w-4" />
-              Slip
-            </Button>
-          )}
           {isAdmin && (
             <Button
               variant="outline"
@@ -170,22 +135,22 @@ export default function TopupCard({
               View
             </Button>
           )}
-          {profile?.role !== "advertiser" ? (
-            topup.status !== "completed" && topup.status !== "rejected" ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="flex-1 min-w-[120px]"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onVerifyPayment();
-                  }}
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Verify
-                </Button>
-                {topup.status !== "rejected" && (
+          {profile?.role !== "advertiser" && (
+            <>
+              {topup.status === "pending" && (
+                <>
+                  <Button
+                    variant="outline"
+                    className="flex-1 min-w-[120px]"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onVerifyPayment();
+                    }}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Verify
+                  </Button>
                   <Button
                     variant="destructive"
                     className="flex-1 min-w-[120px] text-white"
@@ -198,37 +163,30 @@ export default function TopupCard({
                     <XCircle className="mr-2 h-4 w-4" />
                     Reject
                   </Button>
-                )}
-              </>
-            ) : topup.status === "completed" ? (
-              <Button
-                variant="outline"
-                className="flex-1 min-w-[120px]"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  markPending();
-                }}
-              >
-                {isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <MinusCircle className="mr-2 h-4 w-4" />
-                )}
-                Mark Pending
-              </Button>
-            ) : null
-          ) : null}
+                </>
+              )}
+              {topup.status === "completed" && (
+                <Button
+                  variant="outline"
+                  className="flex-1 min-w-[120px]"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markPending();
+                  }}
+                >
+                  {isPending ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <MinusCircle className="mr-2 h-4 w-4" />
+                  )}
+                  Mark Pending
+                </Button>
+              )}
+            </>
+          )}
         </div>
       </CardContent>
-      {topup?.payment_slip && (
-        <PaymentSlipPreview
-          src={topup?.payment_slip}
-          alt="Payment Slip"
-          open={previewSlip}
-          onClose={() => setPreviewSlip(false)}
-        />
-      )}
     </Card>
   );
 }

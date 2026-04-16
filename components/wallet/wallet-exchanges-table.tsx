@@ -53,7 +53,7 @@ export default function WalletExchangesTable({
       const { data, error } = await supabase
         .from("wallet_exchanges")
         .select(
-          "id, created_at, from_currency, to_currency, from_amount, to_amount, exchange_rate",
+          "id, created_at, from_currency, to_currency, from_amount, to_amount, fee_amount, exchange_rate",
         )
         .eq("wallet_id", walletId)
         .order("created_at", { ascending: false });

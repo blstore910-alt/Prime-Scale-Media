@@ -6,6 +6,7 @@ import React from "react";
 import AdvertiserLayout from "@/components/advertiser/layout";
 import { UserRole } from "@/lib/types/user";
 import { cookies } from "next/headers";
+import PWAInstallPrompt from "@/components/pwa-install-prompt";
 
 const ROLE_LAYOUTS = {
   admin: AdminLayout,

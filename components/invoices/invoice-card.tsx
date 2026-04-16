@@ -42,7 +42,7 @@ export default function InvoiceCard({
   const isAdmin = profile?.role === "admin";
   const advertiserCode = invoice.advertiser?.tenant_client_code ?? "-";
   const companyName = invoice.company?.name ?? "-";
-  const currency = invoice.items?.[0].currency;
+  const currency = invoice.currency || invoice.items?.[0]?.currency || "EUR";
   const isPaid = invoice.status === "paid";
   const statusLabel = isPaid ? "Paid" : "Unpaid";
   const currencySymbol =
@@ -73,7 +73,9 @@ export default function InvoiceCard({
             )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Type</span>
-              <span className="text-sm capitalize">{invoice.type ?? "-"}</span>
+              <span className="text-sm capitalize">
+                {invoice.type?.split("_").join(" ") ?? "-"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Amount</span>
