@@ -25,7 +25,6 @@ import useGetTopup from "./use-get-topup";
 import useUpdateTopup from "./use-update-topup";
 import { Badge } from "../ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 export default function VerifyTopupDialog({
   topupId,
@@ -145,15 +144,6 @@ function VerifyTopupInvoice({
       payload.fee = originalFee;
     }
 
-    const supabase = createClient();
-    const { data: affiliate } = await supabase
-      .from("affiliates")
-      .select()
-      .eq("advertiser_id", topup.advertiser_id)
-      .single();
-    if (affiliate) {
-      payload.affiliate_id = affiliate.id;
-    }
     updateTopup(
       {
         topupId: topup.id,

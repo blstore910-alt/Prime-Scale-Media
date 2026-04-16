@@ -67,7 +67,7 @@ const navItemsAdmin = [
   },
   {
     title: "Wallet Topups",
-    href: "/wallet-transactions",
+    href: "/wallet-topups",
     icon: IconWallet,
   },
 ];

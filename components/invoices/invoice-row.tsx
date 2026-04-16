@@ -42,10 +42,11 @@ export default function InvoiceRow({
   const { profile } = useAppContext();
   const advertiserCode = invoice.advertiser?.tenant_client_code ?? "-";
   const companyName = invoice.company?.name ?? "-";
-  const currency = invoice.items?.[0].currency;
+  const currency = invoice.currency;
   const invoiceType = formatInvoiceType(invoice.type);
   const isPaid = invoice.status === "paid";
   const statusLabel = isPaid ? "Paid" : "Unpaid";
+  const advetiserName = invoice.advertiser?.profile?.full_name ?? "-";
   const currencySymbol =
     CURRENCY_SYMBOLS[currency as keyof typeof CURRENCY_SYMBOLS] ?? "€";
 
@@ -54,7 +55,9 @@ export default function InvoiceRow({
   return (
     <TableRow>
       <TableCell className="font-mono">{invoice.number}</TableCell>
-      <TableCell>{advertiserCode}</TableCell>
+      <TableCell>
+        {advetiserName} <Badge variant={"outline"}>{advertiserCode}</Badge>
+      </TableCell>
       <TableCell className="font-medium">{companyName}</TableCell>
       <TableCell className="capitalize">{invoiceType}</TableCell>
       <TableCell className="font-mono font-semibold">

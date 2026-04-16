@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 
 type CreateSubscriptionInput = {
   advertiser_id: string;
+  currency: "EUR" | "USD";
   amount: number;
   start_date: string;
 };
@@ -24,9 +25,29 @@ export default function useCreateSubscription() {
       }
 
       const supabase = createClient();
+
+      const { data: existingSubscription, error: checkError } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("advertiser_id", values.advertiser_id)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (checkError) {
+        throw checkError;
+      }
+
+      if (existingSubscription) {
+        throw new Error(
+          "A subscription for this advertiser already exists with active status.",
+        );
+      }
+
       const payload = {
         advertiser_id: values.advertiser_id,
         tenant_id: tenantId,
+        currency: values.currency,
         amount: Number(values.amount),
         start_date: values.start_date,
         status: "inactive" as const,

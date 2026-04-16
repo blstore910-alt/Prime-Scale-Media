@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useMediaQuery } from "usehooks-ts";
 import useInvoices from "./use-invoices";
+import CreateInvoiceDialog from "./create-invoice-dialog";
 import InvoiceCard from "./invoice-card";
 import InvoiceRow from "./invoice-row";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
@@ -32,6 +34,7 @@ export default function InvoicesTable() {
   const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | null>(
     null,
   );
+  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const perPage = 10;
   const isTabletScreen = useMediaQuery("(min-width: 768px)");
   const queryClient = useQueryClient();
@@ -96,9 +99,9 @@ export default function InvoicesTable() {
     try {
       const response = await fetch(`/api/invoices/${invoice.id}/pdf`);
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(payload?.error || "Failed to download invoice");
       }
 
@@ -153,6 +156,10 @@ export default function InvoicesTable() {
 
   return (
     <div className="flex flex-col gap-4">
+      <CreateInvoiceDialog
+        open={isCreateInvoiceOpen}
+        onOpenChange={setIsCreateInvoiceOpen}
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Invoices</h2>
@@ -170,6 +177,9 @@ export default function InvoicesTable() {
               className="pl-8"
             />
           </div>
+          <Button onClick={() => setIsCreateInvoiceOpen(true)}>
+            Create Invoice
+          </Button>
         </div>
       </div>
 

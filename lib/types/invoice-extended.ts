@@ -21,6 +21,7 @@ export type Invoice = {
   sub_total: number | null;
   total: number | null;
   advertiser_id: string | null;
+  currency: string;
   status: string | null;
   paid_at: string | null;
   type: string | null;

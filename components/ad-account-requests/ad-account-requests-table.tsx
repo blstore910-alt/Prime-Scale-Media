@@ -28,6 +28,7 @@ import AdAccountRequestCard from "./ad-account-request-card";
 import AdAccountRequestDetailsSheet from "./ad-account-request-details-sheet";
 import AdAccountRequestRejectDialog from "./ad-account-request-reject-dialog";
 import CreateAdAccountFromRequestDialog from "./create-ad-account-from-request-dialog";
+import CreateAdAccountRequestInvoiceDialog from "./create-ad-account-request-invoice-dialog";
 import useAdAccountRequests from "./use-ad-account-requests";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -40,13 +41,13 @@ function getStatusClassName(status: string | null) {
   switch (status.toLowerCase()) {
     case "approved":
     case "completed":
-      return "border-green-200 text-green-700";
+      return " bg-green-600";
     case "rejected":
     case "failed":
-      return "border-red-200 text-red-700";
+      return "bg-red-600";
     case "pending":
     default:
-      return "border-amber-200 text-amber-700";
+      return "bg-amber-600 ";
   }
 }
 
@@ -71,6 +72,8 @@ export default function AdAccountRequestsTable() {
     null,
   );
   const [requestForAccountCreation, setRequestForAccountCreation] =
+    useState<AdAccountRequest | null>(null);
+  const [requestForInvoiceCreation, setRequestForInvoiceCreation] =
     useState<AdAccountRequest | null>(null);
   const [requestToReject, setRequestToReject] =
     useState<AdAccountRequest | null>(null);
@@ -142,6 +145,13 @@ export default function AdAccountRequestsTable() {
 
   return (
     <>
+      <CreateAdAccountRequestInvoiceDialog
+        request={requestForInvoiceCreation}
+        open={requestForInvoiceCreation !== null}
+        onOpenChange={(open) => {
+          if (!open) setRequestForInvoiceCreation(null);
+        }}
+      />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
         <div className="flex gap-2 items-center self-end w-full md:w-auto">
           <Input
@@ -238,8 +248,7 @@ export default function AdAccountRequestsTable() {
                     <TableCell>{request.timezone || "-"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant="outline"
-                        className={`capitalize ${getStatusClassName(request.status)}`}
+                        className={`capitalize text-white ${getStatusClassName(request.status)}`}
                       >
                         {request.status || "unknown"}
                       </Badge>
@@ -259,9 +268,21 @@ export default function AdAccountRequestsTable() {
                           <Eye className="mr-2 h-4 w-4" />
                           View
                         </Button>
-                        {!["completed", "approved", "rejected"].includes(
-                          (request.status || "").toLowerCase(),
-                        ) &&
+                        {request.status?.toLowerCase() === "pending" &&
+                          request.advertiser_id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setRequestForInvoiceCreation(request)
+                              }
+                            >
+                              <PlusCircle className="mr-2 h-4 w-4" />
+                              Create Invoice
+                            </Button>
+                          )}
+                        {request.status?.toLowerCase() ===
+                          "payment_successful" &&
                           request.advertiser_id && (
                             <Button
                               variant="outline"

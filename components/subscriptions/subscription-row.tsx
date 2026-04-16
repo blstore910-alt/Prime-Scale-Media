@@ -3,13 +3,13 @@ import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Loader2, MinusCircle, PauseCircle, PlayCircle } from "lucide-react";
 import {
-  formatSubscriptionAmount,
   formatSubscriptionDate,
   getStatusBadgeClassName,
 } from "./subscription-utils";
 import { Subscription } from "./types";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
 
 type SubscriptionRowProps = {
   subscription: Subscription;
@@ -47,7 +47,10 @@ export default function SubscriptionRow({
         </div>
       </TableCell>
       <TableCell className="font-mono">
-        €{formatSubscriptionAmount(subscription.amount)}
+        {formatCurrency(
+          subscription.amount as number,
+          subscription.currency || "EUR",
+        )}
       </TableCell>
       <TableCell>{formatSubscriptionDate(subscription.start_date)}</TableCell>
       <TableCell>
