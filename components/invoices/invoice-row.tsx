@@ -55,10 +55,15 @@ export default function InvoiceRow({
   return (
     <TableRow>
       <TableCell className="font-mono">{invoice.number}</TableCell>
-      <TableCell>
-        {advetiserName} <Badge variant={"outline"}>{advertiserCode}</Badge>
-      </TableCell>
-      <TableCell className="font-medium">{companyName}</TableCell>
+      {isAdmin && (
+        <>
+          <TableCell>
+            {advetiserName} <Badge variant={"outline"}>{advertiserCode}</Badge>
+          </TableCell>
+          <TableCell className="font-medium">{companyName}</TableCell>
+        </>
+      )}
+
       <TableCell className="capitalize">{invoiceType}</TableCell>
       <TableCell className="font-mono font-semibold">
         {currencySymbol}
