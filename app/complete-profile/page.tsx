@@ -67,9 +67,39 @@ export default async function CompleteProfilePage() {
     }
   }
 
+  const displayName =
+    profile.full_name ||
+    user.user_metadata?.display_name ||
+    `${user.user_metadata?.first_name ?? ""} ${
+      user.user_metadata?.last_name ?? ""
+    }`.trim() ||
+    user.email ||
+    "Unknown user";
+  const userEmail = user.email ?? profile.email ?? "No email";
+  const roleLabel = profile.role
+    ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1)
+    : "User";
+  const joinedDate = user.created_at
+    ? new Date(user.created_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="h-20 flex justify-end items-center w-full px-8">
+      <div className="w-full px-8 py-4 border-b bg-muted/20 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">
+            Signed in as {displayName}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">
+            {userEmail}
+            {joinedDate ? ` | Joined ${joinedDate}` : ""}
+            {roleLabel ? ` | ${roleLabel}` : ""}
+          </p>
+        </div>
         <LogoutButton />
       </div>
 

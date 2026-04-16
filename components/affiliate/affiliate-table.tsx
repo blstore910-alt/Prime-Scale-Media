@@ -56,6 +56,22 @@ export default function AffiliatesTable() {
     return `${numberFormatter.format(value)}%`;
   };
 
+  const formatCommissionAmount = (
+    value: number | null | undefined,
+    currency: string | null | undefined,
+  ) => {
+    if (value == null || Number.isNaN(value)) return EMPTY_VALUE;
+    const currencyCode = currency?.toUpperCase();
+
+    if (!currencyCode) return formatNumber(value);
+
+    try {
+      return formatCurrency(value, currencyCode);
+    } catch {
+      return `${currencyCode} ${formatNumber(value)}`;
+    }
+  };
+
   const {
     data: referralLinksData,
     isLoading,
@@ -162,7 +178,7 @@ export default function AffiliatesTable() {
                   <AffiliateTableRow
                     key={referral.id}
                     referral={referral}
-                    formatNumber={formatNumber}
+                    formatCommissionAmount={formatCommissionAmount}
                     formatPercent={formatPercent}
                   />
                 ))
@@ -187,7 +203,7 @@ export default function AffiliatesTable() {
                 <ReferralLinkCard
                   key={referral.id}
                   referral={referral}
-                  formatNumber={formatNumber}
+                  formatCommissionAmount={formatCommissionAmount}
                   formatPercent={formatPercent}
                 />
               ))}
@@ -221,12 +237,15 @@ export default function AffiliatesTable() {
 
 function ReferralLinkCard({
   referral,
-  formatNumber,
+  formatCommissionAmount,
 
   formatPercent,
 }: {
   referral: ReferralLinkRow;
-  formatNumber: (value: number | null | undefined) => string;
+  formatCommissionAmount: (
+    value: number | null | undefined,
+    currency: string | null | undefined,
+  ) => string;
 
   formatPercent: (value: number | null | undefined) => string;
 }) {
@@ -271,11 +290,21 @@ function ReferralLinkCard({
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Commission Monthly</span>
-          <span>{formatNumber(referral.commission_monthly)}</span>
+          <span>
+            {formatCommissionAmount(
+              referral.commission_monthly,
+              referral.commission_currency,
+            )}
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Commission One-time</span>
-          <span>{formatNumber(referral.commission_onetime)}</span>
+          <span>
+            {formatCommissionAmount(
+              referral.commission_onetime,
+              referral.commission_currency,
+            )}
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Commission Recurring</span>

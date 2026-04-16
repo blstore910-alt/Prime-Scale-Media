@@ -55,26 +55,31 @@ export default async function AppLayout({
         .eq("advertiser_id", advertiser.id)
         .maybeSingle();
 
-      const isCompanyComplete =
+      const isCompanyComplete = Boolean(
         company &&
-        company.name &&
-        company.official_email &&
-        company.phone &&
-        company.address &&
-        company.country &&
-        company.state &&
-        company.zipcode &&
-        company.registration_no;
+          company.name &&
+          company.official_email &&
+          company.phone &&
+          company.address &&
+          company.country &&
+          company.state &&
+          company.zipcode,
+      );
 
       const billing = company?.billings?.[0];
-      const isBillingComplete =
+      const isBillingComplete = Boolean(
         billing &&
-        billing.address &&
-        billing.state &&
-        billing.country &&
-        billing.zipcode;
+          billing.address &&
+          billing.state &&
+          billing.country &&
+          billing.zipcode,
+      );
 
       const isVatComplete = !!company?.vat_no || company?.is_not_vat === true;
+
+      console.log("VAT COMPLETED", isVatComplete);
+      console.log("Company COMPLETED", isCompanyComplete);
+      console.log("billing Complete", isBillingComplete);
 
       if (!isCompanyComplete || !isVatComplete || !isBillingComplete) {
         redirect("/complete-profile");

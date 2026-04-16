@@ -4,6 +4,7 @@ export type MyReferral = {
   referred_advertiser_id: string;
   affiliate_advertiser_id: string;
   commission_type: string | null;
+  commission_currency: string | null;
   commission_monthly: number | null;
   commission_pct: number | null;
   commission_onetime: number | null;

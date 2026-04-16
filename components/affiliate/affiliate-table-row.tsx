@@ -11,6 +11,7 @@ export type ReferralLinkRow = {
   tenant_id: string;
   referred_advertiser_id: string;
   affiliate_advertiser_id: string;
+  commission_currency: string | null;
   commission_monthly: number | null;
   commission_pct: number | null;
   commission_onetime: number | null;
@@ -29,13 +30,16 @@ const EMPTY_VALUE = "N/A";
 
 interface AffiliateTableRowProps {
   referral: ReferralLinkRow;
-  formatNumber: (value: number | null | undefined) => string;
+  formatCommissionAmount: (
+    value: number | null | undefined,
+    currency: string | null | undefined,
+  ) => string;
   formatPercent: (value: number | null | undefined) => string;
 }
 
 export default function AffiliateTableRow({
   referral,
-  formatNumber,
+  formatCommissionAmount,
   formatPercent,
 }: AffiliateTableRowProps) {
   return (
@@ -72,10 +76,16 @@ export default function AffiliateTableRow({
           EMPTY_VALUE}
       </TableCell>
       <TableCell className="tabular-nums">
-        {formatNumber(referral.commission_monthly)}
+        {formatCommissionAmount(
+          referral.commission_monthly,
+          referral.commission_currency,
+        )}
       </TableCell>
       <TableCell className="tabular-nums">
-        {formatNumber(referral.commission_onetime)}
+        {formatCommissionAmount(
+          referral.commission_onetime,
+          referral.commission_currency,
+        )}
       </TableCell>
       <TableCell className="tabular-nums">
         {formatPercent(referral.commission_pct)}

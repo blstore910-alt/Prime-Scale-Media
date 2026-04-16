@@ -58,15 +58,11 @@ export function SignUpForm({
 
   const onSubmit = async (data: SignUpFormData) => {
     try {
-      const confirmUrl = new URL("/auth/confirm", window.location.origin);
-      if (tenantSlug) confirmUrl.searchParams.set("t", tenantSlug);
-      if (referralCode) confirmUrl.searchParams.set("ref", referralCode);
-      console.log(confirmUrl.toString());
       const { error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: confirmUrl.toString(),
+          emailRedirectTo: window.location.origin,
           data: {
             display_name: `${data.firstName} ${data.lastName}`,
             first_name: data.firstName,

@@ -38,17 +38,41 @@ const formatPercent = (value: number | string | null | undefined) => {
   return `${formatNumber(value)}%`;
 };
 
+const formatCommissionAmount = (
+  value: number | string | null | undefined,
+  currency: string | null | undefined,
+) => {
+  if (value == null) return EMPTY_VALUE;
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) return EMPTY_VALUE;
+
+  const currencyCode = currency?.toUpperCase();
+  if (!currencyCode) return formatValue(numericValue);
+
+  try {
+    return formatCurrency(numericValue, currencyCode);
+  } catch {
+    return `${currencyCode} ${formatValue(numericValue)}`;
+  }
+};
+
 const getCommissionDisplay = (referral: MyReferral) => {
   const type = referral.commission_type ?? "";
   return {
     typeLabel: COMMISSION_TYPE_LABELS[type] || EMPTY_VALUE,
     monthly:
       type === "monthly" || type === "monthly_pct"
-        ? formatValue(referral.commission_monthly)
+        ? formatCommissionAmount(
+            referral.commission_monthly,
+            referral.commission_currency,
+          )
         : EMPTY_VALUE,
     onetime:
       type === "onetime" || type === "onetime_pct"
-        ? formatValue(referral.commission_onetime)
+        ? formatCommissionAmount(
+            referral.commission_onetime,
+            referral.commission_currency,
+          )
         : EMPTY_VALUE,
     recurring:
       type === "monthly_pct" || type === "onetime_pct"
