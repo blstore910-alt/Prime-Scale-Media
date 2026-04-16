@@ -56,6 +56,7 @@ export default function UserRow({
         userId: profile.id,
         data: {
           status: profile.status === "active" ? "inactive" : "active",
+          is_active: profile.status !== "active",
         },
       },
       {

@@ -27,11 +27,11 @@ import Image from "next/image";
 const companySchema = z
   .object({
     name: z.string().min(2, "Company Name is required"),
-    official_email: z.string().email("Invalid email"),
+    official_email: z.email("Invalid email"),
     phone: z.string().min(5, "Valid phone number is required"),
     website_url: z.string().optional().or(z.literal("")),
     vat_no: z.string().optional(),
-    registration_no: z.string().min(5, "Registration No is required"),
+
     address: z.string().min(5, "Address is required"),
     state: z.string().min(1, "State is required"),
     country: z.string().min(1, "Country is required"),
@@ -83,7 +83,7 @@ export default function CompanyOnboardingForm({
       official_email: "",
       phone: "",
       website_url: "",
-      registration_no: "",
+
       vat_no: "",
       address: "",
       state: "",
@@ -141,7 +141,7 @@ export default function CompanyOnboardingForm({
         phone: data.phone,
         website_url: data.website_url || null,
         vat_no: data.is_not_vat ? null : data.vat_no || null,
-        registration_no: data.registration_no || null,
+
         address: data.address,
         country: data.country,
         state: data.state,
@@ -242,13 +242,7 @@ export default function CompanyOnboardingForm({
                 label="Website URL"
                 placeholder="https://acme.com"
               />
-              <InputField
-                id="registration-no"
-                control={control}
-                name="registration_no"
-                label="Registration No"
-                placeholder="REG-123456"
-              />
+
               <div>
                 <InputField
                   id="vat-no"

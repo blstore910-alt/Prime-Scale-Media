@@ -22,7 +22,7 @@ const validations = z
     currency: z.enum(["USD", "EUR"]),
     timezone: z.string().min(1, "Timezone is required"),
     notes: z.string().optional(),
-    website_url: z.string().url("Invalid URL").optional().or(z.literal("")),
+    website_url: z.string().optional().or(z.literal("")),
 
     // Metadata fields
     google_email: z.string().optional(),
@@ -94,7 +94,7 @@ const validations = z
           path: ["personal_facebook_profile_link"],
         });
       } else if (
-        !z.string().url().safeParse(data.personal_facebook_profile_link).success
+        !z.string().safeParse(data.personal_facebook_profile_link).success
       ) {
         ctx.addIssue({
           code: "custom",

@@ -31,6 +31,37 @@ export default function useUpdateUserProfile() {
     mutationKey: ["update-user"],
     mutationFn: async (payload) => {
       const supabase = createClient();
+      const shouldDeactivateSubscriptions = payload.data.status === "inactive";
+
+      if (shouldDeactivateSubscriptions) {
+        const { data: advertisers, error: advertisersError } = await supabase
+          .from("advertisers")
+          .select("id")
+          .eq("profile_id", payload.userId);
+
+        if (advertisersError) {
+          throw advertisersError;
+        }
+
+        const advertiserIds = (advertisers ?? []).map(
+          (advertiser) => advertiser.id,
+        );
+
+        if (advertiserIds.length > 0) {
+          const { error: subscriptionsError } = await supabase
+            .from("subscriptions")
+            .update({
+              status: "inactive",
+            })
+            .in("advertiser_id", advertiserIds)
+            .neq("status", "inactive");
+
+          if (subscriptionsError) {
+            throw subscriptionsError;
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from("user_profiles")
         .update({
@@ -43,8 +74,11 @@ export default function useUpdateUserProfile() {
 
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
+        queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
+      ]);
     },
     onError: (err) => {
       toast.error(`Something went wrong`, { description: err.message });
