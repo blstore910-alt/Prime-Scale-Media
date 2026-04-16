@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+
 import useUpdateAccount from "./use-update-account";
 
 export default function AccountRow({
@@ -96,28 +96,10 @@ export default function AccountRow({
       </TableCell>
 
       <TableCell className="cursor-pointer min-w-16" onClick={handleFeeEdit}>
-        {editing.fee ? (
-          <Input
-            name="topup_amount"
-            value={fee}
-            autoFocus
-            onChange={(e) => {
-              const value = e.target.value;
-              setFee(value === "" ? "" : +value);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-12 h-6 px-1 rounded"
-            type="number"
-            onBlur={() => {
-              setEditing({ ...editing, fee: false });
-            }}
-          />
-        ) : (
-          fee
-        )}
+        {fee}
         &nbsp;%
       </TableCell>
-
+      <TableCell>{account.currency || "N/A"}</TableCell>
       <TableCell>
         <Badge className="capitalize" variant={"outline"}>
           {account.status === "active" ? (

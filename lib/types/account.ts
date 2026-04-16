@@ -4,6 +4,7 @@ export interface AdAccount {
   id: string;
   name: string;
   bm_id: string | number | null;
+  currency: string | null;
   fee: number;
   fee_status: "pending" | "completed" | string;
   advertiser_id: string;

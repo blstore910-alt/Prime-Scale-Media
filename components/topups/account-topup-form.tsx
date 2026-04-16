@@ -26,7 +26,7 @@ type CurrencyCode = "USD" | "EUR";
 
 type AccountRecord = Pick<
   AdAccount,
-  "id" | "name" | "fee" | "advertiser_id" | "tenant_id" | "platform"
+  "id" | "name" | "fee" | "advertiser_id" | "tenant_id" | "platform" | "currency"
 > & {
   advertiser?: { tenant_client_code?: string | null } | null;
 };
@@ -40,6 +40,18 @@ type FormValues = {
 const parseAmount = (value: number | string | null | undefined) => {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeAccountCurrency = (
+  value: string | null | undefined,
+): CurrencyCode | null => {
+  const normalized = typeof value === "string" ? value.toUpperCase() : "";
+
+  if (normalized === "USD" || normalized === "EUR") {
+    return normalized;
+  }
+
+  return null;
 };
 
 export default function AccountTopupForm({
@@ -96,6 +108,9 @@ export default function AccountTopupForm({
 
   const advertiserId =
     selectedAccount?.advertiser_id ?? profile?.advertiser?.[0]?.id ?? null;
+  const selectedAccountCurrency = normalizeAccountCurrency(
+    selectedAccount?.currency,
+  );
 
   const { exchangeRates } = useExchangeRates({ activeOnly: true });
 
@@ -138,6 +153,17 @@ export default function AccountTopupForm({
             .positive("Amount is required"),
         })
         .superRefine((values, ctx) => {
+          if (
+            selectedAccountCurrency &&
+            values.currency !== selectedAccountCurrency
+          ) {
+            ctx.addIssue({
+              path: ["currency"],
+              code: "custom",
+              message: `Only ${selectedAccountCurrency} wallet is allowed for this account`,
+            });
+          }
+
           if (!hasWallet) return;
           const max = values.currency === "USD" ? usdBalance : eurBalance;
           if (values.amount > max) {
@@ -148,14 +174,14 @@ export default function AccountTopupForm({
             });
           }
         }),
-    [usdBalance, eurBalance, hasWallet],
+    [usdBalance, eurBalance, hasWallet, selectedAccountCurrency, minTopupAmount],
   );
 
   const { control, handleSubmit, setValue, watch, reset } = useForm<FormValues>(
     {
       defaultValues: {
         account_id: account?.id ?? "",
-        currency: "USD",
+        currency: normalizeAccountCurrency(account?.currency) ?? "USD",
         amount: 0,
       },
       resolver: zodResolver(formSchema) as Resolver<FormValues>,
@@ -189,6 +215,15 @@ export default function AccountTopupForm({
     setSelectedAccount(null);
   }, [accountId, accounts, account]);
 
+  useEffect(() => {
+    if (
+      selectedAccountCurrency &&
+      selectedCurrency !== selectedAccountCurrency
+    ) {
+      setValue("currency", selectedAccountCurrency, { shouldValidate: true });
+    }
+  }, [selectedAccountCurrency, selectedCurrency, setValue]);
+
   const selectedBalance = selectedCurrency === "USD" ? usdBalance : eurBalance;
   const remainingBalance = selectedBalance - parseAmount(amount);
 
@@ -200,7 +235,7 @@ export default function AccountTopupForm({
     onSuccess: () => {
       reset({
         account_id: account?.id ?? "",
-        currency: "USD",
+        currency: selectedAccountCurrency ?? "USD",
         amount: 0,
       });
       onSuccess();
@@ -211,13 +246,34 @@ export default function AccountTopupForm({
     ? `Max: ${formatCurrency(selectedBalance, selectedCurrency)}`
     : "Wallet balance is unavailable.";
 
-  const isHKMeta = selectedAccount?.platform.includes("hk-meta");
-
-  useEffect(() => {
-    if (watch("currency") === "EUR" && isHKMeta) {
-      setValue("currency", "USD");
+  const visibleCurrencyChoices = useMemo(() => {
+    if (!selectedAccountCurrency) {
+      return [];
     }
-  }, [setValue, watch, isHKMeta]);
+
+    if (selectedAccountCurrency === "USD") {
+      return [
+        {
+          id: "wallet-usd",
+          value: "USD" as const,
+          label: "USD Wallet",
+          balance: usdBalance,
+          icon: <DollarSign className="h-4 w-4" />,
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "wallet-eur",
+        value: "EUR" as const,
+        label: "EUR Wallet",
+        balance: eurBalance,
+        icon: <Euro className="h-4 w-4" />,
+      },
+    ];
+  }, [selectedAccountCurrency, usdBalance, eurBalance]);
+
   return (
     <form onSubmit={handleSubmit((values) => mutate(values))}>
       <ScrollArea className="max-h-[90vh] sm:max-h-[80vh] md:max-h-[70vh] pr-2">
@@ -246,35 +302,31 @@ export default function AccountTopupForm({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel>Wallet Balance</FieldLabel>
-                <RadioGroup
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  className="grid gap-3 grid-cols-2"
-                >
-                  <CurrencyChoice
-                    id="wallet-usd"
-                    value="USD"
-                    label="USD Wallet"
-                    balance={usdBalance}
-                    icon={<DollarSign className="h-4 w-4" />}
-                    disabled={!hasWallet}
-                  />
-                  <CurrencyChoice
-                    id="wallet-eur"
-                    value="EUR"
-                    label="EUR Wallet"
-                    balance={eurBalance}
-                    icon={<Euro className="h-4 w-4" />}
-                    disabled={!hasWallet || isHKMeta}
-                  />
-                </RadioGroup>
+                {visibleCurrencyChoices.length > 0 ? (
+                  <RadioGroup
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    className="grid gap-3 grid-cols-1"
+                  >
+                    {visibleCurrencyChoices.map((choice) => (
+                      <CurrencyChoice
+                        key={choice.id}
+                        id={choice.id}
+                        value={choice.value}
+                        label={choice.label}
+                        balance={choice.balance}
+                        icon={choice.icon}
+                        disabled={!hasWallet}
+                      />
+                    ))}
+                  </RadioGroup>
+                ) : (
+                  <FieldDescription>
+                    Select an account with configured currency to continue.
+                  </FieldDescription>
+                )}
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
-                )}
-                {isHKMeta && (
-                  <FieldDescription>
-                    EUR wallet is not available for this account.
-                  </FieldDescription>
                 )}
               </Field>
             )}
@@ -336,7 +388,12 @@ export default function AccountTopupForm({
             <Button
               type="submit"
               size="sm"
-              disabled={isPending || !hasWallet || !selectedAccount}
+              disabled={
+                isPending ||
+                !hasWallet ||
+                !selectedAccount ||
+                !selectedAccountCurrency
+              }
             >
               {isPending && <Loader2 className="animate-spin" />}
               Submit

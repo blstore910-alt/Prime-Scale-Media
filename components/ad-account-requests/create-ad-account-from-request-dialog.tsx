@@ -53,7 +53,9 @@ function isMetaRequest(platform: string | null) {
 }
 
 function formatMetadataKey(key: string) {
-  return key.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  return key
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function formatMetadataValue(value: unknown) {
@@ -125,6 +127,7 @@ export default function CreateAdAccountFromRequestDialog({
         name: values.name,
         bm_id: values.platform.includes("meta") ? toBmId(metadata) : null,
         fee: values.fee,
+        currency: request.currency,
         advertiser_id: request.advertiser_id,
         platform: values.platform,
         airtable: false,
@@ -193,7 +196,9 @@ export default function CreateAdAccountFromRequestDialog({
                 <span className="font-medium">{request?.email || "-"}</span>
               </p>
               <p>
-                <span className="text-muted-foreground">Requested Platform:</span>{" "}
+                <span className="text-muted-foreground">
+                  Requested Platform:
+                </span>{" "}
                 <span className="font-medium">{request?.platform || "-"}</span>
               </p>
               <p>
@@ -214,7 +219,7 @@ export default function CreateAdAccountFromRequestDialog({
               </p>
               <p>
                 <span className="text-muted-foreground">Notes:</span>{" "}
-                <span className="font-medium break-words">
+                <span className="font-medium wrap-break-words">
                   {request?.notes || "-"}
                 </span>
               </p>
@@ -251,7 +256,9 @@ export default function CreateAdAccountFromRequestDialog({
                 <span className="font-medium">
                   {PLATFORMS.find(
                     (platform) => platform.value === form.watch("platform"),
-                  )?.label || form.watch("platform") || "-"}
+                  )?.label ||
+                    form.watch("platform") ||
+                    "-"}
                 </span>
               </div>
             )}
@@ -266,7 +273,7 @@ export default function CreateAdAccountFromRequestDialog({
                     <span className="text-muted-foreground">
                       {formatMetadataKey(key)}:
                     </span>{" "}
-                    <span className="font-medium break-words">
+                    <span className="font-medium wrap-break-words">
                       {formatMetadataValue(value)}
                     </span>
                   </p>

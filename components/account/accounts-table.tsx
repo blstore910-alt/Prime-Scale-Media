@@ -106,23 +106,21 @@ export default function AccountsTable() {
   const accounts = accountsData?.items ?? [];
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
-  const {
-    data: advertiserAccounts,
-    isLoading: isAdvertiserAccountsLoading,
-  } = useQuery<AdAccount[]>({
-    queryKey: ["advertiser-ad-accounts", advertiserId],
-    queryFn: async () => {
-      if (!advertiserId) return [];
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .select("*")
-        .eq("advertiser_id", advertiserId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as AdAccount[];
-    },
-    enabled: Boolean(advertiserId) && profile?.role === "advertiser",
-  });
+  const { data: advertiserAccounts, isLoading: isAdvertiserAccountsLoading } =
+    useQuery<AdAccount[]>({
+      queryKey: ["advertiser-ad-accounts", advertiserId],
+      queryFn: async () => {
+        if (!advertiserId) return [];
+        const { data, error } = await supabase
+          .from("ad_accounts")
+          .select("*")
+          .eq("advertiser_id", advertiserId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as AdAccount[];
+      },
+      enabled: Boolean(advertiserId) && profile?.role === "advertiser",
+    });
 
   // client-side filtering & searching
   const filteredAccounts = accounts.filter((a: any) => {
@@ -339,7 +337,9 @@ export default function AccountsTable() {
           {isAdvertiser && (
             <>
               {!isAdvertiserAccountsLoading && hasAdvertiserAccounts && (
-                <BulkTopupAdAccountsDialog accounts={advertiserAccounts ?? []} />
+                <BulkTopupAdAccountsDialog
+                  accounts={advertiserAccounts ?? []}
+                />
               )}
               <RequestAdAccountDialog>
                 <Button
@@ -414,7 +414,7 @@ export default function AccountsTable() {
                 <TableHead>Advertiser Name</TableHead>
                 <TableHead>Platform</TableHead>
                 <TableHead>Fee</TableHead>
-
+                <TableHead>Currency</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>

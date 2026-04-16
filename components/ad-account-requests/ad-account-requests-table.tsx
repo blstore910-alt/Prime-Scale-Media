@@ -250,7 +250,7 @@ export default function AdAccountRequestsTable() {
                       <Badge
                         className={`capitalize text-white ${getStatusClassName(request.status)}`}
                       >
-                        {request.status || "unknown"}
+                        {request.status?.split("_").join(" ") || "unknown"}
                       </Badge>
                     </TableCell>
                     <TableCell>

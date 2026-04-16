@@ -137,6 +137,14 @@ export function AccountDetailsSheet({
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground block">
+                      Currency:
+                    </span>
+                    {data.currency
+                      ? `${CURRENCY_SYMBOLS[data.currency] ?? data.currency} ${data.currency}`
+                      : "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground block">
                       Website URL:
                     </span>
                     {data.website_url ? (
