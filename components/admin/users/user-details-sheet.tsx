@@ -31,6 +31,7 @@ import { Button } from "../../ui/button";
 import { Textarea } from "../../ui/textarea";
 import useUpdateUserProfile from "./use-update-user";
 import UserAccounts from "./user-accounts";
+import UserAffiliates from "./user-affiliates";
 
 import UserSubscriptionDetails from "./user-subscription-details";
 import UserWalletTopups from "./user-wallet-topups";
@@ -311,6 +312,10 @@ export default function UserDetailsSheet({
                   subscriptions={advertiser.subscriptions}
                 />
                 <UserWalletTopups walletTopups={advertiser.wallet_topups} />
+                <UserAffiliates
+                  advertiser={advertiser}
+                  userName={data.full_name}
+                />
               </>
             ) : null}
 

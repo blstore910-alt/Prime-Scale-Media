@@ -50,7 +50,7 @@ export default function InactiveContent({
                       </Link>
                     </Button>
                     <Button asChild>
-                      <a href="mailto:support@psm-logbook.com">
+                      <a href="mailto:contact@primescalemedia.com ">
                         Contact Support
                       </a>
                     </Button>

@@ -24,53 +24,12 @@ import { Advertiser } from "@/lib/types/advertiser";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-type CommissionType =
-  | "none"
-  | "onetime_pct"
-  | "monthly_pct"
-  | "onetime"
-  | "monthly"
-  | "pct"
-  | "onetime_monthly";
-
-const COMMISSION_TYPE_OPTIONS: Array<{
-  value: CommissionType;
-  label: string;
-  helper: string;
-}> = [
-  { value: "none", label: "None", helper: "No commission fields enabled." },
-  {
-    value: "onetime",
-    label: "One Time",
-    helper: "Enable commission one time.",
-  },
-  {
-    value: "monthly",
-    label: "Monthly Fixed",
-    helper: "Enable commission monthly.",
-  },
-  {
-    value: "pct",
-    label: "Percentage",
-    helper: "Enable commission percent.",
-  },
-  {
-    value: "onetime_pct",
-    label: "One Time + Percentage",
-    helper: "Enable one time and percent.",
-  },
-  {
-    value: "monthly_pct",
-    label: "Monthly Fixed + Percentage",
-    helper: "Enable monthly and percent.",
-  },
-  {
-    value: "onetime_monthly",
-    label: "Onetime + Monthly",
-    helper: "Enable one time and monthly.",
-  },
-];
+import {
+  COMMISSION_TYPE_OPTIONS,
+  type CommissionType,
+  getCommissionFieldVisibility,
+  normalizeCommissionType,
+} from "./commission-setup-utils";
 
 type CommissionState = {
   commission_type: CommissionType;
@@ -87,7 +46,7 @@ function toInputValue(value?: number | string | null) {
 
 function buildInitialValues(advertiser: Advertiser | null): CommissionState {
   return {
-    commission_type: (advertiser?.commission_type as CommissionType) ?? "none",
+    commission_type: normalizeCommissionType(advertiser?.commission_type),
     commission_pct: toInputValue(advertiser?.commission_pct),
     commission_onetime: toInputValue(advertiser?.commission_onetime),
     commission_monthly: toInputValue(advertiser?.commission_monthly),
@@ -141,19 +100,12 @@ export default function CommissionSetupDialog({
     setCommissionCurrency(nextValues.commission_currency);
   }, [open, advertiser]);
 
-  const enablePct =
-    commissionType === "pct" ||
-    commissionType === "onetime_pct" ||
-    commissionType === "monthly_pct";
-  const enableOnetime =
-    commissionType === "onetime" ||
-    commissionType === "onetime_pct" ||
-    commissionType === "onetime_monthly";
-  const enableMonthly =
-    commissionType === "monthly" ||
-    commissionType === "monthly_pct" ||
-    commissionType === "onetime_monthly";
-  const enableCurrency = commissionType !== "none";
+  const {
+    showPct: enablePct,
+    showOnetime: enableOnetime,
+    showMonthly: enableMonthly,
+    showCurrency: enableCurrency,
+  } = getCommissionFieldVisibility(commissionType);
 
   const isDirty = useMemo(() => {
     return (
