@@ -22,24 +22,25 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { toast } from "sonner";
-import CommissionSetupDialog from "./commission-setup-dialog";
 import useUpdateUserProfile from "./use-update-user";
 import { Profile } from "./user-table";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
+import { Advertiser } from "@/lib/types/advertiser";
 
 export default function UserRow({
   profile,
   onView,
   onCreateSubscription,
+  onCommissionSetup,
 }: {
   profile: Profile;
   onView: (profile: Profile) => void;
   onCreateSubscription: (advertiserId: string) => void;
+  onCommissionSetup: (advertiser: Advertiser) => void;
 }) {
   const { updateUserProfile, isPending } = useUpdateUserProfile();
-  const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
 
   const hasSubscription = profile.advertiser?.[0]?.subscriptions?.length;
   const subscriptionStatus = hasSubscription
@@ -154,7 +155,7 @@ export default function UserRow({
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
-                setCommissionDialogOpen(true);
+                onCommissionSetup(profile.advertiser?.[0]);
               }}
             >
               <HandCoins />
@@ -183,12 +184,6 @@ export default function UserRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <CommissionSetupDialog
-          open={commissionDialogOpen}
-          onOpenChange={setCommissionDialogOpen}
-          advertiser={profile.advertiser?.[0] ?? null}
-        />
       </TableCell>
     </TableRow>
   );

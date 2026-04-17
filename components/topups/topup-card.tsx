@@ -4,7 +4,7 @@ import { Topup } from "@/lib/types/topup";
 import { cn } from "@/lib/utils";
 import dayjs from "dayjs";
 import { CheckCircle2, Eye, Loader2, MinusCircle, XCircle } from "lucide-react";
-import { useState } from "react";
+
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardTitle } from "../ui/card";
@@ -37,7 +37,6 @@ export default function TopupCard({
           : "bg-gray-500";
 
   const { isPending, updateTopup } = useUpdateTopup();
-  const [previewSlip, setPreviewSlip] = useState(false);
 
   const markPending = () => {
     updateTopup({
@@ -92,12 +91,22 @@ export default function TopupCard({
               </span>
               <span className="font-semibold">
                 {CURRENCY_SYMBOLS[topup.currency]} {topup.amount_received}
+                {topup.currency === "EUR" && topup.topup_usd ? (
+                  <span className="text-sm text-muted-foreground ml-1">
+                    ({CURRENCY_SYMBOLS["USD"]} {topup.amount_usd})
+                  </span>
+                ) : topup.currency === "USD" && topup.eur_topup ? (
+                  <span className="text-sm text-muted-foreground ml-1">
+                    ({CURRENCY_SYMBOLS["EUR"]} {topup.eur_value})
+                  </span>
+                ) : null}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-muted-foreground">Fee Amount</span>
               <span className="font-semibold">
-                {CURRENCY_SYMBOLS[topup.currency]} {topup.fee_amount}
+                {CURRENCY_SYMBOLS[topup.currency]} {topup.fee_amount} (
+                {topup.fee}%)
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">

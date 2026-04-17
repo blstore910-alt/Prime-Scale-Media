@@ -1,27 +1,30 @@
 "use client";
 
-import useUpdateAdvertiser from "@/components/advertiser/use-update-advertiser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { COMMISSION_TYPE_LABELS } from "@/lib/constants";
 import { DATE_FORMAT } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
+import { Advertiser } from "@/lib/types/advertiser";
 import dayjs from "dayjs";
-import { CheckCircle2, MinusCircle, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, MinusCircle, Plus, Settings } from "lucide-react";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import useUpdateUserProfile from "./use-update-user";
 import { Profile } from "./user-table";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
-import { formatCurrency } from "@/lib/utils";
 
 export default function UserCard({
   profile,
   onViewDetails,
   onCreateSubscription,
+  onCommissionSetup,
 }: {
   profile: Profile;
   onViewDetails: (id?: string) => void;
   onCreateSubscription: (advertiserId: string) => void;
+  onCommissionSetup: (advertiser: Advertiser) => void;
 }) {
   const { updateUserProfile, isPending: isUpdatingUser } =
     useUpdateUserProfile();
@@ -121,6 +124,34 @@ export default function UserCard({
               Create
             </Button>
           )}
+        </div>
+
+        <div className="mt-2 w-full flex items-center justify-between gap-2">
+          <span className="text-sm text-muted-foreground">
+            Commission Type:
+          </span>
+          <div className="flex items-center gap-2">
+            {profile.advertiser?.[0]?.commission_type ? (
+              <Badge variant="outline" className="capitalize">
+                {COMMISSION_TYPE_LABELS[
+                  profile.advertiser[0].commission_type
+                ] || profile.advertiser[0].commission_type}
+              </Badge>
+            ) : (
+              <span className="text-sm text-muted-foreground">Not set</span>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCommissionSetup(profile.advertiser?.[0]);
+              }}
+            >
+              <Settings className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-2 mt-4 pt-4 border-t [&_button]:w-full">

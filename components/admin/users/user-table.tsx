@@ -28,6 +28,7 @@ import { useEffect, useState } from "react";
 import useUsers from "./use-users";
 import UserDetailsSheet from "./user-details-sheet";
 import CreateSubscriptionDialog from "@/components/subscriptions/create-subscription-dialog";
+import CommissionSetupDialog from "./commission-setup-dialog";
 
 import UserRow from "./user-row";
 import TablePagination from "@/components/ui/table-pagination";
@@ -48,6 +49,7 @@ export default function UserTable() {
     topup: false,
     details: false,
     subscription: false,
+    commission: false,
   });
   const [downloadingCSV, setDownloadingCSV] = useState(false);
   const initialSort = searchParams?.get("sort") ?? "newest";
@@ -65,6 +67,8 @@ export default function UserTable() {
   const [perPage] = useState<number>(initialPerPage);
   const isTabletScreen = useMediaQuery("(min-width: 768px)");
   const [advertiserId, setAdvertiserId] = useState<string>("");
+  const [commissionAdvertiser, setCommissionAdvertiser] =
+    useState<Advertiser | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(Array.from(searchParams ?? []));
@@ -264,6 +268,10 @@ export default function UserTable() {
                       setOpen((prev) => ({ ...prev, subscription: true }));
                       setAdvertiserId(advertiserId);
                     }}
+                    onCommissionSetup={(advertiser) => {
+                      setCommissionAdvertiser(advertiser);
+                      setOpen((prev) => ({ ...prev, commission: true }));
+                    }}
                     profile={profile}
                     onView={() => {
                       setSelectedProfile(profile);
@@ -295,6 +303,10 @@ export default function UserTable() {
                   onCreateSubscription={(advertiserId) => {
                     setOpen((prev) => ({ ...prev, subscription: true }));
                     setAdvertiserId(advertiserId);
+                  }}
+                  onCommissionSetup={(advertiser) => {
+                    setCommissionAdvertiser(advertiser);
+                    setOpen((prev) => ({ ...prev, commission: true }));
                   }}
                   onViewDetails={() => {
                     setSelectedProfile(profile);
@@ -349,6 +361,16 @@ export default function UserTable() {
           }
         }}
         defaultAdvertiserId={advertiserId}
+      />
+      <CommissionSetupDialog
+        open={open.commission}
+        onOpenChange={(value) => {
+          setOpen((prev) => ({ ...prev, commission: value }));
+          if (!value) {
+            setCommissionAdvertiser(null);
+          }
+        }}
+        advertiser={commissionAdvertiser}
       />
     </>
   );
