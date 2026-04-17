@@ -28,4 +28,6 @@ export type Topup = {
   eur_topup: number | null;
   topup_usd: string | number | null;
   rate: number | null;
+  notes?: string | null;
+  updated_at?: string;
 };

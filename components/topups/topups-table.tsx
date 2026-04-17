@@ -396,9 +396,11 @@ export default function TopupsTable() {
       <TopupDetailsSheet
         open={openedPanels.details}
         topupId={selectedTopup as string}
-        onOpenChange={() => {
-          setSelectedTopup(null);
-          setOpenedPanels((prev) => ({ ...prev, details: false }));
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedTopup(null);
+            setOpenedPanels((prev) => ({ ...prev, details: false }));
+          }
         }}
       />
       <VerifyTopupDialog

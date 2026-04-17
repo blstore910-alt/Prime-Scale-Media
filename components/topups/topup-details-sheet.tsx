@@ -29,6 +29,7 @@ import { useState, useEffect, useRef } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetClose,
@@ -39,6 +40,8 @@ import {
 } from "../ui/sheet";
 import PaymentSlipPreview from "./payment-slip-preview";
 import useGetTopup from "./use-get-topup";
+import { Textarea } from "../ui/textarea";
+import useUpdateTopup from "./use-update-topup";
 
 export function TopupDetailsSheet({
   open,
@@ -53,6 +56,9 @@ export function TopupDetailsSheet({
   const [previewSlip, setPreviewSlip] = useState(false);
   const { profile } = useAppContext();
   const pushedRef = useRef(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState("");
+  const { updateTopup, isPending: isUpdatingNotes } = useUpdateTopup();
 
   useEffect(() => {
     const handlePop = () => {
@@ -84,6 +90,41 @@ export function TopupDetailsSheet({
       }
     };
   }, [open, onOpenChange]);
+
+  useEffect(() => {
+    if (topup) {
+      setNotesValue(topup.notes || "");
+    }
+  }, [topup]);
+
+  const handleSaveNotes = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!topupId) return;
+
+    const savedNotes = notesValue.trim();
+
+    updateTopup(
+      {
+        topupId,
+        payload: {
+          notes: savedNotes || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Notes saved successfully");
+          setEditingNotes(false);
+          // Update local state with saved value to prevent closing
+        },
+        onError: (error) => {
+          toast.error("Failed to save notes", {
+            description: error?.message,
+          });
+        },
+      },
+    );
+  };
 
   const handleDownload = async () => {
     if (!topup?.payment_slip) return;
@@ -199,7 +240,7 @@ export function TopupDetailsSheet({
                       </span>{" "}
                       {
                         PLATFORMS.find(
-                          (p) => p.value === topup.account?.platform
+                          (p) => p.value === topup.account?.platform,
                         )?.label
                       }
                     </p>
@@ -281,6 +322,71 @@ export function TopupDetailsSheet({
                   </p>
                 )}
               </div>
+            </section>
+            <Separator />
+            {/* --- Notes --- */}
+            <section>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-base">Notes</h3>
+                {profile?.role === "admin" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingNotes(!editingNotes)}
+                    disabled={isUpdatingNotes}
+                  >
+                    {editingNotes ? "Cancel" : "Edit"}
+                  </Button>
+                )}
+              </div>
+              {editingNotes ? (
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    value={notesValue}
+                    onChange={(e) => setNotesValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Prevent Escape key from closing the sheet while editing
+                      if (e.key === "Escape") {
+                        e.stopPropagation();
+                      }
+                    }}
+                    placeholder="Add notes..."
+                    className="min-h-32"
+                    disabled={isUpdatingNotes}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleSaveNotes}
+                      disabled={isUpdatingNotes}
+                    >
+                      {isUpdatingNotes && (
+                        <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                      )}
+                      Save Notes
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingNotes(false);
+                        setNotesValue(topup?.notes || "");
+                      }}
+                      disabled={isUpdatingNotes}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : notesValue ? (
+                <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                  {notesValue}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {profile?.role === "admin" ? "No notes added yet." : "N/A"}
+                </p>
+              )}
             </section>
             <Separator />
             {topupId && <TopupLogs topupId={topupId} />}
@@ -393,7 +499,7 @@ export default function TopupLogs({ topupId }: { topupId: string }) {
                           : "",
                         log.action === "update"
                           ? "border-yellow-600 text-yellow-600"
-                          : ""
+                          : "",
                       )}
                     >
                       {log.action}

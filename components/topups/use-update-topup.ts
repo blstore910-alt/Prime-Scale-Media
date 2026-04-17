@@ -32,7 +32,11 @@ export default function useUpdateTopup() {
     },
     onSuccess: async (data) => {
       await updateTopupLogs(data, data.is_deleted ? "delete" : "update");
-      queryClient.invalidateQueries({ queryKey: ["top-ups"] });
+      // Delay invalidation to prevent sheet from closing
+      // This updates the list in the background without affecting the detail view
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
+      }, 500);
     },
   });
 

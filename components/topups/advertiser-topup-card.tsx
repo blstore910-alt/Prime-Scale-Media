@@ -2,17 +2,21 @@ import { DATE_FORMAT } from "@/lib/constants";
 import { Topup } from "@/lib/types/topup";
 import { cn } from "@/lib/utils";
 import dayjs from "dayjs";
+import { MessageSquare } from "lucide-react";
 
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 
 import { Card, CardContent } from "../ui/card";
 
 export default function AdvertiserTopupCard({
   topup,
+  onViewNotes,
 }: {
   topup: Topup & {
     account_name?: string;
   };
+  onViewNotes?: () => void;
 }) {
   const statusColor =
     topup.status === "completed"
@@ -99,7 +103,7 @@ export default function AdvertiserTopupCard({
         </div>
 
         {/* Right Section: Status & Actions */}
-        <div className="md:col-span-3 flex items-center justify-between md:justify-end">
+        <div className="md:col-span-3 flex items-center justify-between md:justify-end gap-2">
           <Badge
             className={cn(
               statusColor,
@@ -108,6 +112,18 @@ export default function AdvertiserTopupCard({
           >
             {topup.status}
           </Badge>
+          {topup.notes && onViewNotes && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onViewNotes}
+              className="gap-1.5"
+              title="View notes"
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Notes</span>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
