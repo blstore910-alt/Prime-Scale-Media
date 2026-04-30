@@ -87,12 +87,18 @@ export default function useCreateAdAccountRequestInvoice() {
 
       return data as Invoice;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({
         queryKey: ["invoices", profile?.tenant_id],
       });
       await queryClient.invalidateQueries({
         queryKey: ["ad-account-requests"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [
+          "ad-account-request-details",
+          variables.ad_account_request_id,
+        ],
       });
     },
   });

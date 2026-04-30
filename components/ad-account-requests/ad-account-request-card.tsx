@@ -4,7 +4,7 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import dayjs from "dayjs";
-import { Eye, PlusCircle, XCircle } from "lucide-react";
+import { Eye } from "lucide-react";
 
 function getStatusClassName(status: string | null) {
   if (!status) return "border-slate-300 text-slate-700";
@@ -24,25 +24,11 @@ function getStatusClassName(status: string | null) {
 
 export default function AdAccountRequestCard({
   request,
-  onView,
-  onCreateAdAccount,
-  onReject,
+  onReview,
 }: {
   request: AdAccountRequest;
-  onView?: (requestId: string) => void;
-  onCreateAdAccount?: (request: AdAccountRequest) => void;
-  onReject?: (request: AdAccountRequest) => void;
+  onReview?: (requestId: string) => void;
 }) {
-  const statusValue = (request.status || "").toLowerCase();
-  const isAlreadyCompleted = ["completed", "approved", "rejected"].includes(
-    statusValue,
-  );
-  const canReject = !["completed", "approved", "rejected"].includes(
-    statusValue,
-  );
-  const hasAdvertiser = !!request.advertiser_id;
-  const canCreateAdAccount = !isAlreadyCompleted && hasAdvertiser;
-
   return (
     <Card className="p-2">
       <CardContent className="p-3">
@@ -104,47 +90,20 @@ export default function AdAccountRequestCard({
           </div>
         </div>
 
-        {(onView || canCreateAdAccount || canReject) && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4 pt-4 border-t">
-            {onView && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onView(request.id);
-                }}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </Button>
-            )}
-            {onCreateAdAccount && canCreateAdAccount && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreateAdAccount(request);
-                }}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Create Ad Account
-              </Button>
-            )}
-            {onReject && canReject && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReject(request);
-                }}
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                Reject
-              </Button>
-            )}
+        {onReview && (
+          <div className="mt-4 border-t pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReview(request.id);
+              }}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Review
+            </Button>
           </div>
         )}
       </CardContent>

@@ -413,7 +413,7 @@ function AssignAffiliateDialog({
               disabled={isPending || isLoadingOptions || options.length === 0}
             >
               {isPending ? <Loader2 className="animate-spin" /> : null}
-              Create Referral Link
+              Assign Affiliate
             </Button>
           </DialogFooter>
         </form>

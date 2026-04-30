@@ -26,7 +26,7 @@ type CurrencyCode = "USD" | "EUR";
 
 type AccountRecord = Pick<
   AdAccount,
-  "id" | "name" | "fee" | "advertiser_id" | "tenant_id" | "platform" | "currency"
+  "id" | "name" | "fee" | "advertiser_id" | "tenant_id" | "platform" | "currency" | 'min_topup'
 > & {
   advertiser?: { tenant_client_code?: string | null } | null;
 };
@@ -139,8 +139,7 @@ export default function AccountTopupForm({
   const hasWallet = !!wallet;
 
   const minTopupAmount =
-    account?.min_topup !== null ? (account?.min_topup as number) : 300;
-
+    selectedAccount?.min_topup ?? 300;
   const formSchema = useMemo(
     () =>
       z

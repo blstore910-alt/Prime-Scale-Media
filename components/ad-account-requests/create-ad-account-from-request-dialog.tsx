@@ -52,19 +52,6 @@ function isMetaRequest(platform: string | null) {
   return (platform || "").includes("meta");
 }
 
-function formatMetadataKey(key: string) {
-  return key
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatMetadataValue(value: unknown) {
-  if (value === null || value === undefined || value === "") return "-";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
-
 function toBmId(metadata: Record<string, unknown> | null | undefined) {
   const raw = metadata?.facebook_business_manager_id;
   if (raw === null || raw === undefined || raw === "") return null;
@@ -110,8 +97,6 @@ export default function CreateAdAccountFromRequestDialog({
 
   const metadata =
     (request?.metadata as Record<string, unknown> | null | undefined) ?? null;
-  const metadataEntries = metadata ? Object.entries(metadata) : [];
-
   const { mutate, isPending } = useMutation({
     mutationKey: ["create-account-from-request", request?.id],
     mutationFn: async (values: FormValues) => {
@@ -176,12 +161,12 @@ export default function CreateAdAccountFromRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[680px]">
+      <DialogContent className="sm:max-w-96">
         <DialogHeader>
           <DialogTitle>Create Ad Account</DialogTitle>
           <DialogDescription>
-            Create an ad account from this request. Request details are
-            prefilled below.
+            Complete the required fields to create an ad account from this
+            request.
           </DialogDescription>
         </DialogHeader>
 
@@ -190,41 +175,6 @@ export default function CreateAdAccountFromRequestDialog({
           onSubmit={form.handleSubmit((values) => mutate(values))}
         >
           <div className="max-h-[68vh] overflow-y-auto space-y-4 px-1 py-1">
-            <div className="rounded-md border p-3 space-y-2 text-sm">
-              <p>
-                <span className="text-muted-foreground">Email:</span>{" "}
-                <span className="font-medium">{request?.email || "-"}</span>
-              </p>
-              <p>
-                <span className="text-muted-foreground">
-                  Requested Platform:
-                </span>{" "}
-                <span className="font-medium">{request?.platform || "-"}</span>
-              </p>
-              <p>
-                <span className="text-muted-foreground">Currency:</span>{" "}
-                <span className="font-medium uppercase">
-                  {request?.currency || "-"}
-                </span>
-              </p>
-              <p>
-                <span className="text-muted-foreground">Timezone:</span>{" "}
-                <span className="font-medium">{request?.timezone || "-"}</span>
-              </p>
-              <p>
-                <span className="text-muted-foreground">Website:</span>{" "}
-                <span className="font-medium break-all">
-                  {request?.website_url || "-"}
-                </span>
-              </p>
-              <p>
-                <span className="text-muted-foreground">Notes:</span>{" "}
-                <span className="font-medium wrap-break-words">
-                  {request?.notes || "-"}
-                </span>
-              </p>
-            </div>
-
             <InputField
               label="Account Name"
               name="name"
@@ -262,26 +212,6 @@ export default function CreateAdAccountFromRequestDialog({
                 </span>
               </div>
             )}
-
-            <div className="rounded-md border p-3 space-y-2 text-sm">
-              <p className="text-muted-foreground font-medium">
-                Platform Details
-              </p>
-              {metadataEntries.length ? (
-                metadataEntries.map(([key, value]) => (
-                  <p key={key}>
-                    <span className="text-muted-foreground">
-                      {formatMetadataKey(key)}:
-                    </span>{" "}
-                    <span className="font-medium wrap-break-words">
-                      {formatMetadataValue(value)}
-                    </span>
-                  </p>
-                ))
-              ) : (
-                <p className="font-medium">-</p>
-              )}
-            </div>
           </div>
         </form>
 

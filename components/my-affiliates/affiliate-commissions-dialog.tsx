@@ -67,12 +67,7 @@ export default function AffiliateCommissionsDialog({
     return `${currency || ""} ${value}`.trim();
   };
 
-  const formatType = (type: string | null | undefined) => {
-    if (!type) return "-";
-    if (type === "onetime") return "One-time";
-    if (type === "monthly") return "Monthly";
-    return type;
-  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -180,7 +175,7 @@ export default function AffiliateCommissionsDialog({
                     commission.amount,
                     commission.currency,
                   )}
-                  type={formatType(commission.type)}
+                  type={COMMISSION_TYPE_LABELS[commission.type as string]}
                   status={commission.status || "-"}
                   date={formatDate(commission.created_at)}
                 />

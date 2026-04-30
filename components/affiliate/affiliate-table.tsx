@@ -2,7 +2,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import AffiliateTableRow, {
   ReferralLinkRow,
 } from "@/components/affiliate/affiliate-table-row";
 import { formatCurrency } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 const EMPTY_VALUE = "N/A";
 
@@ -33,8 +34,11 @@ export default function AffiliatesTable() {
   const initialPage = parseInt(searchParams?.get("page") ?? "1", 10) || 1;
   const initialPerPage =
     parseInt(searchParams?.get("perPage") ?? "10", 10) || 10;
+  const initialSearch = searchParams?.get("search") ?? "";
   const [page, setPage] = useState<number>(initialPage);
   const [perPage] = useState<number>(initialPerPage);
+  const [search, setSearch] = useState<string>(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch);
   const tenantId = profile?.tenant_id ?? null;
 
   const numberFormatter = useMemo(
@@ -78,19 +82,28 @@ export default function AffiliatesTable() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["referral-links-with-details", tenantId, page, perPage],
+    queryKey: ["referral-links-with-details", tenantId, page, perPage, debouncedSearch],
     enabled: !!tenantId && isAdmin,
     queryFn: async () => {
       if (!tenantId) return { items: [], total: 0 };
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;
       const supabase = createClient();
-      const { data, error, count } = await supabase
+      
+      let query = supabase
         .from("referral_links_with_details")
         .select("*", { count: "exact" })
         .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .range(start, end);
+        .order("created_at", { ascending: false });
+
+      // Apply search filter on affiliate fields
+      if (debouncedSearch.trim()) {
+        query = query.or(
+          `affiliate_advertiser_name.ilike.*${debouncedSearch}*,affiliate_advertiser_email.ilike.*${debouncedSearch}*,affiliate_advertiser_tenant_client_code.ilike.*${debouncedSearch}*`
+        );
+      }
+
+      const { data, error, count } = await query.range(start, end);
 
       if (error) throw error;
       return { items: (data ?? []) as ReferralLinkRow[], total: count ?? 0 };
@@ -106,11 +119,22 @@ export default function AffiliatesTable() {
     else params.delete("page");
     if (perPage && perPage !== 10) params.set("perPage", String(perPage));
     else params.delete("perPage");
+    if (search) params.set("search", search);
+    else params.delete("search");
     const qs = params.toString();
     const url = qs ? `${pathname}?${qs}` : pathname;
     router.replace(url);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, perPage]);
+  }, [page, perPage, search]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const colCount = 8;
   const loadingState = isLoading || (!!tenantId && !referralLinksData);
@@ -133,6 +157,17 @@ export default function AffiliatesTable() {
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search affiliate..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      </div>
       {isTabletScreen ? (
         <div className="overflow-hidden rounded-lg border">
           <Table>

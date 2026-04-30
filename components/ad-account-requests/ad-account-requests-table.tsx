@@ -20,12 +20,12 @@ import TablePagination from "@/components/ui/table-pagination";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import dayjs from "dayjs";
-import { Eye, PlusCircle, XCircle } from "lucide-react";
+import { Eye } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useMediaQuery } from "usehooks-ts";
 import AdAccountRequestCard from "./ad-account-request-card";
-import AdAccountRequestDetailsSheet from "./ad-account-request-details-sheet";
+import AdAccountRequestReviewDialog from "./ad-account-request-review-dialog";
 import AdAccountRequestRejectDialog from "./ad-account-request-reject-dialog";
 import CreateAdAccountFromRequestDialog from "./create-ad-account-from-request-dialog";
 import CreateAdAccountRequestInvoiceDialog from "./create-ad-account-request-invoice-dialog";
@@ -34,6 +34,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 function getStatusClassName(status: string | null) {
   if (!status) return "border-slate-300 text-slate-700";
@@ -56,6 +57,7 @@ export default function AdAccountRequestsTable() {
   const router = useRouter();
   const pathname = usePathname();
   const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const queryClient = useQueryClient();
 
   const initialSort = searchParams?.get("sort") ?? "newest";
   const initialQ = searchParams?.get("q") ?? "";
@@ -130,6 +132,9 @@ export default function AdAccountRequestsTable() {
       if (updateError) throw updateError;
 
       toast.success("Ad account request rejected.");
+      await queryClient.invalidateQueries({
+        queryKey: ["ad-account-request-details", requestToReject.id],
+      });
       setRequestToReject(null);
       await refetch();
     } catch (err) {
@@ -145,13 +150,6 @@ export default function AdAccountRequestsTable() {
 
   return (
     <>
-      <CreateAdAccountRequestInvoiceDialog
-        request={requestForInvoiceCreation}
-        open={requestForInvoiceCreation !== null}
-        onOpenChange={(open) => {
-          if (!open) setRequestForInvoiceCreation(null);
-        }}
-      />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
         <div className="flex gap-2 items-center self-end w-full md:w-auto">
           <Input
@@ -266,47 +264,8 @@ export default function AdAccountRequestsTable() {
                           onClick={() => setSelectedRequestId(request.id)}
                         >
                           <Eye className="mr-2 h-4 w-4" />
-                          View
+                          Review
                         </Button>
-                        {request.status?.toLowerCase() === "pending" &&
-                          request.advertiser_id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setRequestForInvoiceCreation(request)
-                              }
-                            >
-                              <PlusCircle className="mr-2 h-4 w-4" />
-                              Create Invoice
-                            </Button>
-                          )}
-                        {request.status?.toLowerCase() ===
-                          "payment_successful" &&
-                          request.advertiser_id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setRequestForAccountCreation(request)
-                              }
-                            >
-                              <PlusCircle className="mr-2 h-4 w-4" />
-                              Create Ad Account
-                            </Button>
-                          )}
-                        {!["completed", "approved", "rejected"].includes(
-                          (request.status || "").toLowerCase(),
-                        ) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setRequestToReject(request)}
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Reject
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -332,9 +291,7 @@ export default function AdAccountRequestsTable() {
                 <AdAccountRequestCard
                   key={request.id}
                   request={request}
-                  onView={setSelectedRequestId}
-                  onCreateAdAccount={setRequestForAccountCreation}
-                  onReject={setRequestToReject}
+                  onReview={setSelectedRequestId}
                 />
               ))}
             </div>
@@ -370,11 +327,21 @@ export default function AdAccountRequestsTable() {
         </div>
       ) : null}
 
-      <AdAccountRequestDetailsSheet
+      <AdAccountRequestReviewDialog
         requestId={selectedRequestId}
         open={selectedRequestId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedRequestId(null);
+        }}
+        onCreateInvoice={setRequestForInvoiceCreation}
+        onCreateAdAccount={setRequestForAccountCreation}
+        onReject={setRequestToReject}
+      />
+      <CreateAdAccountRequestInvoiceDialog
+        request={requestForInvoiceCreation}
+        open={requestForInvoiceCreation !== null}
+        onOpenChange={(open) => {
+          if (!open) setRequestForInvoiceCreation(null);
         }}
       />
       <CreateAdAccountFromRequestDialog

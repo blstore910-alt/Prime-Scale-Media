@@ -114,55 +114,13 @@ export default function CreateAdAccountRequestInvoiceDialog({
         onOpenChange(value);
       }}
     >
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-96">
         <DialogHeader>
           <DialogTitle>Create Invoice</DialogTitle>
           <DialogDescription>
-            Create a payment invoice for this ad account request.
+            Enter the invoice amount for this ad account request.
           </DialogDescription>
         </DialogHeader>
-
-        {request && (
-          <div className="rounded-lg border border-muted p-4 space-y-3 bg-muted/40">
-            <div>
-              <p className="text-sm text-muted-foreground">Advertiser</p>
-              <p className="font-medium">
-                {request.advertiser?.tenant_client_code ?? "-"} •{" "}
-                {request.advertiser?.profile?.full_name ?? "-"}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-muted-foreground">Request Email</p>
-                <p className="font-medium break-all">{request.email || "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Platform</p>
-                <p className="font-medium capitalize">
-                  {request.platform || "-"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Request Currency
-                </p>
-                <p className="font-medium uppercase">
-                  {request.currency || "-"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Timezone</p>
-                <p className="font-medium">{request.timezone || "-"}</p>
-              </div>
-            </div>
-            {request.notes && (
-              <div>
-                <p className="text-sm text-muted-foreground">Notes</p>
-                <p className="font-medium wrap-break-word">{request.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
 
         <form
           id="create-request-invoice-form"

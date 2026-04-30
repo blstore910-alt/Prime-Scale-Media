@@ -443,9 +443,7 @@ function MyAffiliateCard({
             <CardTitle className="text-sm leading-tight truncate">
               {referral.referred_advertiser_name || "Unknown Advertiser"}
             </CardTitle>
-            <p className="text-[11px] leading-tight text-muted-foreground truncate">
-              {referral.referred_advertiser_email || EMPTY_VALUE}
-            </p>
+          
           </div>
         </div>
 
