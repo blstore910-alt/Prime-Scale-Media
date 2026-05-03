@@ -55,11 +55,13 @@ const chartConfig = {
 
 async function fetchRegistrationsStats(
   period: DashboardPeriod,
-  dateRange?: DashboardDateRange
+  dateRange?: DashboardDateRange,
 ): Promise<RegistrationsStatsResponse> {
   const { from, to } = getPeriodRange(period, dateRange);
   const searchParams = new URLSearchParams({ from, to });
-  const res = await fetch(`/api/stats/registrations?${searchParams.toString()}`);
+  const res = await fetch(
+    `/api/stats/registrations?${searchParams.toString()}`,
+  );
   if (!res.ok) {
     throw new Error("Failed to fetch registrations stats");
   }
@@ -107,7 +109,9 @@ export function RegistrationsStatsCard({
     return (
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription className="">Advertisers / Affiliates</CardDescription>
+          <CardDescription className="">
+            Advertisers / Affiliates
+          </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
@@ -123,7 +127,7 @@ export function RegistrationsStatsCard({
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
-        <CardDescription className="font-semibold text-card-foreground">
+        <CardDescription className="font-semibold text-lg text-card-foreground">
           Advertisers / Affiliates
         </CardDescription>
         <CardTitle className="text-xl font-semibold tabular-nums">
@@ -131,9 +135,6 @@ export function RegistrationsStatsCard({
           <span className="mx-2">/</span>
           <span>{formatNumber(data.totals.affiliates)}</span>
         </CardTitle>
-        <p className="line-clamp-1 flex gap-2 text-sm font-medium text-muted-foreground">
-          New Registrations
-        </p>
       </CardHeader>
 
       <CardContent className="pt-0 px-4">

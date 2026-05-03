@@ -127,7 +127,7 @@ export function FeesStatsCard({
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
-        <CardDescription className="font-semibold text-card-foreground">
+        <CardDescription className="font-semibold text-lg text-card-foreground">
           Fees <span>({formatNumber(data.totals.count)})</span>
         </CardDescription>
         <CardTitle className=" text-xl font-semibold tabular-nums">
@@ -135,9 +135,6 @@ export function FeesStatsCard({
           <span className="mx-2">/</span>
           <span>{formatCurrency(data.totals.eur.amount, "EUR")}</span>
         </CardTitle>
-        <p className="line-clamp-1 flex gap-2 text-sm font-medium text-muted-foreground">
-          Fees Collected
-        </p>
       </CardHeader>
 
       <CardContent className="pt-0 px-4">

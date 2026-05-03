@@ -66,6 +66,8 @@ export default function AccountTopupForm({
     account ?? null,
   );
 
+  
+
   const {
     data: accounts = [],
     isLoading: accountsLoading,
@@ -272,6 +274,7 @@ export default function AccountTopupForm({
       },
     ];
   }, [selectedAccountCurrency, usdBalance, eurBalance]);
+
 
   return (
     <form onSubmit={handleSubmit((values) => mutate(values))}>

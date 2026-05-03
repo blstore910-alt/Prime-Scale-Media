@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppContext } from "@/context/app-provider";
 import { DATE_FORMAT } from "@/lib/constants";
 import { DashboardPeriod } from "@/lib/dashboard-period";
 import { formatCurrency } from "@/lib/utils";
@@ -60,7 +61,6 @@ interface StatsResponse {
     eur_amount: number;
   };
   revenue_profit: {
-    total_revenue: number;
     total_profit: number;
   };
   ad_accounts: {
@@ -69,10 +69,6 @@ interface StatsResponse {
   };
   advertisers_affiliates: {
     advertisers: {
-      total: number;
-      active: number;
-    };
-    affiliates: {
       total: number;
       active: number;
     };
@@ -96,10 +92,13 @@ const formatNumber = (value: number) => {
 const formatDateLabel = (date: Date) => dayjs(date).format(DATE_FORMAT);
 
 export function DashboardStatsCards() {
+  const { profile, isSuperAdmin } = useAppContext();
   const [period, setPeriod] = useState<DashboardPeriod>("today");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date | undefined>();
+  const isAdminDashboard = profile?.role === "admin" && !isSuperAdmin;
+  const showFullDashboard = !isAdminDashboard;
 
   const {
     data: stats,
@@ -108,6 +107,7 @@ export function DashboardStatsCards() {
   } = useQuery({
     queryKey: ["stats", "overview"],
     queryFn: fetchStats,
+    enabled: showFullDashboard,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -233,77 +233,94 @@ export function DashboardStatsCards() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
-        <TopupsStatsCard period={period} dateRange={dateRange} />
-        <FeesStatsCard period={period} dateRange={dateRange} />
-        <AffiliateCommissionsStatsCard period={period} dateRange={dateRange} />
-      </div>
+      {isAdminDashboard ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
+          <TopupsStatsCard period={period} dateRange={dateRange} />
+          <SubscriptionsStatsCard period={period} dateRange={dateRange} />
+          <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
+          <RegistrationsStatsCard period={period} dateRange={dateRange} />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
+            <TopupsStatsCard period={period} dateRange={dateRange} />
+            <FeesStatsCard period={period} dateRange={dateRange} />
+            <AffiliateCommissionsStatsCard
+              period={period}
+              dateRange={dateRange}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
-        <SubscriptionsStatsCard period={period} dateRange={dateRange} />
-        <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
-        <ProfitStatsCard period={period} dateRange={dateRange} />
-        <RegistrationsStatsCard period={period} dateRange={dateRange} />
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 *:data-[slot=card]:shadow-xs">
-        <SummaryStatCard
-          title="Total Topups"
-          value={
-            stats
-              ? `${formatCurrency(stats.total_topups.usd_amount, "USD")} / ${formatCurrency(stats.total_topups.eur_amount, "EUR")}`
-              : ""
-          }
-          description={
-            stats ? `${formatNumber(stats.total_topups.count)} completed` : ""
-          }
-          isLoading={isStatsLoading}
-          isError={isStatsError}
-        />
-        <SummaryStatCard
-          title="Total Fees"
-          value={
-            stats
-              ? `${formatCurrency(stats.total_fees.usd_amount, "USD")} / ${formatCurrency(stats.total_fees.eur_amount, "EUR")}`
-              : ""
-          }
-          description={
-            stats ? `From ${formatNumber(stats.total_fees.count)} topups` : ""
-          }
-          isLoading={isStatsLoading}
-          isError={isStatsError}
-        />
-        <SummaryStatCard
-          title="Total Revenue"
-          value={
-            stats ? `${formatCurrency(stats.revenue_profit.total_revenue)}` : ""
-          }
-          description={
-            stats
-              ? `Profit: ${formatCurrency(stats.revenue_profit.total_profit)}`
-              : ""
-          }
-          isLoading={isStatsLoading}
-          isError={isStatsError}
-        />
-        <SummaryStatCard
-          title="Total Ad Accounts"
-          value={stats ? `${formatNumber(stats.ad_accounts.total)}` : ""}
-          description={` ${stats ? formatNumber(stats.ad_accounts.active) : 0} active `}
-          isLoading={isStatsLoading}
-          isError={isStatsError}
-        />
-        <SummaryStatCard
-          title="Total Advertisers"
-          value={
-            stats
-              ? `${formatNumber(stats.advertisers_affiliates.advertisers.total)}`
-              : ""
-          }
-          description={`${stats ? formatNumber(stats.advertisers_affiliates.advertisers.active) : 0} active`}
-          isLoading={isStatsLoading}
-          isError={isStatsError}
-        />
-      </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
+            <SubscriptionsStatsCard period={period} dateRange={dateRange} />
+            <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
+            <ProfitStatsCard period={period} dateRange={dateRange} />
+            <RegistrationsStatsCard period={period} dateRange={dateRange} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 *:data-[slot=card]:shadow-xs">
+            <SummaryStatCard
+              title="Total Topups"
+              value={
+                stats
+                  ? `${formatCurrency(stats.total_topups.usd_amount, "USD")} / ${formatCurrency(stats.total_topups.eur_amount, "EUR")}`
+                  : ""
+              }
+              description={
+                stats
+                  ? `From ${formatNumber(stats.total_topups.count)} topups`
+                  : ""
+              }
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+            />
+            <SummaryStatCard
+              title="Total Fees"
+              value={
+                stats
+                  ? `${formatCurrency(stats.total_fees.usd_amount, "USD")} / ${formatCurrency(stats.total_fees.eur_amount, "EUR")}`
+                  : ""
+              }
+              description={
+                stats
+                  ? `From ${formatNumber(stats.total_fees.count)} topups`
+                  : ""
+              }
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+            />
+            <SummaryStatCard
+              title="Total Profit"
+              value={
+                stats
+                  ? `${formatCurrency(stats.revenue_profit.total_profit, "EUR")}`
+                  : ""
+              }
+              description=""
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+            />
+            <SummaryStatCard
+              title="Total Ad Accounts"
+              value={stats ? `${formatNumber(stats.ad_accounts.total)}` : ""}
+              description={` ${stats ? formatNumber(stats.ad_accounts.active) : 0} active `}
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+            />
+            <SummaryStatCard
+              title="Total Advertisers"
+              value={
+                stats
+                  ? `${formatNumber(stats.advertisers_affiliates.advertisers.total)}`
+                  : ""
+              }
+              description={`${stats ? formatNumber(stats.advertisers_affiliates.advertisers.active) : 0} active`}
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -351,7 +368,7 @@ function SummaryStatCard({
   return (
     <Card className="@container/card py-4">
       <CardHeader className="gap-2 px-4">
-        <CardDescription className="font-semibold text-card-foreground">
+        <CardDescription className="font-semibold text-lg text-card-foreground">
           {title}
         </CardDescription>
         <CardTitle className="text-xl font-semibold tabular-nums">

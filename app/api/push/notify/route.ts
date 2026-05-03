@@ -26,18 +26,7 @@ type NotificationRecord = {
   payload: Record<string, string>;
 };
 
-function safeJsonParse(value: object | string | undefined) {
-  if (!value) return {};
-  if (typeof value === "object") return value;
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return {};
-    }
-  }
-  return {};
-}
+
 
 function buildPushFromRecord(record: NotificationRecord) {
   switch (record.type) {
@@ -61,7 +50,7 @@ function buildPushFromRecord(record: NotificationRecord) {
       return {
         title: "Wallet topup requested",
         body: "A wallet topup was requested.",
-        url: "/wallet-transactions",
+        url: "/wallet-topups",
       };
     }
 

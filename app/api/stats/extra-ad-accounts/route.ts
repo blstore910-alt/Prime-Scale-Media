@@ -9,10 +9,10 @@ dayjs.extend(utc);
 type CurrencyKey = "usd" | "eur";
 type BucketMode = "hour" | "day" | "week" | "month";
 
-type TopupRow = {
+type InvoiceRow = {
   created_at: string;
   currency: string | null;
-  topup_amount: number | string | null;
+  total: number | string | null;
 };
 
 type TopupSeriesPoint = {
@@ -104,7 +104,7 @@ function resolveBucketMode(start: dayjs.Dayjs, end: dayjs.Dayjs): BucketMode {
 }
 
 function buildSeries(
-  rows: TopupRow[],
+  rows: InvoiceRow[],
   periodStartIso: string,
   periodEndIso: string,
   mode: BucketMode
@@ -149,7 +149,7 @@ function buildSeries(
 
   for (const row of rows) {
     const createdAt = dayjs(row.created_at);
-    const amount = toNumber(row.topup_amount);
+    const amount = toNumber(row.total);
     const currency = normalizeCurrency(row.currency);
 
     if (
@@ -205,19 +205,19 @@ export async function GET(request: NextRequest) {
   const granularity = resolveBucketMode(start, end);
 
   const { data } = await supabase
-    .from("top_ups")
-    .select("created_at, currency, topup_amount")
-    .in("type", ["extra-ad-account", "extra-ad-accounts"])
+    .from("invoices")
+    .select("created_at, currency, total")
+    .eq("type", "manual_invoice")
+    .eq("status", "paid")
     .gte("created_at", periodStart)
-    .lt("created_at", periodEnd)
-    .eq("status", "completed");
+    .lt("created_at", periodEnd);
 
-  const rows = (data || []) as TopupRow[];
+  const rows = (data || []) as InvoiceRow[];
   const series = buildSeries(rows, periodStart, periodEnd, granularity);
 
   const totals = rows.reduce(
     (acc, row) => {
-      const amount = toNumber(row.topup_amount);
+      const amount = toNumber(row.total);
       const currency = normalizeCurrency(row.currency);
 
       if (amount <= 0 || !currency) {

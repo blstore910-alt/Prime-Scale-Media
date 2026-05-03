@@ -172,13 +172,11 @@ export default function WalletView() {
               title="USD balance"
               amount={usdAmount}
               currency="USD"
-              totals={totals}
             />
             <BalancePanel
               title="EUR balance"
               amount={eurAmount}
               currency="EUR"
-              totals={totals}
             />
           </div>
         )}
@@ -242,12 +240,10 @@ function BalancePanel({
   title,
   amount,
   currency,
-  totals,
 }: {
   title: string;
   amount: string;
   currency: string;
-  totals: { transactions: number; exchanges: number };
 }) {
   return (
     <div className="rounded-lg border p-4 sm:p-6">
@@ -260,16 +256,6 @@ function BalancePanel({
           <p className="mt-2 text-3xl font-semibold">
             {currency === "USD" ? "$" : "€"} {amount}
           </p>
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-muted-foreground">Total transactions</p>
-          <p className="font-medium">{totals.transactions}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Total exchanges</p>
-          <p className="font-medium">{totals.exchanges}</p>
         </div>
       </div>
     </div>

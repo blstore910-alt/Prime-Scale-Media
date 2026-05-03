@@ -12,7 +12,7 @@ type BucketMode = "hour" | "day" | "week" | "month";
 type CommissionRow = {
   created_at: string;
   currency: string | null;
-  commission_amount: number | string | null;
+  amount: number | string | null;
 };
 
 type CommissionSeriesPoint = {
@@ -149,7 +149,7 @@ function buildSeries(
 
   for (const row of rows) {
     const createdAt = dayjs(row.created_at);
-    const amount = toNumber(row.commission_amount);
+    const amount = toNumber(row.amount);
     const currency = normalizeCurrency(row.currency);
 
     if (
@@ -205,8 +205,9 @@ export async function GET(request: NextRequest) {
   const granularity = resolveBucketMode(start, end);
 
   const { data } = await supabase
-    .from("affiliate_commissions")
-    .select("created_at, currency, commission_amount")
+    .from("referral_commissions")
+    .select("created_at, currency, amount")
+    .eq("status", "paid")
     .gte("created_at", periodStart)
     .lt("created_at", periodEnd);
 
@@ -215,7 +216,7 @@ export async function GET(request: NextRequest) {
 
   const totals = rows.reduce(
     (acc, row) => {
-      const amount = toNumber(row.commission_amount);
+      const amount = toNumber(row.amount);
       const currency = normalizeCurrency(row.currency);
 
       if (amount <= 0 || !currency) {

@@ -115,15 +115,12 @@ export function ProfitStatsCard({
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
-        <CardDescription className="font-semibold text-card-foreground">
-          Profits
+        <CardDescription className="font-semibold text-lg text-card-foreground">
+          Profit
         </CardDescription>
         <CardTitle className=" text-xl font-semibold tabular-nums">
-          {formatCurrency(data.totals.profit)}
+          {formatCurrency(data.totals.profit, "EUR")}
         </CardTitle>
-        <p className="line-clamp-1 flex gap-2 text-sm font-medium text-muted-foreground">
-          Net Profit
-        </p>
       </CardHeader>
 
       <CardContent className="pt-0 px-4">
@@ -175,7 +172,7 @@ export function ProfitStatsCard({
                                   Profit
                                 </span>
                                 <span className="font-mono tabular-nums">
-                                  {formatCurrency(Number(value) || 0)}
+                                  {formatCurrency(Number(value) || 0, "EUR")}
                                 </span>
                               </div>
                             </div>

@@ -56,7 +56,7 @@ export default function TopupCard({
               <span className="font-medium">
                 #{String(topup.number).padStart(6, "0")}
               </span>
-              {profile?.role !== "advertiser" && (
+              {isAdmin && (
                 <>
                   <span> &middot; </span>
                   {topup.tenant_client_code || "—"}
@@ -129,69 +129,60 @@ export default function TopupCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+        <div className="flex gap-2 mt-4 pt-4 border-t">
           {isAdmin && (
             <Button
               variant="outline"
-              className="flex-1 min-w-[120px]"
-              size="sm"
+              size={"icon"}
               onClick={(e) => {
                 e.stopPropagation();
                 onViewDetails();
               }}
             >
-              <Eye className="mr-2 h-4 w-4" />
-              View
+              <Eye className=" h-4 w-4" />
             </Button>
           )}
-          {profile?.role !== "advertiser" && (
+
+          {isAdmin && topup.status === "completed" && (
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                markPending();
+              }}
+            >
+              {isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <MinusCircle className="mr-2 h-4 w-4" />
+              )}
+              Mark Pending
+            </Button>
+          )}
+          {topup.status === "pending" && (
             <>
-              {topup.status === "pending" && (
-                <>
-                  <Button
-                    variant="outline"
-                    className="flex-1 min-w-[120px]"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onVerifyPayment();
-                    }}
-                  >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Verify
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    className="flex-1 min-w-[120px] text-white"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onReject();
-                    }}
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Reject
-                  </Button>
-                </>
-              )}
-              {topup.status === "completed" && (
-                <Button
-                  variant="outline"
-                  className="flex-1 min-w-[120px]"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    markPending();
-                  }}
-                >
-                  {isPending ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <MinusCircle className="mr-2 h-4 w-4" />
-                  )}
-                  Mark Pending
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                className="flex-1 bg-lime-600 text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onVerifyPayment();
+                }}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Verify
+              </Button>
+              <Button
+                variant="outline"
+                className="text-white bg-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReject();
+                }}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Reject
+              </Button>
             </>
           )}
         </div>

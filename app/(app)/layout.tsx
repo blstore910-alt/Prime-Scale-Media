@@ -77,9 +77,6 @@ export default async function AppLayout({
 
       const isVatComplete = !!company?.vat_no || company?.is_not_vat === true;
 
-      console.log("VAT COMPLETED", isVatComplete);
-      console.log("Company COMPLETED", isCompanyComplete);
-      console.log("billing Complete", isBillingComplete);
 
       if (!isCompanyComplete || !isVatComplete || !isBillingComplete) {
         redirect("/complete-profile");

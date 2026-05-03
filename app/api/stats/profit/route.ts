@@ -6,15 +6,36 @@ import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
 
+type CurrencyKey = "usd" | "eur";
 type BucketMode = "hour" | "day" | "week" | "month";
 
-type ProfitTopupRow = {
+type FeeRow = {
   created_at: string;
-  type: string | null;
+  currency: string | null;
   fee_amount: number | string | null;
-  amount_usd: number | string | null;
-  account?: { platform?: string | null } | null;
-  commissions?: Array<{ commission_amount: number | string | null }> | null;
+};
+
+type InvoiceRow = {
+  created_at: string;
+  currency: string | null;
+  total: number | string | null;
+};
+
+type CommissionRow = {
+  created_at: string;
+  currency: string | null;
+  amount: number | string | null;
+};
+
+type ExchangeRateRow = {
+  eur: number | string | null;
+};
+
+type ProfitContributionRow = {
+  created_at: string;
+  currency: string | null;
+  amount: number | string | null;
+  direction: 1 | -1;
 };
 
 type ProfitSeriesPoint = {
@@ -28,6 +49,38 @@ type ProfitSeriesPoint = {
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeCurrency(rawCurrency: string | null): CurrencyKey | null {
+  const currency = (rawCurrency || "").trim().toLowerCase();
+
+  if (currency === "usd") {
+    return "usd";
+  }
+
+  if (currency === "eur") {
+    return "eur";
+  }
+
+  return null;
+}
+
+function convertToEur(
+  amount: number,
+  rawCurrency: string | null,
+  usdToEurRate: number,
+): number {
+  const currency = normalizeCurrency(rawCurrency);
+
+  if (currency === "eur") {
+    return amount;
+  }
+
+  if (currency === "usd") {
+    return amount * usdToEurRate;
+  }
+
+  return 0;
 }
 
 function resolveRange(request: NextRequest) {
@@ -82,42 +135,32 @@ function resolveBucketMode(start: dayjs.Dayjs, end: dayjs.Dayjs): BucketMode {
   return "month";
 }
 
-function getProfitContribution(topup: ProfitTopupRow) {
-  const topupType = topup.type || "";
-  const feeAmount = toNumber(topup.fee_amount);
-  const amountUsd = toNumber(topup.amount_usd);
-  const accountPlatform = topup.account?.platform || "";
-  const affiliateCommission =
-    topup.commissions?.reduce((acc, commission) => {
-      return acc + toNumber(commission.commission_amount);
-    }, 0) || 0;
+function getBucketIndex(
+  createdAt: dayjs.Dayjs,
+  periodStart: dayjs.Dayjs,
+  mode: BucketMode,
+) {
+  if (mode === "hour") {
+    return createdAt.diff(periodStart, "hour");
+  }
 
-  const topupFeeContribution =
-    topupType === "top-up" || topupType === "first-top-up"
-      ? feeAmount * 0.9
-      : 0;
-  const subscriptionsAndAccountsContribution =
-    topupType === "subscriptions" ||
-    topupType === "subscription" ||
-    topupType === "extra-ad-account"
-      ? amountUsd * 0.9
-      : 0;
-  const euMetaPremiumFeeContribution =
-    accountPlatform === "eu-meta-premium" ? amountUsd * 0.02 : 0;
+  if (mode === "day") {
+    return createdAt.diff(periodStart, "day");
+  }
 
-  return (
-    topupFeeContribution +
-    subscriptionsAndAccountsContribution -
-    affiliateCommission -
-    euMetaPremiumFeeContribution
-  );
+  if (mode === "week") {
+    return Math.floor(createdAt.diff(periodStart, "day") / 7);
+  }
+
+  return createdAt.diff(periodStart, "month");
 }
 
 function buildSeries(
-  rows: ProfitTopupRow[],
+  rows: ProfitContributionRow[],
   periodStartIso: string,
   periodEndIso: string,
   mode: BucketMode,
+  usdToEurRate: number,
 ) {
   const periodStart = dayjs(periodStartIso);
   const periodEnd = dayjs(periodEndIso);
@@ -156,22 +199,19 @@ function buildSeries(
 
   for (const row of rows) {
     const createdAt = dayjs(row.created_at);
+    const amount = toNumber(row.amount);
+
     if (
       !createdAt.isValid() ||
       createdAt.isBefore(periodStart) ||
-      !createdAt.isBefore(periodEnd)
+      !createdAt.isBefore(periodEnd) ||
+      amount <= 0 ||
+      !normalizeCurrency(row.currency)
     ) {
       continue;
     }
 
-    const bucketIndex =
-      mode === "hour"
-        ? createdAt.diff(periodStart, "hour")
-        : mode === "day"
-          ? createdAt.diff(periodStart, "day")
-          : mode === "week"
-            ? Math.floor(createdAt.diff(periodStart, "day") / 7)
-            : createdAt.diff(periodStart, "month");
+    const bucketIndex = getBucketIndex(createdAt, periodStart, mode);
 
     if (bucketIndex < 0 || bucketIndex >= series.length) {
       continue;
@@ -179,7 +219,7 @@ function buildSeries(
 
     const point = series[bucketIndex];
     point.count += 1;
-    point.profit += getProfitContribution(row);
+    point.profit += row.direction * convertToEur(amount, row.currency, usdToEurRate);
   }
 
   return series
@@ -198,20 +238,120 @@ export async function GET(request: NextRequest) {
   const periodEnd = end.toISOString();
   const granularity = resolveBucketMode(start, end);
 
-  const { data } = await supabase
-    .from("top_ups")
-    .select(
-      "created_at, type, fee_amount, amount_usd, account:ad_accounts(platform), affiliate_commissions(commission_amount)",
-    )
-    .gte("created_at", periodStart)
-    .lt("created_at", periodEnd)
-    .eq("status", "completed");
+  const [
+    feesResult,
+    subscriptionInvoicesResult,
+    manualInvoicesResult,
+    referralCommissionsResult,
+    exchangeRateResult,
+  ] = await Promise.all([
+    supabase
+      .from("top_ups")
+      .select("created_at, currency, fee_amount")
+      .eq("status", "completed")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd),
+    supabase
+      .from("invoices")
+      .select("created_at, currency, total")
+      .eq("type", "subscription")
+      .eq("status", "paid")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd),
+    supabase
+      .from("invoices")
+      .select("created_at, currency, total")
+      .eq("type", "manual_invoice")
+      .eq("status", "paid")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd),
+    supabase
+      .from("referral_commissions")
+      .select("created_at, currency, amount")
+      .eq("status", "paid")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd),
+    supabase
+      .from("exchange_rates")
+      .select("eur")
+      .eq("is_active", true)
+      .maybeSingle(),
+  ]);
 
-  const rows = (data || []) as ProfitTopupRow[];
-  const series = buildSeries(rows, periodStart, periodEnd, granularity);
-  const totalProfit = rows.reduce((acc, topup) => {
-    return acc + getProfitContribution(topup);
-  }, 0);
+  const errors = [
+    feesResult.error,
+    subscriptionInvoicesResult.error,
+    manualInvoicesResult.error,
+    referralCommissionsResult.error,
+    exchangeRateResult.error,
+  ].filter(Boolean);
+
+  const activeExchangeRate = exchangeRateResult.data as ExchangeRateRow | null;
+  const usdToEurRate = toNumber(activeExchangeRate?.eur);
+
+  if (errors.length > 0 || !activeExchangeRate || usdToEurRate <= 0) {
+    return NextResponse.json(
+      { error: "Failed to load profit stats." },
+      { status: 500 },
+    );
+  }
+
+  const fees = (feesResult.data || []) as FeeRow[];
+  const subscriptionInvoices = (subscriptionInvoicesResult.data ||
+    []) as InvoiceRow[];
+  const manualInvoices = (manualInvoicesResult.data || []) as InvoiceRow[];
+  const referralCommissions = (referralCommissionsResult.data ||
+    []) as CommissionRow[];
+
+  const rows: ProfitContributionRow[] = [
+    ...fees.map((row) => ({
+      created_at: row.created_at,
+      currency: row.currency,
+      amount: row.fee_amount,
+      direction: 1 as const,
+    })),
+    ...subscriptionInvoices.map((row) => ({
+      created_at: row.created_at,
+      currency: row.currency,
+      amount: row.total,
+      direction: 1 as const,
+    })),
+    ...manualInvoices.map((row) => ({
+      created_at: row.created_at,
+      currency: row.currency,
+      amount: row.total,
+      direction: 1 as const,
+    })),
+    ...referralCommissions.map((row) => ({
+      created_at: row.created_at,
+      currency: row.currency,
+      amount: row.amount,
+      direction: -1 as const,
+    })),
+  ];
+
+  const series = buildSeries(
+    rows,
+    periodStart,
+    periodEnd,
+    granularity,
+    usdToEurRate,
+  );
+  const totals = rows.reduce(
+    (acc, row) => {
+      const amount = toNumber(row.amount);
+
+      if (amount <= 0 || !normalizeCurrency(row.currency)) {
+        return acc;
+      }
+
+      acc.count += 1;
+      acc.profit +=
+        row.direction * convertToEur(amount, row.currency, usdToEurRate);
+      return acc;
+    },
+    { profit: 0, count: 0 },
+  );
 
   return NextResponse.json({
     range: {
@@ -220,8 +360,8 @@ export async function GET(request: NextRequest) {
     },
     granularity,
     totals: {
-      profit: Number(totalProfit.toFixed(2)),
-      count: rows.length,
+      profit: Number(totals.profit.toFixed(2)),
+      count: totals.count,
     },
     series,
   });
