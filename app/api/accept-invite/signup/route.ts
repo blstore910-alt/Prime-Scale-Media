@@ -10,28 +10,66 @@ export async function POST(request: NextRequest) {
     password,
     firstName,
     lastName,
-    tenant_id,
-    role,
     invite,
     referral_status,
     referred_by,
     heard_from,
   } = body;
 
-  if (
-    !email ||
-    !password ||
-    !firstName ||
-    !lastName ||
-    !tenant_id ||
-    !role ||
-    !invite
-  ) {
+  // Minimum required fields
+  if (!email || !password || !firstName || !lastName || !invite?.token) {
     return NextResponse.json(
       { success: false, message: "Missing required fields" },
       { status: 400 },
     );
   }
+
+  // ─────────────────────────────────────────
+  // SERVER-SIDE INVITE VALIDATION (P0-2 fix)
+  // Do NOT trust body for tenant_id, role, or invite details.
+  // Re-fetch from invitations table using the token.
+  // ─────────────────────────────────────────
+  const { data: validInvite, error: inviteFetchError } = await supabase
+    .from("invitations")
+    .select("id, email, role, tenant_id, status, expires_at, affiliate_id, token")
+    .eq("token", invite.token)
+    .maybeSingle();
+
+  if (inviteFetchError || !validInvite) {
+    return NextResponse.json(
+      { success: false, message: "Invalid or expired invitation" },
+      { status: 403 },
+    );
+  }
+
+  // Email must match the invite
+  if (validInvite.email?.toLowerCase() !== email.toLowerCase()) {
+    return NextResponse.json(
+      { success: false, message: "Email does not match invitation" },
+      { status: 403 },
+    );
+  }
+
+  // Must not be expired
+  if (new Date(validInvite.expires_at) < new Date()) {
+    return NextResponse.json(
+      { success: false, message: "Invitation has expired" },
+      { status: 403 },
+    );
+  }
+
+  // Must not be already used
+  if (validInvite.status === "accepted" || validInvite.status === "rejected") {
+    return NextResponse.json(
+      { success: false, message: "Invitation has already been used" },
+      { status: 403 },
+    );
+  }
+
+  // Use SERVER-VALIDATED values, ignore body's tenant_id/role
+  const tenant_id = validInvite.tenant_id;
+  const role = validInvite.role;
+  const affiliate_id = validInvite.affiliate_id;
 
   try {
     const { data, error: createError } = await supabase.auth.admin.createUser({
@@ -69,9 +107,9 @@ export async function POST(request: NextRequest) {
         role,
         full_name: `${firstName} ${lastName}`,
         email,
-        referral_status: invite.affiliate_id ? "referred" : referral_status,
-        referred_by: invite.affiliate_id ? null : referred_by,
-        heard_from: invite.affiliate_id ? null : heard_from,
+        referral_status: affiliate_id ? "referred" : referral_status,
+        referred_by: affiliate_id ? null : referred_by,
+        heard_from: affiliate_id ? null : heard_from,
       })
       .select()
       .single();
@@ -84,14 +122,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error: inviteError } = await supabase
+    const { error: inviteUpdateError } = await supabase
       .from("invitations")
       .update({ status: "accepted" })
-      .eq("id", invite.id)
+      .eq("id", validInvite.id)
       .select();
 
-    if (inviteError) {
-      console.error("Error updating invitation status:", inviteError);
+    if (inviteUpdateError) {
+      console.error("Error updating invitation status:", inviteUpdateError);
       return NextResponse.json(
         { success: false, message: "Failed to update invitation status" },
         { status: 500 },
