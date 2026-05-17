@@ -14,9 +14,10 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
 
   const supabase = await createClient();
 
-  const { data: session } = await supabase.auth.getSession();
+  // P1-9 fix: getUser() verifies the JWT server-side; getSession() only reads cookie
+  const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  if (!session.session) {
+  if (userError || !userData.user) {
     redirect(`/auth/sign-up?token=${token}`);
   }
 
@@ -26,7 +27,7 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     .eq("token", token)
     .maybeSingle();
 
-  if (session.session.user.email !== data?.email) {
+  if (userData.user.email !== data?.email) {
     redirect("/dashboard");
   }
 

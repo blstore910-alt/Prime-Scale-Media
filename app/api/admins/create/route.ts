@@ -25,6 +25,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (password.length < 12) {
+    return NextResponse.json(
+      { success: false, message: "Password must be at least 12 characters" },
+      { status: 400 },
+    );
+  }
+
   const cookieStore = await cookies();
   const existingProfile = cookieStore.get("profile_id")?.value;
 

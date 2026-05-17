@@ -14,6 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import * as z from "zod";
+
+const passwordSchema = z
+  .string()
+  .min(12, "Password must be at least 12 characters");
 
 export default function CreateAdminDialog({
   open,
@@ -27,6 +32,7 @@ export default function CreateAdminDialog({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -34,15 +40,23 @@ export default function CreateAdminDialog({
       setFullName("");
       setEmail("");
       setPassword("");
+      setPasswordError(null);
       setIsSubmitting(false);
     }
   }, [open]);
 
   const handleSubmit = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
+    if (!fullName.trim() || !email.trim()) {
       toast.error("Please fill in all fields.");
       return;
     }
+
+    const passwordParse = passwordSchema.safeParse(password);
+    if (!passwordParse.success) {
+      setPasswordError(passwordParse.error.issues[0].message);
+      return;
+    }
+    setPasswordError(null);
 
     setIsSubmitting(true);
     try {
@@ -112,9 +126,15 @@ export default function CreateAdminDialog({
               id="admin-password"
               type="text"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter a temporary password"
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (passwordError) setPasswordError(null);
+              }}
+              placeholder="Enter a temporary password (min 12 chars)"
             />
+            {passwordError && (
+              <p className="text-sm text-red-500">{passwordError}</p>
+            )}
           </div>
         </div>
         <DialogFooter>

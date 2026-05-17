@@ -33,8 +33,8 @@ const inviteSignUpSchema = z
   .object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    repeatPassword: z.string().min(6, "Repeat your password"),
+    password: z.string().min(12, "Password must be at least 12 characters"),
+    repeatPassword: z.string().min(12, "Repeat your password"),
     referral_status: z.enum(["referred", "not_referred"]).optional(),
     referred_by: z.string().optional(),
     heard_from: z.string().optional(),
