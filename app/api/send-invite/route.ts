@@ -1,3 +1,4 @@
+import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { sendEmail } from "@/lib/email-sender";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
@@ -6,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const { profile, error: authError } = await apiRequireAdmin();
+    if (authError) return authError;
+
     const body = await request.json();
 
     const {
@@ -30,7 +34,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .match({
         email,
-        tenant_id,
+        tenant_id: profile.tenant_id,
         role,
       })
       .maybeSingle();
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
     const { data: tenant } = await supabase
       .from("tenants")
       .select()
-      .eq("id", tenant_id)
+      .eq("id", profile.tenant_id)
       .single();
 
     const token = randomUUID();
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     const payload = {
       email,
-      tenant_id,
+      tenant_id: profile.tenant_id,
       tenant_name,
       sender_id: sender.user?.id,
       sender_profile_id: body.sender_profile_id,

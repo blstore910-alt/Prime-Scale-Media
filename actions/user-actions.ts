@@ -2,18 +2,35 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export async function changeProfile(profileId: string, pathname: string) {
-  const cookieStore = await cookies();
+  const supabase = await createClient();
+  const { data: userData, error } = await supabase.auth.getUser();
 
+  if (error || !userData.user) {
+    return false;
+  }
+
+  // Verify profileId belongs to current user
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("id", profileId)
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return false;
+  }
+
+  const cookieStore = await cookies();
   cookieStore.set("profile_id", profileId);
   revalidatePath(pathname);
 
   return true;
 }
-
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export async function loginUser(formData: FormData) {
   const email = formData.get("email") as string;
@@ -41,14 +58,17 @@ export async function loginUser(formData: FormData) {
   const profileCookie = cookieStore.get("profile_id");
 
   if (profiles?.length) {
-    let newProfile;
+    let newProfileId: string;
     if (profileCookie) {
-      newProfile =
-        profiles.find((p) => p.id === profileCookie)?.id || profiles[0].id;
+      newProfileId =
+        profiles.find((p) => p.id === profileCookie.value)?.id || profiles[0].id;
+    } else {
+      newProfileId = profiles[0].id;
     }
-    if (newProfile) {
-      cookieStore.set("profile_id", newProfile);
-      cookieStore.set("role", newProfile.role);
+    const newProfileObj = profiles.find((p) => p.id === newProfileId);
+    if (newProfileObj) {
+      cookieStore.set("profile_id", newProfileObj.id);
+      cookieStore.set("role", newProfileObj.role);
     }
   }
 
