@@ -71,12 +71,19 @@ export function useUpdateProfile() {
     }) => {
       const supabase = createClient();
 
-      // Update Profile
+      // P1-3 fix: verify profileId belongs to authenticated user before update
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Update Profile (scoped to current user)
       if (Object.keys(profileUpdates).length > 0) {
         const { error: profileError } = await supabase
           .from("user_profiles")
           .update(profileUpdates)
-          .eq("id", profileId);
+          .eq("id", profileId)
+          .eq("user_id", user.id);
 
         if (profileError) throw profileError;
       }
