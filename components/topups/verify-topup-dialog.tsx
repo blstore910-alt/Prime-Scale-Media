@@ -9,7 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { createClient } from "@/lib/supabase/client";
 import { Topup } from "@/lib/types/topup";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
   AlertCircle,
@@ -19,12 +21,21 @@ import {
   MinusCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Resolver, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { toast } from "sonner";
 import useGetTopup from "./use-get-topup";
-import useUpdateTopup from "./use-update-topup";
 import { Badge } from "../ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
+
+const formSchema = z.object({
+  fee: z.coerce
+    .number()
+    .int("Fee must be a whole number")
+    .min(0, "Fee must be 0 or greater")
+    .max(100, "Fee cannot exceed 100"),
+});
 
 export default function VerifyTopupDialog({
   topupId,
@@ -71,9 +82,7 @@ export default function VerifyTopupDialog({
   );
 }
 
-type FormValues = {
-  fee: number;
-};
+type FormValues = z.infer<typeof formSchema>;
 
 type ExtendedTopup = Topup & {
   account_name?: string;
@@ -88,15 +97,21 @@ function VerifyTopupInvoice({
   topup: ExtendedTopup;
   onVerified: (open: boolean) => void;
 }) {
-  const { register, watch, handleSubmit } = useForm<FormValues>({
+  const {
+    register,
+    watch,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormValues>({
     defaultValues: {
-      fee: Number(topup.fee) || 0,
+      fee: Math.round(Number(topup.fee) || 0),
     },
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
   });
 
-  const { updateTopup, isPending } = useUpdateTopup();
+  const queryClient = useQueryClient();
 
-  // Watch fee to recalculate totals live
+  // Watch fee to recalculate totals live (UI preview only — server is authoritative)
   const feePercentage = watch("fee");
   const [calculatedValues, setCalculatedValues] = useState({
     feeAmount: 0,
@@ -116,47 +131,40 @@ function VerifyTopupInvoice({
     });
   }, [feePercentage, topup.amount_received]);
 
-  const handleVerify = async (values: FormValues) => {
+  const { mutate: verifyTopup, isPending } = useMutation({
+    mutationKey: ["verify-topup"],
+    mutationFn: async (vars: {
+      topupId: string;
+      newFeePercent: number | null;
+    }) => {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("top_up_admin_verify", {
+        p_top_up_id: vars.topupId,
+        p_new_fee_percent: vars.newFeePercent,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Topup verified successfully");
+      queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      onVerified(false);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleVerify = (values: FormValues) => {
     const newFee = Number(values.fee);
     const originalFee = Number(topup.fee);
+    const feeChanged = newFee !== originalFee;
 
-    const payload: Partial<Topup> = {
-      status: "completed",
-      verified_at: new Date().toISOString(),
-    };
-
-    if (newFee !== originalFee) {
-      const amountReceivedEur = Number(topup.amount_received);
-      const rate = Number(topup.rate);
-
-      const feeAmountEur = amountReceivedEur * (newFee / 100);
-      const eurTopup = amountReceivedEur - feeAmountEur;
-
-      const topupUsd = eurTopup * rate;
-
-      payload.fee = newFee;
-      payload.fee_amount = Number(feeAmountEur.toFixed(2));
-      payload.eur_topup = Number(eurTopup.toFixed(2));
-      payload.topup_usd = Number(topupUsd.toFixed(2));
-
-      payload.topup_amount = Number(eurTopup.toFixed(2));
-    } else {
-      payload.fee = originalFee;
-    }
-
-    updateTopup(
-      {
-        topupId: topup.id,
-        payload,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Topup verified successfully");
-          onVerified(false);
-        },
-        onError: (err) => toast.error(err.message),
-      },
-    );
+    verifyTopup({
+      topupId: topup.id,
+      newFeePercent: feeChanged ? newFee : null,
+    });
   };
 
   return (
@@ -230,14 +238,23 @@ function VerifyTopupInvoice({
             {/* Line Item: Service Fee */}
             <div className="col-span-6 flex items-center gap-2">
               <span>Fee</span>
-              <div className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded">
-                <Input
-                  {...register("fee")}
-                  type="number"
-                  step="0.01"
-                  className="h-6 w-16 text-right px-1 py-0 bg-transparent border-none focus-visible:ring-0 text-xs"
-                />
-                <span className="text-xs text-muted-foreground">%</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded">
+                  <Input
+                    {...register("fee")}
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    className="h-6 w-16 text-right px-1 py-0 bg-transparent border-none focus-visible:ring-0 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+                {errors.fee && (
+                  <p className="text-xs text-destructive">
+                    {errors.fee.message}
+                  </p>
+                )}
               </div>
             </div>
             <div className="col-span-2 text-right text-muted-foreground">
