@@ -12,23 +12,33 @@ export type InvoicesQueryParams = {
 
 export default function useInvoices(params: InvoicesQueryParams = {}) {
   const { profile } = useAppContext();
+  const isAdvertiser = profile?.role === "advertiser";
+  const advertiserId = profile?.advertiser?.[0]?.id ?? null;
 
   const queryKey = useMemo(
     () => [
       "invoices",
       profile?.tenant_id,
+      isAdvertiser ? advertiserId : "admin",
       params.search ?? "",
       params.page ?? 1,
       params.perPage ?? 10,
     ],
-    [profile?.tenant_id, params.search, params.page, params.perPage],
+    [
+      profile?.tenant_id,
+      isAdvertiser,
+      advertiserId,
+      params.search,
+      params.page,
+      params.perPage,
+    ],
   );
 
   const { data, isLoading, isError, error } = useQuery<
     { items: InvoiceWithRelations[]; total: number } | undefined
   >({
     queryKey,
-    enabled: !!profile?.tenant_id,
+    enabled: !!profile?.tenant_id && (!isAdvertiser || !!advertiserId),
     queryFn: async () => {
       const { search, page = 1, perPage = 10 } = params;
       const supabase = createClient();
@@ -41,6 +51,14 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
         )
         .eq("tenant_id", profile?.tenant_id)
         .order("created_at", { ascending: false });
+
+      // P1-2 fix: advertisers see only their own invoices
+      if (isAdvertiser) {
+        if (!advertiserId) {
+          return { items: [], total: 0 };
+        }
+        query = query.eq("advertiser_id", advertiserId);
+      }
 
       if (search && search.trim() !== "") {
         const term = search.trim();
