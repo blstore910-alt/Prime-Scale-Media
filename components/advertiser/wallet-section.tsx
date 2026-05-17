@@ -281,7 +281,6 @@ export default function WalletSection() {
         open={exchangeDialogOpen}
         onOpenChange={setExchangeDialogOpen}
         walletId={wallet?.id ?? null}
-        createdBy={profile?.id ?? null}
         usdBalance={usdBalance}
         eurBalance={eurBalance}
       />
