@@ -1,12 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
+type AcceptInviteBody = {
+  status?: string;
+  invite_id?: string;
+};
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
-  let body: Record<string, unknown>;
+  let body: AcceptInviteBody;
   try {
-    body = await request.json();
+    body = (await request.json()) as AcceptInviteBody;
   } catch {
     return NextResponse.json(
       { success: false, message: "Malformed JSON body" },
@@ -14,8 +19,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { status, invite_id } = body as any;
+  const { status, invite_id } = body;
 
   if (!status || !invite_id) {
     return NextResponse.json(

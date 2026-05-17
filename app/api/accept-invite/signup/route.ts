@@ -1,12 +1,23 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
+type SignupBody = {
+  email?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  invite?: { token?: string; id?: string; affiliate_id?: string };
+  referral_status?: string;
+  referred_by?: string;
+  heard_from?: string;
+};
+
 export async function POST(request: NextRequest) {
   const supabase = await createAdminClient();
 
-  let body: Record<string, unknown>;
+  let body: SignupBody;
   try {
-    body = await request.json();
+    body = (await request.json()) as SignupBody;
   } catch {
     return NextResponse.json(
       { success: false, message: "Malformed JSON body" },
@@ -14,7 +25,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {
     email,
     password,
@@ -24,7 +34,7 @@ export async function POST(request: NextRequest) {
     referral_status,
     referred_by,
     heard_from,
-  } = body as any;
+  } = body;
 
   // Minimum required fields
   if (!email || !password || !firstName || !lastName || !invite?.token) {
