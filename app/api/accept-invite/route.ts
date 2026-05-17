@@ -3,9 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const body = await request.json();
 
-  const { status, invite_id } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, message: "Malformed JSON body" },
+      { status: 400 },
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { status, invite_id } = body as any;
 
   if (!status || !invite_id) {
     return NextResponse.json(

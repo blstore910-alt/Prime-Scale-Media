@@ -4,7 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const sub = await req.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let sub: any;
+  try {
+    sub = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Malformed JSON body" },
+      { status: 400 },
+    );
+  }
 
   const supabase = await createClient();
 
