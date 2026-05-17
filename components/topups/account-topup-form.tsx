@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
@@ -113,8 +112,6 @@ export default function AccountTopupForm({
   const selectedAccountCurrency = normalizeAccountCurrency(
     selectedAccount?.currency,
   );
-
-  const { exchangeRates } = useExchangeRates({ activeOnly: true });
 
   const {
     data: wallet,
@@ -229,10 +226,6 @@ export default function AccountTopupForm({
   const remainingBalance = selectedBalance - parseAmount(amount);
 
   const { mutate, isPending } = useCreateAccountTopup({
-    selectedAccount,
-    wallet: wallet ?? null,
-    exchangeRates,
-    profile,
     onSuccess: () => {
       reset({
         account_id: account?.id ?? "",
