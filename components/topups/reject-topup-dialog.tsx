@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import useUpdateTopup from "./use-update-topup";
 
 export default function RejectTopupDialog({
   open,
@@ -24,7 +25,7 @@ export default function RejectTopupDialog({
   onOpenChange: (open: boolean) => void;
   topupId: string | null;
 }) {
-  const { isPending, updateTopup } = useUpdateTopup();
+  const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -32,6 +33,29 @@ export default function RejectTopupDialog({
       setReason("");
     }
   }, [open]);
+
+  const { mutate: rejectTopup, isPending } = useMutation({
+    mutationKey: ["reject-topup"],
+    mutationFn: async (vars: { topupId: string; reason: string }) => {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("top_up_admin_reject", {
+        p_top_up_id: vars.topupId,
+        p_reason: vars.reason,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Topup rejected.");
+      queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallets"], exact: false });
+      onOpenChange(false);
+    },
+    onError: (err: Error) => {
+      toast.error("Failed to reject topup.", { description: err.message });
+    },
+  });
 
   const handleSubmit = () => {
     if (!topupId) {
@@ -44,26 +68,7 @@ export default function RejectTopupDialog({
       return;
     }
 
-    updateTopup(
-      {
-        topupId,
-        payload: {
-          status: "rejected",
-          rejection_reason: trimmedReason,
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.success("Topup rejected.");
-          onOpenChange(false);
-        },
-        onError: (error) => {
-          toast.error("Failed to reject topup.", {
-            description: error?.message,
-          });
-        },
-      },
-    );
+    rejectTopup({ topupId, reason: trimmedReason });
   };
 
   return (
