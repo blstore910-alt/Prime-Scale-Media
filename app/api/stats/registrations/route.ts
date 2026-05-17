@@ -1,3 +1,4 @@
+import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -163,6 +164,9 @@ function buildSeries(
 }
 
 export async function GET(request: NextRequest) {
+  const { profile, error: authError } = await apiRequireAdmin();
+  if (authError) return authError;
+
   const supabase = await createClient();
   const { start, end } = resolveRange(request);
 
@@ -174,11 +178,13 @@ export async function GET(request: NextRequest) {
     supabase
       .from("advertisers")
       .select("created_at")
+      .eq("tenant_id", profile.tenant_id)
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
     supabase
       .from("affiliates")
       .select("created_at")
+      .eq("tenant_id", profile.tenant_id)
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
   ]);

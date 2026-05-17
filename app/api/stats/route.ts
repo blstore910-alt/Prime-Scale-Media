@@ -1,3 +1,4 @@
+import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -65,6 +66,9 @@ function convertToEur(
 }
 
 export async function GET() {
+  const { profile, error: authError } = await apiRequireAdmin();
+  if (authError) return authError;
+
   const supabase = await createClient();
 
   const [
@@ -81,30 +85,45 @@ export async function GET() {
     supabase
       .from("top_ups")
       .select("topup_amount, fee_amount, currency")
+      .eq("tenant_id", profile.tenant_id)
       .eq("status", "completed"),
-    supabase.from("ad_accounts").select("id", { count: "exact", head: true }),
     supabase
       .from("ad_accounts")
       .select("id", { count: "exact", head: true })
+      .eq("tenant_id", profile.tenant_id),
+    supabase
+      .from("ad_accounts")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", profile.tenant_id)
       .eq("status", "active"),
-    supabase.from("advertisers").select("id", { count: "exact", head: true }),
-    supabase.from("advertisers").select("id, profile:user_profiles(status)"),
+    supabase
+      .from("advertisers")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", profile.tenant_id),
+    supabase
+      .from("advertisers")
+      .select("id, profile:user_profiles(status)")
+      .eq("tenant_id", profile.tenant_id),
     supabase
       .from("subscriptions")
       .select("amount, currency")
+      .eq("tenant_id", profile.tenant_id)
       .eq("status", "active"),
     supabase
       .from("invoices")
       .select("total, currency")
+      .eq("tenant_id", profile.tenant_id)
       .eq("type", "manual_invoice")
       .eq("status", "paid"),
     supabase
       .from("referral_commissions")
       .select("amount, currency")
+      .eq("tenant_id", profile.tenant_id)
       .eq("status", "paid"),
     supabase
       .from("exchange_rates")
       .select("eur")
+      .eq("tenant_id", profile.tenant_id)
       .eq("is_active", true)
       .maybeSingle(),
   ]);

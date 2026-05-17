@@ -1,3 +1,4 @@
+import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -231,6 +232,9 @@ function buildSeries(
 }
 
 export async function GET(request: NextRequest) {
+  const { profile, error: authError } = await apiRequireAdmin();
+  if (authError) return authError;
+
   const supabase = await createClient();
   const { start, end } = resolveRange(request);
 
@@ -248,12 +252,14 @@ export async function GET(request: NextRequest) {
     supabase
       .from("top_ups")
       .select("created_at, currency, fee_amount")
+      .eq("tenant_id", profile.tenant_id)
       .eq("status", "completed")
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
     supabase
       .from("invoices")
       .select("created_at, currency, total")
+      .eq("tenant_id", profile.tenant_id)
       .eq("type", "subscription")
       .eq("status", "paid")
       .gte("created_at", periodStart)
@@ -261,6 +267,7 @@ export async function GET(request: NextRequest) {
     supabase
       .from("invoices")
       .select("created_at, currency, total")
+      .eq("tenant_id", profile.tenant_id)
       .eq("type", "manual_invoice")
       .eq("status", "paid")
       .gte("created_at", periodStart)
@@ -268,12 +275,14 @@ export async function GET(request: NextRequest) {
     supabase
       .from("referral_commissions")
       .select("created_at, currency, amount")
+      .eq("tenant_id", profile.tenant_id)
       .eq("status", "paid")
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
     supabase
       .from("exchange_rates")
       .select("eur")
+      .eq("tenant_id", profile.tenant_id)
       .eq("is_active", true)
       .maybeSingle(),
   ]);
