@@ -25,10 +25,12 @@ type FormValues = {
   from_amount: number;
 };
 
+// exchange_rates.eur stores "1 USD = N EUR" (USD-based, matches RPC + stats).
+// USD → EUR: multiply by rate.  EUR → USD: divide by rate.
 const getRate = (baseEurRate: number, from: Currency, to: Currency) => {
   if (from === to) return 1;
-  if (from === "USD" && to === "EUR") return 1 / baseEurRate;
-  if (from === "EUR" && to === "USD") return baseEurRate;
+  if (from === "USD" && to === "EUR") return baseEurRate;
+  if (from === "EUR" && to === "USD") return 1 / baseEurRate;
   return 1;
 };
 
@@ -36,14 +38,12 @@ export default function WalletExchangeDialog({
   open,
   onOpenChange,
   walletId,
-  createdBy,
   usdBalance,
   eurBalance,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletId: string | null;
-  createdBy: string | null;
   usdBalance: number;
   eurBalance: number;
 }) {
@@ -112,81 +112,19 @@ export default function WalletExchangeDialog({
   const { mutate, isPending } = useMutation({
     mutationKey: ["wallet-exchange", walletId],
     mutationFn: async (values: FormValues) => {
-      if (!walletId || !createdBy) {
+      if (!walletId) {
         throw new Error("Missing wallet context.");
-      }
-      if (!eurRateRaw) {
-        throw new Error("Exchange rate is unavailable.");
       }
 
       const supabase = createClient();
-      const { data: walletRow, error: walletError } = await supabase
-        .from("wallets")
-        .select("id, usd_balance, eur_balance, updated_at")
-        .eq("id", walletId)
-        .single();
+      const { data, error } = await supabase.rpc("wallet_exchange", {
+        p_wallet_id: walletId,
+        p_from_currency: values.from_currency,
+        p_amount: values.from_amount,
+      });
 
-      if (walletError) throw walletError;
-
-      const currentUsd = Number(walletRow.usd_balance ?? 0);
-      const currentEur = Number(walletRow.eur_balance ?? 0);
-
-      const available =
-        values.from_currency === "USD" ? currentUsd : currentEur;
-
-      if (values.from_amount > available) {
-        throw new Error("Insufficient balance for this exchange.");
-      }
-
-      const exchangeRate = getRate(
-        eurRateRaw,
-        values.from_currency,
-        toCurrency,
-      );
-
-      const { data: exchange, error: exchangeError } = await supabase
-        .from("wallet_exchanges")
-        .insert({
-          wallet_id: walletId,
-          from_currency: values.from_currency,
-          to_currency: toCurrency,
-          from_amount: values.from_amount,
-          to_amount: exchangeableAmount,
-          fee_amount: feeAmount,
-          exchange_rate: exchangeRate,
-          created_by: createdBy,
-        })
-        .select("*")
-        .single();
-
-      if (exchangeError) throw exchangeError;
-
-      const nextUsd =
-        values.from_currency === "USD"
-          ? Number((currentUsd - values.from_amount).toFixed(2))
-          : Number((currentUsd + exchangeableAmount).toFixed(2));
-      const nextEur =
-        values.from_currency === "EUR"
-          ? Number((currentEur - values.from_amount).toFixed(2))
-          : Number((currentEur + exchangeableAmount).toFixed(2));
-
-      const { data: updatedWallet, error: updateError } = await supabase
-        .from("wallets")
-        .update({
-          usd_balance: nextUsd,
-          eur_balance: nextEur,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", walletId)
-        .select("id, usd_balance, eur_balance")
-        .single();
-
-      if (updateError) {
-        await supabase.from("wallet_exchanges").delete().eq("id", exchange.id);
-        throw updateError;
-      }
-
-      return { exchange, updatedWallet };
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast.success("Exchange completed", {
