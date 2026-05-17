@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (password.length < 12) {
+    return NextResponse.json(
+      { success: false, message: "Password must be at least 12 characters" },
+      { status: 400 },
+    );
+  }
+
   // ─────────────────────────────────────────
   // SERVER-SIDE INVITE VALIDATION (P0-2 fix)
   // Do NOT trust body for tenant_id, role, or invite details.

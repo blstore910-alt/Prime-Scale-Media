@@ -24,8 +24,8 @@ const signUpSchema = z
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    repeatPassword: z.string().min(6, "Repeat your password"),
+    password: z.string().min(12, "Password must be at least 12 characters"),
+    repeatPassword: z.string().min(12, "Repeat your password"),
   })
   .refine((data) => data.password === data.repeatPassword, {
     message: "Passwords do not match",

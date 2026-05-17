@@ -14,31 +14,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const updatePasswordSchema = z
+  .object({
+    password: z.string().min(12, "Password must be at least 12 characters"),
+    repeatPassword: z.string().min(12, "Repeat your password"),
+  })
+  .refine((data) => data.password === data.repeatPassword, {
+    message: "Passwords do not match",
+    path: ["repeatPassword"],
+  });
+
+type UpdatePasswordFormData = z.infer<typeof updatePasswordSchema>;
 
 export function UpdatePasswordForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<UpdatePasswordFormData>({
+    resolver: zodResolver(updatePasswordSchema),
+  });
+
+  const onSubmit = async (data: UpdatePasswordFormData) => {
     const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
+    setServerError(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({
+        password: data.password,
+      });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
       router.push("/dashboard");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+      setServerError(
+        error instanceof Error ? error.message : "An error occurred",
+      );
     }
   };
 
@@ -52,7 +72,7 @@ export function UpdatePasswordForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleForgotPassword}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="password">New password</Label>
@@ -60,14 +80,33 @@ export function UpdatePasswordForm({
                   id="password"
                   type="password"
                   placeholder="New password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password")}
                 />
+                {errors.password && (
+                  <p className="text-sm text-red-500">
+                    {errors.password.message}
+                  </p>
+                )}
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save new password"}
+              <div className="grid gap-2">
+                <Label htmlFor="repeatPassword">Repeat password</Label>
+                <Input
+                  id="repeatPassword"
+                  type="password"
+                  placeholder="Repeat password"
+                  {...register("repeatPassword")}
+                />
+                {errors.repeatPassword && (
+                  <p className="text-sm text-red-500">
+                    {errors.repeatPassword.message}
+                  </p>
+                )}
+              </div>
+              {serverError && (
+                <p className="text-sm text-red-500">{serverError}</p>
+              )}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save new password"}
               </Button>
             </div>
           </form>
