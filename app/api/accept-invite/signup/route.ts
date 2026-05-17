@@ -3,8 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   const supabase = await createAdminClient();
-  const body = await request.json();
 
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, message: "Malformed JSON body" },
+      { status: 400 },
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {
     email,
     password,
@@ -14,7 +24,7 @@ export async function POST(request: NextRequest) {
     referral_status,
     referred_by,
     heard_from,
-  } = body;
+  } = body as any;
 
   // Minimum required fields
   if (!email || !password || !firstName || !lastName || !invite?.token) {
