@@ -114,6 +114,73 @@ export async function createTopupAsAdmin(
 }
 
 // ─────────────────────────────────────────
+// top_ups: bulk admin insert (used by bulk-ad-accounts-topup-dialog)
+// ─────────────────────────────────────────
+export async function bulkCreateTopupsAsAdmin(
+  rows: TopupInsertInput[],
+): Promise<ActionResult<{ inserted: number }>> {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, error: "No rows" };
+  }
+  if (rows.length > 200) {
+    return { ok: false, error: "Too many rows (max 200)" };
+  }
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  // Verify every referenced advertiser belongs to caller's tenant, in one round-trip.
+  const advertiserIds = Array.from(
+    new Set(
+      rows
+        .map((r) => r.advertiser_id)
+        .filter((v): v is string => typeof v === "string" && v.length > 0),
+    ),
+  );
+  if (advertiserIds.length === 0) {
+    return { ok: false, error: "advertiser_id required on every row" };
+  }
+  const { data: advs, error: advsError } = await supabase
+    .from("advertisers")
+    .select("id, tenant_id")
+    .in("id", advertiserIds);
+  if (advsError) return { ok: false, error: advsError.message };
+  const validIds = new Set(
+    (advs ?? [])
+      .filter((a) => a.tenant_id === profile.tenant_id)
+      .map((a) => a.id),
+  );
+  if (validIds.size !== advertiserIds.length) {
+    return { ok: false, error: "Forbidden advertiser id in batch" };
+  }
+
+  const author = {
+    id: profile.id,
+    name: profile.full_name,
+    email: profile.email,
+  };
+  const payload = rows.map((row) => {
+    const cleaned: Record<string, unknown> = {};
+    for (const col of TOPUP_INSERT_ALLOWED) {
+      if (col in row) cleaned[col] = row[col];
+    }
+    const requested =
+      row.status ?? (row.mark_paid ? "completed" : "pending");
+    if (requested !== "pending" && requested !== "completed") {
+      throw new Error("Invalid status in bulk payload");
+    }
+    cleaned.status = requested;
+    cleaned.tenant_id = profile.tenant_id;
+    cleaned.author = author;
+    return cleaned;
+  });
+
+  const { error: insertError } = await supabase.from("top_ups").insert(payload);
+  if (insertError) return { ok: false, error: insertError.message };
+  return { ok: true, data: { inserted: payload.length } };
+}
+
+// ─────────────────────────────────────────
 // top_ups: admin partial update
 // ─────────────────────────────────────────
 const TOPUP_UPDATE_ALLOWED = [

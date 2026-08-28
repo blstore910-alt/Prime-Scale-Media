@@ -33,13 +33,13 @@ export const createTopup = async (
   exchangeRates: ExchangeRate[],
   account: AdAccount | undefined,
   values: FormValues & { status?: "pending" | "completed"; mark_paid?: boolean },
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _author: object,
   fee: number,
   advertiser_id: string | undefined,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _tenant_id: string,
 ) => {
+  void _author;
+  void _tenant_id;
   const feeApplicableTypes = ["top-up", "first-top-up"];
   const isEuMetaPremium = account?.platform === "eu-meta-premium";
   const feePercent = fee / 100;

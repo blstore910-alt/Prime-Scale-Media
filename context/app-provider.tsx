@@ -1,7 +1,5 @@
-import { getExchangeRate } from "@/lib/get-exchange-rates";
-import { createClient } from "@/lib/supabase/client";
+import { ensureInitialExchangeRates } from "@/actions/exchange-rate-actions";
 import { UserProfile } from "@/lib/types/user";
-import { formatRate } from "@/lib/utils";
 import { User } from "@supabase/supabase-js";
 import {
   ActionDispatch,
@@ -68,36 +66,13 @@ export function AppProvider({
     : profile?.tenant;
   const isSuperAdmin = tenant?.owner_id === user?.id;
   useEffect(() => {
-    const initialExchangeRatesSetup = async () => {
-      const supabase = createClient();
-      try {
-        const { data: exchangeRates } = await supabase
-          .from("exchange_rates")
-          .select("*")
-          .eq("is_active", true)
-          .maybeSingle();
-
-        if (exchangeRates) return;
-
-        const usdRates = await getExchangeRate("USD");
-        const { error } = await supabase.from("exchange_rates").upsert({
-          currency: "USD",
-          hkd: formatRate(usdRates.usd.hkd),
-          gbp: formatRate(usdRates.usd.gbp),
-          eur: formatRate(usdRates.usd.eur),
-          updated_at: new Date().toISOString(),
-          is_active: true,
-          tenant_id: profile.tenant_id,
-          updated_by: user.id,
-        });
-        if (error) throw error;
-      } catch (error) {
-        console.error("Error setting up initial exchange rates:", error);
-      }
-    };
-
-    if (profile.role === "admin") initialExchangeRatesSetup();
-  }, [profile.tenant_id, user.id, profile.role]);
+    if (profile.role !== "admin") return;
+    // Fire-and-forget seed; the server action validates the 3rd-party
+    // response and enforces admin + tenant server-side.
+    ensureInitialExchangeRates().catch(() => {
+      // Non-fatal for UI; surfaced only in server logs.
+    });
+  }, [profile.role]);
 
   return (
     <AppContext.Provider

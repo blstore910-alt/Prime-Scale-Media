@@ -34,7 +34,7 @@ import {
 } from "../ui/table";
 import useExchangeRates from "../settings/finance/use-exchange-rates";
 import { useAppContext } from "@/context/app-provider";
-import { createClient } from "@/lib/supabase/client";
+import { bulkCreateTopupsAsAdmin } from "@/actions/topup-actions";
 import { Coins } from "lucide-react";
 import { useMediaQuery } from "usehooks-ts";
 
@@ -226,34 +226,33 @@ export default function BulkTopupAdAccountsDialog({
       prepareTopupObject(v, exchangeRates[0]),
     );
 
-    const author = {
-      id: profile?.id,
-      name: profile?.full_name,
-      email: profile?.email,
-    };
-
-    const payload = topupObjects.map((obj) => ({
-      ...obj,
-      author,
-      tenant_id: profile?.tenant_id,
-      advertiser_id: accounts[0].advertiser_id,
-    }));
-
-    // Dummy form handler for now; DB integration will replace this.
-    console.log("Bulk topup ad accounts payload", payload);
-
-    const supabase = createClient();
-
-    const { error: topupError } = await supabase
-      .from("top_ups")
-      .insert(payload)
-      .select();
-
-    if (topupError) {
-      toast.error(`${topupError.message}`);
+    const advertiserId = accounts[0]?.advertiser_id;
+    if (!advertiserId) {
+      toast.error("Missing advertiser context");
       return;
     }
-    toast.success(`Successfully topped up ${payload.length} ad accounts.`);
+    const payload = topupObjects.map((obj) => ({
+      type: "top-up" as const,
+      currency: obj.currency,
+      amount_received: obj.amount_received,
+      amount_usd: obj.amount_usd,
+      topup_amount: obj.topup_amount,
+      fee: Number(obj.fee),
+      fee_amount: obj.fee_amount,
+      eur_value: obj.eur_value,
+      eur_topup: obj.eur_topup,
+      account_id: obj.account_id,
+      advertiser_id: advertiserId,
+    }));
+
+    const result = await bulkCreateTopupsAsAdmin(payload);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(
+      `Successfully topped up ${result.data.inserted} ad accounts.`,
+    );
     setOpen(false);
   };
 

@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { assignAffiliateToAdvertiser } from "@/actions/referral-actions";
 import { useAppContext } from "@/context/app-provider";
 import { COMMISSION_TYPE_LABELS, DATE_TIME_FORMAT } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
@@ -233,43 +234,11 @@ function AssignAffiliateDialog({
   const { mutate: assignAffiliate, isPending } = useMutation({
     mutationKey: ["assign-affiliate-to-advertiser", advertiser.id],
     mutationFn: async (values: AssignAffiliateValues) => {
-      const selectedAdvertiser = availableAffiliates.find(
-        (item) => item.id === values.affiliateAdvertiserId,
-      );
-
-      if (!selectedAdvertiser) {
-        throw new Error("Selected advertiser could not be found.");
-      }
-
-      const supabase = createClient();
-      const { data: existingLink, error: existingLinkError } = await supabase
-        .from("referral_links")
-        .select("id")
-        .eq("referred_advertiser_id", advertiser.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingLinkError) throw existingLinkError;
-
-      if (existingLink?.id) {
-        throw new Error("An affiliate is already assigned to this advertiser.");
-      }
-
-      const payload = {
-        tenant_id: advertiser.tenant_id,
+      const result = await assignAffiliateToAdvertiser({
         referred_advertiser_id: advertiser.id,
-        affiliate_advertiser_id: selectedAdvertiser.id,
-        commission_monthly: selectedAdvertiser.commission_monthly ?? null,
-        commission_pct: selectedAdvertiser.commission_pct ?? null,
-        commission_onetime: selectedAdvertiser.commission_onetime ?? null,
-        commission_type: selectedAdvertiser.commission_type ?? null,
-        commission_currency: selectedAdvertiser.commission_currency ?? null,
-        advertiser_user_id: advertiser.user_id,
-        affiliate_user_id: selectedAdvertiser.user_id,
-      };
-
-      const { error } = await supabase.from("referral_links").insert(payload);
-      if (error) throw error;
+        affiliate_advertiser_id: values.affiliateAdvertiserId,
+      });
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: async () => {
       await Promise.all([

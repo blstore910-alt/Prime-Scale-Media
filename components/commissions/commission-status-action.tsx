@@ -1,5 +1,6 @@
 "use client";
 
+import { setCommissionStatus } from "@/actions/referral-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -27,12 +27,11 @@ export default function CommissionStatusAction({
 }: Props) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const supabase = createClient();
 
   const currentStatus = (status ?? "unpaid").toLowerCase() === "paid"
     ? "paid"
     : "unpaid";
-  const nextStatus = useMemo(
+  const nextStatus = useMemo<"paid" | "unpaid">(
     () => (currentStatus === "paid" ? "unpaid" : "paid"),
     [currentStatus],
   );
@@ -40,12 +39,8 @@ export default function CommissionStatusAction({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("referral_commissions")
-        .update({ status: nextStatus })
-        .eq("id", commissionId);
-
-      if (error) throw error;
+      const result = await setCommissionStatus(commissionId, nextStatus);
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["commissions"] });

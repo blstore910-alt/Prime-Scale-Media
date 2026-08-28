@@ -12,9 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useAppContext } from "@/context/app-provider";
 import { getExchangeRate } from "@/lib/get-exchange-rates";
-import { createClient } from "@/lib/supabase/client";
+import { upsertExchangeRate } from "@/actions/exchange-rate-actions";
 import { formatRate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -85,7 +84,6 @@ function ExchangeRatesForm({
 }: {
   defaultValues: { GBP: string; HKD: string; EUR: string };
 }) {
-  const { profile, user } = useAppContext();
   const queryClient = useQueryClient();
   const [isApplying, setIsApplying] = useState(false);
 
@@ -100,22 +98,14 @@ function ExchangeRatesForm({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (values: FormValues) => {
-      if (!profile || !user) throw new Error("Missing user/profile");
-      const supabase = createClient();
-      const payload = {
+      const result = await upsertExchangeRate({
         currency: "USD",
-        hkd: Number(values.HKD),
-        gbp: Number(values.GBP),
         eur: Number(values.EUR),
-        updated_at: new Date().toISOString(),
+        gbp: Number(values.GBP),
+        hkd: Number(values.HKD),
         is_active: true,
-        tenant_id: profile.tenant_id,
-        updated_by: user.id,
-        profile_id: profile?.id,
-      };
-
-      const { error } = await supabase.from("exchange_rates").insert(payload);
-      if (error) throw error;
+      });
+      if (!result.ok) throw new Error(result.error);
       return true;
     },
     onSuccess: (_, variables) => {
