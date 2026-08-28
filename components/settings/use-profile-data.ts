@@ -59,73 +59,22 @@ export function useUpdateProfile() {
 
   return useMutation({
     mutationFn: async ({
-      profileId,
       profileUpdates,
       companyUpdates,
-      advertiserId,
     }: {
       profileId: string;
       profileUpdates: Partial<UserProfile>;
       companyUpdates: Partial<Company>;
       advertiserId?: string;
     }) => {
-      const supabase = createClient();
-
-      // P1-3 fix: verify profileId belongs to authenticated user before update
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Update Profile (scoped to current user)
-      if (Object.keys(profileUpdates).length > 0) {
-        const { error: profileError } = await supabase
-          .from("user_profiles")
-          .update(profileUpdates)
-          .eq("id", profileId)
-          .eq("user_id", user.id);
-
-        if (profileError) throw profileError;
-      }
-
-      // Upsert Company
-      if (advertiserId && Object.keys(companyUpdates).length > 0) {
-        // Fetch profile to get tenant_id if we don't have it
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("tenant_id")
-          .eq("id", profileId)
-          .single();
-
-        if (!profile) throw new Error("Profile not found");
-
-        const fullPayload = {
-          ...companyUpdates,
-          advertiser_id: advertiserId,
-          tenant_id: profile.tenant_id,
-          user_profile_id: profileId,
-        };
-
-        // Check if company exists for this advertiser
-        const { data: existingCompany } = await supabase
-          .from("companies")
-          .select("id")
-          .eq("advertiser_id", advertiserId)
-          .maybeSingle();
-
-        if (existingCompany) {
-          const { error: companyError } = await supabase
-            .from("companies")
-            .update(fullPayload)
-            .eq("advertiser_id", advertiserId);
-          if (companyError) throw companyError;
-        } else {
-          const { error: companyError } = await supabase
-            .from("companies")
-            .insert(fullPayload);
-          if (companyError) throw companyError;
-        }
-      }
+      const { updateOwnProfileAndCompany } = await import(
+        "@/actions/company-actions"
+      );
+      const result = await updateOwnProfileAndCompany({
+        profile: profileUpdates,
+        company: companyUpdates,
+      });
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: () => {
       toast.success("Profile updated successfully");

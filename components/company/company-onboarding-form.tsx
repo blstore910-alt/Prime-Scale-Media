@@ -132,58 +132,40 @@ export default function CompanyOnboardingForm({
     }
 
     setIsSubmitting(true);
-    const supabase = createClient();
-
     try {
-      const companyPayload = {
-        name: data.name,
-        official_email: data.official_email,
-        phone: data.phone,
-        website_url: data.website_url || null,
-        vat_no: data.is_not_vat ? null : data.vat_no || null,
-
-        address: data.address,
-        country: data.country,
-        state: data.state,
-        zipcode: data.zipcode,
-        is_not_vat: data.is_not_vat,
-        advertiser_id: advertiserId,
-        user_profile_id: profile.id,
-        tenant_id: profile.tenant_id,
-      };
-
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
-        .insert(companyPayload)
-        .select()
-        .single();
-
-      if (companyError) throw companyError;
-
       const isSameAddress = data.billing.same_as_company;
-      const billingPayload = {
-        company_id: company.id,
-        address: isSameAddress ? data.address : data.billing.address,
-        state: isSameAddress ? data.state : data.billing.state,
-        country: isSameAddress ? data.country : data.billing.country,
-        zipcode: isSameAddress ? data.zipcode : data.billing.zipcode,
-      };
-
-      const { error: billingError } = await supabase
-        .from("billings")
-        .insert(billingPayload);
-
-      if (billingError) throw billingError;
+      const { saveOwnCompanyOnboarding } = await import(
+        "@/actions/company-actions"
+      );
+      const result = await saveOwnCompanyOnboarding({
+        company: {
+          name: data.name,
+          official_email: data.official_email,
+          phone: data.phone,
+          website_url: data.website_url || null,
+          vat_no: data.is_not_vat ? null : data.vat_no || null,
+          address: data.address,
+          country: data.country,
+          state: data.state,
+          zipcode: data.zipcode,
+          is_not_vat: data.is_not_vat,
+        },
+        billing: {
+          address: isSameAddress ? data.address : data.billing.address,
+          state: isSameAddress ? data.state : data.billing.state,
+          country: isSameAddress ? data.country : data.billing.country,
+          zipcode: isSameAddress ? data.zipcode : data.billing.zipcode,
+        },
+      });
+      if (!result.ok) throw new Error(result.error);
 
       toast.success("Company information saved!");
       router.refresh();
-      // Wait a bit for the layout to re-check
       setTimeout(() => {
         router.push("/");
       }, 100);
     } catch (error) {
       const err = error as Error;
-      console.error("Error saving company:", err);
       toast.error("Failed to save company information", {
         description: err.message,
       });
