@@ -1,5 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
-import { PostgrestError } from "@supabase/supabase-js";
+import { updateAdvertiser as updateAdvertiserAction } from "@/actions/admin-actions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 type UpdatePayload = {
@@ -20,18 +19,13 @@ export default function useUpdateAdvertiser() {
   const queryClient = useQueryClient();
   const { mutate: updateAdvertiser, isPending } = useMutation<
     unknown,
-    PostgrestError,
+    Error,
     UpdatePayload
   >({
     mutationFn: async ({ id, payload }) => {
-      const supabase = createClient();
-      const { error, data } = await supabase
-        .from("advertisers")
-        .update(payload)
-        .eq("id", id)
-        .select("*");
-      if (error) throw error;
-      return data;
+      const result = await updateAdvertiserAction(id, payload);
+      if (!result.ok) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });

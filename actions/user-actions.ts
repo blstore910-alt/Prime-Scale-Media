@@ -26,7 +26,12 @@ export async function changeProfile(profileId: string, pathname: string) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set("profile_id", profileId);
+  cookieStore.set("profile_id", profileId, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+  });
   revalidatePath(pathname);
 
   return true;
@@ -44,13 +49,12 @@ export async function loginUser(formData: FormData) {
   });
 
   if (error) {
-    console.log(error);
     return { error: error.message };
   }
 
   const { data: profiles } = await supabase
     .from("user_profiles")
-    .select("*")
+    .select("id, role")
     .eq("user_id", data.user.id);
 
   const cookieStore = await cookies();
@@ -67,8 +71,12 @@ export async function loginUser(formData: FormData) {
     }
     const newProfileObj = profiles.find((p) => p.id === newProfileId);
     if (newProfileObj) {
-      cookieStore.set("profile_id", newProfileObj.id);
-      cookieStore.set("role", newProfileObj.role);
+      cookieStore.set("profile_id", newProfileObj.id, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        path: "/",
+      });
     }
   }
 

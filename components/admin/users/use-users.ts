@@ -1,5 +1,6 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 
 type UseUsersParams = {
@@ -47,11 +48,14 @@ export default function useUsers({
       if (active !== undefined) {
         query = query.eq("is_active", active);
       }
-      // Search filter
+      // Search filter (sanitised for PostgREST .or() filter DSL)
       if (search && search.trim().length > 0) {
-        const term = `*${search.trim()}*`;
-
-        query = query.or(`full_name.ilike.${term},email.ilike.${term}`);
+        const term = safeIlikeTerm(search);
+        if (term.length > 0) {
+          query = query.or(
+            `full_name.ilike."*${term}*",email.ilike."*${term}*"`,
+          );
+        }
       }
 
       // map sort key to column + direction

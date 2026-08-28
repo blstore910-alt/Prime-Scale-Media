@@ -142,11 +142,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(
+  const res = NextResponse.json(
     {
       success: true,
       message: "Invite accepted and user profile created",
     },
-    { status: 201, headers: { "Set-Cookie": `profile=${profileData.id}` } },
+    { status: 201 },
   );
+  res.cookies.set("profile_id", profileData.id, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+  });
+  return res;
 }

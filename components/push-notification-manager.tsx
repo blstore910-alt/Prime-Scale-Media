@@ -1,6 +1,5 @@
 "use client";
 
-import { subscribeUser } from "@/actions/push-actions";
 import { urlBase64ToUint8Array } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { Bell, Loader2, X } from "lucide-react";
@@ -86,7 +85,14 @@ export default function PushNotificationManager() {
       });
       setSubscription(sub);
       const serializedSub = JSON.parse(JSON.stringify(sub));
-      await subscribeUser(serializedSub);
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(serializedSub),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to register push subscription");
+      }
       setIsVisible(false);
     } catch (error) {
       console.error("Failed to subscribe to push notifications:", error);

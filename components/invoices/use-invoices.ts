@@ -1,6 +1,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -61,16 +62,18 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
       }
 
       if (search && search.trim() !== "") {
-        const term = search.trim();
-        const numericOnly = /^\d+$/.test(term);
+        const rawTerm = search.trim();
+        const numericOnly = /^\d+$/.test(rawTerm);
 
         if (numericOnly) {
-          query = query.eq("number", Number(term));
+          query = query.eq("number", Number(rawTerm));
         } else {
-          // Search by advertiser code or company name
-          query = query.or(
-            `advertiser.tenant_client_code.ilike.%${term}%,company.name.ilike.%${term}%`,
-          );
+          const term = safeIlikeTerm(rawTerm);
+          if (term.length > 0) {
+            query = query.or(
+              `advertiser.tenant_client_code.ilike."*${term}*",company.name.ilike."*${term}*"`,
+            );
+          }
         }
       }
 

@@ -4,34 +4,85 @@ import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
+const ALLOWED_INVITE_ROLES = ["advertiser", "affiliate"] as const;
+type InviteRole = (typeof ALLOWED_INVITE_ROLES)[number];
+
+const ALLOWED_COMMISSION_TYPES = ["percentage", "fixed", "monthly", "onetime"] as const;
+
+type SendInviteBody = {
+  email?: string;
+  role?: string;
+  affiliate_id?: string | null;
+  commission_type?: string | null;
+  commission_rate?: number | null;
+  commission_amount?: number | null;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { profile, error: authError } = await apiRequireAdmin();
     if (authError) return authError;
 
-    const body = await request.json();
-
-    const {
-      email,
-      role,
-      tenant_id,
-      tenant_name,
-      affiliate_id,
-      commission_type,
-      commission_rate,
-      commission_amount,
-    } = body;
-
-    if (!email || !role || !tenant_id) {
+    let body: SendInviteBody;
+    try {
+      body = (await request.json()) as SendInviteBody;
+    } catch {
       return NextResponse.json(
-        { error: "Missing required fields: email, role, or tenant_id" },
+        { error: "Malformed JSON body" },
         { status: 400 },
       );
     }
+
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const role = body.role;
+
+    if (!email || !role) {
+      return NextResponse.json(
+        { error: "Missing required fields: email, role" },
+        { status: 400 },
+      );
+    }
+
+    if (!ALLOWED_INVITE_ROLES.includes(role as InviteRole)) {
+      return NextResponse.json(
+        { error: `Role must be one of: ${ALLOWED_INVITE_ROLES.join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    // Optional affiliate fields — validate shape when present.
+    const affiliate_id =
+      typeof body.affiliate_id === "string" && body.affiliate_id.length > 0
+        ? body.affiliate_id
+        : null;
+    let commission_type: string | null = null;
+    if (body.commission_type != null) {
+      if (
+        typeof body.commission_type !== "string" ||
+        !ALLOWED_COMMISSION_TYPES.includes(
+          body.commission_type as (typeof ALLOWED_COMMISSION_TYPES)[number],
+        )
+      ) {
+        return NextResponse.json(
+          { error: "Invalid commission_type" },
+          { status: 400 },
+        );
+      }
+      commission_type = body.commission_type;
+    }
+    const commission_rate =
+      typeof body.commission_rate === "number" && body.commission_rate >= 0
+        ? body.commission_rate
+        : null;
+    const commission_amount =
+      typeof body.commission_amount === "number" && body.commission_amount >= 0
+        ? body.commission_amount
+        : null;
+
     const { data } = await supabase
       .from("user_profiles")
-      .select("*")
+      .select("id")
       .match({
         email,
         tenant_id: profile.tenant_id,
@@ -49,12 +100,18 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
 
-    const { data: sender } = await supabase.auth.getUser();
     const { data: tenant } = await supabase
       .from("tenants")
-      .select()
+      .select("id, name")
       .eq("id", profile.tenant_id)
       .single();
+
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "Tenant not found" },
+        { status: 500 },
+      );
+    }
 
     const token = randomUUID();
     const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
@@ -63,17 +120,17 @@ export async function POST(request: NextRequest) {
     const payload = {
       email,
       tenant_id: profile.tenant_id,
-      tenant_name,
-      sender_id: sender.user?.id,
-      sender_profile_id: body.sender_profile_id,
+      tenant_name: tenant.name,
+      sender_id: profile.user_id,
+      sender_profile_id: profile.id,
       token,
       expires_at,
       role,
-      // Affiliate fields
-      affiliate_id: affiliate_id || null,
-      commission_type: commission_type || null,
-      commission_rate: commission_rate || null,
-      commission_amount: commission_amount || null,
+      // Affiliate fields (validated above)
+      affiliate_id,
+      commission_type,
+      commission_rate,
+      commission_amount,
     };
 
     const { error } = await supabase.from("invitations").insert(payload);

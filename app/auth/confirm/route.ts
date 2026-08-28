@@ -228,13 +228,23 @@ export async function GET(request: NextRequest) {
   }
 
   const metadata = (user.user_metadata as Record<string, unknown> | null) ?? {};
-  const tenantSlug =
-    searchParams.get("t") ?? getStringMetadataValue(metadata, "tenant_slug");
-  const referralCode =
-    (
-      searchParams.get("ref") ??
-      getStringMetadataValue(metadata, "referral_code")
-    )?.toUpperCase() ?? null;
+
+  // Prefer the tenant/referral values recorded in the user's metadata (set at
+  // signup time by the app's own signup flow) over URL query params. If both
+  // are present and they diverge, refuse — the URL was tampered with.
+  const metadataTenant = getStringMetadataValue(metadata, "tenant_slug");
+  const urlTenant = searchParams.get("t");
+  if (metadataTenant && urlTenant && metadataTenant !== urlTenant) {
+    return redirectWithError(request, "Tenant slug mismatch");
+  }
+  const tenantSlug = metadataTenant ?? urlTenant;
+
+  const metadataReferral = getStringMetadataValue(metadata, "referral_code");
+  const urlReferral = searchParams.get("ref");
+  if (metadataReferral && urlReferral && metadataReferral !== urlReferral) {
+    return redirectWithError(request, "Referral code mismatch");
+  }
+  const referralCode = (metadataReferral ?? urlReferral)?.toUpperCase() ?? null;
 
   return finalizeAdvertiserSignup({ request, user, tenantSlug, referralCode });
 }

@@ -179,9 +179,11 @@ export default function InvoicesTable() {
               className="pl-8"
             />
           </div>
-          <Button onClick={() => setIsCreateInvoiceOpen(true)}>
-            Create Invoice
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setIsCreateInvoiceOpen(true)}>
+              Create Invoice
+            </Button>
+          )}
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toggleAdminStatus } from "@/actions/admin-actions";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -69,18 +70,9 @@ export default function AdminsTable() {
 
   const { mutate: toggleStatus } = useMutation({
     mutationFn: async (admin: AdminProfile) => {
-      const nextStatus = admin.status === "active" ? "inactive" : "active";
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("user_profiles")
-        .update({
-          status: nextStatus,
-          is_active: nextStatus === "active",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", admin.id);
-      if (error) throw error;
-      return nextStatus;
+      const result = await toggleAdminStatus(admin.id);
+      if (!result.ok) throw new Error(result.error);
+      return result.data.status;
     },
     onSuccess: (nextStatus) => {
       queryClient.invalidateQueries({ queryKey: ["admins", tenantId] });

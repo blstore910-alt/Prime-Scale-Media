@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { Topup } from "@/lib/types/topup";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -76,17 +77,6 @@ export default function useTopups(params: TopupsQueryParams = {}) {
       const { type, source, status, search, page = 1, perPage = 10 } = params;
 
       let query = supabase.from("top_ups_view").select(`*`, { count: "exact" });
-      // let query = supabase.from("top_ups").select(
-      //   `
-      //     *,
-      //     account:ad_accounts(*),
-      //     advertiser:advertisers(
-      //       tenant_client_code,
-      //       profile:user_profiles(full_name,email)
-      //     )
-      //   `,
-      //   { count: "exact" }
-      // );
 
       if (type && type !== "all") {
         query = query.eq("type", type);
@@ -99,15 +89,21 @@ export default function useTopups(params: TopupsQueryParams = {}) {
       }
 
       if (search && search.trim() !== "") {
-        const s = search.trim();
+        const rawTerm = search.trim();
+        const term = safeIlikeTerm(rawTerm);
+        const orPatterns: string[] = [];
 
-        const orPatterns: string[] = [`tenant_client_code.ilike."%${s}%"`];
-
-        if (!isNaN(Number(s))) {
-          orPatterns.push(`number.eq.${Number(s)}`);
+        if (term.length > 0) {
+          orPatterns.push(`tenant_client_code.ilike."*${term}*"`);
         }
 
-        query = query.or(orPatterns.join(","));
+        if (!isNaN(Number(rawTerm))) {
+          orPatterns.push(`number.eq.${Number(rawTerm)}`);
+        }
+
+        if (orPatterns.length > 0) {
+          query = query.or(orPatterns.join(","));
+        }
       }
 
       const { column, ascending } = buildSortParams(params.sort);

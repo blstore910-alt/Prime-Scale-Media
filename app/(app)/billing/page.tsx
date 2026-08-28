@@ -59,7 +59,8 @@ export default function BillingPage() {
   }, [sameAsCompany, form]);
 
   function onSubmit(data: BillingFormValues) {
-    console.log(data);
+    // TODO: wire submit — this page is currently a placeholder form
+    void data;
   }
 
   return (

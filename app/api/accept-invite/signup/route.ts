@@ -216,11 +216,17 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
 
-    res.headers.set("Set-Cookie", `profile=${profileData.id}`);
+    res.cookies.set("profile_id", profileData.id, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    });
 
     return res;
   } catch (err) {
-    console.error(err);
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("accept-invite/signup error:", msg);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 },
