@@ -257,30 +257,24 @@ export default function AccountForm({
         };
       }
 
-      // Prepare payload excluding temp form fields
-      const payload = {
+      const { createAdAccountAsAdmin } = await import(
+        "@/actions/ad-account-actions"
+      );
+      const result = await createAdAccountAsAdmin({
         name: values.name,
         bm_id: values.bm_id || null,
         fee: values.fee,
         advertiser_id: values.advertiser_id,
         platform: values.platform,
         airtable: values.airtable,
-        start_date: new Date().toISOString(),
         timezone: values.timezone,
         notes: values.notes || null,
         website_url: values.website_url || null,
-        created_by: user?.id,
-        tenant_id: profile?.tenant_id,
-        metadata: metadata,
-      };
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .insert(payload)
-        .select("*");
-
+        metadata,
+      });
       dispatch("close-quick-create");
-      if (error) throw error;
-      return data;
+      if (!result.ok) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       toast.success("New Ad Account created successfully.");

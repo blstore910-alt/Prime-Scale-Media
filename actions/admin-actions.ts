@@ -217,6 +217,60 @@ export async function updateUserProfile(
 }
 
 // ─────────────────────────────────────────
+// updateAffiliate — admin only, target must belong to same tenant.
+// ─────────────────────────────────────────
+const AFFILIATE_ALLOWED_COLUMNS = [
+  "commission_type",
+  "commission_pct",
+  "commission_onetime",
+  "commission_monthly",
+  "commission_currency",
+  "note",
+  "airtable",
+] as const;
+type AffiliateUpdatable = Partial<
+  Record<(typeof AFFILIATE_ALLOWED_COLUMNS)[number], unknown>
+>;
+
+export async function updateAffiliate(
+  affiliateId: string,
+  payload: AffiliateUpdatable,
+): Promise<ActionResult> {
+  if (typeof affiliateId !== "string" || affiliateId.length === 0) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const caller = await assertAdmin();
+  if (!caller.ok) return { ok: false, error: caller.error };
+  const { supabase, profile } = caller.ctx;
+
+  const cleaned: Record<string, unknown> = {};
+  for (const col of AFFILIATE_ALLOWED_COLUMNS) {
+    if (col in payload) cleaned[col] = payload[col];
+  }
+  if (Object.keys(cleaned).length === 0) {
+    return { ok: false, error: "No updatable fields" };
+  }
+
+  const { data: target } = await supabase
+    .from("affiliates")
+    .select("id, tenant_id")
+    .eq("id", affiliateId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Affiliate not found" };
+  if (target.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const { error } = await supabase
+    .from("affiliates")
+    .update(cleaned)
+    .eq("id", affiliateId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+// ─────────────────────────────────────────
 // updateAdvertiser — admin only, target must belong to same tenant.
 // Allowlists writable columns (includes commission fields).
 // ─────────────────────────────────────────

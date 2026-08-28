@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { updateAffiliate as updateAffiliateAction } from "@/actions/admin-actions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Affiliate } from "@/lib/types/affiliate";
@@ -15,16 +15,9 @@ export default function useUpdateAffiliate() {
     }: {
       id: string;
     } & Partial<Affiliate>) => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("affiliates")
-        .update(payload)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const result = await updateAffiliateAction(id, payload);
+      if (!result.ok) throw new Error(result.error);
+      return null;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["affiliates"] });

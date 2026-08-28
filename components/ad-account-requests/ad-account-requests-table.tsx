@@ -120,16 +120,11 @@ export default function AdAccountRequestsTable() {
 
     setIsRejecting(true);
     try {
-      const supabase = createClient();
-      const { error: updateError } = await supabase
-        .from("ad_account_requests")
-        .update({
-          status: "rejected",
-          rejection_reason: reason,
-        })
-        .eq("id", requestToReject.id);
-
-      if (updateError) throw updateError;
+      const { rejectAdAccountRequest } = await import(
+        "@/actions/ad-account-actions"
+      );
+      const result = await rejectAdAccountRequest(requestToReject.id, reason);
+      if (!result.ok) throw new Error(result.error);
 
       toast.success("Ad account request rejected.");
       await queryClient.invalidateQueries({

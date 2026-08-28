@@ -108,39 +108,22 @@ export default function CreateAdAccountFromRequestDialog({
 
       const supabase = createClient();
 
-      const accountPayload = {
+      const { createAdAccountFromRequest } = await import(
+        "@/actions/ad-account-actions"
+      );
+      const result = await createAdAccountFromRequest(request.id, {
         name: values.name,
         bm_id: values.platform.includes("meta") ? toBmId(metadata) : null,
         fee: values.fee,
         currency: request.currency,
-        advertiser_id: request.advertiser_id,
         platform: values.platform,
         airtable: false,
-        start_date: new Date().toISOString(),
         timezone: request.timezone || "UTC",
         notes: request.notes || null,
         website_url: request.website_url || null,
-        created_by: user.id,
-        tenant_id: request.tenant_id || profile?.tenant_id,
         metadata: metadata || {},
-      };
-
-      const { error: createError } = await supabase
-        .from("ad_accounts")
-        .insert(accountPayload);
-
-      if (createError) throw new Error(createError.message);
-
-      const { error: requestUpdateError } = await supabase
-        .from("ad_account_requests")
-        .update({ status: "completed", rejection_reason: null })
-        .eq("id", request.id);
-
-      if (requestUpdateError) {
-        throw new Error(
-          "Ad account created, but failed to update request status.",
-        );
-      }
+      });
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: () => {
       toast.success("Ad account created from request.");

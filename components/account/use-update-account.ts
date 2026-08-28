@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { updateAdAccountAsAdmin } from "@/actions/ad-account-actions";
 import { AdAccount } from "@/lib/types/account";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -18,15 +18,9 @@ export default function useUpdateAccount() {
     mutationKey: ["update-account"],
 
     mutationFn: async ({ id, payload }: UpdateAccountArgs) => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .update(payload)
-        .eq("id", id)
-        .select();
-
-      if (error) throw error;
-      return data;
+      const result = await updateAdAccountAsAdmin(id, payload);
+      if (!result.ok) throw new Error(result.error);
+      return null;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
