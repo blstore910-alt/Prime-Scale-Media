@@ -1,39 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useAppContext } from "@/context/app-provider";
+import { updateTopupAsAdmin } from "@/actions/topup-actions";
 import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function useUpdateTopup() {
-  const { profile } = useAppContext();
   const queryClient = useQueryClient();
   const { mutate: updateTopup, isPending } = useMutation<any, Error, any>({
     mutationKey: ["update-topup"],
     mutationFn: async (data) => {
-      const supabase = createClient();
-      const { data: updatedData, error } = await supabase
-        .from("top_ups")
-        .update({
-          ...data.payload,
-          updated_at: new Date().toISOString(),
-          author: {
-            id: profile?.id,
-            name: profile?.full_name,
-            email: profile?.email,
-          },
-        })
-        .eq("id", data.topupId)
-        .select()
-        .order("created_at", { ascending: false })
-        .single();
-
-      if (error) throw error;
-
-      return updatedData;
+      const result = await updateTopupAsAdmin(data.topupId, data.payload);
+      if (!result.ok) throw new Error(result.error);
+      // Return payload for onSuccess side-effects (topup_logs)
+      return { id: data.topupId, ...data.payload };
     },
     onSuccess: async (data) => {
       await updateTopupLogs(data, data.is_deleted ? "delete" : "update");
-      // Delay invalidation to prevent sheet from closing
-      // This updates the list in the background without affecting the detail view
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
       }, 500);

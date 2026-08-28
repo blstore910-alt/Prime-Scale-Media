@@ -13,9 +13,11 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { createTenantForCurrentUser } from "@/actions/tenant-actions";
 import { generateSlug, getInitials } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 type FormValues = {
   name: string;
@@ -70,33 +72,16 @@ export default function CreateOrganization() {
   }, [tenantName, setValue]);
 
   const onSubmit = async (values: FormValues) => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error("User not authenticated");
+    const result = await createTenantForCurrentUser({
+      name: values.name,
+      slug: values.slug,
+      initials: getInitials(values.name),
+    });
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
     }
-
-    const userId = session.user.id;
-
-    const { data, error } = await supabase
-      .from("tenants")
-      .insert([
-        {
-          name: values.name,
-          slug: values.slug,
-          owner_id: userId,
-          initials: getInitials(values.name),
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-    if (data) {
-      router.push("/dashboard");
-    }
+    router.push("/dashboard");
   };
 
   return (

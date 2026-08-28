@@ -1,5 +1,6 @@
 "use client";
 
+import { setInvoicePaidStatus } from "@/actions/invoice-actions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,6 @@ import {
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
-import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -66,25 +66,8 @@ export default function InvoicesTable() {
       invoiceId: string;
       status: "paid" | "unpaid";
     }) => {
-      if (!profile?.tenant_id) {
-        throw new Error("Tenant information is missing.");
-      }
-
-      const supabase = createClient();
-      const payload = {
-        status,
-        paid_at: status === "paid" ? new Date().toISOString() : null,
-      };
-
-      const { error } = await supabase
-        .from("invoices")
-        .update(payload)
-        .eq("id", invoiceId)
-        .eq("tenant_id", profile.tenant_id);
-
-      if (error) {
-        throw error;
-      }
+      const result = await setInvoicePaidStatus(invoiceId, status);
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({

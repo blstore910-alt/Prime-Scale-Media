@@ -164,8 +164,9 @@ function TopupForm({
 
       const payload = {
         ...values,
-        status: values.mark_paid ? "completed" : "pending",
-        mark_paid: undefined,
+        status: (values.mark_paid ? "completed" : "pending") as
+          | "completed"
+          | "pending",
       };
 
       const data = createTopup(

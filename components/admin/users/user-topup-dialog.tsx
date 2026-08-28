@@ -1,3 +1,4 @@
+import { createTopupAsAdmin } from "@/actions/topup-actions";
 import InputField from "@/components/form/input-field";
 import SelectField from "@/components/form/select-field";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
@@ -21,9 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../ui/dialog";
-import { createClient } from "@/lib/supabase/client";
 import SwitchField from "@/components/form/switch-field";
-import { useAppContext } from "@/context/app-provider";
 
 interface Profile extends UserProfile {
   advertiser: Advertiser[];
@@ -77,7 +76,6 @@ function TopupForm({
   profile: Profile;
   setOpen: (open: boolean) => void;
 }) {
-  const { profile: currentUser } = useAppContext();
   const { exchangeRates } = useExchangeRates({ activeOnly: true });
   const { control, handleSubmit, watch } = useForm<FormValues>({
     defaultValues: {
@@ -104,24 +102,20 @@ function TopupForm({
         values.currency,
         feeApplicableTypes.includes(values.type) ? Number(values.fee) : 0,
       );
-      const payload = {
-        ...values,
-        topup_amount: topupAmount.toFixed(2),
+      const advertiserId = profile.advertiser[0]?.id;
+      if (!advertiserId) throw new Error("Advertiser profile missing");
+      const result = await createTopupAsAdmin({
+        type: values.type,
+        currency: values.currency,
+        amount_received: values.amount_received,
         amount_usd: amountUSD.toFixed(2),
-        advertiser_id: profile.advertiser[0]?.id || undefined,
-        tenant_id: profile.tenant_id,
-        mark_paid: undefined,
-        status: values.mark_paid ? "completed" : "pending",
-        author: {
-          id: currentUser?.id,
-          email: currentUser?.email,
-          name: currentUser?.full_name,
-        },
-      };
-      const supabase = createClient();
-      const { data, error } = await supabase.from("top_ups").insert(payload);
-      if (error) throw error;
-      return data;
+        topup_amount: topupAmount.toFixed(2),
+        fee: Number(values.fee),
+        advertiser_id: advertiserId,
+        mark_paid: values.mark_paid,
+      });
+      if (!result.ok) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       toast.success("Topup added successfully", {

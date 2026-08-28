@@ -1,5 +1,6 @@
 "use client";
 
+import { createTopupAsAdmin } from "@/actions/topup-actions";
 import { useAppContext } from "@/context/app-provider";
 import { CURRENCIES, TOPUP_TYPES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
@@ -31,13 +32,14 @@ type FormValues = {
 export const createTopup = async (
   exchangeRates: ExchangeRate[],
   account: AdAccount | undefined,
-  values: FormValues,
-  author: object,
+  values: FormValues & { status?: "pending" | "completed"; mark_paid?: boolean },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _author: object,
   fee: number,
   advertiser_id: string | undefined,
-  tenant_id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _tenant_id: string,
 ) => {
-  const supabase = createClient();
   const feeApplicableTypes = ["top-up", "first-top-up"];
   const isEuMetaPremium = account?.platform === "eu-meta-premium";
   const feePercent = fee / 100;
@@ -51,34 +53,28 @@ export const createTopup = async (
         : fee
       : 0,
   );
-  const payload = {
-    ...values,
+  if (!advertiser_id) throw new Error("advertiser_id required");
+  const result = await createTopupAsAdmin({
+    type: values.type,
+    currency: values.currency,
+    amount_received: values.amount_received,
     amount_usd: amountUSD.toFixed(2),
     topup_amount: topupAmount.toFixed(2),
-    author,
     fee,
-    advertiser_id,
-    tenant_id,
-    account_id: account?.id || undefined,
     fee_amount: feeAmount.toFixed(2),
-    ...(account && {
-      account_id: account.id,
-      ...(isEuMetaPremium && {
-        eur_value:
-          values.amount_received * (1 - Math.max(feePercent - 0.02, 0)),
-        eur_topup: values.amount_received * (1 - feePercent),
-      }),
+    advertiser_id,
+    account_id: account?.id,
+    payment_slip: values.payment_slip,
+    status: values.status,
+    mark_paid: values.mark_paid,
+    ...(isEuMetaPremium && {
+      eur_value:
+        values.amount_received * (1 - Math.max(feePercent - 0.02, 0)),
+      eur_topup: values.amount_received * (1 - feePercent),
     }),
-  };
-
-  const { data, error } = await supabase
-    .from("top_ups")
-    .insert(payload)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  });
+  if (!result.ok) throw new Error(result.error);
+  return { id: result.data.id };
 };
 
 export default function TopupForm({
