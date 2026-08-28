@@ -200,6 +200,52 @@ export async function rejectAdAccountRequest(
 }
 
 // ─────────────────────────────────────────
+// setAdAccountRequestStatus — allow-listed status transitions
+// ─────────────────────────────────────────
+const REQUEST_STATUS = [
+  "pending",
+  "payment_pending",
+  "in_progress",
+  "completed",
+  "rejected",
+  "cancelled",
+] as const;
+type RequestStatus = (typeof REQUEST_STATUS)[number];
+
+export async function setAdAccountRequestStatus(
+  requestId: string,
+  status: RequestStatus,
+): Promise<ActionResult> {
+  if (typeof requestId !== "string" || requestId.length === 0) {
+    return { ok: false, error: "Invalid input" };
+  }
+  if (!REQUEST_STATUS.includes(status)) {
+    return { ok: false, error: "Invalid status" };
+  }
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  const { data: req } = await supabase
+    .from("ad_account_requests")
+    .select("id, tenant_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!req) return { ok: false, error: "Request not found" };
+  if (req.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const { error } = await supabase
+    .from("ad_account_requests")
+    .update({ status })
+    .eq("id", requestId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+// ─────────────────────────────────────────
 // createAdAccountFromRequest — combined operation:
 // create the ad_account and mark the request completed atomically
 // (best-effort — Supabase JS client can't do multi-statement tx from

@@ -1,3 +1,4 @@
+import { setAdAccountRequestStatus } from "@/actions/ad-account-actions";
 import { createInvoiceAsAdmin } from "@/actions/invoice-actions";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -54,12 +55,11 @@ export default function useCreateAdAccountRequestInvoice() {
       });
       if (!result.ok) throw new Error(result.error);
 
-      const { error: requestUpdateError } = await supabase
-        .from("ad_account_requests")
-        .update({ status: "payment_pending" })
-        .eq("id", values.ad_account_request_id);
-
-      if (requestUpdateError) throw requestUpdateError;
+      const statusResult = await setAdAccountRequestStatus(
+        values.ad_account_request_id,
+        "payment_pending",
+      );
+      if (!statusResult.ok) throw new Error(statusResult.error);
 
       return result.data;
     },
