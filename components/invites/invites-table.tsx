@@ -95,14 +95,10 @@ export default function InvitesTable() {
 
   const { mutate: updateInvite, isPending } = useMutation<unknown, Error, any>({
     mutationKey: ["cancel-invite"],
-    mutationFn: async ({ inviteId, payload }) => {
-      const { error, data } = await supabase
-        .from("invitations")
-        .update(payload)
-        .eq("id", inviteId)
-        .select();
-      if (error) throw error;
-      return data;
+    mutationFn: async ({ inviteId }) => {
+      const { cancelInvitation } = await import("@/actions/invite-actions");
+      const result = await cancelInvitation(inviteId, "cancelled");
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invites"] });
@@ -110,7 +106,7 @@ export default function InvitesTable() {
   });
 
   const handleCancelInvite = (inviteId: string) => {
-    updateInvite({ inviteId, payload: { status: "cancelled" } });
+    updateInvite({ inviteId });
   };
 
   // --- Loading state ---

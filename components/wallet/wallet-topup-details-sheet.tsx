@@ -61,14 +61,9 @@ export default function WalletTopupDetailsSheet({
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("wallet_topups")
-        .update({
-          status: "completed",
-          approved_by: profile?.id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", topupId);
+      const { error } = await supabase.rpc("wallet_topup_admin_verify", {
+        p_topup_id: topupId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
