@@ -51,18 +51,12 @@ export default function WalletTopupDialog({
   onOpenChange,
   walletId,
   referenceNo,
-  advertiserId,
-  tenantId,
-  createdBy,
   minTopup,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletId: string | null;
   referenceNo: number | null;
-  advertiserId: string | null;
-  tenantId: string | null;
-  createdBy: string | null;
   minTopup: number | null;
 }) {
   const [step, setStep] = useState(STEPS.SELECTION);
@@ -186,43 +180,21 @@ export default function WalletTopupDialog({
   const { mutate, isPending } = useMutation({
     mutationKey: ["create-wallet-topup", walletId],
     mutationFn: async (values: FormValues) => {
-      if (!walletId || !advertiserId || !tenantId || !createdBy) {
-        throw new Error("Missing wallet context.");
-      }
       const supabase = createClient();
-
-      const payload = {
-        wallet_id: walletId,
-        advertiser_id: advertiserId,
-        tenant_id: tenantId,
-        currency,
-        amount: values.amount,
-        status: "pending",
-        created_by: createdBy,
-        reference_no: referenceNo,
-        payment_slip: accountType === "others" ? paymentSlipUrl : null,
-      };
-
-      const { data, error } = await supabase
-        .from("wallet_topups")
-        .insert(payload)
-        .select("*")
-        .single();
-
+      const { data, error } = await supabase.rpc(
+        "wallet_topup_advertiser_create",
+        {
+          p_amount: values.amount,
+          p_currency: currency,
+          p_payment_slip:
+            accountType === "others" ? paymentSlipUrl : null,
+        },
+      );
       if (error) throw error;
       return data;
     },
     onSuccess: async () => {
       setStep(STEPS.SUCCESS);
-      const generatedRef = `${Date.now().toString().slice(-6)}${Math.floor(
-        1000 + Math.random() * 9000,
-      )}`;
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("wallets")
-        .update({ reference_no: generatedRef })
-        .eq("id", walletId);
-      if (error) throw error;
       queryClient.invalidateQueries({
         queryKey: ["wallet-topups", walletId],
       });

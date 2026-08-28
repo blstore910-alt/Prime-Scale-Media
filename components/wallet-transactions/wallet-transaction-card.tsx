@@ -66,10 +66,6 @@ export default function WalletTransactionCard({
   const handleReject = (reason: string) => {
     updateTransaction({
       action: "reject",
-      data: {
-        status: "rejected",
-        rejection_reason: reason,
-      },
       rejectionReason: reason,
     });
   };

@@ -229,22 +229,14 @@ export default function NotificationsPage() {
     markAllAsRead.mutate();
   };
 
-  const handleWalletTopupApprove = (amount: number) => {
+  const handleWalletTopupApprove = () => {
     if (!walletTopupToApprove || !profile?.id) {
       toast.error("Unable to approve transaction right now.");
       return;
     }
 
     updateTransaction(
-      {
-        action: "approve",
-        data: {
-          status: "completed",
-          approved_by: profile.id,
-          amount,
-        },
-        approverId: profile.id,
-      },
+      { action: "approve" },
       {
         onSuccess: () => {
           setWalletTopupToApprove(null);

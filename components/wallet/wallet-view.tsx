@@ -62,18 +62,7 @@ export default function WalletView() {
     mutationFn: async () => {
       if (!advertiserId) throw new Error("Missing advertiser profile.");
       const supabase = createClient();
-      const generatedRef = `${Date.now().toString().slice(-6)}${Math.floor(
-        1000 + Math.random() * 9000,
-      )}`;
-      const { data, error } = await supabase
-        .from("wallets")
-        .insert({
-          advertiser_id: advertiserId,
-          tenant_id: tenantId,
-          reference_no: generatedRef,
-        })
-        .select("*")
-        .single();
+      const { data, error } = await supabase.rpc("wallet_create_for_advertiser");
       if (error) throw error;
       return data as Wallet;
     },
@@ -104,7 +93,6 @@ export default function WalletView() {
   const eurAmount = formatAmount(wallet?.eur_balance ?? 0);
   const usdBalance = Number(wallet?.usd_balance ?? 0);
   const eurBalance = Number(wallet?.eur_balance ?? 0);
-  const totals = { transactions: 0, exchanges: 0 };
 
   const handleAddBalance = () => {
     if (!advertiserId) {
@@ -202,9 +190,6 @@ export default function WalletView() {
         onOpenChange={setTopupDialogOpen}
         walletId={wallet?.id ?? null}
         referenceNo={wallet?.reference_no ?? null}
-        advertiserId={advertiserId}
-        tenantId={tenantId}
-        createdBy={profile?.id ?? null}
         minTopup={wallet?.min_topup as number}
       />
       <WalletExchangeDialog

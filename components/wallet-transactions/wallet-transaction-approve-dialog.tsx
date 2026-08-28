@@ -9,17 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 
 interface WalletTransactionApproveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   topup: WalletTopupWithAdvertiser;
-  onConfirm: (amount: number) => void;
+  onConfirm: () => void;
   isPending: boolean;
 }
 
@@ -31,17 +30,10 @@ export default function WalletTransactionApproveDialog({
   isPending,
 }: WalletTransactionApproveDialogProps) {
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [editedAmount, setEditedAmount] = useState<string>(
-    String(topup.amount ?? 0),
-  );
+  const requestedAmount = Number(topup.amount ?? 0);
 
   const advertiserCode = topup.advertiser?.tenant_client_code ?? "-";
   const advertiserName = topup.advertiser?.profile?.full_name ?? "Unknown";
-
-  // Reset amount when dialog opens with new topup
-  useEffect(() => {
-    setEditedAmount(String(topup.amount ?? 0));
-  }, [open, topup.id, topup.amount]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,7 +67,9 @@ export default function WalletTransactionApproveDialog({
                 </div>
 
                 <div className="flex justify-between items-start gap-2">
-                  <span className="text-sm text-muted-foreground">Amount:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Requested amount:
+                  </span>
                   <div className="flex items-center gap-1">
                     <span className="font-mono font-bold text-lg">
                       {
@@ -84,15 +78,9 @@ export default function WalletTransactionApproveDialog({
                         ]
                       }
                     </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editedAmount}
-                      onChange={(e) => setEditedAmount(e.target.value)}
-                      className="w-32 font-mono font-bold text-lg text-right h-8 px-2"
-                      disabled={isPending}
-                    />
+                    <span className="font-mono font-bold text-lg">
+                      {requestedAmount.toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
@@ -120,7 +108,9 @@ export default function WalletTransactionApproveDialog({
 
               <p className="text-sm text-amber-600 dark:text-amber-500">
                 ⚠️ This action will mark the transaction as completed and credit
-                the advertiser&apos;s wallet.
+                the advertiser&apos;s wallet with the requested amount above.
+                If the actual transfer amount differs, reject the request and
+                ask the advertiser to resubmit.
               </p>
             </div>
           </DialogDescription>
@@ -135,8 +125,8 @@ export default function WalletTransactionApproveDialog({
             Cancel
           </Button>
           <Button
-            onClick={() => onConfirm(Number(editedAmount) || 0)}
-            disabled={isPending || !editedAmount || Number(editedAmount) <= 0}
+            onClick={() => onConfirm()}
+            disabled={isPending || requestedAmount <= 0}
             className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
           >
             {isPending ? (

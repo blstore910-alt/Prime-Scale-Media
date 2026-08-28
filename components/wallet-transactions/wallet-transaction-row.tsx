@@ -61,10 +61,6 @@ export default function WalletTransactionRow({
     updateTransaction(
       {
         action: "reject",
-        data: {
-          status: "rejected",
-          rejection_reason: reason,
-        },
         rejectionReason: reason,
       },
       {
@@ -74,15 +70,6 @@ export default function WalletTransactionRow({
       },
     );
   };
-
-  // const handleUndo = () => {
-  //   updateTransaction({
-  //     action: "undo",
-  //     data: {
-  //       status: "pending",
-  //     },
-  //   });
-  // };
 
   const canTakeAction = !isCompleted && !isRejected;
 

@@ -53,7 +53,6 @@ export default function WalletSection() {
   const queryClient = useQueryClient();
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
-  const tenantId = profile?.tenant_id ?? null;
   const [topupDialogOpen, setTopupDialogOpen] = useState(false);
   const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
 
@@ -104,14 +103,7 @@ export default function WalletSection() {
     mutationFn: async () => {
       if (!advertiserId) throw new Error("Missing advertiser profile.");
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("wallets")
-        .insert({
-          advertiser_id: advertiserId,
-          tenant_id: tenantId,
-        })
-        .select("*")
-        .single();
+      const { data, error } = await supabase.rpc("wallet_create_for_advertiser");
       if (error) throw error;
       return data as Wallet;
     },
@@ -271,10 +263,7 @@ export default function WalletSection() {
         open={topupDialogOpen}
         onOpenChange={setTopupDialogOpen}
         walletId={wallet?.id ?? null}
-        advertiserId={advertiserId}
         referenceNo={wallet?.reference_no ?? null}
-        tenantId={tenantId}
-        createdBy={profile?.id ?? null}
         minTopup={wallet?.min_topup as number}
       />
       <WalletExchangeDialog

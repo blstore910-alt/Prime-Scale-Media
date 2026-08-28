@@ -45,14 +45,10 @@ export default function WalletMinTopupDialog({
     mutationFn: async (value: number) => {
       if (!wallet?.id) throw new Error("Wallet not found.");
       const supabase = createClient();
-      const { error } = await supabase
-        .from("wallets")
-        .update({
-          min_topup: value,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", wallet.id);
-
+      const { error } = await supabase.rpc("wallet_admin_set_min_topup", {
+        p_wallet_id: wallet.id,
+        p_min_topup: value,
+      });
       if (error) throw error;
       return wallet.id;
     },

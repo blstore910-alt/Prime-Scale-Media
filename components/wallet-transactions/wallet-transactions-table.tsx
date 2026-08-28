@@ -80,20 +80,12 @@ export default function WalletTransactionsTable() {
     setTopupToApprove(topup);
   };
 
-  const confirmApprove = (amount: number) => {
+  const confirmApprove = () => {
     if (!profile?.id || !topupToApprove) {
       return;
     }
     updateTransaction(
-      {
-        action: "approve",
-        data: {
-          status: "completed",
-          approved_by: profile.id,
-          amount,
-        },
-        approverId: profile.id,
-      },
+      { action: "approve" },
       {
         onSuccess: () => {
           setTopupToApprove(null);

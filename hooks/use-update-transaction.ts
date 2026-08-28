@@ -5,48 +5,33 @@ import { toast } from "sonner";
 
 type UpdateAction = "approve" | "reject" | "undo";
 
-interface UpdateTransactionPayload {
-  status: "completed" | "rejected" | "pending";
-  approved_by?: string | null;
-  rejection_reason?: string | null;
-  amount?: number | string;
-}
-
 export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: {
       action: UpdateAction;
-      data: UpdateTransactionPayload;
       rejectionReason?: string;
-      approverId?: string;
     }) => {
       const supabase = createClient();
 
-      // Update the transaction
-      const updateData: Record<string, string | number | null | undefined> = {
-        status: payload.data.status,
-        updated_at: new Date().toISOString(),
-        amount: payload.data.amount,
-      };
-
-      // Add optional fields based on action
-      if (payload.action === "approve" && payload.approverId) {
-        updateData.approved_by = payload.approverId;
+      if (payload.action === "approve") {
+        const { error } = await supabase.rpc("wallet_topup_admin_verify", {
+          p_topup_id: topup.id,
+        });
+        if (error) throw error;
       } else if (payload.action === "reject") {
-        updateData.rejection_reason = payload.rejectionReason || null;
+        const { error } = await supabase.rpc("wallet_topup_admin_reject", {
+          p_topup_id: topup.id,
+          p_reason: payload.rejectionReason ?? null,
+        });
+        if (error) throw error;
       } else if (payload.action === "undo") {
-        updateData.approved_by = null;
-        updateData.rejection_reason = null;
+        const { error } = await supabase.rpc("wallet_topup_admin_undo", {
+          p_topup_id: topup.id,
+        });
+        if (error) throw error;
       }
-
-      const { error: transactionError } = await supabase
-        .from("wallet_topups")
-        .update(updateData)
-        .eq("id", topup.id);
-
-      if (transactionError) throw transactionError;
     },
     onSuccess: (_, variables) => {
       const messages = {
