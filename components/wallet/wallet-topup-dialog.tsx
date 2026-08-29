@@ -29,9 +29,18 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, CheckCircle2, ArrowLeft, FileImage } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  ArrowLeft,
+  FileImage,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
+import { useFormDraft } from "@/hooks/use-form-draft";
+import { useAppContext } from "@/context/app-provider";
 
 type CurrencyCode = "USD" | "EUR";
 
@@ -70,6 +79,7 @@ export default function WalletTopupDialog({
   const [isUploadingSlip, setIsUploadingSlip] = useState(false);
   const minTopupAmount = minTopup || 300;
   const queryClient = useQueryClient();
+  const { profile } = useAppContext();
   const formSchema = z.object({
     amount: z
       .number()
@@ -82,11 +92,31 @@ export default function WalletTopupDialog({
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
+    watch,
   } = useForm<FormValues>({
     defaultValues: {
       amount: 0,
     },
     resolver: zodResolver(formSchema),
+  });
+
+  // Draft persistence: multi-step form, easy to lose input on tab close.
+  // Save the composite of {currency, accountType, amount, step,
+  // paymentSlipUrl} so restore returns the user to where they were.
+  const currentAmount = watch("amount");
+  const draftValues = {
+    currency,
+    accountType,
+    amount: currentAmount,
+    step,
+    paymentSlipUrl,
+  };
+  const draft = useFormDraft<typeof draftValues>({
+    formKey: `wallet-topup:${walletId ?? "unknown"}`,
+    values: draftValues,
+    userScope: profile?.id ?? null,
+    enabled: open,
   });
 
   // Reset state when dialog opens/closes
@@ -195,6 +225,7 @@ export default function WalletTopupDialog({
     },
     onSuccess: async () => {
       setStep(STEPS.SUCCESS);
+      await draft.clear();
       queryClient.invalidateQueries({
         queryKey: ["wallet-topups", walletId],
       });
@@ -242,6 +273,41 @@ export default function WalletTopupDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {draft.hasDraft && draft.restoredDraft && step !== STEPS.SUCCESS && (
+          <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
+            <div className="flex-1 text-xs">
+              Resume where you left off (
+              {new Date(draft.restoredDraft.savedAt).toLocaleString()})
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const v = draft.restoredDraft!.values;
+                setCurrency(v.currency);
+                setAccountType(v.accountType);
+                setPaymentSlipUrl(v.paymentSlipUrl);
+                setPaymentSlipPreview(v.paymentSlipUrl ? "image" : null);
+                setValue("amount", v.amount || 0);
+                setStep(v.step || STEPS.SELECTION);
+                draft.dismissDraft();
+              }}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Resume
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => void draft.clear()}
+              aria-label="Discard draft"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
         <ScrollArea className="max-h-[70vh] pr-2">
           <div className="px-1 py-2">
             {/* STEP 1: SELECTION */}
