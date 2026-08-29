@@ -1,3 +1,4 @@
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,6 +9,17 @@ type AcceptInviteBody = {
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
+
+  const allowed = await rateLimitCheck(
+    LIMITS.acceptInvite,
+    `ip:${callerIp(request)}`,
+  );
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, message: "Too many attempts — try again later" },
+      { status: 429 },
+    );
+  }
 
   let body: AcceptInviteBody;
   try {

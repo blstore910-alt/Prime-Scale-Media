@@ -1,3 +1,4 @@
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -14,6 +15,17 @@ type SignupBody = {
 
 export async function POST(request: NextRequest) {
   const supabase = await createAdminClient();
+
+  const allowed = await rateLimitCheck(
+    LIMITS.signup,
+    `ip:${callerIp(request)}`,
+  );
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, message: "Too many signup attempts — try again later" },
+      { status: 429 },
+    );
+  }
 
   let body: SignupBody;
   try {

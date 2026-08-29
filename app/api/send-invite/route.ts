@@ -1,5 +1,6 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { sendEmail } from "@/lib/email-sender";
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -23,6 +24,17 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { profile, error: authError } = await apiRequireAdmin();
     if (authError) return authError;
+
+    const allowed = await rateLimitCheck(
+      LIMITS.sendInvite,
+      `tenant:${profile.tenant_id}`,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many invites — try again in an hour" },
+        { status: 429 },
+      );
+    }
 
     let body: SendInviteBody;
     try {

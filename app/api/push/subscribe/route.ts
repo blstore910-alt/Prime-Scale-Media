@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -27,6 +28,14 @@ function isValidHttpsUrl(value: string): boolean {
 }
 
 export async function POST(req: Request) {
+  const allowed = await rateLimitCheck(
+    LIMITS.pushSubscribe,
+    `ip:${callerIp(req)}`,
+  );
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   let sub: PushSubscriptionBody;
   try {
     sub = (await req.json()) as PushSubscriptionBody;
