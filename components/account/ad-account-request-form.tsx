@@ -15,6 +15,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from "@/context/app-provider";
 import { useCreateAdAccountRequest } from "@/hooks/use-create-ad-account-request";
+import { useFormDraft } from "@/hooks/use-form-draft";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
+import { RotateCcw, X } from "lucide-react";
 
 const validations = z
   .object({
@@ -245,6 +248,14 @@ export default function AdAccountRequestForm({
 
   const selectedPlatform = watch("platform");
   const selectedCurrency = watch("currency");
+  const liveValues = watch();
+
+  const draft = useFormDraft<FormValues>({
+    formKey: "ad-account-request",
+    values: liveValues,
+    userScope: profile?.id ?? null,
+  });
+  useUnsavedChangesWarning(!!liveValues.platform);
 
   // Auto-switch currency to USD if EUR is selected and platform is not meta-ads
   useEffect(() => {
@@ -295,7 +306,8 @@ export default function AdAccountRequestForm({
         metadata,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          await draft.clear();
           reset();
           setOpen(false);
         },
@@ -306,6 +318,35 @@ export default function AdAccountRequestForm({
   return (
     <>
       <form id="ad-account-request-form" onSubmit={handleSubmit(onSubmit)}>
+        {draft.hasDraft && draft.restoredDraft && (
+          <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
+            <div className="flex-1 text-xs">
+              Unsaved draft from{" "}
+              {new Date(draft.restoredDraft.savedAt).toLocaleString()}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                reset(draft.restoredDraft!.values);
+                draft.dismissDraft();
+              }}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Restore
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => void draft.clear()}
+              aria-label="Discard draft"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
         <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 py-2">
           {/* Platform Radio Group */}
           <div className="space-y-3">
