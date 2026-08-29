@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types tests/lib/search.test.ts tests/lib/http.test.ts tests/lib/rate-limit.test.ts tests/lib/utils.test.ts tests/actions/shared.test.ts",
+    "test": "node --test --experimental-strip-types tests/lib/search.test.ts tests/lib/http.test.ts tests/lib/rate-limit.test.ts tests/lib/utils.test.ts tests/lib/form-draft.test.ts tests/actions/shared.test.ts",
     "check-env": "node scripts/check-env.mjs"
   },
   "dependencies": {

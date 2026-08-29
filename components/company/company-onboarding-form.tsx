@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import InputField from "@/components/form/input-field";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw, X } from "lucide-react";
 import { UserProfile } from "@/lib/types/user";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import PhoneInputField from "../form/phone-input-field";
 import Image from "next/image";
+import { useFormDraft } from "@/hooks/use-form-draft";
 
 const companySchema = z
   .object({
@@ -74,6 +75,7 @@ export default function CompanyOnboardingForm({
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { isSubmitted },
   } = useForm<FormValues>({
     resolver: zodResolver(companySchema),
@@ -97,6 +99,14 @@ export default function CompanyOnboardingForm({
         zipcode: "",
       },
     },
+  });
+
+  // Auto-save + restore — long form, don't lose user's typing.
+  const liveValues = watch();
+  const draft = useFormDraft<FormValues>({
+    formKey: "company-onboarding",
+    values: liveValues,
+    userScope: profile.id ?? null,
   });
 
   const values = watch();
@@ -158,6 +168,7 @@ export default function CompanyOnboardingForm({
       });
       if (!result.ok) throw new Error(result.error);
 
+      await draft.clear();
       toast.success("Company information saved!");
       router.refresh();
       setTimeout(() => {
@@ -193,6 +204,43 @@ export default function CompanyOnboardingForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {draft.hasDraft && draft.restoredDraft && (
+            <div className="mb-4 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-3 flex items-start gap-3">
+              <div className="flex-1 text-sm">
+                <p className="font-medium text-blue-900 dark:text-blue-100">
+                  Unsaved changes from earlier
+                </p>
+                <p className="text-blue-800 dark:text-blue-200 text-xs mt-1">
+                  Auto-saved{" "}
+                  {new Date(draft.restoredDraft.savedAt).toLocaleString()}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  reset(draft.restoredDraft!.values);
+                  draft.dismissDraft();
+                  toast.success("Draft restored");
+                }}
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Restore
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void draft.clear();
+                }}
+                aria-label="Discard draft"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
