@@ -47,6 +47,7 @@ const publicRoutes = [
   "/api/health",
   "/api/version",
   "/api/log/client-error",
+  // /api/me/export lives under authenticated routes; not public
 ];
 
 export async function updateSession(request: NextRequest) {

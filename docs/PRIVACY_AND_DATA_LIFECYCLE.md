@@ -60,7 +60,13 @@ Wij **verkopen niks** door aan derden. Third-party integraties:
 
 ### Recht op inzage
 
-User vraagt "welke data heb je van mij?".
+Self-service: user gaat naar `GET /api/me/export` en download een
+JSON-bundle met alles wat we van ze hebben. Zie
+`actions/gdpr-actions.ts:exportOwnData`. De user moet ingelogd zijn;
+het endpoint filtert per definitie op de caller's `auth.uid()` — geen
+enkele mogelijkheid om iemand anders' data te trekken.
+
+Manual fallback als het endpoint faalt:
 
 ```sql
 -- Volledig profiel + advertiser + wallet + subscription + invoices
@@ -90,22 +96,34 @@ Als user het niet kan (bijv. e-mail change zit vast op auth-side):
 - Admin past `user_profiles.email` aan
 - Supabase Dashboard → Authentication → Users → Edit user
 
-### Recht op wissen
+### Recht op wissen (two-step)
 
-Zie `docs/RUNBOOK.md` sectie "GDPR delete request".
+Twee-staps om accidentele klikken uit te sluiten én om de fiscale
+bewaarplicht (7 jaar) te respecteren.
 
-Kernpunten:
-- **Anonimiseer** `user_profiles` (naam + e-mail → placeholder),
-  markeer `is_active = false`.
-- **Verwijder** `auth.users` row via service role (breekt logins,
-  bewaart referenties).
-- **NIET** verwijderen: financiële records, audit trail. Wettelijk
-  bewaarplicht.
-- Log de operatie in `audit_events`.
+**Stap 1 — user vraagt aan:** `actions/gdpr-actions.ts:requestOwnErasure`
+zet `user_profiles.status = 'pending_erasure'` + `is_active = false`.
+Login is direct geblokkeerd (`/inactive` redirect).
+
+**Stap 2 — super-admin voert uit op de vervaldatum:**
+`actions/gdpr-actions.ts:hardDeleteUser(userId)` roept
+`auth.admin.deleteUser()` aan. Vereist:
+- Caller is super-admin (`tenants.owner_id = caller.user_id`)
+- Target profile bestaat in dezelfde tenant
+- Target profile is `status = 'pending_erasure'`
+
+Wat blijft staan:
+- Financiële rows (invoices, top_ups, wallet_topups) — 7 jaar
+  bewaarplicht. `advertiser_id` op de row is dan een dangling FK
+  waar de auth.users row weg is; documenteer in het schema of we
+  ON DELETE SET NULL of RESTRICT gebruiken.
+- `audit_events` — historisch, niet verwijderen. Wel: als
+  `actor_user_id` FK naar auth.users op cascade staat, verlies je
+  je audit-trail. Zet 'm op SET NULL.
 
 ### Recht op dataportabiliteit
 
-Zelfde als "recht op inzage" — lever JSON-export.
+`GET /api/me/export` — zie "Recht op inzage" hierboven.
 
 ### Bezwaar / beperking van verwerking
 
