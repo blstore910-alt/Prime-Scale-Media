@@ -1,11 +1,13 @@
+import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-type AcceptInviteBody = {
-  status?: string;
-  invite_id?: string;
-};
+const AcceptInviteSchema = z.object({
+  status: z.enum(["accepted", "rejected"]),
+  invite_id: z.string().uuid(),
+});
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -21,32 +23,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: AcceptInviteBody;
-  try {
-    body = (await request.json()) as AcceptInviteBody;
-  } catch {
-    return NextResponse.json(
-      { success: false, message: "Malformed JSON body" },
-      { status: 400 },
-    );
-  }
-
-  const { status, invite_id } = body;
-
-  if (!status || !invite_id) {
-    return NextResponse.json(
-      { success: false, message: "Missing required fields" },
-      { status: 400 },
-    );
-  }
-
-  // Validate status is allowed
-  if (status !== "accepted" && status !== "rejected") {
-    return NextResponse.json(
-      { success: false, message: "Invalid status value" },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, AcceptInviteSchema);
+  if (!parsed.ok) return parsed.response;
+  const { status, invite_id } = parsed.data;
 
   // Require authenticated user
   const { data: userData, error: authErr } = await supabase.auth.getUser();
@@ -108,7 +87,10 @@ export async function POST(request: NextRequest) {
     .select("*");
 
   if (updateError) {
-    console.error("Failed to update invitation:", updateError);
+    console.error(
+      "accept-invite update failed:",
+      safeErrorMessage(updateError),
+    );
     return NextResponse.json(
       {
         success: false,
@@ -144,7 +126,10 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (profileError) {
-    console.error("Failed to create profile:", profileError);
+    console.error(
+      "accept-invite profile insert failed:",
+      safeErrorMessage(profileError),
+    );
     return NextResponse.json(
       {
         success: false,

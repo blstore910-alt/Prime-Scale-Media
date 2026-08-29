@@ -1,6 +1,6 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { sendEmail } from "@/lib/email-sender";
-import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
+import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -181,7 +181,10 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
   } catch (err: unknown) {
-    console.error("Unexpected error in /api/send-invite:", err);
+    console.error(
+      "send-invite failed:",
+      err instanceof Error ? err.message : "unknown",
+    );
 
     return NextResponse.json(
       { error: "Unexpected server error" },

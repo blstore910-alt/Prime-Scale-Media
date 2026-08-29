@@ -1,17 +1,23 @@
+import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-type SignupBody = {
-  email?: string;
-  password?: string;
-  firstName?: string;
-  lastName?: string;
-  invite?: { token?: string; id?: string; affiliate_id?: string };
-  referral_status?: string;
-  referred_by?: string;
-  heard_from?: string;
-};
+const SignupSchema = z.object({
+  email: z.string().email().max(320),
+  password: z.string().min(12).max(200),
+  firstName: z.string().min(1).max(80),
+  lastName: z.string().min(1).max(80),
+  invite: z.object({
+    token: z.string().min(8).max(200),
+    id: z.string().uuid().optional(),
+    affiliate_id: z.string().uuid().nullable().optional(),
+  }),
+  referral_status: z.string().max(60).nullable().optional(),
+  referred_by: z.string().max(200).nullable().optional(),
+  heard_from: z.string().max(200).nullable().optional(),
+});
 
 export async function POST(request: NextRequest) {
   const supabase = await createAdminClient();
@@ -27,16 +33,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: SignupBody;
-  try {
-    body = (await request.json()) as SignupBody;
-  } catch {
-    return NextResponse.json(
-      { success: false, message: "Malformed JSON body" },
-      { status: 400 },
-    );
-  }
-
+  const parsed = await parseJsonBody(request, SignupSchema);
+  if (!parsed.ok) return parsed.response;
   const {
     email,
     password,
@@ -46,22 +44,7 @@ export async function POST(request: NextRequest) {
     referral_status,
     referred_by,
     heard_from,
-  } = body;
-
-  // Minimum required fields
-  if (!email || !password || !firstName || !lastName || !invite?.token) {
-    return NextResponse.json(
-      { success: false, message: "Missing required fields" },
-      { status: 400 },
-    );
-  }
-
-  if (password.length < 12) {
-    return NextResponse.json(
-      { success: false, message: "Password must be at least 12 characters" },
-      { status: 400 },
-    );
-  }
+  } = parsed.data;
 
   // ─────────────────────────────────────────
   // SERVER-SIDE INVITE VALIDATION (P0-2 fix)
@@ -123,7 +106,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (createError) {
-      console.error("Error creating user:", createError);
+      console.error("signup createUser failed:", safeErrorMessage(createError));
       return NextResponse.json(
         { success: false, message: "Failed to create user" },
         { status: 500 },
@@ -131,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data.user?.id) {
-      console.error("No user id returned after createUser");
+      console.error("signup createUser returned no id");
       return NextResponse.json(
         { success: false, message: "Failed to determine created user id" },
         { status: 500 },
@@ -154,7 +137,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (profileError) {
-      console.error("Error creating user profile:", profileError);
+      console.error(
+        "signup profile insert failed:",
+        safeErrorMessage(profileError),
+      );
       return NextResponse.json(
         { success: false, message: "Failed to create user profile" },
         { status: 500 },
@@ -168,7 +154,10 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (inviteUpdateError) {
-      console.error("Error updating invitation status:", inviteUpdateError);
+      console.error(
+        "signup invite update failed:",
+        safeErrorMessage(inviteUpdateError),
+      );
       return NextResponse.json(
         { success: false, message: "Failed to update invitation status" },
         { status: 500 },
@@ -183,8 +172,8 @@ export async function POST(request: NextRequest) {
 
     if (advertiserError) {
       console.error(
-        "Failed to fetch advertiser for affiliate creation:",
-        advertiserError,
+        "signup advertiser fetch failed:",
+        safeErrorMessage(advertiserError),
       );
       return NextResponse.json(
         { success: false, message: "Server error" },
@@ -202,7 +191,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (walletError) {
-      console.error("Failed to create wallet:", walletError);
+      console.error(
+        "signup wallet insert failed:",
+        safeErrorMessage(walletError),
+      );
       return NextResponse.json(
         { success: false, message: "Server error" },
         { status: 500 },
@@ -215,7 +207,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (signInError) {
-      console.error("Failed to sign in user:", signInError);
+      console.error("signup signIn failed:", safeErrorMessage(signInError));
       return NextResponse.json(
         { success: false, message: "User created but failed to sign in" },
         { status: 500 },
@@ -237,8 +229,7 @@ export async function POST(request: NextRequest) {
 
     return res;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error("accept-invite/signup error:", msg);
+    console.error("accept-invite/signup error:", safeErrorMessage(err));
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 },
