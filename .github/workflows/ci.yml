@@ -33,7 +33,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: ESLint
-        run: npx next lint --max-warnings 100
+        run: npx next lint --max-warnings 0
 
       - name: Unit tests
         run: npm test
