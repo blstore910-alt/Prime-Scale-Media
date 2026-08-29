@@ -10,10 +10,7 @@ import { Toaster } from "../ui/sonner";
 import InviteForm from "../invites/invite-form";
 import { MobileNav } from "../mobile-nav";
 import PushNotificationManager from "../push-notification-manager";
-import {
-  ReactQueryDevtools,
-  ReactQueryDevtoolsPanel,
-} from "@tanstack/react-query-devtools";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 const queryClient = new QueryClient();
 export default function AdminLayout({

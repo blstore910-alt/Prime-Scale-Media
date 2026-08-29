@@ -8,7 +8,6 @@ import {
   IconCashRegister,
   IconDashboard,
   IconReceipt,
-  IconActivity,
   IconWallet,
   IconUsers,
 } from "@tabler/icons-react";
@@ -74,7 +73,7 @@ const navItemsAdmin = [
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { profile, isSuperAdmin } = useAppContext();
+  const { profile } = useAppContext();
 
   // pick appropriate set based on role
   const navItems =

@@ -434,6 +434,7 @@ export default function WalletTopupDialog({
                           Preview
                         </div>
                         {paymentSlipPreview === "image" ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions in a preview modal
                           <img
                             src={paymentSlipUrl}
                             alt="Payment slip preview"

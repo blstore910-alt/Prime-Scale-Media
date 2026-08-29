@@ -76,6 +76,7 @@ export default function PaymentSlipDialog({
         <div className="rounded-md border bg-muted/20 p-3">
           {paymentSlipUrl ? (
             isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions inside a modal; next/image would need width/height guess
               <img
                 src={paymentSlipUrl}
                 alt="Payment slip"

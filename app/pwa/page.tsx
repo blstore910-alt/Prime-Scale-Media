@@ -1,5 +1,4 @@
 "use client";
-import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";

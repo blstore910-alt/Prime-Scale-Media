@@ -18,10 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
-import {
-  ACTIVITY_LOG_ACTIONS,
-  ACTIVITY_LOG_DB_ACTIONS,
-} from "@/lib/activity-log-actions";
+import { ACTIVITY_LOG_ACTIONS } from "@/lib/activity-log-actions";
+// TODO(activity-logs): re-add ACTIVITY_LOG_DB_ACTIONS + setDbAction wiring
+// when the DB-action filter UI is enabled.
 import useActivityLogs from "./use-activity-logs";
 import ActivityLogRow from "./activity-log-row";
 import ActivityLogCard from "./activity-log-card";
@@ -39,7 +38,7 @@ const actionOptions = [
 
 export default function ActivityLogsTable() {
   const [action, setAction] = useState("all");
-  const [dbAction, setDbAction] = useState("all");
+  const [dbAction] = useState("all");
   const [page, setPage] = useState(1);
   const perPage = 50;
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
