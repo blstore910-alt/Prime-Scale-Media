@@ -3,7 +3,7 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. 10 commits, ~50 files geraakt.
+Alle commits staan op `main`. 17 commits, ~60 files geraakt.
 
 ---
 
@@ -11,6 +11,14 @@ Alle commits staan op `main`. 10 commits, ~50 files geraakt.
 
 | Commit    | Wat                                                                       |
 | --------- | ------------------------------------------------------------------------- |
+| `bf735a1` | ci+docs: GitHub Actions verify workflow + ADR-0001                        |
+| `0961018` | chore(lint): drop unused imports after server-action refactor             |
+| `349dca7` | feat(security): CSP report-only header                                    |
+| `a9794c0` | feat(security): zod-validated bodies + PII-scrubbed error logs            |
+| `d9c0fca` | feat(security): distributed rate limiter for public API endpoints         |
+| `7d9c37e` | feat(security): RLS policy templates for every audited table              |
+| `55a2ab8` | fix(push): lazy-init VAPID + supabase admin in /api/push/notify           |
+| `a0ea864` | docs: session summary of full security hardening sweep                    |
 | `490a920` | docs+fix: setAdAccountRequestStatus action + Claude Code mobile guide     |
 | `4aaf5f5` | fix(p0): company onboarding + profile self-update via server actions      |
 | `94998cf` | fix(p0): ad accounts + ad account requests + affiliates via server actions |
@@ -77,6 +85,24 @@ allowlist:
 - Backup/DR playbook in `docs/BACKUP_AND_RECOVERY.md` (PITR + off-site
   snapshot + restore drill).
 
+### Extra P1+ hardening (nieuwste laag)
+
+- **RLS policy templates** voor alle audited tabellen — zie
+  `supabase/migrations/20260828140000_rls_templates.sql`. Klaar om te
+  reviewen en te deployen als je bestaande policies overzet.
+- **Rate limiter** via Postgres RPC (`rate_limit_check`) —
+  `/api/send-invite` (20/uur per tenant), `/api/accept-invite` (10/uur
+  per IP), `/api/accept-invite/signup` (5/uur per IP),
+  `/api/push/subscribe` (20/uur per IP). Zie
+  `supabase/migrations/20260828150000_rate_limits.sql` + `lib/rate-limit.ts`.
+- **Zod-schemas** op de gevoeligste public API bodies (`accept-invite`,
+  `accept-invite/signup`) + `parseJsonBody` helper in `lib/http.ts`.
+- **PII-scrubbed error logs** — `safeErrorMessage()` unwrapt errors
+  zonder Supabase's `details`/`hint`/`row` velden te dumpen.
+- **CSP header (report-only)** — grondwerk zodat we na een week clean
+  reports op enforcing kunnen zetten.
+- **GitHub Actions CI** — typecheck + lint op elke PR, optionele build.
+
 ### Overig
 
 - Global security headers (HSTS, Permissions-Policy, X-DNS-Prefetch-Control).
@@ -92,9 +118,11 @@ allowlist:
 
 Volg `docs/TEST_PLAN.md` sectie 0:
 
-1. **SQL migraties deployen** — 2 files in `supabase/migrations/`:
-   - `20260828120000_wallet_rpcs.sql`
-   - `20260828130000_audit_events.sql`
+1. **SQL migraties deployen** — 4 files in `supabase/migrations/`:
+   - `20260828120000_wallet_rpcs.sql` — wallet + wallet_topups RPCs
+   - `20260828130000_audit_events.sql` — audit log + trigger
+   - `20260828140000_rls_templates.sql` — RLS baseline (review eerst!)
+   - `20260828150000_rate_limits.sql` — rate limiter table + RPC
    - Commando: `supabase db push` of via Dashboard SQL editor.
 2. **RLS matrix verifiëren** — testplan sectie 0.2. Dit is het grootste
    onbekend: als één policy fout zit is dat een lek. Loop de tabel
