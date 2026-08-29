@@ -1,4 +1,5 @@
 import AdminLayout from "@/components/admin/layout";
+import AppVersionBanner from "@/components/app-version-banner";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import React from "react";
@@ -89,6 +90,7 @@ export default async function AppLayout({
   return (
     <Layout user={data.user} profile={profile}>
       {children}
+      <AppVersionBanner />
     </Layout>
   );
 }

@@ -44,6 +44,8 @@ const publicRoutes = [
   "/api/accept-invite/signup",
   "/pwa",
   "/api/push/notify",
+  "/api/health",
+  "/api/version",
 ];
 
 export async function updateSession(request: NextRequest) {
