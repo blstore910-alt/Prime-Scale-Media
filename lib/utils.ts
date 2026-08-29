@@ -1,6 +1,14 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { ExchangeRate } from "./types/exchange-rates";
+
+// Re-export the pure helpers so consumers can keep importing from @/lib/utils.
+export {
+  generateSlug,
+  getInitials,
+  formatRate,
+  calculateTopupAmount,
+  formatCurrency,
+} from "./utils-pure";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,52 +18,12 @@ export const hasEnvVars =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY;
 
-export const generateSlug = (value: string) => {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "") // remove special chars
-    .replace(/\s+/g, "-"); // spaces -> dashes
-};
-
 export const getURL = () => {
   let url = process?.env?.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   url = url.startsWith("http") ? url : `https://${url}`;
 
   url = url.endsWith("/") ? url : `${url}/`;
   return url;
-};
-
-export const getInitials = (name: string) => {
-  return name
-    .split(" ")
-    .map((c: string) => c[0])
-    .join("");
-};
-
-export const formatRate = (rate: number | null | undefined) => {
-  if (rate === null || rate === undefined) return;
-  return parseFloat(rate.toFixed(8));
-};
-
-export const calculateTopupAmount = (
-  amountReceived: number,
-  exchangeRates: ExchangeRate[] | undefined,
-  currency: string,
-  fee: number,
-) => {
-  if (!exchangeRates) return { topupAmount: 0, amountUSD: 0, feeAmount: 0 };
-
-  const rate =
-    currency === "USD"
-      ? 1
-      : Number(exchangeRates[0][currency.toLowerCase() as keyof ExchangeRate]);
-
-  const amountUSD = amountReceived * rate;
-
-  const feeAmount = amountUSD * (fee / 100);
-  const topupAmount = amountUSD - feeAmount;
-  return { topupAmount, amountUSD, feeAmount };
 };
 
 export async function enablePush() {
@@ -93,14 +61,3 @@ export function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-export const formatCurrency = (
-  value: number,
-  currency: "USD" | "EUR" | string = "USD",
-) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value);
-};
