@@ -28,7 +28,27 @@ type AdminProfile = {
   status: string | null;
   is_active: boolean | null;
   created_at: string;
+  last_seen_at: string | null;
 };
+
+function formatLastSeen(iso: string | null): {
+  label: string;
+  fresh: boolean;
+} {
+  if (!iso) return { label: "Never", fresh: false };
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return { label: "Never", fresh: false };
+  const ageMinutes = (Date.now() - t) / 60000;
+  if (ageMinutes < 6) return { label: "Active now", fresh: true };
+  if (ageMinutes < 60)
+    return { label: `${Math.round(ageMinutes)}m ago`, fresh: true };
+  if (ageMinutes < 60 * 24)
+    return { label: `${Math.round(ageMinutes / 60)}h ago`, fresh: false };
+  return {
+    label: `${Math.round(ageMinutes / 60 / 24)}d ago`,
+    fresh: false,
+  };
+}
 
 export default function AdminsTable() {
   const { profile } = useAppContext();
@@ -53,7 +73,9 @@ export default function AdminsTable() {
       const supabase = createClient();
       let query = supabase
         .from("user_profiles")
-        .select("id, full_name, email, status, is_active, created_at")
+        .select(
+          "id, full_name, email, status, is_active, created_at, last_seen_at",
+        )
         .eq("tenant_id", tenantId)
         .eq("role", "admin")
         .order("created_at", { ascending: false });
@@ -115,6 +137,7 @@ export default function AdminsTable() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Last seen</TableHead>
               <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -122,7 +145,7 @@ export default function AdminsTable() {
             {isLoading ? (
               Array.from({ length: 4 }).map((_, idx) => (
                 <TableRow key={idx} className="animate-pulse">
-                  {Array.from({ length: 4 }).map((__, cellIdx) => (
+                  {Array.from({ length: 5 }).map((__, cellIdx) => (
                     <LoaderCell key={cellIdx} />
                   ))}
                 </TableRow>
@@ -130,7 +153,7 @@ export default function AdminsTable() {
             ) : isError ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center text-destructive py-8"
                 >
                   <div role="alert" aria-live="assertive">
@@ -144,6 +167,7 @@ export default function AdminsTable() {
             ) : admins.length ? (
               admins.map((admin) => {
                 const isActive = admin.status === "active";
+                const lastSeen = formatLastSeen(admin.last_seen_at);
                 return (
                   <TableRow key={admin.id}>
                     <TableCell className="font-medium">
@@ -161,6 +185,19 @@ export default function AdminsTable() {
                       >
                         {admin.status ?? "unknown"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          lastSeen.fresh
+                            ? "text-green-600 dark:text-green-400 font-medium"
+                            : "text-muted-foreground",
+                        )}
+                        title={admin.last_seen_at ?? "Never seen"}
+                      >
+                        {lastSeen.label}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -185,7 +222,7 @@ export default function AdminsTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No admins found.
