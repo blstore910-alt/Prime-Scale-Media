@@ -23,6 +23,7 @@ import { Label } from "../ui/label";
 import PhoneInputField from "../form/phone-input-field";
 import Image from "next/image";
 import { useFormDraft } from "@/hooks/use-form-draft";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
 const companySchema = z
   .object({
@@ -108,6 +109,14 @@ export default function CompanyOnboardingForm({
     values: liveValues,
     userScope: profile.id ?? null,
   });
+
+  // Warn on close/refresh once anything has been typed.
+  const dirty =
+    !!liveValues.name ||
+    !!liveValues.official_email ||
+    !!liveValues.phone ||
+    !!liveValues.address;
+  useUnsavedChangesWarning(dirty && !isSubmitting);
 
   const values = watch();
 

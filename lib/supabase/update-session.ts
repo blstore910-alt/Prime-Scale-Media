@@ -46,6 +46,7 @@ const publicRoutes = [
   "/api/push/notify",
   "/api/health",
   "/api/version",
+  "/api/log/client-error",
 ];
 
 export async function updateSession(request: NextRequest) {
