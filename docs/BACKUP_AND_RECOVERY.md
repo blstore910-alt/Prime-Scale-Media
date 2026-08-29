@@ -194,6 +194,59 @@ Kost <$1/mnd bij R2.
 
 ---
 
+## Retentie beleid audit_events
+
+`audit_events` groeit lineair met activiteit. Zonder retentie word je
+tabel over jaren traag en backup-heavy. Beleid:
+
+- **Hot (0-2 jaar)** — blijft in `audit_events`, snel opvraagbaar.
+- **Warm (2-7 jaar)** — blijft in tabel, maar met partitionering (optioneel;
+  zie hieronder). Alleen incident-reviews hebben ze nodig.
+- **Cold (>7 jaar)** — export naar `s3://psm-audit-cold/YYYY/YYYY-MM.jsonl.gz`
+  daarna `delete` uit de live tabel.
+
+**Nog geen delete uitvoeren zonder dat je bewezen hebt dat:**
+1. De export leest terug via `pg_restore` / `zcat` zonder corruption.
+2. Legal/compliance akkoord is met de retentie termijn.
+3. Er een schriftelijke bevestiging is dat een gebruiker/tenant niet
+   nog een claim heeft over die periode.
+
+**Cron in de DB:**
+
+`supabase/migrations/20260829120000_scheduled_maintenance.sql` schedulet
+al twee pg_cron jobs:
+
+- `psm-rate-limit-prune` — dagelijks 03:15 UTC, ruimt oude rate-limit
+  buckets op.
+- `psm-audit-monthly-stats` — 1e van elke maand 04:00 UTC, schrijft naar
+  `audit_events_monthly_stats` zodat je in 1 query kunt zien of het
+  audit-log geen "flat line" heeft (dat zou betekenen dat de trigger
+  is uitgevallen).
+
+Handmatige archive-candidate check:
+
+```sql
+select public.audit_events_archive_candidates(2555); -- ~7 jaar
+```
+
+Dit telt de rijen die eligible zijn, deletet nog niks.
+
+**Partitionering (optioneel, na eerste jaar productie):**
+
+Als `audit_events` boven de 10-20M rijen komt, converteer naar
+range-partitionering per maand:
+
+```sql
+create table audit_events (...) partition by range (occurred_at);
+create table audit_events_2026_09 partition of audit_events
+  for values from ('2026-09-01') to ('2026-10-01');
+```
+
+Voordeel: query's binnen 1 maand zijn 30x sneller, en oude partities
+kun je `detach` + drop zonder impact op de rest.
+
+---
+
 ## Restore drill (elke maand)
 
 Wat er misgaat als je nooit test: je ontdekt dat je backups corrupt zijn
