@@ -4,7 +4,6 @@ import InputField from "@/components/form/input-field";
 import SelectField from "@/components/form/select-field";
 import { useAppContext } from "@/context/app-provider";
 import { PLATFORMS } from "@/lib/constants";
-import { createClient } from "@/lib/supabase/client";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -68,7 +67,7 @@ export default function CreateAdAccountFromRequestDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { user, profile } = useAppContext();
+  const { user } = useAppContext();
   const queryClient = useQueryClient();
 
   const defaultPlatform = useMemo(
@@ -105,8 +104,6 @@ export default function CreateAdAccountFromRequestDialog({
         throw new Error("This request has no advertiser to assign.");
       }
       if (!user?.id) throw new Error("User not found.");
-
-      const supabase = createClient();
 
       const { createAdAccountFromRequest } = await import(
         "@/actions/ad-account-actions"

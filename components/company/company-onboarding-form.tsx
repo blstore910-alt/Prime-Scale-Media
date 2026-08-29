@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import InputField from "@/components/form/input-field";
 import { Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { UserProfile } from "@/lib/types/user";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";

@@ -225,13 +225,11 @@ export default function AccountForm({
   const selectedPlatform = watch("platform");
 
   const queryClient = useQueryClient();
-  const { user, profile, dispatch } = useAppContext();
+  const { profile, dispatch } = useAppContext();
 
   const { mutate, isPending } = useMutation({
     mutationKey: ["create-ad-account"],
     mutationFn: async (values: FormValues) => {
-      const supabase = createClient();
-
       // Construct metadata based on platform
       let metadata: Record<
         string,

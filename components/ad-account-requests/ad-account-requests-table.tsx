@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
-import { createClient } from "@/lib/supabase/client";
 import dayjs from "dayjs";
 import { Eye } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
