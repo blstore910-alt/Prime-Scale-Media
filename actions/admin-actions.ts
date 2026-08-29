@@ -2,10 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-
-type ActionResult<T = null> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
+import { versionMatches, type ActionResult } from "./_shared";
 
 type CallerContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -146,16 +143,17 @@ type UserProfileUpdatable = Partial<
 export async function updateUserProfile(
   userId: string,
   data: UserProfileUpdatable,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof userId !== "string" || userId.length === 0) {
-    return { ok: false, error: "Invalid input" };
+    return { ok: false, error: "Invalid input", code: "invalid" };
   }
   if (!data || typeof data !== "object") {
-    return { ok: false, error: "Invalid payload" };
+    return { ok: false, error: "Invalid payload", code: "invalid" };
   }
 
   const caller = await assertAdmin();
-  if (!caller.ok) return { ok: false, error: caller.error };
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
   const { supabase, profile } = caller.ctx;
 
   // Allowlist columns
@@ -164,23 +162,34 @@ export async function updateUserProfile(
     if (col in data) cleaned[col] = data[col];
   }
   if (Object.keys(cleaned).length === 0) {
-    return { ok: false, error: "No updatable fields" };
+    return { ok: false, error: "No updatable fields", code: "invalid" };
   }
 
   // Verify target belongs to caller's tenant and is not another admin
   const { data: target, error: fetchError } = await supabase
     .from("user_profiles")
-    .select("id, tenant_id, role")
+    .select("id, tenant_id, role, updated_at")
     .eq("id", userId)
     .maybeSingle();
   if (fetchError || !target) {
-    return { ok: false, error: "User not found" };
+    return { ok: false, error: "User not found", code: "not_found" };
   }
   if (target.tenant_id !== profile.tenant_id) {
-    return { ok: false, error: "Forbidden" };
+    return { ok: false, error: "Forbidden", code: "forbidden" };
   }
   if (target.role === "admin") {
-    return { ok: false, error: "Use toggleAdminStatus for admins" };
+    return {
+      ok: false,
+      error: "Use toggleAdminStatus for admins",
+      code: "forbidden",
+    };
+  }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This user was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const shouldDeactivateSubscriptions = cleaned.status === "inactive";
@@ -235,12 +244,13 @@ type AffiliateUpdatable = Partial<
 export async function updateAffiliate(
   affiliateId: string,
   payload: AffiliateUpdatable,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof affiliateId !== "string" || affiliateId.length === 0) {
-    return { ok: false, error: "Invalid input" };
+    return { ok: false, error: "Invalid input", code: "invalid" };
   }
   const caller = await assertAdmin();
-  if (!caller.ok) return { ok: false, error: caller.error };
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
   const { supabase, profile } = caller.ctx;
 
   const cleaned: Record<string, unknown> = {};
@@ -248,17 +258,26 @@ export async function updateAffiliate(
     if (col in payload) cleaned[col] = payload[col];
   }
   if (Object.keys(cleaned).length === 0) {
-    return { ok: false, error: "No updatable fields" };
+    return { ok: false, error: "No updatable fields", code: "invalid" };
   }
 
   const { data: target } = await supabase
     .from("affiliates")
-    .select("id, tenant_id")
+    .select("id, tenant_id, updated_at")
     .eq("id", affiliateId)
     .maybeSingle();
-  if (!target) return { ok: false, error: "Affiliate not found" };
+  if (!target) {
+    return { ok: false, error: "Affiliate not found", code: "not_found" };
+  }
   if (target.tenant_id !== profile.tenant_id) {
-    return { ok: false, error: "Forbidden" };
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This affiliate was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const { error } = await supabase
@@ -292,16 +311,17 @@ type AdvertiserUpdatable = Partial<
 export async function updateAdvertiser(
   advertiserId: string,
   payload: AdvertiserUpdatable,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof advertiserId !== "string" || advertiserId.length === 0) {
-    return { ok: false, error: "Invalid input" };
+    return { ok: false, error: "Invalid input", code: "invalid" };
   }
   if (!payload || typeof payload !== "object") {
-    return { ok: false, error: "Invalid payload" };
+    return { ok: false, error: "Invalid payload", code: "invalid" };
   }
 
   const caller = await assertAdmin();
-  if (!caller.ok) return { ok: false, error: caller.error };
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
   const { supabase, profile } = caller.ctx;
 
   const cleaned: Record<string, unknown> = {};
@@ -309,19 +329,26 @@ export async function updateAdvertiser(
     if (col in payload) cleaned[col] = payload[col];
   }
   if (Object.keys(cleaned).length === 0) {
-    return { ok: false, error: "No updatable fields" };
+    return { ok: false, error: "No updatable fields", code: "invalid" };
   }
 
   const { data: target, error: fetchError } = await supabase
     .from("advertisers")
-    .select("id, tenant_id")
+    .select("id, tenant_id, updated_at")
     .eq("id", advertiserId)
     .maybeSingle();
   if (fetchError || !target) {
-    return { ok: false, error: "Advertiser not found" };
+    return { ok: false, error: "Advertiser not found", code: "not_found" };
   }
   if (target.tenant_id !== profile.tenant_id) {
-    return { ok: false, error: "Forbidden" };
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This advertiser was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const { error: updateError } = await supabase

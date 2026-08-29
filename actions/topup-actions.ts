@@ -2,10 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-
-type ActionResult<T = null> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
+import { versionMatches, type ActionResult } from "./_shared";
 
 async function requireAdminCtx() {
   const supabase = await createClient();
@@ -203,23 +200,31 @@ type TopupUpdateInput = Partial<
 export async function updateTopupAsAdmin(
   topupId: string,
   payload: TopupUpdateInput,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof topupId !== "string" || topupId.length === 0) {
-    return { ok: false, error: "Invalid input" };
+    return { ok: false, error: "Invalid input", code: "invalid" };
   }
   const ctx = await requireAdminCtx();
-  if (!ctx.ok) return { ok: false, error: ctx.error };
+  if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
   // Verify target is in caller's tenant
   const { data: existing } = await supabase
     .from("top_ups")
-    .select("id, tenant_id")
+    .select("id, tenant_id, updated_at")
     .eq("id", topupId)
     .maybeSingle();
-  if (!existing) return { ok: false, error: "Top-up not found" };
+  if (!existing) return { ok: false, error: "Top-up not found", code: "not_found" };
   if (existing.tenant_id !== profile.tenant_id) {
-    return { ok: false, error: "Forbidden" };
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(existing.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This top-up was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const cleaned: Record<string, unknown> = {};

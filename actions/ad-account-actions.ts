@@ -2,10 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-
-type ActionResult<T = null> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
+import { versionMatches, type ActionResult } from "./_shared";
 
 async function requireAdminCtx() {
   const supabase = await createClient();
@@ -120,22 +117,30 @@ type AdAccountUpdateInput = Partial<
 export async function updateAdAccountAsAdmin(
   accountId: string,
   payload: AdAccountUpdateInput,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof accountId !== "string" || accountId.length === 0) {
-    return { ok: false, error: "Invalid input" };
+    return { ok: false, error: "Invalid input", code: "invalid" };
   }
   const ctx = await requireAdminCtx();
-  if (!ctx.ok) return { ok: false, error: ctx.error };
+  if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
   const { data: existing } = await supabase
     .from("ad_accounts")
-    .select("id, tenant_id")
+    .select("id, tenant_id, updated_at")
     .eq("id", accountId)
     .maybeSingle();
-  if (!existing) return { ok: false, error: "Ad account not found" };
+  if (!existing) return { ok: false, error: "Ad account not found", code: "not_found" };
   if (existing.tenant_id !== profile.tenant_id) {
-    return { ok: false, error: "Forbidden" };
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(existing.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This ad account was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const cleaned: Record<string, unknown> = {};

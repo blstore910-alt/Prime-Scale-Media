@@ -2,10 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-
-type ActionResult<T = null> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
+import { versionMatches, type ActionResult } from "./_shared";
 
 async function requireAdminCtx() {
   const supabase = await createClient();
@@ -96,26 +93,34 @@ export async function createInvoiceAsAdmin(
 export async function setInvoicePaidStatus(
   invoiceId: string,
   status: "paid" | "unpaid",
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof invoiceId !== "string" || invoiceId.length === 0) {
-    return { ok: false, error: "Invalid input" };
+    return { ok: false, error: "Invalid input", code: "invalid" };
   }
   if (status !== "paid" && status !== "unpaid") {
-    return { ok: false, error: "Invalid status" };
+    return { ok: false, error: "Invalid status", code: "invalid" };
   }
 
   const ctx = await requireAdminCtx();
-  if (!ctx.ok) return { ok: false, error: ctx.error };
+  if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, tenant_id")
+    .select("id, tenant_id, status, updated_at")
     .eq("id", invoiceId)
     .maybeSingle();
-  if (!invoice) return { ok: false, error: "Invoice not found" };
+  if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
   if (invoice.tenant_id !== profile.tenant_id) {
-    return { ok: false, error: "Forbidden" };
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(invoice.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This invoice was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const { error: updateError } = await supabase
