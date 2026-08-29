@@ -4,18 +4,29 @@ import webpush from "web-push";
 
 export const runtime = "nodejs";
 
-// VAPID config
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!,
-);
+// Lazy-init: touching env at module scope makes Next.js's
+// page-data collection step fail during `next build` when the
+// env vars aren't populated (e.g. local build without a .env).
+let vapidReady = false;
+function ensureVapid() {
+  if (vapidReady) return;
+  const subject = process.env.VAPID_SUBJECT;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!subject || !publicKey || !privateKey) {
+    throw new Error("VAPID env vars missing");
+  }
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  vapidReady = true;
+}
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } },
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+}
 
 type NotificationRecord = {
   id: string;
@@ -87,6 +98,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    ensureVapid();
+    const supabase = getSupabaseAdmin();
+
     // 2) Read webhook payload
     const webhook = await req.json();
     const record = webhook?.record as NotificationRecord | undefined;
@@ -104,7 +118,7 @@ export async function POST(req: Request) {
     }
 
     // 4) Fetch subscriptions for that user
-    const { data: subs, error: subsErr } = await supabaseAdmin
+    const { data: subs, error: subsErr } = await supabase
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth")
       .eq("user_id", userId);
@@ -149,7 +163,7 @@ export async function POST(req: Request) {
     );
 
     if (deadIds.length) {
-      await supabaseAdmin.from("push_subscriptions").delete().in("id", deadIds);
+      await supabase.from("push_subscriptions").delete().in("id", deadIds);
     }
 
     return NextResponse.json({ ok: true, sent, cleaned: deadIds.length });
