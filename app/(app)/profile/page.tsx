@@ -2,6 +2,7 @@
 
 import { Separator } from "@/components/ui/separator";
 import ProfileForm from "@/components/profile/profile-form";
+import PrivacyControls from "@/components/profile/privacy-controls";
 
 export default function AccountPage() {
   return (
@@ -16,6 +17,10 @@ export default function AccountPage() {
       <Separator />
 
       <ProfileForm />
+
+      <Separator />
+
+      <PrivacyControls />
     </div>
   );
 }
