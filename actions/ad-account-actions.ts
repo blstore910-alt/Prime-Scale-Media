@@ -2,9 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { versionMatches, type ActionResult } from "./_shared";
+import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
 
 async function requireAdminCtx() {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false as const, error: mm.error };
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {

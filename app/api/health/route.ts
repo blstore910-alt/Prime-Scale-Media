@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isMaintenanceMode } from "@/actions/_shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,9 +53,12 @@ export async function GET() {
 
   const overallOk = Object.values(checks).every((c) => c.ok);
 
+  const maintenance = isMaintenanceMode();
+
   return NextResponse.json(
     {
       status: overallOk ? "ok" : "degraded",
+      maintenance,
       checks,
       totalLatencyMs: Date.now() - startedAt,
       at: new Date().toISOString(),

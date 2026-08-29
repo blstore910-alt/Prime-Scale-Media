@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { versionMatches, type ActionResult } from "./_shared";
+import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
 
 type CallerContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -78,6 +78,8 @@ async function assertSuperAdmin() {
 export async function toggleAdminStatus(
   adminId: string,
 ): Promise<ActionResult<{ status: "active" | "inactive" }>> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
   if (typeof adminId !== "string" || adminId.length === 0) {
     return { ok: false, error: "Invalid input" };
   }
@@ -145,6 +147,8 @@ export async function updateUserProfile(
   data: UserProfileUpdatable,
   ifUpdatedAt?: string,
 ): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
   if (typeof userId !== "string" || userId.length === 0) {
     return { ok: false, error: "Invalid input", code: "invalid" };
   }
@@ -246,6 +250,8 @@ export async function updateAffiliate(
   payload: AffiliateUpdatable,
   ifUpdatedAt?: string,
 ): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
   if (typeof affiliateId !== "string" || affiliateId.length === 0) {
     return { ok: false, error: "Invalid input", code: "invalid" };
   }
@@ -313,6 +319,8 @@ export async function updateAdvertiser(
   payload: AdvertiserUpdatable,
   ifUpdatedAt?: string,
 ): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
   if (typeof advertiserId !== "string" || advertiserId.length === 0) {
     return { ok: false, error: "Invalid input", code: "invalid" };
   }

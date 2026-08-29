@@ -3,12 +3,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import dayjs from "dayjs";
+import { maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
 async function requireAdminCtx() {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false as const, error: mm.error };
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {

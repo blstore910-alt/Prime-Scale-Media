@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -32,6 +33,8 @@ async function resolveOwnedAdvertiser(): Promise<
     }
   | { ok: false; error: string }
 > {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false, error: mm.error };
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
@@ -161,6 +164,8 @@ export async function updateOwnProfileAndCompany(input: {
   profile?: ProfileSelfInput;
   company?: CompanyInput;
 }): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { ok: false, error: "Unauthorized" };

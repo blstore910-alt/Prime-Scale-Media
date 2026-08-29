@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -25,6 +26,8 @@ export async function createTenantForCurrentUser(input: {
   slug: string;
   initials: string;
 }): Promise<ActionResult<{ tenant_id: string }>> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const slug = typeof input.slug === "string" ? input.slug.trim().toLowerCase() : "";
   const initials = typeof input.initials === "string" ? input.initials.trim() : "";
