@@ -1,19 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { NextRequest } from "next/server";
 
-/**
- * Returns the caller's best-effort IP address. Behind Vercel/CDN this
- * lands in `x-forwarded-for` (first entry). Falls back to a constant so
- * rate limits still apply when the address is unavailable.
- */
-export function callerIp(req: NextRequest | Request): string {
-  const headers = "headers" in req ? req.headers : new Headers();
-  const fwd = headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]!.trim();
-  const real = headers.get("x-real-ip");
-  if (real) return real.trim();
-  return "unknown";
-}
+export { callerIp } from "./pure-request";
 
 export type RateLimitSpec = {
   bucket: string;

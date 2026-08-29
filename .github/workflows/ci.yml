@@ -35,6 +35,9 @@ jobs:
       - name: ESLint
         run: npx next lint --max-warnings 100
 
+      - name: Unit tests
+        run: npm test
+
       # Build step needs env vars to prerender. Skip in CI unless a
       # dummy env is provided — set the secrets below in the repo to
       # enable it.

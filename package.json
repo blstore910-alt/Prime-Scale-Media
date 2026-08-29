@@ -5,7 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test --experimental-strip-types tests/lib/search.test.ts tests/lib/http.test.ts tests/lib/rate-limit.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
