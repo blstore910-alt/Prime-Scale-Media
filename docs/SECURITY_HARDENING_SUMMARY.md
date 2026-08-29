@@ -3,11 +3,41 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. 17 commits, ~60 files geraakt.
+Alle commits staan op `main`. **36 commits, ~80 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
+
+### Post-launch reliability + GDPR + ops (2026-08-29 sweep)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `40cc911` | feat(gdpr): privacy controls on /profile + shared adminContext helper     |
+| `3d64f4c` | feat(gdpr): right-to-portability + two-step right-to-erasure              |
+| `a055577` | feat(ops): read-only MAINTENANCE_MODE feature flag                        |
+| `76c697d` | feat(ux): IDB draft + unsaved-warning on account-form and ad-account-request |
+| `673b116` | feat(reliability): error boundary + client-error logger + unsaved warning |
+| `f711c09` | feat(ops): /api/health + /api/version + deploy-detection banner           |
+| `45f3c7c` | feat(ops): pg_cron scheduled maintenance + audit retention policy         |
+| `b5c160c` | feat(ux): IndexedDB form-draft persistence + wire into company onboarding |
+| `8d497dd` | feat(security): optimistic concurrency guards on admin update actions     |
+| `06327db` | docs: cross-reference bol-app data-integrity lessons                      |
+
+### Ops + tests + CI (2026-08-28 evening)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `9b33480` | feat(ops): scripts/check-env.mjs preflight                                |
+| `cd32900` | docs: CLAUDE.md — non-negotiable patterns for Claude sessions             |
+| `0cf4565` | docs: privacy + data-lifecycle policy                                     |
+| `b22eca6` | test: pure-helpers coverage (utils-pure)                                  |
+| `f113674` | ci+docs: strict lint gate, SECURITY.md, PR template, ADR-0002             |
+| `dc31d3c` | chore(lint): drop or annotate the last unused-imports warnings            |
+| `2d67df0` | test: node:test-based unit tests for pure helpers + CI wiring             |
+| `22750ca` | docs: runbook + refresh SECURITY_HARDENING_SUMMARY                        |
+
+### Security hardening sweep (main 2026-08-28)
 
 | Commit    | Wat                                                                       |
 | --------- | ------------------------------------------------------------------------- |
@@ -29,6 +59,67 @@ Alle commits staan op `main`. 17 commits, ~60 files geraakt.
 | `b32bd65` | fix(p0-rest): top_ups + invoices + tenants via server actions             |
 | `43f4af5` | fix(p0-wallet): wallet + wallet_topups via SECURITY DEFINER RPCs          |
 | `349032f` | fix(p1-sweep): cookies, admin server actions, input hardening, headers    |
+
+---
+
+## Nieuw sinds vorige refresh (2026-08-29)
+
+### Data-integrity (bol-app lessons)
+
+- **Optimistic concurrency guards** op admin updates. Twee admins die
+  tegelijk hetzelfde bewerken → tweede krijgt `code: "conflict"` ipv
+  stille overschrijving. `actions/_shared.ts:versionMatches`.
+- **IndexedDB form-drafts** in de 3 langste formulieren
+  (`company-onboarding`, `account-form`, `ad-account-request`).
+  7-dagen TTL, per-user scoped. `lib/form-draft.ts` +
+  `hooks/use-form-draft.ts`.
+- **Beforeunload-guard** — browser vraagt "leave this page?" als er
+  ongewisselde input is. `hooks/use-unsaved-changes-warning.ts`.
+- **audit_events retentie policy** — 0-2 jaar hot, 2-7 warm, >7 cold
+  archive naar S3/R2/GCS. Cron `psm-audit-monthly-stats` schrijft
+  metrics zodat we een "flat line" trigger-failure kunnen detecteren.
+  `supabase/migrations/20260829120000_scheduled_maintenance.sql` +
+  `docs/BACKUP_AND_RECOVERY.md`.
+- **pg_cron rate_limit_prune** — dagelijks 03:15 UTC.
+- **audit_events_archive_candidates(days)** — read-only helper voor
+  de retentie-playbook.
+
+### Reliability
+
+- **Error boundary** rond de authed layout. Ships errors naar
+  `/api/log/client-error` via `navigator.sendBeacon` (survives page
+  unload). `components/error-boundary.tsx`.
+- **Client-error logger endpoint** — zod-validated body, server-side
+  user_id resolution, structured server-log. Zonder DB-write om
+  audit_events niet te vervuilen.
+- **App version watcher** — polls `/api/version` elke minuut, toont
+  subtiele "new version available" banner bij deploy-tijdens-sessie.
+  User klikt zelf reload; combined met IDB drafts = niks kwijt.
+- **/api/health** — uptime probe, checks Supabase + env presence.
+  200/503 met JSON. `maintenance` field.
+- **Read-only MAINTENANCE_MODE** — `MAINTENANCE_MODE=true` freezes
+  every write; leest werken door. `/api/health` exposeert de status,
+  `components/maintenance-banner.tsx` toont een amber banner.
+  Zonder redeploy inzetbaar tijdens incidents.
+
+### GDPR
+
+- **Right to portability** — `GET /api/me/export` levert een JSON-file
+  met álle rijen waar de caller data subject van is. Filtert per
+  definitie op `auth.uid()` — kan niemand anders' data trekken.
+- **Right to erasure (two-step)**:
+  - `requestOwnErasure` — user zelf, zet `status='pending_erasure'`
+    + `is_active=false`. Login direct geblokkeerd.
+  - `hardDeleteUser(userId)` — super-admin only, roept
+    `auth.admin.deleteUser()` aan op de anniversary datum. Vereist
+    de target in `pending_erasure` staat + zelfde tenant.
+- **UI op /profile** — `components/profile/privacy-controls.tsx`
+  met "Download my data" + "Request deletion" (met confirmatie).
+
+### Test coverage
+
+- 39 unit tests (van 23 gestart). Nieuw: 7 versionMatches tests +
+  6 maintenance-mode tests + 4 debounced tests.
 
 ---
 
