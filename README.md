@@ -1,3 +1,47 @@
+# Prime Scale Media App
+
+Multi-tenant financial dashboard on Next.js 15 + Supabase. Advertisers
+hold EUR/USD wallets, top up via bank transfer, spend on ad-account
+requests; admins verify payments; super-admin owns the tenant.
+
+## Developer quick start
+
+```bash
+npm install
+cp .env.example .env.local     # fill in Supabase + email + push env
+npm run check-env               # verifies required env is set
+npm run dev                     # http://localhost:3000
+```
+
+Local validation (no env required):
+
+```bash
+npx tsc --noEmit                # types
+npx next lint                   # style
+npm test                        # 92 unit tests via node:test
+```
+
+## Docs
+
+Start at [docs/README.md](docs/README.md) for the full index.
+Highlights:
+
+- [docs/SECURITY_HARDENING_SUMMARY.md](docs/SECURITY_HARDENING_SUMMARY.md) — everything shipped in the 2026-08 hardening sweep.
+- [docs/TEST_PLAN.md](docs/TEST_PLAN.md) — manual pre-launch test suite.
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — incident procedures.
+- [docs/BACKUP_AND_RECOVERY.md](docs/BACKUP_AND_RECOVERY.md) — three-layer backup strategy.
+- [docs/PRIVACY_AND_DATA_LIFECYCLE.md](docs/PRIVACY_AND_DATA_LIFECYCLE.md) — GDPR + retention.
+- [CLAUDE.md](CLAUDE.md) — non-negotiable patterns for AI-assisted edits.
+- [SECURITY.md](SECURITY.md) — vulnerability reporting.
+
+Post-deploy smoke test:
+
+```bash
+BASE_URL=https://YOUR_APP npm run smoke
+```
+
+---
+
 # 🏢 Multi-Tenant White Label Platform — Final Hierarchy & System Model
 
 ## 1. SUPER ADMIN (Platform Level)
