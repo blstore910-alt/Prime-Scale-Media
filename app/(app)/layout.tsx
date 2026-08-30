@@ -2,6 +2,7 @@ import AdminLayout from "@/components/admin/layout";
 import AppVersionBanner from "@/components/app-version-banner";
 import ErrorBoundary from "@/components/error-boundary";
 import Heartbeat from "@/components/heartbeat";
+import IdleTimeoutManager from "@/components/idle-timeout-manager";
 import MaintenanceBanner from "@/components/maintenance-banner";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -96,6 +97,7 @@ export default async function AppLayout({
       <ErrorBoundary>{children}</ErrorBoundary>
       <AppVersionBanner />
       <Heartbeat />
+      <IdleTimeoutManager />
     </Layout>
   );
 }
