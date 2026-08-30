@@ -150,7 +150,19 @@ export default function WalletTopupDialog({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // 10 MB — plenty for a bank receipt scan, refuses accidental
+    // upload of the family holiday video.
+    const MAX_BYTES = 10 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      setPaymentSlipError("File is too large (max 10 MB).");
+      setPaymentSlipUrl(null);
+      setPaymentSlipPreview(null);
+      return;
+    }
+
     const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    // SVG deliberately excluded — SVG can carry embedded scripts that
+    // execute when the file is opened. Bank slips are raster or PDF.
     const imageExtensions = new Set([
       "png",
       "jpg",
@@ -158,14 +170,14 @@ export default function WalletTopupDialog({
       "gif",
       "webp",
       "bmp",
-      "svg",
     ]);
     const isImage =
-      imageExtensions.has(extension) || file.type.startsWith("image/");
+      imageExtensions.has(extension) ||
+      (file.type.startsWith("image/") && file.type !== "image/svg+xml");
     const isPdf = extension === "pdf" || file.type === "application/pdf";
 
     if (!isImage && !isPdf) {
-      setPaymentSlipError("Only image or PDF files are allowed.");
+      setPaymentSlipError("Only PNG / JPG / GIF / WEBP / BMP / PDF allowed.");
       setPaymentSlipUrl(null);
       setPaymentSlipPreview(null);
       return;
