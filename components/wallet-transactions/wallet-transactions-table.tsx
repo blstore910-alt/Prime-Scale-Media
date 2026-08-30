@@ -42,9 +42,18 @@ const currencyOptions = [
   { label: "EUR", value: "EUR" },
 ];
 
-export default function WalletTransactionsTable() {
+export default function WalletTransactionsTable({
+  defaultStatus = "all",
+}: {
+  /**
+   * Initial value for the Status filter. Admin queues typically
+   * want "pending" as the default so operators land on the actionable
+   * rows; the user-facing wallet view keeps "all".
+   */
+  defaultStatus?: "all" | "pending" | "completed" | "rejected";
+} = {}) {
   const { profile } = useAppContext();
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState<string>(defaultStatus);
   const [currency, setCurrency] = useState("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
