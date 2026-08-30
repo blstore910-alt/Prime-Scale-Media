@@ -73,6 +73,10 @@ type InvoiceRecord = {
   company?: CompanyRecord | null;
   advertiser?: AdvertiserRecord | null;
   tenant?: TenantRecord | null;
+  // Issuer party: the tenant's own company row (advertiser_id IS NULL)
+  // that the admin fills in on /settings/general. Falls back to the
+  // hardcoded TURLIT block when NULL so old tenants keep rendering.
+  issuer?: CompanyRecord | null;
 };
 
 const DEFAULT_INVOICE_LOGO_PATH =
@@ -239,15 +243,26 @@ function buildInvoiceHtml(
   const company = invoice.company;
   const advertiser = invoice.advertiser;
   const tenant = invoice.tenant;
+  const issuer = invoice.issuer;
   const tenantName =
     compactText(tenant?.name ?? advertiser?.profile?.full_name) || "N/A";
   const companyName = compactText(company?.name) || "N/A";
-  const issuerName = process.env.INVOICE_ISSUER_NAME ?? "TURLIT LLC";
-  const issuerAddressLines = [
-    "30 N Gould St,",
-    "STE R Sheridan Wyoming",
-    "US WY 82801",
-  ];
+  // Prefer the tenant-level company the admin filled in on
+  // /settings/general (name + full address + registration/VAT). Fall
+  // back to env-var / hardcoded TURLIT block so tenants that have not
+  // filled it in yet still get a rendered PDF.
+  const issuerName =
+    compactText(issuer?.name) ||
+    process.env.INVOICE_ISSUER_NAME ||
+    "TURLIT LLC";
+  const issuerAddressLines = issuer?.address
+    ? formatAddressLines([
+        issuer.address,
+        [issuer.state, issuer.country, issuer.zipcode]
+          .filter(Boolean)
+          .join(", "),
+      ])
+    : ["30 N Gould St,", "STE R Sheridan Wyoming", "US WY 82801"];
   const createdAt = formatIsoDate(invoice.created_at);
   const invoiceTypeKey = resolveInvoiceTypeKey(invoice.type, items);
   const invoiceType = formatLabel(invoiceTypeKey) || "N/A";
@@ -724,6 +739,23 @@ export async function GET(
         { status: 404 },
       );
     }
+
+    // Attach the tenant-level company row as the issuer party on the
+    // PDF. Separate query because the invoice's own `company` FK
+    // points at the advertiser's bill-to company, not the tenant's
+    // own. maybeSingle() so a tenant that has not filled its company
+    // in yet still returns a rendered PDF (issuer falls back to
+    // TURLIT hardcode).
+    const { data: issuerCompany } = await supabase
+      .from("companies")
+      .select(
+        "name, official_email, phone, website_url, registration_no, vat_no, address, state, country, zipcode",
+      )
+      .eq("tenant_id", activeProfile.tenant_id)
+      .is("advertiser_id", null)
+      .maybeSingle();
+    (invoice as InvoiceRecord).issuer =
+      (issuerCompany as CompanyRecord | null) ?? null;
 
     let billing: BillingRecord | null = null;
     if ((invoice as InvoiceRecord).company_id) {
