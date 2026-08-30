@@ -48,8 +48,35 @@ Use `safeErrorMessage(err)` from `@/lib/pure-error` — Supabase's
 
 If you add a new financial table, extend the `_audit_row_change`
 trigger's audited list in
-`supabase/migrations/20260828130000_audit_events.sql`. Every business
-change should be reconstructable from `audit_events`.
+`supabase/migrations/20260828130000_audit_events.sql` **and** the
+`_touch_updated_at` list in
+`supabase/migrations/20260829140000_updated_at_triggers.sql`. Every
+business change should be reconstructable from `audit_events`, and
+optimistic concurrency depends on `updated_at` being bumped.
+
+## Non-negotiable — mutation actions
+
+Every mutation server action:
+
+1. Starts by calling `maintenanceGuard()` (or the `requireAdminCtx`
+   helper it lives in) so `MAINTENANCE_MODE=true` freezes writes
+   app-wide during an incident.
+2. Column-allowlists the payload — never spread caller input into
+   `.update({ ... })`.
+3. Enforces tenant match by re-fetching the target row and
+   comparing `tenant_id` server-side.
+4. Accepts an optional `ifUpdatedAt` param and calls
+   `versionMatches` before writing — protects against blind
+   overwrite when two admins edit the same record. See
+   `actions/_shared.ts`.
+
+## UX — never lose typing
+
+Long forms (company onboarding, ad-account form, ad-account
+request, wallet-topup dialog) use `hooks/use-form-draft.ts` with
+`profile.id` as the userScope. Combine with
+`hooks/use-unsaved-changes-warning.ts` for a beforeunload dialog.
+Clear the draft on successful submit.
 
 ## Style
 
