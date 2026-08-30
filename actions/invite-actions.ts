@@ -52,7 +52,7 @@ export async function cancelInvitation(
 
   const { data: invite } = await supabase
     .from("invitations")
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, status, role")
     .eq("id", inviteId)
     .maybeSingle();
   if (!invite) return { ok: false, error: "Invitation not found" };
@@ -61,6 +61,26 @@ export async function cancelInvitation(
   }
   if (invite.status === "accepted") {
     return { ok: false, error: "Invitation already accepted" };
+  }
+
+  // Admin-role invites are only issued by the super-admin — an
+  // employee cancelling one is a permission escalation the other
+  // way (blocks the owner's new admin). Require super-admin to
+  // cancel those.
+  if (invite.role === "admin") {
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    const isSuperAdmin =
+      !!tenant?.owner_id && tenant.owner_id === profile.user_id;
+    if (!isSuperAdmin) {
+      return {
+        ok: false,
+        error: "Only the tenant owner can cancel admin invitations.",
+      };
+    }
   }
 
   const { error } = await supabase

@@ -461,19 +461,17 @@ export async function setAffiliateCommission(
 }
 
 // ─────────────────────────────────────────
-// updateAdvertiser — admin only, target must belong to same tenant.
-// Allowlists writable columns (includes commission fields).
+// updateAdvertiser — admin only. Non-commission columns.
+// Commission fields moved to setAdvertiserCommission (super-admin
+// only) — matches the affiliate split. Prevents a plain admin from
+// setting an advertiser's cashback / referral commission from the
+// /users page.
 // ─────────────────────────────────────────
 const ADVERTISER_ALLOWED_COLUMNS = [
   "startup_fee",
   "fee_status",
   "airtable",
   "note",
-  "commission_type",
-  "commission_pct",
-  "commission_onetime",
-  "commission_monthly",
-  "commission_currency",
 ] as const;
 type AdvertiserUpdatable = Partial<
   Record<(typeof ADVERTISER_ALLOWED_COLUMNS)[number], unknown>
@@ -532,5 +530,83 @@ export async function updateAdvertiser(
 
   if (updateError) return { ok: false, error: updateError.message };
 
+  return { ok: true, data: null };
+}
+
+// ─────────────────────────────────────────
+// setAdvertiserCommission — SUPER-ADMIN ONLY.
+// Structural / financial authority to change what the platform
+// pays this advertiser (typical use case: cashback %, referrer
+// commission). An employee-tier admin never touches these — same
+// rule the affiliate variant uses.
+// ─────────────────────────────────────────
+const ADVERTISER_COMMISSION_COLUMNS = [
+  "commission_type",
+  "commission_pct",
+  "commission_onetime",
+  "commission_monthly",
+  "commission_currency",
+] as const;
+type AdvertiserCommissionInput = Partial<
+  Record<(typeof ADVERTISER_COMMISSION_COLUMNS)[number], unknown>
+>;
+
+export async function setAdvertiserCommission(
+  advertiserId: string,
+  payload: AdvertiserCommissionInput,
+  ifUpdatedAt?: string,
+): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
+  const caller = await assertAdmin();
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
+  const { supabase, profile } = caller.ctx;
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  const isSuperAdmin =
+    !!tenant?.owner_id && tenant.owner_id === profile.user_id;
+  if (!isSuperAdmin) {
+    return {
+      ok: false,
+      error: "Only the tenant owner can change commission rates.",
+      code: "forbidden",
+    };
+  }
+
+  const cleaned: Record<string, unknown> = {};
+  for (const col of ADVERTISER_COMMISSION_COLUMNS) {
+    if (col in payload) cleaned[col] = payload[col];
+  }
+  if (Object.keys(cleaned).length === 0) {
+    return { ok: false, error: "No commission fields provided", code: "invalid" };
+  }
+
+  const { data: target } = await supabase
+    .from("advertisers")
+    .select("id, tenant_id, updated_at")
+    .eq("id", advertiserId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Advertiser not found", code: "not_found" };
+  if (target.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This advertiser was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
+  }
+
+  const { error } = await supabase
+    .from("advertisers")
+    .update(cleaned)
+    .eq("id", advertiserId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
   return { ok: true, data: null };
 }

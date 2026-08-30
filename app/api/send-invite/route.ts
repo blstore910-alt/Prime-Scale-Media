@@ -68,8 +68,24 @@ export async function POST(request: NextRequest) {
       typeof body.affiliate_id === "string" && body.affiliate_id.length > 0
         ? body.affiliate_id
         : null;
+
+    // Commission fields on an invitation are super-admin only. A
+    // plain admin sending an affiliate invite gets these silently
+    // dropped rather than a hard error — matches how the affiliate
+    // action layer treats the split. This closes the leak where a
+    // plain admin could preload commission_rate=1.0 on an invite
+    // and have it propagate on accept.
+    const callerCommissionAllowed = await (async () => {
+      const { data: tenantRow } = await supabase
+        .from("tenants")
+        .select("owner_id")
+        .eq("id", profile.tenant_id)
+        .maybeSingle();
+      return !!tenantRow?.owner_id && tenantRow.owner_id === profile.user_id;
+    })();
+
     let commission_type: string | null = null;
-    if (body.commission_type != null) {
+    if (callerCommissionAllowed && body.commission_type != null) {
       if (
         typeof body.commission_type !== "string" ||
         !ALLOWED_COMMISSION_TYPES.includes(
@@ -84,11 +100,15 @@ export async function POST(request: NextRequest) {
       commission_type = body.commission_type;
     }
     const commission_rate =
-      typeof body.commission_rate === "number" && body.commission_rate >= 0
+      callerCommissionAllowed &&
+      typeof body.commission_rate === "number" &&
+      body.commission_rate >= 0
         ? body.commission_rate
         : null;
     const commission_amount =
-      typeof body.commission_amount === "number" && body.commission_amount >= 0
+      callerCommissionAllowed &&
+      typeof body.commission_amount === "number" &&
+      body.commission_amount >= 0
         ? body.commission_amount
         : null;
 
