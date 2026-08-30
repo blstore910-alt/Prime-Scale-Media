@@ -15,8 +15,13 @@
 -- `advertiser_id` an OUT parameter, which shadowed the wallets
 -- column of the same name and raised 42702 at call time.
 -- Renamed OUT columns to out_* and qualified the wallets ref.
+--
+-- Renaming OUT params changes the row type, so CREATE OR REPLACE
+-- refuses with 42P13. Drop the old signature first.
 -- ═══════════════════════════════════════════════════════════════════
 --
+drop function if exists public.ensure_advertiser_and_wallet(uuid);
+
 create or replace function public.ensure_advertiser_and_wallet(
   p_profile_id uuid
 )
