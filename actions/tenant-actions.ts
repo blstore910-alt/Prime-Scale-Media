@@ -87,16 +87,37 @@ export async function createTenantForCurrentUser(input: {
   if (insertError) return { ok: false, error: insertError.message };
 
   // Also seed the user_profiles row so the caller has a working
-  // admin session on this tenant right away. Without this, the
-  // /dashboard layout redirects back to /onboard indefinitely.
+  // admin session on this tenant right away. A DB signup trigger
+  // may already have created a profile row with tenant_id=null —
+  // update it in place if so; otherwise insert.
   const displayName =
     (userData.user.user_metadata?.display_name as string | undefined) ||
     (userData.user.user_metadata?.full_name as string | undefined) ||
     userData.user.email ||
     "Admin";
-  const { error: profileError } = await supabase
+
+  const { data: existingProfile } = await supabase
     .from("user_profiles")
-    .insert({
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  let profileError: { message: string } | null = null;
+  if (existingProfile?.id) {
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({
+        tenant_id: tenant.id,
+        role: "admin",
+        full_name: displayName,
+        email: userData.user.email,
+        status: "active",
+        is_active: true,
+      })
+      .eq("id", existingProfile.id);
+    profileError = error;
+  } else {
+    const { error } = await supabase.from("user_profiles").insert({
       user_id: userId,
       tenant_id: tenant.id,
       role: "admin",
@@ -105,6 +126,9 @@ export async function createTenantForCurrentUser(input: {
       status: "active",
       is_active: true,
     });
+    profileError = error;
+  }
+
   if (profileError) {
     // Roll back the tenant so the caller isn't left as owner without
     // a profile (would infinitely-redirect between /dashboard and
