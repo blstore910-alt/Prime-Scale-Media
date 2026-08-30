@@ -22,6 +22,7 @@ export type AuditEventsParams = {
   table?: string;
   action?: string;
   rowId?: string;
+  sinceMinutes?: number;
   page?: number;
   perPage?: number;
 };
@@ -34,7 +35,7 @@ export type AuditEventsParams = {
  */
 export default function useAuditEvents(params: AuditEventsParams = {}) {
   const { profile } = useAppContext();
-  const { table, action, rowId, page = 1, perPage = 50 } = params;
+  const { table, action, rowId, sinceMinutes, page = 1, perPage = 50 } = params;
 
   const queryKey = useMemo(
     () => [
@@ -43,10 +44,11 @@ export default function useAuditEvents(params: AuditEventsParams = {}) {
       table ?? "all",
       action ?? "all",
       rowId ?? "all",
+      sinceMinutes ?? 0,
       page,
       perPage,
     ],
-    [profile?.tenant_id, table, action, rowId, page, perPage],
+    [profile?.tenant_id, table, action, rowId, sinceMinutes, page, perPage],
   );
 
   const { data, isLoading, isError, error } = useQuery<{
@@ -65,6 +67,10 @@ export default function useAuditEvents(params: AuditEventsParams = {}) {
       if (table && table !== "all") query = query.eq("table_name", table);
       if (action && action !== "all") query = query.eq("action", action);
       if (rowId) query = query.eq("row_id", rowId);
+      if (sinceMinutes && sinceMinutes > 0) {
+        const cutoff = new Date(Date.now() - sinceMinutes * 60_000).toISOString();
+        query = query.gte("occurred_at", cutoff);
+      }
 
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;

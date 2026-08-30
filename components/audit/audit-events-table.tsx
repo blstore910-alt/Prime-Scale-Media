@@ -65,6 +65,7 @@ export default function AuditEventsTable() {
 
   const [table, setTable] = useState("all");
   const [action, setAction] = useState("all");
+  const [sinceMinutes, setSinceMinutes] = useState<number>(0);
   const [rowIdInput, setRowIdInput] = useState(rowIdFromUrl);
   const [page, setPage] = useState(1);
   const perPage = 50;
@@ -88,6 +89,7 @@ export default function AuditEventsTable() {
     table,
     action,
     rowId: rowIdFromUrl || undefined,
+    sinceMinutes: sinceMinutes > 0 ? sinceMinutes : undefined,
     page,
     perPage,
   });
@@ -174,6 +176,24 @@ export default function AuditEventsTable() {
               <SelectItem value="INSERT">INSERT</SelectItem>
               <SelectItem value="UPDATE">UPDATE</SelectItem>
               <SelectItem value="DELETE">DELETE</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={String(sinceMinutes)}
+            onValueChange={(v) => {
+              setSinceMinutes(Number(v));
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="Since" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">All time</SelectItem>
+              <SelectItem value="15">Last 15 min</SelectItem>
+              <SelectItem value="60">Last hour</SelectItem>
+              <SelectItem value="1440">Last 24 h</SelectItem>
+              <SelectItem value="10080">Last 7 days</SelectItem>
             </SelectContent>
           </Select>
           <Button
