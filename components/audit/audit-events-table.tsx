@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { cn } from "@/lib/utils";
-import { Copy, Download, Eye } from "lucide-react";
+import { Copy, Download, Eye, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
 
@@ -71,6 +72,7 @@ export default function AuditEventsTable() {
   const perPage = 50;
   const [selected, setSelected] = useState<AuditEvent | null>(null);
   const [exporting, setExporting] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setRowIdInput(rowIdFromUrl);
@@ -196,6 +198,19 @@ export default function AuditEventsTable() {
               <SelectItem value="10080">Last 7 days</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              queryClient.invalidateQueries({ queryKey: ["audit-events"] })
+            }
+            disabled={isLoading}
+            aria-label="Refresh"
+          >
+            <RefreshCw
+              className={"h-3 w-3 " + (isLoading ? "animate-spin" : "")}
+            />
+          </Button>
           <Button
             variant="outline"
             size="sm"
