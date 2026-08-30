@@ -25,6 +25,8 @@ import { useState } from "react";
 import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
 import PaymentSlipDialog from "./payment-slip-dialog";
 import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 import { CURRENCY_SYMBOLS, DATE_TIME_FORMAT } from "@/lib/constants";
 
 const formatAmount = (value: number | string | null | undefined) => {
@@ -104,7 +106,16 @@ export default function WalletTransactionRow({
           </span>
         </div>
       </TableCell>
-      <TableCell>{dayjs(topup.created_at).format(DATE_TIME_FORMAT)}</TableCell>
+      <TableCell>
+        <div className="flex flex-col">
+          <span>{dayjs(topup.created_at).format(DATE_TIME_FORMAT)}</span>
+          {canTakeAction && (
+            <span className="text-xs text-amber-600 dark:text-amber-500">
+              waiting {dayjs(topup.created_at).fromNow(true)}
+            </span>
+          )}
+        </div>
+      </TableCell>
       <TableCell className="text-right">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
