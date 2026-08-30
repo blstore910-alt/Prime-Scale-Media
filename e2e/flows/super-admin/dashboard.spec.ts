@@ -21,7 +21,7 @@ test.describe("super-admin — shell + sidebar", () => {
     // Wait for at least one stat card to paint — that's the signal
     // the client-side data queries resolved.
     await expect(page.locator("body")).toBeVisible();
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.waitForTimeout(2500);
 
     if (errors.length > 0) console.error("console errors:", errors);
     // Not fatal on the dashboard yet (some third-party console noise

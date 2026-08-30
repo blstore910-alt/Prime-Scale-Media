@@ -12,7 +12,8 @@ test.describe("advertiser — shell", () => {
     // A fresh advertiser without company/billing gets sent to
     // /complete-profile by (app)/layout.tsx. Anywhere OUT of
     // /auth/* is a success signal that the storageState works.
-    await page.waitForLoadState("networkidle");
+    // Don't wait networkidle — Heartbeat + SSE keep it busy forever.
+    await page.waitForTimeout(1500);
     expect(page.url()).not.toContain("/auth/");
   });
 
@@ -20,7 +21,7 @@ test.describe("advertiser — shell", () => {
     page,
   }) => {
     await page.goto("/wallet");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await page.waitForTimeout(2000);
     // Either the wallet page renders OR complete-profile intercepts.
     // Both mean the auth is working. A bounce to /auth/* would be
     // the regression.
@@ -30,7 +31,8 @@ test.describe("advertiser — shell", () => {
 
   test("sidebar hides admin-only sections", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    // Don't wait networkidle — Heartbeat + SSE keep it busy forever.
+    await page.waitForTimeout(1500);
     // Even if we land on /complete-profile the sidebar isn't rendered.
     // Only assert when we're inside the shell.
     if (page.url().includes("/complete-profile")) {
