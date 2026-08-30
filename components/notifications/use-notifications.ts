@@ -58,11 +58,33 @@ export default function useNotifications() {
     },
   });
 
+  const deleteRead = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
+      // Only the caller's own read notifications older than 30 days.
+      // Clean-up habit; keeps the popover list from getting unwieldy.
+      const cutoff = new Date(
+        Date.now() - 30 * 86_400_000,
+      ).toISOString();
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("recipient_user_id", userId)
+        .eq("is_read", true)
+        .lt("created_at", cutoff);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
   return {
     notifications,
     isLoading,
     unreadCount,
     markAsRead,
     markAllAsRead,
+    deleteRead,
   };
 }
