@@ -77,6 +77,8 @@ cross-reference.
   Advertisers land on "All" (their own history).
 - `/notifications` "Clean up" button removes read notifications
   older than 30 days.
+- "waiting Xh" amber indicator on pending wallet-topup rows
+  (desktop + mobile) so stale requests are visible at a glance.
 
 ### Operations
 
