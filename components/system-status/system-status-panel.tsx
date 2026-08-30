@@ -6,6 +6,7 @@ import { useAppVersion } from "@/hooks/use-app-version";
 import { useMaintenanceStatus } from "@/hooks/use-maintenance-status";
 import { AlertOctagon, Users, ScrollText, Wallet, Building, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
+import WalletRecoveryDialog from "@/components/wallets/wallet-recovery-dialog";
 
 /**
  * Super-admin operational panel. Refreshes every 60 seconds via
@@ -85,6 +86,10 @@ export default function SystemStatusPanel() {
             v{bootVersion ?? "…"}
           </span>
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <WalletRecoveryDialog />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
