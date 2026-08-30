@@ -3,11 +3,26 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. **69 commits, ~105 files geraakt.**
+Alle commits staan op `main`. **79 commits, ~110 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
+
+### Dashboard + docs polish (2026-08-30 fifth wave)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `3a09858` | docs(readme): developer quick-start on root README                        |
+| `27a281d` | feat(help): replace stub help page with actual FAQ                        |
+| `ae8078d` | feat(profile): "My recent activity" section on /profile                   |
+| `80382bf` | feat(audit): link to audit history from wallet-topup details sheet        |
+| `15a6d80` | feat(recovery): dialog wrapper for wallet balance drift check             |
+| `1c68401` | feat(dashboard): rate-limit bucket viewer for super-admins                |
+| `44cce81` | docs: index page under docs/README.md                                     |
+| `909165a` | docs(adr): 0003 optimistic concurrency + local form drafts                |
+| `cb60bd0` | feat(ops): post-deploy smoke-test script                                  |
+| `d5ddc93` | docs: SECURITY_HARDENING_SUMMARY refresh                                  |
 
 ### Recovery + audit deep-links (2026-08-30 fourth wave)
 
@@ -233,6 +248,28 @@ Alle commits staan op `main`. **69 commits, ~105 files geraakt.**
 - **X-Forwarded-For unit tests** — freeze de callerIp() header
   priority zodat rate-limit buckets niet stilletjes samen komen
   op "unknown".
+
+### Aanvullingen 2026-08-30 (vijfde wave)
+
+- **Rate-limit dashboard** — super-admin ziet top 25 active buckets
+  in laatste uur op /dashboard. Buckets binnen 80% van ceiling
+  worden destructive-badge rood. Beslist "legit load" of "abuse".
+- **Wallet recovery dialog** — knop op system-status panel opent
+  wrapper rond `/api/wallet-recovery`. Paste UUID → zie audit vs
+  live + diff kolom. Non-zero diff toont warning banner.
+- **Audit history link** op wallet-topup-details-sheet — super-admin
+  klikt "View audit history" → springt naar `/audit?row=<id>` met
+  volledige history van dat record.
+- **My recent activity** op /profile — laatste 20 audit_events waar
+  de gebruiker actor was. Self-service "was dat mij?" antwoord.
+- **/help pagina echt gevuld** — 3 FAQ cards + support-pointer,
+  vervangt de placeholder stub.
+- **README + docs/README.md** — developer quick-start op root,
+  docs index in de docs folder.
+- **Post-deploy smoke script** — `BASE_URL=… npm run smoke` checkt
+  health, version, public routes, redirect auth, security headers.
+- **ADR 0003** — optimistic concurrency + IDB drafts gedocumenteerd
+  met alternatives-considered en cross-refs naar ADR 0001/0002.
 
 ### Aanvullingen 2026-08-30 (vierde wave)
 
