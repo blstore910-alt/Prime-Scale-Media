@@ -23,7 +23,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Node 22+ required for --experimental-strip-types used by
+          # our npm test script (runs .ts files directly).
+          node-version: "22"
           cache: "npm"
 
       - name: Install
