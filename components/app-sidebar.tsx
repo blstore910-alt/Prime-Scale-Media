@@ -6,7 +6,6 @@ import {
   IconMailForward,
   IconReceipt,
   IconUsers,
-  type TablerIcon,
 } from "@tabler/icons-react";
 import {
   ClipboardListIcon,
@@ -18,7 +17,6 @@ import {
   ScrollText,
   SettingsIcon,
   Wallet,
-  type LucideIcon,
 } from "lucide-react";
 
 import * as React from "react";
