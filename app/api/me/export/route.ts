@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { exportOwnData } from "@/actions/gdpr-actions";
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,16 @@ export const dynamic = "force-dynamic";
  * Filename embeds the timestamp so multiple exports don't collide in
  * the user's downloads folder.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const ip = callerIp(req);
+  const allowed = await rateLimitCheck(LIMITS.gdprExport, `ip:${ip}`);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many export requests. Try again later." },
+      { status: 429 },
+    );
+  }
+
   const result = await exportOwnData();
   if (!result.ok) {
     return NextResponse.json(

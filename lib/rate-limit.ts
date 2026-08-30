@@ -58,4 +58,8 @@ export const LIMITS = {
     max: 60,
     windowSeconds: 3600,
   },
+  // GDPR export is expensive (many joined queries). Cap the frequency
+  // per user so a runaway script or accidental button-mash doesn't
+  // knock over the DB.
+  gdprExport: { bucket: "gdpr-export", max: 10, windowSeconds: 3600 },
 } as const;
