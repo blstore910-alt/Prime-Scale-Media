@@ -17,7 +17,10 @@ type ActionResult<T = null> =
 // This closes the P0 case where a client insert against `tenants` sets
 // owner_id from the browser — RLS is not the only gate any more.
 // ─────────────────────────────────────────
-const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/;
+// Tenant slugs: 2-40 chars, lowercase alphanumeric, hyphens allowed
+// but not at either end. Single-char slugs are refused (too easy to
+// confuse with routing).
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/;
 const NAME_MAX = 40;
 const NAME_MIN = 2;
 
