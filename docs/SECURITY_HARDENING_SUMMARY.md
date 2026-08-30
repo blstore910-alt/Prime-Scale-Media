@@ -3,11 +3,21 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. **47 commits, ~90 files geraakt.**
+Alle commits staan op `main`. **53 commits, ~95 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
+
+### Audit UI + system status (2026-08-30 second wave)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `646bee6` | test: 7 unit tests for CSV escape rule (RFC 4180)                         |
+| `16353fd` | feat(audit): CSV export from /audit for compliance downloads              |
+| `6058ee6` | feat(dashboard): super-admin system status panel                          |
+| `3841393` | feat(nav): expose /audit in the super-admin sidebar                       |
+| `6bc3741` | feat(audit): super-admin viewer for audit_events                          |
 
 ### Reliability + hardening (2026-08-29 → 30 sweep)
 
@@ -160,11 +170,28 @@ Alle commits staan op `main`. **47 commits, ~90 files geraakt.**
 - **RUNBOOK.md** — 4 nieuwe secties: MAINTENANCE_MODE flip,
   last_seen queries, client-error log grep, GDPR verzoeken.
 
+### Aanvullingen 2026-08-30 (tweede wave)
+
+- **Audit-events viewer op /audit** — super-admin-only page met
+  filter op tabel + actie, 50 rijen per pagina, detail-sheet met
+  before/after JSON. Nav-entry in sidebar.
+- **CSV export van audit_events** op `/api/audit/export` +
+  "Export CSV" knop in de viewer. Verstuurt 30-daagse window
+  respecterend de gekozen filters. Auth: alleen super-admin
+  (owner_id check). Max 10.000 rows per call, max 366 dagen range.
+  7 unit tests op de RFC-4180 escape rule.
+- **Super-admin system status panel** op dashboard — 5 tiles die
+  per 60s verversen (active-admins-24h, audit-events-24h,
+  pending wallet topups / top-ups / ad-account-requests). Header
+  toont bootversion, maintenance flag, en "new version available"
+  indicator in één blok. Pending tiles worden amber wanneer
+  count > 0 en linken door naar de relevante admin pagina.
+
 ### Test coverage
 
-- **62 unit tests** (van 23 gestart). Nieuw: 7 versionMatches tests,
-  6 maintenance-mode tests, 4 debounced tests, 8 safeErrorMessage
-  tests, 6 formatLastSeen tests, 9 tenant-slug tests.
+- **69 unit tests** (van 23 gestart). Nieuw: 7 versionMatches, 6
+  maintenance-mode, 4 debounced, 8 safeErrorMessage, 6
+  formatLastSeen, 9 tenant-slug, 7 CSV-escape.
 
 ---
 
