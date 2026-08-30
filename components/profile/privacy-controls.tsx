@@ -10,9 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, Loader2, ShieldAlert } from "lucide-react";
+import { Download, Loader2, LogOut, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { requestOwnErasure } from "@/actions/gdpr-actions";
+import { requestOwnErasure, signOutAllDevices } from "@/actions/gdpr-actions";
 
 /**
  * Two GDPR-mandated controls the user can trigger themselves:
@@ -28,6 +28,7 @@ export default function PrivacyControls() {
   const [downloading, setDownloading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [signingOutAll, setSigningOutAll] = useState(false);
 
   async function download() {
     setDownloading(true);
@@ -82,6 +83,43 @@ export default function PrivacyControls() {
           Your rights under GDPR. You can download everything we have on
           file, or ask us to delete your account.
         </p>
+      </div>
+
+      <div className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="font-medium">Sign out of all devices</p>
+          <p className="text-sm text-muted-foreground">
+            Invalidates every session on every browser and device.
+            Useful if you lost a device or think someone else has access.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            setSigningOutAll(true);
+            try {
+              const result = await signOutAllDevices();
+              if (!result.ok) {
+                toast.error("Sign-out failed", { description: result.error });
+                return;
+              }
+              toast.success("All sessions ended. Signing you out.");
+              setTimeout(() => {
+                window.location.href = "/auth/login";
+              }, 1000);
+            } finally {
+              setSigningOutAll(false);
+            }
+          }}
+          disabled={signingOutAll}
+        >
+          {signingOutAll ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4 mr-2" />
+          )}
+          Sign out everywhere
+        </Button>
       </div>
 
       <div className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

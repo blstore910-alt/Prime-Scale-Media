@@ -209,6 +209,25 @@ export async function requestOwnErasure(): Promise<ActionResult> {
 }
 
 /**
+ * signOutAllDevices — user forces their own sessions closed on
+ * every device.
+ *
+ * Supabase exposes signOut with `scope: "global"` which invalidates
+ * every refresh token for the caller. Combined with our idle-timeout
+ * this covers the "I lost my laptop" case: from any device the user
+ * can sign in, hit the button, and everything else stops.
+ */
+export async function signOutAllDevices(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: "Unauthorized" };
+
+  const { error } = await supabase.auth.signOut({ scope: "global" });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+/**
  * hardDeleteUser — super-admin only, executes the actual erasure.
  *
  * Uses the service-role client because deleting an auth.users row
