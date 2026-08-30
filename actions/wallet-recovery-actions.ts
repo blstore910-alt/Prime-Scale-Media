@@ -2,6 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import {
+  replayBalance,
+  type WalletTopupAuditEvent,
+} from "@/lib/wallet-recovery-pure";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -92,35 +96,10 @@ export async function reconstructWalletBalanceFromAudit(
 
   if (eventsError) return { ok: false, error: eventsError.message };
 
-  let usd = 0;
-  let eur = 0;
-  let count = 0;
-  for (const ev of events ?? []) {
-    const before = ev.before_data as Record<string, unknown> | null;
-    const after = ev.after_data as Record<string, unknown> | null;
-    if (!after && !before) continue;
-    const walletMatch =
-      (after?.wallet_id ?? before?.wallet_id) === walletId;
-    if (!walletMatch) continue;
-    count += 1;
-
-    const wasCompleted = before?.status === "completed";
-    const isCompleted = after?.status === "completed";
-    // pending → completed  = +amount (with amount from after)
-    // completed → pending  = -amount (with amount from before)
-    // completed → rejected = -amount (undo/reject)
-    if (!wasCompleted && isCompleted) {
-      const amt = Number(after?.amount ?? 0);
-      const cur = String(after?.currency ?? "");
-      if (cur === "USD") usd += amt;
-      else if (cur === "EUR") eur += amt;
-    } else if (wasCompleted && !isCompleted) {
-      const amt = Number(before?.amount ?? 0);
-      const cur = String(before?.currency ?? "");
-      if (cur === "USD") usd -= amt;
-      else if (cur === "EUR") eur -= amt;
-    }
-  }
+  const { usd, eur, eventCount } = replayBalance(
+    (events ?? []) as WalletTopupAuditEvent[],
+    walletId,
+  );
 
   const currentUsd = Number(wallet.usd_balance ?? 0);
   const currentEur = Number(wallet.eur_balance ?? 0);
@@ -132,7 +111,7 @@ export async function reconstructWalletBalanceFromAudit(
       fromAudit: { USD: usd, EUR: eur },
       currentBalance: { usd: currentUsd, eur: currentEur },
       diff: { usd: currentUsd - usd, eur: currentEur - eur },
-      eventCount: count,
+      eventCount,
     },
   };
 }
