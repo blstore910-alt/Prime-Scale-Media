@@ -166,17 +166,11 @@ create trigger trg_guard_user_profile_role
 --
 -- ═══════════════════════════════════════════════════════════════════
 -- SECTION 3 — E2E test fixture (isolated psm-e2e tenant)
+--
+-- Order matters: auth.users → auth.identities → tenants (FK to users)
+--   → user_profiles → advertisers/wallets → affiliates.
 -- ═══════════════════════════════════════════════════════════════════
 --
-insert into public.tenants (id, name, slug, initials, owner_id) values (
-  '11111111-1111-1111-1111-111111111111',
-  'PSM E2E Test', 'psm-e2e', 'E2E',
-  '22222222-2222-2222-2222-222222222222'
-)
-on conflict (id) do update set
-  name = excluded.name, slug = excluded.slug,
-  initials = excluded.initials, owner_id = excluded.owner_id;
-
 insert into auth.users (
   id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
@@ -212,6 +206,16 @@ from (values
   ('55555555-5555-5555-5555-555555555555', 'e2e-aff@primescalemedia.test')
 ) as u(id, email)
 on conflict (provider, provider_id) do nothing;
+
+-- Tenant AFTER users exist (owner_id → auth.users FK).
+insert into public.tenants (id, name, slug, initials, owner_id) values (
+  '11111111-1111-1111-1111-111111111111',
+  'PSM E2E Test', 'psm-e2e', 'E2E',
+  '22222222-2222-2222-2222-222222222222'
+)
+on conflict (id) do update set
+  name = excluded.name, slug = excluded.slug,
+  initials = excluded.initials, owner_id = excluded.owner_id;
 
 insert into public.user_profiles (
   id, user_id, tenant_id, role, full_name, email, status, is_active
