@@ -12,6 +12,8 @@ import {
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useUpdateTransaction } from "@/hooks/use-update-transaction";
 import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 import {
   CheckCircle2,
   Clock,
@@ -94,6 +96,11 @@ export default function WalletTransactionCard({
             <p className="text-muted-foreground text-xs mt-2">
               {dayjs(topup.created_at).format(DATE_TIME_FORMAT)}
             </p>
+            {canTakeAction && (
+              <p className="text-amber-600 dark:text-amber-500 text-xs">
+                waiting {dayjs(topup.created_at).fromNow(true)}
+              </p>
+            )}
           </div>
         </div>
 
