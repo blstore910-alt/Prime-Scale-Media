@@ -141,7 +141,8 @@ declare
     'affiliates',
     'user_profiles',
     'tenants',
-    'invitations'
+    'invitations',
+    'fee_defaults'
   ];
 begin
   foreach t in array audited loop

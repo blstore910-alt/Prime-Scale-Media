@@ -1,4 +1,5 @@
 import { ensureInitialExchangeRates } from "@/actions/exchange-rate-actions";
+import { ensureInitialFeeDefaults } from "@/actions/fee-default-actions";
 import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
 import {
@@ -71,6 +72,10 @@ export function AppProvider({
     // response and enforces admin + tenant server-side.
     ensureInitialExchangeRates().catch(() => {
       // Non-fatal for UI; surfaced only in server logs.
+    });
+    ensureInitialFeeDefaults().catch(() => {
+      // Same — seed missing fee_defaults so /settings/finance and topup
+      // fee resolution have a baseline to work with on a fresh tenant.
     });
   }, [profile.role]);
 
