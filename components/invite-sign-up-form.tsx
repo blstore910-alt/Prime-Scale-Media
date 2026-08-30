@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordStrength from "@/components/ui/password-strength";
 import { UserInvitation } from "@/lib/types/invite";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -205,6 +206,7 @@ export default function InviteSignUpForm({
                     {viewPass.pass ? <EyeOff /> : <Eye />}
                   </Button>
                 </div>
+                <PasswordStrength password={watch("password") ?? ""} />
                 {errors.password && (
                   <p className="text-sm text-red-500">
                     {errors.password.message}

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordStrength from "@/components/ui/password-strength";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -50,6 +51,7 @@ export function SignUpForm({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
@@ -144,6 +146,7 @@ export function SignUpForm({
                   type="password"
                   {...register("password")}
                 />
+                <PasswordStrength password={watch("password") ?? ""} />
                 {errors.password && (
                   <p className="text-sm text-red-500">
                     {errors.password.message}
