@@ -13,6 +13,7 @@ const COMPANY_ALLOWED = [
   "phone",
   "website_url",
   "vat_no",
+  "registration_no",
   "address",
   "country",
   "state",
@@ -160,13 +161,14 @@ type ProfileSelfInput = Partial<
   Record<(typeof PROFILE_SELF_ALLOWED)[number], unknown>
 >;
 
-// Extra fields admins can put on their tenant company that advertisers
-// don't need in the onboarding flow (registration_no is billing-facing).
-const COMPANY_ADMIN_EXTRA = ["registration_no"] as const;
+// registration_no was originally an admin-only extra; it is now in
+// COMPANY_ALLOWED because /complete-profile's completeness gate
+// checks for it and advertisers need to fill it in themselves.
+const COMPANY_ADMIN_EXTRA: readonly string[] = [] as const;
 
 export async function updateOwnProfileAndCompany(input: {
   profile?: ProfileSelfInput;
-  company?: CompanyInput & { registration_no?: unknown };
+  company?: CompanyInput;
 }): Promise<ActionResult> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
@@ -203,8 +205,12 @@ export async function updateOwnProfileAndCompany(input: {
     for (const col of COMPANY_ALLOWED) {
       if (col in input.company) cleaned[col] = input.company[col];
     }
+    // COMPANY_ADMIN_EXTRA is now empty — the fields it used to hold
+    // are folded into COMPANY_ALLOWED. Left as an extension point.
     for (const col of COMPANY_ADMIN_EXTRA) {
-      if (col in input.company) cleaned[col] = input.company[col];
+      if (col in (input.company as Record<string, unknown>)) {
+        cleaned[col] = (input.company as Record<string, unknown>)[col];
+      }
     }
     cleaned.tenant_id = profileRow.tenant_id;
     cleaned.user_profile_id = profileRow.id;

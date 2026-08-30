@@ -164,36 +164,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: advertiserData, error: advertiserError } = await supabase
-      .from("advertisers")
-      .select()
-      .eq("profile_id", profileData.id)
-      .single();
-
-    if (advertiserError) {
+    // Idempotent: creates the advertisers + wallets row if a trigger
+    // hasn't already. Same helper the existing-user accept path uses,
+    // so the two branches stay consistent instead of drifting.
+    const { error: bootstrapError } = await supabase.rpc(
+      "ensure_advertiser_and_wallet",
+      { p_profile_id: profileData.id },
+    );
+    if (bootstrapError) {
       console.error(
-        "signup advertiser fetch failed:",
-        safeErrorMessage(advertiserError),
-      );
-      return NextResponse.json(
-        { success: false, message: "Server error" },
-        { status: 500 },
-      );
-    }
-
-    const generatedRef = `${Date.now().toString().slice(-6)}${Math.floor(
-      1000 + Math.random() * 9000,
-    )}`;
-    const { error: walletError } = await supabase.from("wallets").insert({
-      advertiser_id: advertiserData.id,
-      tenant_id,
-      reference_no: generatedRef,
-    });
-
-    if (walletError) {
-      console.error(
-        "signup wallet insert failed:",
-        safeErrorMessage(walletError),
+        "signup advertiser/wallet bootstrap failed:",
+        safeErrorMessage(bootstrapError),
       );
       return NextResponse.json(
         { success: false, message: "Server error" },

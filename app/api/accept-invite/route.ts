@@ -139,6 +139,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // For advertiser invites we also need an advertisers row + wallet.
+  // The signup path does this inline; existing-user acceptance did
+  // not, leaving the advertiser stuck at the wallet page with a null
+  // walletId. ensure_advertiser_and_wallet() is idempotent and only
+  // acts for role=advertiser — safe to call unconditionally.
+  const { error: bootstrapError } = await supabase.rpc(
+    "ensure_advertiser_and_wallet",
+    { p_profile_id: profileData.id },
+  );
+  if (bootstrapError) {
+    console.error(
+      "accept-invite advertiser/wallet bootstrap failed:",
+      safeErrorMessage(bootstrapError),
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Profile created but advertiser setup failed. Please contact support.",
+      },
+      { status: 500 },
+    );
+  }
+
   const res = NextResponse.json(
     {
       success: true,
