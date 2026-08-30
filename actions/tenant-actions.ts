@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
@@ -135,6 +136,25 @@ export async function createTenantForCurrentUser(input: {
     // /onboard).
     await supabase.from("tenants").delete().eq("id", tenant.id);
     return { ok: false, error: profileError.message };
+  }
+
+  // Sync the profile_id cookie with the profile we just resolved so
+  // the (app) layout picks the right row on next render — otherwise
+  // a stale cookie from a previous tenant crashes the layout.
+  const { data: profileRow } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("tenant_id", tenant.id)
+    .maybeSingle();
+  if (profileRow?.id) {
+    const cookieStore = await cookies();
+    cookieStore.set("profile_id", profileRow.id, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    });
   }
 
   return { ok: true, data: { tenant_id: tenant.id } };
