@@ -72,16 +72,30 @@ export default function CreateOrganization() {
   }, [tenantName, setValue]);
 
   const onSubmit = async (values: FormValues) => {
-    const result = await createTenantForCurrentUser({
-      name: values.name,
-      slug: values.slug,
-      initials: getInitials(values.name),
-    });
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
+    console.log("[onboard] submit fired", values);
+    try {
+      const result = await createTenantForCurrentUser({
+        name: values.name,
+        slug: values.slug,
+        initials: getInitials(values.name),
+      });
+      console.log("[onboard] server action returned", result);
+      if (!result.ok) {
+        toast.error(result.error, { duration: 8000 });
+        return;
+      }
+      toast.success("Organization created — redirecting");
+      // Hard navigate so the server layout re-fetches the profile
+      // instead of using cached data that still shows "no profile".
+      window.location.href = "/dashboard";
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unknown error";
+      console.error("[onboard] submit crashed", err);
+      toast.error(`Could not create organization: ${message}`, {
+        duration: 10000,
+      });
     }
-    router.push("/dashboard");
   };
 
   return (
