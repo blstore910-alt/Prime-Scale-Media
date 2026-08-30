@@ -14,15 +14,18 @@ import { TablerIcon } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function NavMain({
-  items,
-}: {
-  items: {
-    title: string;
-    url: string;
-    icon?: LucideIcon | TablerIcon;
-  }[];
-}) {
+export type NavMainItem = {
+  title: string;
+  url: string;
+  icon?: LucideIcon | TablerIcon;
+  /**
+   * Optional badge count (e.g. pending items). Rendered as a small
+   * pill to the right of the label; omitted when 0 or undefined.
+   */
+  badge?: number;
+};
+
+export function NavMain({ items }: { items: NavMainItem[] }) {
   const pathname = usePathname();
   const { isMobile, toggleSidebar } = useSidebar();
   return (
@@ -40,9 +43,22 @@ export function NavMain({
                 onClick={() => isMobile && toggleSidebar()}
                 asChild
               >
-                <Link href={item.url}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
+                <Link
+                  href={item.url}
+                  className="flex items-center justify-between w-full"
+                >
+                  <span className="flex items-center gap-2">
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </span>
+                  {typeof item.badge === "number" && item.badge > 0 && (
+                    <span
+                      aria-label={`${item.badge} pending`}
+                      className="ml-auto rounded-full bg-amber-500 text-white text-[10px] font-semibold min-w-5 h-5 px-1.5 inline-flex items-center justify-center tabular-nums"
+                    >
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

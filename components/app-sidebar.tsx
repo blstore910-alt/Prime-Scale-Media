@@ -23,9 +23,10 @@ import {
 
 import * as React from "react";
 
-import { NavMain } from "@/components/nav-main";
+import { NavMain, type NavMainItem } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
+import { usePendingCounts } from "@/hooks/use-pending-counts";
 import {
   Sidebar,
   SidebarContent,
@@ -200,19 +201,25 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
       ],
 });
 
-// Component for rendering admin sections
+// Component for rendering admin sections. Adds live pending-count
+// badges to the three queues admins care about.
 function AdminSidebarContent({
   sections,
 }: {
   sections: Array<{
     title: string;
-    items: Array<{
-      title: string;
-      url: string;
-      icon?: LucideIcon | TablerIcon;
-    }>;
+    items: NavMainItem[];
   }>;
 }) {
+  const pending = usePendingCounts();
+
+  const badgeFor = (url: string): number | undefined => {
+    if (url === "/wallet-topups") return pending.walletTopups;
+    if (url === "/top-ups") return pending.topUps;
+    if (url === "/ad-account-requests") return pending.adAccountRequests;
+    return undefined;
+  };
+
   return (
     <>
       {sections.map((section) => (
@@ -222,7 +229,12 @@ function AdminSidebarContent({
               {section.title}
             </h3>
           )}
-          <NavMain items={section.items} />
+          <NavMain
+            items={section.items.map((item) => ({
+              ...item,
+              badge: badgeFor(item.url),
+            }))}
+          />
         </div>
       ))}
     </>
