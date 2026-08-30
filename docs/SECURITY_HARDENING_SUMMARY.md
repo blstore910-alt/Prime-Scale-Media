@@ -3,16 +3,27 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. **36 commits, ~80 files geraakt.**
+Alle commits staan op `main`. **47 commits, ~90 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
 
-### Post-launch reliability + GDPR + ops (2026-08-29 sweep)
+### Reliability + hardening (2026-08-29 → 30 sweep)
 
 | Commit    | Wat                                                                       |
 | --------- | ------------------------------------------------------------------------- |
+| `0d24164` | docs(runbook): MAINTENANCE_MODE, last_seen queries, client-error, GDPR    |
+| `a8cbc48` | docs: update CLAUDE.md with new mutation + UX patterns                    |
+| `1620a5b` | fix(security): tenant slug regex rejected 2-char slugs by accident        |
+| `bfa0c48` | feat(security): rate-limit /api/heartbeat and /api/log/client-error       |
+| `203097c` | feat(ops): X-Request-Id middleware + polished /auth/error page            |
+| `ec3b82c` | feat(ux): IDB draft on wallet-topup-dialog (multi-step form)              |
+| `9b500ff` | feat(ops): last_seen indicator on admins-table + 6 unit tests             |
+| `23fa7ab` | feat(db): auto-touch updated_at trigger on every business table           |
+| `fe31589` | test+docs: SECURITY.md refresh + pure-error unit tests                    |
+| `adb8005` | feat(security): session activity heartbeat (last_seen_at)                 |
+| `36b3d62` | docs: refresh SECURITY_HARDENING_SUMMARY with 2026-08-29 sweep            |
 | `40cc911` | feat(gdpr): privacy controls on /profile + shared adminContext helper     |
 | `3d64f4c` | feat(gdpr): right-to-portability + two-step right-to-erasure              |
 | `a055577` | feat(ops): read-only MAINTENANCE_MODE feature flag                        |
@@ -116,10 +127,44 @@ Alle commits staan op `main`. **36 commits, ~80 files geraakt.**
 - **UI op /profile** — `components/profile/privacy-controls.tsx`
   met "Download my data" + "Request deletion" (met confirmatie).
 
+### Aanvullingen 2026-08-30
+
+- **Slug validator bug gefikst** — de oude regex accepteerde
+  1-char slugs maar niet 2-char. `test-org-2026` werkt nu, "a" niet.
+  9 unit tests in `tests/actions/tenant-slug.test.ts`.
+- **X-Request-Id middleware** — elke response krijgt een uniek ID
+  (honoreert caller-supplied), sanitised tegen log-injection. Voor
+  correlatie tussen client-error reports en server logs.
+- **/auth/error page** — was raw ?error rendering. Nu: icon, kop,
+  actie-buttons ("Back to sign in", "Reset password"), en een
+  translator van 6 bekende error slugs (Tenant slug mismatch,
+  Referral code mismatch, etc.) naar friendly copy. Sanitised
+  om reflected-XSS te voorkomen.
+- **Rate limits** op `/api/heartbeat` (60/hour per IP) en
+  `/api/log/client-error` (60/hour per IP) — vangt runaway loops
+  en scripted abuse zonder legitieme reports te verliezen.
+- **Wallet-topup IDB draft** — vierde form met draft protection.
+  Multi-step: bewaart step, currency, accountType, amount,
+  paymentSlipUrl. Restore banner in de dialog zelf.
+- **admins-table last_seen indicator** — kleuren gecodeerde
+  "Active now" / "30m ago" / "3h ago" / "5d ago" column op basis
+  van heartbeat data.
+- **`updated_at` trigger** — bump on every UPDATE via
+  BEFORE-trigger op alle 17 business tabellen. Voorkomt
+  false-positive "no conflict" bij optimistic-concurrency check.
+- **/api/heartbeat + session tracking** — RPC-throttled (max 1
+  write/5min per user), hook draait alleen als tab visible is.
+- **CLAUDE.md refresh** — non-negotiable patterns voor mutation
+  actions + UX draft-hooks pattern gedocumenteerd voor toekomstige
+  sessies.
+- **RUNBOOK.md** — 4 nieuwe secties: MAINTENANCE_MODE flip,
+  last_seen queries, client-error log grep, GDPR verzoeken.
+
 ### Test coverage
 
-- 39 unit tests (van 23 gestart). Nieuw: 7 versionMatches tests +
-  6 maintenance-mode tests + 4 debounced tests.
+- **62 unit tests** (van 23 gestart). Nieuw: 7 versionMatches tests,
+  6 maintenance-mode tests, 4 debounced tests, 8 safeErrorMessage
+  tests, 6 formatLastSeen tests, 9 tenant-slug tests.
 
 ---
 
