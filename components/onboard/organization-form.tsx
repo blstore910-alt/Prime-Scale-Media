@@ -16,7 +16,6 @@ import { createClient } from "@/lib/supabase/client";
 import { createTenantForCurrentUser } from "@/actions/tenant-actions";
 import { generateSlug, getInitials } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 type FormValues = {
@@ -40,7 +39,6 @@ export default function CreateOrganization() {
   const tenantName = watch("name");
   const tenantSlug = watch("slug");
   const [debouncedSlug] = useDebounce(watch("slug"), 1000);
-  const router = useRouter();
 
   const [available, setAvailable] = useState<null | boolean>(null);
   const [loading, setLoading] = useState(false);
