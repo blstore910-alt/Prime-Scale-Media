@@ -4,6 +4,8 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 import { Eye } from "lucide-react";
 
 function getStatusClassName(status: string | null) {
@@ -72,6 +74,12 @@ export default function AdAccountRequestCard({
                 ? dayjs(request.created_at).format(DATE_TIME_FORMAT)
                 : "-"}
             </span>
+            {request.created_at &&
+              request.status?.toLowerCase() === "pending" && (
+                <span className="text-xs text-amber-600 dark:text-amber-500">
+                  waiting {dayjs(request.created_at).fromNow(true)}
+                </span>
+              )}
           </div>
           <div className="col-span-2 flex flex-col gap-1">
             <span className="text-muted-foreground">Website</span>
