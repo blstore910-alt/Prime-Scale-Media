@@ -4,7 +4,7 @@ Notable changes to the Prime Scale Media App. Reverse chronological.
 Groups match the `SECURITY_HARDENING_SUMMARY.md` waves for
 cross-reference.
 
-## Unreleased (2026-08 sweep) — 90 commits, 97 tests
+## Unreleased (2026-08 sweep) — 95 commits, 97 tests
 
 ### Security — data & mutation model
 
@@ -68,6 +68,15 @@ cross-reference.
 - Two-step erasure: user requests, super-admin executes on the
   anniversary. Both wired into /profile.
 - Retention policy documented (hot 0-2y / warm 2-7y / cold >7y).
+
+### Admin UX
+
+- `/wallet-topups` defaults to "Pending" status filter for admins so
+  they land on the actionable queue. Advertisers unaffected.
+- `/top-ups` defaults to "Pending" status filter for admins.
+  Advertisers land on "All" (their own history).
+- `/notifications` "Clean up" button removes read notifications
+  older than 30 days.
 
 ### Operations
 
