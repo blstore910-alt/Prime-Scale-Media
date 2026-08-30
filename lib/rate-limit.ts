@@ -48,4 +48,14 @@ export const LIMITS = {
   acceptInvite: { bucket: "accept-invite", max: 10, windowSeconds: 3600 },
   signup: { bucket: "signup", max: 5, windowSeconds: 3600 },
   pushSubscribe: { bucket: "push-subscribe", max: 20, windowSeconds: 3600 },
+  // A single browser tab beats /api/heartbeat every 5 minutes = 12/hour.
+  // 60/hour per IP is 5x that headroom, still catches scripted abuse.
+  heartbeat: { bucket: "heartbeat", max: 60, windowSeconds: 3600 },
+  // Client-error reports: cap per-IP to catch a runaway retry loop
+  // without losing legitimate boundary catches.
+  clientErrorLog: {
+    bucket: "client-error-log",
+    max: 60,
+    windowSeconds: 3600,
+  },
 } as const;

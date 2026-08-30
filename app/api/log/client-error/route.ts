@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,12 @@ const bodySchema = z.object({
  * losing an error report is worse than accepting a spurious one.
  */
 export async function POST(req: Request) {
+  const ip = callerIp(req);
+  const allowed = await rateLimitCheck(LIMITS.clientErrorLog, `ip:${ip}`);
+  if (!allowed) {
+    return NextResponse.json({ ok: false }, { status: 429 });
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();

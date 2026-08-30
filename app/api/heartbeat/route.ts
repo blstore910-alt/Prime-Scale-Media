@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,13 @@ export const dynamic = "force-dynamic";
  * active in the last hour?". Used later for the "recently active
  * admins" indicator in the users table.
  */
-export async function POST() {
+export async function POST(req: Request) {
+  const ip = callerIp(req);
+  const allowed = await rateLimitCheck(LIMITS.heartbeat, `ip:${ip}`);
+  if (!allowed) {
+    return NextResponse.json({ ok: false }, { status: 429 });
+  }
+
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
