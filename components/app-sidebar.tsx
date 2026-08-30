@@ -15,6 +15,7 @@ import {
   HelpCircleIcon,
   History,
   LayoutDashboardIcon,
+  ScrollText,
   SettingsIcon,
   Wallet,
   type LucideIcon,
@@ -168,6 +169,11 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
           title: "Activity Logs",
           url: "/activity-logs",
           icon: History,
+        },
+        {
+          title: "Audit Log",
+          url: "/audit",
+          icon: ScrollText,
         },
         {
           title: "Invites",
