@@ -236,7 +236,6 @@ function BalancePanel({
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {title}
           </p>
-          {/* TODO: implement currency sign here */}
           <p className="mt-2 text-3xl font-semibold">
             {currency === "USD" ? "$" : "€"} {amount}
           </p>
