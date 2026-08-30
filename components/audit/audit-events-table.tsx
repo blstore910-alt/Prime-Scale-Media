@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { cn } from "@/lib/utils";
-import { Eye } from "lucide-react";
+import { Download, Eye } from "lucide-react";
+import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
 
 const AUDITED_TABLES = [
@@ -56,6 +57,7 @@ export default function AuditEventsTable() {
   const [page, setPage] = useState(1);
   const perPage = 50;
   const [selected, setSelected] = useState<AuditEvent | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const { events, total, isLoading, isError, error } = useAuditEvents({
     table,
@@ -63,6 +65,44 @@ export default function AuditEventsTable() {
     page,
     perPage,
   });
+
+  async function downloadCsv() {
+    setExporting(true);
+    try {
+      // Last 30 days by default; matches the "recent activity" mental model.
+      const to = new Date().toISOString();
+      const from = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+      const params = new URLSearchParams({
+        from,
+        to,
+        ...(table !== "all" ? { table } : {}),
+        ...(action !== "all" ? { action } : {}),
+      });
+      const res = await fetch(`/api/audit/export?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Audit CSV downloaded");
+    } catch (err) {
+      toast.error("CSV export failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,6 +150,15 @@ export default function AuditEventsTable() {
               <SelectItem value="DELETE">DELETE</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadCsv}
+            disabled={exporting}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            {exporting ? "Exporting…" : "Export CSV"}
+          </Button>
         </div>
       </div>
 
