@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 const REDIRECT_REASONS: Record<string, string> = {
   idle: "You were signed out after 30 minutes of inactivity.",
@@ -33,6 +34,27 @@ export function LoginForm({
   const searchParams = useSearchParams();
   const reason = searchParams?.get("reason");
   const reasonMessage = reason ? REDIRECT_REASONS[reason] : null;
+
+  // Magic-link + email-confirm redirects land here with an
+  // #access_token=… URL fragment. The @supabase/ssr browser client
+  // detects and consumes that fragment when it's instantiated —
+  // but only if the client is instantiated on the login page. This
+  // effect handles it and hard-navigates once a session exists.
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !window.location.hash.includes("access_token")
+    ) {
+      return;
+    }
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        window.history.replaceState(null, "", window.location.pathname);
+        window.location.href = "/dashboard";
+      }
+    });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
