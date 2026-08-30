@@ -247,6 +247,84 @@ incident".
 
 ---
 
+## Freeze writes — MAINTENANCE_MODE
+
+Als je iets ziet dat je *niet* wilt dat gebruikers verder verergeren
+(dubbele topups, kapotte migratie, verdachte activiteit), zet de app
+in read-only mode. Reads blijven werken; alle server actions falen
+met een duidelijke melding.
+
+### Aanzetten (30 seconden)
+
+1. Vercel Dashboard → project → Settings → Environment Variables.
+2. Voeg toe: `MAINTENANCE_MODE=true` in Production.
+3. Redeploy is **niet** nodig — Next.js reads env at runtime. Maar
+   trigger wel een re-deploy als je 100% zeker wilt zijn.
+4. Verify: `curl https://YOUR_APP/api/health | jq .maintenance`
+   → `true`.
+5. Alle gebruikers zien de amber banner binnen 30 seconden (poll).
+
+### Uitzetten
+
+1. Zet var op `false` of verwijder 'm.
+2. Verify `/api/health` → `maintenance: false`.
+3. Banner verdwijnt binnen 30s.
+
+---
+
+## Wie is er nu actief?
+
+Sinds `session_activity` migratie geeft `user_profiles.last_seen_at`
+antwoord op "welke admins hebben deze uur ingelogd?".
+
+```sql
+-- Recent actieve admins
+select full_name, email, last_seen_at,
+       age(now(), last_seen_at) as idle_for
+  from user_profiles
+ where role = 'admin'
+   and last_seen_at > now() - interval '2 hours'
+   and tenant_id = 'YOUR_TENANT_ID'
+ order by last_seen_at desc;
+```
+
+Handig bij incident-response ("is X gecompromiteerd geweest? was ze
+recent ingelogd?").
+
+---
+
+## Client-side errors uitzoeken
+
+`/api/log/client-error` schrijft naar server logs (structured). Zoek
+in Vercel logs:
+
+```
+grep 'client-error' vercel-logs.txt
+```
+
+Elke entry heeft: `userId`, `profileId`, `tenantId`, `url`, `message`,
+`stack`, `componentStack`. Voldoende om de user en de code-path te
+vinden.
+
+Voor correlatie: elke request heeft een `X-Request-Id` header. Als je
+die uit de Vercel entry haalt kun je alle logs voor die request
+groeperen.
+
+---
+
+## GDPR verzoeken
+
+- **Data export**: user klikt zelf op `/profile` → "Download my data".
+  Als dat faalt: draai `actions/gdpr-actions.ts:exportOwnData()`
+  handmatig als admin via een node script.
+- **Delete**: user klikt zelf → `requestOwnErasure()` zet
+  `status='pending_erasure'`. Op de datum: super-admin runt
+  `hardDeleteUser(userId)` via een script of admin CLI.
+
+Zie `docs/PRIVACY_AND_DATA_LIFECYCLE.md` voor het beleid.
+
+---
+
 ## Deploy productie
 
 Standard flow met Vercel:
