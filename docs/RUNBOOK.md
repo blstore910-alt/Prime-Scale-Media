@@ -240,6 +240,39 @@ Als het bedrag klopt maar de balance is fout:
 
 ---
 
+## Wallet balance klopt niet (drift check)
+
+Als een advertiser reklameert dat z'n balance niet klopt, of je ziet
+een unexpected value in `wallets.usd_balance` of `.eur_balance`:
+
+1. **Vind de wallet UUID** in Supabase of via `/wallets` UI.
+2. **Reconstrueer uit audit_events**:
+   ```
+   GET /api/wallet-recovery?wallet=<UUID>
+   ```
+   (Ingelogd als super-admin.) Response:
+   ```json
+   {
+     "walletId": "…",
+     "fromAudit": { "USD": 500, "EUR": 1200 },
+     "currentBalance": { "usd": 500, "eur": 1150 },
+     "diff": { "usd": 0, "eur": -50 },
+     "eventCount": 42
+   }
+   ```
+3. **Interpreteer:**
+   - `diff == {0, 0}` → geen drift, balance klopt met audit history.
+   - `diff != 0` → er zit iets scheef. **Voordat je fixt:**
+     - Check `audit_events` op de wallets tabel voor unexpected
+       UPDATE rows (bijv. handmatige SQL).
+     - Draai een pg_dump om huidige state te bevriezen.
+4. **Fix via `wallet_admin_adjust` RPC** — nooit direct SQL. De RPC
+   logt de reason die je meegeeft in audit_events.
+
+De `/api/wallet-recovery` endpoint doet **geen writes** — puur report.
+
+---
+
 ## Restore uit backup
 
 Zie `docs/BACKUP_AND_RECOVERY.md` — sectie "Wat te doen bij een echt
