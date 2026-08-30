@@ -3,11 +3,23 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. **62 commits, ~100 files geraakt.**
+Alle commits staan op `main`. **69 commits, ~105 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
+
+### Recovery + audit deep-links (2026-08-30 fourth wave)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `5baeadf` | test+refactor: extract wallet balance replay + 9 unit tests               |
+| `3a0ccf8` | docs(runbook): wallet-balance drift check procedure                       |
+| `2f9bb44` | feat(recovery): reconstruct wallet balance from audit_events              |
+| `6c46b56` | feat(security): sign out of all devices self-service                      |
+| `46e79b3` | feat(audit): row-id deep-link filter (?row=<uuid>)                        |
+| `a11777d` | chore(lint): drop TablerIcon/LucideIcon imports no longer used            |
+| `aa9d921` | docs: refresh SECURITY_HARDENING_SUMMARY (62 commits, 83 tests)           |
 
 ### UX + operational (2026-08-30 third wave)
 
@@ -222,12 +234,31 @@ Alle commits staan op `main`. **62 commits, ~100 files geraakt.**
   priority zodat rate-limit buckets niet stilletjes samen komen
   op "unknown".
 
+### Aanvullingen 2026-08-30 (vierde wave)
+
+- **Wallet balance drift check** — `/api/wallet-recovery?wallet=<uuid>`
+  reconstrueert wat de balance zou moeten zijn uit `audit_events`
+  en toont het verschil met de live wallets-rij. Super-admin only,
+  READ-ONLY (nooit auto-fix). RUNBOOK docs sectie voor het incident-
+  playbook.
+- **Replay balance is een pure functie** — geëxtraheerd naar
+  `lib/wallet-recovery-pure.ts` + 9 unit tests. Als deze arithmetic
+  ooit fout gaat, misleidt het een operator naar een verkeerde
+  handmatige fix. Nu vast onder tests.
+- **/audit ?row= deep-link** — plak een uuid in de URL, zie de
+  volledige history van 1 record. Bookmark-baar. Combineert met de
+  CSV-export om 1-record audit rapporten te genereren.
+- **Sign out of all devices** — self-service knop op /profile die
+  Supabase's `signOut({scope: "global"})` triggert. Voor "ik ben
+  m'n laptop kwijt" scenario.
+
 ### Test coverage
 
-- **83 unit tests** (van 23 gestart). Nieuw sinds vorige refresh:
-  7 versionMatches, 6 maintenance-mode, 4 debounced, 8
-  safeErrorMessage, 6 formatLastSeen, 9 tenant-slug, 7 CSV-escape,
-  8 password-strength, 6 callerIp.
+- **92 unit tests** (van 23 gestart). Nieuw sinds vorige refresh:
+  9 replayBalance tests. Totaal: 7 versionMatches, 6
+  maintenance-mode, 4 debounced, 8 safeErrorMessage, 6
+  formatLastSeen, 9 tenant-slug, 7 CSV-escape, 8 password-strength,
+  6 callerIp, 9 replayBalance.
 
 ---
 
