@@ -4,7 +4,7 @@ Notable changes to the Prime Scale Media App. Reverse chronological.
 Groups match the `SECURITY_HARDENING_SUMMARY.md` waves for
 cross-reference.
 
-## Unreleased (2026-08 sweep) — 82 commits, 92 tests
+## Unreleased (2026-08 sweep) — 90 commits, 97 tests
 
 ### Security — data & mutation model
 
@@ -76,8 +76,10 @@ cross-reference.
 - Rate-limit bucket viewer for super-admins (top 25 active buckets
   with ceiling-percentage badges).
 - `/audit` super-admin viewer with table/action/row filters, CSV
-  export (RFC 4180-compliant), and a deep-linkable `?row=<uuid>`
-  filter for per-record history.
+  export (RFC 4180-compliant), a deep-linkable `?row=<uuid>` filter
+  for per-record history, a "since" quick-filter (15m / 1h / 24h /
+  7d / all time), a copy-to-clipboard button on row_ids, and a
+  manual refresh button that spins while a fetch is in flight.
 - Sidebar badges: live pending counts on Wallet Topups, Top-ups,
   Ad-account Requests.
 - `/api/wallet-recovery?wallet=<uuid>` — read-only balance-drift
@@ -87,6 +89,8 @@ cross-reference.
   `audit_events_capture_monthly_stats`.
 - 15 composite/partial indexes on hot filter paths.
 - Post-deploy smoke script (`npm run smoke`).
+- Release-notes generator (`npm run release-notes`) grouping
+  commits by conventional-commits prefix since a tag or date.
 - Env preflight (`npm run check-env`).
 - /help page filled with actual FAQ.
 - /auth/error page: friendly copy for known error slugs, sanitised
@@ -96,14 +100,16 @@ cross-reference.
 
 ### Testing / CI
 
-- 92 unit tests via `node:test`. Coverage includes: pure-error,
+- 97 unit tests via `node:test`. Coverage includes: pure-error,
   ilike search sanitize, http body parse, form-draft debounce,
   last-seen formatter, password strength scorer, callerIp header
   priority, versionMatches, maintenance guard, tenant slug regex,
-  CSV escape rule, wallet balance replay.
+  CSV escape rule, wallet balance replay, since-cutoff.
 - GitHub Actions CI: typecheck, lint (strict `--max-warnings 0`),
   unit tests, optional build on PR.
 - Strict lint gate; 0 warnings across the codebase.
+- `.gitattributes` pins LF for source files so Windows checkouts
+  stop printing autocrlf warnings on commit.
 
 ### Docs
 
@@ -112,6 +118,7 @@ cross-reference.
 - `RUNBOOK.md` — incident procedures.
 - `BACKUP_AND_RECOVERY.md` — three-layer backup + drill playbook.
 - `PRIVACY_AND_DATA_LIFECYCLE.md` — GDPR + retention.
+- `DEPLOYMENT.md` — 12-step first-deploy guide.
 - `DATA_INTEGRITY_LESSONS.md` — bol-app cross-reference.
 - `CLAUDE_CODE_MOBILE.md` — how to drive Claude Code from a phone.
 - 3 ADRs: SECURITY DEFINER RPCs / audit log / optimistic concurrency.
@@ -119,6 +126,7 @@ cross-reference.
 - Root README developer quick-start section.
 - CLAUDE.md non-negotiable patterns.
 - SECURITY.md vulnerability-reporting policy.
+- CHANGELOG.md — this file.
 
 ### Supabase migrations shipped
 
