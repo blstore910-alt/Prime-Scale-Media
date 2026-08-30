@@ -7,7 +7,7 @@ import React from "react";
 const commonLinks = [{ href: "/settings/general", label: "General" }];
 
 const adminLinks = [
-  // ...commonLinks,
+  ...commonLinks,
   { href: "/settings/finance", label: "Finance" },
 ];
 
