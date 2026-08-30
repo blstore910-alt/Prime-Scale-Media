@@ -86,5 +86,32 @@ export async function createTenantForCurrentUser(input: {
     .single();
   if (insertError) return { ok: false, error: insertError.message };
 
+  // Also seed the user_profiles row so the caller has a working
+  // admin session on this tenant right away. Without this, the
+  // /dashboard layout redirects back to /onboard indefinitely.
+  const displayName =
+    (userData.user.user_metadata?.display_name as string | undefined) ||
+    (userData.user.user_metadata?.full_name as string | undefined) ||
+    userData.user.email ||
+    "Admin";
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .insert({
+      user_id: userId,
+      tenant_id: tenant.id,
+      role: "admin",
+      full_name: displayName,
+      email: userData.user.email,
+      status: "active",
+      is_active: true,
+    });
+  if (profileError) {
+    // Roll back the tenant so the caller isn't left as owner without
+    // a profile (would infinitely-redirect between /dashboard and
+    // /onboard).
+    await supabase.from("tenants").delete().eq("id", tenant.id);
+    return { ok: false, error: profileError.message };
+  }
+
   return { ok: true, data: { tenant_id: tenant.id } };
 }
