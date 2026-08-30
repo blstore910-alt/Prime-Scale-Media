@@ -4,7 +4,7 @@ Notable changes to the Prime Scale Media App. Reverse chronological.
 Groups match the `SECURITY_HARDENING_SUMMARY.md` waves for
 cross-reference.
 
-## Unreleased (2026-08 sweep) — 95 commits, 97 tests
+## Unreleased (2026-08 sweep) — 100 commits, 97 tests
 
 ### Security — data & mutation model
 
