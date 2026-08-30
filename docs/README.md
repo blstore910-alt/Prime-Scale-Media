@@ -6,7 +6,9 @@ Where to start, by role.
 
 Read in this order:
 
-1. [SECURITY_HARDENING_SUMMARY.md](SECURITY_HARDENING_SUMMARY.md) — one-page
+1. [DEPLOYMENT.md](DEPLOYMENT.md) — from fresh clone to running production
+   in 12 steps. Read first if you're doing a first deploy.
+2. [SECURITY_HARDENING_SUMMARY.md](SECURITY_HARDENING_SUMMARY.md) — one-page
    overview of everything that shipped in the 2026-08 hardening sweep,
    with commit table and what's left for you (SQL deploy, RLS
    verification, test plan, backup infra).
