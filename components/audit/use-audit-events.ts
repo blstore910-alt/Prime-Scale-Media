@@ -21,6 +21,7 @@ export type AuditEvent = {
 export type AuditEventsParams = {
   table?: string;
   action?: string;
+  rowId?: string;
   page?: number;
   perPage?: number;
 };
@@ -33,7 +34,7 @@ export type AuditEventsParams = {
  */
 export default function useAuditEvents(params: AuditEventsParams = {}) {
   const { profile } = useAppContext();
-  const { table, action, page = 1, perPage = 50 } = params;
+  const { table, action, rowId, page = 1, perPage = 50 } = params;
 
   const queryKey = useMemo(
     () => [
@@ -41,10 +42,11 @@ export default function useAuditEvents(params: AuditEventsParams = {}) {
       profile?.tenant_id,
       table ?? "all",
       action ?? "all",
+      rowId ?? "all",
       page,
       perPage,
     ],
-    [profile?.tenant_id, table, action, page, perPage],
+    [profile?.tenant_id, table, action, rowId, page, perPage],
   );
 
   const { data, isLoading, isError, error } = useQuery<{
@@ -62,6 +64,7 @@ export default function useAuditEvents(params: AuditEventsParams = {}) {
 
       if (table && table !== "all") query = query.eq("table_name", table);
       if (action && action !== "all") query = query.eq("action", action);
+      if (rowId) query = query.eq("row_id", rowId);
 
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;

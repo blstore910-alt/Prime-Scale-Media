@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -52,16 +54,40 @@ const AUDITED_TABLES = [
 ] as const;
 
 export default function AuditEventsTable() {
+  // Deep-linkable filter: /audit?row=<uuid> shows every event for
+  // that one row. Handy when investigating a specific incident —
+  // paste the wallet_topup id into the URL and get its full
+  // history in one page.
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const rowIdFromUrl = searchParams?.get("row") ?? "";
+
   const [table, setTable] = useState("all");
   const [action, setAction] = useState("all");
+  const [rowIdInput, setRowIdInput] = useState(rowIdFromUrl);
   const [page, setPage] = useState(1);
   const perPage = 50;
   const [selected, setSelected] = useState<AuditEvent | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  useEffect(() => {
+    setRowIdInput(rowIdFromUrl);
+    setPage(1);
+  }, [rowIdFromUrl]);
+
+  const applyRowId = () => {
+    const params = new URLSearchParams(searchParams?.toString());
+    const trimmed = rowIdInput.trim();
+    if (trimmed) params.set("row", trimmed);
+    else params.delete("row");
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
   const { events, total, isLoading, isError, error } = useAuditEvents({
     table,
     action,
+    rowId: rowIdFromUrl || undefined,
     page,
     perPage,
   });
@@ -160,6 +186,32 @@ export default function AuditEventsTable() {
             {exporting ? "Exporting…" : "Export CSV"}
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          value={rowIdInput}
+          onChange={(e) => setRowIdInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") applyRowId();
+          }}
+          placeholder="Filter by row id (paste a uuid) and press Enter"
+          className="font-mono text-xs max-w-lg"
+        />
+        {rowIdFromUrl && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setRowIdInput("");
+              const params = new URLSearchParams(searchParams?.toString());
+              params.delete("row");
+              router.replace(`${pathname}?${params.toString()}`);
+            }}
+          >
+            Clear
+          </Button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
