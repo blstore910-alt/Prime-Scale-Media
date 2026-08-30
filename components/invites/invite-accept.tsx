@@ -47,7 +47,16 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
         throw new Error(data.message);
       }
 
-      router.push("/complete-profile");
+      // Only advertisers land on /complete-profile — they need
+      // company + billing before anything else. Affiliates go
+      // straight into the app (their profile is filled in-place
+      // from the invite). /complete-profile silently redirects
+      // affiliates back home, so sending them there loops.
+      if (invite.role === "advertiser") {
+        router.push("/complete-profile");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast.error(`Error: ${error.message}`);

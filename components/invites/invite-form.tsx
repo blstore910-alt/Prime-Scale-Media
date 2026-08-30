@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import InputField from "@/components/form/input-field";
@@ -16,6 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,7 +38,9 @@ import { Label } from "../ui/label";
 
 const inviteBaseSchema = z.object({
   email: z.email("Please enter a valid email address"),
-  role: z.string().min(1, "Please select a role"),
+  role: z.enum(["advertiser", "affiliate"], {
+    message: "Please select a role",
+  }),
 });
 
 type InviteFormInput = z.input<typeof inviteBaseSchema>;
@@ -135,6 +144,35 @@ export default function InviteForm() {
               placeholder="user@example.com"
               type="email"
             />
+
+            <div>
+              <Label htmlFor="invite-role" className="mb-2">
+                Role
+              </Label>
+              <Controller
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="invite-role">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="advertiser">Advertiser</SelectItem>
+                      <SelectItem value="affiliate">Affiliate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.role && (
+                <p className="text-destructive text-sm mt-1">
+                  {form.formState.errors.role.message}
+                </p>
+              )}
+            </div>
 
             {/* Actions */}
             <DialogFooter>

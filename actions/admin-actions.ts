@@ -230,24 +230,36 @@ export async function updateUserProfile(
 }
 
 // ─────────────────────────────────────────
-// updateAffiliate — admin only, target must belong to same tenant.
+// Affiliate mutations — three separate actions, one per authority
+// level and lifecycle stage:
+//
+//   updateAffiliate       admin  → note / airtable (annotation only)
+//   approveAffiliate      admin  → status: pending → active
+//   rejectAffiliate       admin  → status: pending → rejected
+//   setAffiliateCommission super-admin → commission_pct/onetime/…
+//
+// Commission changes are gated to super-admin only because they
+// directly affect what the platform pays out. Approval is admin-
+// level ops so a support employee can onboard referrals without
+// touching the payout economics.
 // ─────────────────────────────────────────
-const AFFILIATE_ALLOWED_COLUMNS = [
-  "commission_type",
-  "commission_pct",
-  "commission_onetime",
-  "commission_monthly",
-  "commission_currency",
+
+// fee_commission is a boolean gate (payouts on/off) — a workflow
+// decision that admin makes; the *rate* stays 0 unless super-admin
+// sets it, so an admin flipping fee_commission=true without a rate
+// still pays out nothing.
+const AFFILIATE_ANNOTATION_COLUMNS = [
   "note",
   "airtable",
+  "fee_commission",
 ] as const;
-type AffiliateUpdatable = Partial<
-  Record<(typeof AFFILIATE_ALLOWED_COLUMNS)[number], unknown>
+type AffiliateAnnotationInput = Partial<
+  Record<(typeof AFFILIATE_ANNOTATION_COLUMNS)[number], unknown>
 >;
 
 export async function updateAffiliate(
   affiliateId: string,
-  payload: AffiliateUpdatable,
+  payload: AffiliateAnnotationInput,
   ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   const mm = maintenanceGuard();
@@ -260,7 +272,7 @@ export async function updateAffiliate(
   const { supabase, profile } = caller.ctx;
 
   const cleaned: Record<string, unknown> = {};
-  for (const col of AFFILIATE_ALLOWED_COLUMNS) {
+  for (const col of AFFILIATE_ANNOTATION_COLUMNS) {
     if (col in payload) cleaned[col] = payload[col];
   }
   if (Object.keys(cleaned).length === 0) {
@@ -272,9 +284,162 @@ export async function updateAffiliate(
     .select("id, tenant_id, updated_at")
     .eq("id", affiliateId)
     .maybeSingle();
-  if (!target) {
-    return { ok: false, error: "Affiliate not found", code: "not_found" };
+  if (!target) return { ok: false, error: "Affiliate not found", code: "not_found" };
+  if (target.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden", code: "forbidden" };
   }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This affiliate was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
+  }
+
+  const { error } = await supabase
+    .from("affiliates")
+    .update(cleaned)
+    .eq("id", affiliateId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+export async function approveAffiliate(
+  affiliateId: string,
+  ifUpdatedAt?: string,
+): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
+  const caller = await assertAdmin();
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
+  const { supabase, profile } = caller.ctx;
+
+  const { data: target } = await supabase
+    .from("affiliates")
+    .select("id, tenant_id, updated_at, status")
+    .eq("id", affiliateId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Affiliate not found", code: "not_found" };
+  if (target.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This affiliate was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
+  }
+
+  const { error } = await supabase
+    .from("affiliates")
+    .update({ status: "active" })
+    .eq("id", affiliateId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+export async function rejectAffiliate(
+  affiliateId: string,
+  reason?: string,
+  ifUpdatedAt?: string,
+): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
+  const caller = await assertAdmin();
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
+  const { supabase, profile } = caller.ctx;
+
+  const { data: target } = await supabase
+    .from("affiliates")
+    .select("id, tenant_id, updated_at, status")
+    .eq("id", affiliateId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Affiliate not found", code: "not_found" };
+  if (target.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (!versionMatches(target.updated_at, ifUpdatedAt)) {
+    return {
+      ok: false,
+      error: "This affiliate was updated by someone else. Reload and retry.",
+      code: "conflict",
+    };
+  }
+
+  const patch: Record<string, unknown> = { status: "rejected" };
+  if (typeof reason === "string" && reason.trim().length > 0) {
+    patch.note = reason.trim().slice(0, 500);
+  }
+
+  const { error } = await supabase
+    .from("affiliates")
+    .update(patch)
+    .eq("id", affiliateId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+const AFFILIATE_COMMISSION_COLUMNS = [
+  "commission_type",
+  "commission_pct",
+  "commission_onetime",
+  "commission_monthly",
+  "commission_currency",
+] as const;
+type AffiliateCommissionInput = Partial<
+  Record<(typeof AFFILIATE_COMMISSION_COLUMNS)[number], unknown>
+>;
+
+// Super-admin only: setting how much the platform pays out for a
+// referral is a financial-authority decision, not a support-desk
+// one. Employees can approve the relationship (approveAffiliate)
+// but not the amount.
+export async function setAffiliateCommission(
+  affiliateId: string,
+  payload: AffiliateCommissionInput,
+  ifUpdatedAt?: string,
+): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
+
+  // Reuse the admin resolver, then enforce super-admin (tenant owner).
+  const caller = await assertAdmin();
+  if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
+  const { supabase, profile } = caller.ctx;
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  const isSuperAdmin =
+    !!tenant?.owner_id && tenant.owner_id === profile.user_id;
+  if (!isSuperAdmin) {
+    return {
+      ok: false,
+      error: "Only the tenant owner can change commission rates.",
+      code: "forbidden",
+    };
+  }
+
+  const cleaned: Record<string, unknown> = {};
+  for (const col of AFFILIATE_COMMISSION_COLUMNS) {
+    if (col in payload) cleaned[col] = payload[col];
+  }
+  if (Object.keys(cleaned).length === 0) {
+    return { ok: false, error: "No commission fields provided", code: "invalid" };
+  }
+
+  const { data: target } = await supabase
+    .from("affiliates")
+    .select("id, tenant_id, updated_at")
+    .eq("id", affiliateId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "Affiliate not found", code: "not_found" };
   if (target.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden", code: "forbidden" };
   }
