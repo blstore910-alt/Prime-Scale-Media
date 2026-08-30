@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { cn } from "@/lib/utils";
-import { Download, Eye } from "lucide-react";
+import { Copy, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
 
@@ -266,8 +266,29 @@ export default function AuditEventsTable() {
                       {ev.action}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs font-mono truncate max-w-[10rem]">
-                    {ev.row_id ?? "-"}
+                  <TableCell className="text-xs font-mono">
+                    {ev.row_id ? (
+                      <span className="inline-flex items-center gap-1 max-w-[10rem]">
+                        <span className="truncate">{ev.row_id}</span>
+                        <button
+                          type="button"
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          aria-label="Copy row id"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(ev.row_id!);
+                              toast.success("Copied");
+                            } catch {
+                              toast.error("Clipboard blocked");
+                            }
+                          }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground truncate max-w-[10rem]">
                     {ev.actor_profile_id ?? "-"}
