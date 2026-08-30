@@ -37,9 +37,14 @@ export default async function AppLayout({
 
   if (!profiles.length) redirect("/onboard");
 
+  // Cookie can point at a profile the user no longer owns (deleted,
+  // rotated tenant, etc). Fall back to the first available profile
+  // instead of crashing on `profile.status`.
   const profile = existingProfile
-    ? profiles?.find((p) => p.id === existingProfile)
+    ? profiles.find((p) => p.id === existingProfile) ?? profiles[0]
     : profiles[0];
+
+  if (!profile) redirect("/onboard");
 
   if (profile.status === "inactive") {
     redirect("/inactive");
