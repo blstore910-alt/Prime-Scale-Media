@@ -41,7 +41,11 @@ export default function TopupsTable() {
   const isAdvertiser = profile?.role === "advertiser";
   const initialType = searchParams?.get("type") ?? "all";
   const initialSource = searchParams?.get("source") ?? "all";
-  const initialStatus = searchParams?.get("status") ?? "all";
+  // Admins landing on /top-ups want to see the actionable queue —
+  // "pending" — not the historical list. Advertisers land on "all"
+  // because they mostly want their own history.
+  const initialStatus =
+    searchParams?.get("status") ?? (isAdmin ? "pending" : "all");
   const initialSort = searchParams?.get("sort") ?? "newest";
   const initialQ = searchParams?.get("q") ?? "";
   const initialPage = parseInt(searchParams?.get("page") ?? "1", 10) || 1;
