@@ -3,11 +3,24 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. **53 commits, ~95 files geraakt.**
+Alle commits staan op `main`. **62 commits, ~100 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
+
+### UX + operational (2026-08-30 third wave)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `f1480a2` | test: 6 unit tests for callerIp header priority + edge cases              |
+| `f8704ff` | fix(security): payment slip upload — 10MB cap + drop SVG                  |
+| `3f2b8b2` | feat(auth): friendly reason banner on login (idle / session expired)      |
+| `8cbc98e` | feat(security): 30-minute idle-timeout auto-signout                       |
+| `d29cdb8` | feat: password meter on password-reset + rate-limit GDPR export           |
+| `bd05fe6` | feat(auth): password strength meter on signup + invite-signup             |
+| `54e067d` | perf(db): 15 indexes for hot query paths                                  |
+| `28dec3b` | feat(nav): live pending-queue badges on admin sidebar                     |
 
 ### Audit UI + system status (2026-08-30 second wave)
 
@@ -187,11 +200,34 @@ Alle commits staan op `main`. **53 commits, ~95 files geraakt.**
   indicator in één blok. Pending tiles worden amber wanneer
   count > 0 en linken door naar de relevante admin pagina.
 
+### Aanvullingen 2026-08-30 (derde wave)
+
+- **Password strength meter** — visuele 5-segments bar op signup,
+  invite-signup, en update-password forms. Client-only UX
+  (server houdt de 12-char minimum). Penalty voor common words +
+  product-name (`prime`, `scale`, `media`).
+- **Sidebar pending badges** — amber pill counters op Wallet Topups,
+  Top-ups, en Account Requests. 60s refetch. Admins zien meteen als
+  er iets wacht.
+- **DB indexes** — 15 composite/partial indexes op hot filter paths
+  (`tenant_id, status`, `tenant_id, created_at desc`, partial
+  indexes op `is_read = false` en `last_seen_at is not null`).
+- **30-min idle timeout** — waarschuwing bij 28 min inactiviteit,
+  sign-out bij 30 min. Reason banner op login page.
+- **GDPR export rate limit** — 10/uur per IP, want de export is
+  duur (veel joins).
+- **Payment slip upload guards** — 10 MB max, SVG uitgesloten
+  (SVG kan embedded scripts hebben die triggeren bij preview).
+- **X-Forwarded-For unit tests** — freeze de callerIp() header
+  priority zodat rate-limit buckets niet stilletjes samen komen
+  op "unknown".
+
 ### Test coverage
 
-- **69 unit tests** (van 23 gestart). Nieuw: 7 versionMatches, 6
-  maintenance-mode, 4 debounced, 8 safeErrorMessage, 6
-  formatLastSeen, 9 tenant-slug, 7 CSV-escape.
+- **83 unit tests** (van 23 gestart). Nieuw sinds vorige refresh:
+  7 versionMatches, 6 maintenance-mode, 4 debounced, 8
+  safeErrorMessage, 6 formatLastSeen, 9 tenant-slug, 7 CSV-escape,
+  8 password-strength, 6 callerIp.
 
 ---
 
