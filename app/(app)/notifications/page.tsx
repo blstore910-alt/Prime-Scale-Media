@@ -2,7 +2,7 @@
 
 import CreateAdAccountFromRequestDialog from "@/components/ad-account-requests/create-ad-account-from-request-dialog";
 import { Separator } from "@/components/ui/separator";
-import { CheckCheck, Loader2 } from "lucide-react";
+import { CheckCheck, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useNotifications from "@/components/notifications/use-notifications";
 import NotificationItem from "@/components/notifications/notification-item";
@@ -29,8 +29,14 @@ import NotificationActionStatusDialog from "@/components/notifications/notificat
 export default function NotificationsPage() {
   const router = useRouter();
   const { profile } = useAppContext();
-  const { notifications, isLoading, unreadCount, markAsRead, markAllAsRead } =
-    useNotifications();
+  const {
+    notifications,
+    isLoading,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteRead,
+  } = useNotifications();
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   const [topupCompletedDialogOpen, setTopupCompletedDialogOpen] =
@@ -283,6 +289,26 @@ export default function NotificationsPage() {
               Mark all read
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              deleteRead.mutate(undefined, {
+                onSuccess: () => toast.success("Old read notifications cleaned"),
+                onError: (err) =>
+                  toast.error("Cleanup failed", { description: err.message }),
+              });
+            }}
+            disabled={deleteRead.isPending}
+            title="Delete notifications older than 30 days that you've already read"
+          >
+            {deleteRead.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Clean up
+          </Button>
         </div>
       </div>
 
