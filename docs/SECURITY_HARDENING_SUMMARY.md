@@ -3,11 +3,31 @@
 Overzicht van alle wijzigingen tijdens de autopilot-sweep, plus wat
 er nog aan de gebruikerskant moet gebeuren voor go-live.
 
-Alle commits staan op `main`. **79 commits, ~110 files geraakt.**
+Alle commits staan op `main`. **101 commits, ~120 files geraakt.**
 
 ---
 
 ## Commits (nieuwste bovenaan)
+
+### Admin UX + queue signals (2026-08-30 zesde wave)
+
+| Commit    | Wat                                                                       |
+| --------- | ------------------------------------------------------------------------- |
+| `6d39b96` | feat(admin): waiting Xh on pending ad-account-request cards               |
+| `5204cdd` | docs(changelog): note the waiting Xh indicator                            |
+| `1d9318d` | feat(admin): waiting Xh on mobile wallet-topup card                       |
+| `0899266` | feat(admin): waiting Xh on pending wallet-topup rows                      |
+| `b633714` | feat(admin): /top-ups defaults to Pending for admins                      |
+| `5e8f262` | feat(admin): /wallet-topups defaults to Pending status filter             |
+| `dd7130a` | feat(notifications): Clean up button wires deleteRead into UI             |
+| `8678fb8` | feat(notifications): deleteRead mutation for cleaning old read items      |
+| `8b24576` | chore: .gitattributes — pin LF for source files                           |
+| `c7ffdaa` | test: 5 unit tests freezing the sinceCutoff computation                   |
+| `22a842b` | feat(audit): manual refresh button on the audit table                     |
+| `612dea5` | feat(ops): release-notes script grouping commits by conventional prefix   |
+| `aec37e4` | feat(audit): actor_profile_id filter param                                |
+| `aec15a5` | feat(audit): since quick-filter — 15m / 1h / 24h / 7d / all time          |
+| `64a3022` | feat(audit): copy-to-clipboard button next to row_id                      |
 
 ### Dashboard + docs polish (2026-08-30 fifth wave)
 
