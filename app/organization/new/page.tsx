@@ -1,6 +1,11 @@
 import CreateOrganization from "@/components/onboard/organization-form";
 import React from "react";
 
+// Client Component that instantiates the Supabase browser client
+// at module load. Force dynamic so `next build` never tries to
+// prerender it without Supabase env vars.
+export const dynamic = "force-dynamic";
+
 export default function Page() {
   return (
     <main className="max-w-md mx-auto p-6">
