@@ -3,9 +3,79 @@
 -- permission hardening (now idempotent for the new table), and
 -- seeds the E2E fixture.
 --
--- Safe to re-run. Structured in 3 sections you can also run
+-- Safe to re-run. Structured in 4 sections you can also run
 -- individually if a step fails.
 -- ═══════════════════════════════════════════════════════════════════
+
+
+--
+-- ═══════════════════════════════════════════════════════════════════
+-- SECTION 0 — Hotfix: ensure_advertiser_and_wallet had a PL/pgSQL
+-- name-collision. RETURNS TABLE (advertiser_id, wallet_id) made
+-- `advertiser_id` an OUT parameter, which shadowed the wallets
+-- column of the same name and raised 42702 at call time.
+-- Renamed OUT columns to out_* and qualified the wallets ref.
+-- ═══════════════════════════════════════════════════════════════════
+--
+create or replace function public.ensure_advertiser_and_wallet(
+  p_profile_id uuid
+)
+returns table (out_advertiser_id uuid, out_wallet_id uuid)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile     public.user_profiles%rowtype;
+  v_advertiser  public.advertisers%rowtype;
+  v_wallet      public.wallets%rowtype;
+  v_ref         text;
+begin
+  select * into v_profile
+    from public.user_profiles
+   where id = p_profile_id;
+  if not found then
+    raise exception 'Profile not found' using errcode = '42704';
+  end if;
+
+  if v_profile.role <> 'advertiser' then
+    return query select null::uuid, null::uuid;
+    return;
+  end if;
+
+  select * into v_advertiser
+    from public.advertisers
+   where profile_id = v_profile.id;
+  if not found then
+    insert into public.advertisers (
+      profile_id, user_id, tenant_id,
+      startup_fee, fee_status, airtable
+    ) values (
+      v_profile.id, v_profile.user_id, v_profile.tenant_id,
+      0, 'pending', false
+    )
+    returning * into v_advertiser;
+  end if;
+
+  select * into v_wallet
+    from public.wallets w
+   where w.advertiser_id = v_advertiser.id;
+  if not found then
+    v_ref := lpad(
+      (floor(random() * 10000000000)::bigint)::text, 10, '0'
+    );
+    insert into public.wallets (advertiser_id, tenant_id, reference_no)
+    values (v_advertiser.id, v_profile.tenant_id, v_ref)
+    returning * into v_wallet;
+  end if;
+
+  return query select v_advertiser.id, v_wallet.id;
+end;
+$$;
+
+revoke all on function public.ensure_advertiser_and_wallet(uuid) from public;
+grant execute on function public.ensure_advertiser_and_wallet(uuid)
+  to authenticated;
 
 --
 -- ═══════════════════════════════════════════════════════════════════

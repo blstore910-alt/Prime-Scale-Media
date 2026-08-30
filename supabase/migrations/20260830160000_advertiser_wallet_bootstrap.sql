@@ -19,10 +19,14 @@
 -- ─────────────────────────────────────────────────────────────────
 -- 1. ensure_advertiser_and_wallet
 -- ─────────────────────────────────────────────────────────────────
+-- OUT columns named out_* to avoid a PL/pgSQL name collision with
+-- the wallets.advertiser_id column reference below — the previous
+-- version named the OUT `advertiser_id` and raised 42702 at call
+-- time because plpgsql couldn't tell which one the WHERE meant.
 create or replace function public.ensure_advertiser_and_wallet(
   p_profile_id uuid
 )
-returns table (advertiser_id uuid, wallet_id uuid)
+returns table (out_advertiser_id uuid, out_wallet_id uuid)
 language plpgsql
 security definer
 set search_path = public
@@ -72,10 +76,11 @@ begin
 
   -- 1b. Wallet row — one per advertiser, unique reference_no per
   -- tenant. Cheap random 10-digit ref, matches the format the app
-  -- already generates elsewhere.
+  -- already generates elsewhere. Qualify the column reference with
+  -- the `w` alias so it can't collide with the OUT parameter shape.
   select * into v_wallet
-    from public.wallets
-   where advertiser_id = v_advertiser.id;
+    from public.wallets w
+   where w.advertiser_id = v_advertiser.id;
   if not found then
     v_ref := lpad(
       (floor(random() * 10000000000)::bigint)::text,
