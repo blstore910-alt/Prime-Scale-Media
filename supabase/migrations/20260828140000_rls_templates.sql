@@ -1,20 +1,27 @@
 -- =====================================================================
--- RLS policy TEMPLATES
+-- RLS policy TEMPLATES  ⚠️  MANUAL REVIEW REQUIRED — NOT AUTO-RUN
 -- =====================================================================
--- These are starter policies for every table an audited flow reads or
--- writes. They match the app's behaviour AFTER the P0/P1 sweep — writes
--- flow through RPCs/server actions with SECURITY DEFINER OR
--- explicit `.eq('tenant_id', profile.tenant_id)` server-side, so the
--- policies below can be as strict as "reads are tenant-scoped and by
--- role; writes are refused from the anon key".
+-- This file is EXCLUDED from supabase/consolidated/all-migrations.sql
+-- because it references specific tables (`affiliates`, `topup_logs`,
+-- etc) that may not exist in every deployment yet. Running it as-is
+-- against an incomplete schema fails at the first missing table.
 --
--- IMPORTANT: run this AFTER 20260828120000_wallet_rpcs.sql and
--- 20260828130000_audit_events.sql. This migration ENABLES RLS and
--- attaches policies. If you already have policies for some tables,
--- delete the corresponding block(s) below before running.
+-- HOW TO APPLY:
+-- 1. Open your Supabase SQL Editor.
+-- 2. Copy the blocks below one table at a time.
+-- 3. Skip blocks for tables you don't have.
+-- 4. Adjust the specific policy shapes to match your app's real
+--    permission model (the shapes here match the P0/P1 sweep default:
+--    writes via SECURITY DEFINER RPCs, reads tenant-scoped).
 --
--- Every block is idempotent (DROP IF EXISTS + CREATE) and scoped so
--- you can run it repeatedly.
+-- ALTERNATIVE (recommended for initial deploy): use Supabase's
+-- "Run and enable RLS" prompt when running the core consolidated
+-- SQL — that adds default deny-all policies to every new table.
+-- Writes are already gated by SECURITY DEFINER RPCs, so deny-all
+-- is safe (and stricter than the templates below).
+--
+-- Every block is idempotent (DROP IF EXISTS + CREATE) and can be
+-- rerun safely.
 -- =====================================================================
 
 set search_path = public;
