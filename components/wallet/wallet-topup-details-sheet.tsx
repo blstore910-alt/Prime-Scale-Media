@@ -13,7 +13,8 @@ import { DATE_TIME_FORMAT } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, ScrollText } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 const formatAmount = (value: number | string | null | undefined) => {
@@ -34,7 +35,7 @@ export default function WalletTopupDetailsSheet({
   onOpenChange: (open: boolean) => void;
   topupId: string | null;
 }) {
-  const { profile } = useAppContext();
+  const { profile, isSuperAdmin } = useAppContext();
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
 
@@ -91,6 +92,16 @@ export default function WalletTopupDetailsSheet({
       <SheetContent className="sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Topup Details</SheetTitle>
+          {isSuperAdmin && topupId && (
+            <Link
+              href={`/audit?row=${topupId}`}
+              className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+              onClick={() => onOpenChange(false)}
+            >
+              <ScrollText className="h-3 w-3" />
+              View audit history
+            </Link>
+          )}
         </SheetHeader>
 
         {isLoading && (
