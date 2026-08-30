@@ -14,7 +14,13 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+
+const REDIRECT_REASONS: Record<string, string> = {
+  idle: "You were signed out after 30 minutes of inactivity.",
+  session: "Your session expired. Please sign in again.",
+};
 
 export function LoginForm({
   className,
@@ -24,6 +30,9 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const searchParams = useSearchParams();
+  const reason = searchParams?.get("reason");
+  const reasonMessage = reason ? REDIRECT_REASONS[reason] : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +69,11 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {reasonMessage && (
+            <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+              {reasonMessage}
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
