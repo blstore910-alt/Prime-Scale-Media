@@ -160,9 +160,13 @@ type ProfileSelfInput = Partial<
   Record<(typeof PROFILE_SELF_ALLOWED)[number], unknown>
 >;
 
+// Extra fields admins can put on their tenant company that advertisers
+// don't need in the onboarding flow (registration_no is billing-facing).
+const COMPANY_ADMIN_EXTRA = ["registration_no"] as const;
+
 export async function updateOwnProfileAndCompany(input: {
   profile?: ProfileSelfInput;
-  company?: CompanyInput;
+  company?: CompanyInput & { registration_no?: unknown };
 }): Promise<ActionResult> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
@@ -172,7 +176,7 @@ export async function updateOwnProfileAndCompany(input: {
 
   const { data: profileRow } = await supabase
     .from("user_profiles")
-    .select("id, tenant_id, user_id")
+    .select("id, tenant_id, user_id, role")
     .eq("user_id", userData.user.id)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -195,39 +199,66 @@ export async function updateOwnProfileAndCompany(input: {
   }
 
   if (input.company && Object.keys(input.company).length > 0) {
-    const { data: adv } = await supabase
-      .from("advertisers")
-      .select("id, tenant_id")
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
-    if (!adv) return { ok: false, error: "Advertiser missing" };
-    if (adv.tenant_id !== profileRow.tenant_id) {
-      return { ok: false, error: "Forbidden" };
-    }
-
     const cleaned: Record<string, unknown> = {};
     for (const col of COMPANY_ALLOWED) {
       if (col in input.company) cleaned[col] = input.company[col];
     }
-    cleaned.advertiser_id = adv.id;
+    for (const col of COMPANY_ADMIN_EXTRA) {
+      if (col in input.company) cleaned[col] = input.company[col];
+    }
     cleaned.tenant_id = profileRow.tenant_id;
     cleaned.user_profile_id = profileRow.id;
 
-    const { data: existing } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("advertiser_id", adv.id)
-      .maybeSingle();
-    if (existing?.id) {
-      const { error } = await supabase
+    if (profileRow.role === "admin") {
+      // Admin manages the tenant-level company row (advertiser_id NULL,
+      // one per tenant). This is what shows up on issued invoices.
+      cleaned.advertiser_id = null;
+      const { data: existing } = await supabase
         .from("companies")
-        .update(cleaned)
-        .eq("id", existing.id)
-        .eq("advertiser_id", adv.id);
-      if (error) return { ok: false, error: error.message };
+        .select("id")
+        .eq("tenant_id", profileRow.tenant_id)
+        .is("advertiser_id", null)
+        .maybeSingle();
+      if (existing?.id) {
+        const { error } = await supabase
+          .from("companies")
+          .update(cleaned)
+          .eq("id", existing.id)
+          .eq("tenant_id", profileRow.tenant_id)
+          .is("advertiser_id", null);
+        if (error) return { ok: false, error: error.message };
+      } else {
+        const { error } = await supabase.from("companies").insert(cleaned);
+        if (error) return { ok: false, error: error.message };
+      }
     } else {
-      const { error } = await supabase.from("companies").insert(cleaned);
-      if (error) return { ok: false, error: error.message };
+      const { data: adv } = await supabase
+        .from("advertisers")
+        .select("id, tenant_id")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+      if (!adv) return { ok: false, error: "Advertiser missing" };
+      if (adv.tenant_id !== profileRow.tenant_id) {
+        return { ok: false, error: "Forbidden" };
+      }
+      cleaned.advertiser_id = adv.id;
+
+      const { data: existing } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("advertiser_id", adv.id)
+        .maybeSingle();
+      if (existing?.id) {
+        const { error } = await supabase
+          .from("companies")
+          .update(cleaned)
+          .eq("id", existing.id)
+          .eq("advertiser_id", adv.id);
+        if (error) return { ok: false, error: error.message };
+      } else {
+        const { error } = await supabase.from("companies").insert(cleaned);
+        if (error) return { ok: false, error: error.message };
+      }
     }
   }
 

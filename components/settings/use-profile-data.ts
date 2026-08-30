@@ -24,7 +24,8 @@ export function useProfileData() {
 
       if (profileError) throw profileError;
 
-      // Fetch Advertiser associated with profile
+      // Fetch Advertiser associated with profile (only exists for
+      // advertisers; admins/super-admins have no advertiser row).
       const { data: advertiser, error: advertiserError } = await supabase
         .from("advertisers")
         .select("id")
@@ -36,13 +37,23 @@ export function useProfileData() {
       let company: Company | null = null;
 
       if (advertiser) {
-        // Fetch Company associated with advertiser
+        // Advertiser: their own company (advertiser-scoped row).
         const { data: companyData, error: companyError } = await supabase
           .from("companies")
           .select("*")
           .eq("advertiser_id", advertiser.id)
-          .maybeSingle(); // Use maybeSingle as company might not exist yet
-
+          .maybeSingle();
+        if (companyError) throw companyError;
+        company = companyData;
+      } else if (profile.role === "admin" && profile.tenant_id) {
+        // Admin: the tenant-level company row (advertiser_id NULL).
+        // Shown on issued invoices and referral commission emails.
+        const { data: companyData, error: companyError } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("tenant_id", profile.tenant_id)
+          .is("advertiser_id", null)
+          .maybeSingle();
         if (companyError) throw companyError;
         company = companyData;
       }

@@ -140,15 +140,20 @@ export async function GET() {
     exchangeRateResult.error,
   ].filter(Boolean);
 
-  const activeExchangeRate = exchangeRateResult.data as ExchangeRateRow | null;
-  const usdToEurRate = toNumber(activeExchangeRate?.eur);
-
-  if (errors.length > 0 || !activeExchangeRate || usdToEurRate <= 0) {
+  if (errors.length > 0) {
     return NextResponse.json(
       { error: "Failed to load dashboard stats." },
       { status: 500 },
     );
   }
+
+  // A brand-new tenant has no rate row yet — the app-provider
+  // bootstraps one asynchronously, but the dashboard mounts before
+  // it lands. Fall back to 1.0 so the dashboard renders zeros
+  // (nothing to convert yet anyway) instead of a 500.
+  const activeExchangeRate = exchangeRateResult.data as ExchangeRateRow | null;
+  const rawUsdToEurRate = toNumber(activeExchangeRate?.eur);
+  const usdToEurRate = rawUsdToEurRate > 0 ? rawUsdToEurRate : 1;
 
   const topups = (topupsResult.data || []) as TopupRow[];
   const advertiserStatuses = (advertisersStatusesResult.data ||

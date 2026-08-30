@@ -295,15 +295,19 @@ export async function GET(request: NextRequest) {
     exchangeRateResult.error,
   ].filter(Boolean);
 
-  const activeExchangeRate = exchangeRateResult.data as ExchangeRateRow | null;
-  const usdToEurRate = toNumber(activeExchangeRate?.eur);
-
-  if (errors.length > 0 || !activeExchangeRate || usdToEurRate <= 0) {
+  if (errors.length > 0) {
     return NextResponse.json(
       { error: "Failed to load profit stats." },
       { status: 500 },
     );
   }
+
+  // A brand-new tenant has no rate row yet — fall back to 1.0 so a
+  // fresh dashboard renders zeros instead of a 500 while the async
+  // bootstrap in app-provider seeds one.
+  const activeExchangeRate = exchangeRateResult.data as ExchangeRateRow | null;
+  const rawUsdToEurRate = toNumber(activeExchangeRate?.eur);
+  const usdToEurRate = rawUsdToEurRate > 0 ? rawUsdToEurRate : 1;
 
   const fees = (feesResult.data || []) as FeeRow[];
   const subscriptionInvoices = (subscriptionInvoicesResult.data ||
