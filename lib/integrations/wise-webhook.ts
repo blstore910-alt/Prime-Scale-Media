@@ -47,20 +47,36 @@ export async function processWiseWebhook(
   });
 
   const data = event.data ?? {};
-  const amount = Number(data.amount ?? (data as Record<string, unknown>).value);
+  const d = data as Record<string, unknown>;
+  const amount = Number(data.amount ?? d.value);
   const currency = String(data.currency ?? "").toUpperCase();
-  const externalId = String(
-    data.resource?.id ??
-      (data as Record<string, unknown>).transfer_id ??
-      (data as Record<string, unknown>).transaction_id ??
-      "",
-  );
+
+  // Wise webhook v2 "balances#credit" gives the BALANCE change, not a
+  // per-transaction id — data.resource.id is the balance account
+  // (same for every deposit into it), so it can't be the idempotency
+  // key on its own. `occurred_at` is unique per credit event, so build
+  // a composite external_id from (balance id : occurred_at : amount).
+  // A Wise redelivery repeats the same occurred_at → same key → deduped;
+  // two real deposits differ → two keys.
+  const occurredAt = String(d.occurred_at ?? d.occurredAt ?? d.sent_at ?? "");
+  const balanceId = String(data.resource?.id ?? "");
+  const explicitTxnId = String(d.transfer_id ?? d.transaction_id ?? "");
+  const externalId =
+    explicitTxnId ||
+    (balanceId && occurredAt
+      ? `${balanceId}:${occurredAt}:${amount}`
+      : occurredAt
+        ? `${occurredAt}:${amount}`
+        : "");
+
+  // The sender's payment reference. v2 sometimes carries it as
+  // transfer_reference; read every shape we've seen. When absent the
+  // matcher falls back to amount+currency.
   const reference =
-    (data as Record<string, unknown>).reference != null
-      ? String((data as Record<string, unknown>).reference)
-      : ((data as Record<string, unknown>).details as
-          | { reference?: string }
-          | undefined)?.reference ?? null;
+    (d.reference != null ? String(d.reference) : null) ??
+    (d.transfer_reference != null ? String(d.transfer_reference) : null) ??
+    (d.details as { reference?: string } | undefined)?.reference ??
+    null;
 
   if (!externalId || !Number.isFinite(amount) || amount <= 0 || !currency) {
     return { status: 200, body: { ok: true, note: "insufficient transfer data" } };
