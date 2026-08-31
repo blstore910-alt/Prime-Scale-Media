@@ -136,7 +136,7 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
           icon: ClipboardListIcon,
         },
         {
-          title: "Withdrawals, Refunds & Precharge",
+          title: "Withdrawals",
           url: "/withdrawals",
           icon: IconCashRegister,
         },
