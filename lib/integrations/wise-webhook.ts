@@ -4,6 +4,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { matchIncomingTransfer, type PendingTopup } from "./wise-match";
+import { fetchWiseTxnDetail } from "./wise-api";
 
 type WiseEvent = {
   event_type?: string;
@@ -83,17 +84,39 @@ export async function processWiseWebhook(
   }
   const amountCents = Math.round(amount * 100);
 
-  // Sender bank details, when the payload carries them (v2 balances#
-  // credit often doesn't — fetching from the Wise statement API is a
-  // follow-up). Normalised for the known-sender lookup.
-  const rawIban =
+  // Sender bank details + reference, when the payload carries them.
+  // v2 balances#credit often omits both — so if either is missing we
+  // fetch the balance statement from the Wise API to recover them.
+  let rawIban =
     (d.sender_iban != null ? String(d.sender_iban) : null) ??
     ((d.sender_account as { iban?: string } | undefined)?.iban ?? null);
+  let senderName = d.sender_name != null ? String(d.sender_name) : null;
+  let effectiveReference = reference;
+
+  if ((!effectiveReference || !rawIban) && balanceId && occurredAt) {
+    const profileId = String(
+      (data.resource as { profile_id?: string | number } | undefined)
+        ?.profile_id ??
+        d.profile_id ??
+        "",
+    );
+    const detail = await fetchWiseTxnDetail({
+      profileId,
+      balanceId,
+      currency,
+      amountCents,
+      occurredAt,
+    });
+    if (detail) {
+      effectiveReference = effectiveReference ?? detail.reference;
+      rawIban = rawIban ?? detail.senderIban;
+      senderName = senderName ?? detail.senderName;
+    }
+  }
+
   const senderIban = rawIban
     ? rawIban.replace(/\s/g, "").toUpperCase()
     : null;
-  const senderName =
-    d.sender_name != null ? String(d.sender_name) : null;
 
   const { data: pendingRows, error: pendingErr } = await supabase
     .from("wallet_topups")
@@ -118,7 +141,12 @@ export async function processWiseWebhook(
   }
 
   const match = matchIncomingTransfer(
-    { amount_cents: amountCents, currency, reference, sender_iban: senderIban },
+    {
+      amount_cents: amountCents,
+      currency,
+      reference: effectiveReference,
+      sender_iban: senderIban,
+    },
     (pendingRows ?? []) as PendingTopup[],
     knownAdvertiserIds,
   );
@@ -136,7 +164,7 @@ export async function processWiseWebhook(
       p_external_id: externalId,
       p_amount_cents: amountCents,
       p_currency: currency,
-      p_reference: reference,
+      p_reference: effectiveReference,
       p_topup_id: match.matched ? match.topupId : null,
       p_note: match.matched ? `matched via ${match.via}` : match.reason,
       p_auto_settle: autoSettle,
