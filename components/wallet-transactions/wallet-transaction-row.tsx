@@ -18,10 +18,14 @@ import {
   FileImage,
   Loader2,
   MoreHorizontal,
+  Zap,
   // Undo,
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { prechargeTopup } from "@/actions/precharge-actions";
 import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
 import PaymentSlipDialog from "./payment-slip-dialog";
 import dayjs from "dayjs";
@@ -49,7 +53,27 @@ export default function WalletTransactionRow({
 }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [slipOpen, setSlipOpen] = useState(false);
+  const [precharging, setPrecharging] = useState(false);
+  const queryClient = useQueryClient();
   const { mutate: updateTransaction, isPending } = useUpdateTransaction(topup);
+
+  const handlePrecharge = async () => {
+    setPrecharging(true);
+    try {
+      const res = await prechargeTopup(topup.id);
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Precharged — wallet credited in advance");
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
+    } catch (e) {
+      toast.error("Precharge failed", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setPrecharging(false);
+    }
+  };
 
   const isCompleted = topup.status === "completed";
   const isRejected = topup.status === "rejected";
@@ -133,6 +157,19 @@ export default function WalletTransactionRow({
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                 )}
                 Approve payment
+              </DropdownMenuItem>
+            )}
+            {canTakeAction && (
+              <DropdownMenuItem
+                disabled={isPending || precharging}
+                onClick={handlePrecharge}
+              >
+                {precharging ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="mr-2 h-4 w-4" />
+                )}
+                Precharge (advance credit)
               </DropdownMenuItem>
             )}
             {canTakeAction && (

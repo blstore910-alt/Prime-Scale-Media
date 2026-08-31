@@ -43,6 +43,26 @@ export async function createWalletPrecharge(input: {
   return { ok: true, data: { id: row?.id } };
 }
 
+// Admin advances the credit for a specific PENDING wallet top-up
+// (money not arrived yet). Credits the wallet now; the advance settles
+// automatically when the top-up is later verified.
+export async function prechargeTopup(
+  topupId: string,
+): Promise<ActionResult<{ id: string }>> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
+  if (typeof topupId !== "string" || !topupId) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("wallet_precharge_from_topup", {
+    p_topup_id: topupId,
+  });
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  const row = Array.isArray(data) ? data[0] : data;
+  return { ok: true, data: { id: row?.id } };
+}
+
 // Admin settles an outstanding precharge once the real payment has
 // arrived. Omit amount to settle the full outstanding balance.
 export async function settleWalletPrecharge(
