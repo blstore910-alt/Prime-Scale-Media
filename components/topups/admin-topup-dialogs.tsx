@@ -194,11 +194,10 @@ function TopupForm({
 
   // const paymentSlip = watch("payment_slip");
   const advertiserOptions = advertisers?.map((advertiser) => {
-    const {
-      id,
-      tenant_client_code,
-      profile: { full_name },
-    } = advertiser;
+    const { id, tenant_client_code, profile } = advertiser;
+    // profile can be null (missing user_profile) — don't destructure
+    // blind, it used to crash the dialog.
+    const full_name = profile?.full_name ?? "Unknown";
     return {
       value: id,
       label: (

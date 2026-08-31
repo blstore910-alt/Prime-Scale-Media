@@ -333,11 +333,11 @@ export default function AccountForm({
   });
 
   const options = advertisers?.map((advertiser) => {
-    const {
-      id,
-      tenant_client_code,
-      profile: { full_name },
-    } = advertiser;
+    const { id, tenant_client_code, profile } = advertiser;
+    // profile is a to-one embed that can be null (advertiser whose
+    // user_profile row is missing/deleted). Never destructure it blind —
+    // a null here used to crash the whole create dialog.
+    const full_name = profile?.full_name ?? "Unknown";
     return {
       value: id,
       label: (
