@@ -14,10 +14,16 @@ export default function useIsAffiliate() {
     enabled: !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
+      // Query the base table (not the *_with_details view — that view
+      // predates the status column and doesn't expose it) so we can
+      // require an APPROVED link. A pending/rejected referral must NOT
+      // make an advertiser count as an affiliate. RLS lets an advertiser
+      // read their own referral_links rows.
       let query = supabase
-        .from("referral_links_with_details")
+        .from("referral_links")
         .select("id", { count: "exact", head: true })
-        .eq("affiliate_advertiser_id", advertiserId);
+        .eq("affiliate_advertiser_id", advertiserId)
+        .eq("status", "active");
 
       if (tenantId) {
         query = query.eq("tenant_id", tenantId);
