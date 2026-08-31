@@ -29,7 +29,7 @@ async function resolveCaller(): Promise<
 
   const { data: profiles, error: profileError } = await supabase
     .from("user_profiles")
-    .select("id, role, tenant_id, user_id")
+    .select("id, role, tenant_id, user_id, is_active, status")
     .eq("user_id", userData.user.id);
 
   if (profileError || !profiles?.length) {
@@ -42,6 +42,15 @@ async function resolveCaller(): Promise<
 
   if (!profile.tenant_id) {
     return { ok: false, error: "Tenant missing", status: 403 };
+  }
+
+  // A deactivated profile keeps its role but loses all access — a
+  // disabled admin must not be able to act.
+  if (
+    profile.is_active === false ||
+    (profile.status ?? "active") === "inactive"
+  ) {
+    return { ok: false, error: "Account is inactive", status: 403 };
   }
 
   return { ok: true, ctx: { supabase, profile } };

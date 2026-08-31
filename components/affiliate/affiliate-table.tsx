@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Search } from "lucide-react";
 import {
@@ -96,11 +97,15 @@ export default function AffiliatesTable() {
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
 
-      // Apply search filter on affiliate fields
+      // Apply search filter on affiliate fields (sanitised — raw
+      // commas/parens would break out of the PostgREST .or() DSL).
       if (debouncedSearch.trim()) {
-        query = query.or(
-          `affiliate_advertiser_name.ilike.*${debouncedSearch}*,affiliate_advertiser_email.ilike.*${debouncedSearch}*,affiliate_advertiser_tenant_client_code.ilike.*${debouncedSearch}*`
-        );
+        const s = safeIlikeTerm(debouncedSearch);
+        if (s) {
+          query = query.or(
+            `affiliate_advertiser_name.ilike."*${s}*",affiliate_advertiser_email.ilike."*${s}*",affiliate_advertiser_tenant_client_code.ilike."*${s}*"`
+          );
+        }
       }
 
       const { data, error, count } = await query.range(start, end);

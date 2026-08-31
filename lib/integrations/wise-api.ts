@@ -92,9 +92,14 @@ export async function fetchWiseTxnDetail(args: {
     return null;
   }
 
+  // encodeURIComponent the path segments too — defense in depth even
+  // though the host is fixed and these come from an authenticated
+  // webhook payload.
+  const pid = encodeURIComponent(String(args.profileId));
+  const bid = encodeURIComponent(String(args.balanceId));
   const url =
-    `${wiseApiBase()}/v1/profiles/${args.profileId}/balance-statements/` +
-    `${args.balanceId}/statement.json` +
+    `${wiseApiBase()}/v1/profiles/${pid}/balance-statements/` +
+    `${bid}/statement.json` +
     `?currency=${encodeURIComponent(args.currency)}` +
     `&intervalStart=${encodeURIComponent(start)}` +
     `&intervalEnd=${encodeURIComponent(end)}&type=COMPACT`;

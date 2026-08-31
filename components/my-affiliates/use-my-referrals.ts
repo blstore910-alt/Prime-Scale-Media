@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { MyReferral } from "./types";
@@ -57,10 +58,12 @@ export default function useMyReferrals(params: UseMyReferralsParams = {}) {
       }
 
       if (params.search?.trim()) {
-        const q = params.search.trim();
-        query = query.or(
-          `referred_advertiser_email.ilike.%${q}%,referred_advertiser_name.ilike.%${q}%,referred_advertiser_tenant_client_code.ilike.%${q}%`,
-        );
+        const q = safeIlikeTerm(params.search);
+        if (q) {
+          query = query.or(
+            `referred_advertiser_email.ilike."%${q}%",referred_advertiser_name.ilike."%${q}%",referred_advertiser_tenant_client_code.ilike."%${q}%"`,
+          );
+        }
       }
 
       const { data: rows, error: qError, count } = await query

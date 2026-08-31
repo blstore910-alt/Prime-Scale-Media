@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { Commission } from "@/lib/types/commission";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -83,10 +84,15 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
       }
 
       if (search && search.trim() !== "") {
-        const s = search.trim();
-        query = query.or(
-          `referred_advertiser_tenant_client_code.ilike.%${s}%,referred_advertiser_name.ilike.%${s}%,referred_advertiser_email.ilike.%${s}%,affiliate_advertiser_tenant_client_code.ilike.%${s}%,affiliate_advertiser_name.ilike.%${s}%,affiliate_advertiser_email.ilike.%${s}%`,
-        );
+        // Sanitise before it enters the PostgREST .or() DSL — a raw
+        // comma/paren would break out of the ilike value into the
+        // filter tree. Quote the term so the wildcards still apply.
+        const s = safeIlikeTerm(search);
+        if (s) {
+          query = query.or(
+            `referred_advertiser_tenant_client_code.ilike."%${s}%",referred_advertiser_name.ilike."%${s}%",referred_advertiser_email.ilike."%${s}%",affiliate_advertiser_tenant_client_code.ilike."%${s}%",affiliate_advertiser_name.ilike."%${s}%",affiliate_advertiser_email.ilike."%${s}%"`,
+          );
+        }
       }
 
       if (createdFrom && createdTo) {

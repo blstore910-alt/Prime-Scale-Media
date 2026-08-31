@@ -60,7 +60,7 @@ export async function resolveAdminContext(): Promise<
   const existingProfile = cookieStore.get("profile_id")?.value;
   const { data: profiles } = await supabase
     .from("user_profiles")
-    .select("id, role, tenant_id, user_id, full_name, email")
+    .select("id, role, tenant_id, user_id, full_name, email, is_active, status")
     .eq("user_id", userData.user.id);
   if (!profiles?.length) return { ok: false, error: "Forbidden" };
 
@@ -70,6 +70,10 @@ export async function resolveAdminContext(): Promise<
 
   if (chosen.role !== "admin" || !chosen.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+  // Deactivated admin keeps role but loses access.
+  if (chosen.is_active === false || (chosen.status ?? "active") === "inactive") {
+    return { ok: false, error: "Account is inactive" };
   }
 
   return {

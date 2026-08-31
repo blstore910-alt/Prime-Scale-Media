@@ -20,7 +20,7 @@ export async function requireAdmin(redirectTo = "/dashboard") {
 
   const { data: profiles, error: profileError } = await supabase
     .from("user_profiles")
-    .select("id, role")
+    .select("id, role, is_active, status")
     .eq("user_id", userData.user.id);
 
   if (profileError) {
@@ -38,6 +38,14 @@ export async function requireAdmin(redirectTo = "/dashboard") {
 
   if (profile.role !== "admin") {
     redirect(redirectTo);
+  }
+  // Deactivated admins keep their role but lose access.
+  const p = profile as ProfileRecord & {
+    is_active?: boolean;
+    status?: string;
+  };
+  if (p.is_active === false || (p.status ?? "active") === "inactive") {
+    redirect("/inactive");
   }
 
   return { user: userData.user, profile };

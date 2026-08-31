@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { processWiseWebhook } from "@/lib/integrations/wise-webhook";
+
+// Constant-time secret compare — avoids a byte-by-byte timing oracle.
+function secretEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
 
 // Path-secret variant of the Wise webhook.
 //
@@ -14,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 function tokenOk(token: string): boolean {
   const secret = process.env.WISE_WEBHOOK_SECRET;
-  return !!secret && token === secret;
+  return !!secret && secretEquals(token, secret);
 }
 
 // Reachability probe → 200 when the token is valid, 404 otherwise so

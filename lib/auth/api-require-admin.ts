@@ -19,7 +19,7 @@ export async function apiRequireAdmin() {
 
   const { data: profiles, error: profileError } = await supabase
     .from("user_profiles")
-    .select("id, role, tenant_id, user_id")
+    .select("id, role, tenant_id, user_id, is_active, status")
     .eq("user_id", userData.user.id);
 
   if (profileError || !profiles?.length) {
@@ -37,6 +37,16 @@ export async function apiRequireAdmin() {
   if (profile.role !== "admin" || !profile.tenant_id) {
     return {
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      profile: null,
+      user: null,
+    };
+  }
+  if (
+    (profile as { is_active?: boolean }).is_active === false ||
+    ((profile as { status?: string }).status ?? "active") === "inactive"
+  ) {
+    return {
+      error: NextResponse.json({ error: "Account inactive" }, { status: 403 }),
       profile: null,
       user: null,
     };

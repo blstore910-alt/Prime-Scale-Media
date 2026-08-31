@@ -31,14 +31,23 @@ export async function GET() {
     // Anon RLS on `tenants` will typically return 0 rows for an
     // unauthenticated caller; success = the endpoint is alive.
     const { error } = await supabase.from("tenants").select("id").limit(1);
+    // This endpoint is unauthenticated — never echo the raw DB error
+    // (it leaks schema/infra detail). Generic note only; detail logged.
+    if (error) {
+      console.error("health: supabase check failed:", error.message);
+    }
     checks.supabase = error
-      ? { ok: false, latencyMs: Date.now() - supaStart, note: error.message }
+      ? { ok: false, latencyMs: Date.now() - supaStart, note: "query failed" }
       : { ok: true, latencyMs: Date.now() - supaStart };
   } catch (err) {
+    console.error(
+      "health: supabase check threw:",
+      err instanceof Error ? err.message : "unknown",
+    );
     checks.supabase = {
       ok: false,
       latencyMs: Date.now() - supaStart,
-      note: err instanceof Error ? err.message : "unknown",
+      note: "unavailable",
     };
   }
 
