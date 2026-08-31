@@ -22,10 +22,13 @@ security definer
 set search_path = public
 stable
 as $$
+  -- invitations.token is a uuid in the live DB; compare as text so the
+  -- param stays a plain string and a malformed token simply won't match
+  -- (instead of erroring on an invalid uuid cast).
   select to_jsonb(i) || jsonb_build_object('tenant_name', t.name)
   from public.invitations i
   left join public.tenants t on t.id = i.tenant_id
-  where i.token = p_token
+  where i.token::text = p_token
   limit 1;
 $$;
 
