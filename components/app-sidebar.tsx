@@ -135,6 +135,11 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
           url: "/wallet-topups",
           icon: ClipboardListIcon,
         },
+        {
+          title: "Withdrawals",
+          url: "/withdrawals",
+          icon: IconCashRegister,
+        },
       ],
     },
     ...(isSuperAdmin

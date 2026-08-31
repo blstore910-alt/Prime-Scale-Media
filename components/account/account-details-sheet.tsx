@@ -39,6 +39,10 @@ import {
   SheetTitle,
 } from "../ui/sheet";
 import useUpdateAccount from "./use-update-account";
+import { Button } from "@/components/ui/button";
+import { useAppContext } from "@/context/app-provider";
+import WithdrawDialog from "@/components/withdrawals/withdraw-dialog";
+import { useState } from "react";
 
 export function AccountDetailsSheet({
   accountId,
@@ -50,6 +54,9 @@ export function AccountDetailsSheet({
   accountId: string | null;
 }) {
   const queryClient = useQueryClient();
+  const { profile } = useAppContext();
+  const isAdvertiser = profile?.role === "advertiser";
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["account-details", accountId],
     enabled: !!accountId,
@@ -327,11 +334,34 @@ export function AccountDetailsSheet({
                 </Card>
               )}
 
+              {isAdvertiser && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setWithdrawOpen(true)}
+                  >
+                    Withdraw to wallet
+                  </Button>
+                </div>
+              )}
+
               <TopupHistory account={data} />
             </div>
           )}
         </SheetContent>
       </Sheet>
+
+      {data && (
+        <WithdrawDialog
+          open={withdrawOpen}
+          onOpenChange={setWithdrawOpen}
+          adAccountId={data.id}
+          adAccountName={data.name}
+          defaultCurrency={
+            (data.currency as "USD" | "EUR") === "EUR" ? "EUR" : "USD"
+          }
+        />
+      )}
     </div>
   );
 }
