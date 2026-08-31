@@ -1,6 +1,7 @@
 import WithdrawalsTable from "@/components/withdrawals/withdrawals-table";
 import PrechargePanel from "@/components/withdrawals/precharge-panel";
 import RefundPanel from "@/components/withdrawals/refund-panel";
+import AdjustmentPanel from "@/components/withdrawals/adjustment-panel";
 import { requireAdmin } from "@/lib/auth/require-admin";
 
 export default async function Page() {
@@ -12,6 +13,7 @@ export default async function Page() {
         <div className="flex flex-col gap-10 py-4 md:gap-12 md:py-6 px-4 lg:px-6">
           <WithdrawalsTable />
           <RefundPanel />
+          <AdjustmentPanel />
           <PrechargePanel />
         </div>
       </div>
