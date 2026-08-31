@@ -123,6 +123,13 @@ export async function processWiseWebhook(
     knownAdvertiserIds,
   );
 
+  // Safe start: nothing auto-completes. A confident match is stored
+  // as a SUGGESTION for an admin to confirm. Flip WISE_AUTO_SETTLE=true
+  // once matching is proven and matches will complete on their own.
+  const autoSettle = /^(true|1|yes|on)$/i.test(
+    process.env.WISE_AUTO_SETTLE ?? "",
+  );
+
   const { data: settleData, error: settleErr } = await supabase.rpc(
     "wise_record_and_settle",
     {
@@ -131,7 +138,8 @@ export async function processWiseWebhook(
       p_currency: currency,
       p_reference: reference,
       p_topup_id: match.matched ? match.topupId : null,
-      p_note: match.matched ? `auto-matched via ${match.via}` : match.reason,
+      p_note: match.matched ? `matched via ${match.via}` : match.reason,
+      p_auto_settle: autoSettle,
     },
   );
   if (settleErr) {
