@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types tests/lib/search.test.ts tests/lib/http.test.ts tests/lib/rate-limit.test.ts tests/lib/utils.test.ts tests/lib/form-draft.test.ts tests/lib/pure-error.test.ts tests/lib/last-seen.test.ts tests/lib/password-strength.test.ts tests/lib/pure-request.test.ts tests/lib/wallet-recovery.test.ts tests/lib/since-cutoff.test.ts tests/lib/slugify-boundary.test.ts tests/actions/shared.test.ts tests/actions/maintenance.test.ts tests/actions/tenant-slug.test.ts tests/actions/csv-escape.test.ts tests/lib/permissions.test.ts tests/lib/integrations.test.ts tests/lib/integration-worker.test.ts",
+    "test": "node --test --experimental-strip-types tests/lib/search.test.ts tests/lib/http.test.ts tests/lib/rate-limit.test.ts tests/lib/utils.test.ts tests/lib/form-draft.test.ts tests/lib/pure-error.test.ts tests/lib/last-seen.test.ts tests/lib/password-strength.test.ts tests/lib/pure-request.test.ts tests/lib/wallet-recovery.test.ts tests/lib/since-cutoff.test.ts tests/lib/slugify-boundary.test.ts tests/actions/shared.test.ts tests/actions/maintenance.test.ts tests/actions/tenant-slug.test.ts tests/actions/csv-escape.test.ts tests/lib/permissions.test.ts tests/lib/integrations.test.ts tests/lib/integration-worker.test.ts tests/lib/commission.test.ts",
     "check-env": "node scripts/check-env.mjs",
     "smoke": "node scripts/post-deploy-smoke.mjs",
     "release-notes": "node scripts/release-notes.mjs"
