@@ -83,30 +83,84 @@ export async function processWiseWebhook(
   }
   const amountCents = Math.round(amount * 100);
 
+  // Sender bank details, when the payload carries them (v2 balances#
+  // credit often doesn't — fetching from the Wise statement API is a
+  // follow-up). Normalised for the known-sender lookup.
+  const rawIban =
+    (d.sender_iban != null ? String(d.sender_iban) : null) ??
+    ((d.sender_account as { iban?: string } | undefined)?.iban ?? null);
+  const senderIban = rawIban
+    ? rawIban.replace(/\s/g, "").toUpperCase()
+    : null;
+  const senderName =
+    d.sender_name != null ? String(d.sender_name) : null;
+
   const { data: pendingRows, error: pendingErr } = await supabase
     .from("wallet_topups")
-    .select("id, reference_no, amount, currency, status")
+    .select("id, reference_no, amount, currency, status, advertiser_id")
     .eq("status", "pending")
     .eq("currency", currency);
   if (pendingErr) {
     return { status: 500, body: { error: "Query failed" } };
   }
 
+  // Which advertisers does this sender IBAN belong to? (Could be
+  // several — one customer, multiple accounts, same bank.)
+  let knownAdvertiserIds: string[] = [];
+  if (senderIban) {
+    const { data: senderRows } = await supabase
+      .from("advertiser_bank_senders")
+      .select("advertiser_id")
+      .eq("sender_iban", senderIban);
+    knownAdvertiserIds = (senderRows ?? []).map(
+      (r: { advertiser_id: string }) => r.advertiser_id,
+    );
+  }
+
   const match = matchIncomingTransfer(
-    { amount_cents: amountCents, currency, reference },
+    { amount_cents: amountCents, currency, reference, sender_iban: senderIban },
     (pendingRows ?? []) as PendingTopup[],
+    knownAdvertiserIds,
   );
 
-  const { error: settleErr } = await supabase.rpc("wise_record_and_settle", {
-    p_external_id: externalId,
-    p_amount_cents: amountCents,
-    p_currency: currency,
-    p_reference: reference,
-    p_topup_id: match.matched ? match.topupId : null,
-    p_note: match.matched ? `auto-matched via ${match.via}` : match.reason,
-  });
+  const { data: settleData, error: settleErr } = await supabase.rpc(
+    "wise_record_and_settle",
+    {
+      p_external_id: externalId,
+      p_amount_cents: amountCents,
+      p_currency: currency,
+      p_reference: reference,
+      p_topup_id: match.matched ? match.topupId : null,
+      p_note: match.matched ? `auto-matched via ${match.via}` : match.reason,
+    },
+  );
   if (settleErr) {
     return { status: 500, body: { error: "Settle failed" } };
+  }
+
+  // Learn the sender → advertiser link on a CONFIDENT match (reference
+  // is the only signal that proves the account), so future no-reference
+  // payments from this bank auto-match. Never learn from a sender-only
+  // or amount-only match (would reinforce a guess).
+  if (
+    match.matched &&
+    match.via === "reference" &&
+    senderIban &&
+    settleData
+  ) {
+    const settled = Array.isArray(settleData) ? settleData[0] : settleData;
+    const topup = (pendingRows ?? []).find(
+      (t: { id: string }) => t.id === match.topupId,
+    ) as { advertiser_id?: string } | undefined;
+    const tenantId = (settled as { tenant_id?: string } | undefined)?.tenant_id;
+    if (topup?.advertiser_id && tenantId) {
+      await supabase.rpc("wise_remember_sender", {
+        p_tenant_id: tenantId,
+        p_advertiser_id: topup.advertiser_id,
+        p_sender_iban: senderIban,
+        p_sender_name: senderName,
+      });
+    }
   }
 
   return {

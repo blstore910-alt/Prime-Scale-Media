@@ -12,6 +12,7 @@ const topup = (over: Partial<PendingTopup>): PendingTopup => ({
   amount: 500,
   currency: "USD",
   status: "pending",
+  advertiser_id: "adv-1",
   ...over,
 });
 
@@ -94,6 +95,60 @@ describe("matchIncomingTransfer", () => {
         topup({ id: "b", reference_no: 1483181999 }),
         topup({ id: "c", reference_no: 1483181222 }),
       ],
+    );
+    assert.equal(res.matched, true);
+    if (res.matched) {
+      assert.equal(res.topupId, "b");
+      assert.equal(res.via, "reference");
+    }
+  });
+
+  it("known sender rescues same-amount collision (no reference)", () => {
+    // Two customers both have a pending $500 topup, no reference.
+    // Amount alone is ambiguous, but the sender IBAN is known to be
+    // advertiser adv-2 → matches theirs.
+    const res = matchIncomingTransfer(
+      { amount_cents: 50000, currency: "USD", reference: null },
+      [
+        topup({ id: "a", advertiser_id: "adv-1" }),
+        topup({ id: "b", advertiser_id: "adv-2" }),
+      ],
+      ["adv-2"],
+    );
+    assert.equal(res.matched, true);
+    if (res.matched) {
+      assert.equal(res.topupId, "b");
+      assert.equal(res.via, "sender");
+    }
+  });
+
+  it("same payer, multiple accounts, same amount, no reference → review", () => {
+    // One customer runs 3 accounts from the same bank, each with a
+    // pending $500 topup, and sent no reference. The sender is known
+    // but can't disambiguate which account → manual review.
+    const res = matchIncomingTransfer(
+      { amount_cents: 50000, currency: "USD", reference: null },
+      [
+        topup({ id: "a", advertiser_id: "adv-9" }),
+        topup({ id: "b", advertiser_id: "adv-9" }),
+        topup({ id: "c", advertiser_id: "adv-9" }),
+      ],
+      ["adv-9"],
+    );
+    assert.equal(res.matched, false);
+  });
+
+  it("same payer multiple accounts BUT reference given → exact match", () => {
+    // Same 3-account payer, but this time the reference is included —
+    // it pins the exact topup regardless of the shared bank.
+    const res = matchIncomingTransfer(
+      { amount_cents: 50000, currency: "USD", reference: "1483181999" },
+      [
+        topup({ id: "a", advertiser_id: "adv-9", reference_no: 1483181111 }),
+        topup({ id: "b", advertiser_id: "adv-9", reference_no: 1483181999 }),
+        topup({ id: "c", advertiser_id: "adv-9", reference_no: 1483181222 }),
+      ],
+      ["adv-9"],
     );
     assert.equal(res.matched, true);
     if (res.matched) {
