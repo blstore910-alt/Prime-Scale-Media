@@ -50,6 +50,13 @@ const publicRoutes = [
   // /api/me/export lives under authenticated routes; not public
 ];
 
+// Prefix-matched public routes. These have no user session by design
+// and enforce their OWN auth (webhook secret / signature, cron
+// secret / x-vercel-cron). Without this, the middleware redirects
+// them to /auth/login (a 307) and the external caller — Wise, Vercel
+// Cron — sees a broken URL.
+const publicPrefixes = ["/api/webhooks/", "/api/cron/"];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -99,7 +106,11 @@ export async function updateSession(request: NextRequest) {
   trackReferralCookie(request, supabaseResponse);
 
   // If it's not a public route, then it must be a protected route, and if user not present, redirect to login
-  if (!publicRoutes.includes(request.nextUrl.pathname) && !user) {
+  const pathname = request.nextUrl.pathname;
+  const isPublic =
+    publicRoutes.includes(pathname) ||
+    publicPrefixes.some((p) => pathname.startsWith(p));
+  if (!isPublic && !user) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
