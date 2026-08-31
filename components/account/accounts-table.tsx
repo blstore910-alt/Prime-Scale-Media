@@ -32,7 +32,7 @@ import { Parser } from "json2csv";
 import { ClipboardList, FileDown, Filter, Loader2, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import CreateTopupDialog from "../topups/create-topup-dialog";
 import BulkTopupAdAccountsDialog from "../topups/bulk-ad-accounts-topup-dialog";
 import { Button } from "../ui/button";
@@ -53,7 +53,7 @@ export default function AccountsTable() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
   );
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
 
   const [account, setAccount] = useState<AdAccount | null>(null);
   const [accountToEdit, setAccountToEdit] = useState<AdAccount | null>(null);

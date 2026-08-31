@@ -17,7 +17,7 @@ import { formatCurrency, getURL } from "@/lib/utils";
 import { Copy, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import AffiliateCommissionsDialog from "./affiliate-commissions-dialog";
 import { formatNumber } from "./format";
 import { MyReferral } from "./types";
@@ -86,7 +86,7 @@ export default function MyAffiliatesTable() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
 
   const initialQ = searchParams?.get("q") ?? "";
   const initialPage = parseInt(searchParams?.get("page") ?? "1", 10) || 1;

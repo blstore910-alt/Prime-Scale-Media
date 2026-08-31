@@ -36,7 +36,7 @@ import useExchangeRates from "../settings/finance/use-exchange-rates";
 import { useAppContext } from "@/context/app-provider";
 import { bulkCreateTopupsAsAdmin } from "@/actions/topup-actions";
 import { Coins } from "lucide-react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 
 type BulkTopupRow = {
   account_id: string;
@@ -174,7 +174,7 @@ export default function BulkTopupAdAccountsDialog({
   const { exchangeRates } = useExchangeRates({ activeOnly: true });
   const isAdmin = profile?.role === "admin";
   const isAdvertiser = profile?.role === "advertiser";
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const bulkTopupSchema = useMemo(
     () => buildBulkTopupSchema(isAdvertiser),
     [isAdvertiser],

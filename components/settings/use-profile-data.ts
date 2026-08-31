@@ -15,14 +15,21 @@ export function useProfileData() {
 
       if (!user) throw new Error("Not authenticated");
 
-      // Fetch Profile
+      // Fetch Profile. A user can legitimately have more than one
+      // user_profiles row (multi-tenant access) — .single() throws
+      // 406 in that case. Take the oldest row (first created_at)
+      // which matches the app-layout's tie-breaker, so both surfaces
+      // resolve to the same profile.
       const { data: profile, error: profileError } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("user_id", user.id)
-        .single();
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
       if (profileError) throw profileError;
+      if (!profile) throw new Error("Profile not found");
 
       // Fetch Advertiser associated with profile (only exists for
       // advertisers; admins/super-admins have no advertiser row).

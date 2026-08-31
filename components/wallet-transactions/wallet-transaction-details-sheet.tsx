@@ -13,7 +13,7 @@ import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 
 type UserProfileMini = {
   id: string;
@@ -107,7 +107,7 @@ export default function WalletTransactionDetailsSheet({
   const approvedByEmail = topup?.approved_by_profile?.email ?? "-";
   const hasApprovedBy =
     Boolean(topup?.approved_by_profile) || Boolean(topup?.approved_by);
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

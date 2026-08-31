@@ -16,7 +16,7 @@ import { useAppContext } from "@/context/app-provider";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import useInvoices from "./use-invoices";
 import CreateInvoiceDialog from "./create-invoice-dialog";
 import InvoiceCard from "./invoice-card";
@@ -36,7 +36,7 @@ export default function InvoicesTable() {
   );
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const perPage = 10;
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
 

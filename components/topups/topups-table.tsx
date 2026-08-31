@@ -25,7 +25,7 @@ import RejectTopupDialog from "./reject-topup-dialog";
 import TopupCard from "./topup-card";
 import { TopupDetailsSheet } from "./topup-details-sheet";
 
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import TopupRow from "./topup-row";
 import TopupsFilters from "./topups-filters";
 import useRecentTopups from "./use-recent-topups";
@@ -62,7 +62,7 @@ export default function TopupsTable() {
   const [perPage] = useState<number>(initialPerPage);
   const [openTopupDialog, setOpenTopupDialog] = useState(false);
   const [topupType, setTopupType] = useState("");
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const { data: recentTopups } = useRecentTopups();
   const rateLimitStatus = useMemo(() => {
     if (isAdmin || !recentTopups) return null;

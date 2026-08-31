@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { useEffect, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import { MyReferral } from "./types";
 import useAffiliateCommissions from "./use-affiliate-commissions";
 import { COMMISSION_TYPE_LABELS } from "@/lib/constants";
@@ -37,7 +37,7 @@ export default function AffiliateCommissionsDialog({
 }: Props) {
   const [page, setPage] = useState(1);
   const perPage = 10;
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
 
   useEffect(() => {
     setPage(1);

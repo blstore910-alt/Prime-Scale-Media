@@ -33,7 +33,7 @@ import CommissionSetupDialog from "./commission-setup-dialog";
 import UserRow from "./user-row";
 import TablePagination from "@/components/ui/table-pagination";
 import UserCard from "./user-card";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 
 export interface Profile extends UserProfile {
   advertiser: Advertiser[];
@@ -65,7 +65,7 @@ export default function UserTable() {
   const [debouncedSearch, setDebouncedSearch] = useState(initialQ);
   const [page, setPage] = useState<number>(initialPage);
   const [perPage] = useState<number>(initialPerPage);
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const [advertiserId, setAdvertiserId] = useState<string>("");
   const [commissionAdvertiser, setCommissionAdvertiser] =
     useState<Advertiser | null>(null);

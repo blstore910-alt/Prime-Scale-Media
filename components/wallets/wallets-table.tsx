@@ -31,7 +31,7 @@ import {
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -65,7 +65,7 @@ const sortOptions = [
 export default function WalletsTable() {
   const { wallets, isLoading, isError, error } = useWallets();
   const { profile, isSuperAdmin } = useAppContext();
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const isAdmin = profile?.role === "admin";
 
   const [search, setSearch] = useState("");

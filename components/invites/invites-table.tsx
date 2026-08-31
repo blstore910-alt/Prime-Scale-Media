@@ -40,7 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import InviteCard from "./invite-card";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 
 export default function InvitesTable() {
   const supabase = createClient();
@@ -76,7 +76,7 @@ export default function InvitesTable() {
       return { items: data ?? [], total: count ?? 0 };
     },
   });
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const invites = invitesData?.items ?? [];
   const total = invitesData?.total ?? 0;
 

@@ -19,7 +19,7 @@ import {
 import TablePagination from "@/components/ui/table-pagination";
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import useWalletTransactions from "./use-wallet-transactions";
 import WalletTransactionCard from "./wallet-transaction-card";
 import WalletTransactionDetailsSheet from "./wallet-transaction-details-sheet";
@@ -62,7 +62,10 @@ export default function WalletTransactionsTable({
   const [selectedTopupId, setSelectedTopupId] = useState<string | null>(null);
   const [topupToApprove, setTopupToApprove] =
     useState<WalletTopupWithAdvertiser | null>(null);
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  // SSR-safe: defaults to tablet layout on server + first client
+  // render so hydration doesn't mismatch. Post-mount value takes
+  // over on the second render.
+  const isTabletScreen = useIsTablet() ?? true;
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400);

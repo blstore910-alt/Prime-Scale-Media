@@ -22,7 +22,7 @@ import dayjs from "dayjs";
 import { Eye } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import AdAccountRequestCard from "./ad-account-request-card";
 import AdAccountRequestReviewDialog from "./ad-account-request-review-dialog";
 import AdAccountRequestRejectDialog from "./ad-account-request-reject-dialog";
@@ -55,7 +55,7 @@ export default function AdAccountRequestsTable() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const queryClient = useQueryClient();
 
   const initialSort = searchParams?.get("sort") ?? "newest";

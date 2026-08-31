@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import {
   Select,
   SelectContent,
@@ -42,7 +42,7 @@ export default function ActivityLogsTable() {
   const [page, setPage] = useState(1);
   const perPage = 50;
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
 
   useEffect(() => {
     setPage(1);

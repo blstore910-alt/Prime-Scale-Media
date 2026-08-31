@@ -29,7 +29,7 @@ import { AlertCircle, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import InvoiceCard from "@/components/invoices/invoice-card";
 import { toast } from "sonner";
 import {
@@ -57,7 +57,7 @@ export default function MySubscriptionView() {
   const { profile } = useAppContext();
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const tenantId = profile?.tenant_id ?? null;
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const [page, setPage] = useState(1);
   const perPage = 5;
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<

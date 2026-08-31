@@ -18,7 +18,7 @@ import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import CommissionCard from "./commission-card";
 import CommissionRow from "./commission-row";
 import CommissionsFilters from "./commissions-filters";
@@ -43,7 +43,7 @@ export default function CommissionsTable() {
   const pathname = usePathname();
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
 
   const initialCurrency = searchParams?.get("currency") ?? "all";
   const initialCommissionType = searchParams?.get("commissionType") ?? "all";

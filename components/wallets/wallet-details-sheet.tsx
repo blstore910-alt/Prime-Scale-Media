@@ -19,7 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { WalletWithAdvertiser } from "@/lib/types/wallet";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, XIcon } from "lucide-react";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import WalletTransactionsTable from "../wallet/wallet-transactions-table";
 
 const formatAmount = (value: number | string | null | undefined) => {
@@ -40,7 +40,7 @@ export default function WalletDetailsSheet({
   walletId: string | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const {
     data: wallet,
     isLoading,

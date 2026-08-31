@@ -15,7 +15,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import TablePagination from "@/components/ui/table-pagination";
-import { useMediaQuery } from "usehooks-ts";
+import { useIsTablet } from "@/hooks/use-is-tablet";
 import AffiliateTableRow, {
   ReferralLinkRow,
 } from "@/components/affiliate/affiliate-table-row";
@@ -27,7 +27,7 @@ const EMPTY_VALUE = "N/A";
 export default function AffiliatesTable() {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
-  const isTabletScreen = useMediaQuery("(min-width: 768px)");
+  const isTabletScreen = useIsTablet() ?? true;
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
