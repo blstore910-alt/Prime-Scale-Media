@@ -58,13 +58,34 @@ type WiseEvent = {
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
 
-  // Wise sends the signature in this header (base64 RSA-SHA256).
+  // Two accepted ways to prove the request is really from Wise, in
+  // order of strength:
+  //   1. RSA signature verified against Wise's public key
+  //      (WISE_PUBLIC_KEY) — the robust path.
+  //   2. A shared secret you set on the webhook URL as ?secret=… and
+  //      in WISE_WEBHOOK_SECRET — the easy path when you can't get
+  //      Wise's public key. Still gates access; anyone without the
+  //      secret is rejected.
+  // At least one must be configured, and the request must pass it.
+  const configuredSecret = process.env.WISE_WEBHOOK_SECRET;
+  const urlSecret = req.nextUrl.searchParams.get("secret");
+  const secretOk =
+    !!configuredSecret && !!urlSecret && urlSecret === configuredSecret;
+
   const signature =
     req.headers.get("x-signature-sha256") ??
     req.headers.get("x-signature") ??
     "";
-  if (!signature || !verifyWiseSignature(rawBody, signature)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  const signatureOk =
+    !!process.env.WISE_PUBLIC_KEY &&
+    !!signature &&
+    verifyWiseSignature(rawBody, signature);
+
+  if (!secretOk && !signatureOk) {
+    return NextResponse.json(
+      { error: "Unverified webhook" },
+      { status: 401 },
+    );
   }
 
   let event: WiseEvent;
