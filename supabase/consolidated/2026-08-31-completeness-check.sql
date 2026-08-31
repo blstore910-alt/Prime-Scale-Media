@@ -79,10 +79,13 @@ select
        when has_audit then 'ok' else 'GAP' end                         as audit,
   case when not has_updated_at then 'n/a'
        when has_touch then 'ok' else 'GAP' end                         as touch,
-  case when has_updated_at then 'yes' else 'no' end                    as has_upd_at
+  case when has_updated_at then 'yes' else 'no' end                    as has_upd_at,
+  case when (not exists_in_db) or (not rls_enabled) or (not has_audit)
+            or (has_updated_at and not has_touch) then '<<< GAP' else '' end  as flag
 from flags
 order by
-  -- surface any GAP first
+  -- surface any GAP first (repeat the predicate — SELECT aliases can't
+  -- be used inside an ORDER BY expression in Postgres)
   (case when not exists_in_db then 0
         when not rls_enabled or not has_audit then 0
         when has_updated_at and not has_touch then 0
