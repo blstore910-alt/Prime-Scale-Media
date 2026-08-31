@@ -53,17 +53,24 @@ begin
       return new;
     end if;
 
-    -- Is this advertiser referred by an affiliate?
+    -- Is this advertiser referred by an APPROVED affiliate? A link
+    -- only earns once an admin has moved it to 'active' — pending and
+    -- rejected links never accrue. (The status column may not exist
+    -- on an older DB; the coalesce keeps this working either way.)
     select rl.id,
            rl.tenant_id,
            rl.commission_type,
            rl.commission_pct,
-           rl.commission_currency
+           rl.commission_currency,
+           coalesce(rl.status, 'active') as status
       into v_link
       from public.referral_links rl
      where rl.referred_advertiser_id = v_advertiser_id
      limit 1;
     if not found then
+      return new;
+    end if;
+    if v_link.status <> 'active' then
       return new;
     end if;
 

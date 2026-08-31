@@ -140,9 +140,51 @@ export async function assignAffiliateToAdvertiser(
       commission_onetime: affiliate.commission_onetime,
       commission_monthly: affiliate.commission_monthly,
       commission_currency: affiliate.commission_currency,
+      // An admin manually creating the link IS the approval, so it
+      // goes straight to active (self-signup links start pending).
+      status: "active",
     })
     .select("id")
     .single();
   if (insertError) return { ok: false, error: insertError.message };
   return { ok: true, data: { id: inserted.id } };
+}
+
+// ─────────────────────────────────────────
+// referral_links: admin approves / rejects a pending referral.
+// Only an approved (active) link accrues commission — see the
+// _accrue_referral_commission trigger.
+// ─────────────────────────────────────────
+export async function setReferralLinkStatus(
+  referralLinkId: string,
+  status: "active" | "rejected",
+): Promise<ActionResult> {
+  if (typeof referralLinkId !== "string" || referralLinkId.length === 0) {
+    return { ok: false, error: "Invalid input" };
+  }
+  if (status !== "active" && status !== "rejected") {
+    return { ok: false, error: "Invalid status" };
+  }
+
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  const { data: link } = await supabase
+    .from("referral_links")
+    .select("id, tenant_id")
+    .eq("id", referralLinkId)
+    .maybeSingle();
+  if (!link) return { ok: false, error: "Referral not found" };
+  if (link.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const { error } = await supabase
+    .from("referral_links")
+    .update({ status })
+    .eq("id", referralLinkId)
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
 }

@@ -106,7 +106,31 @@ export default function AffiliatesTable() {
       const { data, error, count } = await query.range(start, end);
 
       if (error) throw error;
-      return { items: (data ?? []) as ReferralLinkRow[], total: count ?? 0 };
+      const rows = (data ?? []) as ReferralLinkRow[];
+
+      // The details VIEW is hand-authored and may not expose the
+      // status column added to referral_links. Fetch statuses
+      // directly and merge so the approve/reject control always has
+      // the real value (defaults to 'active' if the column is
+      // genuinely absent on an older DB).
+      const ids = rows.map((r) => r.id).filter(Boolean);
+      if (ids.length > 0) {
+        const { data: statusRows } = await supabase
+          .from("referral_links")
+          .select("id, status")
+          .in("id", ids);
+        const byId = new Map(
+          (statusRows ?? []).map((s: { id: string; status: string | null }) => [
+            s.id,
+            s.status,
+          ]),
+        );
+        for (const r of rows) {
+          if (byId.has(r.id)) r.status = byId.get(r.id) ?? r.status ?? "active";
+        }
+      }
+
+      return { items: rows, total: count ?? 0 };
     },
   });
 
@@ -136,7 +160,7 @@ export default function AffiliatesTable() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const colCount = 8;
+  const colCount = 9; // +1 for the Status/action column
   const loadingState = isLoading || (!!tenantId && !referralLinksData);
 
   if (!profile) {
@@ -181,6 +205,7 @@ export default function AffiliatesTable() {
                 <TableHead>Commission Recurring</TableHead>
                 <TableHead>Earnings USD</TableHead>
                 <TableHead>Earnings EUR</TableHead>
+                <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

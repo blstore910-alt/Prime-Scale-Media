@@ -185,6 +185,9 @@ async function finalizeAdvertiserSignup(params: {
           commission_monthly: referralAdvertiser.commission_monthly,
           commission_pct: referralAdvertiser.commission_pct,
           commission_onetime: referralAdvertiser.commission_onetime,
+          // Self-signup referrals start pending — an admin approves
+          // the affiliate before any commission accrues.
+          status: "pending",
         });
       if (affiliateError) {
         return redirectWithError(request, affiliateError.message);

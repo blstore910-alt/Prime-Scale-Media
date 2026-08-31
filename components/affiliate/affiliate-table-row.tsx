@@ -4,6 +4,7 @@ import { COMMISSION_TYPE_LABELS } from "@/lib/constants";
 import { Badge } from "../ui/badge";
 import { TableCell, TableRow } from "../ui/table";
 import { formatCurrency } from "@/lib/utils";
+import ReferralStatusAction from "./referral-status-action";
 
 export type ReferralLinkRow = {
   id: string;
@@ -16,6 +17,7 @@ export type ReferralLinkRow = {
   commission_pct: number | null;
   commission_onetime: number | null;
   commission_type: string | null;
+  status: string | null;
   earnings_usd: number | null;
   earnings_eur: number | null;
   referred_advertiser_email: string | null;
@@ -95,6 +97,12 @@ export default function AffiliateTableRow({
       </TableCell>
       <TableCell className="tabular-nums">
         {formatCurrency(referral.earnings_eur as number, "EUR")}
+      </TableCell>
+      <TableCell className="text-right">
+        <ReferralStatusAction
+          referralLinkId={referral.id}
+          status={referral.status}
+        />
       </TableCell>
     </TableRow>
   );
