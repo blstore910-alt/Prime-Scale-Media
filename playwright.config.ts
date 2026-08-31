@@ -48,7 +48,7 @@ export default defineConfig({
     // flow specs that expect that role.
     {
       name: "super-admin",
-      testMatch: /flows\/super-admin\/.*\.spec\.ts$/,
+      testMatch: /(flows\/super-admin|tours)\/.*\.spec\.ts$/,
       dependencies: ["role-setup"],
       use: {
         ...devices["Desktop Chrome"],
@@ -57,7 +57,7 @@ export default defineConfig({
     },
     {
       name: "admin",
-      testMatch: /flows\/admin\/.*\.spec\.ts$/,
+      testMatch: /(flows\/admin|tours)\/.*\.spec\.ts$/,
       dependencies: ["role-setup"],
       use: {
         ...devices["Desktop Chrome"],
@@ -66,7 +66,7 @@ export default defineConfig({
     },
     {
       name: "advertiser",
-      testMatch: /flows\/advertiser\/.*\.spec\.ts$/,
+      testMatch: /(flows\/advertiser|tours)\/.*\.spec\.ts$/,
       dependencies: ["role-setup"],
       use: {
         ...devices["Desktop Chrome"],
