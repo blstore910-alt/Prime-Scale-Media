@@ -54,6 +54,9 @@ type RefundRow = {
   status: string;
   reason: string | null;
   payout_details: string | null;
+  payout_business_name: string | null;
+  payout_address: string | null;
+  payout_bank_currency: string | null;
   created_at: string;
   advertiser: AdvertiserOption | null;
 };
@@ -73,7 +76,7 @@ export default function RefundPanel() {
       const { data, error } = await supabase
         .from("wallet_refunds")
         .select(
-          "id, reference, amount, currency, status, reason, payout_details, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
+          "id, reference, amount, currency, status, reason, payout_details, payout_business_name, payout_address, payout_bank_currency, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
         )
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
@@ -181,8 +184,29 @@ export default function RefundPanel() {
                   <TableCell className="font-mono font-semibold tabular-nums">
                     {formatCurrency(Number(r.amount), r.currency)}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
-                    {r.payout_details ?? "—"}
+                  <TableCell className="max-w-[240px] text-xs text-muted-foreground">
+                    {r.payout_business_name || r.payout_details ? (
+                      <div className="space-y-0.5">
+                        {r.payout_business_name && (
+                          <div className="font-medium text-foreground">
+                            {r.payout_business_name}
+                          </div>
+                        )}
+                        {r.payout_address && (
+                          <div className="truncate">{r.payout_address}</div>
+                        )}
+                        {r.payout_details && (
+                          <div className="font-mono truncate">
+                            {r.payout_details}
+                            {r.payout_bank_currency
+                              ? ` · ${r.payout_bank_currency}`
+                              : ""}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -257,6 +281,9 @@ function RefundRequestDialog({
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [reason, setReason] = useState("");
   const [payoutDetails, setPayoutDetails] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [address, setAddress] = useState("");
+  const [bankCurrency, setBankCurrency] = useState<"USD" | "EUR" | "HKD">("EUR");
 
   const { data: advertisers } = useQuery({
     queryKey: ["refund-advertisers", tenantId],
@@ -283,6 +310,9 @@ function RefundRequestDialog({
         currency,
         reason: reason.trim() || undefined,
         payout_details: payoutDetails.trim() || undefined,
+        business_name: businessName.trim() || undefined,
+        address: address.trim() || undefined,
+        bank_currency: bankCurrency,
       });
       if (!res.ok) throw new Error(res.error);
     },
@@ -293,6 +323,8 @@ function RefundRequestDialog({
       setAmount("");
       setReason("");
       setPayoutDetails("");
+      setBusinessName("");
+      setAddress("");
       onOpenChange(false);
     },
     onError: (e: Error) =>
@@ -372,17 +404,60 @@ function RefundRequestDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rf-payout">Payout details (IBAN / bank)</Label>
-            <Input
-              id="rf-payout"
-              placeholder="Where to send the refund — IBAN, name, bank"
-              value={payoutDetails}
-              onChange={(e) => setPayoutDetails(e.target.value)}
-            />
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Where to pay — the owner uses this to send the money
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="rf-biz">Business name</Label>
+              <Input
+                id="rf-biz"
+                placeholder="Account holder / company name"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rf-addr">Address</Label>
+              <Input
+                id="rf-addr"
+                placeholder="Street, city, country"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="rf-payout">IBAN / bank account</Label>
+                <Input
+                  id="rf-payout"
+                  placeholder="IBAN or account number"
+                  value={payoutDetails}
+                  onChange={(e) => setPayoutDetails(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rf-bankcur">Bank currency</Label>
+                <Select
+                  value={bankCurrency}
+                  onValueChange={(v: "USD" | "EUR" | "HKD") =>
+                    setBankCurrency(v)
+                  }
+                >
+                  <SelectTrigger id="rf-bankcur">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="HKD">HKD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground">
-              The app doesn&apos;t store bank details — add them here so the
-              owner knows where to pay.
+              The wallet is debited in {currency}; the customer&apos;s account
+              can be a different currency (the owner converts on payout).
             </p>
           </div>
         </div>

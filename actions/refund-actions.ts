@@ -16,6 +16,9 @@ export async function requestWalletRefund(input: {
   currency: "USD" | "EUR";
   reason?: string;
   payout_details?: string;
+  business_name?: string;
+  address?: string;
+  bank_currency?: "USD" | "EUR" | "HKD";
 }): Promise<ActionResult<{ id: string }>> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
@@ -38,6 +41,9 @@ export async function requestWalletRefund(input: {
     p_currency: input.currency,
     p_reason: input.reason ?? null,
     p_payout_details: input.payout_details ?? null,
+    p_business_name: input.business_name ?? null,
+    p_address: input.address ?? null,
+    p_bank_currency: input.bank_currency ?? null,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
   const row = Array.isArray(data) ? data[0] : data;
