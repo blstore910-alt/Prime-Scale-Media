@@ -199,15 +199,11 @@ export default function WalletTopupDialog({
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from("wallet_payment_slips")
-        .getPublicUrl(filePath);
-
-      if (!data?.publicUrl) {
-        throw new Error("Unable to fetch payment slip URL.");
-      }
-
-      setPaymentSlipUrl(data.publicUrl);
+      // Store the bucket PATH, not a public URL — the bucket is
+      // private (bank receipts are PII). Admins read it later through
+      // a short-lived signed URL minted server-side. See
+      // actions/payment-slip-actions.ts.
+      setPaymentSlipUrl(filePath);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Unknown upload error.";
