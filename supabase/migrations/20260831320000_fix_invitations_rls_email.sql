@@ -20,10 +20,17 @@
 
 set search_path = public;
 
+-- Admin check is inlined (not _is_admin_of) so this policy has no
+-- dependency on that helper existing/matching in the live DB.
 drop policy if exists invitations_select_admin on public.invitations;
 create policy invitations_select_admin on public.invitations
   for select using (
-    _is_admin_of(tenant_id)
+    exists (
+      select 1 from public.user_profiles up
+      where up.user_id = auth.uid()
+        and up.tenant_id = invitations.tenant_id
+        and up.role = 'admin'
+    )
     or (
       email is not null
       and lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
