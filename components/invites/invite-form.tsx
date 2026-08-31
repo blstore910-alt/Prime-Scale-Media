@@ -49,6 +49,7 @@ type InviteFormValues = z.output<typeof inviteBaseSchema>;
 export default function InviteForm() {
   const { state, dispatch } = useAppContext();
   const [loading, setLoading] = useState(false);
+  const [fallbackLink, setFallbackLink] = useState<string | null>(null);
   const supabase = createClient();
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -93,10 +94,17 @@ export default function InviteForm() {
 
       const data = await res.json();
       if (data.success) {
-        toast.success(data.message);
         queryClient.invalidateQueries({ queryKey: ["invites"] });
-        form.reset();
-        dispatch("close-invite-user");
+        if (data.emailSent === false && data.inviteLink) {
+          // Email provider failed — keep the dialog open and surface
+          // the link so the admin can copy + share it manually.
+          setFallbackLink(data.inviteLink as string);
+          toast.warning(data.message);
+        } else {
+          toast.success(data.message);
+          form.reset();
+          dispatch("close-invite-user");
+        }
       }
     } catch (error) {
       console.error(error);
@@ -108,7 +116,10 @@ export default function InviteForm() {
   return (
     <Dialog
       open={state.inviteUserOpen}
-      onOpenChange={() => dispatch("close-invite-user")}
+      onOpenChange={() => {
+        setFallbackLink(null);
+        dispatch("close-invite-user");
+      }}
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -173,6 +184,38 @@ export default function InviteForm() {
                 </p>
               )}
             </div>
+
+            {fallbackLink && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                <p className="text-xs text-amber-900 dark:text-amber-100">
+                  The email couldn&apos;t be sent, but the invite was created.
+                  Copy this link and share it directly:
+                </p>
+                <div className="flex items-center gap-2">
+                  <InputGroupInput
+                    readOnly
+                    value={fallbackLink}
+                    className="text-xs"
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(fallbackLink);
+                        toast.success("Link copied");
+                      } catch {
+                        toast.error("Couldn't copy — select and copy manually");
+                      }
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <DialogFooter>

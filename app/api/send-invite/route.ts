@@ -186,17 +186,35 @@ export async function POST(request: NextRequest) {
       </div>
     `;
 
-    await sendEmail({
-      to: email,
-      subject: `You're invited to join ${tenant.name} on PSM Dashboard`,
-      text: ``,
-      html,
-    });
+    // The invitation row is already committed. Sending the email is
+    // best-effort — if the mail provider is down, the invite still
+    // exists and the admin can copy the link from the response. Don't
+    // let an email failure 500 the whole request and strand the
+    // invite with no way to reach it.
+    let emailSent = false;
+    try {
+      await sendEmail({
+        to: email,
+        subject: `You're invited to join ${tenant.name} on PSM Dashboard`,
+        text: ``,
+        html,
+      });
+      emailSent = true;
+    } catch (mailErr) {
+      console.error(
+        "send-invite email failed (invite still created):",
+        mailErr instanceof Error ? mailErr.message : "unknown",
+      );
+    }
 
     return NextResponse.json(
       {
         success: true,
-        message: "Invitation email sent successfully.",
+        emailSent,
+        inviteLink,
+        message: emailSent
+          ? "Invitation email sent."
+          : "Invite created, but the email couldn't be sent. Copy the link and share it manually.",
       },
       { status: 200 },
     );
