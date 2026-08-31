@@ -26,6 +26,13 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Wise (and most webhook registrars) probe the URL for reachability
+// when you register it — often a GET. Answer 200 so the URL validates.
+// No secrets are exposed; the real work + auth is on POST.
+export async function GET() {
+  return NextResponse.json({ ok: true, endpoint: "wise-webhook" });
+}
+
 function verifyWiseSignature(rawBody: string, signature: string): boolean {
   const publicKey = process.env.WISE_PUBLIC_KEY;
   if (!publicKey) {
