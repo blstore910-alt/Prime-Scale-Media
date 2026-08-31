@@ -111,7 +111,6 @@ export const PLATFORMS = [
   { label: "Meta-EU-Premium", value: "eu-meta-premium" },
   { label: "Meta-EU-PSM", value: "eu-meta-psm" },
   { label: "Meta-EU-PSM-GH", value: "eu-meta-psm-gh" },
-  { label: "Meta-EU-GDN", value: "eu-meta-gdn" },
   { label: "Google", value: "google" },
   { label: "Tiktok", value: "tiktok" },
 ];

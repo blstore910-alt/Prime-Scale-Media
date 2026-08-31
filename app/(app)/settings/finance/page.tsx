@@ -1,5 +1,5 @@
 import ExchangeRates from "@/components/settings/finance/exchange-rates";
-import FeeDefaultsCard from "@/components/settings/finance/fee-defaults";
+import AdAccountTypesCard from "@/components/settings/finance/ad-account-types";
 import React from "react";
 
 export default function Page() {
@@ -7,7 +7,7 @@ export default function Page() {
     <>
       <ExchangeRates />
       <section className="max-w-xl mx-auto mt-6 mb-10">
-        <FeeDefaultsCard />
+        <AdAccountTypesCard />
       </section>
     </>
   );

@@ -1,5 +1,6 @@
 import { ensureInitialExchangeRates } from "@/actions/exchange-rate-actions";
 import { ensureInitialFeeDefaults } from "@/actions/fee-default-actions";
+import { ensureInitialAdAccountTypes } from "@/actions/ad-account-type-actions";
 import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
 import {
@@ -76,6 +77,11 @@ export function AppProvider({
     ensureInitialFeeDefaults().catch(() => {
       // Same — seed missing fee_defaults so /settings/finance and topup
       // fee resolution have a baseline to work with on a fresh tenant.
+    });
+    ensureInitialAdAccountTypes().catch(() => {
+      // Same — seed the ad-account types so the create form and the
+      // /settings/finance types screen have the baseline set on a fresh
+      // tenant (the migration seeds existing tenants; this covers new).
     });
   }, [profile.role]);
 

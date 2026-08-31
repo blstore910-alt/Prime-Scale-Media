@@ -137,6 +137,7 @@ declare
     'referral_links',
     'ad_accounts',
     'ad_account_requests',
+    'ad_account_types',
     'advertisers',
     'affiliates',
     'user_profiles',

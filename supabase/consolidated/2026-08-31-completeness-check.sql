@@ -28,7 +28,8 @@ with business_tables as (
     'ad_account_requests','advertisers','affiliates','user_profiles',
     'tenants','invitations','fee_defaults','integration_jobs',
     'ad_account_withdrawals','wallet_refunds','wallet_adjustments',
-    'wallet_precharges','wise_incoming_transfers','advertiser_bank_senders'
+    'wallet_precharges','wise_incoming_transfers','advertiser_bank_senders',
+    'ad_account_types'
   ]) as table_name
 ),
 flags as (

@@ -4,11 +4,13 @@ import InputField from "@/components/form/input-field";
 import SelectField from "@/components/form/select-field";
 import { useAppContext } from "@/context/app-provider";
 import { PLATFORMS } from "@/lib/constants";
+import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
+import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Resolver, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -69,6 +71,15 @@ export default function CreateAdAccountFromRequestDialog({
 }) {
   const { user } = useAppContext();
   const queryClient = useQueryClient();
+  const { types, bySlug } = useAdAccountTypes();
+
+  const metaOptions = useMemo(
+    () =>
+      types
+        .filter((t) => t.platform_group === "meta")
+        .map((t) => ({ label: t.label, value: t.slug })),
+    [types],
+  );
 
   const defaultPlatform = useMemo(
     () => mapRequestedPlatform(request?.platform || null),
@@ -94,6 +105,18 @@ export default function CreateAdAccountFromRequestDialog({
     });
   }, [open, request?.id, request?.platform, form]);
 
+  // Auto-fill the fee from the selected type's default when the platform
+  // changes (still editable). Ref-guarded so mount doesn't clobber.
+  const watchedPlatform = form.watch("platform");
+  const prevPlatformRef = useRef(watchedPlatform);
+  useEffect(() => {
+    if (watchedPlatform && watchedPlatform !== prevPlatformRef.current) {
+      const t = bySlug.get(watchedPlatform);
+      if (t) form.setValue("fee", t.default_fee_pct);
+    }
+    prevPlatformRef.current = watchedPlatform;
+  }, [watchedPlatform, bySlug, form]);
+
   const metadata =
     (request?.metadata as Record<string, unknown> | null | undefined) ?? null;
   const { mutate, isPending } = useMutation({
@@ -110,7 +133,10 @@ export default function CreateAdAccountFromRequestDialog({
       );
       const result = await createAdAccountFromRequest(request.id, {
         name: values.name,
-        bm_id: values.platform.includes("meta") ? toBmId(metadata) : null,
+        bm_id:
+          platformGroupFromSlug(values.platform) === "meta"
+            ? toBmId(metadata)
+            : null,
         fee: values.fee,
         currency: request.currency,
         platform: values.platform,
@@ -177,16 +203,17 @@ export default function CreateAdAccountFromRequestDialog({
                 name="platform"
                 id="request-platform-select"
                 control={form.control}
-                options={META_PLATFORM_OPTIONS}
+                options={metaOptions.length ? metaOptions : META_PLATFORM_OPTIONS}
                 placeholder="Select Meta Platform"
               />
             ) : (
               <div className="rounded-md border px-3 py-2 text-sm">
                 <span className="text-muted-foreground">Platform:</span>{" "}
                 <span className="font-medium">
-                  {PLATFORMS.find(
-                    (platform) => platform.value === form.watch("platform"),
-                  )?.label ||
+                  {bySlug.get(form.watch("platform"))?.label ||
+                    PLATFORMS.find(
+                      (platform) => platform.value === form.watch("platform"),
+                    )?.label ||
                     form.watch("platform") ||
                     "-"}
                 </span>

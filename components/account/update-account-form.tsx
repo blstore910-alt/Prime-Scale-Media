@@ -14,7 +14,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { PLATFORMS, TIMEZONES } from "@/lib/constants";
+import { TIMEZONES } from "@/lib/constants";
+import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
+import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccount } from "@/lib/types/account";
 import InputField from "../form/input-field";
 import SelectField from "../form/select-field";
@@ -46,7 +48,8 @@ const validations = z
     personal_facebook_profile_link: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.platform === "google") {
+    const group = platformGroupFromSlug(data.platform);
+    if (group === "google") {
       if (!data.google_email) {
         ctx.addIssue({
           code: "custom",
@@ -62,7 +65,7 @@ const validations = z
       }
     }
 
-    if (data.platform === "tiktok") {
+    if (group === "tiktok") {
       if (!data.tiktok_business_center_id) {
         ctx.addIssue({
           code: "custom",
@@ -92,7 +95,7 @@ const validations = z
       }
     }
 
-    if (data.platform.includes("meta")) {
+    if (group === "meta") {
       if (!data.facebook_business_manager_id) {
         ctx.addIssue({
           code: "custom",
@@ -308,12 +311,20 @@ export default function UpdateAccountForm({
   const queryClient = useQueryClient();
   const { updateAccount, isPending } = useUpdateAccount();
 
+  const { options: typeOptions, bySlug } = useAdAccountTypes();
+  const selectedGroup =
+    bySlug.get(selectedPlatform)?.platform_group ??
+    platformGroupFromSlug(selectedPlatform);
+
   const handleUpdateAccount = (values: FormValues) => {
     let metadata: Record<string, unknown> = {};
 
-    if (values.platform === "google") {
+    const group =
+      bySlug.get(values.platform)?.platform_group ??
+      platformGroupFromSlug(values.platform);
+    if (group === "google") {
       metadata = { google_email: values.google_email };
-    } else if (values.platform === "tiktok") {
+    } else if (group === "tiktok") {
       metadata = {
         tiktok_business_center_id: values.tiktok_business_center_id,
         tiktok_email: values.tiktok_email,
@@ -323,7 +334,7 @@ export default function UpdateAccountForm({
             .map((country) => country.trim())
             .filter(Boolean) || [],
       };
-    } else if (values.platform.includes("meta")) {
+    } else if (group === "meta") {
       metadata = {
         facebook_business_manager_id: values.facebook_business_manager_id,
         personal_facebook_profile_link: values.personal_facebook_profile_link,
@@ -375,7 +386,7 @@ export default function UpdateAccountForm({
             name="platform"
             id="update-platform-select"
             control={control}
-            options={PLATFORMS}
+            options={typeOptions}
             placeholder="Select"
           />
 
@@ -428,9 +439,9 @@ export default function UpdateAccountForm({
             placeholder="Select Timezone"
           />
 
-          {selectedPlatform === "google" && <GoogleFields control={control} />}
-          {selectedPlatform === "tiktok" && <TikTokFields control={control} />}
-          {selectedPlatform && selectedPlatform.includes("meta") && (
+          {selectedGroup === "google" && <GoogleFields control={control} />}
+          {selectedGroup === "tiktok" && <TikTokFields control={control} />}
+          {selectedGroup === "meta" && (
             <MetaFields control={control} setValue={setValue} />
           )}
 
