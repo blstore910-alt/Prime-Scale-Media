@@ -2,11 +2,27 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
   | { ok: false; error: string };
+
+// Per-user throttle for a customer-initiated financial request.
+// Returns the caller id (for reuse) or an error result.
+async function throttleFinancial(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  const { data } = await supabase.auth.getUser();
+  const uid = data.user?.id;
+  if (!uid) return { ok: false, error: "Unauthorized" };
+  const allowed = await rateLimitCheck(LIMITS.financialRequest, `user:${uid}`);
+  if (!allowed) {
+    return { ok: false, error: "Too many requests — try again later." };
+  }
+  return { ok: true, userId: uid };
+}
 
 // ─────────────────────────────────────────
 // requestAdAccountWithdrawal — advertiser
@@ -23,6 +39,10 @@ export async function requestAdAccountWithdrawal(input: {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
 
+  const supabase = await createClient();
+  const gate = await throttleFinancial(supabase);
+  if (!gate.ok) return gate;
+
   const amount = Number(input?.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
     return { ok: false, error: "Enter a positive amount." };
@@ -34,7 +54,6 @@ export async function requestAdAccountWithdrawal(input: {
     return { ok: false, error: "Pick an ad account." };
   }
 
-  const supabase = await createClient();
   const { data, error } = await supabase.rpc("ad_account_withdrawal_request", {
     p_ad_account_id: input.ad_account_id,
     p_amount: amount,

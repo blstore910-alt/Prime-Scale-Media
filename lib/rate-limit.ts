@@ -62,4 +62,13 @@ export const LIMITS = {
   // per user so a runaway script or accidental button-mash doesn't
   // knock over the DB.
   gdprExport: { bucket: "gdpr-export", max: 10, windowSeconds: 3600 },
+  // Customer-initiated financial requests (wallet top-up, ad-account
+  // request, ad-account withdrawal). Generous for a human, but stops a
+  // scripted/compromised account from flooding the admin queue. Keyed
+  // per user.
+  financialRequest: {
+    bucket: "financial-request",
+    max: 30,
+    windowSeconds: 3600,
+  },
 } as const;
