@@ -7,6 +7,7 @@ import {
   IconAd,
   IconCashRegister,
   IconDashboard,
+  IconMailForward,
   IconReceipt,
   IconWallet,
   IconUsers,
@@ -29,6 +30,31 @@ const navItemsAdvertiser = [
     title: "Dashboard",
     href: "/dashboard",
     icon: IconDashboard,
+  },
+  {
+    title: "Wallet",
+    href: "/wallet",
+    icon: IconWallet,
+  },
+  {
+    title: "Invoices",
+    href: "/invoices",
+    icon: IconReceipt,
+  },
+];
+
+// items shown to affiliates — trimmed advertiser set (no ad accounts /
+// topups; they refer and earn).
+const navItemsAffiliate = [
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: IconDashboard,
+  },
+  {
+    title: "Referrals",
+    href: "/my-referrals",
+    icon: IconMailForward,
   },
   {
     title: "Wallet",
@@ -77,7 +103,11 @@ export function MobileNav() {
 
   // pick appropriate set based on role
   const navItems =
-    profile?.role === "admin" ? navItemsAdmin : navItemsAdvertiser;
+    profile?.role === "admin"
+      ? navItemsAdmin
+      : profile?.role === "affiliate"
+        ? navItemsAffiliate
+        : navItemsAdvertiser;
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-lg">

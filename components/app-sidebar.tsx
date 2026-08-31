@@ -84,6 +84,42 @@ const advertiserNavItems = {
   ],
 };
 
+// Affiliate Navigation Items — a trimmed advertiser menu. Affiliates
+// refer and earn; they don't run ad accounts, so the ad-specific items
+// (My Ad Accounts, Topups, My Subscription) are dropped. They keep the
+// same pages/version as advertisers for everything they do see.
+const affiliateNavItems = {
+  main: [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboardIcon,
+    },
+    {
+      title: "My Referrals",
+      url: "/my-referrals",
+      icon: IconMailForward,
+    },
+    {
+      title: "Wallet",
+      url: "/wallet",
+      icon: Wallet,
+    },
+    {
+      title: "Invoices",
+      url: "/invoices",
+      icon: IconReceipt,
+    },
+  ],
+  secondary: [
+    {
+      title: "Get Help",
+      url: "/help",
+      icon: HelpCircleIcon,
+    },
+  ],
+};
+
 // Admin Navigation Items with Sections
 const getAdminNavItems = (isSuperAdmin: boolean) => ({
   main: [
@@ -244,12 +280,18 @@ function AdminSidebarContent({
   );
 }
 
-// Component for rendering advertiser sidebar
-function AdvertiserSidebarContent() {
+// Component for rendering end-user (advertiser / affiliate) sidebar.
+// Both share the same pages/version; the affiliate just gets a trimmed
+// item set (no ad accounts / topups / subscription).
+function EndUserSidebarContent({
+  nav,
+}: {
+  nav: { main: NavMainItem[]; secondary: NavMainItem[] };
+}) {
   return (
     <>
-      <NavMain items={advertiserNavItems.main} />
-      <NavSecondary items={advertiserNavItems.secondary} className="mt-auto" />
+      <NavMain items={nav.main} />
+      <NavSecondary items={nav.secondary} className="mt-auto" />
     </>
   );
 }
@@ -283,7 +325,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               />
             </>
           ) : (
-            <AdvertiserSidebarContent />
+            <EndUserSidebarContent
+              nav={
+                profile?.role === "affiliate"
+                  ? affiliateNavItems
+                  : advertiserNavItems
+              }
+            />
           )}
         </SidebarContent>
         <SidebarFooter>
