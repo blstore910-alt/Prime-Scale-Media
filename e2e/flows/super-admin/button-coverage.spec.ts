@@ -43,6 +43,9 @@ const SKIP_LABELS = [
   /approve/i,
   /verify/i,
   /confirm/i,
+  /deactivate/i, // would disable a real account (bit us once)
+  /activate/i,
+  /suspend/i,
   /^send/i,
   /^save/i, // avoid saving edited forms with default values
   /^submit/i,

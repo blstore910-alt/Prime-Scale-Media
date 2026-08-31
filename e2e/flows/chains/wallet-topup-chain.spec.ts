@@ -44,14 +44,19 @@ test("wallet topup travels advertiser → super-admin queue → balance", async 
     await expect(advertiser).toHaveURL(/\/wallet/);
     await advertiser.waitForTimeout(2000);
 
-    // Any digits-with-decimals on the page — this test only cares
-    // that the balance is a number we can compare against later.
+    // The seed credits the advertiser wallet with USD 750 + EUR 300.
+    // Assert BOTH show — this is the "check that the numbers are
+    // correct" the user asked for, wired as a hard assertion so a
+    // regression in the balance-crediting path fails the suite.
     const beforeBody = (await advertiser.locator("body").textContent()) ?? "";
-    console.log(
-      `  before: body has numbers matching ${
-        beforeBody.match(/\d[\d,]*\.\d{2}/)?.[0] ?? "none"
-      }`,
+    const normalized = beforeBody.replace(/ /g, " ");
+    expect(normalized, "wallet should show the seeded USD 750").toMatch(
+      /750(\.00|,00)?/,
     );
+    expect(normalized, "wallet should show the seeded EUR 300").toMatch(
+      /300(\.00|,00)?/,
+    );
+    console.log("  advertiser wallet shows seeded USD 750 + EUR 300 ✓");
 
     // ─────────────────────────────────────────────────────────────
     // 2. Advertiser clicks Add Balance → dialog opens. We just
@@ -84,7 +89,14 @@ test("wallet topup travels advertiser → super-admin queue → balance", async 
 
     const queueBody = (await admin.locator("body").textContent()) ?? "";
     expect(queueBody).toMatch(/topup|wallet/i);
-    console.log("  queue rendered — admin sees the wallet-topups page");
+    // The seed leaves one pending $100 wallet top-up. On the default
+    // "pending" filter the admin queue should surface a 100 amount.
+    // Soft check (logged) — the exact rendering depends on filter
+    // state, so we don't hard-fail if the queue defaulted elsewhere.
+    const hasPending = /100(\.00|,00)?/.test(queueBody);
+    console.log(
+      `  admin queue rendered — pending $100 visible: ${hasPending ? "yes" : "not on current filter"}`,
+    );
 
     // ─────────────────────────────────────────────────────────────
     // 4. Negative case: same admin cannot navigate to advertiser-only

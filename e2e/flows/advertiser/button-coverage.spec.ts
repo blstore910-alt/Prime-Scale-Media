@@ -17,6 +17,7 @@ const PAGES = [
 const SKIP_LABELS = [
   /sign out/i, /log out/i,
   /^delete/i, /^remove/i, /revoke/i,
+  /deactivate/i, /activate/i, /suspend/i,
   /^send/i, /^save/i, /^submit/i,
 ];
 

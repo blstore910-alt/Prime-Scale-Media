@@ -32,8 +32,8 @@ on conflict (id) do update set
   user_id = excluded.user_id,
   tenant_id = excluded.tenant_id,
   role = excluded.role,
-  status = excluded.status,
-  is_active = excluded.is_active;
+  status = 'active',
+  is_active = true;
 
 select public.ensure_advertiser_and_wallet('a4444444-4444-4444-4444-444444444444'::uuid);
 select public.ensure_advertiser_and_wallet('a5555555-5555-5555-5555-555555555555'::uuid);

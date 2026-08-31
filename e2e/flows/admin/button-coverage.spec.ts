@@ -20,6 +20,7 @@ const SKIP_LABELS = [
   /sign out/i, /log out/i,
   /^delete/i, /^remove/i, /revoke/i,
   /reject/i, /approve/i, /verify/i, /confirm/i,
+  /deactivate/i, /activate/i, /suspend/i,
   /^send/i, /^save/i, /^submit/i,
 ];
 
