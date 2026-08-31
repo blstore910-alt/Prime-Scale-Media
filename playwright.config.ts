@@ -82,5 +82,16 @@ export default defineConfig({
         storageState: "playwright/.auth/affiliate.json",
       },
     },
+
+    // Chain specs that drive multiple browser contexts in ONE test
+    // (advertiser session + admin session in parallel). They open
+    // their own contexts from the storage state files themselves —
+    // no project-level storageState.
+    {
+      name: "chains",
+      testMatch: /flows\/chains\/.*\.spec\.ts$/,
+      dependencies: ["role-setup"],
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
 });
