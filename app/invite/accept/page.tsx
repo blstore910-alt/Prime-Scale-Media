@@ -27,11 +27,17 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     .eq("token", token)
     .maybeSingle();
 
-  if (userData.user.email !== data?.email) {
+  if (error) throw new Error(error.message);
+
+  // Case-insensitive email match (the RLS policy compares lower(email)),
+  // so a case difference between the invite and the account doesn't
+  // wrongly bounce a valid invitee to /dashboard.
+  if (
+    !data ||
+    userData.user.email?.toLowerCase() !== data.email?.toLowerCase()
+  ) {
     redirect("/dashboard");
   }
-
-  if (error) throw new Error(error.message);
 
   if (new Date(data.expires_at) < new Date()) {
     return (

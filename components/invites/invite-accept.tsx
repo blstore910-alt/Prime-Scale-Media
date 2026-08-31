@@ -18,7 +18,12 @@ type InviteAcceptProps = {
 };
 
 export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
-  const { tenant } = invite;
+  // The invitee isn't a tenant member yet, so RLS can leave the embedded
+  // `tenant` null. The tenant id we actually need lives on the invitation
+  // row itself; the name is display-only and degrades gracefully.
+  const tenant = invite.tenant;
+  const tenantId = invite.tenant_id ?? tenant?.id;
+  const tenantName = tenant?.name ?? "this organization";
   const router = useRouter();
 
   const [loadingState, setLoadingState] = useState<InvitationStatus | null>(
@@ -29,7 +34,7 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
     const payload = {
       status,
       role: invite.role,
-      tenant_id: tenant.id,
+      tenant_id: tenantId,
       invite_id: invite.id,
     };
 
@@ -83,9 +88,9 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
         <CardContent className="text-center space-y-4">
           <div className="flex justify-center items-center gap-4">
             <Avatar className="size-12">
-              <AvatarFallback>{getInitials(tenant.name)}</AvatarFallback>
+              <AvatarFallback>{getInitials(tenantName)}</AvatarFallback>
             </Avatar>
-            <h4 className="text-sm">{tenant.name}</h4>
+            <h4 className="text-sm">{tenantName}</h4>
           </div>
           <div className="flex justify-center gap-4">
             <Button
