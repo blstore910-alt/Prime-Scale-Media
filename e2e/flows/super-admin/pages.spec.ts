@@ -16,6 +16,7 @@ const PAGES = [
   { url: "/invoices",            name: "Invoices" },
   { url: "/wallets",             name: "Wallets" },
   { url: "/wallet-topups",       name: "Wallet Topups" },
+  { url: "/withdrawals",         name: "Withdrawals & Precharge" },
   { url: "/affiliates",          name: "Referral Links" },
   { url: "/commissions",         name: "Referral Commissions" },
   { url: "/settings/finance",    name: "Finance Settings" },
