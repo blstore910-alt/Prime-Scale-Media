@@ -31,7 +31,10 @@ export default function AdvertiserLayout({
             <AppHeader />
             <PushNotificationManager />
             {children}
-            <div className="h-12"></div>
+            {/* Clear the fixed mobile bottom nav (h-16 = 64px) so a
+                page's last content (e.g. a Save button) isn't hidden
+                behind it. Smaller on desktop where the nav is hidden. */}
+            <div className="h-24 lg:h-12"></div>
           </SidebarInset>
           <Toaster position="top-right" />
 
