@@ -294,15 +294,16 @@ function AssignAffiliateDialog({
           ) : (
             <UserPlus />
           )}
-          Assign Affiliate to {userName}
+          Set referrer
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Assign Affiliate to {userName}</DialogTitle>
+          <DialogTitle>Who referred {userName}?</DialogTitle>
           <DialogDescription>
-            Select an advertiser. The commission setup shown below is copied
-            from that advertiser into the new referral link.
+            Pick the advertiser who referred {userName}. They become{" "}
+            {userName}&apos;s affiliate and earn commission on {userName}&apos;s
+            topups. Their commission setup is copied into the referral link.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -312,7 +313,7 @@ function AssignAffiliateDialog({
           <SelectField
             control={form.control}
             id="affiliate-advertiser-select"
-            label="Affiliate Advertiser"
+            label="Referring advertiser (the affiliate)"
             name="affiliateAdvertiserId"
             options={options}
             placeholder={
@@ -618,10 +619,14 @@ function EmptyAffiliateState({
 }) {
   return (
     <div className="border-t pt-4">
-      <h3 className="font-semibold">Assign Affiliate to {userName}</h3>
+      <h3 className="font-semibold">Referrer for {userName}</h3>
+      <p className="text-xs text-muted-foreground">
+        The advertiser who referred {userName} (earns commission on their
+        topups).
+      </p>
       {!isLoadingOptions && !hasAffiliates ? (
-        <p className=" text-sm text-muted-foreground">
-          No other advertisers are available to assign as the affiliate.
+        <p className="mt-1 text-sm text-muted-foreground">
+          No other advertisers available to set as the referrer yet.
         </p>
       ) : null}
     </div>
