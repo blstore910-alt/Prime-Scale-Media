@@ -4,7 +4,10 @@ export type NotificationType =
   | "ad_account_request_created"
   | "user_profile_created"
   | "wallet_topup_created"
-  | "integration_failure";
+  | "integration_failure"
+  | "subscription_invoice"
+  | "subscription_past_due"
+  | "subscription_changed";
 
 export type NotificationAuthor = {
   id: string;
@@ -40,6 +43,18 @@ export type IntegrationFailureNotificationPayload = {
   detail?: string;
 };
 
+export type SubscriptionInvoiceNotificationPayload = {
+  invoice_id?: string;
+  amount?: number;
+  currency?: string;
+};
+
+export type SubscriptionChangedNotificationPayload = {
+  amount?: number;
+  currency?: string;
+  action?: string;
+};
+
 export interface NotificationPayloadByType {
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
@@ -47,6 +62,9 @@ export interface NotificationPayloadByType {
   user_profile_created: UserProfileCreatedNotificationPayload;
   wallet_topup_created: WalletTopupCreatedNotificationPayload;
   integration_failure: IntegrationFailureNotificationPayload;
+  subscription_invoice: SubscriptionInvoiceNotificationPayload;
+  subscription_past_due: SubscriptionInvoiceNotificationPayload;
+  subscription_changed: SubscriptionChangedNotificationPayload;
 }
 
 export type NotificationPayload =

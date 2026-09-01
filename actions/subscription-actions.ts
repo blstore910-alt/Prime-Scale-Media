@@ -155,3 +155,52 @@ export async function setSubscriptionStatus(
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: null };
 }
+
+// ─────────────────────────────────────────
+// changeSubscriptionAmount — mid-term plan change
+// ─────────────────────────────────────────
+// Delegates to the change_subscription_amount RPC, which voids/reissues
+// the current period's invoice (or reconciles a paid one) and updates
+// the subscription. The RPC re-checks admin authority server-side; the
+// tenant guard here is defense in depth.
+export async function changeSubscriptionAmount(
+  subscriptionId: string,
+  newAmount: number,
+  newCurrency?: "EUR" | "USD",
+): Promise<ActionResult<{ action: string }>> {
+  if (typeof subscriptionId !== "string" || subscriptionId.length === 0) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const amount = Number(newAmount);
+  if (!Number.isFinite(amount) || amount < 0) {
+    return { ok: false, error: "Amount must be zero or positive" };
+  }
+  if (newCurrency && newCurrency !== "EUR" && newCurrency !== "USD") {
+    return { ok: false, error: "Invalid currency" };
+  }
+
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("id, tenant_id")
+    .eq("id", subscriptionId)
+    .maybeSingle();
+  if (!sub) return { ok: false, error: "Subscription not found" };
+  if (sub.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const { data, error } = await supabase.rpc("change_subscription_amount", {
+    p_subscription_id: subscriptionId,
+    p_new_amount: amount,
+    p_new_currency: newCurrency ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  const action =
+    (data as { action?: string } | null)?.action ?? "updated";
+  return { ok: true, data: { action } };
+}

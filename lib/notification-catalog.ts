@@ -23,6 +23,24 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    type: "subscription_invoice",
+    label: "Subscription invoice",
+    description: "When a new monthly subscription invoice is issued.",
+    audience: "customer",
+  },
+  {
+    type: "subscription_past_due",
+    label: "Subscription past due",
+    description: "When a subscription payment couldn't be collected.",
+    audience: "customer",
+  },
+  {
+    type: "subscription_changed",
+    label: "Subscription changed",
+    description: "When your subscription amount is updated.",
+    audience: "customer",
+  },
+  {
     type: "topup_created",
     label: "New top-up request",
     description: "When a customer submits a top-up that needs verifying.",

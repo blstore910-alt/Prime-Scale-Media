@@ -90,6 +90,30 @@ function buildPushFromRecord(record: NotificationRecord) {
       };
     }
 
+    case "subscription_invoice": {
+      return {
+        title: "New subscription invoice",
+        body: "Your monthly subscription invoice is ready. Pay from your wallet.",
+        url: "/my-subscription",
+      };
+    }
+
+    case "subscription_past_due": {
+      return {
+        title: "Subscription past due",
+        body: "We couldn't collect your subscription. Please top up your wallet.",
+        url: "/my-subscription",
+      };
+    }
+
+    case "subscription_changed": {
+      return {
+        title: "Subscription updated",
+        body: "Your subscription amount has been changed.",
+        url: "/my-subscription",
+      };
+    }
+
     default:
       return {
         title: "New notification",

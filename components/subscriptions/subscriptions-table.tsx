@@ -15,10 +15,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import CreateSubscriptionDialog from "./create-subscription-dialog";
+import ChangeSubscriptionAmountDialog from "./change-subscription-amount-dialog";
 import { resolveStatusFromQuery } from "./subscription-utils";
 import SubscriptionRow from "./subscription-row";
 import SubscriptionsFilters from "./subscriptions-filters";
-import { SubscriptionStatus } from "./types";
+import { Subscription, SubscriptionStatus } from "./types";
 import useSubscriptions from "./use-subscriptions";
 import useUpdateSubscriptionStatus from "./use-update-subscription-status";
 
@@ -48,6 +49,7 @@ export default function SubscriptionsTable() {
     Number.parseInt(searchParams?.get("page") ?? "1", 10) || 1,
   );
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [amountEditSub, setAmountEditSub] = useState<Subscription | null>(null);
 
   const handleStatusChange = (value: SubscriptionStatus | "all") => {
     setStatus(value);
@@ -214,6 +216,7 @@ export default function SubscriptionsTable() {
                         "Subscription resumed successfully.",
                       )
                     }
+                    onChangeAmount={() => setAmountEditSub(subscription)}
                   />
                 ))
               ) : (
@@ -242,6 +245,14 @@ export default function SubscriptionsTable() {
       <CreateSubscriptionDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+      />
+
+      <ChangeSubscriptionAmountDialog
+        subscription={amountEditSub}
+        open={!!amountEditSub}
+        onOpenChange={(value) => {
+          if (!value) setAmountEditSub(null);
+        }}
       />
     </>
   );

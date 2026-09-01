@@ -1,7 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Loader2, MinusCircle, PauseCircle, PlayCircle } from "lucide-react";
+import {
+  Loader2,
+  MinusCircle,
+  PauseCircle,
+  Pencil,
+  PlayCircle,
+} from "lucide-react";
 import {
   formatSubscriptionDate,
   getStatusBadgeClassName,
@@ -18,6 +24,7 @@ type SubscriptionRowProps = {
   onDisable: () => void;
   onPause: () => void;
   onUnpause: () => void;
+  onChangeAmount: () => void;
 };
 
 function getAdvertiserName(subscription: Subscription) {
@@ -35,6 +42,7 @@ export default function SubscriptionRow({
   onDisable,
   onPause,
   onUnpause,
+  onChangeAmount,
 }: SubscriptionRowProps) {
   return (
     <TableRow>
@@ -66,6 +74,17 @@ export default function SubscriptionRow({
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-2 justify-end">
+          <Button
+            size="sm"
+            onClick={onChangeAmount}
+            disabled={isPending}
+            variant="outline"
+            title="Change the monthly amount"
+          >
+            <Pencil />
+            Amount
+          </Button>
+
           {subscription.status === "inactive" && (
             <Button
               size="sm"
