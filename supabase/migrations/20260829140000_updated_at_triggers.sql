@@ -58,7 +58,8 @@ declare
     'tenants',
     'invitations',
     'fee_defaults',
-    'integration_jobs'
+    'integration_jobs',
+    'bank_ledger_entries'
   ];
 begin
   foreach t in array audited loop

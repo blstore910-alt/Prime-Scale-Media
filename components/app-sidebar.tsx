@@ -14,6 +14,7 @@ import {
   HelpCircleIcon,
   History,
   LayoutDashboardIcon,
+  Scale,
   ScrollText,
   SettingsIcon,
   Wallet,
@@ -100,11 +101,9 @@ const affiliateNavItems = {
       url: "/my-referrals",
       icon: IconMailForward,
     },
-    {
-      title: "Wallet",
-      url: "/wallet",
-      icon: Wallet,
-    },
+    // No "Wallet" for affiliates — /wallet is advertiser-only (it would
+    // bounce them to the admin /wallets page). Affiliate earnings live
+    // under My Referrals; a dedicated earnings view can come later.
     {
       title: "Invoices",
       url: "/invoices",
@@ -175,6 +174,11 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
           title: "Withdrawals",
           url: "/withdrawals",
           icon: IconCashRegister,
+        },
+        {
+          title: "Reconciliation",
+          url: "/reconciliation",
+          icon: Scale,
         },
       ],
     },

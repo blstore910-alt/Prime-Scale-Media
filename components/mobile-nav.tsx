@@ -56,11 +56,7 @@ const navItemsAffiliate = [
     href: "/my-referrals",
     icon: IconMailForward,
   },
-  {
-    title: "Wallet",
-    href: "/wallet",
-    icon: IconWallet,
-  },
+  // No Wallet for affiliates — /wallet is advertiser-only.
   {
     title: "Invoices",
     href: "/invoices",
