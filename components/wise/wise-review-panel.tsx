@@ -28,7 +28,22 @@ type WiseRow = {
   note: string | null;
   suggested_topup_id: string | null;
   created_at: string;
+  sender_name: string | null;
+  sender_iban: string | null;
 };
+
+function shortDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 const STATUS_STYLES: Record<string, string> = {
   suggested: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
@@ -53,7 +68,7 @@ export default function WiseReviewPanel() {
       const { data, error } = await supabase
         .from("wise_incoming_transfers")
         .select(
-          "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at",
+          "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban",
         )
         .order("created_at", { ascending: false })
         .limit(100);
@@ -104,8 +119,8 @@ export default function WiseReviewPanel() {
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-muted">
             <TableRow>
-              <TableHead>Amount</TableHead>
-              <TableHead>Reference</TableHead>
+              <TableHead>Amount &amp; date</TableHead>
+              <TableHead>Reference &amp; sender</TableHead>
               <TableHead>Result</TableHead>
               <TableHead>Note</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -130,20 +145,48 @@ export default function WiseReviewPanel() {
             ) : (
               rows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-mono font-semibold tabular-nums">
-                    {r.currency} {(r.amount_cents / 100).toFixed(2)}
+                  <TableCell className="align-top">
+                    <div className="font-mono font-semibold tabular-nums">
+                      {r.currency} {(r.amount_cents / 100).toFixed(2)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {shortDate(r.created_at)}
+                    </div>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {r.reference ?? "—"}
+                  <TableCell className="align-top">
+                    <div
+                      className={`font-mono text-xs ${r.reference ? "" : "italic text-muted-foreground"}`}
+                    >
+                      {r.reference || "no reference"}
+                    </div>
+                    {r.sender_name && (
+                      <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                        {r.sender_name}
+                      </div>
+                    )}
+                    {r.sender_iban && (
+                      <div className="text-[11px] text-muted-foreground font-mono">
+                        {r.sender_iban}
+                      </div>
+                    )}
+                    <div
+                      className="text-[10px] text-muted-foreground/70 font-mono truncate max-w-[180px]"
+                      title={r.external_id}
+                    >
+                      Wise: {r.external_id}
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
                     <Badge
                       className={`${STATUS_STYLES[r.status] ?? ""} border-transparent capitalize`}
                     >
                       {r.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-[240px] truncate text-xs text-muted-foreground">
+                  <TableCell
+                    className="align-top max-w-[240px] truncate text-xs text-muted-foreground"
+                    title={r.note ?? undefined}
+                  >
                     {r.note ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
