@@ -106,10 +106,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (createError) {
-      console.error("signup createUser failed:", safeErrorMessage(createError));
+      const msg = safeErrorMessage(createError);
+      console.error("signup createUser failed:", msg);
+      const alreadyExists = /already|registered|exists|duplicate/i.test(msg);
       return NextResponse.json(
-        { success: false, message: "Failed to create user" },
-        { status: 500 },
+        {
+          success: false,
+          message: alreadyExists
+            ? "This email already has an account — log in instead of accepting the invite."
+            : `Could not create the account: ${msg}`,
+        },
+        { status: alreadyExists ? 409 : 500 },
       );
     }
 
