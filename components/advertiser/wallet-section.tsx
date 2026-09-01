@@ -201,18 +201,21 @@ export default function WalletSection() {
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2 pt-2">
-            <Button
-              onClick={handleAddBalance}
-              disabled={isCreating || walletLoading}
-              className="w-full"
-            >
-              {isCreating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              Add Balance
-            </Button>
+            {/* Affiliates don't fund a wallet — no topup for them. */}
+            {profile?.role !== "affiliate" && (
+              <Button
+                onClick={handleAddBalance}
+                disabled={isCreating || walletLoading}
+                className="w-full"
+              >
+                {isCreating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Add Balance
+              </Button>
+            )}
 
             <Button
               variant="outline"

@@ -124,15 +124,18 @@ export default function WalletView() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => handleAddBalance()}
-              disabled={!wallet || isCreating || isLoading}
-            >
-              <Plus className="h-4 w-4" />
-              Add Balance
-            </Button>
+            {/* Affiliates don't fund a wallet — hide topup for them. */}
+            {profile?.role !== "affiliate" && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => handleAddBalance()}
+                disabled={!wallet || isCreating || isLoading}
+              >
+                <Plus className="h-4 w-4" />
+                Add Balance
+              </Button>
+            )}
 
             <Button
               size="sm"
