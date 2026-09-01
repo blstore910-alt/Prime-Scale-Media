@@ -9,12 +9,18 @@ import { redirect } from "next/navigation";
 import React from "react";
 
 import AdvertiserLayout from "@/components/advertiser/layout";
+import AffiliateLayout from "@/components/affiliate/layout";
 import { UserRole } from "@/lib/types/user";
 import { cookies } from "next/headers";
 
+// Every real role MUST map to a layout that provides QueryClientProvider +
+// AppProvider. A missing role fell through to React.Fragment, which renders
+// pages with NO providers → any react-query hook throws "No QueryClient
+// set" (this is exactly what broke the affiliate area after signup).
 const ROLE_LAYOUTS = {
   admin: AdminLayout,
   advertiser: AdvertiserLayout,
+  affiliate: AffiliateLayout,
 };
 
 export default async function AppLayout({
