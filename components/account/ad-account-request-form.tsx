@@ -14,6 +14,8 @@ import { TIMEZONES } from "@/lib/constants";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from "@/context/app-provider";
+import { createClient } from "@/lib/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { useCreateAdAccountRequest } from "@/hooks/use-create-ad-account-request";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
@@ -250,6 +252,44 @@ export default function AdAccountRequestForm({
   const selectedCurrency = watch("currency");
   const liveValues = watch();
 
+  // Wallet-impact preview: fee is €50 (EUR) or the rounded USD equivalent
+  // via the active rate; show current balance + balance after.
+  const advertiserId = profile?.advertiser?.[0]?.id ?? null;
+  const { data: feePreview } = useQuery({
+    queryKey: ["request-fee-preview", advertiserId, profile?.tenant_id],
+    enabled: !!advertiserId && !!profile?.tenant_id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const [w, r] = await Promise.all([
+        supabase
+          .from("wallets")
+          .select("usd_balance, eur_balance")
+          .eq("advertiser_id", advertiserId)
+          .maybeSingle(),
+        supabase
+          .from("exchange_rates")
+          .select("eur")
+          .eq("tenant_id", profile?.tenant_id)
+          .eq("is_active", true)
+          .maybeSingle(),
+      ]);
+      return {
+        usd: Number(w.data?.usd_balance ?? 0),
+        eur: Number(w.data?.eur_balance ?? 0),
+        rate: Number(r.data?.eur) || 0.86,
+      };
+    },
+  });
+
+  const feeAmount =
+    selectedCurrency === "EUR"
+      ? 50
+      : Math.round(50 / (feePreview?.rate || 0.86));
+  const feeSymbol = selectedCurrency === "USD" ? "$" : "€";
+  const feeBalance =
+    selectedCurrency === "USD" ? (feePreview?.usd ?? 0) : (feePreview?.eur ?? 0);
+  const feeEnough = feeBalance >= feeAmount;
+
   const draft = useFormDraft<FormValues>({
     formKey: "ad-account-request",
     values: liveValues,
@@ -318,6 +358,27 @@ export default function AdAccountRequestForm({
   return (
     <>
       <form id="ad-account-request-form" onSubmit={handleSubmit(onSubmit)}>
+        {/* Wallet impact — the €50 (or USD-equivalent) request fee. */}
+        <div
+          className={`mb-4 rounded-md border p-3 text-sm ${
+            feeEnough ? "bg-muted/30" : "border-destructive/50 bg-destructive/5"
+          }`}
+        >
+          <div className="font-medium">
+            Ad-account request fee: {feeSymbol}
+            {feeAmount}
+          </div>
+          <div className="text-muted-foreground text-xs mt-0.5">
+            Charged from your wallet when you submit. Balance: {feeSymbol}
+            {feeBalance.toFixed(2)} → {feeSymbol}
+            {(feeBalance - feeAmount).toFixed(2)}
+          </div>
+          {!feeEnough && (
+            <div className="text-destructive text-xs mt-1 font-medium">
+              Not enough balance — top up before requesting.
+            </div>
+          )}
+        </div>
         {draft.hasDraft && draft.restoredDraft && (
           <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
             <div className="flex-1 text-xs">
@@ -502,7 +563,7 @@ export default function AdAccountRequestForm({
         <Button
           type="submit"
           form="ad-account-request-form"
-          disabled={isPending}
+          disabled={isPending || !feeEnough}
         >
           <span>{isPending ? "Submitting..." : "Submit Request"}</span>
         </Button>
