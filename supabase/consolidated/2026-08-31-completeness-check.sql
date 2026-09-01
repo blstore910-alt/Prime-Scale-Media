@@ -29,7 +29,7 @@ with business_tables as (
     'tenants','invitations','fee_defaults','integration_jobs',
     'ad_account_withdrawals','wallet_refunds','wallet_adjustments',
     'wallet_precharges','wise_incoming_transfers','advertiser_bank_senders',
-    'ad_account_types','bank_ledger_entries'
+    'ad_account_types','bank_ledger_entries','plans'
   ]) as table_name
 ),
 flags as (
