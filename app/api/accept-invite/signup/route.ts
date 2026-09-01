@@ -189,6 +189,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Turn the invitation's plan into a live subscription (best-effort —
+    // a failure here shouldn't strand a created account; the admin can
+    // add the sub manually). monthly_fee = 0 → no sub.
+    const { error: subError } = await supabase.rpc(
+      "create_subscription_from_invite",
+      { p_invite_id: validInvite.id },
+    );
+    if (subError) {
+      console.error(
+        "signup subscription-from-invite failed:",
+        safeErrorMessage(subError),
+      );
+    }
+
     // NOTE: sign-in happens CLIENT-side after this returns (the browser
     // needs the auth cookies). Signing in here on the admin/service-role
     // client set no browser session and only risked a spurious 500.

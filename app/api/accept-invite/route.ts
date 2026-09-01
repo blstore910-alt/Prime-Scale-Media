@@ -163,6 +163,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Turn the invitation's plan into a subscription (best-effort).
+  const { error: subError } = await supabase.rpc(
+    "create_subscription_from_invite",
+    { p_invite_id: invite_id },
+  );
+  if (subError) {
+    console.error(
+      "accept-invite subscription-from-invite failed:",
+      safeErrorMessage(subError),
+    );
+  }
+
   const res = NextResponse.json(
     {
       success: true,
