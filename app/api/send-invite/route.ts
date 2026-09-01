@@ -186,8 +186,9 @@ export async function POST(request: NextRequest) {
       token,
       expires_at,
       role,
-      // Affiliate fields (validated above)
-      affiliate_id,
+      // Referrer + commission fields are super-admin only (same gate).
+      // A plain admin's affiliate_id is dropped rather than linking.
+      affiliate_id: callerCommissionAllowed ? affiliate_id : null,
       commission_type,
       commission_rate,
       commission_amount,

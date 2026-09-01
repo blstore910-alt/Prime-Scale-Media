@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -45,6 +45,8 @@ const inviteBaseSchema = z.object({
     message: "Please select a role",
   }),
   plan_id: z.string().optional(),
+  community_id: z.string().optional(),
+  affiliate_id: z.string().optional(),
   monthly_fee: z.coerce.number().min(0).optional(),
   included_ad_accounts: z.coerce.number().min(0).optional(),
   topup_fee_pct: z.coerce.number().min(0).max(100).optional(),
@@ -53,6 +55,17 @@ const inviteBaseSchema = z.object({
 
 type InviteFormInput = z.input<typeof inviteBaseSchema>;
 type InviteFormValues = z.output<typeof inviteBaseSchema>;
+
+type AdvertiserOption = {
+  id: string;
+  tenant_client_code: string | null;
+  profile: { full_name: string | null } | { full_name: string | null }[] | null;
+};
+
+function advName(p: AdvertiserOption["profile"]): string | null {
+  if (Array.isArray(p)) return p[0]?.full_name ?? null;
+  return p?.full_name ?? null;
+}
 
 export default function InviteForm() {
   const { state, dispatch } = useAppContext();
@@ -64,6 +77,15 @@ export default function InviteForm() {
   const queryClient = useQueryClient();
   const { tenant } = profile || {};
 
+  // Super-admin = the admin who owns the tenant. Affiliate-linking (the
+  // referrer field) is super-admin only.
+  const isSuperAdmin = Boolean(
+    profile?.role === "admin" &&
+      profile?.user_id &&
+      tenant?.owner_id &&
+      profile.user_id === tenant.owner_id,
+  );
+
   const { data: plans } = useQuery<PlanOption[]>({
     queryKey: ["plans", "active"],
     enabled: state.inviteUserOpen,
@@ -74,12 +96,32 @@ export default function InviteForm() {
     },
   });
 
+  const tiers = (plans ?? []).filter((p) => p.kind === "tier");
+  const communities = (plans ?? []).filter((p) => p.kind === "community");
+
+  // Candidate referrers = advertisers in this tenant (super-admin only).
+  const { data: advertisers } = useQuery<AdvertiserOption[]>({
+    queryKey: ["advertisers", tenant?.id, "invite-referrer"],
+    enabled: state.inviteUserOpen && isSuperAdmin && !!tenant?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("advertisers")
+        .select("id, tenant_client_code, profile:user_profiles(full_name)")
+        .eq("tenant_id", tenant!.id)
+        .order("tenant_client_code", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as AdvertiserOption[];
+    },
+  });
+
   const form = useForm<InviteFormInput, unknown, InviteFormValues>({
     resolver: zodResolver(inviteBaseSchema),
     defaultValues: {
       email: "",
       role: "advertiser",
       plan_id: "",
+      community_id: "",
+      affiliate_id: "",
       monthly_fee: undefined,
       included_ad_accounts: undefined,
       topup_fee_pct: undefined,
@@ -89,16 +131,52 @@ export default function InviteForm() {
 
   const role = form.watch("role");
   const planId = form.watch("plan_id");
+  const communityId = form.watch("community_id");
+  const affiliateId = form.watch("affiliate_id");
 
-  // Pre-fill the plan fields from the chosen preset (still editable).
-  useEffect(() => {
-    if (!planId || !plans) return;
-    const p = plans.find((x) => x.id === planId);
+  // Fee precedence: picking a tier prefills; picking a community overrides;
+  // manual edits win (nothing re-runs unless you pick again). A community
+  // "takes over" simply because selecting it is the most recent action.
+  function prefillFrom(p: PlanOption | undefined) {
     if (!p) return;
     form.setValue("monthly_fee", p.monthly_fee);
     form.setValue("included_ad_accounts", p.included_ad_accounts);
     form.setValue("topup_fee_pct", p.topup_fee_pct);
-  }, [planId, plans, form]);
+  }
+
+  useEffect(() => {
+    if (!planId) return;
+    prefillFrom(tiers.find((x) => x.id === planId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planId, plans]);
+
+  useEffect(() => {
+    if (!communityId) return;
+    prefillFrom(communities.find((x) => x.id === communityId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [communityId, plans]);
+
+  // Default to Prime (200/2/3%) once per open, so the standard plan is
+  // pre-filled without the admin having to pick.
+  const didAutoPrime = useRef(false);
+  useEffect(() => {
+    if (!state.inviteUserOpen) {
+      didAutoPrime.current = false;
+      return;
+    }
+    if (didAutoPrime.current || tiers.length === 0) return;
+    if (form.getValues("role") !== "advertiser") return;
+    if (form.getValues("plan_id") || form.getValues("community_id")) return;
+    const prime =
+      tiers.find((p) => /prime/i.test(p.name)) ??
+      tiers.find((p) => Number(p.monthly_fee) === 200) ??
+      tiers[0];
+    if (prime) {
+      didAutoPrime.current = true;
+      form.setValue("plan_id", prime.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.inviteUserOpen, plans]);
 
   async function onSubmit(values: InviteFormValues) {
     try {
@@ -113,6 +191,11 @@ export default function InviteForm() {
       }
 
       const isAdvertiser = values.role === "advertiser";
+      // Community overrides the tier as the stored plan; fees are whatever
+      // is in the (prefilled or manually-edited) fields.
+      const effectivePlanId = isAdvertiser
+        ? values.community_id || values.plan_id || null
+        : null;
       const res = await fetch("/api/send-invite", {
         body: JSON.stringify({
           email: values.email,
@@ -121,8 +204,12 @@ export default function InviteForm() {
           tenant_name: tenant?.name,
           sender_profile_id: profile?.id,
           send_email: values.send_email,
+          // Referrer (super-admin only) — links the new advertiser to an
+          // affiliate on accept.
+          affiliate_id:
+            isSuperAdmin && isAdvertiser ? values.affiliate_id || null : null,
           // Plan (advertiser only) — pre-filled from a preset, adjustable.
-          plan_id: isAdvertiser ? values.plan_id || null : null,
+          plan_id: effectivePlanId,
           monthly_fee: isAdvertiser ? values.monthly_fee ?? null : null,
           included_ad_accounts: isAdvertiser
             ? values.included_ad_accounts ?? null
@@ -140,7 +227,6 @@ export default function InviteForm() {
       const data = await res.json();
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: ["invites"] });
-        // Always surface the unique link to copy; note whether it emailed.
         setCreatedLink((data.inviteLink as string) ?? null);
         setEmailWasSent(data.emailSent === true);
         toast.success(data.message);
@@ -171,8 +257,9 @@ export default function InviteForm() {
         <DialogHeader>
           <DialogTitle>Invite a Member</DialogTitle>
           <DialogDescription>
-            Invite someone to your organization. For advertisers, pick a plan
-            or community to pre-fill their fees (editable).
+            Invite someone to your organization. For advertisers, a plan is
+            pre-filled (Prime by default); a community overrides it, and you can
+            still edit the fees by hand.
           </DialogDescription>
         </DialogHeader>
 
@@ -273,12 +360,13 @@ export default function InviteForm() {
               />
             </div>
 
-            {/* Plan (advertiser only) */}
+            {/* Plan / community / referrer (advertiser only) */}
             {role === "advertiser" && (
               <div className="rounded-md border p-3 space-y-3">
+                {/* Plan (tier) */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Label htmlFor="invite-plan">Plan / community</Label>
+                    <Label htmlFor="invite-plan">Plan</Label>
                     {planId && (
                       <button
                         type="button"
@@ -298,14 +386,14 @@ export default function InviteForm() {
                         onValueChange={field.onChange}
                       >
                         <SelectTrigger id="invite-plan">
-                          <SelectValue placeholder="Pick a plan to pre-fill" />
+                          <SelectValue placeholder="Pick a plan" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(plans ?? []).map((p) => (
+                          {tiers.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.name} · {p.kind} · {p.currency}
-                              {p.monthly_fee}/mo · {p.included_ad_accounts}{" "}
-                              incl · {p.topup_fee_pct}%
+                              {p.name} · {p.currency}
+                              {p.monthly_fee}/mo · {p.included_ad_accounts} incl ·{" "}
+                              {p.topup_fee_pct}%
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -313,6 +401,57 @@ export default function InviteForm() {
                     )}
                   />
                 </div>
+
+                {/* Community (overrides the plan) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label htmlFor="invite-community">
+                      Community{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (overrides plan)
+                      </span>
+                    </Label>
+                    {communityId && (
+                      <button
+                        type="button"
+                        className="text-xs text-primary underline"
+                        onClick={() => form.setValue("community_id", "")}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="community_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger id="invite-community">
+                          <SelectValue placeholder="No community" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {communities.length === 0 ? (
+                            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                              No communities defined
+                            </div>
+                          ) : (
+                            communities.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name} · {p.currency}
+                                {p.monthly_fee}/mo · {p.included_ad_accounts} incl
+                                · {p.topup_fee_pct}%
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <Label className="text-xs">Monthly fee</Label>
@@ -346,11 +485,58 @@ export default function InviteForm() {
                 <p className="text-xs text-muted-foreground">
                   A subscription is auto-created on signup (0 = free, no sub).
                 </p>
+
+                {/* Referrer — super-admin only */}
+                {isSuperAdmin && (
+                  <div className="border-t pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label htmlFor="invite-referrer">
+                        Referrer{" "}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          (affiliate who referred them)
+                        </span>
+                      </Label>
+                      {affiliateId && (
+                        <button
+                          type="button"
+                          className="text-xs text-primary underline"
+                          onClick={() => form.setValue("affiliate_id", "")}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <Controller
+                      control={form.control}
+                      name="affiliate_id"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger id="invite-referrer">
+                            <SelectValue placeholder="No referrer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(advertisers ?? []).map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {(a.tenant_client_code ?? "—") +
+                                  " · " +
+                                  (advName(a.profile) ?? "—")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Linked as their affiliate on signup; earns commission on
+                      their topups. Only a super-admin can set this.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
-
-            {/* Email is sent by default; the unique link is always shown
-                after creation too. */}
 
             <DialogFooter>
               <Button type="submit" disabled={loading}>
