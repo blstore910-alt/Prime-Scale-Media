@@ -102,7 +102,7 @@ const TOPUP_INSERT_ALLOWED = [
   "account_id",
   "advertiser_id",
   "payment_slip",
-  "note",
+  "notes",
   "source",
 ] as const;
 
@@ -275,7 +275,7 @@ const TOPUP_UPDATE_ALLOWED = [
   "topup_amount",
   "fee",
   "fee_amount",
-  "note",
+  "notes",
   "status",
   "is_deleted",
 ] as const;

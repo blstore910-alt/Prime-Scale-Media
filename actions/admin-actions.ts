@@ -140,11 +140,13 @@ export async function toggleAdminStatus(
 // updateUserProfile — admin only, target must belong to same tenant.
 // Allowlists writable columns; anything else is dropped.
 // ─────────────────────────────────────────
+// NOTE: fee_status / fee / airtable are NOT columns on user_profiles —
+// they live on `advertisers` and are edited via updateAdvertiser. Listing
+// them here was a trap: the moment a caller passed one, the
+// .from("user_profiles").update() would 400 with "column does not exist".
+// Only genuine user_profiles columns belong in this allowlist.
 const USER_PROFILE_ALLOWED_COLUMNS = [
   "is_active",
-  "fee_status",
-  "fee",
-  "airtable",
   "status",
 ] as const;
 type UserProfileUpdatable = Partial<

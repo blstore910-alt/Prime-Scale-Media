@@ -44,7 +44,7 @@ const INVOICE_INSERT_ALLOWED = [
   "advertiser_id",
   "company_id",
   "number",
-  "note",
+  "notes",
 ] as const;
 
 type InvoiceInsertInput = Partial<

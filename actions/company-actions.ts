@@ -150,11 +150,12 @@ export async function saveOwnCompanyOnboarding(input: {
 // Used by /settings profile screen. Column allowlist for profile
 // updates + company update. Server enforces owner of the profile.
 // ─────────────────────────────────────────
+// phone lives on `companies` (sent via companyUpdates), airtable on
+// `advertisers` — neither is a user_profiles column, so keep them out
+// or the profile update 400s. Only real user_profiles columns here.
 const PROFILE_SELF_ALLOWED = [
   "full_name",
   "email",
-  "phone",
-  "airtable",
   "heard_from",
 ] as const;
 type ProfileSelfInput = Partial<

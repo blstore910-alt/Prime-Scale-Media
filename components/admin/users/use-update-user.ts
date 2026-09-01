@@ -4,11 +4,10 @@ import { toast } from "sonner";
 
 type UpdateUserPayload = {
   userId: string;
+  // fee_status / fee / airtable live on `advertisers` (edited via
+  // updateAdvertiser), not user_profiles — keep them out of this payload.
   data: Partial<{
     is_active: boolean;
-    fee_status: string;
-    fee: number;
-    airtable: boolean;
     status: string;
   }>;
 };
