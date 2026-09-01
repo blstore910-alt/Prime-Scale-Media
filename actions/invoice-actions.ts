@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
+import { maintenanceGuard, type ActionResult } from "./_shared";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -108,21 +108,20 @@ export async function setInvoicePaidStatus(
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
+  // NOTE: public.invoices has no updated_at column, so there's no
+  // optimistic-concurrency version to check here — the ifUpdatedAt param
+  // is accepted for call-site compatibility but not used. Selecting it
+  // (or version-guarding on it) previously 400'd and made this action
+  // always report "Invoice not found".
+  void ifUpdatedAt;
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, tenant_id, status, updated_at")
+    .select("id, tenant_id, status")
     .eq("id", invoiceId)
     .maybeSingle();
   if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
   if (invoice.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden", code: "forbidden" };
-  }
-  if (!versionMatches(invoice.updated_at, ifUpdatedAt)) {
-    return {
-      ok: false,
-      error: "This invoice was updated by someone else. Reload and retry.",
-      code: "conflict",
-    };
   }
 
   const { error: updateError } = await supabase

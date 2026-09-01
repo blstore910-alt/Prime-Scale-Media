@@ -180,6 +180,73 @@ test("perk: a free-request perk makes a request free and is consumed, no wallet 
   }
 });
 
+test("subscription change: reissues at the new amount, self-restoring", async ({
+  browser,
+}) => {
+  const admin = await credsFor(browser, "super-admin");
+  const adv = await credsFor(browser, "advertiser");
+  try {
+    // Find the advertiser's subscription (seeded on the E2E tenant).
+    const advRows = await getRest(adv.creds, "advertisers?select=id&limit=1");
+    const advId = advRows.rows?.[0]?.id as string | undefined;
+    const subs = await getRest(
+      admin.creds,
+      `subscriptions?select=id,amount,currency&limit=1`,
+    );
+    const sub = subs.rows?.[0];
+    if (!advId || !sub?.id) {
+      test.skip(true, "no seeded subscription to exercise");
+    }
+    const original = Number(sub.amount);
+    const target = original === 250 ? 200 : 250; // something different
+
+    // Change to a new amount → with no paid current period this reissues.
+    const change = await rpc(admin.creds, "change_subscription_amount", {
+      p_subscription_id: sub.id,
+      p_new_amount: target,
+      p_new_currency: sub.currency ?? "EUR",
+    });
+    expect(change.status, `change → ${change.text}`).toBe(200);
+    const result = (Array.isArray(change.json) ? change.json[0] : change.json) as
+      | Record<string, unknown>
+      | null;
+    expect(
+      ["reissued", "refunded", "charged_difference", "updated"],
+      `action was ${result?.action}`,
+    ).toContain(result?.action as string);
+
+    // Subscription now carries the new amount.
+    const after = await getRest(
+      admin.creds,
+      `subscriptions?select=amount&id=eq.${sub.id}`,
+    );
+    expect(Number(after.rows?.[0]?.amount), "amount updated").toBe(target);
+
+    // A subscription-linked invoice now exists at the new amount.
+    const inv = await getRest(
+      admin.creds,
+      `invoices?select=total,status,subscription_id&subscription_id=eq.${sub.id}&order=created_at.desc&limit=1`,
+    );
+    expect(inv.rows?.length, "a subscription invoice was issued").toBeGreaterThan(0);
+
+    // Restore the original amount so the seed stays stable.
+    const restore = await rpc(admin.creds, "change_subscription_amount", {
+      p_subscription_id: sub.id,
+      p_new_amount: original,
+      p_new_currency: sub.currency ?? "EUR",
+    });
+    expect(restore.status, `restore → ${restore.text}`).toBe(200);
+    const restored = await getRest(
+      admin.creds,
+      `subscriptions?select=amount&id=eq.${sub.id}`,
+    );
+    expect(Number(restored.rows?.[0]?.amount), "amount restored").toBe(original);
+  } finally {
+    await admin.ctx.close();
+    await adv.ctx.close();
+  }
+});
+
 test("money RPCs are installed with valid structure (bogus-id smoke)", async ({
   browser,
 }) => {
