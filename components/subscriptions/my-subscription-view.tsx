@@ -28,7 +28,7 @@ import dayjs from "dayjs";
 import { AlertCircle, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIsTablet } from "@/hooks/use-is-tablet";
 import InvoiceCard from "@/components/invoices/invoice-card";
 import { toast } from "sonner";
@@ -63,6 +63,36 @@ export default function MySubscriptionView() {
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<
     string | null
   >(null);
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Pay an unpaid invoice from the wallet balance (customer self-service).
+  // The RPC checks the floor and debits atomically; on insufficient
+  // balance it errors and we prompt a top-up.
+  const handlePayNow = async (invoice: InvoiceWithRelations) => {
+    if (payingInvoiceId) return;
+    setPayingInvoiceId(invoice.id);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("invoice_pay_from_wallet", {
+        p_invoice_id: invoice.id,
+      });
+      if (error) throw error;
+      toast.success("Invoice paid from your wallet.");
+      queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["invoices"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["subscription-invoices"],
+        exact: false,
+      });
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Payment failed.";
+      toast.error("Couldn't pay from wallet", { description: msg });
+    } finally {
+      setPayingInvoiceId(null);
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -319,6 +349,20 @@ export default function MySubscriptionView() {
                               "-"}
                           </TableCell>
                           <TableCell className="text-right">
+                            {!isPaid && (
+                              <Button
+                                size="sm"
+                                className="mr-2"
+                                disabled={payingInvoiceId === invoice.id}
+                                onClick={() => handlePayNow(invoice)}
+                              >
+                                {payingInvoiceId === invoice.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Pay now"
+                                )}
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -374,6 +418,8 @@ export default function MySubscriptionView() {
                     invoice={invoice}
                     onDownload={handleDownload}
                     isDownloading={downloadingInvoiceId === invoice.id}
+                    onPay={handlePayNow}
+                    isPaying={payingInvoiceId === invoice.id}
                   />
                 ))
               ) : (

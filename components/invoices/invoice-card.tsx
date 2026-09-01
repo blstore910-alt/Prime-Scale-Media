@@ -29,14 +29,18 @@ export default function InvoiceCard({
   invoice,
   onDownload,
   onTogglePaidStatus,
+  onPay,
   isDownloading = false,
   isUpdatingStatus = false,
+  isPaying = false,
 }: {
   invoice: InvoiceWithRelations;
   onDownload?: (invoice: InvoiceWithRelations) => void | Promise<void>;
   onTogglePaidStatus?: (invoice: InvoiceWithRelations) => void | Promise<void>;
+  onPay?: (invoice: InvoiceWithRelations) => void | Promise<void>;
   isDownloading?: boolean;
   isUpdatingStatus?: boolean;
+  isPaying?: boolean;
 }) {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
@@ -107,6 +111,16 @@ export default function InvoiceCard({
           </div>
         </div>
         <div className="border-t mt-2 pt-2 space-y-2">
+          {!isPaid && onPay && (
+            <Button
+              disabled={isPaying}
+              className="w-full"
+              onClick={() => onPay(invoice)}
+            >
+              {isPaying && <Loader2 className="h-4 w-4 animate-spin" />}
+              Pay now
+            </Button>
+          )}
           {isAdmin && (
             <Button
               variant="outline"
