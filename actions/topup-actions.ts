@@ -3,6 +3,57 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
+import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Ad-account top-up types that carry a fee (mirrors the topup form).
+const FEE_APPLICABLE_TYPES = ["top-up", "first-top-up"];
+
+// The advertiser's effective top-up fee is driven by their PLAN
+// (advertiser_plans.topup_fee_pct), then adjusted by any active top-up
+// perk: a topup_fee_waiver zeroes it, a topup_discount subtracts its
+// percent. Resolved server-side so the fee can never be understated by
+// a tampered client payload. Advertisers with no plan and no perk keep
+// the caller-supplied fee (no regression).
+async function resolveEffectiveFeePct(
+  supabase: SupabaseClient,
+  advertiserId: string,
+  fallbackPct: number,
+): Promise<{ applied: boolean; pct: number }> {
+  const { data: plan } = await supabase
+    .from("advertiser_plans")
+    .select("topup_fee_pct")
+    .eq("advertiser_id", advertiserId)
+    .maybeSingle();
+
+  const { data: perks } = await supabase
+    .from("advertiser_perks")
+    .select("kind, amount, starts_at, expires_at")
+    .eq("advertiser_id", advertiserId)
+    .eq("active", true)
+    .in("kind", ["topup_fee_waiver", "topup_discount"]);
+
+  const now = Date.now();
+  const activePerks = (perks ?? []).filter((p) => {
+    const started = !p.starts_at || new Date(p.starts_at).getTime() <= now;
+    const notExpired =
+      !p.expires_at || new Date(p.expires_at).getTime() > now;
+    return started && notExpired;
+  });
+
+  const hasPlan = plan != null && plan.topup_fee_pct != null;
+  const waiver = activePerks.some((p) => p.kind === "topup_fee_waiver");
+  const discount = activePerks
+    .filter((p) => p.kind === "topup_discount")
+    .reduce((max, p) => Math.max(max, Number(p.amount) || 0), 0);
+
+  if (!hasPlan && !waiver && discount === 0) {
+    return { applied: false, pct: fallbackPct };
+  }
+  const base = hasPlan ? Number(plan!.topup_fee_pct) : fallbackPct;
+  const pct = waiver ? 0 : Math.max(0, base - discount);
+  return { applied: true, pct };
+}
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -101,6 +152,40 @@ export async function createTopupAsAdmin(
     name: profile.full_name,
     email: profile.email,
   };
+
+  // Authoritative fee: for fee-bearing top-ups, let the advertiser's plan
+  // rate + active top-up perks drive the fee, and recompute the derived
+  // amounts from it (same math as the client preview) so the stored values
+  // can't be understated by the payload. No plan + no perk → untouched.
+  if (typeof input.type === "string" && FEE_APPLICABLE_TYPES.includes(input.type)) {
+    const fallbackPct = Number(input.fee) || 0;
+    const { applied, pct } = await resolveEffectiveFeePct(
+      supabase,
+      input.advertiser_id,
+      fallbackPct,
+    );
+    if (applied) {
+      const { data: rate } = await supabase
+        .from("exchange_rates")
+        .select("eur")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("is_active", true)
+        .maybeSingle();
+      const rates: MinimalRate[] = [{ eur: Number(rate?.eur) || 0 }];
+      const amountReceived = Number(input.amount_received) || 0;
+      const currency = String(input.currency || "USD");
+      const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
+        amountReceived,
+        rates,
+        currency,
+        pct,
+      );
+      cleaned.fee = pct;
+      cleaned.fee_amount = feeAmount.toFixed(2);
+      cleaned.topup_amount = topupAmount.toFixed(2);
+      cleaned.amount_usd = amountUSD.toFixed(2);
+    }
+  }
 
   const { data: inserted, error: insertError } = await supabase
     .from("top_ups")
