@@ -260,7 +260,7 @@ export default function AdAccountRequestForm({
     enabled: !!advertiserId && !!profile?.tenant_id,
     queryFn: async () => {
       const supabase = createClient();
-      const [w, r] = await Promise.all([
+      const [w, r, plan, reqs] = await Promise.all([
         supabase
           .from("wallets")
           .select("usd_balance, eur_balance")
@@ -272,23 +272,45 @@ export default function AdAccountRequestForm({
           .eq("tenant_id", profile?.tenant_id)
           .eq("is_active", true)
           .maybeSingle(),
+        supabase
+          .from("advertiser_plans")
+          .select("included_ad_accounts")
+          .eq("advertiser_id", advertiserId)
+          .maybeSingle(),
+        // Non-rejected requests count toward the included allowance.
+        supabase
+          .from("ad_account_requests")
+          .select("id, status")
+          .eq("advertiser_id", advertiserId),
       ]);
+      const used = (reqs.data ?? []).filter(
+        (x: { status: string | null }) =>
+          !["rejected", "cancelled"].includes((x.status ?? "").toLowerCase()),
+      ).length;
       return {
         usd: Number(w.data?.usd_balance ?? 0),
         eur: Number(w.data?.eur_balance ?? 0),
         rate: Number(r.data?.eur) || 0.86,
+        included: Number(plan.data?.included_ad_accounts ?? 0),
+        used,
       };
     },
   });
 
-  const feeAmount =
-    selectedCurrency === "EUR"
+  // First N requests (plan-included) are free; the fee only applies once
+  // the included allowance is used up. Mirrors ad_account_request_create_paid.
+  const included = feePreview?.included ?? 0;
+  const used = feePreview?.used ?? 0;
+  const isFree = used < included;
+  const feeAmount = isFree
+    ? 0
+    : selectedCurrency === "EUR"
       ? 50
       : Math.round(50 / (feePreview?.rate || 0.86));
   const feeSymbol = selectedCurrency === "USD" ? "$" : "€";
   const feeBalance =
     selectedCurrency === "USD" ? (feePreview?.usd ?? 0) : (feePreview?.eur ?? 0);
-  const feeEnough = feeBalance >= feeAmount;
+  const feeEnough = isFree || feeBalance >= feeAmount;
 
   const draft = useFormDraft<FormValues>({
     formKey: "ad-account-request",
@@ -358,25 +380,42 @@ export default function AdAccountRequestForm({
   return (
     <>
       <form id="ad-account-request-form" onSubmit={handleSubmit(onSubmit)}>
-        {/* Wallet impact — the €50 (or USD-equivalent) request fee. */}
+        {/* Wallet impact — included-free vs the €50 (or USD-equiv) fee. */}
         <div
           className={`mb-4 rounded-md border p-3 text-sm ${
-            feeEnough ? "bg-muted/30" : "border-destructive/50 bg-destructive/5"
+            isFree
+              ? "border-emerald-500/40 bg-emerald-500/5"
+              : feeEnough
+                ? "bg-muted/30"
+                : "border-destructive/50 bg-destructive/5"
           }`}
         >
-          <div className="font-medium">
-            Ad-account request fee: {feeSymbol}
-            {feeAmount}
-          </div>
-          <div className="text-muted-foreground text-xs mt-0.5">
-            Charged from your wallet when you submit. Balance: {feeSymbol}
-            {feeBalance.toFixed(2)} → {feeSymbol}
-            {(feeBalance - feeAmount).toFixed(2)}
-          </div>
-          {!feeEnough && (
-            <div className="text-destructive text-xs mt-1 font-medium">
-              Not enough balance — top up before requesting.
-            </div>
+          {isFree ? (
+            <>
+              <div className="font-medium">Included in your plan — no fee</div>
+              <div className="text-muted-foreground text-xs mt-0.5">
+                {included - used} of {included} included ad account
+                {included === 1 ? "" : "s"} remaining. Your wallet won&apos;t be
+                charged for this request.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="font-medium">
+                Ad-account request fee: {feeSymbol}
+                {feeAmount}
+              </div>
+              <div className="text-muted-foreground text-xs mt-0.5">
+                Charged from your wallet when you submit. Balance: {feeSymbol}
+                {feeBalance.toFixed(2)} → {feeSymbol}
+                {(feeBalance - feeAmount).toFixed(2)}
+              </div>
+              {!feeEnough && (
+                <div className="text-destructive text-xs mt-1 font-medium">
+                  Not enough balance — top up before requesting.
+                </div>
+              )}
+            </>
           )}
         </div>
         {draft.hasDraft && draft.restoredDraft && (
