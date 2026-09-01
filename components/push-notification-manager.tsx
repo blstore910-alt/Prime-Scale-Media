@@ -4,6 +4,7 @@ import { urlBase64ToUint8Array } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { Bell, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function PushNotificationManager() {
   const [isSupported, setIsSupported] = useState(false);
@@ -73,7 +74,18 @@ export default function PushNotificationManager() {
     setIsLoading(true);
     try {
       if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
-        throw new Error("Missing NEXT_PUBLIC_VAPID_PUBLIC_KEY");
+        throw new Error("Push notifications aren't configured on the server.");
+      }
+
+      // Ask for permission explicitly so we can give a clear message when
+      // it's blocked — private/incognito windows deny push outright.
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        toast.error("Notifications are blocked", {
+          description:
+            "Allow notifications for this site. Note: private/incognito windows block push — use a normal window.",
+        });
+        return;
       }
 
       const registration = await navigator.serviceWorker.ready;
@@ -93,9 +105,14 @@ export default function PushNotificationManager() {
       if (!res.ok) {
         throw new Error("Failed to register push subscription");
       }
+      toast.success("Push notifications enabled.");
       setIsVisible(false);
     } catch (error) {
       console.error("Failed to subscribe to push notifications:", error);
+      toast.error("Couldn't enable push notifications", {
+        description:
+          "Private/incognito windows block push. Open the app in a normal window and try again. On iPhone, add the app to your Home Screen first.",
+      });
     } finally {
       setIsLoading(false);
     }
