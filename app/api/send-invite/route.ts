@@ -17,7 +17,18 @@ type SendInviteBody = {
   commission_type?: string | null;
   commission_rate?: number | null;
   commission_amount?: number | null;
+  send_email?: boolean;
+  plan_id?: string | null;
+  monthly_fee?: number | null;
+  included_ad_accounts?: number | null;
+  topup_fee_pct?: number | null;
 };
+
+function numOrNull(v: unknown, min: number, max: number): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= min && v <= max
+    ? v
+    : null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -149,6 +160,23 @@ export async function POST(request: NextRequest) {
     const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/accept?token=${token}`;
 
+    // Plan fields — advertiser invites only, pre-filled from a preset in
+    // the UI and adjustable. Validated + only stored for advertisers.
+    const isAdvertiser = role === "advertiser";
+    const plan_id =
+      isAdvertiser && typeof body.plan_id === "string" && body.plan_id.length > 0
+        ? body.plan_id
+        : null;
+    const monthly_fee = isAdvertiser
+      ? numOrNull(body.monthly_fee, 0, 1_000_000)
+      : null;
+    const included_ad_accounts = isAdvertiser
+      ? numOrNull(body.included_ad_accounts, 0, 1000)
+      : null;
+    const topup_fee_pct = isAdvertiser
+      ? numOrNull(body.topup_fee_pct, 0, 100)
+      : null;
+
     const payload = {
       email,
       tenant_id: profile.tenant_id,
@@ -163,6 +191,11 @@ export async function POST(request: NextRequest) {
       commission_type,
       commission_rate,
       commission_amount,
+      // Plan fields (advertiser only)
+      plan_id,
+      monthly_fee,
+      included_ad_accounts,
+      topup_fee_pct,
     };
 
     const { error } = await supabase.from("invitations").insert(payload);
@@ -191,20 +224,24 @@ export async function POST(request: NextRequest) {
     // exists and the admin can copy the link from the response. Don't
     // let an email failure 500 the whole request and strand the
     // invite with no way to reach it.
+    // Email is optional — the admin can choose to just get the link.
+    const wantsEmail = body.send_email !== false;
     let emailSent = false;
-    try {
-      await sendEmail({
-        to: email,
-        subject: `You're invited to join ${tenant.name} on PSM Dashboard`,
-        text: ``,
-        html,
-      });
-      emailSent = true;
-    } catch (mailErr) {
-      console.error(
-        "send-invite email failed (invite still created):",
-        mailErr instanceof Error ? mailErr.message : "unknown",
-      );
+    if (wantsEmail) {
+      try {
+        await sendEmail({
+          to: email,
+          subject: `You're invited to join ${tenant.name} on PSM Dashboard`,
+          text: ``,
+          html,
+        });
+        emailSent = true;
+      } catch (mailErr) {
+        console.error(
+          "send-invite email failed (invite still created):",
+          mailErr instanceof Error ? mailErr.message : "unknown",
+        );
+      }
     }
 
     return NextResponse.json(
@@ -212,9 +249,11 @@ export async function POST(request: NextRequest) {
         success: true,
         emailSent,
         inviteLink,
-        message: emailSent
-          ? "Invitation email sent."
-          : "Invite created, but the email couldn't be sent. Copy the link and share it manually.",
+        message: !wantsEmail
+          ? "Invite created — share the link below."
+          : emailSent
+            ? "Invitation email sent. The link is below too."
+            : "Invite created, but the email couldn't be sent. Copy the link and share it manually.",
       },
       { status: 200 },
     );
