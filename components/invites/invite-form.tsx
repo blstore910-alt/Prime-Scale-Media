@@ -176,6 +176,61 @@ export default function InviteForm() {
           </DialogDescription>
         </DialogHeader>
 
+        {createdLink ? (
+          <div className="space-y-4">
+            <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
+              <p className="text-sm font-medium">
+                {emailWasSent ? "Invite emailed ✓" : "Invite created ✓"} — share
+                this link:
+              </p>
+              <div className="flex items-center gap-2">
+                <InputGroupInput
+                  readOnly
+                  value={createdLink}
+                  className="text-xs"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(createdLink);
+                      toast.success("Link copied");
+                    } catch {
+                      toast.error("Couldn't copy — select manually");
+                    }
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreatedLink(null);
+                  form.reset();
+                }}
+              >
+                Create another
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setCreatedLink(null);
+                  form.reset();
+                  dispatch("close-invite-user");
+                }}
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div>
@@ -222,9 +277,18 @@ export default function InviteForm() {
             {role === "advertiser" && (
               <div className="rounded-md border p-3 space-y-3">
                 <div>
-                  <Label htmlFor="invite-plan" className="mb-2">
-                    Plan / community
-                  </Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label htmlFor="invite-plan">Plan / community</Label>
+                    {planId && (
+                      <button
+                        type="button"
+                        className="text-xs text-primary underline"
+                        onClick={() => form.setValue("plan_id", "")}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                   <Controller
                     control={form.control}
                     name="plan_id"
@@ -285,56 +349,8 @@ export default function InviteForm() {
               </div>
             )}
 
-            {/* Email toggle */}
-            <label className="flex items-center gap-2 text-sm">
-              <Controller
-                control={form.control}
-                name="send_email"
-                render={({ field }) => (
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                  />
-                )}
-              />
-              Also email the invite (otherwise just get the link)
-            </label>
-
-            {/* Created invite link — always shown after creation */}
-            {createdLink && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
-                <p className="text-xs">
-                  {emailWasSent
-                    ? "Invite emailed. You can also share this link:"
-                    : "Invite created. Share this unique link:"}
-                </p>
-                <div className="flex items-center gap-2">
-                  <InputGroupInput
-                    readOnly
-                    value={createdLink}
-                    className="text-xs"
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(createdLink);
-                        toast.success("Link copied");
-                      } catch {
-                        toast.error("Couldn't copy — select manually");
-                      }
-                    }}
-                  >
-                    Copy
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* Email is sent by default; the unique link is always shown
+                after creation too. */}
 
             <DialogFooter>
               <Button type="submit" disabled={loading}>
@@ -343,11 +359,12 @@ export default function InviteForm() {
                 ) : (
                   <Send />
                 )}
-                {createdLink ? "Create another" : "Create invite"}
+                Create invite
               </Button>
             </DialogFooter>
           </form>
         </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
