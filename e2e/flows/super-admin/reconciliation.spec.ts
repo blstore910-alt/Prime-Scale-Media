@@ -20,7 +20,7 @@ test("reconciliation page renders — check card, balances, ledger, no crash", a
   // Record-entry form + ledger sections present.
   await expect(page.getByText("Record a bank entry")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Ledger", exact: true }),
+    page.getByText("Recorded bank/supplier entries."),
   ).toBeVisible();
 
   expect(errs, errs.join("\n")).toHaveLength(0);
