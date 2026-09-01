@@ -52,7 +52,7 @@ test.describe("super-admin — shell + sidebar", () => {
     }
   });
 
-  test("navigate to finance settings and see fee_defaults + FX cards", async ({
+  test("navigate to finance settings and see FX + fee/plan cards", async ({
     page,
   }) => {
     await page
@@ -67,7 +67,13 @@ test.describe("super-admin — shell + sidebar", () => {
     await expect(page.getByText(/exchange rates/i).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText(/topup fees/i).first()).toBeVisible({
+    // Fees now live on the data-driven "Ad-Account Types & Fees" card
+    // (the old flat "Topup Fees" card was replaced), and plans/communities
+    // on their own card.
+    await expect(page.getByText(/ad-account types/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText(/plans & communities/i).first()).toBeVisible({
       timeout: 10_000,
     });
   });
