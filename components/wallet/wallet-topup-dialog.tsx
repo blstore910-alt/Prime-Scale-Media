@@ -27,7 +27,7 @@ import {
 } from "./bank-transfer-instructions";
 
 import { createClient } from "@/lib/supabase/client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Loader2,
@@ -80,6 +80,29 @@ export default function WalletTopupDialog({
   const minTopupAmount = minTopup || 300;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
+
+  // Group 1 (our bank, no slip) = the API-automatable types. Pull their
+  // names from the types table so "Other Ad Accounts" always means
+  // "everything except the API types" — no hardcoded "Meta-EU-PSM".
+  // RLS lets any tenant member read the active types.
+  const { data: apiTypeLabels } = useQuery({
+    queryKey: ["ad-account-types", "api", profile?.tenant_id],
+    enabled: open,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("ad_account_types")
+        .select("label")
+        .eq("is_active", true)
+        .eq("api_topup_enabled", true)
+        .order("sort_order", { ascending: true });
+      return (data ?? []).map((t) => t.label as string);
+    },
+  });
+  const apiGroupLabel =
+    apiTypeLabels && apiTypeLabels.length
+      ? apiTypeLabels.join(", ")
+      : "Meta - EU - PSM";
   const formSchema = z.object({
     amount: z
       .number()
@@ -135,14 +158,6 @@ export default function WalletTopupDialog({
       }, 300);
     }
   }, [open, reset]);
-
-  useEffect(() => {
-    if (accountType === "meta_eu") {
-      setPaymentSlipUrl(null);
-      setPaymentSlipPreview(null);
-      setPaymentSlipError(null);
-    }
-  }, [accountType]);
 
   const handlePaymentSlipChange = async (
     event: ChangeEvent<HTMLInputElement>,
@@ -224,8 +239,8 @@ export default function WalletTopupDialog({
         {
           p_amount: values.amount,
           p_currency: currency,
-          p_payment_slip:
-            accountType === "others" ? paymentSlipUrl : null,
+          // Slip is required for BOTH groups now — always send it.
+          p_payment_slip: paymentSlipUrl,
         },
       );
       if (error) throw error;
@@ -255,16 +270,14 @@ export default function WalletTopupDialog({
   };
 
   const handleSubmitForm = (values: FormValues) => {
-    if (accountType === "others") {
-      if (isUploadingSlip) {
-        toast.error("Payment slip is still uploading.");
-        return;
-      }
-
-      if (!paymentSlipUrl) {
-        setPaymentSlipError("Payment slip is required for this account group.");
-        return;
-      }
+    // Slip required for every topup, both account groups.
+    if (isUploadingSlip) {
+      toast.error("Payment slip is still uploading.");
+      return;
+    }
+    if (!paymentSlipUrl) {
+      setPaymentSlipError("Payment slip is required.");
+      return;
     }
 
     mutate(values);
@@ -281,7 +294,10 @@ export default function WalletTopupDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {draft.hasDraft && draft.restoredDraft && step !== STEPS.SUCCESS && (
+        {profile?.role === "admin" &&
+          draft.hasDraft &&
+          draft.restoredDraft &&
+          step !== STEPS.SUCCESS && (
           <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
             <div className="flex-1 text-xs">
               Resume where you left off (
@@ -355,11 +371,11 @@ export default function WalletTopupDialog({
                         className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                       >
                         <span className="font-semibold text-base">
-                          Meta - EU - PSM
+                          {apiGroupLabel}
                         </span>
                         <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
-                          Select this option if you are topping up for Meta EU
-                          PSM accounts.
+                          Select this if you are topping up for {apiGroupLabel}{" "}
+                          accounts.
                         </span>
                       </Label>
                     </div>
@@ -480,7 +496,8 @@ export default function WalletTopupDialog({
                   </div>
                 </div>
 
-                {accountType === "others" && (
+                {/* Slip required for every topup now */}
+                {(
                   <div className="space-y-3">
                     <Label htmlFor="payment_slip">Payment Slip</Label>
                     <Input
@@ -539,8 +556,8 @@ export default function WalletTopupDialog({
                     disabled={
                       isPending ||
                       !walletId ||
-                      (accountType === "others" &&
-                        (!paymentSlipUrl || isUploadingSlip))
+                      !paymentSlipUrl ||
+                      isUploadingSlip
                     }
                   >
                     {isPending && (
