@@ -54,6 +54,8 @@ test("admin can SUBMIT a new invoice end-to-end", async ({ page }) => {
 
   // Amount (> 0 required). Currency defaults to EUR.
   await dialog.locator("#invoice-amount").fill("250");
+  // Description (required, free text — appears on the invoice line).
+  await dialog.locator("#invoice-description").fill("E2E test invoice");
 
   // Submit — disabled until advertisers finish loading, so wait for enabled.
   const submit = dialog.getByRole("button", { name: "Create Invoice" });

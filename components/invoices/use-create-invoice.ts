@@ -7,6 +7,7 @@ export type CreateInvoiceInput = {
   advertiser_id: string;
   currency: "EUR" | "USD";
   amount: number;
+  description?: string;
 };
 
 export default function useCreateInvoice() {
@@ -28,6 +29,8 @@ export default function useCreateInvoice() {
       }
 
       const amount = Number(values.amount);
+      const description =
+        values.description?.trim() || "Additional Advertising Access";
       const result = await createInvoiceAsAdmin({
         company_id: company.id,
         advertiser_id: values.advertiser_id,
@@ -37,7 +40,7 @@ export default function useCreateInvoice() {
         items: [
           {
             tax: 0,
-            name: "Additional Advertising Access",
+            name: description,
             rate: amount,
             amount,
             currency: values.currency,

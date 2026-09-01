@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -45,6 +46,11 @@ const invoiceFormSchema = z.object({
   advertiser_id: z.string().min(1, "Advertiser is required"),
   currency: z.enum(["EUR", "USD"]),
   amount: z.coerce.number().gt(0, "Amount must be greater than 0"),
+  description: z
+    .string()
+    .trim()
+    .min(1, "Description is required")
+    .max(200, "Keep it under 200 characters"),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
@@ -54,6 +60,7 @@ function getDefaultValues(): InvoiceFormValues {
     advertiser_id: "",
     currency: "EUR",
     amount: 0,
+    description: "",
   };
 }
 
@@ -251,6 +258,25 @@ export default function CreateInvoiceDialog({
             </InputGroup>
             {errors.currency && <FieldError errors={[errors.currency]} />}
             {errors.amount && <FieldError errors={[errors.amount]} />}
+          </Field>
+
+          <Field data-invalid={Boolean(errors.description)}>
+            <FieldLabel htmlFor="invoice-description">Description</FieldLabel>
+            <Controller
+              name="description"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id="invoice-description"
+                  placeholder="What is this invoice for?"
+                  aria-invalid={Boolean(errors.description)}
+                />
+              )}
+            />
+            {errors.description && (
+              <FieldError errors={[errors.description]} />
+            )}
           </Field>
         </form>
 
