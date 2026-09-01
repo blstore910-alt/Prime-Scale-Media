@@ -189,7 +189,7 @@ function GeneralSettingsForm({
               id="official_email"
               control={form.control}
               name="official_email"
-              label="Official Email"
+              label="Email"
               placeholder="contact@acme.com"
             />
             <InputField

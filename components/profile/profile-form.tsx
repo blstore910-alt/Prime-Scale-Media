@@ -181,7 +181,7 @@ function ProfileEditForm({
                 <InputField
                   id="official_email"
                   name="official_email"
-                  label="Official Email"
+                  label="Email"
                   control={form.control}
                   placeholder="official@example.com"
                 />

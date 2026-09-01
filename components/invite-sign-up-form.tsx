@@ -358,7 +358,7 @@ export default function InviteSignUpForm({
 
               <Button type="submit" className="w-full">
                 {isSubmitting && <Loader2 className=" animate-spin" />}
-                Join Organization
+                Join PSM
               </Button>
             </div>
           </form>

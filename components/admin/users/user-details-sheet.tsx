@@ -237,7 +237,7 @@ export default function UserDetailsSheet({
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground">
-                      Official Email:
+                      Email:
                     </span>{" "}
                     {company.official_email || "—"}
                   </div>

@@ -270,7 +270,7 @@ export default function CompanyOnboardingForm({
                 id="official-email"
                 control={control}
                 name="official_email"
-                label="Official Email *"
+                label="Email *"
                 placeholder="contact@acme.com"
               />
               <InputField
