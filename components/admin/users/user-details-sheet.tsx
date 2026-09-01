@@ -195,14 +195,6 @@ export default function UserDetailsSheet({
                     </div>
                     <div>
                       <span className="font-medium text-foreground">
-                        Updated:{" "}
-                      </span>
-                      {data.updated_at
-                        ? dayjs(data.updated_at).format(DATE_TIME_FORMAT)
-                        : "—"}
-                    </div>
-                    <div>
-                      <span className="font-medium text-foreground">
                         Referred By:{" "}
                       </span>
                       {data.referral_status === "referred"
