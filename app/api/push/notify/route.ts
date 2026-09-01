@@ -81,6 +81,15 @@ function buildPushFromRecord(record: NotificationRecord) {
       };
     }
 
+    case "integration_failure": {
+      const source = record.payload?.source || "an external service";
+      return {
+        title: "Integration issue",
+        body: `A connection to ${source} is failing. Manual fallback is available.`,
+        url: "/dashboard",
+      };
+    }
+
     default:
       return {
         title: "New notification",
@@ -115,6 +124,22 @@ export async function POST(req: Request) {
     const userId = record.recipient_user_id;
     if (!userId) {
       return NextResponse.json({ ok: true, skipped: "no recipient_user_id" });
+    }
+
+    // 3b) Respect the recipient's per-type push preference. Absence of a
+    // row means enabled (opt-out model), so we only skip on an explicit
+    // push_enabled=false. The in-app notification row already exists —
+    // this gate is purely about whether we ping the device.
+    if (record.type) {
+      const { data: pref } = await supabase
+        .from("notification_preferences")
+        .select("push_enabled")
+        .eq("user_id", userId)
+        .eq("type", record.type)
+        .maybeSingle();
+      if (pref && pref.push_enabled === false) {
+        return NextResponse.json({ ok: true, skipped: "muted by preference" });
+      }
     }
 
     // 4) Fetch subscriptions for that user

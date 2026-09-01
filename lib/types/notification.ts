@@ -3,7 +3,8 @@ export type NotificationType =
   | "topup_created"
   | "ad_account_request_created"
   | "user_profile_created"
-  | "wallet_topup_created";
+  | "wallet_topup_created"
+  | "integration_failure";
 
 export type NotificationAuthor = {
   id: string;
@@ -34,12 +35,18 @@ export type WalletTopupCreatedNotificationPayload = {
   topup_id?: string;
 };
 
+export type IntegrationFailureNotificationPayload = {
+  source?: string;
+  detail?: string;
+};
+
 export interface NotificationPayloadByType {
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
   ad_account_request_created: AdAccountRequestCreatedNotificationPayload;
   user_profile_created: UserProfileCreatedNotificationPayload;
   wallet_topup_created: WalletTopupCreatedNotificationPayload;
+  integration_failure: IntegrationFailureNotificationPayload;
 }
 
 export type NotificationPayload =

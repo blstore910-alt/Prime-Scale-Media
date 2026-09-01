@@ -2,7 +2,8 @@
 
 import CreateAdAccountFromRequestDialog from "@/components/ad-account-requests/create-ad-account-from-request-dialog";
 import { Separator } from "@/components/ui/separator";
-import { CheckCheck, Loader2, Trash2 } from "lucide-react";
+import { CheckCheck, Loader2, Settings2, Trash2 } from "lucide-react";
+import NotificationPreferencesDialog from "@/components/notifications/notification-preferences-dialog";
 import { cn } from "@/lib/utils";
 import useNotifications from "@/components/notifications/use-notifications";
 import NotificationItem from "@/components/notifications/notification-item";
@@ -53,6 +54,7 @@ export default function NotificationsPage() {
     description: string;
   } | null>(null);
   const [isResolvingAction, setIsResolvingAction] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
 
   const { mutate: updateTransaction, isPending: isApprovingWalletTopup } =
     useUpdateTransaction(walletTopupToApprove ?? ({} as WalletTopupWithAdvertiser));
@@ -274,6 +276,15 @@ export default function NotificationsPage() {
           {isResolvingAction && (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPreferencesOpen(true)}
+            title="Choose which notifications ping your device"
+          >
+            <Settings2 className="h-4 w-4 mr-2" />
+            Preferences
+          </Button>
           {unreadCount > 0 && (
             <Button
               variant="outline"
@@ -336,6 +347,11 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      <NotificationPreferencesDialog
+        open={preferencesOpen}
+        onOpenChange={setPreferencesOpen}
+      />
 
       <NotificationDialog
         notification={selectedNotification}
