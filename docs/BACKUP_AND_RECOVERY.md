@@ -294,6 +294,76 @@ Volgorde:
 
 ---
 
+## Het gat ertussen — wat verlies je bij een restore, en hoe recover je dat?
+
+Dit is de belangrijkste vraag. Je herstelt naar tijdstip **T** (vlak vóór
+de storing). Alles wat tussen **T** en het moment-van-herstellen is
+gebeurd, staat NIET in de herstelde database. Concreet: wallet-topups,
+goedkeuringen, ad-account-topups, facturen, aanvragen in dat venster
+zijn "weg" in de nieuwe DB.
+
+**Goed nieuws: dat gat is te reconstrueren, langs drie sporen.**
+
+### Spoor 1 — De oude database leeft nog (meest voorkomend)
+Supabase PITR herstelt naar een **NIEUWE** database en laat de oude
+staan. De oude DB bevat het **volledige** `audit_events`-logboek tot aan
+de storing. Dus:
+
+1. Lees uit de OUDE DB alle audit-rijen ná T:
+   ```sql
+   select occurred_at, table_name, action, row_id, after_data
+     from audit_events
+    where occurred_at > 'T'
+    order by occurred_at;
+   ```
+2. Dat is exact de lijst "wat is er in het gat gebeurd". Elke rij heeft de
+   volledige `after_data` (de nieuwe waarde).
+3. Replay de legitieme changes in de herstelde DB: wallet-credits,
+   goedgekeurde topups, facturen. Voor de meeste tabellen is dit
+   `insert ... select before/after_data` (zie de restore-uit-audit
+   voorbeelden hierboven).
+
+Netto: **bijna niets verloren** — het audit-log is je transactie-dagboek.
+
+### Spoor 2 — Hele project weg (val terug op de daily snapshot)
+Is de oude DB óók onbereikbaar (project verwijderd, account kwijt), dan
+herstel je uit de off-site daily snapshot (Laag 3). Die is **dagelijks**,
+dus je verliest maximaal ~24 uur. Dat venster reconstrueer je uit
+externe bronnen (Spoor 3).
+
+### Spoor 3 — Externe waarheid (altijd achter de hand)
+Geld-in is **bankoverschrijving** → de **bank** heeft het onweerlegbare
+record. Elke wallet-topup in het gat vind je terug op het bankafschrift.
+De klant heeft bovendien zijn eigen overschrijvingsbewijs. Dus zelfs
+zonder DB-spoor: reconcileer tegen het bankafschrift, en:
+
+- **Klanten dienen hun wallet-topup gewoon opnieuw in** (ze hebben het
+  bankbewijs) → admin keurt opnieuw goed. Dit is de normale flow; er
+  raakt niemand "vast".
+- **Ad-account-topups** maakt de admin opnieuw aan (die volgen uit de
+  wallet-mutaties + de ad-account-historie).
+- Niets in de app blokkeert dit — opnieuw-opwaarderen en opnieuw
+  goedkeuren zijn dezelfde knoppen als altijd.
+
+### ⚠️ Belangrijke uitzondering: betaalbewijzen (slips) staan in Storage
+De payment-slips zitten in **Supabase Storage**, NIET in de database.
+Een DB-PITR-restore raakt Storage niet — Storage heeft een eigen backup.
+Gevolg: na een restore kunnen slips en DB-rijen **uit sync** zijn (een
+slip zonder bijbehorende topup-rij, of andersom). Bij het reconcileren
+van het gat: loop ook de Storage-bucket langs en koppel losse slips aan
+de opnieuw-ingevoerde topups. (Dit is de reden dat de off-site backup
+óók de Storage-bucket zou moeten meenemen — staat op de wensenlijst.)
+
+### Kort antwoord voor niet-technisch gebruik
+> "We herstellen naar vlak vóór de fout. Wat er daarna nog gebeurd was,
+> lezen we terug uit het logboek van de oude database en zetten we
+> terug. Lukt dat niet, dan zien we het op het bankafschrift en laten we
+> klanten hun opwaardering gewoon opnieuw doen — dat kan altijd. Niemand
+> raakt zijn geld kwijt; in het ergste geval moet een handjevol
+> opwaarderingen van dat ene venster opnieuw ingevoerd worden."
+
+---
+
 ## Sign-off checklist
 
 Vóór je 'live' zegt:
