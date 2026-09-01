@@ -17,6 +17,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -120,13 +122,31 @@ export default function InviteSignUpForm({
         },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to sign up");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "Failed to sign up");
       }
+
+      // The server created the account with an admin client, which does
+      // NOT set a browser session. Sign in client-side so the cookies are
+      // set before we navigate, otherwise /dashboard bounces to login.
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: invite.email,
+        password: values.password,
+      });
+      if (signInError) {
+        toast.success("Account created — please log in to continue.");
+        router.push("/auth/login");
+        return;
+      }
+      toast.success("Welcome! Your account is ready.");
       router.push("/dashboard");
     } catch (error) {
       console.error("Error during sign up:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Sign up failed. Try again.",
+      );
     }
   };
 

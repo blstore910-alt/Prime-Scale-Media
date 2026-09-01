@@ -182,22 +182,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      console.error("signup signIn failed:", safeErrorMessage(signInError));
-      return NextResponse.json(
-        { success: false, message: "User created but failed to sign in" },
-        { status: 500 },
-      );
-    }
-
+    // NOTE: sign-in happens CLIENT-side after this returns (the browser
+    // needs the auth cookies). Signing in here on the admin/service-role
+    // client set no browser session and only risked a spurious 500.
     const redirectUrl = new URL("/dashboard", request.url);
     const res = NextResponse.json(
-      { success: true, message: "User created and signed in", redirectUrl },
+      { success: true, message: "User created", redirectUrl },
       { status: 200 },
     );
 
