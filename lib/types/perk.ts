@@ -28,10 +28,12 @@ export const PERK_KIND_LABELS: Record<PerkKind, string> = {
 };
 
 // Which perks are enforced today (vs. stored for future wiring).
+// topup_fee_waiver / topup_discount are enforced on ad-account top-ups
+// via createTopupAsAdmin (the advertiser plan + perks drive the fee).
 export const PERK_ENFORCED: Record<PerkKind, boolean> = {
   free_ad_account_requests: true,
   subscription_waiver: true,
   subscription_discount: true,
-  topup_fee_waiver: false,
-  topup_discount: false,
+  topup_fee_waiver: true,
+  topup_discount: true,
 };
