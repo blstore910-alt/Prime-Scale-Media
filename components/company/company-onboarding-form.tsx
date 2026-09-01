@@ -208,8 +208,8 @@ export default function CompanyOnboardingForm({
         <CardHeader>
           <CardTitle>Complete Your Company Profile</CardTitle>
           <CardDescription>
-            You must provide your company details and VAT information to access
-            the platform.
+            We need your company details and VAT number to issue your invoices.
+            Please complete them to access the platform.
           </CardDescription>
         </CardHeader>
         <CardContent>
