@@ -38,7 +38,7 @@ export default function UserTopupDialog({
   setOpen: (open: boolean) => void;
   profile: Profile | null;
 }) {
-  const clientCode = profile?.advertiser[0]?.tenant_client_code;
+  const clientCode = profile?.advertiser?.[0]?.tenant_client_code;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

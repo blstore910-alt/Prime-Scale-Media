@@ -71,14 +71,14 @@ function InvitesTable({ invites }: { invites: UserInvitation[] }) {
                 <TableCell>
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {invite.tenant.profile?.full_name || "Unknown Sender"}
+                      {invite.tenant?.profile?.full_name || "Unknown Sender"}
                     </span>
                     <span className="text-muted-foreground text-sm">
-                      {invite.tenant.profile?.email || "No email"}
+                      {invite.tenant?.profile?.email || "No email"}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>{invite.tenant.name}</TableCell>
+                <TableCell>{invite.tenant?.name ?? "—"}</TableCell>
 
                 <TableCell>
                   {dayjs(invite.created_at).format(DATE_TIME_FORMAT)}

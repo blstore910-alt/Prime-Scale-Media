@@ -117,7 +117,8 @@ export default function UserCard({
               variant="secondary"
               onClick={(e) => {
                 e.stopPropagation();
-                onCreateSubscription(profile.advertiser[0].id);
+                const adv = profile.advertiser?.[0];
+                if (adv) onCreateSubscription(adv.id);
               }}
             >
               <Plus className="w-4 h-4" />

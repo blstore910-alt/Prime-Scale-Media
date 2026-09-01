@@ -78,9 +78,9 @@ export default function AffiliateCard({ affiliate }: { affiliate: Affiliate }) {
             <div className="flex-1">
               <p className=" text-muted-foreground">Advertiser:</p>
               <p className="font-semibold">
-                {affiliate.advertiser.profile?.full_name || "—"} &middot;{" "}
+                {affiliate.advertiser?.profile?.full_name || "—"} &middot;{" "}
                 <span className=" text-muted-foreground">
-                  {affiliate.advertiser.tenant_client_code}
+                  {affiliate.advertiser?.tenant_client_code}
                 </span>
               </p>
             </div>

@@ -130,8 +130,8 @@ export default function TopupForm({
 
   const accountOptions = accounts
     ?.sort((a, b) =>
-      a.advertiser.tenant_client_code.localeCompare(
-        b.advertiser.tenant_client_code,
+      (a.advertiser?.tenant_client_code ?? "").localeCompare(
+        b.advertiser?.tenant_client_code ?? "",
         undefined,
         { numeric: true, sensitivity: "base" },
       ),

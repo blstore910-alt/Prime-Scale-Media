@@ -29,7 +29,11 @@ export default function InvitesList({
 }
 
 function InviteCard({ invite }: { invite: UserInvitation }) {
-  const { tenant } = invite;
+  // The invitee isn't a tenant member yet, so RLS can leave the embedded
+  // `tenant` null. Id lives on the invitation row; name is display-only.
+  const tenant = invite.tenant;
+  const tenantId = invite.tenant_id ?? tenant?.id;
+  const tenantName = tenant?.name ?? "this organization";
   const router = useRouter();
 
   const [loadingState, setLoadingState] = useState<InvitationStatus | null>(
@@ -40,7 +44,7 @@ function InviteCard({ invite }: { invite: UserInvitation }) {
     const payload = {
       status,
       role: invite.role,
-      tenant_id: tenant.id,
+      tenant_id: tenantId,
       invite_id: invite.id,
     };
 
@@ -73,9 +77,9 @@ function InviteCard({ invite }: { invite: UserInvitation }) {
     <div className="flex items-center justify-between rounded-md border px-4 py-3 bg-popover">
       <div className="flex justify-center items-center gap-4">
         <Avatar className="size-12">
-          <AvatarFallback>{getInitials(invite.tenant.name)}</AvatarFallback>
+          <AvatarFallback>{getInitials(tenantName)}</AvatarFallback>
         </Avatar>
-        <h4 className="text-sm font-bold">{invite.tenant.name}</h4>
+        <h4 className="text-sm font-bold">{tenantName}</h4>
       </div>
       <div className="flex items-center gap-2">
         <Button
