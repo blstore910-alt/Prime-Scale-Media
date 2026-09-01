@@ -1,11 +1,11 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { mockSeamxAdapter, getSeamxAdapter } from "../../lib/integrations/seamx.ts";
+import { mockSupplier1Adapter, getSupplier1Adapter } from "../../lib/integrations/supplier1.ts";
 import { mockWiseAdapter, getWiseAdapter } from "../../lib/integrations/wise.ts";
 
-describe("seamx mock adapter", () => {
+describe("supplier1 mock adapter", () => {
   it("listAdAccounts returns the deterministic dataset", async () => {
-    const res = await mockSeamxAdapter.listAdAccounts();
+    const res = await mockSupplier1Adapter.listAdAccounts();
     assert.equal(res.ok, true);
     if (!res.ok) return;
     assert.ok(res.data.length >= 1);
@@ -18,8 +18,8 @@ describe("seamx mock adapter", () => {
   });
 
   it("pushTopup refuses without idempotency_key", async () => {
-    const res = await mockSeamxAdapter.pushTopup({
-      external_ad_account_id: "seamx-mock-001",
+    const res = await mockSupplier1Adapter.pushTopup({
+      external_ad_account_id: "supplier1-mock-001",
       amount_cents: 500_00,
       currency: "USD",
       idempotency_key: "",
@@ -28,8 +28,8 @@ describe("seamx mock adapter", () => {
   });
 
   it("pushTopup succeeds with a key and reports balance-after", async () => {
-    const res = await mockSeamxAdapter.pushTopup({
-      external_ad_account_id: "seamx-mock-001",
+    const res = await mockSupplier1Adapter.pushTopup({
+      external_ad_account_id: "supplier1-mock-001",
       amount_cents: 500_00,
       currency: "USD",
       idempotency_key: "test-key-1",
@@ -41,8 +41,8 @@ describe("seamx mock adapter", () => {
   });
 
   it("pushWithdraw queues the request", async () => {
-    const res = await mockSeamxAdapter.pushWithdraw({
-      external_ad_account_id: "seamx-mock-001",
+    const res = await mockSupplier1Adapter.pushWithdraw({
+      external_ad_account_id: "supplier1-mock-001",
       amount_cents: 100_00,
       currency: "USD",
       idempotency_key: "test-key-w1",
@@ -71,18 +71,18 @@ describe("wise mock adapter", () => {
 });
 
 describe("adapter selection", () => {
-  it("defaults to mock when SEAMX_MODE unset", () => {
-    delete process.env.SEAMX_MODE;
-    const adapter = getSeamxAdapter();
-    assert.equal(adapter, mockSeamxAdapter);
+  it("defaults to mock when SUPPLIER1_MODE unset", () => {
+    delete process.env.SUPPLIER1_MODE;
+    const adapter = getSupplier1Adapter();
+    assert.equal(adapter, mockSupplier1Adapter);
   });
 
-  it("selects real adapter when SEAMX_MODE=live", () => {
-    process.env.SEAMX_MODE = "live";
-    const adapter = getSeamxAdapter();
+  it("selects real adapter when SUPPLIER1_MODE=live", () => {
+    process.env.SUPPLIER1_MODE = "live";
+    const adapter = getSupplier1Adapter();
     // Real one just returns not-implemented — verify by shape.
-    assert.notEqual(adapter, mockSeamxAdapter);
-    delete process.env.SEAMX_MODE;
+    assert.notEqual(adapter, mockSupplier1Adapter);
+    delete process.env.SUPPLIER1_MODE;
   });
 
   it("wise defaults to mock too", () => {

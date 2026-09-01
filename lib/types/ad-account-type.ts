@@ -20,7 +20,7 @@ export interface AdAccountType {
   slug: string;
   platform_group: AdAccountPlatformGroup;
   default_fee_pct: number; // whole percent, 5 = 5% (matches ad_accounts.fee)
-  // Auto-topup via the supplier API (SeamX) is possible for this type.
+  // Auto-topup via the supplier API (Supplier 1) is possible for this type.
   // Only Meta-EU-PSM; every other type is manual.
   api_topup_enabled: boolean;
   is_active: boolean;

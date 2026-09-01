@@ -1,6 +1,6 @@
 -- integration_jobs
 --
--- Durable async queue for calls into external systems (SeamX, Wise,
+-- Durable async queue for calls into external systems (Supplier 1, Wise,
 -- future integrations). Two failure modes have to be safe:
 --
 --   1. The remote system is slow / down — retries with exponential
@@ -19,7 +19,7 @@
 create table if not exists public.integration_jobs (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
-  provider text not null,      -- 'seamx' | 'wise' | …
+  provider text not null,      -- 'supplier1' | 'wise' | …
   operation text not null,     -- 'push_topup' | 'push_withdraw' | 'sync_ad_accounts' | 'match_incoming' | …
   status text not null default 'pending'
     check (status in ('pending', 'processing', 'succeeded', 'failed', 'cancelled')),

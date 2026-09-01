@@ -1,14 +1,14 @@
 -- Ad-account withdrawals.
 --
 -- An advertiser pulls balance from one of their ad accounts back into
--- their wallet. Until SeamX is wired, PSM does not know an ad
+-- their wallet. Until Supplier 1 is wired, PSM does not know an ad
 -- account's true spend, so it cannot auto-validate "available to
 -- withdraw". Instead the admin is the gate: they review the request
 -- against what they actually see, then approve or reject. On approve
 -- the amount is credited to the advertiser's wallet.
 --
--- This is deliberately supplier-agnostic — when SeamX lands, the
--- approve step will additionally push the withdrawal to SeamX; the
+-- This is deliberately supplier-agnostic — when Supplier 1 lands, the
+-- approve step will additionally push the withdrawal to Supplier 1; the
 -- table + flow stay the same.
 --
 -- Wallet→bank withdrawal is NOT modelled here — that is admin-only and

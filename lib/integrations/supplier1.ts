@@ -1,44 +1,44 @@
-// SeamX adapter.
+// Supplier 1 adapter.
 //
-// SeamX is our ad-account supplier. They approve/assign ad accounts,
+// Supplier 1 is our ad-account supplier. They approve/assign ad accounts,
 // hold the source-of-truth balance for each one, and process
 // topup/withdraw requests we push to them. Their API contract is
 // still in flight — this file ships two implementations:
 //
-//   - mockSeamxAdapter (default when SEAMX_MODE is unset or "mock"):
+//   - mockSupplier1Adapter (default when SUPPLIER1_MODE is unset or "mock"):
 //     returns a small canned dataset. Every write returns success
 //     without touching anything remote. Safe to use in tests, staging,
 //     and prod-preview.
 //
-//   - realSeamxAdapter (when SEAMX_MODE=live): calls the real HTTP
+//   - realSupplier1Adapter (when SUPPLIER1_MODE=live): calls the real HTTP
 //     endpoints. NOT WIRED YET — throws a clear error until the API
-//     contract is finalised. Swap the fetch bodies in when SeamX
+//     contract is finalised. Swap the fetch bodies in when Supplier 1
 //     hands us their spec.
 //
-// Callers always go through getSeamxAdapter(); they never import a
+// Callers always go through getSupplier1Adapter(); they never import a
 // specific implementation. That way we can flip the env var per
 // tenant without redeploying the app.
 
 import type {
   IntegrationResult,
-  SeamxAdAccount,
-  SeamxAdapter,
-  SeamxTopupPushInput,
-  SeamxTopupPushResult,
-  SeamxWithdrawPushInput,
-  SeamxWithdrawPushResult,
+  Supplier1AdAccount,
+  Supplier1Adapter,
+  Supplier1TopupPushInput,
+  Supplier1TopupPushResult,
+  Supplier1WithdrawPushInput,
+  Supplier1WithdrawPushResult,
 } from "./types";
 
 const NOT_IMPLEMENTED =
-  "SeamX live mode requested but the real adapter is not implemented yet.";
+  "Supplier 1 live mode requested but the real adapter is not implemented yet.";
 
-const mockSeamxAdapter: SeamxAdapter = {
+const mockSupplier1Adapter: Supplier1Adapter = {
   async listAdAccounts() {
     return {
       ok: true,
       data: [
         {
-          external_id: "seamx-mock-001",
+          external_id: "supplier1-mock-001",
           bm_id: "8888888888",
           platform: "meta-ads",
           currency: "USD",
@@ -49,7 +49,7 @@ const mockSeamxAdapter: SeamxAdapter = {
           updated_at: "2026-08-30T09:00:00.000Z",
         },
         {
-          external_id: "seamx-mock-002",
+          external_id: "supplier1-mock-002",
           bm_id: null,
           platform: "tiktok-ads",
           currency: "USD",
@@ -70,7 +70,7 @@ const mockSeamxAdapter: SeamxAdapter = {
     return { ok: true, data: { balance_cents: 12500_00, currency: "USD" } };
   },
 
-  async pushTopup(input: SeamxTopupPushInput) {
+  async pushTopup(input: Supplier1TopupPushInput) {
     if (!input.idempotency_key) {
       return { ok: false, error: "idempotency_key required" };
     }
@@ -80,11 +80,11 @@ const mockSeamxAdapter: SeamxAdapter = {
         external_topup_id: `mock-topup-${input.idempotency_key}`,
         status: "completed",
         balance_after_cents: 12500_00 + input.amount_cents,
-      } satisfies SeamxTopupPushResult,
+      } satisfies Supplier1TopupPushResult,
     };
   },
 
-  async pushWithdraw(input: SeamxWithdrawPushInput) {
+  async pushWithdraw(input: Supplier1WithdrawPushInput) {
     if (!input.idempotency_key) {
       return { ok: false, error: "idempotency_key required" };
     }
@@ -94,13 +94,13 @@ const mockSeamxAdapter: SeamxAdapter = {
         external_withdraw_id: `mock-withdraw-${input.idempotency_key}`,
         status: "queued",
         balance_after_cents: null,
-      } satisfies SeamxWithdrawPushResult,
+      } satisfies Supplier1WithdrawPushResult,
     };
   },
 };
 
-const realSeamxAdapter: SeamxAdapter = {
-  async listAdAccounts(): Promise<IntegrationResult<SeamxAdAccount[]>> {
+const realSupplier1Adapter: Supplier1Adapter = {
+  async listAdAccounts(): Promise<IntegrationResult<Supplier1AdAccount[]>> {
     return { ok: false, error: NOT_IMPLEMENTED, retryable: false };
   },
   async getBalance() {
@@ -114,11 +114,11 @@ const realSeamxAdapter: SeamxAdapter = {
   },
 };
 
-export function getSeamxAdapter(): SeamxAdapter {
-  const mode = (process.env.SEAMX_MODE ?? "mock").toLowerCase();
-  return mode === "live" ? realSeamxAdapter : mockSeamxAdapter;
+export function getSupplier1Adapter(): Supplier1Adapter {
+  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
+  return mode === "live" ? realSupplier1Adapter : mockSupplier1Adapter;
 }
 
 // Exported for direct use in tests that want the deterministic
 // dataset without env-var juggling.
-export { mockSeamxAdapter };
+export { mockSupplier1Adapter };

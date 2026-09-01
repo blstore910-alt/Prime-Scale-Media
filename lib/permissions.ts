@@ -23,7 +23,7 @@ export const SUPER_ADMIN_ONLY = [
   "wallet_balance_write",      // credit/debit a wallet outside the normal topup flow
   "admin_user_manage",         // invite / demote / remove other admins
   "affiliate_commission_rate", // change % / fixed commission paid to an affiliate
-  "integration_credentials",   // rotate SeamX / Wise / any external-API secret
+  "integration_credentials",   // rotate Supplier 1 / Wise / any external-API secret
   "audit_events_view",         // read the append-only audit log
   "maintenance_mode_toggle",   // put the app in read-only mode
   "tenant_settings_write",     // rename tenant, change owner, GDPR bulk actions

@@ -178,7 +178,7 @@ export default function AdAccountTypesCard() {
               <span>Type name</span>
               <span>Platform</span>
               <span className="text-right">Fee %</span>
-              <span className="text-right" title="Auto-topup via supplier API (SeamX)">API</span>
+              <span className="text-right" title="Auto-topup via supplier API (Supplier 1)">API</span>
               <span className="text-right">Active</span>
             </div>
             {rows.map((row, idx) => (
@@ -275,7 +275,7 @@ export default function AdAccountTypesCard() {
                   className="text-right"
                   onChange={(e) => setNewFee(e.target.value)}
                 />
-                <div className="flex justify-end pr-2" title="Auto-topup via supplier API (SeamX)">
+                <div className="flex justify-end pr-2" title="Auto-topup via supplier API (Supplier 1)">
                   <input
                     type="checkbox"
                     checked={newApi}

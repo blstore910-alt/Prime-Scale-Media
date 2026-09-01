@@ -28,7 +28,7 @@ async function throttleFinancial(
 // requestAdAccountWithdrawal — advertiser
 // Pulls balance from one of their ad accounts back to their wallet.
 // The RPC validates account ownership; no auto balance check (admin
-// is the gate until SeamX is wired).
+// is the gate until Supplier 1 is wired).
 // ─────────────────────────────────────────
 export async function requestAdAccountWithdrawal(input: {
   ad_account_id: string;

@@ -12,7 +12,7 @@
 --   our_bank  = the API / Meta-EU-PSM group (our own bank, e.g. TURLIT)
 --   supplier  = everything else (the supplier bank, e.g. Guangzhou)
 --
--- Manual now; the our_bank side can be API-synced later (SeamX).
+-- Manual now; the our_bank side can be API-synced later (Supplier 1).
 -- Policies are self-contained (inline admin check) — the live DB's RLS
 -- was hand-authored and _is_admin_of() does not exist there.
 -- =====================================================================

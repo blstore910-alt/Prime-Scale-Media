@@ -19,7 +19,7 @@
 //   * → cancelled           (admin action, worker never picks these)
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SeamxAdapter, WiseAdapter } from "./types";
+import type { Supplier1Adapter, WiseAdapter } from "./types";
 
 export type IntegrationJobRow = {
   id: string;
@@ -39,7 +39,7 @@ export type IntegrationJobRow = {
 
 export type WorkerContext = {
   supabase: Pick<SupabaseClient, "from" | "rpc">;
-  seamx: SeamxAdapter;
+  supplier1: Supplier1Adapter;
   wise: WiseAdapter;
   now?: () => Date; // injectable for tests
 };
@@ -105,9 +105,9 @@ async function dispatch(
   | { ok: true; result: Record<string, unknown> }
   | { ok: false; error: string; retryable: boolean }
 > {
-  if (job.provider === "seamx") {
+  if (job.provider === "supplier1") {
     if (job.operation === "push_topup") {
-      const res = await ctx.seamx.pushTopup({
+      const res = await ctx.supplier1.pushTopup({
         external_ad_account_id: String(job.payload.external_ad_account_id),
         amount_cents: Number(job.payload.amount_cents),
         currency: String(job.payload.currency),
@@ -123,7 +123,7 @@ async function dispatch(
       return { ok: true, result: res.data as unknown as Record<string, unknown> };
     }
     if (job.operation === "push_withdraw") {
-      const res = await ctx.seamx.pushWithdraw({
+      const res = await ctx.supplier1.pushWithdraw({
         external_ad_account_id: String(job.payload.external_ad_account_id),
         amount_cents: Number(job.payload.amount_cents),
         currency: String(job.payload.currency),
@@ -139,7 +139,7 @@ async function dispatch(
       return { ok: true, result: res.data as unknown as Record<string, unknown> };
     }
     if (job.operation === "sync_ad_accounts") {
-      const res = await ctx.seamx.listAdAccounts();
+      const res = await ctx.supplier1.listAdAccounts();
       if (!res.ok) {
         return {
           ok: false,

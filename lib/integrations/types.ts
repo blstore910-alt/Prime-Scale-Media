@@ -1,8 +1,8 @@
-// Shared types for external-API adapters (SeamX, Wise, …).
+// Shared types for external-API adapters (Supplier 1, Wise, …).
 //
-// Each adapter file (seamx.ts, wise.ts) exports an object matching one
+// Each adapter file (supplier1.ts, wise.ts) exports an object matching one
 // of the *Adapter interfaces below. The active implementation is
-// selected via env at runtime — see `getSeamxAdapter()` /
+// selected via env at runtime — see `getSupplier1Adapter()` /
 // `getWiseAdapter()` in the respective files.
 //
 // A `mock-*` implementation ships alongside every real adapter so
@@ -24,59 +24,59 @@ export type IntegrationResult<T> =
     };
 
 // ─────────────────────────────────────────
-// SeamX — ad-account supplier
+// Supplier 1 — ad-account supplier
 // ─────────────────────────────────────────
-export type SeamxPlatform = "meta-ads" | "tiktok-ads" | "google-ads";
+export type Supplier1Platform = "meta-ads" | "tiktok-ads" | "google-ads";
 
-export interface SeamxAdAccount {
-  external_id: string;         // SeamX side of the ad account
+export interface Supplier1AdAccount {
+  external_id: string;         // Supplier 1 side of the ad account
   bm_id: string | null;
-  platform: SeamxPlatform;
+  platform: Supplier1Platform;
   currency: string;
   balance_cents: number;
   status: "active" | "paused" | "suspended";
-  assigned_to: string | null;  // SeamX-side advertiser identifier
+  assigned_to: string | null;  // Supplier 1-side advertiser identifier
   timezone: string | null;
   updated_at: string;
 }
 
-export interface SeamxTopupPushInput {
+export interface Supplier1TopupPushInput {
   external_ad_account_id: string;
   amount_cents: number;
   currency: string;
-  idempotency_key: string; // caller-controlled, dedup at SeamX side
+  idempotency_key: string; // caller-controlled, dedup at Supplier 1 side
 }
 
-export interface SeamxTopupPushResult {
+export interface Supplier1TopupPushResult {
   external_topup_id: string;
   status: "queued" | "completed" | "failed";
   balance_after_cents: number | null;
 }
 
-export interface SeamxWithdrawPushInput {
+export interface Supplier1WithdrawPushInput {
   external_ad_account_id: string;
   amount_cents: number;
   currency: string;
   idempotency_key: string;
 }
 
-export interface SeamxWithdrawPushResult {
+export interface Supplier1WithdrawPushResult {
   external_withdraw_id: string;
   status: "queued" | "completed" | "failed";
   balance_after_cents: number | null;
 }
 
-export interface SeamxAdapter {
-  listAdAccounts(): Promise<IntegrationResult<SeamxAdAccount[]>>;
+export interface Supplier1Adapter {
+  listAdAccounts(): Promise<IntegrationResult<Supplier1AdAccount[]>>;
   getBalance(
     externalAdAccountId: string,
   ): Promise<IntegrationResult<{ balance_cents: number; currency: string }>>;
   pushTopup(
-    input: SeamxTopupPushInput,
-  ): Promise<IntegrationResult<SeamxTopupPushResult>>;
+    input: Supplier1TopupPushInput,
+  ): Promise<IntegrationResult<Supplier1TopupPushResult>>;
   pushWithdraw(
-    input: SeamxWithdrawPushInput,
-  ): Promise<IntegrationResult<SeamxWithdrawPushResult>>;
+    input: Supplier1WithdrawPushInput,
+  ): Promise<IntegrationResult<Supplier1WithdrawPushResult>>;
 }
 
 // ─────────────────────────────────────────

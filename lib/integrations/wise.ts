@@ -6,7 +6,7 @@
 // + amount to pending wallet_topups, and auto-mark them completed —
 // no more manual verify click per payment.
 //
-// Two implementations, same swap pattern as seamx.ts:
+// Two implementations, same swap pattern as supplier1.ts:
 //   - mockWiseAdapter (default): canned incoming payments useful for
 //     E2E tests of the matcher.
 //   - realWiseAdapter (WISE_MODE=live): NOT WIRED YET. Waiting on

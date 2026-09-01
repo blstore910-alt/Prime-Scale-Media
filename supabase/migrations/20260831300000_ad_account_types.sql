@@ -34,7 +34,7 @@ create table if not exists public.ad_account_types (
   default_fee_pct numeric(5, 2) not null default 5
     check (default_fee_pct >= 0 and default_fee_pct <= 100),
   -- Whether this type can be auto-topped-up via the supplier API
-  -- (SeamX) later. Only Meta-EU-PSM is API-automatable; every other
+  -- (Supplier 1) later. Only Meta-EU-PSM is API-automatable; every other
   -- type is handled manually (advertiser uploads a payment slip → admin
   -- verifies → wallet credited → ad-account topup verified by hand).
   api_topup_enabled boolean not null default false,

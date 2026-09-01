@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { getSeamxAdapter } from "@/lib/integrations/seamx";
+import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
 import { processIntegrationJobs } from "@/lib/integrations/worker";
 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     const summary = await processIntegrationJobs(
       {
         supabase,
-        seamx: getSeamxAdapter(),
+        supplier1: getSupplier1Adapter(),
         wise: getWiseAdapter(),
       },
       { batchSize: 10 },

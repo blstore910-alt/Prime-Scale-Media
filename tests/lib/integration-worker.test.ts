@@ -6,7 +6,7 @@ import {
   type IntegrationJobRow,
   type WorkerContext,
 } from "../../lib/integrations/worker.ts";
-import type { SeamxAdapter, WiseAdapter } from "../../lib/integrations/types.ts";
+import type { Supplier1Adapter, WiseAdapter } from "../../lib/integrations/types.ts";
 
 // ─────────────────────────────────────────────────────────────────
 // Tiny in-memory Supabase stub — only the calls the worker makes.
@@ -132,11 +132,11 @@ function baseJob(overrides: Partial<IntegrationJobRow> = {}): IntegrationJobRow 
   return {
     id: overrides.id ?? "job-1",
     tenant_id: "tenant-1",
-    provider: "seamx",
+    provider: "supplier1",
     operation: "push_topup",
     status: "pending",
     payload: {
-      external_ad_account_id: "seamx-mock-001",
+      external_ad_account_id: "supplier1-mock-001",
       amount_cents: 500_00,
       currency: "USD",
     },
@@ -151,8 +151,8 @@ function baseJob(overrides: Partial<IntegrationJobRow> = {}): IntegrationJobRow 
   };
 }
 
-const okAdapter: { seamx: SeamxAdapter; wise: WiseAdapter } = {
-  seamx: {
+const okAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
+  supplier1: {
     async listAdAccounts() {
       return { ok: true, data: [] };
     },
@@ -187,8 +187,8 @@ const okAdapter: { seamx: SeamxAdapter; wise: WiseAdapter } = {
   },
 };
 
-const brokenAdapter: { seamx: SeamxAdapter; wise: WiseAdapter } = {
-  seamx: {
+const brokenAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
+  supplier1: {
     async listAdAccounts() {
       return { ok: false, error: "boom", retryable: true };
     },
@@ -277,7 +277,7 @@ describe("processIntegrationJobs — terminal failure", () => {
 
   it("non-retryable error fails immediately", async () => {
     const { supabase, rows } = makeMockSupabase([
-      baseJob({ provider: "seamx", operation: "unknown-op" }),
+      baseJob({ provider: "supplier1", operation: "unknown-op" }),
     ]);
     const summary = await processIntegrationJobs(
       { supabase, ...okAdapter, now: () => new Date("2026-08-30T10:00:00Z") },
