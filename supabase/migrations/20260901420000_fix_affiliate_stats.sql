@@ -48,21 +48,23 @@ begin
     return;
   end if;
 
+  -- All string columns are cast to ::text — the view/base columns are
+  -- varchar and RETURNS TABLE(text) is strict about varchar vs text.
   return query
   select
     d.id                                        as referral_link_id,
     d.referred_advertiser_id                    as referred_advertiser_id,
-    d.referred_advertiser_name                  as referred_advertiser_name,
-    d.referred_advertiser_email                 as referred_advertiser_email,
-    d.referred_advertiser_tenant_client_code    as referred_advertiser_code,
+    d.referred_advertiser_name::text            as referred_advertiser_name,
+    d.referred_advertiser_email::text           as referred_advertiser_email,
+    d.referred_advertiser_tenant_client_code::text as referred_advertiser_code,
     rl.commission_type::text                    as commission_type,
     rl.commission_pct::numeric                  as commission_pct,
     rl.commission_currency::text                as commission_currency,
-    coalesce(sp.spend_usd, 0)                   as spend_usd,
-    coalesce(sp.spend_eur, 0)                   as spend_eur,
+    coalesce(sp.spend_usd, 0)::numeric          as spend_usd,
+    coalesce(sp.spend_eur, 0)::numeric          as spend_eur,
     coalesce(sp.topup_count, 0)::int            as topup_count,
-    coalesce(ea.earn_usd, 0)                    as earnings_usd,
-    coalesce(ea.earn_eur, 0)                    as earnings_eur
+    coalesce(ea.earn_usd, 0)::numeric           as earnings_usd,
+    coalesce(ea.earn_eur, 0)::numeric           as earnings_eur
   from public.referral_links_with_details d
   join public.referral_links rl on rl.id = d.id
   left join lateral (
