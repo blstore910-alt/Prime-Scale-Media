@@ -383,7 +383,11 @@ export default function InviteForm() {
                     render={({ field }) => (
                       <Select
                         value={field.value || ""}
-                        onValueChange={field.onChange}
+                        onValueChange={(v) => {
+                          field.onChange(v);
+                          // Plan and community are mutually exclusive.
+                          form.setValue("community_id", "");
+                        }}
                       >
                         <SelectTrigger id="invite-plan">
                           <SelectValue placeholder="Pick a plan" />
@@ -427,7 +431,11 @@ export default function InviteForm() {
                     render={({ field }) => (
                       <Select
                         value={field.value || ""}
-                        onValueChange={field.onChange}
+                        onValueChange={(v) => {
+                          field.onChange(v);
+                          // Picking a community empties the plan.
+                          form.setValue("plan_id", "");
+                        }}
                       >
                         <SelectTrigger id="invite-community">
                           <SelectValue placeholder="No community" />
