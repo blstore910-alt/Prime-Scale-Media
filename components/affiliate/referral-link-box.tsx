@@ -47,21 +47,23 @@ export default function ReferralLinkBox() {
             referral.
           </p>
         </div>
-        <div className="flex w-full flex-1 items-center gap-2 sm:max-w-xl">
-          <Input
-            value={referralLink || "Referral link unavailable"}
-            readOnly
-            className="truncate"
-          />
-          <Button
-            variant="outline"
-            onClick={handleCopy}
-            disabled={!referralLink}
-            aria-label="Copy referral link"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-        </div>
+        {referralLink ? (
+          <div className="flex w-full flex-1 items-center gap-2 sm:max-w-xl">
+            <Input value={referralLink} readOnly className="truncate" />
+            <Button
+              variant="outline"
+              onClick={handleCopy}
+              aria-label="Copy referral link"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground sm:max-w-xs sm:text-right">
+            Your referral link isn&apos;t set up yet — an admin needs to assign
+            you a client code first.
+          </p>
+        )}
       </div>
     </div>
   );
