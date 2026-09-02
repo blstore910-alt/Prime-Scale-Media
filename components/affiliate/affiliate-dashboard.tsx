@@ -24,11 +24,14 @@ import { toast } from "sonner";
 // the product wants — a big count-up on total earnings, a medal tier, and
 // each referral as a "winning ticket".
 
+// Low, achievable defaults so every affiliate feels progress fast — but
+// still motivating toward the top. TODO: make thresholds configurable per
+// affiliate (admin-set) — see memory affiliate-tiers-config.
 const TIERS = [
-  { name: "Bronze", min: 0, next: 1000 },
-  { name: "Silver", min: 1000, next: 5000 },
-  { name: "Gold", min: 5000, next: 10000 },
-  { name: "Platinum", min: 10000, next: null as number | null },
+  { name: "Bronze", min: 0, next: 250 },
+  { name: "Silver", min: 250, next: 1000 },
+  { name: "Gold", min: 1000, next: 2500 },
+  { name: "Platinum", min: 2500, next: null as number | null },
 ];
 
 function money(v: number | null | undefined, currency: "USD" | "EUR") {
