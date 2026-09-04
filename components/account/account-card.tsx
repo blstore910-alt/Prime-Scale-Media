@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Eye,
   MinusCircle,
+  Monitor,
   PauseCircle,
   Pencil,
 } from "lucide-react";
@@ -25,13 +26,18 @@ export default function AccountCard({
   return (
     <Card className="cursor-pointer hover:shadow-lg transition-shadow p-2">
       <CardContent className="p-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-muted-foreground text-xs">
-              {`${account.advertiser?.tenant_client_code}`} &middot;{" "}
-              {`${account.advertiser?.profile?.full_name}`}
-            </p>
-            <CardTitle className="text-sm">{account.name}</CardTitle>
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex items-start gap-2 min-w-0">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Monitor className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-xs">
+                {`${account.advertiser?.tenant_client_code}`} &middot;{" "}
+                {`${account.advertiser?.profile?.full_name}`}
+              </p>
+              <CardTitle className="text-sm">{account.name}</CardTitle>
+            </div>
           </div>
           <Badge className="capitalize" variant={"outline"}>
             {account.status === "active" ? (

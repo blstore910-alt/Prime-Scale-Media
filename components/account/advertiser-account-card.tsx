@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Eye,
   MinusCircle,
+  Monitor,
   PauseCircle,
   Plus,
 } from "lucide-react";
@@ -32,13 +33,18 @@ export default function AdvertiserAccountCard({
     return (
       <Card className="shadow-none transition-shadow py-2">
         <CardContent className="px-2">
-          <div className="flex items-center justify-between">
-            <h3
-              className="font-medium text-foreground text-sm truncate"
-              title={account.name}
-            >
-              {account.name}
-            </h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Monitor className="h-4 w-4" />
+              </span>
+              <h3
+                className="font-medium text-foreground text-sm truncate"
+                title={account.name}
+              >
+                {account.name}
+              </h3>
+            </div>
             <Badge
               className={cn("capitalize whitespace-nowrap w-fit")}
               variant={"outline"}
@@ -100,14 +106,21 @@ export default function AdvertiserAccountCard({
     <Card className="shadow-none transition-shadow p-0">
       <CardContent className="p-3 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
         {/* Left Section: Account Name & Platform */}
-        <div className="md:col-span-4 flex flex-col gap-1">
-          <h3
-            className="font-medium text-foreground text-sm truncate"
-            title={account.name}
-          >
-            {account.name}
-          </h3>
-          <span className="text-xs text-muted-foreground">{platformLabel}</span>
+        <div className="md:col-span-4 flex items-center gap-2 min-w-0">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Monitor className="h-4 w-4" />
+          </span>
+          <div className="flex flex-col gap-1 min-w-0">
+            <h3
+              className="font-medium text-foreground text-sm truncate"
+              title={account.name}
+            >
+              {account.name}
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {platformLabel}
+            </span>
+          </div>
         </div>
 
         {/* Middle Section: Stats */}

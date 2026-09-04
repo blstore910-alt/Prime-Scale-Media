@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Eye,
   MinusCircle,
+  Monitor,
   PauseCircle,
   Pencil,
   X,
@@ -79,8 +80,15 @@ export default function AccountRow({
       key={account.id}
     >
       <TableCell>{account.advertiser?.tenant_client_code || "—"}</TableCell>
-      <TableCell className="font-medium cursor-pointer group-hover:underline underline-offset-2">
-        {account.name}
+      <TableCell className="font-medium cursor-pointer">
+        <span className="inline-flex items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+            <Monitor className="h-3.5 w-3.5" />
+          </span>
+          <span className="group-hover:underline underline-offset-2">
+            {account.name}
+          </span>
+        </span>
       </TableCell>
 
       {/* Advertiser info */}
