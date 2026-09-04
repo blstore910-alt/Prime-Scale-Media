@@ -131,6 +131,7 @@ export default function WalletView() {
                 variant="default"
                 onClick={() => handleAddBalance()}
                 disabled={!wallet || isCreating || isLoading}
+                className="bg-brand-strong border-0 text-white hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
                 Add Balance
@@ -232,18 +233,23 @@ function BalancePanel({
   amount: string;
   currency: string;
 }) {
+  const isUsd = currency === "USD";
+  const background = isUsd
+    ? "linear-gradient(135deg, #0e93a6, #14b8a6 60%, #3ad1c0)"
+    : "linear-gradient(135deg, #3a6fff, #5b8dff 55%, #7aa2ff)";
   return (
-    <div className="rounded-lg border p-4 sm:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {title}
-          </p>
-          <p className="mt-2 text-3xl font-semibold">
-            {currency === "USD" ? "$" : "€"} {amount}
-          </p>
-        </div>
-      </div>
+    <div
+      className="relative overflow-hidden rounded-xl p-5 text-white shadow-sm sm:p-6"
+      style={{ background }}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide opacity-90">
+        {title}
+      </p>
+      <p className="mt-2 font-display text-4xl font-extrabold leading-tight">
+        {isUsd ? "$" : "€"}
+        {amount}
+      </p>
+      <p className="mt-1 text-xs opacity-80">{currency} wallet</p>
     </div>
   );
 }
