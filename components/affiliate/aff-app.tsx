@@ -134,6 +134,10 @@ export default function AffiliateApp() {
   return (
     <div className={`affapp app ${jakarta.variable}`}>
       <style>{AFF_CSS}</style>
+      <style>{
+        // Softer shadow on the dashboard stat tiles (user: too heavy).
+        ".affapp .stat{box-shadow:0 4px 14px -12px rgba(30,42,90,.28)}"
+      }</style>
       <AffIcons />
 
       <div
