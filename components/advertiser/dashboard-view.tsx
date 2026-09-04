@@ -77,8 +77,7 @@ export default function AdvertiserDashboardView() {
       const { data, error } = await supabase
         .from("ad_accounts")
         .select("id, name, platform, status, fee")
-        .eq("advertiser_id", advertiserId)
-        .order("created_at", { ascending: false });
+        .eq("advertiser_id", advertiserId);
       if (error) throw error;
       return (data ?? []) as AcctRow[];
     },
