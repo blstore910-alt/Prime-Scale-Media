@@ -242,7 +242,9 @@ export default function MySubscriptionView() {
                 {formatSubscriptionDate(subscription.start_date)}
               </DetailItem>
               <DetailItem label="Amount">
-                €{formatSubscriptionAmount(subscription.amount)}
+                <span className="text-brand font-display text-2xl font-extrabold">
+                  €{formatSubscriptionAmount(subscription.amount)}
+                </span>
               </DetailItem>
               <DetailItem label="Next payment date">
                 {formatSubscriptionDate(subscription.next_payment_date)}
