@@ -121,8 +121,8 @@ export default function AuthLayout({
           Scale your ads with <span className="g">wallets that just work.</span>
         </h1>
         <p className="sub">
-          Top up by bank transfer, get ad accounts live in hours, and track
-          every euro — all in one place.
+          Fund your campaigns by bank transfer, hold EUR &amp; USD, and keep
+          track of every euro — all in one place.
         </p>
         <div className="pts">
           <div className="pt">
@@ -139,7 +139,7 @@ export default function AuthLayout({
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             </span>{" "}
-            Meta, TikTok &amp; Google accounts, managed
+            One balance across all your marketing channels
           </div>
           <div className="pt">
             <span className="d">
