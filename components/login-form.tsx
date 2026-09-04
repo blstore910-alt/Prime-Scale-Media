@@ -75,7 +75,7 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
-        <div className="h-32">
+        <div className="h-32 lg:hidden">
           <Image
             src={"/images/psm-logo.svg"}
             height={150}
