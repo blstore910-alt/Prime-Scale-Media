@@ -1,19 +1,7 @@
 "use client";
 
 import { loginUser } from "@/actions/user-actions";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -23,10 +11,18 @@ const REDIRECT_REASONS: Record<string, string> = {
   session: "Your session expired. Please sign in again.",
 };
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+// Rocket mark from the approved mockup (onboarding-auth.html).
+function Rocket() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    </svg>
+  );
+}
+
+export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +33,9 @@ export function LoginForm({
 
   // Magic-link + email-confirm redirects land here with an
   // #access_token=… URL fragment. The @supabase/ssr browser client
-  // detects and consumes that fragment when it's instantiated —
-  // but only if the client is instantiated on the login page. This
-  // effect handles it and hard-navigates once a session exists.
+  // detects and consumes that fragment when it's instantiated — but
+  // only if the client is instantiated on the login page. This effect
+  // handles it and hard-navigates once a session exists.
   useEffect(() => {
     if (
       typeof window === "undefined" ||
@@ -73,77 +69,66 @@ export function LoginForm({
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <div className="h-32 lg:hidden">
-          <Image
-            src={"/images/psm-logo.svg"}
-            height={150}
-            width={150}
-            alt="PSM Logo"
-            className="object-cover h-44 w-auto mx-auto"
-          />
+    <section className="card login-card">
+      <div className="lmk">
+        <span className="mk">
+          <Rocket />
+        </span>
+      </div>
+      <h2>Sign in</h2>
+      <p className="lede">Welcome back to Prime Scale Media.</p>
+
+      {reasonMessage && <div className="note">{reasonMessage}</div>}
+
+      <form onSubmit={handleSubmit}>
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <div className="inp">
+            <svg viewBox="0 0 24 24">
+              <rect width="20" height="16" x="2" y="4" rx="2" />
+              <path d="m22 7-10 5L2 7" />
+            </svg>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@company.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
         </div>
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {reasonMessage && (
-            <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-              {reasonMessage}
-            </div>
-          )}
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/auth/forgot-password"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? "Logging in..." : "Login"}
-              </Button>
-            </div>
-            {/* <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4"
-              >
-                Sign up
-              </Link>
-            </div> */}
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+
+        <div className="field">
+          <label htmlFor="password">Password</label>
+          <div className="inp">
+            <svg viewBox="0 0 24 24">
+              <rect width="18" height="11" x="3" y="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••••••"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right", margin: "-2px 0 2px" }}>
+          <Link className="lnk" href="/auth/forgot-password">
+            Forgot password?
+          </Link>
+        </div>
+
+        {error && <p className="err">{error}</p>}
+
+        <button className="btn" type="submit" disabled={isPending}>
+          {isPending ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+    </section>
   );
 }
