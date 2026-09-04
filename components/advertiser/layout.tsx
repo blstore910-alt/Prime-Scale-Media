@@ -6,7 +6,7 @@ import { User } from "@supabase/supabase-js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "../ui/sonner";
 import PushNotificationManager from "../push-notification-manager";
-import PsmAdvertiserShell from "./psm-shell";
+import PsmAppShell from "./psm-shell";
 
 const queryClient = new QueryClient();
 
@@ -22,10 +22,10 @@ export default function AdvertiserLayout({
   return (
     <AppProvider user={user} profile={profile}>
       <QueryClientProvider client={queryClient}>
-        <PsmAdvertiserShell>
+        <PsmAppShell variant="advertiser">
           <PushNotificationManager />
           {children}
-        </PsmAdvertiserShell>
+        </PsmAppShell>
         <Toaster position="top-right" />
       </QueryClientProvider>
     </AppProvider>

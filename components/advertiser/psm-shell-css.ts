@@ -15,10 +15,13 @@ export const PSM_APP_CSS = `
   -webkit-font-smoothing:antialiased;display:flex;
 }
 .psmapp *{box-sizing:border-box}
-.psmapp svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;width:20px;height:20px;flex:0 0 auto}
-.psmapp a{text-decoration:none;color:inherit}
-.psmapp h1,.psmapp h2{margin:0}
-.psmapp h2{font-family:var(--hd);font-weight:800;font-size:1.12rem;letter-spacing:-.02em}
+/* Element rules apply only inside a ported view (.psmview) or the shell
+   chrome, never to not-yet-ported page content rendered as children. */
+.psmapp .psmview svg,.psmapp .sidebar svg,.psmapp .topbar svg,.psmapp .bottombar svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.psmapp .psmview a{text-decoration:none;color:inherit}
+.psmapp .psmview h1,.psmapp .psmview h2{margin:0}
+.psmapp .psmview h2,.psmapp .phead h2{font-family:var(--hd);font-weight:800;font-size:1.12rem;letter-spacing:-.02em}
+.psmapp .pfi svg{width:19px;height:19px}
 .psmapp .cap{color:var(--muted);font-size:.9rem;margin:6px 0 16px}
 .psmapp .grad{background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
 .psmapp .mono{font-family:ui-monospace,Menlo,monospace}

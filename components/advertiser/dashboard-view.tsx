@@ -118,7 +118,10 @@ export default function AdvertiserDashboardView() {
       : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <div className="phead">
         <div>
           <h1>Welcome back, {firstName}</h1>

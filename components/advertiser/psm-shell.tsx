@@ -27,20 +27,59 @@ import { useState } from "react";
 import { PSM_APP_CSS } from "./psm-shell-css";
 
 type NavItem = { title: string; href: string; icon: LucideIcon };
+type ShellVariant = "advertiser" | "affiliate";
 
-// Real advertiser destinations (mirrors app-sidebar advertiserNavItems),
-// grouped and iconed to match the approved mockup. Routing is preserved.
-const MAIN: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Wallet", href: "/wallet", icon: Wallet },
-  { title: "Ad accounts", href: "/accounts", icon: Monitor },
-  { title: "Topups", href: "/top-ups", icon: Coins },
-  { title: "My subscription", href: "/my-subscription", icon: ShieldCheck },
-  { title: "Invoices", href: "/invoices", icon: Receipt },
-];
-const ACCOUNT: NavItem[] = [
-  { title: "Get help", href: "/help", icon: HelpCircle },
-];
+type ShellConfig = {
+  roleLabel: string;
+  main: NavItem[];
+  account: NavItem[];
+  earn?: NavItem;
+  bottom: NavItem[];
+  showWallet: boolean;
+  showSubscription: boolean;
+};
+
+const CONFIG: Record<ShellVariant, ShellConfig> = {
+  advertiser: {
+    roleLabel: "Advertiser",
+    main: [
+      { title: "Dashboard", href: "/dashboard", icon: Home },
+      { title: "Wallet", href: "/wallet", icon: Wallet },
+      { title: "Ad accounts", href: "/accounts", icon: Monitor },
+      { title: "Topups", href: "/top-ups", icon: Coins },
+      { title: "My subscription", href: "/my-subscription", icon: ShieldCheck },
+      { title: "Invoices", href: "/invoices", icon: Receipt },
+    ],
+    account: [{ title: "Get help", href: "/help", icon: HelpCircle }],
+    earn: { title: "Affiliate program", href: "/my-referrals", icon: Gift },
+    bottom: [
+      { title: "Accounts", href: "/accounts", icon: Monitor },
+      { title: "Topups", href: "/top-ups", icon: Coins },
+      { title: "Home", href: "/dashboard", icon: Home },
+      { title: "Wallet", href: "/wallet", icon: Wallet },
+      { title: "Invoices", href: "/invoices", icon: Receipt },
+    ],
+    showWallet: true,
+    showSubscription: true,
+  },
+  affiliate: {
+    // The affiliate's home is the referrals jackpot (/my-referrals);
+    // /dashboard renders the admin overview and is redirected away for
+    // affiliates in app/(app)/dashboard/page.tsx.
+    roleLabel: "Affiliate",
+    main: [
+      { title: "My referrals", href: "/my-referrals", icon: Gift },
+      { title: "Invoices", href: "/invoices", icon: Receipt },
+    ],
+    account: [{ title: "Get help", href: "/help", icon: HelpCircle }],
+    bottom: [
+      { title: "Referrals", href: "/my-referrals", icon: Gift },
+      { title: "Invoices", href: "/invoices", icon: Receipt },
+    ],
+    showWallet: false,
+    showSubscription: false,
+  },
+};
 
 const TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -49,7 +88,7 @@ const TITLES: Record<string, string> = {
   "/top-ups": "Topups",
   "/my-subscription": "My subscription",
   "/invoices": "Invoices",
-  "/my-referrals": "Affiliate program",
+  "/my-referrals": "My referrals",
   "/help": "Get help",
   "/profile": "Settings",
   "/notifications": "Notifications",
@@ -74,23 +113,26 @@ const fmtEur = (v: number | string | null | undefined) =>
     maximumFractionDigits: 0,
   }).format(Number(v ?? 0));
 
-export default function PsmAdvertiserShell({
+export default function PsmAppShell({
+  variant = "advertiser",
   children,
 }: {
+  variant?: ShellVariant;
   children: React.ReactNode;
 }) {
+  const cfg = CONFIG[variant];
   const { profile } = useAppContext();
   const pathname = usePathname() ?? "/dashboard";
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
-  const fullName = (profile?.full_name as string) ?? "Advertiser";
+  const fullName = (profile?.full_name as string) ?? cfg.roleLabel;
   const ini = initials(fullName);
 
   const { data: wallet } = useQuery<WalletType | null>({
     queryKey: ["wallet", advertiserId],
-    enabled: !!advertiserId,
+    enabled: cfg.showWallet && !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -128,14 +170,6 @@ export default function PsmAdvertiserShell({
     );
   };
 
-  const bottom = [
-    { title: "Accounts", href: "/accounts", icon: Monitor },
-    { title: "Topups", href: "/top-ups", icon: Coins },
-    { title: "Home", href: "/dashboard", icon: Home },
-    { title: "Wallet", href: "/wallet", icon: Wallet },
-    { title: "Invoices", href: "/invoices", icon: Receipt },
-  ];
-
   return (
     <div className={`psmapp ${jakarta.variable} ${dmSans.variable}`}>
       <style>{PSM_APP_CSS}</style>
@@ -148,26 +182,27 @@ export default function PsmAdvertiserShell({
             <Rocket />
           </span>
           <span className="name">
-            Prime Scale Media<small>Advertiser</small>
+            Prime Scale Media<small>{cfg.roleLabel}</small>
           </span>
         </div>
-        {MAIN.map((item) => (
+        {cfg.main.map((item) => (
           <NavLink key={item.href} item={item} />
         ))}
         <div className="navsec">Account</div>
-        {ACCOUNT.map((item) => (
+        {cfg.account.map((item) => (
           <NavLink key={item.href} item={item} />
         ))}
-        <div className="navsec">Earn</div>
-        <NavLink
-          item={{ title: "Affiliate program", href: "/my-referrals", icon: Gift }}
-          aff
-        />
+        {cfg.earn && (
+          <>
+            <div className="navsec">Earn</div>
+            <NavLink item={cfg.earn} aff />
+          </>
+        )}
         <div className="side-foot">
           <span className="avatar">{ini}</span>
           <div className="who">
             {fullName}
-            <small>{profile?.tenant?.name ?? "Advertiser"}</small>
+            <small>{profile?.tenant?.name ?? cfg.roleLabel}</small>
           </div>
         </div>
       </aside>
@@ -189,16 +224,29 @@ export default function PsmAdvertiserShell({
           </div>
           <div className="tb-spacer" />
           <div className="toolbar">
-            <Link className="tool wal" href="/wallet" title="Open wallet">
-              <Wallet />
-              <span className="e">
-                <small>Wallet</small>
-                <b>{fmtEur(wallet?.eur_balance)}</b>
-              </span>
-            </Link>
-            <Link className="tool st" href="/my-subscription" title="Subscription">
-              <ShieldCheck /> Active
-            </Link>
+            {cfg.showWallet && (
+              <Link className="tool wal" href="/wallet" title="Open wallet">
+                <Wallet />
+                <span className="e">
+                  <small>Wallet</small>
+                  <b>{fmtEur(wallet?.eur_balance)}</b>
+                </span>
+              </Link>
+            )}
+            {cfg.showSubscription && (
+              <Link
+                className="tool st"
+                href="/my-subscription"
+                title="Subscription"
+              >
+                <ShieldCheck /> Active
+              </Link>
+            )}
+            {!cfg.showWallet && (
+              <Link className="tool st" href="/my-referrals" title="Earnings">
+                <Gift /> Earnings
+              </Link>
+            )}
             <Link
               className="tool ic-btn"
               href="/notifications"
@@ -224,11 +272,11 @@ export default function PsmAdvertiserShell({
         <div className="content">{children}</div>
 
         <nav className="bottombar">
-          {bottom.map((b) => {
+          {cfg.bottom.map((b) => {
             const Icon = b.icon;
             return (
               <Link
-                key={b.href}
+                key={b.href + b.title}
                 href={b.href}
                 onClick={close}
                 className={`bb${isActive(pathname, b.href) ? " on" : ""}`}
