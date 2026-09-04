@@ -1,3 +1,4 @@
+import AffiliateApp from "@/components/affiliate/aff-app";
 import AffiliateDashboard from "@/components/affiliate/affiliate-dashboard";
 import ReferralLinkBox from "@/components/affiliate/referral-link-box";
 import { createClient } from "@/lib/supabase/server";
@@ -13,9 +14,17 @@ export default async function Page() {
     .single();
 
   // Both the standalone affiliate role and an advertiser acting as an
-  // affiliate (approved referral link) see this dashboard.
-  const allowed = profile?.role === "advertiser" || profile?.role === "affiliate";
+  // affiliate (approved referral link) see referrals here.
+  const allowed =
+    profile?.role === "advertiser" || profile?.role === "affiliate";
   if (!allowed) redirect("/");
+
+  // Standalone affiliates get the full single-page affiliate app (its own
+  // shell + all screens). Advertisers-as-affiliate see the referrals inside
+  // their own advertiser shell.
+  if (profile?.role === "affiliate") {
+    return <AffiliateApp />;
+  }
 
   return (
     <div className="flex flex-1 flex-col">

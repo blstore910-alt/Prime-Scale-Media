@@ -5,10 +5,12 @@ import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "../ui/sonner";
-import PsmAppShell from "../advertiser/psm-shell";
 
 const queryClient = new QueryClient();
 
+// Affiliate area providers only. The affiliate experience (AffiliateApp,
+// rendered by /my-referrals) is a single-page port of the mockup that
+// brings its own shell (sidebar / topbar / bottom bar).
 export default function AffilateLayout({
   children,
   user,
@@ -21,7 +23,7 @@ export default function AffilateLayout({
   return (
     <AppProvider user={user} profile={profile}>
       <QueryClientProvider client={queryClient}>
-        <PsmAppShell variant="affiliate">{children}</PsmAppShell>
+        {children}
         <Toaster position="top-right" />
       </QueryClientProvider>
     </AppProvider>
