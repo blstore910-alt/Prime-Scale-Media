@@ -18,6 +18,7 @@ import {
   Monitor,
   Receipt,
   Rocket,
+  Settings,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
@@ -50,7 +51,11 @@ const CONFIG: Record<ShellVariant, ShellConfig> = {
       { title: "My subscription", href: "/my-subscription", icon: ShieldCheck },
       { title: "Invoices", href: "/invoices", icon: Receipt },
     ],
-    account: [{ title: "Get help", href: "/help", icon: HelpCircle }],
+    account: [
+      { title: "Notifications", href: "/notifications", icon: Bell },
+      { title: "Settings", href: "/profile", icon: Settings },
+      { title: "Get help", href: "/help", icon: HelpCircle },
+    ],
     earn: { title: "Affiliate program", href: "/my-referrals", icon: Gift },
     bottom: [
       { title: "Accounts", href: "/accounts", icon: Monitor },
@@ -71,7 +76,11 @@ const CONFIG: Record<ShellVariant, ShellConfig> = {
       { title: "My referrals", href: "/my-referrals", icon: Gift },
       { title: "Invoices", href: "/invoices", icon: Receipt },
     ],
-    account: [{ title: "Get help", href: "/help", icon: HelpCircle }],
+    account: [
+      { title: "Notifications", href: "/notifications", icon: Bell },
+      { title: "Settings", href: "/profile", icon: Settings },
+      { title: "Get help", href: "/help", icon: HelpCircle },
+    ],
     bottom: [
       { title: "Referrals", href: "/my-referrals", icon: Gift },
       { title: "Invoices", href: "/invoices", icon: Receipt },

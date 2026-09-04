@@ -1,4 +1,5 @@
 import InvoicesTable from "@/components/invoices/invoices-table";
+import PsmInvoicesView from "@/components/invoices/psm-invoices-view";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,6 +25,13 @@ export default async function Page() {
     : profiles[0];
 
   if (!profile) redirect("/onboard");
+
+  // Advertiser & affiliate get the ported mockup view inside the PSM
+  // shell; admins keep the full shadcn table (advertiser/company cols,
+  // create-invoice) in their current shell.
+  if (profile.role === "advertiser" || profile.role === "affiliate") {
+    return <PsmInvoicesView />;
+  }
 
   return (
     <div className="flex flex-1 flex-col">

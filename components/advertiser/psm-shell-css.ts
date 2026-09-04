@@ -118,6 +118,25 @@ export const PSM_APP_CSS = `
 .psmapp .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;font-size:.72rem;font-weight:700;white-space:nowrap}
 .psmapp .badge.ok{background:var(--win-soft);color:#0e8f66}.psmapp .badge.pend{background:var(--warn-soft);color:#8a5a00}.psmapp .badge.due{background:var(--danger-soft);color:#c0392b}.psmapp .badge.info{background:var(--primary-tint);color:var(--primary-600)}
 
+.psmapp .tblwrap{overflow-x:auto}
+.psmapp .tbl{width:100%;border-collapse:collapse;font-size:.9rem}
+.psmapp .tbl th{text-align:left;font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 14px 12px}
+.psmapp .tbl td{padding:13px 14px;border-top:1px solid var(--line)}
+.psmapp .tbl tr:hover td{background:var(--panel-2)}
+.psmapp .tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.psmapp .tbl.wide{min-width:640px}
+.psmapp .fbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px;margin-bottom:14px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:15px;box-shadow:0 10px 26px -20px rgba(20,30,80,.5)}
+.psmapp .fbar .fsr{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;flex:1;min-width:150px;max-width:300px;color:var(--faint);transition:border-color .14s,box-shadow .14s}
+.psmapp .fbar .fsr:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint);color:var(--primary-600)}
+.psmapp .fbar .fsr svg{width:16px;height:16px;flex:0 0 auto}
+.psmapp .fbar .fsr input{border:0;background:none;outline:0;font-family:var(--bd);font-size:.86rem;color:var(--ink);width:100%}
+.psmapp .fbar select{font-family:var(--bd);font-weight:600;font-size:.84rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;background:var(--panel);color:var(--ink);cursor:pointer;transition:border-color .14s,color .14s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:15px;padding-right:34px}
+.psmapp .fbar select:hover{border-color:var(--primary);color:var(--primary-600)}
+.psmapp .fbar select:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
+.psmapp .fbar .fexp{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-family:var(--bd);font-weight:700;font-size:.84rem;border:1px solid #d9e2ff;border-radius:11px;padding:9px 14px;background:var(--primary-tint);color:var(--primary-600);cursor:pointer;transition:.14s}
+.psmapp .fbar .fexp svg{width:16px;height:16px}
+.psmapp .fbar .fexp:hover{background:var(--primary);color:#fff;border-color:var(--primary);transform:translateY(-1px)}
+
 .psmapp .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:12px}
 .psmapp .acard .top{display:flex;align-items:center;gap:11px}
 .psmapp .acard .nm{font-weight:700}.psmapp .acard .sub{color:var(--faint);font-size:.78rem}
