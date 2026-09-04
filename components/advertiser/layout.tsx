@@ -5,13 +5,11 @@ import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "../ui/sonner";
-import { SidebarInset, SidebarProvider } from "../ui/sidebar";
-import { AppSidebar } from "../app-sidebar";
-import { AppHeader } from "../app-header";
-import { MobileNav } from "../mobile-nav";
 import PushNotificationManager from "../push-notification-manager";
+import PsmAdvertiserShell from "./psm-shell";
 
 const queryClient = new QueryClient();
+
 export default function AdvertiserLayout({
   children,
   profile,
@@ -24,23 +22,11 @@ export default function AdvertiserLayout({
   return (
     <AppProvider user={user} profile={profile}>
       <QueryClientProvider client={queryClient}>
-        <SidebarProvider>
-          <AppSidebar variant="inset" />
-
-          <SidebarInset>
-            <AppHeader />
-            <PushNotificationManager />
-            {children}
-            {/* Clear the fixed mobile bottom nav (h-16 = 64px) so a
-                page's last content (e.g. a Save button) isn't hidden
-                behind it. Smaller on desktop where the nav is hidden. */}
-            <div className="h-24 lg:h-12"></div>
-          </SidebarInset>
-          <Toaster position="top-right" />
-
-          <MobileNav />
-        </SidebarProvider>
-        {/* <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" /> */}
+        <PsmAdvertiserShell>
+          <PushNotificationManager />
+          {children}
+        </PsmAdvertiserShell>
+        <Toaster position="top-right" />
       </QueryClientProvider>
     </AppProvider>
   );

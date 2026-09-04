@@ -1,21 +1,4 @@
-import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
-
-// Fonts from the approved mockup (onboarding-auth.html): Plus Jakarta
-// Sans for headings, DM Sans for body. Scoped to the auth screens via
-// the .psmauth wrapper so the rest of the app keeps Sora/Outfit until
-// it is ported too.
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  variable: "--font-jakarta",
-  display: "swap",
-});
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-dmsans",
-  display: "swap",
-});
+import { dmSans, jakarta } from "@/lib/fonts";
 
 // The rocket mark used in the mockup's logo tiles.
 function Rocket() {
