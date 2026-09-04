@@ -131,7 +131,6 @@ export default function WalletView() {
                 variant="default"
                 onClick={() => handleAddBalance()}
                 disabled={!wallet || isCreating || isLoading}
-                className="bg-brand-strong border-0 text-white hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
                 Add Balance

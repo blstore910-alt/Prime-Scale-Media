@@ -212,7 +212,7 @@ export default function WalletSection() {
               <Button
                 onClick={handleAddBalance}
                 disabled={isCreating || walletLoading}
-                className="w-full bg-brand-strong border-0 text-white hover:opacity-90"
+                className="w-full"
               >
                 {isCreating ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
