@@ -1,13 +1,21 @@
 "use client";
 
 import { useAppContext } from "@/context/app-provider";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import AccountsTable from "./accounts-table";
-import PsmAccountsView from "./psm-accounts-view";
 
-// Advertisers get the ported mockup grid inside the PSM shell; admins
-// keep the full accounts table (edit / manage / assign) as-is.
+// Advertisers live in the single-page app (ad accounts is a view there),
+// so route them to /dashboard; admins get the full accounts table.
 export default function AccountsRouter() {
   const { profile } = useAppContext();
-  if (profile?.role === "advertiser") return <PsmAccountsView />;
+  const router = useRouter();
+  const isAdvertiser = profile?.role === "advertiser";
+
+  useEffect(() => {
+    if (isAdvertiser) router.replace("/dashboard");
+  }, [isAdvertiser, router]);
+
+  if (isAdvertiser) return null;
   return <AccountsTable />;
 }

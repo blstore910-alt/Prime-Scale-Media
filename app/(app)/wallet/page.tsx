@@ -23,6 +23,8 @@ export default async function Page() {
     ? profiles.find((p) => p.id === existingProfile)
     : profiles[0];
 
+  // Advertisers live in the single-page app; the wallet is a view there.
+  if (profile?.role === "advertiser") redirect("/dashboard");
   if (profile?.role !== "advertiser") redirect("/wallets");
 
   return (

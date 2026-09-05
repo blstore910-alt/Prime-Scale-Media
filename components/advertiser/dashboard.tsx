@@ -1,5 +1,5 @@
-import AdvertiserDashboardView from "./dashboard-view";
+import AdvertiserApp from "./adv-app";
 
 export default function AdvertiserDashboard() {
-  return <AdvertiserDashboardView />;
+  return <AdvertiserApp />;
 }
