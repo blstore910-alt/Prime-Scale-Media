@@ -3,14 +3,12 @@ import { LoginForm } from "@/components/login-form";
 
 // LoginForm reads ?reason= via useSearchParams(). Next.js 15
 // requires that to be inside a Suspense boundary during prerender.
+// The auth layout (app/auth/layout.tsx) provides the split-screen
+// shell; this page just renders the sign-in flow into it.
 export default function Page() {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <Suspense fallback={<div className="h-96" />}>
-          <LoginForm />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense fallback={<div className="card" style={{ minHeight: 360 }} />}>
+      <LoginForm />
+    </Suspense>
   );
 }

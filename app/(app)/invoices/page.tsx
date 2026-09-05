@@ -25,6 +25,14 @@ export default async function Page() {
 
   if (!profile) redirect("/onboard");
 
+  // Advertiser & affiliate get the ported mockup view inside the PSM
+  // shell; admins keep the full shadcn table (advertiser/company cols,
+  // create-invoice) in their current shell.
+  // Advertiser & affiliate live in single-page apps where invoices are a
+  // view; send them there. Admins keep the full table.
+  if (profile.role === "advertiser") redirect("/dashboard");
+  if (profile.role === "affiliate") redirect("/my-referrals");
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">

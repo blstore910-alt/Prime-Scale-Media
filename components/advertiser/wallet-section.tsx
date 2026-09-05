@@ -171,30 +171,36 @@ export default function WalletSection() {
             </div>
           ) : (
             <>
-              {/* USD Balance */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full">
-                  <DollarSign className="h-5 w-5" />
+              {/* EUR Balance */}
+              <div
+                className="relative overflow-hidden rounded-xl p-4 text-white shadow-sm"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #3a6fff, #5b8dff 55%, #7aa2ff)",
+                }}
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide opacity-90">
+                  <Euro className="h-4 w-4" /> EUR wallet
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Balance (USD)
-                  </p>
-                  <p className="text-2xl font-bold">{usdAmount}</p>
-                </div>
+                <p className="mt-1 font-display text-3xl font-extrabold leading-tight">
+                  €{eurAmount}
+                </p>
               </div>
 
-              {/* EUR Balance */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full">
-                  <Euro className="h-5 w-5" />
+              {/* USD Balance */}
+              <div
+                className="relative overflow-hidden rounded-xl p-4 text-white shadow-sm"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #0e93a6, #14b8a6 60%, #3ad1c0)",
+                }}
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide opacity-90">
+                  <DollarSign className="h-4 w-4" /> USD wallet
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Balance (EUR)
-                  </p>
-                  <p className="text-2xl font-bold">{eurAmount}</p>
-                </div>
+                <p className="mt-1 font-display text-3xl font-extrabold leading-tight">
+                  ${usdAmount}
+                </p>
               </div>
             </>
           )}

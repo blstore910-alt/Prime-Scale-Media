@@ -16,6 +16,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-purple: var(--purple);
+  --color-purple-foreground: var(--purple-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -97,6 +99,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* PSM brand (redesign) — additive, does not alter existing tokens */
+  --purple: oklch(0.62 0.22 300);
+  --purple-foreground: oklch(0.985 0 0);
+  --brand: linear-gradient(135deg, #5b8dff, #8b5cf6);
+  --brand-strong: linear-gradient(135deg, #4a7bff, #7c46f0);
 }
 
 .dark {
@@ -131,6 +138,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --purple: oklch(0.72 0.18 300);
+  --purple-foreground: oklch(0.205 0 0);
+  --brand: linear-gradient(135deg, #6f97ff, #a98bff);
+  --brand-strong: linear-gradient(135deg, #5b8dff, #8b5cf6);
 }
 
 @layer base {
@@ -139,5 +150,21 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* PSM brand helpers for the redesign */
+  .bg-brand {
+    background-image: var(--brand);
+  }
+  .bg-brand-strong {
+    background-image: var(--brand-strong);
+  }
+  .text-brand {
+    background-image: var(--brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }

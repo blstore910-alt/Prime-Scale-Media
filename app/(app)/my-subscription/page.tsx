@@ -15,6 +15,10 @@ export default async function Page() {
     redirect("/onboard");
   }
 
+  // Advertisers live in the single-page app; billing is a view there.
+  if (profile.role === "advertiser") {
+    redirect("/dashboard");
+  }
   if (profile.role !== "advertiser") {
     redirect("/subscriptions");
   }
