@@ -1,4 +1,4 @@
-import WalletTransactionsTable from "@/components/wallet-transactions/wallet-transactions-table";
+import PsmVerifyTopups from "@/components/wallet-transactions/psm-verify-topups";
 import WiseReviewPanel from "@/components/wise/wise-review-panel";
 import { requireAdmin } from "@/lib/auth/require-admin";
 
@@ -6,13 +6,9 @@ export default async function Page() {
   await requireAdmin("/dashboard");
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-10 py-4 md:gap-12 md:py-6 px-4 lg:px-6">
-          <WalletTransactionsTable defaultStatus="pending" />
-          <WiseReviewPanel />
-        </div>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <PsmVerifyTopups defaultStatus="pending" />
+      <WiseReviewPanel />
     </div>
   );
 }
