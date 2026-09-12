@@ -91,6 +91,12 @@ export function getNotificationCopy(notification: Notification): {
         title: "Wallet Top-up Request",
         description: "A wallet top-up is pending approval.",
       };
+    case "supplier_low_balance":
+      return {
+        title: "Supplier balance low",
+        description:
+          "The ad-account supplier's spendable balance is below the threshold — top up soon.",
+      };
     default:
       return {
         title: "New Notification",

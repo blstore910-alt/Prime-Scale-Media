@@ -207,7 +207,15 @@ const mockSupplier1Adapter: Supplier1Adapter = {
   },
 
   async getWalletBalance() {
-    return { ok: true, data: { usd_balance: 5000, eur_balance: 2000 } };
+    return {
+      ok: true,
+      data: {
+        usd_balance: 5000,
+        eur_balance: 2000,
+        available_usd: 4849.5,
+        available_eur: 1939.75,
+      },
+    };
   },
 
   async pushTopup(input: Supplier1TopupPushInput) {
@@ -296,14 +304,24 @@ const realSupplier1Adapter: Supplier1Adapter = {
 
   async getWalletBalance() {
     const res = await seamxFetch<{
-      data?: { usd_balance?: number | string; eur_balance?: number | string };
+      data?: {
+        usd_balance?: number | string;
+        eur_balance?: number | string;
+        available_balance?: { usd?: number | string; eur?: number | string };
+      };
     }>("/v1/wallets/balance");
     if (!res.ok) return res;
+    const d = res.data?.data;
+    const usd = Number(d?.usd_balance ?? 0);
+    const eur = Number(d?.eur_balance ?? 0);
     return {
       ok: true,
       data: {
-        usd_balance: Number(res.data?.data?.usd_balance ?? 0),
-        eur_balance: Number(res.data?.data?.eur_balance ?? 0),
+        usd_balance: usd,
+        eur_balance: eur,
+        // Spendable after DST tax reserve; fall back to the gross balance.
+        available_usd: Number(d?.available_balance?.usd ?? usd),
+        available_eur: Number(d?.available_balance?.eur ?? eur),
       },
     };
   },

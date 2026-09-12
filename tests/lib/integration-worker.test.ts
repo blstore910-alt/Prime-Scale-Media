@@ -160,7 +160,15 @@ const okAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
       return { ok: true, data: { balance_cents: 0, currency: "USD" } };
     },
     async getWalletBalance() {
-      return { ok: true, data: { usd_balance: 0, eur_balance: 0 } };
+      return {
+        ok: true,
+        data: {
+          usd_balance: 0,
+          eur_balance: 0,
+          available_usd: 0,
+          available_eur: 0,
+        },
+      };
     },
     async pushTopup(input) {
       return {

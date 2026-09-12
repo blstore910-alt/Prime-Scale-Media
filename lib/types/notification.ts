@@ -7,7 +7,8 @@ export type NotificationType =
   | "integration_failure"
   | "subscription_invoice"
   | "subscription_past_due"
-  | "subscription_changed";
+  | "subscription_changed"
+  | "supplier_low_balance";
 
 export type NotificationAuthor = {
   id: string;
@@ -55,6 +56,12 @@ export type SubscriptionChangedNotificationPayload = {
   action?: string;
 };
 
+export type SupplierLowBalanceNotificationPayload = {
+  currency?: string;
+  available?: number;
+  threshold?: number;
+};
+
 export interface NotificationPayloadByType {
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
@@ -65,6 +72,7 @@ export interface NotificationPayloadByType {
   subscription_invoice: SubscriptionInvoiceNotificationPayload;
   subscription_past_due: SubscriptionInvoiceNotificationPayload;
   subscription_changed: SubscriptionChangedNotificationPayload;
+  supplier_low_balance: SupplierLowBalanceNotificationPayload;
 }
 
 export type NotificationPayload =

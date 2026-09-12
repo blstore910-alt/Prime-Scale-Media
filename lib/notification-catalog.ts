@@ -71,6 +71,13 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
       "When an external connection starts failing. Manual fallback is always available.",
     audience: "admin",
   },
+  {
+    type: "supplier_low_balance",
+    label: "Supplier balance low",
+    description:
+      "When the ad-account supplier's spendable balance drops below the safety threshold.",
+    audience: "admin",
+  },
 ];
 
 // Map a profile role to the audience whose toggles they should see.

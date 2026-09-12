@@ -72,7 +72,13 @@ export interface Supplier1Adapter {
   // Used as a lightweight connectivity check (it doesn't depend on the
   // ad-accounts listing).
   getWalletBalance(): Promise<
-    IntegrationResult<{ usd_balance: number; eur_balance: number }>
+    IntegrationResult<{
+      usd_balance: number;
+      eur_balance: number;
+      // Spendable after the DST tax reserve (falls back to gross).
+      available_usd: number;
+      available_eur: number;
+    }>
   >;
   getBalance(
     externalAdAccountId: string,
