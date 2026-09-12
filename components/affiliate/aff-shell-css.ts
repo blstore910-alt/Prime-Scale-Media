@@ -293,7 +293,7 @@ export const AFF_CSS = `
   .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:.18s}
   .sw.on{background:var(--primary)}.sw.on::after{left:21px}
   .feed-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.feed-row:first-child{border-top:0}
-  .feed-ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--win-soft);color:var(--win);flex:0 0 auto}.feed-ic svg{width:18px;height:18px}.feed .amt{margin-left:auto;font-family:var(--font-sora);font-weight:700;color:var(--win)}
+  .feed-ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--win-soft);color:var(--win);flex:0 0 auto}.feed-ic svg{width:18px;height:18px}.feed .amt,.feed-row .amt{margin-left:auto;font-family:var(--font-sora);font-weight:700;color:var(--win);white-space:nowrap}
   .faq .q{font-family:var(--font-sora);font-weight:700;font-size:.98rem;margin-bottom:4px}.faq .a{color:var(--muted);font-size:.9rem}.faq>div{margin-bottom:12px}
 
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(30px);background:var(--ink);color:#fff;padding:13px 20px;border-radius:12px;font-weight:600;font-size:.9rem;box-shadow:var(--shadow);opacity:0;transition:.25s;z-index:90;display:flex;align-items:center;gap:9px}

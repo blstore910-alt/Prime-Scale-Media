@@ -55,6 +55,29 @@ function monthStartIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+type RangeKey = "all" | "month" | "week" | "year";
+const RANGE_LABELS: Record<RangeKey, string> = {
+  all: "All time",
+  month: "This month",
+  week: "This week",
+  year: "This year",
+};
+function rangeFromTo(k: RangeKey): { from?: string } {
+  if (k === "all") return {};
+  const d = new Date();
+  if (k === "month") d.setDate(1);
+  else if (k === "week") d.setDate(d.getDate() - d.getDay());
+  else {
+    d.setMonth(0);
+    d.setDate(1);
+  }
+  return {
+    from: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`,
+  };
+}
+
 export default function AffiliateApp() {
   const { profile } = useAppContext();
   const [view, setView] = useState<View>("refs");
@@ -81,6 +104,14 @@ export default function AffiliateApp() {
   const monthEur = month.totals.earnings_eur;
   const referredCount = all.rows.length;
   const activeCount = all.rows.filter((r) => Number(r.topup_count) > 0).length;
+
+  // My Referrals date-range filter (the "All time" dropdown). Default "all"
+  // dedupes with the all-time query above, so it adds no extra fetch.
+  const [refsRange, setRefsRange] = useState<RangeKey>("all");
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const refs = useAffiliateStats(rangeFromTo(refsRange));
+  const refsReferred = refs.rows.length;
+  const refsActive = refs.rows.filter((r) => Number(r.topup_count) > 0).length;
 
   const tierIndex = useMemo(() => {
     let idx = 0;
@@ -425,10 +456,29 @@ export default function AffiliateApp() {
           <div className={`view${view === "refs" ? " on" : ""}`}>
             <div className="filterbar">
               <div className="ddwrap">
-                <button className="dd">
-                  <Ic name="i-calendar" /> All time{" "}
+                <button
+                  className={`dd${rangeOpen ? " open" : ""}`}
+                  onClick={() => setRangeOpen((o) => !o)}
+                >
+                  <Ic name="i-calendar" /> {RANGE_LABELS[refsRange]}{" "}
                   <Ic name="i-chev" className="ic ddchev" />
                 </button>
+                {rangeOpen && (
+                  <div className="ddmenu">
+                    {(Object.keys(RANGE_LABELS) as RangeKey[]).map((k) => (
+                      <button
+                        key={k}
+                        className={k === refsRange ? "on" : ""}
+                        onClick={() => {
+                          setRefsRange(k);
+                          setRangeOpen(false);
+                        }}
+                      >
+                        {RANGE_LABELS[k]}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <button
                 className="dd expbtn"
@@ -445,7 +495,7 @@ export default function AffiliateApp() {
                   </span>{" "}
                   Referrals
                 </div>
-                <div className="n">{referredCount}</div>
+                <div className="n">{refsReferred}</div>
               </div>
               <div className="c">
                 <div className="l">
@@ -455,7 +505,7 @@ export default function AffiliateApp() {
                   Active
                 </div>
                 <div className="n">
-                  {activeCount}{" "}
+                  {refsActive}{" "}
                   <span
                     style={{
                       fontWeight: 500,
@@ -463,7 +513,7 @@ export default function AffiliateApp() {
                       fontSize: ".8rem",
                     }}
                   >
-                    of {referredCount}
+                    of {refsReferred}
                   </span>
                 </div>
               </div>
@@ -474,7 +524,7 @@ export default function AffiliateApp() {
                   </span>{" "}
                   Top-up volume
                 </div>
-                <div className="n">{eur(all.totals.spend_eur)}</div>
+                <div className="n">{eur(refs.totals.spend_eur)}</div>
               </div>
               <div className="c">
                 <div className="l">
@@ -483,7 +533,7 @@ export default function AffiliateApp() {
                   </span>{" "}
                   Your commission
                 </div>
-                <div className="n win">{eur(lifetimeEur)}</div>
+                <div className="n win">{eur(refs.totals.earnings_eur)}</div>
               </div>
             </div>
 
@@ -581,7 +631,7 @@ export default function AffiliateApp() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {all.rows.length ? (
-                all.rows.map((r) => (
+                refs.rows.map((r) => (
                   <div className="rrow" key={r.referred_advertiser_id}>
                     <div
                       className="rhead"
