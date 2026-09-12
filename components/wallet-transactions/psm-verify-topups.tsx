@@ -12,12 +12,15 @@ import WalletTransactionApproveDialog from "./wallet-transaction-approve-dialog"
 import WalletTransactionDetailsSheet from "./wallet-transaction-details-sheet";
 import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
 import PaymentSlipDialog from "./payment-slip-dialog";
+import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
+import { CommunityPill } from "@/components/community/community-pill";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
-  new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
-    Number(v ?? 0),
-  );
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(v ?? 0));
 
 const advName = (t: WalletTopupWithAdvertiser) => {
   const a = t.advertiser as
@@ -86,6 +89,10 @@ export default function PsmVerifyTopups({
 
   const { mutate: updateTransaction, isPending } = useUpdateTransaction(
     selected ?? ({} as WalletTopupWithAdvertiser),
+  );
+
+  const communities = useAdvertiserCommunities(
+    transactions.map((t) => t.advertiser_id),
   );
 
   const confirmApprove = () =>
@@ -161,7 +168,18 @@ export default function PsmVerifyTopups({
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{advName(t)}</div>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {advName(t)}
+                      <CommunityPill name={communities[t.advertiser_id ?? ""]} />
+                    </div>
                     <div
                       className="mono"
                       style={{ color: "var(--faint)", fontSize: ".8rem" }}

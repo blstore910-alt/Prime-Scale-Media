@@ -10,6 +10,8 @@ import WalletDetailsSheet from "./wallet-details-sheet";
 import WalletEditDialog from "./wallet-edit-dialog";
 import WalletMinTopupDialog from "./wallet-min-topup-dialog";
 import useWallets from "./use-wallets";
+import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
+import { CommunityPill } from "@/components/community/community-pill";
 
 const formatAmount = (value: number | string | null | undefined) => {
   const num = Number(value ?? 0);
@@ -110,6 +112,10 @@ export default function PsmWallets() {
     safePage * perPage,
   );
 
+  const communities = useAdvertiserCommunities(
+    paginatedWallets.map((w) => w.advertiser_id),
+  );
+
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setPage(1);
@@ -197,8 +203,19 @@ export default function PsmWallets() {
                           <Wallet />
                         </span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 700 }}>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              flexWrap: "wrap",
+                            }}
+                          >
                             {advName(wallet)}
+                            <CommunityPill
+                              name={communities[wallet.advertiser_id ?? ""]}
+                            />
                           </div>
                           <div
                             style={{
