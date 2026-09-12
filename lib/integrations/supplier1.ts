@@ -187,6 +187,10 @@ const mockSupplier1Adapter: Supplier1Adapter = {
     return { ok: true, data: { balance_cents: 12500_00, currency: "USD" } };
   },
 
+  async getWalletBalance() {
+    return { ok: true, data: { usd_balance: 5000, eur_balance: 2000 } };
+  },
+
   async pushTopup(input: Supplier1TopupPushInput) {
     if (!input.idempotency_key) {
       return { ok: false, error: "idempotency_key required" };
@@ -260,6 +264,20 @@ const realSupplier1Adapter: Supplier1Adapter = {
       ok: false,
       error: "SeamX exposes wallet-level balance only, not per-account.",
       retryable: false,
+    };
+  },
+
+  async getWalletBalance() {
+    const res = await seamxFetch<{
+      data?: { usd_balance?: number | string; eur_balance?: number | string };
+    }>("/v1/wallets/balance");
+    if (!res.ok) return res;
+    return {
+      ok: true,
+      data: {
+        usd_balance: Number(res.data?.data?.usd_balance ?? 0),
+        eur_balance: Number(res.data?.data?.eur_balance ?? 0),
+      },
     };
   },
 

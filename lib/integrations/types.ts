@@ -68,6 +68,12 @@ export interface Supplier1WithdrawPushResult {
 
 export interface Supplier1Adapter {
   listAdAccounts(): Promise<IntegrationResult<Supplier1AdAccount[]>>;
+  // Account-level wallet balance held on the supplier side (USD + EUR).
+  // Used as a lightweight connectivity check (it doesn't depend on the
+  // ad-accounts listing).
+  getWalletBalance(): Promise<
+    IntegrationResult<{ usd_balance: number; eur_balance: number }>
+  >;
   getBalance(
     externalAdAccountId: string,
   ): Promise<IntegrationResult<{ balance_cents: number; currency: string }>>;

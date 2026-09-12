@@ -88,13 +88,26 @@ function IntegrationRow({
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0">
             <div>
-              Connected — mode <b>{result.mode}</b>, {result.count} record
-              {result.count === 1 ? "" : "s"}.
+              Connected — mode <b>{result.mode}</b>
+              {result.note
+                ? "."
+                : `, ${result.count} record${result.count === 1 ? "" : "s"}.`}
             </div>
             {result.sample && (
               <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs text-foreground">
                 {JSON.stringify(result.sample, null, 2)}
               </pre>
+            )}
+            {result.note && (
+              <div
+                className={
+                  result.note.includes("FAILED")
+                    ? "mt-1 text-amber-600"
+                    : "mt-1 text-muted-foreground"
+                }
+              >
+                {result.note}
+              </div>
             )}
           </div>
         </div>

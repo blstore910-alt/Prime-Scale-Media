@@ -11,6 +11,7 @@ export type IntegrationPing =
       mode: string;
       count: number;
       sample: Record<string, string> | null;
+      note?: string;
     }
   | { ok: false; mode: string; error: string };
 
@@ -43,21 +44,32 @@ export async function testSupplier1Connection(): Promise<IntegrationPing> {
   const guard = await requireOwner();
   if (!guard.ok) return { ok: false, mode, error: guard.error };
 
-  const res = await getSupplier1Adapter().listAdAccounts();
-  if (!res.ok) return { ok: false, mode, error: res.error };
-  const first = res.data[0];
+  const adapter = getSupplier1Adapter();
+
+  // Balance is the connectivity signal: it proves the key + host are good
+  // WITHOUT depending on the ad-accounts listing, so a broken /adaccounts
+  // endpoint can't mask a working credential.
+  const bal = await adapter.getWalletBalance();
+  if (!bal.ok) {
+    return { ok: false, mode, error: `Balance check failed: ${bal.error}` };
+  }
+
+  // Credential works. Report the ad-accounts listing as a secondary note so
+  // a server-side failure there is visible but doesn't fail the whole check.
+  const accts = await adapter.listAdAccounts();
+  const note = accts.ok
+    ? `Ad accounts endpoint OK — ${accts.data.length} found.`
+    : `Ad accounts endpoint FAILED: ${accts.error}`;
+
   return {
     ok: true,
     mode,
-    count: res.data.length,
-    sample: first
-      ? {
-          external_id: first.external_id,
-          platform: first.platform,
-          currency: first.currency,
-          status: first.status,
-        }
-      : null,
+    count: accts.ok ? accts.data.length : 0,
+    sample: {
+      usd_balance: String(bal.data.usd_balance),
+      eur_balance: String(bal.data.eur_balance),
+    },
+    note,
   };
 }
 
