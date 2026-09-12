@@ -73,29 +73,35 @@ function mapMovementStatus(
   }
 }
 
-// One place that adds the base URL + `authToken` header and normalises the
-// result into an IntegrationResult. 4xx (except 429) is terminal; 5xx / network
-// is retryable so the job worker backs off and tries again.
+// One place that adds the base URL + auth header and normalises the result
+// into an IntegrationResult. 4xx (except 429) is terminal; 5xx / network is
+// retryable so the job worker backs off and tries again.
+//
+// SeamX is case-INconsistent about the auth header: most endpoints read
+// `authToken`, but the ad-accounts LIST endpoint only accepts lowercase
+// `authtoken` (camelCase there 500s server-side). Callers pass `authHeader`
+// with the exact casing that endpoint wants; default is `authToken`.
 async function seamxFetch<T>(
   path: string,
-  init?: RequestInit & { body?: string },
+  init?: RequestInit & { body?: string; authHeader?: string },
 ): Promise<IntegrationResult<T>> {
   const base = process.env.SUPPLIER1_BASE_URL?.replace(/\/+$/, "");
   const token = process.env.SUPPLIER1_AUTH_TOKEN;
   if (!base || !token) {
     return { ok: false, error: NOT_CONFIGURED, retryable: false };
   }
+  const { authHeader = "authToken", ...reqInit } = init ?? {};
   try {
     // Only send Content-Type when we actually carry a body — some backends
     // 500 on an unexpected Content-Type for a bodyless GET.
-    const hasBody = init?.body != null;
+    const hasBody = reqInit.body != null;
     const res = await fetch(`${base}${path}`, {
-      ...init,
+      ...reqInit,
       headers: {
-        authToken: token,
+        [authHeader]: token,
         Accept: "application/json",
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
-        ...(init?.headers ?? {}),
+        ...(reqInit.headers ?? {}),
       },
       cache: "no-store",
     });
@@ -137,7 +143,13 @@ type SeamxAdAccount = {
   time_zone: string | null;
   account_status: string;
   fee_percentage: string | number | null;
+  meta_account_id?: string | null;
   meta_bm_id?: string | null;
+  // Real API returns a per-account balance (absent from the Postman sample);
+  // may be "" for a not-yet-provisioned account.
+  current_balance?: number | string | null;
+  balance_currency?: string | null;
+  billing_mode?: string | null;
   created_at: string;
 };
 
@@ -145,6 +157,13 @@ type SeamxList<T> = {
   data: T[];
   pagination?: { page: number; total_pages: number };
 };
+
+// current_balance comes back as a number, "", or null. Normalise to cents.
+function balanceToCents(v: number | string | null | undefined): number {
+  if (v === null || v === undefined || v === "") return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
 
 // Amounts cross the boundary in cents on our side; SeamX speaks major units.
 const toMajor = (cents: number) => Math.round(cents) / 100;
@@ -227,10 +246,13 @@ const realSupplier1Adapter: Supplier1Adapter = {
   async listAdAccounts(): Promise<IntegrationResult<Supplier1AdAccount[]>> {
     const out: Supplier1AdAccount[] = [];
     let page = 1;
-    // Bounded loop — never trust total_pages to terminate on its own.
-    for (let guard = 0; guard < 100; guard++) {
+    // Bounded loop — never trust total_pages to terminate on its own. ~569
+    // accounts at 100/page ≈ 6 requests; the cap is a safety net.
+    for (let guard = 0; guard < 200; guard++) {
       const res = await seamxFetch<SeamxList<SeamxAdAccount>>(
-        `/v1/adaccounts?page=${page}`,
+        `/v1/adaccounts?page=${page}&per_page=100`,
+        // The list endpoint only accepts the lowercase header name.
+        { authHeader: "authtoken" },
       );
       if (!res.ok) return res;
       for (const a of res.data?.data ?? []) {
@@ -238,11 +260,8 @@ const realSupplier1Adapter: Supplier1Adapter = {
           external_id: String(a.ad_account_id),
           bm_id: a.meta_bm_id ?? null,
           platform: mapPlatform(a.account_platform),
-          currency: a.currency,
-          // SeamX does not expose a per-account balance; balance is
-          // wallet-level only. Left at 0 — callers must not treat this
-          // as authoritative (see docs/SEAMX_API.md).
-          balance_cents: 0,
+          currency: a.balance_currency || a.currency,
+          balance_cents: balanceToCents(a.current_balance),
           status: mapAccountStatus(a.account_status),
           assigned_to: null,
           timezone: a.time_zone ?? null,
@@ -256,14 +275,22 @@ const realSupplier1Adapter: Supplier1Adapter = {
     return { ok: true, data: out };
   },
 
-  async getBalance() {
-    // SeamX has no per-ad-account balance endpoint — only wallet-level
-    // (GET /v1/wallets/balance). Report honestly rather than return a wrong
-    // per-account figure. Not consumed by the job worker.
+  async getBalance(externalAdAccountId: string) {
+    if (!externalAdAccountId) {
+      return { ok: false, error: "external_id required", retryable: false };
+    }
+    // Single-account endpoint uses the camelCase header (unlike the list).
+    const res = await seamxFetch<{ data?: SeamxAdAccount }>(
+      `/v1/adaccounts/${encodeURIComponent(externalAdAccountId)}`,
+    );
+    if (!res.ok) return res;
+    const a = res.data?.data;
     return {
-      ok: false,
-      error: "SeamX exposes wallet-level balance only, not per-account.",
-      retryable: false,
+      ok: true,
+      data: {
+        balance_cents: balanceToCents(a?.current_balance),
+        currency: a?.balance_currency || a?.currency || "USD",
+      },
     };
   },
 
