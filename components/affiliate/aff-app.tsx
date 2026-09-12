@@ -4,6 +4,8 @@ import { jakarta } from "@/lib/fonts";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import useNotifications from "@/components/notifications/use-notifications";
+import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { getURL } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -63,6 +65,11 @@ export default function AffiliateApp() {
   // Real referral book (all-time) + this-month slice for the topbar pill.
   const all = useAffiliateStats();
   const month = useAffiliateStats({ from: monthStartIso() });
+  const {
+    notifications: notifs,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
 
   const lifetimeEur = all.totals.earnings_eur;
   const monthEur = month.totals.earnings_eur;
@@ -223,6 +230,11 @@ export default function AffiliateApp() {
               aria-label="Notifications"
             >
               <Ic name="i-bell" />
+              {notifs.filter((n) => !n.is_read).length > 0 && (
+                <span className="badge-n">
+                  {notifs.filter((n) => !n.is_read).length}
+                </span>
+              )}
             </button>
             <button
               className="tool ava-btn"
@@ -716,22 +728,56 @@ export default function AffiliateApp() {
               }}
             >
               <h2>Notifications</h2>
+              {notifs.some((n) => !n.is_read) && (
+                <button
+                  className="btn ghost sm"
+                  onClick={() => markAllAsRead.mutate()}
+                >
+                  Mark all read
+                </button>
+              )}
             </div>
             <div
               style={{ display: "flex", flexDirection: "column", gap: 10 }}
             >
-              <div className="nrow">
-                <span className="nic blue">
-                  <Ic name="i-bell" />
-                </span>
-                <div>
-                  <div className="t">You&apos;re all caught up</div>
-                  <div className="d">
-                    New referrals, commission and payout updates will appear
-                    here.
+              {notifs.length ? (
+                notifs.map((n) => {
+                  const copy = getNotificationCopy(n);
+                  return (
+                    <div
+                      key={n.id}
+                      className={`nrow${n.is_read ? "" : " unread"}`}
+                      style={{ cursor: n.is_read ? "default" : "pointer" }}
+                      onClick={() => !n.is_read && markAsRead.mutate(n.id)}
+                    >
+                      <span className="nic blue">
+                        <Ic name="i-bell" />
+                      </span>
+                      <div>
+                        <div className="t">{copy.title}</div>
+                        <div className="d">{copy.description}</div>
+                      </div>
+                      <span className="tm">
+                        {new Date(n.created_at).toLocaleDateString()}
+                      </span>
+                      {!n.is_read && <span className="undot" />}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="nrow">
+                  <span className="nic blue">
+                    <Ic name="i-bell" />
+                  </span>
+                  <div>
+                    <div className="t">You&apos;re all caught up</div>
+                    <div className="d">
+                      New referrals, commission and payout updates will appear
+                      here.
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
