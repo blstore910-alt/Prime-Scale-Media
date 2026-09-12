@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowDownToLine,
-  Coins,
   Loader2,
   Plus,
   RotateCcw,
@@ -46,19 +45,15 @@ import {
   approveWalletAdjustment,
   rejectWalletAdjustment,
 } from "@/actions/adjustment-actions";
-import {
-  createWalletPrecharge,
-  settleWalletPrecharge,
-} from "@/actions/precharge-actions";
 import type { AdAccountWithdrawal } from "@/lib/types/withdrawal";
 import { formatCurrency } from "@/lib/utils";
 
-// Admin Withdrawals, ported to the PSM mockup look. Four sections behind a
-// segmented control (Withdrawals / Refunds / Adjustments / Precharge). Every
+// Admin Withdrawals, ported to the PSM mockup look. Three sections behind a
+// segmented control (Withdrawals / Refunds / Adjustments). Every
 // list read uses the same Supabase select the original panels used (reads are
 // RLS-covered); every mutation reuses the existing server actions
-// (withdrawal-actions / refund-actions / adjustment-actions / precharge-actions)
-// with identical payloads, toasts and cache invalidations. The three
+// (withdrawal-actions / refund-actions / adjustment-actions)
+// with identical payloads, toasts and cache invalidations. The two
 // create/request forms are the original panel dialogs copied verbatim — same
 // shadcn Dialog, same server-action calls — so money behaviour is unchanged.
 
@@ -68,7 +63,7 @@ type AdvertiserOption = {
   profile: { full_name: string | null; email: string | null } | null;
 };
 
-type Tab = "withdrawals" | "refunds" | "adjustments" | "precharge";
+type Tab = "withdrawals" | "refunds" | "adjustments";
 
 const emptyRow = (colSpan: number, msg: string, danger = false) => (
   <tr>
@@ -105,8 +100,8 @@ export default function PsmWithdrawals() {
         <div>
           <h1>Withdrawals</h1>
           <p>
-            Ad-account withdrawals, wallet refunds, balance adjustments and
-            precharges — approvals move money, so verify before you act.
+            Ad-account withdrawals, wallet refunds and balance adjustments —
+            approvals move money, so verify before you act.
           </p>
         </div>
       </div>
@@ -127,15 +122,11 @@ export default function PsmWithdrawals() {
         >
           <SlidersHorizontal /> Adjustments
         </SegBtn>
-        <SegBtn active={tab === "precharge"} onClick={() => setTab("precharge")}>
-          <Coins /> Precharge
-        </SegBtn>
       </div>
 
       {tab === "withdrawals" && <WithdrawalsSection />}
       {tab === "refunds" && <RefundsSection />}
       {tab === "adjustments" && <AdjustmentsSection />}
-      {tab === "precharge" && <PrechargeSection />}
     </div>
   );
 }
@@ -299,10 +290,14 @@ function WithdrawalsSection() {
                   : rows.length
                     ? rows.map((w) => (
                         <tr key={w.id}>
-                          <td className="mono" style={{ fontSize: ".8rem" }}>
+                          <td
+                            className="mono"
+                            style={{ fontSize: ".8rem" }}
+                            data-label="Ref"
+                          >
                             {w.reference ?? "—"}
                           </td>
-                          <td>
+                          <td data-label="Advertiser">
                             <div style={{ fontWeight: 600 }}>
                               {w.advertiser?.profile?.full_name ?? "—"}
                             </div>
@@ -313,7 +308,7 @@ function WithdrawalsSection() {
                               {w.advertiser?.tenant_client_code ?? ""}
                             </div>
                           </td>
-                          <td>
+                          <td data-label="Ad account">
                             <div>{w.ad_account?.name ?? "—"}</div>
                             <div
                               className="muted"
@@ -325,10 +320,14 @@ function WithdrawalsSection() {
                               {w.ad_account?.platform ?? ""}
                             </div>
                           </td>
-                          <td className="r mono" style={{ fontWeight: 700 }}>
+                          <td
+                            className="r mono"
+                            style={{ fontWeight: 700 }}
+                            data-label="Amount"
+                          >
                             {formatCurrency(Number(w.amount), w.currency)}
                           </td>
-                          <td className="r">
+                          <td className="r" data-label="Status">
                             <span
                               className={`badge ${badgeFor(
                                 w.status,
@@ -340,7 +339,7 @@ function WithdrawalsSection() {
                               {w.status}
                             </span>
                           </td>
-                          <td className="r">
+                          <td className="r" data-label="Action">
                             {w.status === "pending" ? (
                               <div
                                 style={{
@@ -540,10 +539,14 @@ function RefundsSection() {
                 : filtered.length
                   ? filtered.map((r) => (
                       <tr key={r.id}>
-                        <td className="mono" style={{ fontSize: ".8rem" }}>
+                        <td
+                          className="mono"
+                          style={{ fontSize: ".8rem" }}
+                          data-label="Ref"
+                        >
                           {r.reference ?? "—"}
                         </td>
-                        <td>
+                        <td data-label="Advertiser">
                           <div style={{ fontWeight: 600 }}>
                             {r.advertiser?.profile?.full_name ?? "—"}
                           </div>
@@ -551,7 +554,11 @@ function RefundsSection() {
                             {r.advertiser?.tenant_client_code ?? ""}
                           </div>
                         </td>
-                        <td className="r mono" style={{ fontWeight: 700 }}>
+                        <td
+                          className="r mono"
+                          style={{ fontWeight: 700 }}
+                          data-label="Amount"
+                        >
                           {formatCurrency(Number(r.amount), r.currency)}
                         </td>
                         <td
@@ -560,6 +567,7 @@ function RefundsSection() {
                             fontSize: ".8rem",
                             color: "var(--muted)",
                           }}
+                          data-label="Payout to"
                         >
                           {r.payout_business_name || r.payout_details ? (
                             <div>
@@ -604,7 +612,7 @@ function RefundsSection() {
                             "—"
                           )}
                         </td>
-                        <td className="r">
+                        <td className="r" data-label="Status">
                           <span
                             className={`badge ${badgeFor(
                               r.status,
@@ -616,7 +624,7 @@ function RefundsSection() {
                             {r.status}
                           </span>
                         </td>
-                        <td className="r">
+                        <td className="r" data-label="Action">
                           {r.status === "pending" && isSuperAdmin ? (
                             <div
                               style={{
@@ -1038,10 +1046,14 @@ function AdjustmentsSection() {
                       const positive = Number(r.delta) > 0;
                       return (
                         <tr key={r.id}>
-                          <td className="mono" style={{ fontSize: ".8rem" }}>
+                          <td
+                            className="mono"
+                            style={{ fontSize: ".8rem" }}
+                            data-label="Ref"
+                          >
                             {r.reference ?? "—"}
                           </td>
-                          <td>
+                          <td data-label="Advertiser">
                             <div style={{ fontWeight: 600 }}>
                               {r.advertiser?.profile?.full_name ?? "—"}
                             </div>
@@ -1060,6 +1072,7 @@ function AdjustmentsSection() {
                                 ? "var(--win)"
                                 : "var(--warn)",
                             }}
+                            data-label="Change"
                           >
                             {positive ? "+" : "−"}
                             {formatCurrency(
@@ -1075,10 +1088,11 @@ function AdjustmentsSection() {
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
                             }}
+                            data-label="Reason"
                           >
                             {r.reason ?? "—"}
                           </td>
-                          <td className="r">
+                          <td className="r" data-label="Status">
                             <span
                               className={`badge ${badgeFor(
                                 r.status,
@@ -1090,7 +1104,7 @@ function AdjustmentsSection() {
                               {r.status}
                             </span>
                           </td>
-                          <td className="r">
+                          <td className="r" data-label="Action">
                             {r.status === "pending" && isSuperAdmin ? (
                               <div
                                 style={{
@@ -1310,361 +1324,6 @@ function AdjustmentRequestDialog({
           </Button>
           <Button onClick={() => mutate()} disabled={!valid || isPending}>
             {isPending ? "Requesting…" : "Request adjustment"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Precharge — advance wallet credit before payment clears, settle later.*/
-/* ------------------------------------------------------------------ */
-
-type PrechargeRow = {
-  id: string;
-  reference: string | null;
-  amount: number;
-  outstanding: number;
-  currency: "USD" | "EUR";
-  status: string;
-  reason: string | null;
-  created_at: string;
-  advertiser: AdvertiserOption | null;
-};
-
-function PrechargeSection() {
-  const { profile } = useAppContext();
-  const tenantId = profile?.tenant_id ?? null;
-  const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [settlingId, setSettlingId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-
-  const { data: rows, isLoading } = useQuery({
-    queryKey: ["wallet-precharges", tenantId],
-    enabled: !!tenantId,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("wallet_precharges")
-        .select(
-          "id, reference, amount, outstanding, currency, status, reason, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
-        )
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as PrechargeRow[];
-    },
-  });
-
-  const settle = useMutation({
-    mutationFn: async (id: string) => {
-      setSettlingId(id);
-      const res = await settleWalletPrecharge(id);
-      if (!res.ok) throw new Error(res.error);
-    },
-    onSuccess: () => {
-      toast.success("Precharge settled");
-      queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
-      queryClient.invalidateQueries({ queryKey: ["wallets"] });
-    },
-    onError: (e: Error) =>
-      toast.error("Settle failed", { description: e.message }),
-    onSettled: () => setSettlingId(null),
-  });
-
-  const list = rows ?? [];
-  const outstandingTotal = list
-    .filter((r) => r.status === "outstanding")
-    .reduce((acc, r) => acc + Number(r.outstanding), 0);
-
-  const filtered = useMemo(() => {
-    let l = rows ?? [];
-    if (status !== "all") l = l.filter((r) => r.status === status);
-    const q = search.trim().toLowerCase();
-    if (q)
-      l = l.filter(
-        (r) =>
-          (r.reference ?? "").toLowerCase().includes(q) ||
-          (r.advertiser?.profile?.full_name ?? "").toLowerCase().includes(q) ||
-          (r.advertiser?.tenant_client_code ?? "").toLowerCase().includes(q),
-      );
-    return l;
-  }, [rows, status, search]);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <p className="muted" style={{ margin: 0, fontSize: ".9rem", flex: 1 }}>
-          Advance wallet credit to a customer before their payment clears.
-          Settle it once the money arrives.
-        </p>
-        <button className="btn sm" onClick={() => setCreateOpen(true)}>
-          <Plus /> New precharge
-        </button>
-      </div>
-
-      {outstandingTotal > 0 && (
-        <div className="alert">
-          <span className="ai">
-            <Coins />
-          </span>
-          <div className="atx">
-            <b>Outstanding advances across all customers: </b>
-            <span className="mono" style={{ fontWeight: 700 }}>
-              {outstandingTotal.toFixed(2)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div className="fbar">
-        <label className="fsr">
-          <Search />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search ref, advertiser…"
-          />
-        </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="outstanding">Outstanding</option>
-          <option value="settled">Settled</option>
-        </select>
-      </div>
-
-      <div className="card" style={{ padding: "16px 8px 8px" }}>
-        <div className="tblwrap">
-          <table className="tbl wide">
-            <thead>
-              <tr>
-                <th style={{ paddingLeft: 14 }}>Ref</th>
-                <th>Advertiser</th>
-                <th className="r">Advanced</th>
-                <th className="r">Outstanding</th>
-                <th className="r">Status</th>
-                <th className="r">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading
-                ? loadingRow(6)
-                : filtered.length
-                  ? filtered.map((r) => (
-                      <tr key={r.id}>
-                        <td className="mono" style={{ fontSize: ".8rem" }}>
-                          {r.reference ?? "—"}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>
-                            {r.advertiser?.profile?.full_name ?? "—"}
-                          </div>
-                          <div className="muted" style={{ fontSize: ".78rem" }}>
-                            {r.advertiser?.tenant_client_code ?? ""}
-                          </div>
-                        </td>
-                        <td className="r mono">
-                          {formatCurrency(Number(r.amount), r.currency)}
-                        </td>
-                        <td className="r mono" style={{ fontWeight: 700 }}>
-                          {formatCurrency(Number(r.outstanding), r.currency)}
-                        </td>
-                        <td className="r">
-                          <span
-                            className={`badge ${
-                              r.status === "outstanding" ? "pend" : "ok"
-                            }`}
-                            style={{ textTransform: "capitalize" }}
-                          >
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="r">
-                          {r.status === "outstanding" ? (
-                            <button
-                              className="btn ghost sm"
-                              disabled={settlingId === r.id}
-                              onClick={() => settle.mutate(r.id)}
-                            >
-                              {settlingId === r.id ? "…" : "Settle"}
-                            </button>
-                          ) : (
-                            <span
-                              className="muted"
-                              style={{ fontSize: ".8rem" }}
-                            >
-                              settled
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  : emptyRow(6, "No precharges yet.")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <PrechargeCreateDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        tenantId={tenantId}
-      />
-    </div>
-  );
-}
-
-// Copied verbatim from components/withdrawals/precharge-panel.tsx so the
-// payload and server action are byte-identical.
-function PrechargeCreateDialog({
-  open,
-  onOpenChange,
-  tenantId,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  tenantId: string | null;
-}) {
-  const queryClient = useQueryClient();
-  const [advertiserId, setAdvertiserId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
-  const [reason, setReason] = useState("");
-
-  const { data: advertisers } = useQuery({
-    queryKey: ["precharge-advertisers", tenantId],
-    enabled: !!tenantId && open,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("advertisers")
-        .select(
-          "id, tenant_client_code, profile:user_profiles(full_name, email)",
-        )
-        .eq("tenant_id", tenantId)
-        .limit(200);
-      if (error) throw error;
-      return (data ?? []) as unknown as AdvertiserOption[];
-    },
-  });
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: async () => {
-      const res = await createWalletPrecharge({
-        advertiser_id: advertiserId,
-        amount: Number(amount),
-        currency,
-        reason: reason.trim() || undefined,
-      });
-      if (!res.ok) throw new Error(res.error);
-    },
-    onSuccess: () => {
-      toast.success("Precharge created — wallet credited");
-      queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
-      queryClient.invalidateQueries({ queryKey: ["wallets"] });
-      setAdvertiserId("");
-      setAmount("");
-      setReason("");
-      onOpenChange(false);
-    },
-    onError: (e: Error) =>
-      toast.error("Couldn't create precharge", { description: e.message }),
-  });
-
-  const numeric = Number(amount);
-  const valid = !!advertiserId && Number.isFinite(numeric) && numeric > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New precharge</DialogTitle>
-          <DialogDescription>
-            Advance credit to a customer before their payment clears. Their
-            wallet is credited immediately; settle it when the money arrives.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Advertiser</Label>
-            <Select value={advertiserId} onValueChange={setAdvertiserId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select advertiser" />
-              </SelectTrigger>
-              <SelectContent>
-                {(advertisers ?? []).map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.profile?.full_name ?? a.profile?.email ?? a.id}
-                    {a.tenant_client_code ? ` · ${a.tenant_client_code}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="pc-amount">Amount</Label>
-              <Input
-                id="pc-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pc-cur">Currency</Label>
-              <Select
-                value={currency}
-                onValueChange={(v: "USD" | "EUR") => setCurrency(v)}
-              >
-                <SelectTrigger id="pc-cur">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="pc-reason">Note (optional)</Label>
-            <Input
-              id="pc-reason"
-              placeholder="e.g. transfer in progress"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            Cancel
-          </Button>
-          <Button onClick={() => mutate()} disabled={!valid || isPending}>
-            {isPending ? "Creating…" : "Credit wallet"}
           </Button>
         </DialogFooter>
       </DialogContent>

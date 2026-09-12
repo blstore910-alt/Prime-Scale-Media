@@ -182,7 +182,7 @@ export default function PsmWallets() {
               <tbody>
                 {paginatedWallets.map((wallet) => (
                   <tr key={wallet.id}>
-                    <td>
+                    <td data-label="Advertiser">
                       <div
                         style={{
                           display: "flex",
@@ -231,33 +231,38 @@ export default function PsmWallets() {
                         </div>
                       </div>
                     </td>
-                    <td className="mono">
+                    <td className="mono" data-label="Reference">
                       {wallet.reference_no ?? "—"}
                     </td>
-                    <td className="r mono">{formatAmount(wallet.eur_balance)}</td>
-                    <td className="r mono">{formatAmount(wallet.usd_balance)}</td>
-                    <td>
+                    <td className="r mono" data-label="EUR Balance">
+                      {formatAmount(wallet.eur_balance)}
+                    </td>
+                    <td className="r mono" data-label="USD Balance">
+                      {formatAmount(wallet.usd_balance)}
+                    </td>
+                    <td data-label="Created">
                       {wallet.created_at
                         ? dayjs(wallet.created_at).format(DATE_FORMAT)
                         : "—"}
                     </td>
-                    <td className="r">
+                    <td className="r" data-label="Actions">
                       <div
                         style={{
-                          display: "flex",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
                           gap: 8,
-                          justifyContent: "flex-end",
-                          flexWrap: "wrap",
                         }}
                       >
                         <button
                           className="btn ghost sm"
+                          style={{ width: "100%", justifyContent: "center" }}
                           onClick={() => setEditingWallet(wallet)}
                         >
                           <Pencil /> Edit
                         </button>
                         <button
                           className="btn ghost sm"
+                          style={{ width: "100%", justifyContent: "center" }}
                           onClick={() => setSelectedWalletId(wallet.id)}
                         >
                           <Eye /> Details
@@ -265,6 +270,7 @@ export default function PsmWallets() {
                         {isAdmin && (
                           <button
                             className="btn ghost sm"
+                            style={{ width: "100%", justifyContent: "center" }}
                             onClick={() => setMinTopupWallet(wallet)}
                           >
                             <SlidersHorizontal /> Min amount

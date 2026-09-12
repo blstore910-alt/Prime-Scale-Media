@@ -49,6 +49,10 @@ export const PSM_APP_CSS = `
 .psmapp .tb-brand{display:flex;align-items:center;gap:10px}
 .psmapp .tb-brand .mark{width:34px;height:34px;display:none}
 .psmapp .tb-title{font-family:var(--hd);font-weight:800;font-size:1.1rem;letter-spacing:-.02em}
+/* The routed view already renders its own .phead h1, so the shell topbar
+   title would be a duplicate — hide it on every width (it was already hidden
+   under the mobile breakpoint). */
+.psmapp .tb-title{display:none}
 .psmapp .tb-spacer{flex:1}
 .psmapp .toolbar{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;padding:5px;box-shadow:0 10px 24px -16px rgba(20,30,80,.55),inset 0 1px 0 rgba(255,255,255,.6)}
 .psmapp .tool{display:inline-flex;align-items:center;gap:8px;border:0;background:none;font-family:var(--bd);font-weight:700;color:var(--ink);border-radius:12px;padding:7px 12px;height:42px;cursor:pointer;position:relative;transition:.13s}
@@ -164,6 +168,39 @@ export const PSM_APP_CSS = `
   .psmapp .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
   .psmapp .bb svg{width:22px;height:22px}.psmapp .bb.on{color:var(--primary-600)}.psmapp .bb.on .bbic{background:var(--primary-tint)}
   .psmapp .content{padding:20px 16px 92px}
+}
+
+/* Phone: wide tables collapse into stacked cards. The header row is hidden
+   and each <tr> becomes a bordered rounded card; each <td> is a label/value
+   line — the label comes from the cell's data-label attribute (added in the
+   ported views), the value sits on the right. Desktop is unaffected. */
+@media (max-width:640px){
+  .psmapp .tbl.wide{min-width:0}
+  .psmapp .tbl.wide thead{display:none}
+  .psmapp .tbl.wide,
+  .psmapp .tbl.wide tbody,
+  .psmapp .tbl.wide tr{display:block;width:100%}
+  .psmapp .tbl.wide tr{
+    border:1px solid var(--line-2);border-radius:14px;margin:0 0 12px;padding:4px 12px;
+    background:var(--panel);box-shadow:var(--shadow-sm)
+  }
+  .psmapp .tbl.wide tr:last-child{margin-bottom:0}
+  .psmapp .tbl.wide tr:hover td{background:transparent}
+  .psmapp .tbl.wide td{
+    display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 16px;
+    padding:10px 2px;border-top:1px solid var(--line);text-align:right;min-width:0
+  }
+  .psmapp .tbl.wide tr td:first-child{border-top:0}
+  .psmapp .tbl.wide td::before{
+    content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;
+    font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700
+  }
+  .psmapp .tbl.wide td>*{grid-column:2;min-width:0}
+  /* Inline value chips (status badges, short notes) keep their natural size
+     and sit at the right instead of stretching the whole value column. */
+  .psmapp .tbl.wide td>span{justify-self:end}
+  .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
+  .psmapp .tbl.wide td[colspan]::before{display:none}
 }
 
 /* Topbar account menu (anchored to the avatar) */

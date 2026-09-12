@@ -114,7 +114,10 @@ export default function PsmVerifyTopups({
       <div className="phead">
         <div>
           <h1>Wallet Topups</h1>
-          <p>Bank transfers awaiting verification — check against the bank before crediting.</p>
+          <p>
+            Bank transfers awaiting verification — check against the bank
+            before crediting.
+          </p>
         </div>
       </div>
 

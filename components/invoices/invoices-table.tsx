@@ -258,12 +258,13 @@ export default function InvoicesTable() {
                             <td
                               className="mono"
                               style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              data-label="Invoice #"
                             >
                               {invoice.number}
                             </td>
                             {isAdmin && (
                               <>
-                                <td>
+                                <td data-label="Advertiser">
                                   <div style={{ fontWeight: 600 }}>
                                     {invoice.advertiser?.profile?.full_name ??
                                       "—"}
@@ -276,7 +277,10 @@ export default function InvoicesTable() {
                                       "—"}
                                   </div>
                                 </td>
-                                <td style={{ fontWeight: 600 }}>
+                                <td
+                                  style={{ fontWeight: 600 }}
+                                  data-label="Company"
+                                >
                                   {invoice.company?.name ?? "—"}
                                 </td>
                               </>
@@ -284,40 +288,50 @@ export default function InvoicesTable() {
                             <td
                               className="muted"
                               style={{ textTransform: "capitalize" }}
+                              data-label="Type"
                             >
                               {formatInvoiceType(invoice.type)}
                             </td>
-                            <td className="r mono" style={{ fontWeight: 700 }}>
+                            <td
+                              className="r mono"
+                              style={{ fontWeight: 700 }}
+                              data-label="Amount"
+                            >
                               {currencySymbol}
                               {formatAmount(invoice.total)}
                             </td>
-                            <td>
+                            <td data-label="Status">
                               <span
                                 className={`badge ${isPaid ? "ok" : "pend"}`}
                               >
                                 {isPaid ? "Paid" : "Unpaid"}
                               </span>
                             </td>
-                            <td className="r muted">
+                            <td className="r muted" data-label="Paid At">
                               {invoice.paid_at
                                 ? dayjs(invoice.paid_at).format(DATE_FORMAT)
                                 : "—"}
                             </td>
-                            <td className="r muted">
+                            <td className="r muted" data-label="Created On">
                               {dayjs(invoice.created_at).format(DATE_FORMAT)}
                             </td>
-                            <td className="r">
+                            <td className="r" data-label="Actions">
                               <div
                                 style={{
-                                  display: "inline-flex",
+                                  display: "grid",
+                                  gridTemplateColumns: isAdmin
+                                    ? "1fr 1fr"
+                                    : "1fr",
                                   gap: 8,
-                                  justifyContent: "flex-end",
-                                  flexWrap: "wrap",
                                 }}
                               >
                                 {isAdmin && (
                                   <button
                                     className="btn ghost sm"
+                                    style={{
+                                      width: "100%",
+                                      justifyContent: "center",
+                                    }}
                                     disabled={isUpdatingStatus}
                                     onClick={() =>
                                       handleTogglePaidStatus(invoice)
@@ -335,6 +349,10 @@ export default function InvoicesTable() {
                                 )}
                                 <button
                                   className="btn ghost sm"
+                                  style={{
+                                    width: "100%",
+                                    justifyContent: "center",
+                                  }}
                                   disabled={isDownloading}
                                   onClick={() => handleDownload(invoice)}
                                   title="Download invoice"
@@ -344,6 +362,7 @@ export default function InvoicesTable() {
                                   ) : (
                                     <Download />
                                   )}
+                                  Download
                                 </button>
                               </div>
                             </td>
