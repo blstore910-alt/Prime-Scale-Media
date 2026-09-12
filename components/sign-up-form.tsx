@@ -19,6 +19,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 const signUpSchema = z
   .object({
@@ -77,7 +79,8 @@ export function SignUpForm({
       if (error) throw error;
       router.push("/auth/sign-up-success");
     } catch (error) {
-      console.log(error);
+      console.error(safeErrorMessage(error));
+      toast.error("Sign up failed", { description: safeErrorMessage(error) });
     }
   };
 

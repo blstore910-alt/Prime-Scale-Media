@@ -1,3 +1,4 @@
+import { safeErrorMessage } from "@/lib/pure-error";
 import { useAppContext } from "@/context/app-provider";
 import { CURRENCIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
@@ -187,8 +188,10 @@ function TopupForm({
       queryClient.invalidateQueries({ queryKey: ["top-ups"] });
     },
     onError: (err) => {
-      console.error(err);
-      toast.error("Something went wrong", { description: err.message });
+      console.error(safeErrorMessage(err));
+      toast.error("Something went wrong", {
+        description: safeErrorMessage(err),
+      });
     },
   });
 

@@ -1,3 +1,4 @@
+import { safeErrorMessage } from "@/lib/pure-error";
 import { createTopupAsAdmin } from "@/actions/topup-actions";
 import InputField from "@/components/form/input-field";
 import SelectField from "@/components/form/select-field";
@@ -124,8 +125,10 @@ function TopupForm({
       setOpen(false);
     },
     onError: (err) => {
-      console.error(err);
-      toast.error("Something went wrong", { description: err.message });
+      console.error(safeErrorMessage(err));
+      toast.error("Something went wrong", {
+        description: safeErrorMessage(err),
+      });
     },
   });
 

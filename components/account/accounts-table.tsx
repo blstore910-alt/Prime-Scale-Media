@@ -85,6 +85,7 @@ export default function AccountsTable() {
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [maxFee, setMaxFee] = useState<number>(100);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const {
     data: accountsData,
@@ -280,7 +281,7 @@ export default function AccountsTable() {
           />
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
-            <Popover>
+            <Popover open={filterOpen} onOpenChange={setFilterOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -349,7 +350,7 @@ export default function AccountsTable() {
                     >
                       Reset
                     </Button>
-                    <Button size="sm" onClick={() => {}}>
+                    <Button size="sm" onClick={() => setFilterOpen(false)}>
                       Apply
                     </Button>
                   </div>

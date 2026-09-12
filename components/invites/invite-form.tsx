@@ -1,5 +1,6 @@
 "use client";
 
+import { safeErrorMessage } from "@/lib/pure-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -232,7 +233,7 @@ export default function InviteForm() {
         toast.success(data.message);
       }
     } catch (error) {
-      console.error(error);
+      console.error(safeErrorMessage(error));
       toast.error(error instanceof Error ? error.message : "");
     } finally {
       setLoading(false);

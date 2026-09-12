@@ -1,5 +1,6 @@
 "use client";
 
+import { safeErrorMessage } from "@/lib/pure-error";
 import InputField from "@/components/form/input-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -145,7 +146,7 @@ function ExchangeRatesForm({
       });
       toast.success("Latest rates applied");
     } catch (error) {
-      console.error(error);
+      console.error(safeErrorMessage(error));
       toast.error("Failed to fetch latest rates");
     } finally {
       setIsApplying(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import { safeErrorMessage } from "@/lib/pure-error";
 import { createTopupAsAdmin } from "@/actions/topup-actions";
 import { useAppContext } from "@/context/app-provider";
 import { CURRENCIES, TOPUP_TYPES } from "@/lib/constants";
@@ -190,8 +191,10 @@ export default function TopupForm({
       queryClient.invalidateQueries({ queryKey: ["top-ups", "recent"] });
     },
     onError: (err) => {
-      console.error(err);
-      toast.error("Something went wrong", { description: err.message });
+      console.error(safeErrorMessage(err));
+      toast.error("Something went wrong", {
+        description: safeErrorMessage(err),
+      });
     },
   });
 
