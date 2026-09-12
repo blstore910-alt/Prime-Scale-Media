@@ -188,28 +188,43 @@ const AUTH_CSS = `
 .psmauth .meta{margin-top:18px;text-align:center;color:var(--muted);font-size:.88rem}
 .psmauth .err{color:var(--danger);font-size:.85rem;font-weight:600;margin:6px 0 0;text-align:left}
 .psmauth .note{background:#fff7e6;border:1px solid #f0d9a8;color:#8a5a00;border-radius:11px;padding:10px 12px;font-size:.82rem;margin-bottom:14px;text-align:left}
-/* mobile: brand collapses into a compact hero above the form card */
+/* mobile: one continuous dark screen — the rocket hero flows straight
+   into the form, no white card. Email + password sit on the brand
+   background in light-on-dark controls. */
 @media(max-width:860px){
   .psmauth{grid-template-columns:1fr;background:#04050E}
-  .psmauth .brand{padding:20px 22px 38px;min-height:auto;text-align:center;align-items:center;border-radius:0 0 28px 28px}
+  .psmauth .brand{padding:20px 22px 26px;min-height:auto;text-align:center;align-items:center;border-radius:0;
+    background:radial-gradient(120% 80% at 50% 0%,rgba(91,141,255,.34),transparent 60%),radial-gradient(90% 70% at 82% 42%,rgba(139,92,246,.3),transparent 55%),linear-gradient(180deg,#04050E,#0c1230 60%,#141a3c)}
   .psmauth .brand .logo{align-self:center}
   .psmauth .brand .logo .mk{width:38px;height:38px}
   .psmauth .brand .logo .mk svg{width:21px;height:21px}
-  .psmauth .rocketstage{min-height:112px;margin:2px 0 0;width:100%}
+  .psmauth .rocketstage{min-height:118px;margin:2px 0 0;width:100%}
   .psmauth .rocketstage .moon{top:2%;right:16%;width:36px;height:36px}
-  .psmauth .rocketstage .glow{width:172px;height:172px}
-  .psmauth .ship{width:74px}
-  .psmauth .brand h1{font-size:1.48rem;margin:6px auto 7px;max-width:18ch}
+  .psmauth .rocketstage .glow{width:178px;height:178px}
+  .psmauth .ship{width:76px}
+  .psmauth .brand h1{font-size:1.5rem;margin:6px auto 7px;max-width:18ch}
   .psmauth .brand .sub{font-size:.88rem;margin:0 auto;max-width:32ch}
   .psmauth .pts{display:none}
-  .psmauth .side{min-height:auto;padding:0 clamp(16px,5vw,28px) 32px}
-  .psmauth .card{margin:0 auto}
-  /* the hero already carries the rocket — drop the duplicate badge on the form */
+  /* form flows on the dark background, continuing the hero's bottom tone */
+  .psmauth .side{min-height:auto;padding:8px clamp(18px,6vw,30px) 42px;
+    background:linear-gradient(180deg,#141a3c,#0d1330 55%,#080b1c)}
+  .psmauth .card{margin:0 auto;max-width:400px}
   .psmauth .lmk{display:none}
-  .psmauth .login-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;
-    padding:24px 20px 26px;margin:-22px auto 0;position:relative;box-shadow:0 26px 54px -30px rgba(4,5,14,.6)}
-  .psmauth .login-card h2,.psmauth h2{font-size:1.58rem;margin-top:0}
-  .psmauth .lede{margin-bottom:18px}
+  .psmauth .login-card{background:transparent;border:0;box-shadow:none;padding:0;margin:0 auto}
+  /* light-on-dark form controls */
+  .psmauth .login-card h2,.psmauth h2{font-size:1.6rem;margin:4px 0 6px;color:#fff}
+  .psmauth .lede{color:rgba(255,255,255,.62);margin-bottom:20px}
+  .psmauth .field label{color:rgba(255,255,255,.8)}
+  .psmauth .field label .opt{color:rgba(255,255,255,.5)}
+  .psmauth input,.psmauth select{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:#fff}
+  .psmauth input::placeholder{color:rgba(255,255,255,.4)}
+  .psmauth .inp>svg{color:rgba(255,255,255,.5)}
+  .psmauth input:focus,.psmauth select:focus{background:rgba(255,255,255,.1);border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,141,255,.28)}
+  .psmauth .meta{color:rgba(255,255,255,.62)}
+  .psmauth a.lnk{color:#9db8ff}
+  .psmauth .err{color:#ff9ba0}
+  .psmauth .note{background:rgba(255,214,120,.12);border-color:rgba(240,217,168,.32);color:#ffdf9e}
+  .psmauth .btn.ghost{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
 }
 @media (prefers-reduced-motion:reduce){.psmauth *{animation:none!important}}
 `;
