@@ -147,6 +147,18 @@ const AUTH_CSS = `
 .psmauth .flame2{transform-box:fill-box;transform-origin:50% 0;animation:psmflame2 .19s ease-in-out infinite alternate}
 @keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
 @keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
+/* ── Launch sequence: data-launching is set on .psmauth on sign-in ── */
+.psmauth[data-launching] .brand{overflow:visible}
+.psmauth[data-launching] .ship{animation:psmlaunch 1.5s cubic-bezier(.4,0,.7,.25) forwards}
+@keyframes psmlaunch{0%{transform:translateY(0) scale(1)}14%{transform:translateY(9px) scale(.95)}30%{transform:translateY(-6px) scale(1.03)}100%{transform:translateY(-135vh) scale(1.16) rotate(-3deg)}}
+.psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .07s ease-in-out infinite alternate}
+@keyframes psmflameburst{from{transform:scaleY(1.5) scaleX(1.06);opacity:1}to{transform:scaleY(2.7) scaleX(.9);opacity:1}}
+.psmauth[data-launching] .rocketstage .glow{animation:psmboom 1.5s ease-out forwards}
+@keyframes psmboom{0%{opacity:.5;transform:translate(-50%,-50%) scale(1)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.8)}100%{opacity:0;transform:translate(-50%,-50%) scale(2.7)}}
+.psmauth[data-launching] .stars{animation:psmstreak 1.5s ease-in forwards}
+@keyframes psmstreak{to{transform:translateY(90px);opacity:.12}}
+.psmauth[data-launching] .moon{animation:psmmoonfade 1.5s ease forwards}
+@keyframes psmmoonfade{to{transform:scale(1.12);opacity:.45}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -192,9 +204,12 @@ const AUTH_CSS = `
    into the form, no white card. Email + password sit on the brand
    background in light-on-dark controls. */
 @media(max-width:860px){
-  .psmauth{grid-template-columns:1fr;background:#04050E}
-  .psmauth .brand{padding:20px 22px 26px;min-height:auto;text-align:center;align-items:center;border-radius:0;
-    background:radial-gradient(120% 80% at 50% 0%,rgba(91,141,255,.34),transparent 60%),radial-gradient(90% 70% at 82% 42%,rgba(139,92,246,.3),transparent 55%),linear-gradient(180deg,#04050E,#0c1230 60%,#141a3c)}
+  .psmauth{grid-template-columns:1fr;
+    background:
+      radial-gradient(110% 42% at 50% 0%,rgba(91,141,255,.30),transparent 55%),
+      radial-gradient(85% 36% at 84% 22%,rgba(139,92,246,.26),transparent 52%),
+      linear-gradient(180deg,#04050E 0%,#0a0f2a 44%,#0e1740 100%)}
+  .psmauth .brand{background:transparent;padding:18px 22px 12px;min-height:auto;text-align:center;align-items:center;border-radius:0}
   .psmauth .brand .logo{align-self:center}
   .psmauth .brand .logo .mk{width:38px;height:38px}
   .psmauth .brand .logo .mk svg{width:21px;height:21px}
@@ -205,9 +220,8 @@ const AUTH_CSS = `
   .psmauth .brand h1{font-size:1.5rem;margin:6px auto 7px;max-width:18ch}
   .psmauth .brand .sub{font-size:.88rem;margin:0 auto;max-width:32ch}
   .psmauth .pts{display:none}
-  /* form flows on the dark background, continuing the hero's bottom tone */
-  .psmauth .side{min-height:auto;padding:8px clamp(18px,6vw,30px) 42px;
-    background:linear-gradient(180deg,#141a3c,#0d1330 55%,#080b1c)}
+  /* the form has no background of its own — it flows on the same surface */
+  .psmauth .side{background:transparent;min-height:auto;justify-content:flex-start;padding:2px clamp(18px,6vw,30px) 40px}
   .psmauth .card{margin:0 auto;max-width:400px}
   .psmauth .lmk{display:none}
   .psmauth .login-card{background:transparent;border:0;box-shadow:none;padding:0;margin:0 auto}

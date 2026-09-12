@@ -15,7 +15,7 @@ import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
-const SUPPORT_EMAIL = "info@primescalemedia.com";
+const SUPPORT_EMAIL = "contact@primescalemedia.com";
 
 type View = "dash" | "refs" | "pay" | "notif" | "set" | "help";
 const TITLES: Record<View, string> = {

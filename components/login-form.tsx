@@ -56,6 +56,15 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
 
+    // Fire the rocket-launch animation on the auth shell. It plays while
+    // the sign-in request is in flight and up to the redirect; on failure
+    // we reset it so the rocket returns and the error shows.
+    const shell =
+      typeof document !== "undefined"
+        ? document.querySelector(".psmauth")
+        : null;
+    shell?.setAttribute("data-launching", "1");
+
     const formData = new FormData();
     formData.append("email", email);
     formData.append("password", password);
@@ -63,6 +72,7 @@ export function LoginForm() {
     startTransition(async () => {
       const result = await loginUser(formData);
       if (result?.error) {
+        shell?.removeAttribute("data-launching");
         setError(result.error);
       }
     });

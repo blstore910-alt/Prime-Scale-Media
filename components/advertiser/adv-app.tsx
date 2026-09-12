@@ -65,7 +65,7 @@ const money2 = (n: number | string | null | undefined) =>
   }).format(Number(n ?? 0));
 
 // Support inbox for the "contact us" actions. Change here if it differs.
-const SUPPORT_EMAIL = "info@primescalemedia.com";
+const SUPPORT_EMAIL = "contact@primescalemedia.com";
 
 const platformLabel = (p: string | null) =>
   PLATFORMS.find((x) => x.value === p)?.label ?? p ?? "—";
