@@ -9,6 +9,9 @@ const commonLinks = [{ href: "/settings/general", label: "General" }];
 const adminLinks = [
   ...commonLinks,
   { href: "/settings/finance", label: "Finance" },
+  { href: "/settings/ad-account-types", label: "Ad account types" },
+  { href: "/settings/plans", label: "Plans" },
+  { href: "/settings/integrations", label: "Integrations" },
 ];
 
 export default function SettingsNavbar() {

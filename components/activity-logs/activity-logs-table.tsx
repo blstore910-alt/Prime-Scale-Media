@@ -1,30 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useIsTablet } from "@/hooks/use-is-tablet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import TablePagination from "@/components/ui/table-pagination";
+import { Eye } from "lucide-react";
 import { ACTIVITY_LOG_ACTIONS } from "@/lib/activity-log-actions";
 // TODO(activity-logs): re-add ACTIVITY_LOG_DB_ACTIONS + setDbAction wiring
 // when the DB-action filter UI is enabled.
 import useActivityLogs from "./use-activity-logs";
-import ActivityLogRow from "./activity-log-row";
-import ActivityLogCard from "./activity-log-card";
 import ActivityLogDetailsSheet from "./activity-log-details-sheet";
+import TablePagination from "@/components/ui/table-pagination";
 import { ActivityLog } from "@/lib/types/activity-log";
 import { formatActionLabel } from "./utils";
 
@@ -36,13 +19,28 @@ const actionOptions = [
   })),
 ];
 
+// Maps a db_action to one of the mockup's scoped `.badge` variants.
+function dbActionBadge(dbAction?: string | null) {
+  switch (dbAction) {
+    case "INSERT":
+      return "ok";
+    case "UPDATE":
+      return "pend";
+    case "DELETE":
+      return "due";
+    default:
+      return "info";
+  }
+}
+
+// Activity logs list, ported to the mockup look. Reuses the real
+// useActivityLogs data hook + the real details sheet — presentation only.
 export default function ActivityLogsTable() {
   const [action, setAction] = useState("all");
   const [dbAction] = useState("all");
   const [page, setPage] = useState(1);
   const perPage = 50;
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
-  const isTabletScreen = useIsTablet() ?? true;
 
   useEffect(() => {
     setPage(1);
@@ -56,128 +54,106 @@ export default function ActivityLogsTable() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div className="phead">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Activity Logs
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Monitor system activity and review audit events.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={action} onValueChange={setAction}>
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Action" />
-            </SelectTrigger>
-            <SelectContent>
-              {actionOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <h1>Activity Logs</h1>
+          <p>Monitor system activity and review audit events.</p>
         </div>
       </div>
 
-      {isTabletScreen ? (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              <TableRow>
-                <TableHead>Author</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead className="text-right">View Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, idx) => (
-                  <TableRow key={idx} className="animate-pulse">
-                    {Array.from({ length: 3 }).map((__, cellIdx) => (
-                      <LoaderCell key={cellIdx} />
-                    ))}
-                  </TableRow>
-                ))
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    className="text-center text-destructive py-8"
-                  >
-                    <div role="alert" aria-live="assertive">
-                      <p className="font-medium">
-                        Failed to load activity logs.
-                      </p>
-                      <p className="mt-2 text-sm">
-                        {(error as Error)?.message ?? String(error)}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : logs.length ? (
-                logs.map((log) => (
-                  <ActivityLogRow
-                    key={log.id}
-                    log={log}
-                    onViewDetails={() => setSelectedLog(log)}
-                  />
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No activity logs found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+      <div className="fbar">
+        <select
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          aria-label="Action"
+        >
+          {actionOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {isLoading ? (
+        <p className="muted">Loading…</p>
+      ) : isError ? (
+        <div className="card">
+          <div role="alert" aria-live="assertive">
+            <p className="muted" style={{ margin: 0 }}>
+              Failed to load activity logs.{" "}
+              {(error as Error)?.message ?? String(error)}
+            </p>
+          </div>
+        </div>
+      ) : logs.length ? (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tblwrap">
+            <table className="tbl wide">
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Action</th>
+                  <th className="r">View Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => {
+                  const authorName = log.author?.full_name || "Unknown";
+                  const authorEmail = log.author?.email || "--";
+                  return (
+                    <tr key={log.id}>
+                      <td>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700 }}>{authorName}</div>
+                          <div
+                            style={{
+                              color: "var(--faint)",
+                              fontSize: ".8rem",
+                            }}
+                          >
+                            {authorEmail}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${dbActionBadge(log.db_action)}`}>
+                          {formatActionLabel(log.action)}
+                        </span>
+                      </td>
+                      <td className="r">
+                        <button
+                          className="btn ghost sm"
+                          onClick={() => setSelectedLog(log)}
+                        >
+                          <Eye /> View Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="h-28 rounded-md bg-muted animate-pulse"
-              />
-            ))
-          ) : isError ? (
-            <div className="text-center text-destructive py-8">
-              <p className="font-medium">Failed to load activity logs.</p>
-              <p className="mt-2 text-sm">
-                {(error as Error)?.message ?? String(error)}
-              </p>
-            </div>
-          ) : logs.length ? (
-            logs.map((log) => (
-              <ActivityLogCard
-                key={log.id}
-                log={log}
-                onViewDetails={() => setSelectedLog(log)}
-              />
-            ))
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No activity logs found.
-            </div>
-          )}
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No activity logs found.
+          </p>
         </div>
       )}
 
-      <div className="p-4">
-        <TablePagination
-          total={total}
-          page={page}
-          perPage={perPage}
-          onPageChange={(p) => setPage(p)}
-        />
-      </div>
+      <TablePagination
+        total={total}
+        page={page}
+        perPage={perPage}
+        onPageChange={(p) => setPage(p)}
+      />
 
       <ActivityLogDetailsSheet
         open={selectedLog !== null}
@@ -187,13 +163,5 @@ export default function ActivityLogsTable() {
         }}
       />
     </div>
-  );
-}
-
-function LoaderCell() {
-  return (
-    <TableCell>
-      <div className="h-4 bg-muted rounded w-8" />
-    </TableCell>
   );
 }

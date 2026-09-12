@@ -1,29 +1,69 @@
 "use client";
 
 import { setInvoicePaidStatus } from "@/actions/invoice-actions";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useIsTablet } from "@/hooks/use-is-tablet";
-import useInvoices from "./use-invoices";
-import CreateInvoiceDialog from "./create-invoice-dialog";
-import InvoiceCard from "./invoice-card";
-import InvoiceRow from "./invoice-row";
+import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import dayjs from "dayjs";
+import {
+  CheckCircle,
+  Download,
+  Loader2,
+  Plus,
+  Search,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import CreateInvoiceDialog from "./create-invoice-dialog";
+import useInvoices from "./use-invoices";
 
+const formatInvoiceType = (type: string | null) => {
+  if (!type) return "—";
+  return type
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const formatAmount = (value: number | string | null | undefined) => {
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num)) return "0.00";
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
+
+const loadingRow = (colSpan: number) => (
+  <tr>
+    <td colSpan={colSpan} style={{ textAlign: "center", padding: 28 }}>
+      <Loader2 className="animate-spin" style={{ display: "inline" }} />
+    </td>
+  </tr>
+);
+
+const stateRow = (colSpan: number, msg: string, danger = false) => (
+  <tr>
+    <td
+      colSpan={colSpan}
+      style={{
+        textAlign: "center",
+        padding: 28,
+        color: danger ? "var(--danger)" : "var(--muted)",
+      }}
+    >
+      {msg}
+    </td>
+  </tr>
+);
+
+// Invoices ledger (admin / super-admin), ported to the PSM mockup look.
+// Reuses the real useInvoices hook, the mark-paid/unpaid mutation, the PDF
+// download and the CreateInvoiceDialog — presentation only, every column,
+// search and action preserved.
 export default function InvoicesTable() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -36,7 +76,6 @@ export default function InvoicesTable() {
   );
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const perPage = 10;
-  const isTabletScreen = useIsTablet() ?? true;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
 
@@ -139,156 +178,191 @@ export default function InvoicesTable() {
     );
   };
 
+  const colCount = isAdmin ? 9 : 7;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <CreateInvoiceDialog
         open={isCreateInvoiceOpen}
         onOpenChange={setIsCreateInvoiceOpen}
       />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+      <div className="phead">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Invoices</h2>
-          <p className="text-sm text-muted-foreground">
-            View and download all invoices for your account.
-          </p>
+          <h1>Invoices</h1>
+          <p>View and download all invoices for your account.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search invoice no..."
-              className="pl-8"
-            />
-          </div>
-          {isAdmin && (
-            <Button onClick={() => setIsCreateInvoiceOpen(true)}>
-              Create Invoice
-            </Button>
-          )}
-        </div>
+        {isAdmin && (
+          <button className="btn" onClick={() => setIsCreateInvoiceOpen(true)}>
+            <Plus /> Create Invoice
+          </button>
+        )}
       </div>
 
-      {isTabletScreen ? (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              <TableRow>
-                <TableHead>Invoice #</TableHead>
+      <div className="fbar">
+        <label className="fsr">
+          <Search />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search invoice no…"
+          />
+        </label>
+      </div>
+
+      <div className="card" style={{ padding: "16px 8px 8px" }}>
+        <div className="tblwrap">
+          <table className="tbl wide">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: 14 }}>Invoice #</th>
                 {isAdmin && (
                   <>
-                    {" "}
-                    <TableHead>Advertiser</TableHead>
-                    <TableHead>Company</TableHead>
+                    <th>Advertiser</th>
+                    <th>Company</th>
                   </>
                 )}
-                <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Paid At</TableHead>
-                <TableHead>Created On</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, idx) => (
-                  <TableRow key={idx} className="animate-pulse">
-                    {Array.from({ length: 9 }).map((__, cellIdx) => (
-                      <LoaderCell key={cellIdx} />
-                    ))}
-                  </TableRow>
-                ))
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center text-destructive py-8"
-                  >
-                    <div role="alert" aria-live="assertive">
-                      <p className="font-medium">Failed to load invoices.</p>
-                      <p className="mt-2 text-sm">
-                        {(error as Error)?.message ?? String(error)}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : invoices.length ? (
-                invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onDownload={handleDownload}
-                    isDownloading={downloadingInvoiceId === invoice.id}
-                    onTogglePaidStatus={handleTogglePaidStatus}
-                    isUpdatingStatus={updatingInvoiceId === invoice.id}
-                  />
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No invoices found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                <th>Type</th>
+                <th className="r">Amount</th>
+                <th>Status</th>
+                <th className="r">Paid At</th>
+                <th className="r">Created On</th>
+                <th className="r">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading
+                ? loadingRow(colCount)
+                : isError
+                  ? stateRow(
+                      colCount,
+                      (error as Error)?.message ?? "Failed to load invoices.",
+                      true,
+                    )
+                  : invoices.length
+                    ? invoices.map((invoice) => {
+                        const isPaid = invoice.status === "paid";
+                        const currencySymbol =
+                          CURRENCY_SYMBOLS[
+                            invoice.currency as keyof typeof CURRENCY_SYMBOLS
+                          ] ?? "€";
+                        const isUpdatingStatus =
+                          updatingInvoiceId === invoice.id;
+                        const isDownloading =
+                          downloadingInvoiceId === invoice.id;
+                        return (
+                          <tr key={invoice.id}>
+                            <td
+                              className="mono"
+                              style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                            >
+                              {invoice.number}
+                            </td>
+                            {isAdmin && (
+                              <>
+                                <td>
+                                  <div style={{ fontWeight: 600 }}>
+                                    {invoice.advertiser?.profile?.full_name ??
+                                      "—"}
+                                  </div>
+                                  <div
+                                    className="muted mono"
+                                    style={{ fontSize: ".78rem" }}
+                                  >
+                                    {invoice.advertiser?.tenant_client_code ??
+                                      "—"}
+                                  </div>
+                                </td>
+                                <td style={{ fontWeight: 600 }}>
+                                  {invoice.company?.name ?? "—"}
+                                </td>
+                              </>
+                            )}
+                            <td
+                              className="muted"
+                              style={{ textTransform: "capitalize" }}
+                            >
+                              {formatInvoiceType(invoice.type)}
+                            </td>
+                            <td className="r mono" style={{ fontWeight: 700 }}>
+                              {currencySymbol}
+                              {formatAmount(invoice.total)}
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${isPaid ? "ok" : "pend"}`}
+                              >
+                                {isPaid ? "Paid" : "Unpaid"}
+                              </span>
+                            </td>
+                            <td className="r muted">
+                              {invoice.paid_at
+                                ? dayjs(invoice.paid_at).format(DATE_FORMAT)
+                                : "—"}
+                            </td>
+                            <td className="r muted">
+                              {dayjs(invoice.created_at).format(DATE_FORMAT)}
+                            </td>
+                            <td className="r">
+                              <div
+                                style={{
+                                  display: "inline-flex",
+                                  gap: 8,
+                                  justifyContent: "flex-end",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {isAdmin && (
+                                  <button
+                                    className="btn ghost sm"
+                                    disabled={isUpdatingStatus}
+                                    onClick={() =>
+                                      handleTogglePaidStatus(invoice)
+                                    }
+                                  >
+                                    {isUpdatingStatus ? (
+                                      <Loader2 className="animate-spin" />
+                                    ) : isPaid ? (
+                                      <XCircle />
+                                    ) : (
+                                      <CheckCircle />
+                                    )}
+                                    {isPaid ? "Mark Unpaid" : "Mark Paid"}
+                                  </button>
+                                )}
+                                <button
+                                  className="btn ghost sm"
+                                  disabled={isDownloading}
+                                  onClick={() => handleDownload(invoice)}
+                                  title="Download invoice"
+                                >
+                                  {isDownloading ? (
+                                    <Loader2 className="animate-spin" />
+                                  ) : (
+                                    <Download />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    : stateRow(colCount, "No invoices found.")}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div className="grid gap-4">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="h-28 rounded-md bg-muted animate-pulse"
-              />
-            ))
-          ) : isError ? (
-            <div className="text-center text-destructive py-8">
-              <p className="font-medium">Failed to load invoices.</p>
-              <p className="mt-2 text-sm">
-                {(error as Error)?.message ?? String(error)}
-              </p>
-            </div>
-          ) : invoices.length ? (
-            invoices.map((invoice) => (
-              <InvoiceCard
-                key={invoice.id}
-                invoice={invoice}
-                onDownload={handleDownload}
-                isDownloading={downloadingInvoiceId === invoice.id}
-                onTogglePaidStatus={handleTogglePaidStatus}
-                isUpdatingStatus={updatingInvoiceId === invoice.id}
-              />
-            ))
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No invoices found.
-            </div>
-          )}
+        <div style={{ padding: 12 }}>
+          <TablePagination
+            total={total}
+            page={page}
+            perPage={perPage}
+            onPageChange={(p) => setPage(p)}
+          />
         </div>
-      )}
-
-      <div className="p-4">
-        <TablePagination
-          total={total}
-          page={page}
-          perPage={perPage}
-          onPageChange={(p) => setPage(p)}
-        />
       </div>
     </div>
-  );
-}
-
-function LoaderCell() {
-  return (
-    <TableCell>
-      <div className="h-4 bg-muted rounded w-8" />
-    </TableCell>
   );
 }

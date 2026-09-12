@@ -3,16 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -20,17 +10,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
-import { cn } from "@/lib/utils";
-import { Copy, Download, Eye, RefreshCw } from "lucide-react";
+import { Copy, Download, Eye, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
 
@@ -53,6 +34,20 @@ const AUDITED_TABLES = [
   "tenants",
   "invitations",
 ] as const;
+
+// Maps an audit action to one of the mockup's scoped `.badge` variants.
+function actionBadge(action: AuditEvent["action"]) {
+  switch (action) {
+    case "INSERT":
+      return "ok";
+    case "UPDATE":
+      return "info";
+    case "DELETE":
+      return "due";
+    default:
+      return "info";
+  }
+}
 
 export default function AuditEventsTable() {
   // Deep-linkable filter: /audit?row=<uuid> shows every event for
@@ -84,6 +79,13 @@ export default function AuditEventsTable() {
     const trimmed = rowIdInput.trim();
     if (trimmed) params.set("row", trimmed);
     else params.delete("row");
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
+  const clearRowId = () => {
+    setRowIdInput("");
+    const params = new URLSearchParams(searchParams?.toString());
+    params.delete("row");
     router.replace(`${pathname}?${params.toString()}`);
   };
 
@@ -135,233 +137,220 @@ export default function AuditEventsTable() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div className="phead">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Audit log</h2>
-          <p className="text-sm text-muted-foreground">
+          <h1>Audit log</h1>
+          <p>
             Every insert / update / delete on the audited tables. Append-only.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={table}
-            onValueChange={(v) => {
-              setTable(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Table" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All tables</SelectItem>
-              {AUDITED_TABLES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={action}
-            onValueChange={(v) => {
-              setAction(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Action" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All actions</SelectItem>
-              <SelectItem value="INSERT">INSERT</SelectItem>
-              <SelectItem value="UPDATE">UPDATE</SelectItem>
-              <SelectItem value="DELETE">DELETE</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(sinceMinutes)}
-            onValueChange={(v) => {
-              setSinceMinutes(Number(v));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Since" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">All time</SelectItem>
-              <SelectItem value="15">Last 15 min</SelectItem>
-              <SelectItem value="60">Last hour</SelectItem>
-              <SelectItem value="1440">Last 24 h</SelectItem>
-              <SelectItem value="10080">Last 7 days</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              queryClient.invalidateQueries({ queryKey: ["audit-events"] })
-            }
-            disabled={isLoading}
-            aria-label="Refresh"
-          >
-            <RefreshCw
-              className={"h-3 w-3 " + (isLoading ? "animate-spin" : "")}
-            />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadCsv}
-            disabled={exporting}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            {exporting ? "Exporting…" : "Export CSV"}
-          </Button>
-        </div>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Input
-          value={rowIdInput}
-          onChange={(e) => setRowIdInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") applyRowId();
-          }}
-          placeholder="Filter by row id (paste a uuid) and press Enter"
-          className="font-mono text-xs max-w-lg"
-        />
+      <div className="fbar">
+        <label className="fsr">
+          <Search />
+          <input
+            value={rowIdInput}
+            onChange={(e) => setRowIdInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyRowId();
+            }}
+            placeholder="Filter by row id (paste a uuid) and press Enter"
+            style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
+          />
+        </label>
         {rowIdFromUrl && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setRowIdInput("");
-              const params = new URLSearchParams(searchParams?.toString());
-              params.delete("row");
-              router.replace(`${pathname}?${params.toString()}`);
-            }}
-          >
+          <button className="btn ghost sm" onClick={clearRowId}>
             Clear
-          </Button>
+          </button>
         )}
+        <select
+          value={table}
+          onChange={(e) => {
+            setTable(e.target.value);
+            setPage(1);
+          }}
+          aria-label="Table"
+        >
+          <option value="all">All tables</option>
+          {AUDITED_TABLES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select
+          value={action}
+          onChange={(e) => {
+            setAction(e.target.value);
+            setPage(1);
+          }}
+          aria-label="Action"
+        >
+          <option value="all">All actions</option>
+          <option value="INSERT">INSERT</option>
+          <option value="UPDATE">UPDATE</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+        <select
+          value={String(sinceMinutes)}
+          onChange={(e) => {
+            setSinceMinutes(Number(e.target.value));
+            setPage(1);
+          }}
+          aria-label="Since"
+        >
+          <option value="0">All time</option>
+          <option value="15">Last 15 min</option>
+          <option value="60">Last hour</option>
+          <option value="1440">Last 24 h</option>
+          <option value="10080">Last 7 days</option>
+        </select>
+        <button
+          className="btn ghost sm"
+          onClick={() =>
+            queryClient.invalidateQueries({ queryKey: ["audit-events"] })
+          }
+          disabled={isLoading}
+          aria-label="Refresh"
+        >
+          <RefreshCw
+            className={isLoading ? "animate-spin" : ""}
+            style={{ width: 15, height: 15 }}
+          />
+        </button>
+        <button className="fexp" onClick={downloadCsv} disabled={exporting}>
+          <Download />
+          {exporting ? "Exporting…" : "Export CSV"}
+        </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Table</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Row</TableHead>
-              <TableHead>Actor</TableHead>
-              <TableHead className="text-right">Details</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <TableRow key={i} className="animate-pulse">
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <div className="h-4 w-24 bg-muted rounded" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : isError ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-destructive py-8">
-                  {(error as Error)?.message ?? "Failed to load audit events."}
-                </TableCell>
-              </TableRow>
-            ) : events.length ? (
-              events.map((ev) => (
-                <TableRow key={ev.id}>
-                  <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                    {new Date(ev.occurred_at).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {ev.table_name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={cn(
-                        ev.action === "INSERT" &&
-                          "bg-green-600 hover:bg-green-700 text-white",
-                        ev.action === "UPDATE" &&
-                          "bg-blue-600 hover:bg-blue-700 text-white",
-                        ev.action === "DELETE" && "",
-                      )}
-                      variant={ev.action === "DELETE" ? "destructive" : "default"}
-                    >
-                      {ev.action}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs font-mono">
-                    {ev.row_id ? (
-                      <span className="inline-flex items-center gap-1 max-w-[10rem]">
-                        <span className="truncate">{ev.row_id}</span>
-                        <button
-                          type="button"
-                          className="shrink-0 text-muted-foreground hover:text-foreground"
-                          aria-label="Copy row id"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(ev.row_id!);
-                              toast.success("Copied");
-                            } catch {
-                              toast.error("Clipboard blocked");
-                            }
+      {isLoading ? (
+        <p className="muted">Loading…</p>
+      ) : isError ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            {(error as Error)?.message ?? "Failed to load audit events."}
+          </p>
+        </div>
+      ) : events.length ? (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tblwrap">
+            <table className="tbl wide">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Table</th>
+                  <th>Action</th>
+                  <th>Row</th>
+                  <th>Actor</th>
+                  <th className="r">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((ev) => (
+                  <tr key={ev.id}>
+                    <td className="mono" style={{ whiteSpace: "nowrap" }}>
+                      {new Date(ev.occurred_at).toLocaleString()}
+                    </td>
+                    <td className="mono">{ev.table_name}</td>
+                    <td>
+                      <span className={`badge ${actionBadge(ev.action)}`}>
+                        {ev.action}
+                      </span>
+                    </td>
+                    <td className="mono">
+                      {ev.row_id ? (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            maxWidth: "10rem",
                           }}
                         >
-                          <Copy className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground truncate max-w-[10rem]">
-                    {ev.actor_profile_id ?? "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setSelected(ev)}
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {ev.row_id}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label="Copy row id"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(ev.row_id!);
+                                toast.success("Copied");
+                              } catch {
+                                toast.error("Clipboard blocked");
+                              }
+                            }}
+                            style={{
+                              display: "grid",
+                              placeItems: "center",
+                              flex: "0 0 auto",
+                              border: 0,
+                              background: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              color: "var(--faint)",
+                            }}
+                          >
+                            <Copy style={{ width: 14, height: 14 }} />
+                          </button>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td
+                      className="mono"
+                      style={{
+                        color: "var(--muted)",
+                        maxWidth: "10rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
                     >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Details
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No audit events found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                      {ev.actor_profile_id ?? "—"}
+                    </td>
+                    <td className="r">
+                      <button
+                        className="btn ghost sm"
+                        onClick={() => setSelected(ev)}
+                      >
+                        <Eye /> Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No audit events found.
+          </p>
+        </div>
+      )}
 
-      <div className="p-4">
-        <TablePagination
-          total={total}
-          page={page}
-          perPage={perPage}
-          onPageChange={setPage}
-        />
-      </div>
+      <TablePagination
+        total={total}
+        page={page}
+        perPage={perPage}
+        onPageChange={setPage}
+      />
 
       <Sheet
         open={selected !== null}

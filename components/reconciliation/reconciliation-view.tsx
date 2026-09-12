@@ -1,23 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   addLedgerEntry,
   getReconciliation,
@@ -44,6 +26,36 @@ function fmt(v: number, c: LedgerCurrency) {
     maximumFractionDigits: 2,
   }).format(v)}`;
 }
+
+// Scoped styles for the mockup-only classes (.recon-hero, .check, .field,
+// the responsive form/destination grids). Rule bodies copied from the
+// approved super-admin mockup and prefixed under .psm-recon so they never
+// leak; every color/spacing token comes from the .psmapp shell variables.
+const RECON_CSS = `
+.psm-recon .recon-hero{position:relative;overflow:hidden;border-radius:16px;padding:22px;color:#fff;background:linear-gradient(135deg,#0e9e6e,var(--win) 60%,#3ad1a0);box-shadow:0 22px 46px -26px rgba(16,185,129,.7)}
+.psm-recon .recon-hero .rh-l{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.psm-recon .recon-hero .rh-v{font-family:var(--hd);font-weight:800;font-size:1.9rem;margin:6px 0 2px}
+.psm-recon .recon-hero .rh-d{opacity:.9;font-size:.9rem}
+.psm-recon .checks{display:flex;flex-direction:column;gap:10px}
+.psm-recon .check{display:flex;align-items:center;gap:13px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow-sm)}
+.psm-recon .check .cki{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
+.psm-recon .check.ok .cki{background:var(--win-soft);color:var(--win)}
+.psm-recon .check.warn .cki{background:var(--danger-soft);color:var(--danger)}
+.psm-recon .check .cx{min-width:0}
+.psm-recon .check .ct{font-weight:700}
+.psm-recon .check .cd{color:var(--faint);font-size:.84rem}
+.psm-recon .check .cv{margin-left:auto;display:inline-flex;align-items:center;gap:10px;text-align:right;font-family:var(--hd);font-weight:800;white-space:nowrap}
+.psm-recon .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:12px}
+.psm-recon .dcard{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--panel);box-shadow:var(--shadow-sm)}
+.psm-recon .dcard .dl{color:var(--faint);font-size:.78rem;font-weight:600}
+.psm-recon .dcard .dv{font-family:var(--hd);font-weight:800;font-size:1.15rem;margin-top:6px}
+.psm-recon .frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:12px}
+.psm-recon .field label{font-size:.8rem;font-weight:600;color:var(--muted);display:block;margin-bottom:6px}
+.psm-recon .field input,.psm-recon .field select{width:100%;font-family:var(--bd);font-size:.92rem;border:1px solid var(--line-2);border-radius:11px;padding:11px 13px;background:var(--panel-2);color:var(--ink)}
+.psm-recon .field input:focus,.psm-recon .field select:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
+.psm-recon .field select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:15px;padding-right:34px}
+.psm-recon .rspin{display:grid;place-items:center;padding:26px 0;color:var(--muted)}
+`;
 
 export default function ReconciliationView() {
   const queryClient = useQueryClient();
@@ -104,262 +116,264 @@ export default function ReconciliationView() {
       toast.error("Failed to record entry", { description: e.message }),
   });
 
+  const rows = reconQ.data?.rows ?? [];
+  const mismatches = rows.filter((r) => Math.abs(r.gap) >= 0.01);
+  const heroStatus = reconQ.isLoading
+    ? "Checking…"
+    : reconQ.isError
+      ? "Unable to load"
+      : mismatches.length === 0
+        ? "All balanced ✓"
+        : `${mismatches.length} to investigate`;
+
   return (
-    <div className="space-y-6 px-4 lg:px-6 pb-16">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Bank Balances &amp; Reconciliation
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Record the money actually received at each bank from the
-          statements, then check it against what was credited to customer
-          wallets. A gap means more was credited than received —
-          investigate.
-        </p>
+    <div
+      className="psmview psm-recon"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <style>{RECON_CSS}</style>
+
+      <div className="phead">
+        <div>
+          <h1>Bank Balances &amp; Reconciliation</h1>
+          <p>
+            Record the money actually received at each bank from the
+            statements, then check it against what was credited to customer
+            wallets. A gap means more was credited than received — investigate.
+          </p>
+        </div>
       </div>
 
-      {/* Reconciliation summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Reconciliation</CardTitle>
-          <CardDescription>
-            Credited to wallets (completed topups) vs actually received
-            (ledger). Per currency.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {reconQ.isLoading ? (
-            <div className="flex h-24 items-center justify-center">
-              <Loader2 className="animate-spin" />
-            </div>
-          ) : reconQ.isError ? (
-            <p className="text-destructive">
-              {(reconQ.error as Error)?.message}
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Currency</TableHead>
-                  <TableHead className="text-right">Credited</TableHead>
-                  <TableHead className="text-right">Received</TableHead>
-                  <TableHead className="text-right">Gap</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(reconQ.data?.rows ?? []).map((r) => {
-                  const ok = Math.abs(r.gap) < 0.01;
-                  return (
-                    <TableRow key={r.currency}>
-                      <TableCell className="font-medium">
-                        {r.currency}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {fmt(r.credited, r.currency)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {fmt(r.received, r.currency)}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-mono ${
-                          ok ? "" : "text-destructive font-semibold"
-                        }`}
-                      >
-                        {fmt(r.gap, r.currency)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {ok ? (
-                          <span className="inline-flex items-center gap-1 text-green-600 text-xs">
-                            <CheckCircle2 className="h-4 w-4" /> Balanced
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-destructive text-xs font-semibold">
-                            <AlertTriangle className="h-4 w-4" /> Check
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+      {/* Status hero */}
+      <div className="recon-hero">
+        <div className="rh-l">Reconciliation status</div>
+        <div className="rh-v">{heroStatus}</div>
+        <div className="rh-d">
+          Credited to wallets (completed topups) vs actually received (ledger),
+          per currency.
+        </div>
+      </div>
 
-          {/* Per-destination balances */}
-          {!reconQ.isLoading && !reconQ.isError && (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {(reconQ.data?.balances ?? []).map((b) => (
-                <div
-                  key={`${b.destination}-${b.currency}`}
-                  className="rounded-md border p-3"
-                >
-                  <div className="text-xs text-muted-foreground">
-                    {DESTINATION_LABELS[b.destination]} · {b.currency}
+      {/* Per-currency checks */}
+      {reconQ.isLoading ? (
+        <div className="card">
+          <div className="rspin">
+            <Loader2 className="animate-spin" />
+          </div>
+        </div>
+      ) : reconQ.isError ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            {(reconQ.error as Error)?.message ?? "Failed to load reconciliation."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <h2>Per currency</h2>
+          <div className="checks">
+            {rows.map((r) => {
+              const ok = Math.abs(r.gap) < 0.01;
+              return (
+                <div key={r.currency} className={`check ${ok ? "ok" : "warn"}`}>
+                  <span className="cki">
+                    {ok ? (
+                      <CheckCircle2 size={18} />
+                    ) : (
+                      <AlertTriangle size={18} />
+                    )}
+                  </span>
+                  <div className="cx">
+                    <div className="ct">{r.currency}</div>
+                    <div className="cd">
+                      Credited {fmt(r.credited, r.currency)} · Received{" "}
+                      {fmt(r.received, r.currency)}
+                    </div>
                   </div>
-                  <div className="font-mono font-semibold">
-                    {fmt(b.balance, b.currency)}
+                  <div className="cv">
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: ".82rem",
+                        color: ok ? "var(--faint)" : "var(--danger)",
+                      }}
+                    >
+                      {fmt(r.gap, r.currency)}
+                    </span>
+                    <span className={`badge ${ok ? "ok" : "due"}`}>
+                      {ok ? "Balanced" : "Check"}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              );
+            })}
+            {rows.length === 0 && (
+              <div className="card">
+                <p className="muted" style={{ margin: 0 }}>
+                  Nothing to reconcile yet.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Per-destination balances */}
+          <h2>Bank destinations</h2>
+          <div className="dgrid">
+            {(reconQ.data?.balances ?? []).map((b) => (
+              <div key={`${b.destination}-${b.currency}`} className="dcard">
+                <div className="dl">
+                  {DESTINATION_LABELS[b.destination]} · {b.currency}
+                </div>
+                <div className="dv mono">{fmt(b.balance, b.currency)}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Record an entry */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Record a bank entry</CardTitle>
-          <CardDescription>
-            From the actual bank/supplier statement.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-[1fr_100px_120px_120px_140px_auto] sm:items-end">
-            <div className="grid gap-1">
-              <Label className="text-xs">Destination</Label>
-              <select
-                value={destination}
-                onChange={(e) =>
-                  setDestination(e.target.value as LedgerDestination)
-                }
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-              >
-                {DESTS.map((d) => (
-                  <option key={d} value={d}>
-                    {DESTINATION_LABELS[d]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs">Currency</Label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as LedgerCurrency)}
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs">Direction</Label>
-              <select
-                value={direction}
-                onChange={(e) =>
-                  setDirection(e.target.value as LedgerDirection)
-                }
-                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-              >
-                <option value="deposit">Deposit (in)</option>
-                <option value="withdrawal">Withdrawal (out)</option>
-              </select>
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs">Amount</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={amount}
-                placeholder="0.00"
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs">Date</Label>
-              <Input
-                type="date"
-                value={occurredOn}
-                onChange={(e) => setOccurredOn(e.target.value)}
-              />
-            </div>
-            <Button type="button" disabled={adding} onClick={() => add()}>
-              {adding ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              Add
-            </Button>
+      <div className="card">
+        <h2>Record a bank entry</h2>
+        <p className="muted" style={{ fontSize: ".9rem", margin: "6px 0 14px" }}>
+          From the actual bank/supplier statement.
+        </p>
+
+        <div className="frow">
+          <div className="field">
+            <label>Destination</label>
+            <select
+              value={destination}
+              onChange={(e) =>
+                setDestination(e.target.value as LedgerDestination)
+              }
+            >
+              {DESTS.map((d) => (
+                <option key={d} value={d}>
+                  {DESTINATION_LABELS[d]}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="mt-3 grid gap-1">
-            <Label className="text-xs">Note (optional)</Label>
-            <Input
-              value={note}
-              placeholder="e.g. statement ref, sender name"
-              onChange={(e) => setNote(e.target.value)}
+          <div className="field">
+            <label>Currency</label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as LedgerCurrency)}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Direction</label>
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as LedgerDirection)}
+            >
+              <option value="deposit">Deposit (in)</option>
+              <option value="withdrawal">Withdrawal (out)</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Amount</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              placeholder="0.00"
+              onChange={(e) => setAmount(e.target.value)}
             />
           </div>
-        </CardContent>
-      </Card>
+          <div className="field">
+            <label>Date</label>
+            <input
+              type="date"
+              value={occurredOn}
+              onChange={(e) => setOccurredOn(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="field" style={{ marginTop: 2 }}>
+          <label>Note (optional)</label>
+          <input
+            value={note}
+            placeholder="e.g. statement ref, sender name"
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
+
+        <button
+          type="button"
+          className="btn grad"
+          disabled={adding}
+          onClick={() => add()}
+          style={{ marginTop: 14 }}
+        >
+          {adding ? <Loader2 className="animate-spin" /> : <Plus />}
+          Add entry
+        </button>
+      </div>
 
       {/* Ledger */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Ledger</CardTitle>
-          <CardDescription>Recorded bank/supplier entries.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {entriesQ.isLoading ? (
-            <div className="flex h-24 items-center justify-center">
-              <Loader2 className="animate-spin" />
-            </div>
-          ) : (entriesQ.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              No entries yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Dir</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(entriesQ.data ?? []).map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {e.occurred_on}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {DESTINATION_LABELS[e.destination]}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            e.direction === "deposit"
-                              ? "text-green-600"
-                              : "text-amber-600"
-                          }
-                        >
-                          {e.direction === "deposit" ? "in" : "out"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {fmt(e.amount, e.currency)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[16rem] truncate">
-                        {e.note ?? "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <h2>Ledger</h2>
+      <div className="card" style={{ padding: entriesQ.isLoading ? 20 : 0 }}>
+        {entriesQ.isLoading ? (
+          <div className="rspin">
+            <Loader2 className="animate-spin" />
+          </div>
+        ) : (entriesQ.data ?? []).length === 0 ? (
+          <p className="muted" style={{ margin: 0, padding: 20 }}>
+            No entries yet.
+          </p>
+        ) : (
+          <div className="tblwrap">
+            <table className="tbl wide">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Destination</th>
+                  <th>Direction</th>
+                  <th className="r">Amount</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(entriesQ.data ?? []).map((e) => (
+                  <tr key={e.id}>
+                    <td style={{ whiteSpace: "nowrap" }}>{e.occurred_on}</td>
+                    <td>{DESTINATION_LABELS[e.destination]}</td>
+                    <td>
+                      <span
+                        className={`badge ${
+                          e.direction === "deposit" ? "ok" : "pend"
+                        }`}
+                      >
+                        {e.direction === "deposit" ? "in" : "out"}
+                      </span>
+                    </td>
+                    <td className="r mono">{fmt(e.amount, e.currency)}</td>
+                    <td
+                      className="muted"
+                      style={{
+                        maxWidth: "16rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {e.note ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

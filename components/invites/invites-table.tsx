@@ -2,16 +2,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
@@ -21,26 +11,28 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
-  AlertCircle,
   Ban,
   CheckCircle2,
   Loader,
-  Loader2,
-  MoreVerticalIcon,
   TimerOff,
   XCircle,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button } from "../ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import InviteCard from "./invite-card";
-import { useIsTablet } from "@/hooks/use-is-tablet";
+
+// Maps an invitation status to a mockup badge variant + label. Kept
+// local so the shared InvitationStatusBadge (used outside the admin
+// shell, e.g. /my-invites) can stay unchanged.
+const INVITE_BADGE: Record<
+  InvitationStatus,
+  { cls: string; label: string }
+> = {
+  pending: { cls: "pend", label: "Pending" },
+  accepted: { cls: "ok", label: "Accepted" },
+  rejected: { cls: "due", label: "Rejected" },
+  expired: { cls: "info", label: "Expired" },
+  cancelled: { cls: "info", label: "Cancelled" },
+};
 
 export default function InvitesTable() {
   const supabase = createClient();
@@ -76,7 +68,6 @@ export default function InvitesTable() {
       return { items: data ?? [], total: count ?? 0 };
     },
   });
-  const isTabletScreen = useIsTablet() ?? true;
   const invites = invitesData?.items ?? [];
   const total = invitesData?.total ?? 0;
 
@@ -109,154 +100,97 @@ export default function InvitesTable() {
     updateInvite({ inviteId });
   };
 
-  // --- Loading state ---
   if (isLoading) {
+    return <p className="muted">Loading…</p>;
+  }
+
+  if (isError) {
     return (
-      <div className="space-y-2">
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full rounded-md" />
-        ))}
+      <div className="card">
+        <p className="muted" style={{ margin: 0 }}>
+          Error loading invites. {error.message}
+        </p>
       </div>
     );
   }
 
-  // --- Error state ---
-  if (isError) {
-    return (
-      <Card className="p-6 flex items-center gap-2 text-destructive">
-        <AlertCircle className="h-5 w-5" />
-        <span>Error loading accounts: {error.message}</span>
-      </Card>
-    );
-  }
-
-  // --- Empty state ---
   if (!invites || invites.length === 0) {
     return (
-      <Card className="p-6 text-muted-foreground text-center">
-        {"You've not send any invites yet."}
-      </Card>
+      <div className="card">
+        <p className="muted" style={{ margin: 0 }}>
+          {"You've not sent any invites yet."}
+        </p>
+      </div>
     );
   }
 
   return (
     <>
-      {isTabletScreen ? (
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              <TableRow>
-                <TableHead>Sender</TableHead>
-                <TableHead>Recipient Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created on</TableHead>
-                <TableHead>Expires on</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invites.map((invite: any) => (
-                <TableRow key={invite.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tblwrap">
+          <table className="tbl wide">
+            <thead>
+              <tr>
+                <th>Sender</th>
+                <th>Recipient Email</th>
+                <th>Status</th>
+                <th>Created on</th>
+                <th>Expires on</th>
+                <th className="r">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invites.map((invite: any) => {
+                const badge =
+                  INVITE_BADGE[invite.status as InvitationStatus] ??
+                  INVITE_BADGE.pending;
+                return (
+                  <tr key={invite.id}>
+                    <td>
+                      <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
                         {invite.sender?.full_name || "N/A"}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
+                      </div>
+                      <div
+                        style={{ color: "var(--faint)", fontSize: ".8rem" }}
+                      >
                         {invite.sender?.email || "No email"}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 600 }}>{invite.email || "—"}</td>
+                    <td>
+                      <span className={`badge ${badge.cls}`}>
+                        {badge.label}
                       </span>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="font-medium cursor-pointer hover:underline underline-offset-2">
-                    {invite.email || "—"}
-                  </TableCell>
-
-                  <TableCell>
-                    <InvitationStatusBadge
-                      status={invite.status as InvitationStatus}
-                    />
-                  </TableCell>
-
-                  <TableCell>
-                    {dayjs(invite.created_at).format(DATE_TIME_FORMAT)}
-                  </TableCell>
-                  <TableCell>
-                    {dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}
-                  </TableCell>
-
-                  <TableCell>
-                    {!["accepted", "cancelled"].includes(invite.status) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="flex size-8 text-muted-foreground data-[state=open]:bg-muted"
-                            size="icon"
-                          >
-                            {isPending ? (
-                              <Loader2 className="animate-spin" />
-                            ) : (
-                              <MoreVerticalIcon />
-                            )}
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-
-                        <DropdownMenuContent align="end" className="w-36">
-                          {invite.status === "pending" && (
-                            <DropdownMenuItem
-                              onClick={() => handleCancelInvite(invite.id)}
-                              className="text-destructive"
-                            >
-                              Cancel Invite
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </td>
+                    <td>{dayjs(invite.created_at).format(DATE_TIME_FORMAT)}</td>
+                    <td>{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
+                    <td className="r">
+                      {invite.status === "pending" ? (
+                        <button
+                          className="btn ghost sm"
+                          disabled={isPending}
+                          onClick={() => handleCancelInvite(invite.id)}
+                        >
+                          {isPending ? "…" : "Cancel"}
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div>
-          {invites?.length ? (
-            <div className="grid gap-4">
-              {invites.map((invite: any) => (
-                <InviteCard
-                  key={invite.id}
-                  invite={invite}
-                  onCancel={(id?: string) => {
-                    if (id) handleCancelInvite(id);
-                  }}
-                />
-              ))}
-            </div>
-          ) : isLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-md" />
-              ))}
-            </div>
-          ) : (
-            <Card className="p-6 text-muted-foreground text-center">
-              {"You've not send any invites yet."}
-            </Card>
-          )}
-        </div>
-      )}
-      {/* pagination */}
-      <div className="p-4">
+      </div>
+
+      {total > 0 && (
         <TablePagination
           total={total}
           page={page}
           perPage={perPage}
           onPageChange={(p) => setPage(p)}
         />
-      </div>
+      )}
     </>
   );
 }

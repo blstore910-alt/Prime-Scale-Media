@@ -1,8 +1,6 @@
 "use client";
 
 import { setReferralLinkStatus } from "@/actions/referral-actions";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,7 +8,8 @@ import { toast } from "sonner";
 // Approve / reject control for a referral link. Only interactive
 // while the link is pending; once active or rejected it just shows
 // the state. Approving a link is what lets commission start accruing
-// (the DB trigger only pays out on 'active' links).
+// (the DB trigger only pays out on 'active' links). Mockup look —
+// wiring unchanged.
 export default function ReferralStatusAction({
   referralLinkId,
   status,
@@ -44,38 +43,36 @@ export default function ReferralStatusAction({
   const current = (status ?? "active").toLowerCase();
 
   if (current === "active") {
-    return (
-      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-transparent">
-        Active
-      </Badge>
-    );
+    return <span className="badge ok">Active</span>;
   }
   if (current === "rejected") {
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        Rejected
-      </Badge>
-    );
+    return <span className="badge due">Rejected</span>;
   }
 
   // pending → show approve / reject
   return (
-    <div className="flex items-center justify-end gap-2">
-      <Button
-        size="sm"
-        variant="outline"
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        gap: 8,
+      }}
+    >
+      <button
+        className="btn ghost sm"
         disabled={isPending}
         onClick={() => mutate("rejected")}
       >
         {isPending && pendingAction === "rejected" ? "…" : "Reject"}
-      </Button>
-      <Button
-        size="sm"
+      </button>
+      <button
+        className="btn sm"
         disabled={isPending}
         onClick={() => mutate("active")}
       >
         {isPending && pendingAction === "active" ? "…" : "Approve"}
-      </Button>
+      </button>
     </div>
   );
 }

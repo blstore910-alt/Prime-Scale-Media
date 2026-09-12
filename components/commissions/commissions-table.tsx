@@ -1,26 +1,16 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
+import { COMMISSION_TYPE_LABELS, CURRENCY_SYMBOLS } from "@/lib/constants";
 import { Commission } from "@/lib/types/commission";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { useIsTablet } from "@/hooks/use-is-tablet";
-import CommissionCard from "./commission-card";
-import CommissionRow from "./commission-row";
+import CommissionStatusAction from "./commission-status-action";
 import CommissionsFilters from "./commissions-filters";
 import useCommissions from "./use-commissions";
 
@@ -37,13 +27,56 @@ function formatDateParam(date: Date): string {
   return dayjs(date).format("YYYY-MM-DD");
 }
 
+const formatAmount = (value: number | string | null | undefined) => {
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num)) return "0.00";
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
+
+const formatDate = (dateString: string) =>
+  new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+const loadingRow = (colSpan: number) => (
+  <tr>
+    <td colSpan={colSpan} style={{ textAlign: "center", padding: 28 }}>
+      <Loader2 className="animate-spin" style={{ display: "inline" }} />
+    </td>
+  </tr>
+);
+
+const stateRow = (colSpan: number, msg: string, danger = false) => (
+  <tr>
+    <td
+      colSpan={colSpan}
+      style={{
+        textAlign: "center",
+        padding: 28,
+        color: danger ? "var(--danger)" : "var(--muted)",
+      }}
+    >
+      {msg}
+    </td>
+  </tr>
+);
+
+// Super-admin Referral Commissions ledger, ported to the PSM mockup look.
+// Reuses the real useCommissions data hook, the URL-synced filters
+// (currency / type / sort / date range / search), pagination and the
+// CommissionStatusAction confirm dialog — presentation only, no new
+// mutations or dropped columns/filters.
 export default function CommissionsTable() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
-  const isTabletScreen = useIsTablet() ?? true;
 
   const initialCurrency = searchParams?.get("currency") ?? "all";
   const initialCommissionType = searchParams?.get("commissionType") ?? "all";
@@ -140,167 +173,152 @@ export default function CommissionsTable() {
     perPage,
   });
 
-  const adminColCount = 7;
-  const advertiserColCount = 5;
-  const colCount = isAdmin ? adminColCount : advertiserColCount;
+  const colCount = isAdmin ? 7 : 5;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div className="phead">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Commissions</h2>
-          <p className="text-sm text-muted-foreground">
-            View all commission earnings from affiliate referrals.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {isTabletScreen && (
-            <CommissionsFilters
-              currency={currency}
-              setCurrency={(v) => setCurrency(v)}
-              commissionType={commissionType}
-              setCommissionType={(v) => setCommissionType(v)}
-              sort={sort}
-              setSort={(v) => setSort(v)}
-              dateRange={dateRange}
-              setDateRange={(v) => setDateRange(v)}
-            />
-          )}
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search client code, name, or email..."
-              className="pl-8"
-            />
-          </div>
-          {!isTabletScreen && (
-            <CommissionsFilters
-              currency={currency}
-              setCurrency={(v) => setCurrency(v)}
-              commissionType={commissionType}
-              setCommissionType={(v) => setCommissionType(v)}
-              sort={sort}
-              setSort={(v) => setSort(v)}
-              dateRange={dateRange}
-              setDateRange={(v) => setDateRange(v)}
-            />
-          )}
+          <h1>Commissions</h1>
+          <p>View all commission earnings from affiliate referrals.</p>
         </div>
       </div>
 
-      {isTabletScreen ? (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              <TableRow>
-                <TableHead>Advertiser</TableHead>
-                {isAdmin && (
-                  <>
-                    <TableHead>Affiliate</TableHead>
-                  </>
-                )}
-                <TableHead>Commission</TableHead>
-
-                <TableHead>Commission Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                {isAdmin ? <TableHead className="text-right">Action</TableHead> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, idx) => (
-                  <TableRow key={idx} className="animate-pulse">
-                    {Array.from({ length: colCount }).map((__, cellIdx) => (
-                      <LoaderCell key={cellIdx} />
-                    ))}
-                  </TableRow>
-                ))
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={colCount}
-                    className="text-center text-destructive py-8"
-                  >
-                    <div role="alert" aria-live="assertive">
-                      <p className="font-medium">Failed to load commissions.</p>
-                      <p className="mt-2 text-sm">
-                        {(error as Error)?.message ?? String(error)}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : commissions.length ? (
-                commissions.map((commission: Commission) => (
-                  <CommissionRow
-                    key={commission.id}
-                    commission={commission}
-                    isAdmin={!!isAdmin}
-                  />
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={colCount}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No commissions found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="h-28 rounded-md bg-muted animate-pulse"
-              />
-            ))
-          ) : isError ? (
-            <div className="text-center text-destructive py-8">
-              <p className="font-medium">Failed to load commissions.</p>
-              <p className="mt-2 text-sm">
-                {(error as Error)?.message ?? String(error)}
-              </p>
-            </div>
-          ) : commissions.length ? (
-            commissions.map((commission: Commission) => (
-              <CommissionCard
-                key={commission.id}
-                commission={commission}
-                isAdmin={!!isAdmin}
-              />
-            ))
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No commissions found.
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="p-4">
-        <TablePagination
-          total={total}
-          page={page}
-          perPage={perPage}
-          onPageChange={(p) => setPage(p)}
+      <div className="fbar">
+        <label className="fsr">
+          <Search />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search client code, name, or email…"
+          />
+        </label>
+        <CommissionsFilters
+          currency={currency}
+          setCurrency={(v) => setCurrency(v)}
+          commissionType={commissionType}
+          setCommissionType={(v) => setCommissionType(v)}
+          sort={sort}
+          setSort={(v) => setSort(v)}
+          dateRange={dateRange}
+          setDateRange={(v) => setDateRange(v)}
         />
       </div>
-    </div>
-  );
-}
 
-function LoaderCell() {
-  return (
-    <TableCell>
-      <div className="h-4 bg-muted rounded w-8" />
-    </TableCell>
+      <div className="card" style={{ padding: "16px 8px 8px" }}>
+        <div className="tblwrap">
+          <table className="tbl wide">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: 14 }}>Advertiser</th>
+                {isAdmin && <th>Affiliate</th>}
+                <th className="r">Commission</th>
+                <th>Commission Type</th>
+                <th>Status</th>
+                <th className="r">Date</th>
+                {isAdmin && <th className="r">Action</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading
+                ? loadingRow(colCount)
+                : isError
+                  ? stateRow(
+                      colCount,
+                      (error as Error)?.message ??
+                        "Failed to load commissions.",
+                      true,
+                    )
+                  : commissions.length
+                    ? commissions.map((commission: Commission) => {
+                        const currencySymbol =
+                          CURRENCY_SYMBOLS[
+                            commission.currency as keyof typeof CURRENCY_SYMBOLS
+                          ] ?? "$";
+                        const paid =
+                          (commission.status ?? "").toLowerCase() === "paid";
+                        return (
+                          <tr key={commission.id}>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>
+                                {commission.referred_advertiser_name || "—"}
+                              </div>
+                              <div
+                                className="muted mono"
+                                style={{ fontSize: ".78rem" }}
+                              >
+                                {commission.referred_advertiser_tenant_client_code ||
+                                  "—"}
+                              </div>
+                            </td>
+                            {isAdmin && (
+                              <td>
+                                <div style={{ fontWeight: 600 }}>
+                                  {commission.affiliate_advertiser_name || "—"}
+                                </div>
+                                <div
+                                  className="muted mono"
+                                  style={{ fontSize: ".78rem" }}
+                                >
+                                  {commission.affiliate_advertiser_tenant_client_code ||
+                                    "—"}
+                                </div>
+                              </td>
+                            )}
+                            <td
+                              className="r mono"
+                              style={{ fontWeight: 700, color: "#0e8f66" }}
+                            >
+                              {currencySymbol}
+                              {formatAmount(commission.amount)}
+                            </td>
+                            <td>
+                              <span
+                                className="badge info"
+                                style={{ textTransform: "capitalize" }}
+                              >
+                                {COMMISSION_TYPE_LABELS[commission.type] ??
+                                  commission.type}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${paid ? "ok" : "pend"}`}
+                                style={{ textTransform: "capitalize" }}
+                              >
+                                {commission.status || "—"}
+                              </span>
+                            </td>
+                            <td className="r muted">
+                              {formatDate(commission.created_at)}
+                            </td>
+                            {isAdmin && (
+                              <td className="r">
+                                <CommissionStatusAction
+                                  commissionId={commission.id}
+                                  status={commission.status}
+                                />
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    : stateRow(colCount, "No commissions found.")}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding: 12 }}>
+          <TablePagination
+            total={total}
+            page={page}
+            perPage={perPage}
+            onPageChange={(p) => setPage(p)}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

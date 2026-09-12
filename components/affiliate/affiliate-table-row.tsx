@@ -1,8 +1,6 @@
-﻿"use client";
+"use client";
 
 import { COMMISSION_TYPE_LABELS } from "@/lib/constants";
-import { Badge } from "../ui/badge";
-import { TableCell, TableRow } from "../ui/table";
 import { formatCurrency } from "@/lib/utils";
 import ReferralStatusAction from "./referral-status-action";
 
@@ -39,71 +37,83 @@ interface AffiliateTableRowProps {
   formatPercent: (value: number | null | undefined) => string;
 }
 
+// A single referral-link row in the super-admin Referral Links table,
+// ported to the mockup look. Presentation only — the approve/reject
+// control (ReferralStatusAction) keeps its exact wiring.
 export default function AffiliateTableRow({
   referral,
   formatCommissionAmount,
   formatPercent,
 }: AffiliateTableRowProps) {
   return (
-    <TableRow>
-      <TableCell>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">
-            {referral.referred_advertiser_name || EMPTY_VALUE}{" "}
-            <Badge variant={"outline"} className=" text-muted-foreground">
-              {referral.referred_advertiser_tenant_client_code || EMPTY_VALUE}
-            </Badge>
-          </p>
-          <p className="text-muted-foreground">
-            {referral.referred_advertiser_email || EMPTY_VALUE}
-          </p>
+    <tr>
+      <td>
+        <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
+          {referral.referred_advertiser_name || EMPTY_VALUE}
+          <span
+            className="mono"
+            style={{
+              color: "var(--faint)",
+              fontSize: ".72rem",
+              fontWeight: 600,
+              marginLeft: 6,
+            }}
+          >
+            {referral.referred_advertiser_tenant_client_code || EMPTY_VALUE}
+          </span>
         </div>
-      </TableCell>
-      <TableCell>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">
-            {referral.affiliate_advertiser_name || EMPTY_VALUE}
-            {"   "}
-            <Badge variant={"outline"} className=" text-muted-foreground">
-              {referral.affiliate_advertiser_tenant_client_code || EMPTY_VALUE}
-            </Badge>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {referral.affiliate_advertiser_email || EMPTY_VALUE}
-          </p>
+        <div style={{ color: "var(--faint)", fontSize: ".8rem" }}>
+          {referral.referred_advertiser_email || EMPTY_VALUE}
         </div>
-      </TableCell>
-      <TableCell className="capitalize">
+      </td>
+      <td>
+        <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
+          {referral.affiliate_advertiser_name || EMPTY_VALUE}
+          <span
+            className="mono"
+            style={{
+              color: "var(--faint)",
+              fontSize: ".72rem",
+              fontWeight: 600,
+              marginLeft: 6,
+            }}
+          >
+            {referral.affiliate_advertiser_tenant_client_code || EMPTY_VALUE}
+          </span>
+        </div>
+        <div style={{ color: "var(--faint)", fontSize: ".8rem" }}>
+          {referral.affiliate_advertiser_email || EMPTY_VALUE}
+        </div>
+      </td>
+      <td style={{ textTransform: "capitalize" }}>
         {COMMISSION_TYPE_LABELS[referral.commission_type as string] ||
           EMPTY_VALUE}
-      </TableCell>
-      <TableCell className="tabular-nums">
+      </td>
+      <td className="r mono">
         {formatCommissionAmount(
           referral.commission_monthly,
           referral.commission_currency,
         )}
-      </TableCell>
-      <TableCell className="tabular-nums">
+      </td>
+      <td className="r mono">
         {formatCommissionAmount(
           referral.commission_onetime,
           referral.commission_currency,
         )}
-      </TableCell>
-      <TableCell className="tabular-nums">
-        {formatPercent(referral.commission_pct)}
-      </TableCell>
-      <TableCell className="tabular-nums">
+      </td>
+      <td className="r mono">{formatPercent(referral.commission_pct)}</td>
+      <td className="r mono">
         {formatCurrency(referral.earnings_usd as number, "USD")}
-      </TableCell>
-      <TableCell className="tabular-nums">
+      </td>
+      <td className="r mono">
         {formatCurrency(referral.earnings_eur as number, "EUR")}
-      </TableCell>
-      <TableCell className="text-right">
+      </td>
+      <td className="r">
         <ReferralStatusAction
           referralLinkId={referral.id}
           status={referral.status}
         />
-      </TableCell>
-    </TableRow>
+      </td>
+    </tr>
   );
 }

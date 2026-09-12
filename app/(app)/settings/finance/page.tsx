@@ -1,22 +1,7 @@
 import ExchangeRates from "@/components/settings/finance/exchange-rates";
-import AdAccountTypesCard from "@/components/settings/finance/ad-account-types";
-import PlansCard from "@/components/settings/finance/plans";
-import IntegrationStatusCard from "@/components/settings/finance/integration-status";
-import React from "react";
 
+// Finance = exchange rates only. Ad-account types, plans and integrations
+// each have their own settings tab now (they aren't "finance").
 export default function Page() {
-  return (
-    <>
-      <ExchangeRates />
-      <section className="max-w-xl mx-auto mt-6 space-y-6">
-        <AdAccountTypesCard />
-      </section>
-      <section className="max-w-3xl mx-auto mt-6">
-        <PlansCard />
-      </section>
-      <section className="max-w-xl mx-auto mt-6 mb-10">
-        <IntegrationStatusCard />
-      </section>
-    </>
-  );
+  return <ExchangeRates />;
 }

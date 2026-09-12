@@ -1,21 +1,10 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { toggleAdminStatus } from "@/actions/admin-actions";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import AdminCredentialsDialog from "./admin-credentials-dialog";
@@ -50,6 +39,9 @@ function formatLastSeen(iso: string | null): {
   };
 }
 
+// Admins management, ported to the mockup look. Reuses the real admins
+// query + toggleAdminStatus mutation and the create / credentials
+// dialogs — presentation only.
 export default function AdminsTable() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -116,122 +108,105 @@ export default function AdminsTable() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div className="phead">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Admins</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage admin access for this tenant.
-          </p>
+          <h1>Admins</h1>
+          <p>Manage admin access for this tenant.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Create Admin
-        </Button>
+        <button className="btn" onClick={() => setCreateOpen(true)}>
+          <UserPlus /> Create Admin
+        </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last seen</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, idx) => (
-                <TableRow key={idx} className="animate-pulse">
-                  {Array.from({ length: 5 }).map((__, cellIdx) => (
-                    <LoaderCell key={cellIdx} />
-                  ))}
-                </TableRow>
-              ))
-            ) : isError ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center text-destructive py-8"
-                >
-                  <div role="alert" aria-live="assertive">
-                    <p className="font-medium">Failed to load admins.</p>
-                    <p className="mt-2 text-sm">
-                      {(error as Error)?.message ?? String(error)}
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : admins.length ? (
-              admins.map((admin) => {
-                const isActive = admin.status === "active";
-                const lastSeen = formatLastSeen(admin.last_seen_at);
-                return (
-                  <TableRow key={admin.id}>
-                    <TableCell className="font-medium">
-                      {admin.full_name ?? "-"}
-                    </TableCell>
-                    <TableCell>{admin.email ?? "-"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={cn(
-                          "capitalize",
-                          isActive
-                            ? "bg-green-500 hover:bg-green-600 text-white"
-                            : "bg-destructive hover:bg-destructive/90 text-white",
-                        )}
-                      >
-                        {admin.status ?? "unknown"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "text-xs",
-                          lastSeen.fresh
-                            ? "text-green-600 dark:text-green-400 font-medium"
-                            : "text-muted-foreground",
-                        )}
-                        title={admin.last_seen_at ?? "Never seen"}
-                      >
-                        {lastSeen.label}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant={isActive ? "destructive" : "default"}
-                        className={cn(isActive && "text-white")}
-                        disabled={pendingAdminId === admin.id}
-                        onClick={() => {
-                          setPendingAdminId(admin.id);
-                          toggleStatus(admin);
-                        }}
-                      >
-                        {pendingAdminId === admin.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : null}
-                        {isActive ? "Deactivate" : "Activate"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No admins found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {isLoading ? (
+        <p className="muted">Loading…</p>
+      ) : isError ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            Failed to load admins. {(error as Error)?.message ?? String(error)}
+          </p>
+        </div>
+      ) : admins.length ? (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tblwrap">
+            <table className="tbl wide">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Last seen</th>
+                  <th className="r">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {admins.map((admin) => {
+                  const isActive = admin.status === "active";
+                  const lastSeen = formatLastSeen(admin.last_seen_at);
+                  return (
+                    <tr key={admin.id}>
+                      <td style={{ fontWeight: 700 }}>
+                        {admin.full_name ?? "-"}
+                      </td>
+                      <td>{admin.email ?? "-"}</td>
+                      <td>
+                        <span
+                          className={`badge ${isActive ? "ok" : "due"}`}
+                          style={{ textTransform: "capitalize" }}
+                        >
+                          {admin.status ?? "unknown"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            fontSize: ".8rem",
+                            fontWeight: lastSeen.fresh ? 700 : 500,
+                            color: lastSeen.fresh
+                              ? "var(--win)"
+                              : "var(--faint)",
+                          }}
+                          title={admin.last_seen_at ?? "Never seen"}
+                        >
+                          {lastSeen.label}
+                        </span>
+                      </td>
+                      <td className="r">
+                        <button
+                          className={`btn sm${isActive ? " ghost" : ""}`}
+                          disabled={pendingAdminId === admin.id}
+                          onClick={() => {
+                            setPendingAdminId(admin.id);
+                            toggleStatus(admin);
+                          }}
+                        >
+                          {pendingAdminId === admin.id ? (
+                            <Loader2
+                              className="animate-spin"
+                              style={{ width: 14, height: 14 }}
+                            />
+                          ) : null}
+                          {isActive ? "Deactivate" : "Activate"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No admins found.
+          </p>
+        </div>
+      )}
 
       <CreateAdminDialog
         open={createOpen}
@@ -250,13 +225,5 @@ export default function AdminsTable() {
         credentials={credentials}
       />
     </div>
-  );
-}
-
-function LoaderCell() {
-  return (
-    <TableCell>
-      <div className="h-4 bg-muted rounded w-8" />
-    </TableCell>
   );
 }

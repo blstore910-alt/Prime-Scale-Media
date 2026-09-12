@@ -1,34 +1,27 @@
-﻿"use client";
+"use client";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Search } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
+import { Search } from "lucide-react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import TablePagination from "@/components/ui/table-pagination";
-import { useIsTablet } from "@/hooks/use-is-tablet";
 import AffiliateTableRow, {
   ReferralLinkRow,
 } from "@/components/affiliate/affiliate-table-row";
 import { formatCurrency } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 
 const EMPTY_VALUE = "N/A";
 
+// Super-admin Referral Links list, ported to the mockup look. Reuses the
+// real referral_links_with_details query (+ live status merge), search,
+// URL-synced pagination, and the approve/reject control — presentation
+// only, no new mutations.
 export default function AffiliatesTable() {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
-  const isTabletScreen = useIsTablet() ?? true;
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -90,7 +83,7 @@ export default function AffiliatesTable() {
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;
       const supabase = createClient();
-      
+
       let query = supabase
         .from("referral_links_with_details")
         .select("*", { count: "exact" })
@@ -165,233 +158,106 @@ export default function AffiliatesTable() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const colCount = 9; // +1 for the Status/action column
   const loadingState = isLoading || (!!tenantId && !referralLinksData);
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+      <div className="psmview">
+        <p className="muted">Loading…</p>
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="text-sm text-muted-foreground">
-        You do not have access to this page.
+      <div className="psmview">
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            You do not have access to this page.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="flex justify-end mb-4">
-        <div className="relative w-64">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search affiliate..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div className="phead">
+        <div>
+          <h1>Referral Links</h1>
+          <p>Approve or reject affiliate links and review their commissions.</p>
         </div>
       </div>
-      {isTabletScreen ? (
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              <TableRow>
-                <TableHead>Advertiser</TableHead>
-                <TableHead>Affiliate</TableHead>
-                <TableHead>Commission Type</TableHead>
-                <TableHead>Commission Monthly</TableHead>
-                <TableHead>Commission One-time</TableHead>
-                <TableHead>Commission Recurring</TableHead>
-                <TableHead>Earnings USD</TableHead>
-                <TableHead>Earnings EUR</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loadingState ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <TableRow key={idx} className="animate-pulse">
-                    {Array.from({ length: colCount }).map((_, cellIdx) => (
-                      <LoaderCell key={cellIdx} />
-                    ))}
-                  </TableRow>
-                ))
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={colCount}
-                    className="text-center text-destructive py-8"
-                  >
-                    <div role="alert" aria-live="assertive">
-                      <p className="font-medium">
-                        Failed to load referral links.
-                      </p>
-                      <p className="mt-2 text-sm">
-                        {(error as Error)?.message ?? String(error)}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : referralLinks.length ? (
-                referralLinks.map((referral) => (
+
+      <div className="fbar">
+        <label className="fsr">
+          <Search />
+          <input
+            placeholder="Search affiliate…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+      </div>
+
+      {loadingState ? (
+        <p className="muted">Loading…</p>
+      ) : isError ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            Failed to load referral links.{" "}
+            {(error as Error)?.message ?? String(error)}
+          </p>
+        </div>
+      ) : referralLinks.length ? (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tblwrap">
+            <table className="tbl wide">
+              <thead>
+                <tr>
+                  <th>Advertiser</th>
+                  <th>Affiliate</th>
+                  <th>Commission Type</th>
+                  <th className="r">Commission Monthly</th>
+                  <th className="r">Commission One-time</th>
+                  <th className="r">Commission Recurring</th>
+                  <th className="r">Earnings USD</th>
+                  <th className="r">Earnings EUR</th>
+                  <th className="r">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referralLinks.map((referral) => (
                   <AffiliateTableRow
                     key={referral.id}
                     referral={referral}
                     formatCommissionAmount={formatCommissionAmount}
                     formatPercent={formatPercent}
                   />
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={colCount}
-                    className="text-center py-6 text-sm text-muted-foreground"
-                  >
-                    No referral links found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
-        <div>
-          {!loadingState && !isError && referralLinks.length ? (
-            <div className="grid gap-4">
-              {referralLinks.map((referral) => (
-                <ReferralLinkCard
-                  key={referral.id}
-                  referral={referral}
-                  formatCommissionAmount={formatCommissionAmount}
-                  formatPercent={formatPercent}
-                />
-              ))}
-            </div>
-          ) : loadingState ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
-            </div>
-          ) : isError ? (
-            <div className="mt-4 flex items-center gap-2 text-destructive">
-              <span>{(error as Error)?.message ?? String(error)}</span>
-            </div>
-          ) : (
-            <div className="mt-4 text-center py-6 text-sm text-muted-foreground">
-              No referral links found
-            </div>
-          )}
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No referral links found.
+          </p>
         </div>
       )}
-      <div className="p-4">
+
+      {!loadingState && !isError && total > 0 && (
         <TablePagination
           total={total}
           page={page}
           perPage={perPage}
           onPageChange={(p) => setPage(p)}
         />
-      </div>
-    </>
-  );
-}
-
-function ReferralLinkCard({
-  referral,
-  formatCommissionAmount,
-
-  formatPercent,
-}: {
-  referral: ReferralLinkRow;
-  formatCommissionAmount: (
-    value: number | null | undefined,
-    currency: string | null | undefined,
-  ) => string;
-
-  formatPercent: (value: number | null | undefined) => string;
-}) {
-  return (
-    <div className="rounded-lg border p-4 space-y-4">
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Advertiser
-        </p>
-        <div>
-          <p className="text-sm font-medium">
-            {referral.referred_advertiser_name || EMPTY_VALUE}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {referral.referred_advertiser_email || EMPTY_VALUE}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {referral.referred_advertiser_tenant_client_code || EMPTY_VALUE}
-          </p>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Affiliate
-        </p>
-        <div>
-          <p className="text-sm font-medium">
-            {referral.affiliate_advertiser_name || EMPTY_VALUE}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {referral.affiliate_advertiser_email || EMPTY_VALUE}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {referral.affiliate_advertiser_tenant_client_code || EMPTY_VALUE}
-          </p>
-        </div>
-      </div>
-      <div className="grid gap-2 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Commission Type</span>
-          <span>{referral.commission_type || EMPTY_VALUE}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Commission Monthly</span>
-          <span>
-            {formatCommissionAmount(
-              referral.commission_monthly,
-              referral.commission_currency,
-            )}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Commission One-time</span>
-          <span>
-            {formatCommissionAmount(
-              referral.commission_onetime,
-              referral.commission_currency,
-            )}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Commission Recurring</span>
-          <span>{formatPercent(referral.commission_pct)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Earnings USD</span>
-          <span>{formatCurrency(referral.earnings_usd as number, "USD")}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Earnings EUR</span>
-          <span>{formatCurrency(referral.earnings_eur as number, "EUR")}</span>
-        </div>
-      </div>
+      )}
     </div>
-  );
-}
-
-function LoaderCell() {
-  return (
-    <TableCell>
-      <div className="h-4 bg-muted rounded w-8" />
-    </TableCell>
   );
 }

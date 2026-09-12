@@ -6,13 +6,12 @@ export default async function Page() {
   await requireSuperAdmin("/dashboard");
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-          <InvitesHeader />
-          <InvitesTable />
-        </div>
-      </div>
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <InvitesHeader />
+      <InvitesTable />
     </div>
   );
 }
