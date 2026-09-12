@@ -188,22 +188,28 @@ const AUTH_CSS = `
 .psmauth .meta{margin-top:18px;text-align:center;color:var(--muted);font-size:.88rem}
 .psmauth .err{color:var(--danger);font-size:.85rem;font-weight:600;margin:6px 0 0;text-align:left}
 .psmauth .note{background:#fff7e6;border:1px solid #f0d9a8;color:#8a5a00;border-radius:11px;padding:10px 12px;font-size:.82rem;margin-bottom:14px;text-align:left}
-/* mobile: brand collapses into a striking hero above the form card */
+/* mobile: brand collapses into a compact hero above the form card */
 @media(max-width:860px){
   .psmauth{grid-template-columns:1fr;background:#04050E}
-  .psmauth .brand{padding:26px 24px 46px;min-height:auto;text-align:center;align-items:center;border-radius:0 0 30px 30px}
+  .psmauth .brand{padding:20px 22px 38px;min-height:auto;text-align:center;align-items:center;border-radius:0 0 28px 28px}
   .psmauth .brand .logo{align-self:center}
-  .psmauth .rocketstage{min-height:150px;margin:8px 0 2px;width:100%}
-  .psmauth .rocketstage .moon{top:0;right:12%;width:44px;height:44px}
-  .psmauth .rocketstage .glow{width:220px;height:220px}
-  .psmauth .ship{width:92px}
-  .psmauth .brand h1{font-size:1.62rem;margin:6px auto 8px;max-width:20ch}
-  .psmauth .brand .sub{font-size:.92rem;margin:0 auto;max-width:36ch}
+  .psmauth .brand .logo .mk{width:38px;height:38px}
+  .psmauth .brand .logo .mk svg{width:21px;height:21px}
+  .psmauth .rocketstage{min-height:112px;margin:2px 0 0;width:100%}
+  .psmauth .rocketstage .moon{top:2%;right:16%;width:36px;height:36px}
+  .psmauth .rocketstage .glow{width:172px;height:172px}
+  .psmauth .ship{width:74px}
+  .psmauth .brand h1{font-size:1.48rem;margin:6px auto 7px;max-width:18ch}
+  .psmauth .brand .sub{font-size:.88rem;margin:0 auto;max-width:32ch}
   .psmauth .pts{display:none}
-  .psmauth .side{min-height:auto;padding:0 clamp(16px,5vw,30px) 34px}
+  .psmauth .side{min-height:auto;padding:0 clamp(16px,5vw,28px) 32px}
   .psmauth .card{margin:0 auto}
+  /* the hero already carries the rocket — drop the duplicate badge on the form */
+  .psmauth .lmk{display:none}
   .psmauth .login-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;
-    padding:26px 20px 28px;margin:-30px auto 0;position:relative;box-shadow:0 26px 54px -30px rgba(4,5,14,.6)}
+    padding:24px 20px 26px;margin:-22px auto 0;position:relative;box-shadow:0 26px 54px -30px rgba(4,5,14,.6)}
+  .psmauth .login-card h2,.psmauth h2{font-size:1.58rem;margin-top:0}
+  .psmauth .lede{margin-bottom:18px}
 }
 @media (prefers-reduced-motion:reduce){.psmauth *{animation:none!important}}
 `;
