@@ -241,12 +241,17 @@ export default function AdAccountRequestForm({
   const { profile } = useAppContext();
   const { mutate, isPending } = useCreateAdAccountRequest();
 
-  const { control, handleSubmit, reset, watch, setValue } = useForm<FormValues>(
-    {
-      defaultValues,
-      resolver: zodResolver(validations) as Resolver<FormValues>,
-    },
-  );
+  const {
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { isDirty },
+  } = useForm<FormValues>({
+    defaultValues,
+    resolver: zodResolver(validations) as Resolver<FormValues>,
+  });
 
   const selectedPlatform = watch("platform");
   const selectedCurrency = watch("currency");
@@ -310,14 +315,17 @@ export default function AdAccountRequestForm({
   const feeSymbol = selectedCurrency === "USD" ? "$" : "€";
   const feeBalance =
     selectedCurrency === "USD" ? (feePreview?.usd ?? 0) : (feePreview?.eur ?? 0);
-  const feeEnough = isFree || feeBalance >= feeAmount;
+  // While the fee/balance preview is still loading (or errored) feePreview
+  // is undefined and feeBalance defaults to 0 — don't flash a false
+  // "not enough balance" or disable submit until we actually know.
+  const feeEnough = isFree || !feePreview || feeBalance >= feeAmount;
 
   const draft = useFormDraft<FormValues>({
     formKey: "ad-account-request",
     values: liveValues,
     userScope: profile?.id ?? null,
   });
-  useUnsavedChangesWarning(!!liveValues.platform);
+  useUnsavedChangesWarning(isDirty);
 
   // Auto-switch currency to USD if EUR is selected and platform is not meta-ads
   useEffect(() => {
