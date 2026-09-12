@@ -3,15 +3,6 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 type Bucket = {
   key: string;
@@ -45,6 +36,21 @@ function bucketKind(key: string): string {
   return key.split(":")[0] ?? key;
 }
 
+// Mockup-only table chrome, scoped under .psm-rl. Reuses the shell's ported
+// .tbl / .tblwrap / .tbl.wide / .badge / .card classes (already the approved
+// mockup styling) and only adds the panel header layout + a couple of cell
+// tweaks. The wide table lives inside .tblwrap (overflow-x:auto) so the page
+// body never scrolls sideways.
+const RATE_CSS = `
+.psm-rl .rlhead{margin-bottom:14px}
+.psm-rl .rlsub{color:var(--muted);font-size:.82rem;margin:5px 0 0;max-width:64ch}
+.psm-rl .tblwrap{overflow-x:auto}
+.psm-rl .empty{height:96px;display:grid;place-items:center;color:var(--muted);font-size:.86rem}
+.psm-rl .keycell{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;word-break:break-all;max-width:24rem}
+.psm-rl .win{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:var(--faint);white-space:nowrap}
+.psm-rl .est{font-size:.78rem;color:var(--faint)}
+`;
+
 export default function RateLimitsView() {
   const { profile } = useAppContext();
 
@@ -68,64 +74,55 @@ export default function RateLimitsView() {
   });
 
   return (
-    <section className="rounded-xl border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold leading-none">Rate limits</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Top 25 active buckets in the last hour. High counts mean either
-            legitimate load or someone hammering an endpoint.
-          </p>
-        </div>
+    <section className="psm-rl card">
+      <style>{RATE_CSS}</style>
+
+      <div className="rlhead">
+        <h2>Rate limits</h2>
+        <p className="rlsub">
+          Top 25 active buckets in the last hour. High counts mean either
+          legitimate load or someone hammering an endpoint.
+        </p>
       </div>
 
       {isLoading ? (
-        <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-          Loading…
-        </div>
+        <div className="empty">Loading…</div>
       ) : isError || !data?.length ? (
-        <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-          No active rate-limit buckets.
-        </div>
+        <div className="empty">No active rate-limit buckets.</div>
       ) : (
-        <div className="overflow-x-auto rounded border">
-          <Table>
-            <TableHeader className="bg-muted">
-              <TableRow>
-                <TableHead>Key</TableHead>
-                <TableHead className="text-right">Count</TableHead>
-                <TableHead className="text-right">Ceiling (est.)</TableHead>
-                <TableHead>Window started</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="tblwrap">
+          <table className="tbl wide">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th className="r">Count</th>
+                <th className="r">Ceiling (est.)</th>
+                <th>Window started</th>
+              </tr>
+            </thead>
+            <tbody>
               {data.map((b) => {
                 const ceiling = CEILING_HINTS[bucketKind(b.key)] ?? null;
-                const near =
-                  ceiling !== null && b.count / ceiling >= 0.8;
+                const near = ceiling !== null && b.count / ceiling >= 0.8;
                 return (
-                  <TableRow key={b.key}>
-                    <TableCell className="font-mono text-xs break-all max-w-[24rem]">
-                      {b.key}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
+                  <tr key={b.key}>
+                    <td className="keycell">{b.key}</td>
+                    <td className="r">
                       {near ? (
-                        <Badge variant="destructive">{b.count}</Badge>
+                        <span className="badge due">{b.count}</span>
                       ) : (
                         b.count
                       )}
-                    </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">
-                      {ceiling ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    </td>
+                    <td className="r est">{ceiling ?? "-"}</td>
+                    <td className="win">
                       {new Date(b.window_start).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 );
               })}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       )}
     </section>
