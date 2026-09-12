@@ -304,11 +304,11 @@ export default function AffiliateApp() {
                 </div>
                 <div className="v blue">{referredCount}</div>
               </div>
-              <div className="stat" onClick={() => go("pay")}>
+              <div className="stat" onClick={() => go("refs")}>
                 <div className="k">
-                  <Ic name="i-wallet" /> Available
+                  <Ic name="i-trend" /> Spend driven
                 </div>
-                <div className="v gold">{eur(lifetimeEur)}</div>
+                <div className="v gold">{eur(all.totals.spend_eur)}</div>
               </div>
             </div>
             <div className="invite">

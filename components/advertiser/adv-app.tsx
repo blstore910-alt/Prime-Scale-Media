@@ -258,6 +258,27 @@ export default function AdvertiserApp() {
     await supabase.auth.signOut();
     router.push("/auth/login");
   };
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const payInvoice = async (id: string) => {
+    if (payingId) return;
+    setPayingId(id);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("invoice_pay_from_wallet", {
+        p_invoice_id: id,
+      });
+      if (error) throw error;
+      toast.success("Invoice paid from your wallet.");
+      queryClient.invalidateQueries({ queryKey: ["adv-invoices"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+    } catch (e) {
+      toast.error("Couldn't pay from wallet", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   const NAV: { v: View; icon: string; label: string; aff?: boolean }[] = [
     { v: "dash", icon: "i-home", label: "Dashboard" },
@@ -979,9 +1000,13 @@ export default function AdvertiserApp() {
                     <button
                       className="btn block grad"
                       style={{ marginTop: 14 }}
-                      onClick={() =>
-                        toast.message("Pay your invoice from the list below.")
-                      }
+                      onClick={() => {
+                        const unpaid = (invoices ?? []).find(
+                          (i) => i.status !== "paid",
+                        );
+                        if (unpaid) payInvoice(unpaid.id);
+                        else toast.message("No unpaid invoice to pay.");
+                      }}
                     >
                       <Ic name="i-check" /> Pay {eur(subscription.amount)} from
                       wallet
@@ -1006,6 +1031,7 @@ export default function AdvertiserApp() {
                       <th>Date</th>
                       <th className="r">Amount</th>
                       <th className="r">Status</th>
+                      <th className="r"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1022,13 +1048,26 @@ export default function AdvertiserApp() {
                                 {paid ? "Paid" : "Due"}
                               </span>
                             </td>
+                            <td className="r">
+                              {!paid && (
+                                <button
+                                  className="btn ghost sm"
+                                  disabled={payingId === inv.id}
+                                  onClick={() => payInvoice(inv.id)}
+                                >
+                                  {payingId === inv.id
+                                    ? "Paying…"
+                                    : "Pay now"}
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })
                     ) : (
                       <tr>
                         <td
-                          colSpan={4}
+                          colSpan={5}
                           style={{
                             textAlign: "center",
                             padding: 24,

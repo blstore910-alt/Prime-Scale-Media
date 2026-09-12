@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAppContext } from "@/context/app-provider";
 import ChangeSubscriptionAmountDialog from "./change-subscription-amount-dialog";
 import CreateSubscriptionDialog from "./create-subscription-dialog";
 import { formatSubscriptionDate } from "./subscription-utils";
@@ -46,6 +47,7 @@ export default function PsmSubscriptions() {
   const [page, setPage] = useState(1);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const { isSuperAdmin } = useAppContext();
   const [amountEditSub, setAmountEditSub] = useState<Subscription | null>(null);
 
   useEffect(() => setPage(1), [status, date]);
@@ -254,14 +256,16 @@ export default function PsmSubscriptions() {
                             flexWrap: "wrap",
                           }}
                         >
-                          <button
-                            className="btn ghost sm"
-                            onClick={() => setAmountEditSub(s)}
-                            disabled={pending}
-                            title="Change the monthly amount"
-                          >
-                            <Pencil /> Amount
-                          </button>
+                          {isSuperAdmin && (
+                            <button
+                              className="btn ghost sm"
+                              onClick={() => setAmountEditSub(s)}
+                              disabled={pending}
+                              title="Change the monthly amount (super-admin)"
+                            >
+                              <Pencil /> Amount
+                            </button>
+                          )}
 
                           {s.status === "inactive" && (
                             <button
