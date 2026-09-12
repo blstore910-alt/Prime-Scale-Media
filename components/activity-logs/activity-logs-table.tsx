@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Eye } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Eye, Search } from "lucide-react";
 import { ACTIVITY_LOG_ACTIONS } from "@/lib/activity-log-actions";
 // TODO(activity-logs): re-add ACTIVITY_LOG_DB_ACTIONS + setDbAction wiring
 // when the DB-action filter UI is enabled.
@@ -37,6 +37,7 @@ function dbActionBadge(dbAction?: string | null) {
 // useActivityLogs data hook + the real details sheet — presentation only.
 export default function ActivityLogsTable() {
   const [action, setAction] = useState("all");
+  const [actor, setActor] = useState("");
   const [dbAction] = useState("all");
   const [page, setPage] = useState(1);
   const perPage = 50;
@@ -53,6 +54,20 @@ export default function ActivityLogsTable() {
     perPage,
   });
 
+  // Narrow the already-fetched page of logs by the actor (author) who
+  // performed the action. `useActivityLogs` has no server-side actor param,
+  // so this is a client-side filter over the current page's rows — the
+  // action filter, pagination and detail sheet are untouched.
+  const filteredLogs = useMemo(() => {
+    const term = actor.trim().toLowerCase();
+    if (!term) return logs;
+    return logs.filter((log) => {
+      const name = (log.author?.full_name ?? "").toLowerCase();
+      const email = (log.author?.email ?? "").toLowerCase();
+      return name.includes(term) || email.includes(term);
+    });
+  }, [logs, actor]);
+
   return (
     <div
       className="psmview"
@@ -66,6 +81,15 @@ export default function ActivityLogsTable() {
       </div>
 
       <div className="fbar">
+        <label className="fsr">
+          <Search />
+          <input
+            value={actor}
+            onChange={(e) => setActor(e.target.value)}
+            placeholder="Filter by user name or email…"
+            aria-label="Filter by user"
+          />
+        </label>
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
@@ -102,7 +126,7 @@ export default function ActivityLogsTable() {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => {
+                {filteredLogs.map((log) => {
                   const authorName = log.author?.full_name || "Unknown";
                   const authorEmail = log.author?.email || "--";
                   return (
@@ -139,6 +163,14 @@ export default function ActivityLogsTable() {
               </tbody>
             </table>
           </div>
+          {filteredLogs.length === 0 && (
+            <p
+              className="muted"
+              style={{ margin: 0, padding: 16, fontSize: ".88rem" }}
+            >
+              No activity by a user matching “{actor.trim()}” on this page.
+            </p>
+          )}
         </div>
       ) : (
         <div className="card">

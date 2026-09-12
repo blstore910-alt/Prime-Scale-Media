@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ADV_CSS } from "./adv-shell-css";
 import { AdvIcons, Ic } from "./adv-icons";
@@ -96,6 +96,9 @@ export default function AdvertiserApp() {
   const [acctTopupOpen, setAcctTopupOpen] = useState(false);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const tenantId = profile?.tenant_id ?? null;
@@ -310,6 +313,36 @@ export default function AdvertiserApp() {
     await supabase.auth.signOut();
     router.push("/auth/login");
   };
+
+  // Close the account menu on outside-click / Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  // Escape also closes the sign-out confirmation.
+  useEffect(() => {
+    if (!signOutOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSignOutOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [signOutOpen]);
+
   const [payingId, setPayingId] = useState<string | null>(null);
   const payInvoice = async (id: string) => {
     if (payingId) return;
@@ -523,32 +556,55 @@ export default function AdvertiserApp() {
                 </span>
               )}
             </button>
-            <button
-              className="tool ava-btn"
-              onClick={() => go("settings")}
-              title="Settings"
-            >
-              <span className="avatar">{ini}</span>
-              <Ic name="i-chev" />
-            </button>
+            <div className="usermenu" ref={menuRef}>
+              <button
+                className="tool ava-btn"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title="Account"
+              >
+                <span className="avatar">{ini}</span>
+                <Ic name="i-chev" />
+              </button>
+              {menuOpen && (
+                <div className="umenu" role="menu">
+                  <div className="umenu-hd">
+                    <div className="nm">{name}</div>
+                    <div className="sub">
+                      {(profile?.tenant?.name as string) ?? "Advertiser"}
+                    </div>
+                  </div>
+                  <button
+                    className="umenu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      go("settings");
+                    }}
+                  >
+                    <Ic name="i-user" /> Profile
+                  </button>
+                  <button
+                    className="umenu-item danger"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSignOutOpen(true);
+                    }}
+                  >
+                    <LogoutGlyph /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="tool ic-btn"
-              onClick={logout}
+              onClick={() => setSignOutOpen(true)}
               aria-label="Sign out"
               title="Sign out"
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" x2="9" y1="12" y2="12" />
-              </svg>
+              <LogoutGlyph />
             </button>
           </div>
         </div>
@@ -1388,7 +1444,61 @@ export default function AdvertiserApp() {
         setOpen={() => setDetailsOpen(false)}
         accountId={detailsId}
       />
+
+      {signOutOpen && (
+        <div className="modal">
+          <div className="mback" onClick={() => setSignOutOpen(false)} />
+          <div className="mcard" style={{ width: "min(400px,100%)" }}>
+            <div className="mhead">
+              <h2>Sign out?</h2>
+              <button
+                className="iconbtn"
+                onClick={() => setSignOutOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="cap">You&apos;ll need to log in again.</p>
+            <div className="mfoot">
+              <button
+                className="btn ghost"
+                onClick={() => setSignOutOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn danger"
+                onClick={() => {
+                  setSignOutOpen(false);
+                  logout();
+                }}
+              >
+                <LogoutGlyph /> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Small logout glyph reused by the account menu + sign-out modal.
+function LogoutGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" x2="9" y1="12" y2="12" />
+    </svg>
   );
 }
 

@@ -5,36 +5,98 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 
-import { Card } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 import useUpdateAdvertiser from "@/components/advertiser/use-update-advertiser";
+import { dmSans, jakarta } from "@/lib/fonts";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
-import { AlertCircle, Loader2, XIcon } from "lucide-react";
+import { AlertCircle, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
-import { Separator } from "../../ui/separator";
-import { Button } from "../../ui/button";
-import { Textarea } from "../../ui/textarea";
 import useUpdateUserProfile from "./use-update-user";
 import UserAccounts from "./user-accounts";
 import UserAffiliates from "./user-affiliates";
 
 import UserSubscriptionDetails from "./user-subscription-details";
 import UserWalletTopups from "./user-wallet-topups";
+
+// The sheet renders in a Radix portal OUTSIDE the `.psmapp` shell, so the
+// mockup's scoped classes and font variables aren't in scope here. This
+// self-contained, prefixed style block re-declares the shell tokens (and
+// the font vars via the next/font `*.variable` classes on the wrapper) so
+// the drawer matches the mockup detail-drawer look.
+const SHEET_CSS = `
+.udsheet{--ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
+  --line:#e6e9f2;--line-2:#d8ddec;--primary:#3a6fff;--primary-600:#2f5ae6;--primary-tint:#eaf1ff;
+  --win:#10b981;--win-soft:#daf5ec;--warn:#e08a00;--warn-soft:#fdeecb;--danger:#e5484d;--danger-soft:#fdecec;
+  --brand:linear-gradient(135deg,#5B8DFF,#8B5CF6);
+  --hd:var(--font-jakarta),system-ui,sans-serif;--bd:var(--font-dmsans),system-ui,sans-serif;
+  --shadow-sm:0 10px 26px -20px rgba(20,30,80,.5);
+  background:var(--ground);color:var(--ink);font-family:var(--bd);line-height:1.55;min-height:100%;
+  -webkit-font-smoothing:antialiased}
+.udsheet .uds-head{position:sticky;top:0;z-index:2;background:color-mix(in srgb,var(--panel) 92%,transparent);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  padding:16px 18px;display:flex;align-items:center;gap:12px}
+.udsheet .uds-av{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-family:var(--hd);
+  font-weight:800;font-size:.95rem;color:#fff;background:var(--brand);flex:0 0 auto}
+.udsheet .uds-id{min-width:0;flex:1}
+.udsheet .uds-nm{font-family:var(--hd);font-weight:800;font-size:1.1rem;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.udsheet .uds-sub{color:var(--faint);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
+.udsheet .uds-x{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+  color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.udsheet .uds-x:hover{background:var(--panel-2)}.udsheet .uds-x svg{width:18px;height:18px}
+.udsheet .uds-body{padding:18px;display:flex;flex-direction:column;gap:16px}
+.udsheet .uds-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm)}
+.udsheet .uds-sec{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:0 0 12px}
+.udsheet .uds-kv{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.udsheet .uds-kvr{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;
+  border-top:1px solid var(--line);font-size:.9rem}
+.udsheet .uds-kvr:first-child{border-top:0}
+.udsheet .uds-kvr .k{color:var(--faint);font-weight:600;flex:0 0 auto}
+.udsheet .uds-kvr .v{font-weight:700;text-align:right;min-width:0;word-break:break-word}
+.udsheet .uds-kvr .v.nowrap{white-space:nowrap}
+.udsheet .uds-cgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.udsheet .uds-cgrid .full{grid-column:1 / -1}
+.udsheet .uds-f .l{display:block;font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+.udsheet .uds-f .d{font-weight:600;word-break:break-word}
+.udsheet .uds-select{font-family:var(--bd);font-weight:700;font-size:.86rem;text-transform:capitalize;
+  border:1px solid var(--line-2);border-radius:11px;padding:9px 34px 9px 13px;background:var(--panel);color:var(--ink);
+  cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center;background-size:15px}
+.udsheet .uds-select:hover{border-color:var(--primary);color:var(--primary-600)}
+.udsheet .uds-select:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
+.udsheet .uds-lbl{display:block;font-family:var(--hd);font-weight:800;font-size:.92rem;margin-bottom:8px}
+.udsheet .uds-ta{width:100%;font-family:var(--bd);font-size:.92rem;border:1px solid var(--line-2);border-radius:11px;
+  padding:11px 13px;background:var(--panel-2);color:var(--ink);resize:vertical;min-height:90px}
+.udsheet .uds-ta:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
+.udsheet .uds-btn{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);
+  font-weight:700;border-radius:11px;padding:10px 16px;background:var(--primary);color:#fff;white-space:nowrap;
+  box-shadow:0 12px 26px -12px rgba(58,111,255,.7);transition:.12s}
+.udsheet .uds-btn:hover{transform:translateY(-1px);background:var(--primary-600)}
+.udsheet .uds-btn:disabled{opacity:.6;cursor:default;transform:none}
+.udsheet .uds-btn svg{width:16px;height:16px}
+.udsheet .uds-muted{color:var(--muted);font-size:.9rem}
+.udsheet .uds-spin{animation:uds-spin .8s linear infinite}
+.udsheet .uds-err{display:flex;align-items:center;gap:11px;background:var(--danger-soft);border:1px solid #f3c0c2;
+  border-radius:14px;padding:14px 16px;color:#8a2a2a}
+.udsheet .uds-err svg{width:20px;height:20px;color:var(--danger);flex:0 0 auto}
+.udsheet .uds-state{display:grid;place-items:center;min-height:220px}
+@keyframes uds-spin{to{transform:rotate(360deg)}}
+`;
+
+function initials(name?: string | null) {
+  if (!name) return "PS";
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "PS"
+  );
+}
 
 export default function UserDetailsSheet({
   open,
@@ -107,195 +169,159 @@ export default function UserDetailsSheet({
     );
   };
 
+  const saving = isUpdatingAdvertiser || isPending;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-2xl w-full overflow-auto">
-        <SheetHeader className="sticky top-0 bg-background">
-          <div className="flex items-center justify-between">
-            <SheetTitle>User Details</SheetTitle>
-            <SheetClose>
-              <XIcon size={24} />
-            </SheetClose>
-          </div>
-        </SheetHeader>
+      <SheetContent
+        side="right"
+        className={`udsheet ${jakarta.variable} ${dmSans.variable} sm:max-w-2xl w-full overflow-auto p-0 gap-0`}
+      >
+        <style>{SHEET_CSS}</style>
+        <SheetTitle className="sr-only">User Details</SheetTitle>
 
-        {/* Content */}
+        {/* Header */}
+        <div className="uds-head">
+          <span className="uds-av">{initials(data?.full_name)}</span>
+          <div className="uds-id">
+            <div className="uds-nm">{data?.full_name || "User Details"}</div>
+            <div className="uds-sub">
+              {clientCode && <span className="uds-cd">{clientCode}</span>}
+              {clientCode && data?.email ? " · " : ""}
+              {data?.email || (!clientCode ? "—" : "")}
+            </div>
+          </div>
+          {saving && (
+            <Loader2 className="uds-spin" style={{ width: 18, height: 18, color: "var(--faint)" }} />
+          )}
+          <SheetClose className="uds-x" aria-label="Close">
+            <X />
+          </SheetClose>
+        </div>
 
         {/* Loading */}
         {isLoading && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-4 w-32 mt-2" />
-              </div>
-              <Skeleton className="h-10 w-24" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-
-            <Skeleton className="h-48 w-full" />
+          <div className="uds-state">
+            <Loader2 className="uds-spin" style={{ width: 26, height: 26, color: "var(--faint)" }} />
           </div>
         )}
 
         {/* Error */}
         {isError && (
-          <Card className="p-4 flex items-center gap-3 text-destructive">
-            <AlertCircle />
-            <div>
-              <div className="font-medium">Failed to load user</div>
-              <div className="text-sm text-muted-foreground">
-                {error.message}
+          <div className="uds-body">
+            <div className="uds-err">
+              <AlertCircle />
+              <div>
+                <div style={{ fontWeight: 700 }}>Failed to load user</div>
+                <div style={{ fontSize: ".85rem" }}>{error.message}</div>
               </div>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* No data */}
         {!isLoading && !isError && !data && (
-          <Card className="p-4 text-muted-foreground text-center">
-            No user selected
-          </Card>
+          <div className="uds-body">
+            <div className="uds-card">
+              <p className="uds-muted" style={{ margin: 0, textAlign: "center" }}>
+                No user selected
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Data */}
         {!isLoading && !isError && data && (
-          <div className="space-y-4 p-4">
-            {/* Header card */}
-            <div className="text-end">
-              {isUpdatingAdvertiser || isPending ? (
-                <Loader2 className="animate-spin inline" />
-              ) : null}
-            </div>
-            <div className="">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className=" gap-3">
-                    <div>
-                      <div className="text-lg font-semibold">
-                        {clientCode}: {data.full_name || "—"}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {data.email || "—"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-sm text-muted-foreground space-y-1">
-                    <div>
-                      <span className="font-medium text-foreground">
-                        Created:{" "}
-                      </span>
-                      {data.created_at
-                        ? dayjs(data.created_at).format(DATE_TIME_FORMAT)
-                        : "—"}
-                    </div>
-                    <div>
-                      <span className="font-medium text-foreground">
-                        Referred By:{" "}
-                      </span>
-                      {data.referral_status === "referred"
-                        ? data.referred_by || "—"
-                        : "Not Referred"}
-                    </div>
-                  </div>
+          <div className="uds-body">
+            {/* Profile / status */}
+            <div className="uds-card">
+              <div className="uds-kv">
+                <div className="uds-kvr">
+                  <span className="k">Created</span>
+                  <span className="v nowrap">
+                    {data.created_at
+                      ? dayjs(data.created_at).format(DATE_TIME_FORMAT)
+                      : "—"}
+                  </span>
                 </div>
-              </div>
-              <Separator className="mt-4" />
-              <div className="pt-4 gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-muted-foreground">
-                    Status:
-                  </span>{" "}
-                  <Select
-                    value={data.status}
-                    onValueChange={updateAccountStatus}
+                <div className="uds-kvr">
+                  <span className="k">Referred By</span>
+                  <span className="v">
+                    {data.referral_status === "referred"
+                      ? data.referred_by || "—"
+                      : "Not Referred"}
+                  </span>
+                </div>
+                <div className="uds-kvr">
+                  <span className="k">Status</span>
+                  <select
+                    className="uds-select"
+                    value={data.status ?? ""}
+                    onChange={(e) => updateAccountStatus(e.target.value)}
                   >
-                    <SelectTrigger className="capitalize" size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
             </div>
-            <Card className="p-4">
-              <h3 className="font-semibold">Company Details</h3>
+
+            {/* Company Details */}
+            <div className="uds-card">
+              <div className="uds-sec">Company Details</div>
               {company ? (
-                <div className="mt-2 grid sm:grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Name:
-                    </span>{" "}
-                    {company.name || "—"}
+                <div className="uds-cgrid">
+                  <div className="uds-f">
+                    <span className="l">Name</span>
+                    <div className="d">{company.name || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Email:
-                    </span>{" "}
-                    {company.official_email || "—"}
+                  <div className="uds-f">
+                    <span className="l">Email</span>
+                    <div className="d">{company.official_email || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Phone:
-                    </span>{" "}
-                    {company.phone || "—"}
+                  <div className="uds-f">
+                    <span className="l">Phone</span>
+                    <div className="d">{company.phone || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Website:
-                    </span>{" "}
-                    {company.website_url || "—"}
+                  <div className="uds-f">
+                    <span className="l">Website</span>
+                    <div className="d">{company.website_url || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      VAT No:
-                    </span>{" "}
-                    {company.is_not_vat ? "Not Applicable" : company.vat_no || "—"}
+                  <div className="uds-f">
+                    <span className="l">VAT No</span>
+                    <div className="d">
+                      {company.is_not_vat
+                        ? "Not Applicable"
+                        : company.vat_no || "—"}
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Registration No:
-                    </span>{" "}
-                    {company.registration_no || "—"}
+                  <div className="uds-f">
+                    <span className="l">Registration No</span>
+                    <div className="d">{company.registration_no || "—"}</div>
                   </div>
-                  <div className="sm:col-span-2">
-                    <span className="font-medium text-muted-foreground">
-                      Address:
-                    </span>{" "}
-                    {company.address || "—"}
+                  <div className="uds-f full">
+                    <span className="l">Address</span>
+                    <div className="d">{company.address || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Country:
-                    </span>{" "}
-                    {company.country || "—"}
+                  <div className="uds-f">
+                    <span className="l">Country</span>
+                    <div className="d">{company.country || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      State:
-                    </span>{" "}
-                    {company.state || "—"}
+                  <div className="uds-f">
+                    <span className="l">State</span>
+                    <div className="d">{company.state || "—"}</div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">
-                      Zip Code:
-                    </span>{" "}
-                    {company.zipcode || "—"}
+                  <div className="uds-f">
+                    <span className="l">Zip Code</span>
+                    <div className="d">{company.zipcode || "—"}</div>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="uds-muted" style={{ margin: 0 }}>
                   No company details found.
                 </p>
               )}
-            </Card>
+            </div>
 
             {advertiser ? (
               <>
@@ -311,20 +337,23 @@ export default function UserDetailsSheet({
               </>
             ) : null}
 
-            <div className="space-y-4">
-              <label htmlFor="notes" className="mb-2 block font-medium">
+            {/* Notes */}
+            <div className="uds-card">
+              <label htmlFor="notes" className="uds-lbl">
                 Notes
               </label>
-              <Textarea
+              <textarea
                 id="notes"
+                className="uds-ta"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Enter notes here..."
                 rows={4}
               />
-              <div className="text-end">
-                {note !== initialNotes && (
-                  <Button
+              {note !== initialNotes && (
+                <div style={{ textAlign: "right", marginTop: 12 }}>
+                  <button
+                    className="uds-btn"
                     onClick={() => {
                       if (!advertiser) return;
                       updateAdvertiser(
@@ -342,12 +371,12 @@ export default function UserDetailsSheet({
                     disabled={isUpdatingAdvertiser}
                   >
                     {isUpdatingAdvertiser ? (
-                      <Loader2 className="animate-spin mr-2" size={16} />
+                      <Loader2 className="uds-spin" style={{ width: 16, height: 16 }} />
                     ) : null}
                     Save Changes
-                  </Button>
-                )}
-              </div>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -224,5 +224,18 @@ export const ADV_CSS = `
     .bb svg{width:22px;height:22px}.bb.on{color:var(--primary-600)}.bb.on .bbic{background:var(--primary-tint)}
     .content{padding:20px 16px 92px}
   }
+
+  /* Topbar account menu (anchored to the avatar) */
+  .usermenu{position:relative;display:inline-flex}
+  .umenu{position:absolute;top:calc(100% + 10px);right:0;z-index:82;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;animation:pop .16s ease}
+  .umenu-hd{padding:9px 11px 8px;border-bottom:1px solid var(--line);margin-bottom:5px}
+  .umenu-hd .nm{font-family:var(--hd);font-weight:800;font-size:.9rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .umenu-hd .sub{font-size:.74rem;color:var(--faint);margin-top:2px}
+  .umenu-item{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;font-family:var(--bd);font-weight:600;font-size:.9rem;color:var(--ink);padding:10px 11px;border-radius:10px;cursor:pointer;transition:.12s}
+  .umenu-item:hover{background:var(--panel-2)}
+  .umenu-item svg{width:17px;height:17px;color:var(--muted)}
+  .umenu-item.danger{color:var(--danger)}.umenu-item.danger:hover{background:var(--danger-soft)}.umenu-item.danger svg{color:var(--danger)}
+  .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+  .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.btn.danger:hover{background:var(--danger)}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;

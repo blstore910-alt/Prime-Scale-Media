@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Resolver, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -48,6 +48,15 @@ export default function WalletEditDialog({
   const currentUsd = round2(Number(wallet?.usd_balance ?? 0));
   const currentEur = round2(Number(wallet?.eur_balance ?? 0));
 
+  // Second-confirmation gate: the form's Save populates this pending
+  // payload; only an explicit confirm below actually runs the mutation.
+  const [pending, setPending] = useState<{
+    walletId: string;
+    usdDelta: number;
+    eurDelta: number;
+    reason: string;
+  } | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -70,6 +79,7 @@ export default function WalletEditDialog({
       eur_balance: currentEur,
       reason: "",
     });
+    setPending(null);
   }, [open, wallet, currentUsd, currentEur, reset]);
 
   const watchedUsd = Number(watch("usd_balance") ?? 0);
@@ -108,6 +118,7 @@ export default function WalletEditDialog({
         queryKey: ["wallet-details", vars.walletId],
       });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      setPending(null);
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -115,6 +126,7 @@ export default function WalletEditDialog({
     },
   });
 
+  // Step 1: validate and stage the change — does NOT write yet.
   const handleSave = (values: FormValues) => {
     if (!wallet?.id) {
       toast.error("Wallet not found.");
@@ -128,12 +140,18 @@ export default function WalletEditDialog({
       toast.error("Final balance cannot be negative.");
       return;
     }
-    mutate({
+    setPending({
       walletId: wallet.id,
       usdDelta,
       eurDelta,
       reason: values.reason,
     });
+  };
+
+  // Step 2: explicit second confirmation actually runs the mutation.
+  const confirmSave = () => {
+    if (!pending) return;
+    mutate(pending);
   };
 
   const formatDelta = (n: number, currency: "USD" | "EUR") => {
@@ -145,15 +163,95 @@ export default function WalletEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit wallet balances</DialogTitle>
+          <DialogTitle>
+            {pending ? "Confirm balance change" : "Edit wallet balances"}
+          </DialogTitle>
           <DialogDescription>
-            Update USD and EUR balances for{" "}
-            {wallet?.advertiser?.tenant_client_code ?? "selected wallet"}. A
-            reason is required for audit logging.
+            {pending ? (
+              "This change is logged to the audit trail and affects real money. Review it before saving."
+            ) : (
+              <>
+                Update USD and EUR balances for{" "}
+                {wallet?.advertiser?.tenant_client_code ?? "selected wallet"}. A
+                reason is required for audit logging.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-4" onSubmit={handleSubmit(handleSave)}>
+        {pending ? (
+          <div className="space-y-4">
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+              You are about to change this wallet&apos;s balance. This action is
+              logged and affects real money. Are you sure?
+            </div>
+            <div className="grid gap-2 text-sm">
+              {pending.eurDelta !== 0 && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">EUR balance</span>
+                  <span className="font-medium">
+                    {currentEur.toFixed(2)} →{" "}
+                    {round2(currentEur + pending.eurDelta).toFixed(2)} EUR
+                    <span
+                      className={
+                        pending.eurDelta > 0
+                          ? "ml-2 text-green-600"
+                          : "ml-2 text-amber-600"
+                      }
+                    >
+                      ({formatDelta(pending.eurDelta, "EUR")})
+                    </span>
+                  </span>
+                </div>
+              )}
+              {pending.usdDelta !== 0 && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">USD balance</span>
+                  <span className="font-medium">
+                    {currentUsd.toFixed(2)} →{" "}
+                    {round2(currentUsd + pending.usdDelta).toFixed(2)} USD
+                    <span
+                      className={
+                        pending.usdDelta > 0
+                          ? "ml-2 text-green-600"
+                          : "ml-2 text-amber-600"
+                      }
+                    >
+                      ({formatDelta(pending.usdDelta, "USD")})
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-col gap-1 border-t pt-2">
+                <span className="text-muted-foreground">Reason</span>
+                <span className="font-medium break-words">
+                  {pending.reason}
+                </span>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPending(null)}
+                disabled={isPending}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmSave}
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Yes, change balances
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form className="space-y-4" onSubmit={handleSubmit(handleSave)}>
           <div className="grid gap-2">
             <div className="flex items-baseline justify-between">
               <Label htmlFor="edit-wallet-usd">USD balance</Label>
@@ -260,11 +358,11 @@ export default function WalletEditDialog({
                 isPending || !wallet || noChange || hasNegativeFinal
               }
             >
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save changes
+              Review change
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

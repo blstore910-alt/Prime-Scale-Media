@@ -27,12 +27,13 @@ import {
   ScrollText,
   Settings,
   Upload,
+  User,
   Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Item = { title: string; href: string; icon: LucideIcon; badge?: number };
 type Group = { title?: string; items: Item[] };
@@ -88,6 +89,9 @@ export default function AdminShell({
   const router = useRouter();
   const pending = usePendingCounts();
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const name = (profile?.full_name as string) ?? "Admin";
   const ini = initials(name);
@@ -168,6 +172,36 @@ export default function AdminShell({
     await supabase.auth.signOut();
     router.push("/auth/login");
   };
+
+  // Close the account menu on outside-click / Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  // Escape also closes the sign-out confirmation.
+  useEffect(() => {
+    if (!signOutOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSignOutOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [signOutOpen]);
+
   const close = () => setOpen(false);
   const title = TITLES[pathname] ?? "Dashboard";
 
@@ -238,13 +272,49 @@ export default function AdminShell({
             <Link className="tool ic-btn" href="/notifications" aria-label="Alerts">
               <Bell />
             </Link>
-            <Link className="tool ava-btn" href="/profile" title="Settings">
-              <span className="avatar">{ini}</span>
-              <ChevronDown />
-            </Link>
+            <div className="usermenu" ref={menuRef}>
+              <button
+                className="tool ava-btn"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title="Account"
+              >
+                <span className="avatar">{ini}</span>
+                <ChevronDown />
+              </button>
+              {menuOpen && (
+                <div className="umenu" role="menu">
+                  <div className="umenu-hd">
+                    <div className="nm">{name}</div>
+                    <div className="sub">{roleLabel}</div>
+                  </div>
+                  <button
+                    className="umenu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push("/profile");
+                    }}
+                  >
+                    <User /> Profile
+                  </button>
+                  <button
+                    className="umenu-item danger"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSignOutOpen(true);
+                    }}
+                  >
+                    <LogOut /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="tool ic-btn"
-              onClick={logout}
+              onClick={() => setSignOutOpen(true)}
               aria-label="Sign out"
               title="Sign out"
             >
@@ -274,6 +344,42 @@ export default function AdminShell({
           })}
         </nav>
       </div>
+
+      {signOutOpen && (
+        <div className="modal">
+          <div className="mback" onClick={() => setSignOutOpen(false)} />
+          <div className="mcard">
+            <div className="mhead">
+              <h2>Sign out?</h2>
+              <button
+                className="iconbtn"
+                onClick={() => setSignOutOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="cap">You&apos;ll need to log in again.</p>
+            <div className="mfoot">
+              <button
+                className="btn ghost"
+                onClick={() => setSignOutOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn danger"
+                onClick={() => {
+                  setSignOutOpen(false);
+                  logout();
+                }}
+              >
+                <LogOut /> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

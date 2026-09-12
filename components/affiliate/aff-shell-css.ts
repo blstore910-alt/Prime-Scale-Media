@@ -80,7 +80,7 @@ export const AFF_CSS = `
 
   .hero{position:relative;border-radius:26px;padding:44px 30px 36px;overflow:hidden;text-align:center;
     background:radial-gradient(130% 130% at 50% -15%,rgba(91,141,255,.42),transparent 52%),radial-gradient(85% 120% at 87% 4%,rgba(139,92,246,.36),transparent 55%),radial-gradient(80% 120% at 12% 10%,rgba(24,184,206,.24),transparent 55%),linear-gradient(165deg,#090d22 0%,#0c1230 52%,#131a3c 100%);
-    border:1px solid rgba(120,150,255,.26);box-shadow:0 36px 82px -34px rgba(6,10,30,.95),inset 0 1px 0 rgba(255,255,255,.08),inset 0 -34px 66px -34px rgba(0,0,0,.55)}
+    border:1px solid rgba(120,150,255,.26);box-shadow:0 16px 40px -30px rgba(6,10,30,.5),inset 0 1px 0 rgba(255,255,255,.08),inset 0 -20px 46px -36px rgba(0,0,0,.38)}
   .hero .ribbon{position:absolute;inset:-45%;background:conic-gradient(from 0deg,transparent,rgba(139,92,246,.18),transparent 26%,rgba(91,141,255,.22),transparent 56%,rgba(24,184,206,.16),transparent 82%);animation:spin 20s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .spk{position:absolute;color:var(--gold);opacity:0;animation:rise 5s ease-in infinite;filter:drop-shadow(0 0 6px rgba(255,196,60,.7))}
@@ -334,5 +334,18 @@ export const AFF_CSS = `
     .avgrid{grid-template-columns:repeat(5,1fr)}.frow{grid-template-columns:1fr}
     .filterbar{gap:8px}
   }
+
+  /* Topbar account menu (anchored to the avatar) */
+  .usermenu{position:relative;display:inline-flex}
+  .umenu{position:absolute;top:calc(100% + 10px);right:0;z-index:82;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;animation:pop .16s ease}
+  .umenu-hd{padding:9px 11px 8px;border-bottom:1px solid var(--line);margin-bottom:5px}
+  .umenu-hd .nm{font-family:var(--font-sora);font-weight:800;font-size:.9rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .umenu-hd .sub{font-size:.74rem;color:var(--faint);margin-top:2px}
+  .umenu-item{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;font-family:var(--font-outfit);font-weight:600;font-size:.9rem;color:var(--ink);padding:10px 11px;border-radius:10px;cursor:pointer;transition:.12s}
+  .umenu-item:hover{background:var(--panel-2)}
+  .umenu-item svg{width:17px;height:17px;color:var(--muted)}
+  .umenu-item.danger{color:#e5484d}.umenu-item.danger:hover{background:#fdecec}.umenu-item.danger svg{color:#e5484d}
+  .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+  .btn.danger{background:#e5484d;color:#fff;box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.btn.danger:hover{background:#d43a3f}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;

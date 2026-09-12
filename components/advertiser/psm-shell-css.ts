@@ -165,5 +165,26 @@ export const PSM_APP_CSS = `
   .psmapp .bb svg{width:22px;height:22px}.psmapp .bb.on{color:var(--primary-600)}.psmapp .bb.on .bbic{background:var(--primary-tint)}
   .psmapp .content{padding:20px 16px 92px}
 }
+
+/* Topbar account menu (anchored to the avatar) */
+.psmapp .usermenu{position:relative;display:inline-flex}
+.psmapp .umenu{position:absolute;top:calc(100% + 10px);right:0;z-index:82;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;animation:pop .16s ease}
+.psmapp .umenu-hd{padding:9px 11px 8px;border-bottom:1px solid var(--line);margin-bottom:5px}
+.psmapp .umenu-hd .nm{font-family:var(--hd);font-weight:800;font-size:.9rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.psmapp .umenu-hd .sub{font-size:.74rem;color:var(--faint);margin-top:2px}
+.psmapp .umenu-item{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;font-family:var(--bd);font-weight:600;font-size:.9rem;color:var(--ink);padding:10px 11px;border-radius:10px;cursor:pointer;transition:.12s}
+.psmapp .umenu-item:hover{background:var(--panel-2)}
+.psmapp .umenu-item svg{width:17px;height:17px;color:var(--muted)}
+.psmapp .umenu-item.danger{color:var(--danger)}.psmapp .umenu-item.danger:hover{background:var(--danger-soft)}.psmapp .umenu-item.danger svg{color:var(--danger)}
+
+/* Confirmation modal (matches the app's dialog look) */
+.psmapp .modal{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px}
+.psmapp .modal[hidden]{display:none}
+.psmapp .mback{position:absolute;inset:0;background:rgba(12,18,48,.5);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.psmapp .mcard{position:relative;width:min(400px,100%);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;animation:pop .2s ease}
+.psmapp .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.psmapp .mhead h2{font-family:var(--hd);font-weight:800;font-size:1.15rem;letter-spacing:-.02em}.psmapp .mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
+.psmapp .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.psmapp .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.psmapp .btn.danger:hover{background:var(--danger)}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.psmapp *{animation:none!important;transition:none!important}}
 `;

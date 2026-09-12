@@ -34,6 +34,14 @@ const chipStyle = {
   placeItems: "center" as const,
 };
 
+// Row action buttons render as an equal-width 3-up grid so they stay tidy,
+// never overflow the row (which would scroll the table sideways), and wrap
+// as a clean 3-per-row rather than a ragged 2+1.
+const actBtnStyle = {
+  width: "100%",
+  justifyContent: "center" as const,
+};
+
 const TONES = ["b", "t", "g", "p"] as const;
 
 function initials(name?: string | null) {
@@ -384,6 +392,7 @@ function AdvertiserRow({
         ) : (
           <button
             className="btn ghost sm"
+            disabled={!advertiser}
             onClick={stop(() => {
               if (advertiser) onCreateSubscription(advertiser.id);
             })}
@@ -408,19 +417,29 @@ function AdvertiserRow({
       </td>
       <td className="r">
         <div
-          style={{ display: "inline-flex", gap: 8, justifyContent: "flex-end" }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 8,
+          }}
         >
-          <button className="btn ghost sm" onClick={stop(onView)}>
+          <button
+            className="btn ghost sm"
+            style={actBtnStyle}
+            onClick={stop(onView)}
+          >
             <Eye /> Details
           </button>
           <button
             className="btn ghost sm"
+            style={actBtnStyle}
             onClick={stop(() => onCommissionSetup(advertiser))}
           >
             <HandCoins /> Commission
           </button>
           <button
             className="btn ghost sm"
+            style={actBtnStyle}
             disabled={isPending}
             onClick={stop(toggleStatus)}
           >

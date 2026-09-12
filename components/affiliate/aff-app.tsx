@@ -8,7 +8,7 @@ import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { getURL } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
@@ -23,11 +23,14 @@ const TITLES: Record<View, string> = {
   help: "Get Help",
 };
 
+// Scaler ladder (chosen over bronze/silver/gold — sounds stronger). The `key`
+// stays the original so the medal color classes (.thmedal.bronze/.silver/.plat)
+// keep working; only the display name changes. Top tier = Legend.
 const TIERS = [
-  { key: "bronze", name: "Bronze", min: 0 },
-  { key: "silver", name: "Silver", min: 250 },
-  { key: "gold", name: "Gold", min: 1000 },
-  { key: "plat", name: "Platinum", min: 2500 },
+  { key: "bronze", name: "Starter", min: 0 },
+  { key: "silver", name: "Riser", min: 250 },
+  { key: "gold", name: "Scaler", min: 1000 },
+  { key: "plat", name: "Legend", min: 2500 },
 ];
 
 const eur = (n: number) =>
@@ -58,6 +61,9 @@ export default function AffiliateApp() {
   const [navOpen, setNavOpen] = useState(false);
   const [showEurUsd, setShowEurUsd] = useState<"EUR" | "USD">("EUR");
   const [payOpen, setPayOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const name = (profile?.full_name as string) ?? "Affiliate";
   const ini = initials(name);
@@ -111,6 +117,36 @@ export default function AffiliateApp() {
     await supabase.auth.signOut();
     router.push("/auth/login");
   };
+
+  // Close the account menu on outside-click / Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  // Escape also closes the sign-out confirmation.
+  useEffect(() => {
+    if (!signOutOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSignOutOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [signOutOpen]);
+
   const go = (v: View) => {
     setView(v);
     setNavOpen(false);
@@ -236,32 +272,53 @@ export default function AffiliateApp() {
                 </span>
               )}
             </button>
-            <button
-              className="tool ava-btn"
-              onClick={() => go("set")}
-              title="Settings"
-            >
-              <span className="avatar">{ini}</span>
-              <Ic name="i-chev" />
-            </button>
+            <div className="usermenu" ref={menuRef}>
+              <button
+                className="tool ava-btn"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title="Account"
+              >
+                <span className="avatar">{ini}</span>
+                <Ic name="i-chev" />
+              </button>
+              {menuOpen && (
+                <div className="umenu" role="menu">
+                  <div className="umenu-hd">
+                    <div className="nm">{name}</div>
+                    <div className="sub">{tier.name} partner</div>
+                  </div>
+                  <button
+                    className="umenu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      go("set");
+                    }}
+                  >
+                    <Ic name="i-user" /> Profile
+                  </button>
+                  <button
+                    className="umenu-item danger"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSignOutOpen(true);
+                    }}
+                  >
+                    <LogoutGlyph /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="tool ic-btn"
-              onClick={logout}
+              onClick={() => setSignOutOpen(true)}
               aria-label="Sign out"
               title="Sign out"
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" x2="9" y1="12" y2="12" />
-              </svg>
+              <LogoutGlyph />
             </button>
           </div>
         </div>
@@ -1013,7 +1070,62 @@ export default function AffiliateApp() {
           </div>
         </div>
       )}
+
+      {/* Sign-out confirmation */}
+      {signOutOpen && (
+        <div className="modal">
+          <div className="mback" onClick={() => setSignOutOpen(false)} />
+          <div className="mcard" style={{ width: "min(400px,100%)" }}>
+            <div className="mhead">
+              <h2>Sign out?</h2>
+              <button
+                className="iconbtn"
+                onClick={() => setSignOutOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="cap">You&apos;ll need to log in again.</p>
+            <div className="mfoot">
+              <button
+                className="btn ghost"
+                onClick={() => setSignOutOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn danger"
+                onClick={() => {
+                  setSignOutOpen(false);
+                  logout();
+                }}
+              >
+                <LogoutGlyph /> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Small logout glyph reused by the account menu + sign-out modal.
+function LogoutGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" x2="9" y1="12" y2="12" />
+    </svg>
   );
 }
 

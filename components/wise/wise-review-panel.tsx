@@ -3,19 +3,9 @@
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { confirmWiseSuggestion } from "@/actions/wise-actions";
 
 type WiseRow = {
@@ -45,13 +35,32 @@ function shortDate(iso: string): string {
   }
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  suggested: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  matched: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  confirmed: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  unmatched: "bg-muted text-muted-foreground",
-  ambiguous: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-  received: "bg-muted text-muted-foreground",
+// Map each Wise result to one of the mockup badge tones. The active
+// `.psmapp` scope only ships ok/pend/due/info, so neutral results
+// (unmatched/received) get the muted look inline from the shell tokens.
+const NEUTRAL: CSSProperties = {
+  background: "var(--panel-2)",
+  color: "var(--muted)",
+};
+function statusBadge(status: string): { cls: string; style?: CSSProperties } {
+  switch (status) {
+    case "matched":
+    case "confirmed":
+      return { cls: "badge ok" };
+    case "suggested":
+      return { cls: "badge pend" };
+    case "ambiguous":
+      return { cls: "badge due" };
+    default:
+      return { cls: "badge", style: NEUTRAL };
+  }
+}
+
+const clip: CSSProperties = {
+  maxWidth: 180,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
 
 export default function WiseReviewPanel() {
@@ -98,119 +107,150 @@ export default function WiseReviewPanel() {
   const suggestedCount = rows.filter((r) => r.status === "suggested").length;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">
+        <h2
+          style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+        >
           Bank deposits (Wise)
           {suggestedCount > 0 && (
-            <Badge className="ml-2 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-transparent align-middle">
-              {suggestedCount} to confirm
-            </Badge>
+            <span className="badge pend">{suggestedCount} to confirm</span>
           )}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Incoming bank payments detected via Wise. During the safe-start
-          phase nothing completes on its own — confirm each suggested match
-          and the matching topup is credited.
+        <p className="muted" style={{ margin: "6px 0 0", fontSize: ".92rem" }}>
+          Incoming bank payments detected via Wise. During the safe-start phase
+          nothing completes on its own — confirm each suggested match and the
+          matching topup is credited.
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
-            <TableRow>
-              <TableHead>Amount &amp; date</TableHead>
-              <TableHead>Reference &amp; sender</TableHead>
-              <TableHead>Result</TableHead>
-              <TableHead>Note</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center">
-                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-10 text-center text-muted-foreground"
-                >
-                  No bank deposits detected yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="align-top">
-                    <div className="font-mono font-semibold tabular-nums">
-                      {r.currency} {(r.amount_cents / 100).toFixed(2)}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {shortDate(r.created_at)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <div
-                      className={`font-mono text-xs ${r.reference ? "" : "italic text-muted-foreground"}`}
-                    >
-                      {r.reference || "no reference"}
-                    </div>
-                    {r.sender_name && (
-                      <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-                        {r.sender_name}
-                      </div>
-                    )}
-                    {r.sender_iban && (
-                      <div className="text-[11px] text-muted-foreground font-mono">
-                        {r.sender_iban}
-                      </div>
-                    )}
-                    <div
-                      className="text-[10px] text-muted-foreground/70 font-mono truncate max-w-[180px]"
-                      title={r.external_id}
-                    >
-                      Wise: {r.external_id}
-                    </div>
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Badge
-                      className={`${STATUS_STYLES[r.status] ?? ""} border-transparent capitalize`}
-                    >
-                      {r.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell
-                    className="align-top max-w-[240px] truncate text-xs text-muted-foreground"
-                    title={r.note ?? undefined}
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tblwrap">
+          <table className="tbl wide">
+            <thead>
+              <tr>
+                <th>Amount &amp; date</th>
+                <th>Reference &amp; sender</th>
+                <th>Result</th>
+                <th>Note</th>
+                <th className="r">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "34px 0" }}>
+                    <Loader2
+                      className="animate-spin"
+                      style={{ width: 20, height: 20, color: "var(--faint)" }}
+                    />
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="muted"
+                    style={{ textAlign: "center", padding: "34px 0" }}
                   >
-                    {r.note ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {r.status === "suggested" && r.suggested_topup_id ? (
-                      <Button
-                        size="sm"
-                        disabled={actingId === r.id}
-                        onClick={() => confirm.mutate(r.id)}
-                      >
-                        {actingId === r.id ? "…" : "Confirm & complete"}
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {r.status === "confirmed" || r.status === "matched"
-                          ? "done"
-                          : "—"}
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                    No bank deposits detected yet.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r) => {
+                  const badge = statusBadge(r.status);
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ verticalAlign: "top" }}>
+                        <div className="mono" style={{ fontWeight: 700 }}>
+                          {r.currency} {(r.amount_cents / 100).toFixed(2)}
+                        </div>
+                        <div
+                          className="muted"
+                          style={{ fontSize: ".75rem", whiteSpace: "nowrap" }}
+                        >
+                          {shortDate(r.created_at)}
+                        </div>
+                      </td>
+                      <td style={{ verticalAlign: "top" }}>
+                        <div
+                          className="mono"
+                          style={{
+                            fontSize: ".8rem",
+                            fontStyle: r.reference ? "normal" : "italic",
+                            color: r.reference ? "var(--ink)" : "var(--faint)",
+                          }}
+                        >
+                          {r.reference || "no reference"}
+                        </div>
+                        {r.sender_name && (
+                          <div className="muted" style={{ fontSize: ".75rem", ...clip }}>
+                            {r.sender_name}
+                          </div>
+                        )}
+                        {r.sender_iban && (
+                          <div
+                            className="mono"
+                            style={{ fontSize: ".75rem", color: "var(--muted)" }}
+                          >
+                            {r.sender_iban}
+                          </div>
+                        )}
+                        <div
+                          className="mono"
+                          style={{ fontSize: ".7rem", color: "var(--faint)", ...clip }}
+                          title={r.external_id}
+                        >
+                          Wise: {r.external_id}
+                        </div>
+                      </td>
+                      <td style={{ verticalAlign: "top" }}>
+                        <span
+                          className={badge.cls}
+                          style={{ textTransform: "capitalize", ...badge.style }}
+                        >
+                          {r.status}
+                        </span>
+                      </td>
+                      <td style={{ verticalAlign: "top" }}>
+                        <div
+                          className="muted"
+                          style={{ fontSize: ".82rem", ...clip, maxWidth: 240 }}
+                          title={r.note ?? undefined}
+                        >
+                          {r.note ?? "—"}
+                        </div>
+                      </td>
+                      <td className="r" style={{ verticalAlign: "top" }}>
+                        {r.status === "suggested" && r.suggested_topup_id ? (
+                          <button
+                            className="btn sm"
+                            disabled={actingId === r.id}
+                            onClick={() => confirm.mutate(r.id)}
+                          >
+                            {actingId === r.id ? "…" : "Confirm & complete"}
+                          </button>
+                        ) : (
+                          <span
+                            className="muted"
+                            style={{ fontSize: ".82rem", textTransform: "capitalize" }}
+                          >
+                            {r.status === "confirmed" || r.status === "matched"
+                              ? "done"
+                              : "—"}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
