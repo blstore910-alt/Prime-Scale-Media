@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import { updateOwnProfileAndCompany } from "@/actions/company-actions";
 import { getURL } from "@/lib/utils";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
@@ -219,6 +220,49 @@ export default function AdvertiserApp() {
     markAsRead,
     markAllAsRead,
   } = useNotifications();
+
+  const { data: company } = useQuery<Record<string, unknown> | null>({
+    queryKey: ["adv-company", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("companies")
+        .select("name, vat_no, country")
+        .eq("advertiser_id", advertiserId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as Record<string, unknown> | null;
+    },
+  });
+  const [comp, setComp] = useState({ name: "", vat_no: "", country: "" });
+  const [savingComp, setSavingComp] = useState(false);
+  useEffect(() => {
+    if (company)
+      setComp({
+        name: (company.name as string) ?? "",
+        vat_no: (company.vat_no as string) ?? "",
+        country: (company.country as string) ?? "",
+      });
+  }, [company]);
+  const saveCompany = async () => {
+    setSavingComp(true);
+    try {
+      const res = await updateOwnProfileAndCompany({ company: comp });
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Company saved");
+      queryClient.invalidateQueries({
+        queryKey: ["adv-company"],
+        exact: false,
+      });
+    } catch (e) {
+      toast.error("Couldn't save company", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setSavingComp(false);
+    }
+  };
   const referralCode = profile?.advertiser?.[0]?.tenant_client_code;
   const referralLink =
     profile?.tenant?.slug && referralCode
@@ -1175,23 +1219,43 @@ export default function AdvertiserApp() {
                 <div style={{ marginTop: 16 }}>
                   <div className="field">
                     <label>Company name</label>
-                    <input placeholder="Your company B.V." />
+                    <input
+                      placeholder="Your company B.V."
+                      value={comp.name}
+                      onChange={(e) =>
+                        setComp((c) => ({ ...c, name: e.target.value }))
+                      }
+                    />
                   </div>
                   <div className="frow">
                     <div className="field">
                       <label>VAT / Tax ID</label>
-                      <input className="mono" placeholder="NL0000.00.000.B00" />
+                      <input
+                        className="mono"
+                        placeholder="NL0000.00.000.B00"
+                        value={comp.vat_no}
+                        onChange={(e) =>
+                          setComp((c) => ({ ...c, vat_no: e.target.value }))
+                        }
+                      />
                     </div>
                     <div className="field">
                       <label>Country</label>
-                      <input placeholder="Netherlands" />
+                      <input
+                        placeholder="Netherlands"
+                        value={comp.country}
+                        onChange={(e) =>
+                          setComp((c) => ({ ...c, country: e.target.value }))
+                        }
+                      />
                     </div>
                   </div>
                   <button
                     className="btn sm"
-                    onClick={() => toast.success("Company saved")}
+                    onClick={saveCompany}
+                    disabled={savingComp}
                   >
-                    Save company
+                    {savingComp ? "Saving…" : "Save company"}
                   </button>
                 </div>
               </div>
