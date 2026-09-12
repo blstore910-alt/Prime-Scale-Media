@@ -68,7 +68,7 @@ async function requireAdminCtx() {
   const existingProfile = cookieStore.get("profile_id")?.value;
   const { data: profiles } = await supabase
     .from("user_profiles")
-    .select("id, role, tenant_id, user_id, full_name, email")
+    .select("id, role, tenant_id, user_id, full_name, email, is_active, status")
     .eq("user_id", userData.user.id);
 
   if (!profiles?.length) return { ok: false as const, error: "Forbidden" };
@@ -79,6 +79,10 @@ async function requireAdminCtx() {
 
   if (profile.role !== "admin" || !profile.tenant_id) {
     return { ok: false as const, error: "Forbidden" };
+  }
+  // Deactivated admin keeps role but loses access.
+  if (profile.is_active === false || (profile.status ?? "active") === "inactive") {
+    return { ok: false as const, error: "Account is inactive" };
   }
 
   return { ok: true as const, supabase, profile };
