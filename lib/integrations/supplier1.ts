@@ -86,12 +86,15 @@ async function seamxFetch<T>(
     return { ok: false, error: NOT_CONFIGURED, retryable: false };
   }
   try {
+    // Only send Content-Type when we actually carry a body — some backends
+    // 500 on an unexpected Content-Type for a bodyless GET.
+    const hasBody = init?.body != null;
     const res = await fetch(`${base}${path}`, {
       ...init,
       headers: {
         authToken: token,
-        "Content-Type": "application/json",
         Accept: "application/json",
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...(init?.headers ?? {}),
       },
       cache: "no-store",
@@ -104,10 +107,14 @@ async function seamxFetch<T>(
       /* non-JSON body — keep raw text for the error path */
     }
     if (!res.ok) {
-      const msg =
+      // Prefer a structured message; otherwise surface a snippet of the raw
+      // body so a 500 says *why* instead of just the status code.
+      const structured =
         (json as { error?: string; message?: string } | null)?.error ??
         (json as { message?: string } | null)?.message ??
-        `SeamX ${res.status}`;
+        null;
+      const snippet = text ? ` ${text.slice(0, 300)}` : "";
+      const msg = structured ?? `SeamX ${res.status}:${snippet}`.trim();
       const retryable = res.status >= 500 || res.status === 429;
       return { ok: false, error: String(msg), retryable };
     }
