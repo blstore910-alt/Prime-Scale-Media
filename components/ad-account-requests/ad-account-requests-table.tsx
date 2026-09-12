@@ -183,7 +183,7 @@ export default function AdAccountRequestsTable() {
       {isTabletScreen ? (
         <div className="rounded-md border overflow-x-auto relative mt-4">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Client Code</TableHead>

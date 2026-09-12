@@ -149,7 +149,7 @@ export default function SubscriptionsTable() {
 
         <div className="overflow-x-auto rounded-md border">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>Advertiser</TableHead>
                 <TableHead>Amount</TableHead>

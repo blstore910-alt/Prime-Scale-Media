@@ -281,7 +281,7 @@ export default function BulkTopupAdAccountsDialog({
             <ScrollArea className="flex-1 min-h-0">
               <div className="pr-4">
                 <Table>
-                  <TableHeader className="bg-muted/50">
+                  <TableHeader className="bg-background">
                     <TableRow>
                       <TableCell className="w-24">Enable</TableCell>
                       <TableCell>Ad Account</TableCell>
@@ -405,7 +405,7 @@ export default function BulkTopupAdAccountsDialog({
               <div className="pr-2">
                 <div className="overflow-x-auto touch-pan-x">
                   <Table className="min-w-[760px]">
-                    <TableHeader className="bg-muted/50">
+                    <TableHeader className="bg-background">
                       <TableRow>
                         <TableCell className="w-24 sticky left-0 z-10 bg-background">
                           Enable

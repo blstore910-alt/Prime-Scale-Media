@@ -121,7 +121,7 @@ export default function WalletTransactionsTable({
     <>
       <div className="overflow-x-auto rounded-lg border">
         <Table>
-          <TableHeader className="bg-muted">
+          <TableHeader className="bg-background">
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Amount</TableHead>

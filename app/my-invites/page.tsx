@@ -58,7 +58,7 @@ function InvitesTable({ invites }: { invites: UserInvitation[] }) {
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50">
+            <TableRow className="bg-background">
               <TableHead>Sender</TableHead>
               <TableHead>Organization</TableHead>
               <TableHead>Date Sent</TableHead>

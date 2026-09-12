@@ -99,7 +99,7 @@ export default function WalletExchangesTable({
   return (
     <div className="overflow-x-auto rounded-lg border">
       <Table>
-        <TableHeader className="bg-muted">
+        <TableHeader className="bg-background">
           <TableRow>
             <TableHead>Date</TableHead>
             <TableHead>From</TableHead>

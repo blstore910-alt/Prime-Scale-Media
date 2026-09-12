@@ -85,7 +85,7 @@ export default function UserAccounts({
         <div className="mt-4 border rounded-lg">
           {accounts?.length ? (
             <Table>
-              <TableHeader className="bg-muted/50">
+              <TableHeader className="bg-background">
                 <TableRow>
                   <TableCell>Account Name</TableCell>
                   <TableCell>Status</TableCell>

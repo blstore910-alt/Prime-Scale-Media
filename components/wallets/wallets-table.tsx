@@ -177,7 +177,7 @@ export default function WalletsTable() {
       {isTabletScreen ? (
         <div className="overflow-hidden rounded-lg border">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>Client Code</TableHead>
                 <TableHead>Advertiser</TableHead>

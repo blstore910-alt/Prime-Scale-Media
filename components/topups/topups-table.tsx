@@ -273,7 +273,7 @@ export default function TopupsTable() {
       ) : isTabletScreen ? (
         <div className=" rounded-md border overflow-x-auto relative">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>#</TableHead>
                 <TableHead>Account Name</TableHead>

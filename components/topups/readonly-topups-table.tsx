@@ -122,7 +122,7 @@ export default function ReadonlyTopupsTable() {
 
       <div className="rounded-md border overflow-x-auto relative bg-white/50 backdrop-blur-sm">
         <Table>
-          <TableHeader className="bg-muted/50">
+          <TableHeader className="bg-background">
             <TableRow>
               <TableHead className="w-20">#</TableHead>
               <TableHead>Account Name</TableHead>

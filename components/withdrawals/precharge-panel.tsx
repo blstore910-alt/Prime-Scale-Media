@@ -126,7 +126,7 @@ export default function PrechargePanel() {
 
       <div className="overflow-x-auto rounded-lg border">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>Ref</TableHead>
               <TableHead>Advertiser</TableHead>

@@ -466,7 +466,7 @@ export default function TopupLogs({ topupId }: { topupId: string }) {
       <h3 className="font-semibold text-base mb-2">Top-up Logs</h3>
       <div className="rounded-md border ">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Author</TableHead>

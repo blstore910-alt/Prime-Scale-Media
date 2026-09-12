@@ -226,7 +226,7 @@ export default function MyAffiliatesTable() {
         isTabletScreen ? (
           <div className="overflow-x-auto rounded-lg border">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted">
+              <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                   <TableHead>Advertiser</TableHead>
                   <TableHead>Commission Type</TableHead>
@@ -268,7 +268,7 @@ export default function MyAffiliatesTable() {
           {isTabletScreen ? (
             <div className="overflow-x-auto rounded-lg border">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-muted">
+                <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow>
                     <TableHead>Advertiser</TableHead>
                     <TableHead>Commission Type</TableHead>

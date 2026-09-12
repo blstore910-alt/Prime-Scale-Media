@@ -491,7 +491,7 @@ function ReferralCommissionsTable({
 
       <div className="overflow-hidden rounded-lg border">
         <Table>
-          <TableHeader className="bg-muted/30">
+          <TableHeader className="bg-background">
             <TableRow>
               <TableHead>Type</TableHead>
               <TableHead>Amount</TableHead>

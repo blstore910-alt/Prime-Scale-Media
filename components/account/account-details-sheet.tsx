@@ -392,7 +392,7 @@ function TopupHistory({ account }: { account: AdAccount }) {
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-muted/50">
+          <TableHeader className="bg-background">
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Amount Paid</TableHead>
