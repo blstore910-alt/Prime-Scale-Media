@@ -7,6 +7,7 @@ import { Advertiser } from "@/lib/types/advertiser";
 import { formatCurrency } from "@/lib/utils";
 import { Parser } from "json2csv";
 import {
+  Check,
   Eye,
   FileDown,
   HandCoins,
@@ -376,9 +377,14 @@ function AdvertiserRow({
           <div>
             <span
               className={`badge ${subscriptionStatus === "active" ? "ok" : "pend"}`}
-              style={{ textTransform: "capitalize" }}
+              style={{
+                textTransform: "capitalize",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
             >
-              {subscriptionStatus}
+              <Check style={{ width: 13, height: 13 }} /> {subscriptionStatus}
             </span>
             {commissionType && (
               <div
