@@ -155,7 +155,8 @@ function GeneralSettingsForm({
               name="email"
               label="Email"
               placeholder="john@example.com"
-              // readOnly // Uncomment if email should be read-only
+              readOnly
+              description="Your sign-in email can't be changed here — contact support to update it."
             />
           </div>
         </CardContent>

@@ -7,6 +7,7 @@ import useTopups from "./use-topups";
 import VerifyTopupDialog from "./verify-topup-dialog";
 import RejectTopupDialog from "./reject-topup-dialog";
 import { TopupDetailsSheet } from "./topup-details-sheet";
+import TablePagination from "../ui/table-pagination";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -45,7 +46,7 @@ export default function PsmVerifyAdTopups() {
   }, [search]);
   useEffect(() => setPage(1), [status, debounced]);
 
-  const { topups, isLoading } = useTopups({
+  const { topups, isLoading, total } = useTopups({
     status,
     search: debounced,
     page,
@@ -190,6 +191,17 @@ export default function PsmVerifyAdTopups() {
           </p>
         </div>
       )}
+
+      {!isLoading && topups?.length && total > perPage ? (
+        <div className="my-4 px-4">
+          <TablePagination
+            page={page}
+            total={total}
+            perPage={perPage}
+            onPageChange={(p) => setPage(p)}
+          />
+        </div>
+      ) : null}
 
       <VerifyTopupDialog
         topupId={verifyId}
