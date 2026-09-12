@@ -218,7 +218,16 @@ export default function WalletExchangeDialog({
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" size="sm">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={
+                isPending ||
+                !rate ||
+                fromAmount <= 0 ||
+                fromAmount > (fromCurrency === "USD" ? usdBalance : eurBalance)
+              }
+            >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

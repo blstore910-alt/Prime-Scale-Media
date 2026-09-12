@@ -77,6 +77,10 @@ export default function WalletTopupDialog({
   >(null);
   const [paymentSlipError, setPaymentSlipError] = useState<string | null>(null);
   const [isUploadingSlip, setIsUploadingSlip] = useState(false);
+  // Local object-URL for the slip image preview. The uploaded file lives in
+  // a PRIVATE bucket, so the stored path can't be used as an <img src> (it
+  // 404s). Preview the just-selected File instead; revoke on change/unmount.
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const minTopupAmount = minTopup || 300;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
@@ -151,6 +155,7 @@ export default function WalletTopupDialog({
         setAccountType("meta_eu");
         setPaymentSlipUrl(null);
         setPaymentSlipPreview(null);
+        setPreviewSrc(null);
         setPaymentSlipError(null);
         setIsUploadingSlip(false);
 
@@ -158,6 +163,12 @@ export default function WalletTopupDialog({
       }, 300);
     }
   }, [open, reset]);
+
+  useEffect(() => {
+    return () => {
+      if (previewSrc) URL.revokeObjectURL(previewSrc);
+    };
+  }, [previewSrc]);
 
   const handlePaymentSlipChange = async (
     event: ChangeEvent<HTMLInputElement>,
@@ -172,6 +183,7 @@ export default function WalletTopupDialog({
       setPaymentSlipError("File is too large (max 10 MB).");
       setPaymentSlipUrl(null);
       setPaymentSlipPreview(null);
+      setPreviewSrc(null);
       return;
     }
 
@@ -195,12 +207,14 @@ export default function WalletTopupDialog({
       setPaymentSlipError("Only PNG / JPG / GIF / WEBP / BMP / PDF allowed.");
       setPaymentSlipUrl(null);
       setPaymentSlipPreview(null);
+      setPreviewSrc(null);
       return;
     }
 
     setPaymentSlipError(null);
     setPaymentSlipUrl(null);
     setPaymentSlipPreview(isImage ? "image" : "unavailable");
+    setPreviewSrc(isImage ? URL.createObjectURL(file) : null);
     setIsUploadingSlip(true);
 
     try {
@@ -294,8 +308,7 @@ export default function WalletTopupDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {profile?.role === "admin" &&
-          draft.hasDraft &&
+        {draft.hasDraft &&
           draft.restoredDraft &&
           step !== STEPS.SUCCESS && (
           <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
@@ -524,16 +537,18 @@ export default function WalletTopupDialog({
                           <FileImage className="h-4 w-4" />
                           Preview
                         </div>
-                        {paymentSlipPreview === "image" ? (
+                        {paymentSlipPreview === "image" && previewSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions in a preview modal
                           <img
-                            src={paymentSlipUrl}
+                            src={previewSrc}
                             alt="Payment slip preview"
                             className="w-full max-h-56 object-contain rounded-md bg-background"
                           />
                         ) : (
                           <p className="text-sm text-muted-foreground">
-                            Preview not available for this file type.
+                            {paymentSlipPreview === "image"
+                              ? "Uploaded — preview shows only for the file you just selected."
+                              : "Preview not available for this file type."}
                           </p>
                         )}
                       </div>
