@@ -24,6 +24,7 @@ import WalletTopupDialog from "@/components/wallet/wallet-topup-dialog";
 import WalletExchangeDialog from "@/components/wallet/wallet-exchange-dialog";
 import CreateTopupDialog from "@/components/topups/create-topup-dialog";
 import RequestAdAccountDialog from "@/components/account/request-ad-account-dialog";
+import useAdAccountRequests from "@/components/ad-account-requests/use-ad-account-requests";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 
@@ -102,6 +103,14 @@ export default function AdvertiserApp() {
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const tenantId = profile?.tenant_id ?? null;
+
+  const { requests: myRequests, isLoading: isRequestsLoading } =
+    useAdAccountRequests({
+      advertiserId: advertiserId ?? undefined,
+      tenantId: tenantId ?? undefined,
+      perPage: 50,
+      enabled: !!advertiserId,
+    });
   const name = (profile?.full_name as string) ?? "there";
   const firstName = name.split(" ")[0];
   const ini = initials(name);
@@ -1051,13 +1060,72 @@ export default function AdvertiserApp() {
                 </button>
               </RequestAdAccountDialog>
             </div>
-            <div className="card">
-              <p className="cap" style={{ margin: 0 }}>
-                Your submitted requests appear here. Use{" "}
-                <b>Request ad account</b> to start a new one — we set it up on
-                our verified Business Manager, live in 3–12 hours.
-              </p>
-            </div>
+            {myRequests.length ? (
+              <div className="card" style={{ padding: "16px 8px 8px" }}>
+                <div className="tblwrap">
+                  <table className="tbl wide">
+                    <thead>
+                      <tr>
+                        <th style={{ paddingLeft: 14 }}>Date</th>
+                        <th>Platform</th>
+                        <th className="r">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myRequests.map((r) => {
+                        const st = (r.status ?? "pending").toLowerCase();
+                        const cls =
+                          st === "rejected" || st === "declined"
+                            ? "due"
+                            : st === "pending" || st === "in_review"
+                              ? "pend"
+                              : "ok";
+                        return (
+                          <tr key={r.id}>
+                            <td
+                              data-label="Date"
+                              style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                            >
+                              {dayjs(r.created_at).format("D MMM YYYY")}
+                            </td>
+                            <td data-label="Platform">
+                              {platformLabel(r.platform)}
+                              {r.rejection_reason ? (
+                                <span
+                                  style={{
+                                    display: "block",
+                                    color: "var(--faint)",
+                                    fontSize: ".78rem",
+                                  }}
+                                >
+                                  {r.rejection_reason}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td data-label="Status" className="r">
+                              <span
+                                className={`badge ${cls}`}
+                                style={{ textTransform: "capitalize" }}
+                              >
+                                {st.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="card">
+                <p className="cap" style={{ margin: 0 }}>
+                  {isRequestsLoading
+                    ? "Loading your requests…"
+                    : "No requests yet. Use Request ad account to start one — we set it up on our verified Business Manager, live in 3–12 hours."}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* BILLING */}
