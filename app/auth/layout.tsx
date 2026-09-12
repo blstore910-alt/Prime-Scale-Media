@@ -11,6 +11,84 @@ function Rocket() {
   );
 }
 
+// The launching rocket that anchors the brand panel. Pure SVG so it
+// stays crisp; all motion is CSS (see AUTH_CSS) and is frozen under
+// prefers-reduced-motion.
+function LaunchRocket() {
+  return (
+    <svg
+      className="ship-svg"
+      viewBox="0 0 120 232"
+      role="img"
+      aria-label="Rocket launching toward the moon"
+    >
+      <defs>
+        <linearGradient id="psmBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f6f8ff" />
+          <stop offset="1" stopColor="#aec4ff" />
+        </linearGradient>
+        <linearGradient id="psmFin" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#8B5CF6" />
+          <stop offset="1" stopColor="#5B8DFF" />
+        </linearGradient>
+        <radialGradient id="psmGlass" cx="0.4" cy="0.35" r="0.75">
+          <stop offset="0" stopColor="#e3edff" />
+          <stop offset="0.55" stopColor="#5B8DFF" />
+          <stop offset="1" stopColor="#33379e" />
+        </radialGradient>
+        <linearGradient id="psmFlame" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff2c4" />
+          <stop offset="0.45" stopColor="#ffb020" />
+          <stop offset="1" stopColor="#ff5a2c" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="psmFlame2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#ffcf5a" stopOpacity="0.15" />
+        </linearGradient>
+      </defs>
+
+      {/* exhaust — drawn first so the nozzle overlaps it */}
+      <path
+        className="flame"
+        d="M50 164 Q60 230 70 164 Q60 188 50 164Z"
+        fill="url(#psmFlame)"
+      />
+      <path
+        className="flame2"
+        d="M55 164 Q60 214 65 164 Q60 184 55 164Z"
+        fill="url(#psmFlame2)"
+      />
+
+      {/* fins */}
+      <path d="M42 120 L16 158 L42 142 Z" fill="url(#psmFin)" />
+      <path d="M78 120 L104 158 L78 142 Z" fill="url(#psmFin)" />
+
+      {/* fuselage */}
+      <path
+        d="M60 8 C78 26 84 62 84 108 C84 134 74 152 60 152 C46 152 36 134 36 108 C36 62 42 26 60 8Z"
+        fill="url(#psmBody)"
+      />
+      {/* gloss streak */}
+      <ellipse
+        cx="52"
+        cy="42"
+        rx="4"
+        ry="15"
+        fill="rgba(255,255,255,.45)"
+        transform="rotate(-8 52 42)"
+      />
+
+      {/* nozzle */}
+      <path d="M48 150 L72 150 L67 166 L53 166 Z" fill="#5a6699" />
+
+      {/* window */}
+      <circle cx="60" cy="60" r="15" fill="#101636" />
+      <circle cx="60" cy="60" r="10" fill="url(#psmGlass)" />
+      <circle cx="56" cy="56" r="3.2" fill="rgba(255,255,255,.85)" />
+    </svg>
+  );
+}
+
 const AUTH_CSS = `
 .psmauth{
   --panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
@@ -30,13 +108,47 @@ const AUTH_CSS = `
   background:radial-gradient(120% 90% at 15% 0%,rgba(91,141,255,.4),transparent 55%),radial-gradient(110% 90% at 100% 100%,rgba(139,92,246,.42),transparent 52%),linear-gradient(160deg,#04050E,#0c1230 55%,#141a3c)}
 .psmauth .brand .ribbon{position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(139,92,246,.16),transparent 26%,rgba(91,141,255,.2),transparent 58%);animation:psmspin 26s linear infinite}
 @keyframes psmspin{to{transform:rotate(360deg)}}
-.psmauth .brand>*{position:relative}
+/* starfield */
+.psmauth .brand .stars{position:absolute;inset:0;pointer-events:none;opacity:.85;
+  background-image:
+    radial-gradient(1.6px 1.6px at 12% 22%,#fff,transparent),
+    radial-gradient(1.4px 1.4px at 27% 66%,rgba(255,255,255,.8),transparent),
+    radial-gradient(2px 2px at 61% 16%,#cdd7ff,transparent),
+    radial-gradient(1.5px 1.5px at 82% 40%,#fff,transparent),
+    radial-gradient(1.4px 1.4px at 45% 82%,rgba(255,255,255,.7),transparent),
+    radial-gradient(1.6px 1.6px at 72% 74%,#fff,transparent),
+    radial-gradient(2px 2px at 90% 10%,#e6ebff,transparent),
+    radial-gradient(1.4px 1.4px at 8% 50%,#fff,transparent),
+    radial-gradient(1.5px 1.5px at 36% 34%,rgba(255,255,255,.7),transparent);
+  animation:psmtwinkle 3.8s ease-in-out infinite}
+@keyframes psmtwinkle{0%,100%{opacity:.45}50%{opacity:.95}}
+.psmauth .brand>*{position:relative;z-index:1}
 .psmauth .logo{display:flex;align-items:center;gap:12px}
 .psmauth .logo .mk{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#0c1030,#0a0e24);box-shadow:0 0 26px rgba(91,141,255,.5),0 0 0 1px rgba(91,141,255,.35)}
 .psmauth .logo .mk svg{width:24px;height:24px;stroke:#fff}
 .psmauth .logo b{font-family:var(--hd);font-weight:800;font-size:1.12rem;letter-spacing:-.01em}
 .psmauth .logo small{display:block;font-weight:500;font-size:.72rem;color:rgba(255,255,255,.6)}
-.psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:auto 0 14px;max-width:15ch;text-wrap:balance}
+/* rocket stage */
+.psmauth .rocketstage{position:relative;flex:1;display:grid;place-items:center;min-height:220px;margin:10px 0 4px}
+.psmauth .rocketstage .glow{position:absolute;left:50%;top:54%;width:280px;height:280px;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(91,141,255,.5),rgba(139,92,246,.2) 45%,transparent 70%);filter:blur(6px);
+  animation:psmglow 5.5s ease-in-out infinite}
+@keyframes psmglow{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.12)}}
+.psmauth .rocketstage .moon{position:absolute;top:4%;right:15%;width:56px;height:56px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#fdfcff,#cdd7ff 58%,#98a8e0);
+  box-shadow:0 0 36px rgba(201,212,255,.6),inset -8px -6px 14px rgba(90,110,180,.35)}
+.psmauth .rocketstage .moon::after{content:"";position:absolute;top:34%;left:24%;width:9px;height:9px;border-radius:50%;
+  background:rgba(120,140,200,.35);box-shadow:16px 10px 0 -2px rgba(120,140,200,.3),4px 20px 0 -3px rgba(120,140,200,.28)}
+.psmauth .ship{position:relative;z-index:1;width:118px;animation:psmbob 4.6s ease-in-out infinite;
+  filter:drop-shadow(0 16px 26px rgba(91,141,255,.4))}
+.psmauth .ship .ship-svg{width:100%;height:auto;display:block;stroke:none;fill:none}
+@keyframes psmbob{0%,100%{transform:translateY(7px) scale(1)}50%{transform:translateY(-11px) scale(1.035)}}
+.psmauth .flame{transform-box:fill-box;transform-origin:50% 0;animation:psmflame .28s ease-in-out infinite alternate}
+.psmauth .flame2{transform-box:fill-box;transform-origin:50% 0;animation:psmflame2 .19s ease-in-out infinite alternate}
+@keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
+@keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
+/* brand copy */
+.psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .psmauth .brand .sub{color:rgba(255,255,255,.72);font-size:1.02rem;max-width:34ch;margin:0 0 26px}
 .psmauth .pts{display:flex;flex-direction:column;gap:12px;margin-bottom:8px}
@@ -76,7 +188,23 @@ const AUTH_CSS = `
 .psmauth .meta{margin-top:18px;text-align:center;color:var(--muted);font-size:.88rem}
 .psmauth .err{color:var(--danger);font-size:.85rem;font-weight:600;margin:6px 0 0;text-align:left}
 .psmauth .note{background:#fff7e6;border:1px solid #f0d9a8;color:#8a5a00;border-radius:11px;padding:10px 12px;font-size:.82rem;margin-bottom:14px;text-align:left}
-@media(max-width:860px){.psmauth{grid-template-columns:1fr}.psmauth .brand{display:none}.psmauth .side{min-height:100svh}}
+/* mobile: brand collapses into a striking hero above the form card */
+@media(max-width:860px){
+  .psmauth{grid-template-columns:1fr;background:#04050E}
+  .psmauth .brand{padding:26px 24px 46px;min-height:auto;text-align:center;align-items:center;border-radius:0 0 30px 30px}
+  .psmauth .brand .logo{align-self:center}
+  .psmauth .rocketstage{min-height:150px;margin:8px 0 2px;width:100%}
+  .psmauth .rocketstage .moon{top:0;right:12%;width:44px;height:44px}
+  .psmauth .rocketstage .glow{width:220px;height:220px}
+  .psmauth .ship{width:92px}
+  .psmauth .brand h1{font-size:1.62rem;margin:6px auto 8px;max-width:20ch}
+  .psmauth .brand .sub{font-size:.92rem;margin:0 auto;max-width:36ch}
+  .psmauth .pts{display:none}
+  .psmauth .side{min-height:auto;padding:0 clamp(16px,5vw,30px) 34px}
+  .psmauth .card{margin:0 auto}
+  .psmauth .login-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;
+    padding:26px 20px 28px;margin:-30px auto 0;position:relative;box-shadow:0 26px 54px -30px rgba(4,5,14,.6)}
+}
 @media (prefers-reduced-motion:reduce){.psmauth *{animation:none!important}}
 `;
 
@@ -90,7 +218,8 @@ export default function AuthLayout({
     <div className={`psmauth ${jakarta.variable} ${dmSans.variable}`}>
       <style>{AUTH_CSS}</style>
       <aside className="brand">
-        <div className="ribbon" />
+        <div className="ribbon" aria-hidden="true" />
+        <div className="stars" aria-hidden="true" />
         <div className="logo">
           <span className="mk">
             <Rocket />
@@ -100,37 +229,48 @@ export default function AuthLayout({
             <small>Advertiser &amp; affiliate platform</small>
           </span>
         </div>
-        <h1>
-          Scale your ads with <span className="g">one simple platform.</span>
-        </h1>
-        <p className="sub">
-          Manage your advertising accounts and grow your campaigns —
-          everything in one place.
-        </p>
-        <div className="pts">
-          <div className="pt">
-            <span className="d">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            </span>{" "}
-            One dashboard for all your ad accounts
+
+        <div className="rocketstage" aria-hidden="true">
+          <span className="glow" />
+          <span className="moon" />
+          <div className="ship">
+            <LaunchRocket />
           </div>
-          <div className="pt">
-            <span className="d">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            </span>{" "}
-            A clear overview across every channel
-          </div>
-          <div className="pt">
-            <span className="d">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            </span>{" "}
-            Fast, transparent, and secure
+        </div>
+
+        <div className="brandcopy">
+          <h1>
+            Scale your ads with <span className="g">one simple platform.</span>
+          </h1>
+          <p className="sub">
+            Manage your advertising accounts and grow your campaigns —
+            everything in one place.
+          </p>
+          <div className="pts">
+            <div className="pt">
+              <span className="d">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>{" "}
+              One dashboard for all your ad accounts
+            </div>
+            <div className="pt">
+              <span className="d">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>{" "}
+              A clear overview across every channel
+            </div>
+            <div className="pt">
+              <span className="d">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>{" "}
+              Fast, transparent, and secure
+            </div>
           </div>
         </div>
       </aside>

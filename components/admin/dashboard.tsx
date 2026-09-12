@@ -8,12 +8,14 @@ import { usePendingCounts } from "@/hooks/use-pending-counts";
 import {
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   Coins,
   Download,
   FileText,
   Gift,
   Receipt,
   RefreshCw,
+  Server,
   Upload,
   UserPlus,
   Wallet,
@@ -38,26 +40,43 @@ type Queue = {
 // Motion is covered by the shell's global prefers-reduced-motion rule
 // (`.psmapp *{animation/transition:none}`), which our elements inherit.
 const DASH_CSS = `
-.psm-dash{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:16px}
+.psm-dash{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:12px}
 
-.psm-dash .attn{display:flex;align-items:center;gap:13px;background:linear-gradient(135deg,var(--primary-tint),var(--purple-tint));border:1px solid #d9e2ff;border-radius:16px;padding:14px 16px;flex-wrap:wrap}
-.psm-dash .attn .ai{width:38px;height:38px;border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--primary-600);flex:0 0 auto}
-.psm-dash .attn .ai svg{width:19px;height:19px}
-.psm-dash .attn b{font-weight:800;font-family:var(--hd);font-size:1.02rem}
-.psm-dash .attn .sub{color:var(--muted);font-size:.86rem;margin-top:2px}
+/* Needs-action hero and the New invite button share one row: hero grows,
+   invite stays its natural (compact) size on the right. */
+.psm-dash .attnrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.psm-dash .attnrow>.attn{flex:1 1 340px}
+.psm-dash .attnrow>.invite{flex:0 0 auto}
+
+.psm-dash .attn{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,var(--primary-tint),var(--purple-tint));border:1px solid #d9e2ff;border-radius:14px;padding:11px 14px;flex-wrap:wrap}
+.psm-dash .attn .ai{width:34px;height:34px;border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--primary-600);flex:0 0 auto}
+.psm-dash .attn .ai svg{width:18px;height:18px}
+.psm-dash .attn b{font-weight:800;font-family:var(--hd);font-size:1rem}
+.psm-dash .attn .sub{color:var(--muted);font-size:.84rem;margin-top:1px}
 .psm-dash .attn .cta{margin-left:auto;color:#fff}
-.psm-dash .attn.ok{background:linear-gradient(135deg,var(--win-soft),#eafaf3);border-color:#bfe9d6}
-.psm-dash .attn.ok .ai{color:var(--win)}
+/* "All caught up" is a compact one-liner: small check icon INLINE with the
+   headline and its sub-line, not a tall block with the icon floating above. */
+.psm-dash .attn.ok{background:linear-gradient(135deg,var(--win-soft),#eafaf3);border-color:#bfe9d6;padding:8px 13px;gap:9px}
+.psm-dash .attn.ok .ai{width:26px;height:26px;border-radius:8px;color:var(--win)}
+.psm-dash .attn.ok .ai svg{width:15px;height:15px}
+.psm-dash .attn.ok b{font-size:.92rem}
+.psm-dash .attn.ok .sub{margin-top:0}
 
-.psm-dash .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:12px}
-.psm-dash .qcard{display:flex;align-items:center;gap:13px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.15s}
+.psm-dash .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:10px}
+.psm-dash .qcard{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.15s}
 .psm-dash .qcard:hover{border-color:var(--primary);transform:translateY(-2px)}
-.psm-dash .qcard .qi{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
-.psm-dash .qcard .qi svg{width:18px;height:18px}
-.psm-dash .qcard .qn{font-family:var(--hd);font-weight:800;font-size:1.15rem;line-height:1.1}
-.psm-dash .qcard .qn.lbl{font-size:.98rem}
-.psm-dash .qcard .ql{color:var(--muted);font-size:.84rem;margin-top:2px}
-.psm-dash .qcard .go{margin-left:auto;color:var(--faint);width:18px;height:18px;flex:0 0 auto}
+.psm-dash .qcard .qi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
+.psm-dash .qcard .qi svg{width:17px;height:17px}
+.psm-dash .qcard .qn{font-family:var(--hd);font-weight:800;font-size:1.05rem;line-height:1.1}
+.psm-dash .qcard .qn.lbl{font-size:.92rem}
+.psm-dash .qcard .ql{color:var(--muted);font-size:.82rem;margin-top:1px}
+.psm-dash .qcard .go{margin-left:auto;color:var(--faint);width:17px;height:17px;flex:0 0 auto}
+
+/* Profit & activity — one cohesive section: header + hero + control + metrics.
+   A top hairline bounds the section; header carries title + honest subtitle. */
+.psm-dash .pa{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:15px}
+.psm-dash .pa-head{display:flex;flex-direction:column;gap:2px}
+.psm-dash .pa-head .pa-sub{color:var(--muted);font-size:.86rem;margin:0}
 
 /* colored icon tiles — the shell defines b/t/g/p; we re-state them so the
    dashboard block is self-contained (identical values, no conflict). */
@@ -66,7 +85,18 @@ const DASH_CSS = `
 .psm-dash .ci.g{background:var(--gold-soft);color:#a9740b}
 .psm-dash .ci.p{background:var(--purple-tint);color:var(--purple)}
 
-.psm-dash .sysgrid{display:flex;flex-direction:column;gap:16px}
+/* Super-admin diagnostics live in a de-emphasized, collapsed-by-default
+   "System" section at the very bottom. */
+.psm-dash .sysbox{border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
+.psm-dash .sysbox>summary{display:flex;align-items:center;gap:11px;padding:12px 15px;cursor:pointer;list-style:none;font-family:var(--hd);font-weight:800;font-size:1rem;color:var(--ink)}
+.psm-dash .sysbox>summary::-webkit-details-marker{display:none}
+.psm-dash .sysbox>summary:hover{background:var(--panel-2)}
+.psm-dash .sysbox .sys-ic{width:32px;height:32px;border-radius:9px;background:var(--panel-2);color:var(--muted);display:grid;place-items:center;flex:0 0 auto}
+.psm-dash .sysbox .sys-ic svg{width:17px;height:17px}
+.psm-dash .sysbox .sys-hint{color:var(--faint);font-family:var(--bd);font-weight:600;font-size:.8rem}
+.psm-dash .sysbox .sys-chev{margin-left:auto;color:var(--faint);width:18px;height:18px;transition:transform .18s}
+.psm-dash .sysbox[open] .sys-chev{transform:rotate(180deg)}
+.psm-dash .sysgrid{display:flex;flex-direction:column;gap:12px;padding:0 15px 15px}
 `;
 
 export default function AdminDashboard() {
@@ -124,45 +154,50 @@ export default function AdminDashboard() {
           <h1>Dashboard</h1>
           <p>Your operations at a glance — what needs action right now.</p>
         </div>
-        <button className="btn grad" onClick={() => dispatch("open-invite-user")}>
+      </div>
+
+      {/* Needs-your-action hero (mockup .attn) + New invite share one row —
+          real pending counts; the invite is a normal, compact button. */}
+      <div className="attnrow">
+        {needsAction > 0 ? (
+          <div className="attn">
+            <span className="ai">
+              <Zap />
+            </span>
+            <div>
+              <b>
+                {needsAction} {needsAction === 1 ? "item needs" : "items need"}{" "}
+                action
+              </b>
+              <div className="sub">
+                {pending.walletTopups} wallet topups · {pending.topUps} ad-account
+                topups · {pending.adAccountRequests} account requests
+              </div>
+            </div>
+            {primaryQueue && (
+              <Link className="btn sm cta" href={primaryQueue}>
+                Open queue <ArrowRight />
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="attn ok">
+            <span className="ai">
+              <CheckCircle2 />
+            </span>
+            <b>You&apos;re all caught up</b>
+            <span className="sub">
+              No wallet topups, ad-account topups, or account requests are waiting.
+            </span>
+          </div>
+        )}
+        <button
+          className="btn grad sm invite"
+          onClick={() => dispatch("open-invite-user")}
+        >
           <UserPlus /> New invite
         </button>
       </div>
-
-      {/* Needs-your-action hero (mockup .attn) — real pending counts. */}
-      {needsAction > 0 ? (
-        <div className="attn">
-          <span className="ai">
-            <Zap />
-          </span>
-          <div>
-            <b>
-              {needsAction} {needsAction === 1 ? "item needs" : "items need"} action
-            </b>
-            <div className="sub">
-              {pending.walletTopups} wallet topups · {pending.topUps} ad-account
-              topups · {pending.adAccountRequests} account requests
-            </div>
-          </div>
-          {primaryQueue && (
-            <Link className="btn sm cta" href={primaryQueue}>
-              Open queue <ArrowRight />
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="attn ok">
-          <span className="ai">
-            <CheckCircle2 />
-          </span>
-          <div>
-            <b>You&apos;re all caught up</b>
-            <div className="sub">
-              No wallet topups, ad-account topups, or account requests are waiting.
-            </div>
-          </div>
-        </div>
-      )}
 
       <h2>Queues</h2>
       <div className="qgrid">
@@ -190,20 +225,35 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      {/* Real profit + activity metrics with the period toggle. The wired
-          DashboardStatsCards carries its own admin/super-admin gating. */}
-      <h2>Profit &amp; activity</h2>
-      <DashboardStatsCards />
+      {/* Real profit + activity metrics with the period toggle, grouped as one
+          cohesive section. The wired DashboardStatsCards carries its own
+          admin/super-admin gating and renders the hero + control + metrics. */}
+      <section className="pa">
+        <div className="pa-head">
+          <h2>Profit &amp; activity</h2>
+          <p className="pa-sub">Revenue, fees and growth at a glance.</p>
+        </div>
+        <DashboardStatsCards />
+      </section>
 
-      {/* Super-admin-only operational panels (unchanged wiring). */}
+      {/* Super-admin-only diagnostics — de-emphasized in a collapsed-by-default
+          "System" section at the bottom. Wiring is unchanged; the panels stay
+          fully functional once expanded. */}
       {isSuperAdmin && (
-        <>
-          <h2>System</h2>
+        <details className="sysbox">
+          <summary>
+            <span className="sys-ic">
+              <Server />
+            </span>
+            <span>System</span>
+            <span className="sys-hint">Status &amp; rate limits</span>
+            <ChevronDown className="sys-chev" />
+          </summary>
           <div className="sysgrid">
             <SystemStatusPanel />
             <RateLimitsView />
           </div>
-        </>
+        </details>
       )}
     </div>
   );

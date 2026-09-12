@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
   CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
   Coins,
   Monitor,
   Percent,
@@ -18,8 +20,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 import { AffiliateCommissionsStatsCard } from "@/components/dashboard/affiliate-commissions-stats-card";
 import { ExtraAdAccountsStatsCard } from "@/components/dashboard/extra-ad-accounts-stats-card";
-import { FeesStatsCard } from "@/components/dashboard/fees-stats-card";
-import { ProfitStatsCard } from "@/components/dashboard/profit-stats-card";
 import { RegistrationsStatsCard } from "@/components/dashboard/registrations-stats-card";
 import { SubscriptionsStatsCard } from "@/components/dashboard/subscriptions-stats-card";
 import { TopupsStatsCard } from "@/components/dashboard/topups-stats-card";
@@ -92,37 +92,48 @@ const formatDateLabel = (date: Date) => dayjs(date).format(DATE_FORMAT);
 // belt-and-suspenders disabled under reduced-motion (the shell already forces
 // `.psmapp *{animation:none}` there, which our elements inherit).
 const STATS_CSS = `
-.psm-stats{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:16px}
+.psm-stats{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:12px}
 
-.psm-stats .statctl{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-.psm-stats .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px;flex-wrap:wrap}
-.psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.84rem;color:var(--muted);padding:8px 14px;border-radius:8px;cursor:pointer;transition:.13s}
+/* Period control — one clearly-labelled bar that governs the metrics below. */
+.psm-stats .statctl{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:7px 9px;box-shadow:var(--shadow-sm)}
+.psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.psm-stats .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:nowrap}
+.psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.82rem;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.13s}
 .psm-stats .seg2 button:hover{color:var(--ink)}
 .psm-stats .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}
-.psm-stats .rangebtn{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;font-family:var(--bd);font-weight:700;font-size:.85rem;color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
+.psm-stats .rangebtn{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;font-family:var(--bd);font-weight:700;font-size:.83rem;color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
 .psm-stats .rangebtn:hover{border-color:var(--primary);color:var(--primary-600)}
 .psm-stats .rangebtn.on{border-color:var(--primary);color:var(--primary-600);background:var(--primary-tint)}
-.psm-stats .rangebtn svg{width:16px;height:16px}
+.psm-stats .rangebtn svg{width:15px;height:15px}
+/* Month step arrows — nudge the selected period back/forward one month. */
+.psm-stats .stepbtn{display:inline-grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line-2);border-radius:10px;background:var(--panel);color:var(--muted);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
+.psm-stats .stepbtn:hover:not(:disabled){border-color:var(--primary);color:var(--primary-600)}
+.psm-stats .stepbtn:disabled{opacity:.4;cursor:default}
+.psm-stats .stepbtn svg{width:16px;height:16px}
 
-.psm-stats .profit-hero{position:relative;border-radius:16px;padding:22px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2) 55%,#1a2350);box-shadow:0 22px 46px -26px rgba(20,30,80,.85)}
+/* Section sub-labels with a trailing hairline — separates period vs all-time. */
+.psm-stats .slab{display:flex;align-items:center;gap:10px;margin-top:2px;font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.psm-stats .slab::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.psm-stats .profit-hero{position:relative;border-radius:16px;padding:16px 18px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2) 55%,#1a2350);box-shadow:0 22px 46px -26px rgba(20,30,80,.85)}
 .psm-stats .profit-hero>*{position:relative}
 .psm-stats .profit-hero .hclip{position:absolute;inset:0;overflow:hidden;border-radius:16px;pointer-events:none}
 .psm-stats .profit-hero .ring{position:absolute;inset:-45%;background:conic-gradient(from 0deg,transparent,rgba(91,141,255,.18),transparent 30%,rgba(139,92,246,.18),transparent 60%);animation:psmspin 26s linear infinite}
 @keyframes psmspin{to{transform:rotate(360deg)}}
-.psm-stats .profit-hero .pl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
-.psm-stats .profit-hero .pv{font-family:var(--hd);font-weight:800;font-size:2.6rem;letter-spacing:-.02em;margin:6px 0 2px;background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
-.psm-stats .profit-hero .prow{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
-.psm-stats .profit-hero .prow .b{flex:1;min-width:118px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 13px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-.psm-stats .profit-hero .prow .b span{font-size:.64rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.78}
-.psm-stats .profit-hero .prow .b b{display:block;font-family:var(--hd);font-size:1.35rem;margin-top:5px;font-variant-numeric:tabular-nums}
+.psm-stats .profit-hero .pl{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.psm-stats .profit-hero .pv{font-family:var(--hd);font-weight:800;font-size:2.15rem;letter-spacing:-.02em;margin:4px 0 2px;background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+.psm-stats .profit-hero .prow{display:flex;gap:10px;flex-wrap:wrap;margin-top:11px}
+.psm-stats .profit-hero .prow .b{flex:1;min-width:112px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:9px 11px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.psm-stats .profit-hero .prow .b span{font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.78}
+.psm-stats .profit-hero .prow .b b{display:block;font-family:var(--hd);font-size:1.2rem;margin-top:4px;font-variant-numeric:tabular-nums}
 
-.psm-stats .mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.psm-stats .metric{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow-sm);transition:transform .16s,box-shadow .16s}
+.psm-stats .mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.psm-stats .metric{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);transition:transform .16s,box-shadow .16s}
 .psm-stats .metric:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-.psm-stats .metric .k{display:flex;align-items:center;gap:8px;font-size:.73rem;font-weight:600;color:var(--faint)}
-.psm-stats .metric .v{font-family:var(--hd);font-weight:800;font-size:1.25rem;margin-top:9px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-.psm-stats .metric .v.err{font-family:var(--bd);font-weight:600;font-size:.95rem;color:var(--muted)}
-.psm-stats .metric .sub{font-size:.72rem;color:var(--faint);margin-top:2px;min-height:1em}
+.psm-stats .metric .k{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:600;color:var(--faint)}
+.psm-stats .metric .v{font-family:var(--hd);font-weight:800;font-size:1.15rem;margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.psm-stats .metric .v.err{font-family:var(--bd);font-weight:600;font-size:.92rem;color:var(--muted)}
+.psm-stats .metric .sub{font-size:.71rem;color:var(--faint);margin-top:2px;min-height:1em}
 .psm-stats .ci{width:26px;height:26px;border-radius:8px;display:inline-grid;place-items:center;flex:0 0 auto}
 .psm-stats .ci svg{width:15px;height:15px}
 .psm-stats .ci.b{background:var(--primary-tint);color:var(--primary-600)}
@@ -135,7 +146,9 @@ const STATS_CSS = `
 
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.psm-stats .mgrid{grid-template-columns:1fr}}
-@media (max-width:640px){.psm-stats .profit-hero .pv{font-size:2.1rem}}
+/* Only very narrow screens let the period bar wrap. */
+@media (max-width:640px){.psm-stats .seg2{flex-wrap:wrap}.psm-stats .statctl-lbl{flex:1 1 100%;margin:0 0 2px}}
+@media (max-width:640px){.psm-stats .profit-hero .pv{font-size:1.85rem}}
 @media (prefers-reduced-motion:reduce){.psm-stats .profit-hero .ring{animation:none}}
 `;
 
@@ -203,8 +216,48 @@ export function DashboardStatsCards() {
     }
   };
 
+  // Month stepping + "Last month" are expressed purely as a custom dateRange,
+  // so they ride the existing getPeriodRange(period, dateRange) path — no new
+  // data source. Landing on the current month restores the named "month"
+  // period so it matches the "This Month" segment exactly.
+  const thisMonthStart = dayjs().startOf("month");
+  const lastMonthStart = thisMonthStart.subtract(1, "month");
+
+  const selectMonth = (anchor: dayjs.Dayjs) => {
+    const start = anchor.startOf("month");
+    if (start.isSame(thisMonthStart, "month")) {
+      setDashboardPeriod("month");
+      setCalendarMonth(start.toDate());
+      return;
+    }
+    handleDateRangeSelect({
+      from: start.toDate(),
+      to: anchor.endOf("month").toDate(),
+    });
+    setCalendarMonth(start.toDate());
+  };
+
+  const monthAnchor = dateRange?.from ? dayjs(dateRange.from) : dayjs();
+  const canStepForward = monthAnchor
+    .startOf("month")
+    .isBefore(thisMonthStart, "month");
+  const stepMonth = (delta: number) => {
+    if (delta > 0 && !canStepForward) return;
+    selectMonth(monthAnchor.add(delta, "month"));
+  };
+
+  const isLastMonthSelected =
+    hasRange &&
+    !!dateRange?.from &&
+    !!dateRange?.to &&
+    dayjs(dateRange.from).isSame(lastMonthStart, "day") &&
+    dayjs(dateRange.to).isSame(lastMonthStart.endOf("month"), "day");
+
   const rangeTrigger = (
-    <button type="button" className={`rangebtn${hasRange ? " on" : ""}`}>
+    <button
+      type="button"
+      className={`rangebtn${hasRange && !isLastMonthSelected ? " on" : ""}`}
+    >
       <CalendarIcon />
       {dateRangeLabel}
     </button>
@@ -212,6 +265,15 @@ export function DashboardStatsCards() {
 
   const periodControl = (
     <div className="statctl">
+      <span className="statctl-lbl">Period</span>
+      <button
+        type="button"
+        className="stepbtn"
+        aria-label="Previous month"
+        onClick={() => stepMonth(-1)}
+      >
+        <ChevronLeft />
+      </button>
       <div className="seg2" role="group" aria-label="Dashboard period">
         {PERIODS.map((p) => (
           <button
@@ -224,7 +286,24 @@ export function DashboardStatsCards() {
             {p.label}
           </button>
         ))}
+        <button
+          type="button"
+          aria-pressed={isLastMonthSelected}
+          className={isLastMonthSelected ? "on" : ""}
+          onClick={() => selectMonth(lastMonthStart)}
+        >
+          Last month
+        </button>
       </div>
+      <button
+        type="button"
+        className="stepbtn"
+        aria-label="Next month"
+        onClick={() => stepMonth(1)}
+        disabled={!canStepForward}
+      >
+        <ChevronRight />
+      </button>
 
       {isMobile ? (
         <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
@@ -274,7 +353,8 @@ export function DashboardStatsCards() {
       {isAdminDashboard ? (
         <>
           {periodControl}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
+          <div className="slab">This period</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
             <TopupsStatsCard period={period} dateRange={dateRange} />
             <SubscriptionsStatsCard period={period} dateRange={dateRange} />
             <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
@@ -333,19 +413,21 @@ export function DashboardStatsCards() {
 
           {periodControl}
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
-            <TopupsStatsCard period={period} dateRange={dateRange} />
-            <FeesStatsCard period={period} dateRange={dateRange} />
+          {/* Period-scoped activity, limited to the metrics that are NOT
+              already surfaced by the profit-hero + the "All time" totals.
+              Topups, Fees and Profit were removed from here: the hero and the
+              all-time tiles are the single source for those figures, so showing
+              period cards for them repeated the same stat blocks (de-duplicated
+              per feedback). The cards that remain are unique to this section. */}
+          <div className="slab">This period</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 *:data-[slot=card]:shadow-xs">
             <AffiliateCommissionsStatsCard period={period} dateRange={dateRange} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
             <SubscriptionsStatsCard period={period} dateRange={dateRange} />
             <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
-            <ProfitStatsCard period={period} dateRange={dateRange} />
             <RegistrationsStatsCard period={period} dateRange={dateRange} />
           </div>
 
+          <div className="slab">All time</div>
           <div className="mgrid">
             <SummaryStatCard
               title="Total Topups"
