@@ -626,11 +626,11 @@ export default function AffiliateApp() {
             <div className="refhead">
               <h2>
                 Your referrals{" "}
-                <span className="muted2">· {activeCount} active</span>
+                <span className="muted2">· {refsActive} active</span>
               </h2>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {all.rows.length ? (
+              {refs.rows.length ? (
                 refs.rows.map((r) => (
                   <div className="rrow" key={r.referred_advertiser_id}>
                     <div

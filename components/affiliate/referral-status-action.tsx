@@ -29,6 +29,9 @@ export default function ReferralStatusAction({
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: (_data, next) => {
+      // The affiliate table keys on "referral-links-with-details"; other
+      // views key on "affiliates". Invalidate both so the row refetches.
+      queryClient.invalidateQueries({ queryKey: ["referral-links-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["affiliates"] });
       toast.success(
         next === "active" ? "Affiliate approved" : "Affiliate rejected",

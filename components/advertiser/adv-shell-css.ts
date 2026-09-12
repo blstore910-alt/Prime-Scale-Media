@@ -34,7 +34,10 @@ export const ADV_CSS = `
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   .tb-brand{display:flex;align-items:center;gap:10px}.tb-brand .mark{width:34px;height:34px;display:none}/* sidebar shows the logo on desktop */
-  .tb-title{font-family:var(--hd);font-weight:800;font-size:1.1rem;letter-spacing:-.02em}
+  /* The page content renders its own <h1> per view (.phead h1), so the
+     topbar title would duplicate it on desktop — hide it everywhere, same
+     as the .psmapp shell. On mobile the brand mark shows instead. */
+  .tb-title{font-family:var(--hd);font-weight:800;font-size:1.1rem;letter-spacing:-.02em;display:none}
   .search{display:flex;align-items:center;gap:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:9px 13px;min-width:160px;max-width:260px;flex:1;color:var(--faint)}
   .search svg{width:17px;height:17px}.search input{border:0;background:none;outline:0;font-family:var(--bd);font-size:.9rem;color:var(--ink);width:100%}
   .tb-spacer{flex:1}

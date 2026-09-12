@@ -1,3 +1,5 @@
+import { safeErrorMessage } from "@/lib/pure-error";
+
 export async function getExchangeRate(
   from: string,
   to?: string,
@@ -24,7 +26,7 @@ export async function getExchangeRate(
 
     return to ? (amount ? amount * rate.toFixed(2) : rate.toFixed(2)) : data;
   } catch (error) {
-    console.error("Exchange API Error:", error);
+    console.error("Exchange API Error:", safeErrorMessage(error));
     throw error;
   }
 }

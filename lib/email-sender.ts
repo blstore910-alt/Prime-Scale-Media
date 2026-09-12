@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 /**
  * Sends an email using Brevo SMTP.
@@ -38,7 +39,7 @@ export async function sendEmail({ to, subject, html, text }: Payload) {
 
     return info;
   } catch (error) {
-    console.error("❌ Error sending email:", error);
+    console.error("Error sending email:", safeErrorMessage(error));
     throw error;
   }
 }

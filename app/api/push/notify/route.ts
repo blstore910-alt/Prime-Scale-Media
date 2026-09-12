@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import webpush from "web-push";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 export const runtime = "nodejs";
 
@@ -217,7 +218,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, sent, cleaned: deadIds.length });
   } catch (e) {
-    console.error("push/notify failed:", e);
+    console.error("push/notify failed:", safeErrorMessage(e));
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
