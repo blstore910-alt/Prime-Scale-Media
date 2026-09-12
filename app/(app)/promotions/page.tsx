@@ -1,17 +1,11 @@
 import PsmPromotions from "@/components/promotions/psm-promotions";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("user_id", user?.user?.id)
-    .single();
-
-  if (profile?.role !== "admin") redirect("/");
+  // Use the shared guard: honours the active profile_id cookie, checks
+  // is_active/status, and doesn't throw for admins with multiple profiles
+  // (the hand-rolled .single() role check did all three wrong).
+  await requireAdmin();
 
   return <PsmPromotions />;
 }

@@ -10,9 +10,10 @@ import { TopupDetailsSheet } from "./topup-details-sheet";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
-  new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
-    Number(v ?? 0),
-  );
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(v ?? 0));
 
 const advName = (t: Topup) => {
   const a = t.advertiser as
