@@ -30,9 +30,12 @@ import { Badge } from "../ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const formSchema = z.object({
+  // Plans store topup_fee_pct as numeric(5,2), so the effective fee can be
+  // fractional (e.g. 2.5% after a discount). Forcing a whole number here
+  // used to round the default up and — because the rounded value then
+  // differed from the real fee — silently rewrite the charge on verify.
   fee: z.coerce
     .number()
-    .int("Fee must be a whole number")
     .min(0, "Fee must be 0 or greater")
     .max(100, "Fee cannot exceed 100"),
 });
@@ -104,7 +107,9 @@ function VerifyTopupInvoice({
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      fee: Math.round(Number(topup.fee) || 0),
+      // Keep the real (possibly fractional) fee as the default so clicking
+      // through Verify without touching the field sends p_new_fee_percent=null.
+      fee: Number(topup.fee) || 0,
     },
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
   });
@@ -159,7 +164,9 @@ function VerifyTopupInvoice({
   const handleVerify = (values: FormValues) => {
     const newFee = Number(values.fee);
     const originalFee = Number(topup.fee);
-    const feeChanged = newFee !== originalFee;
+    // Tolerance so float noise on an untouched fractional fee doesn't count
+    // as a change and rewrite the charge.
+    const feeChanged = Math.abs(newFee - originalFee) > 0.001;
 
     verifyTopup({
       topupId: topup.id,
@@ -243,7 +250,7 @@ function VerifyTopupInvoice({
                   <Input
                     {...register("fee")}
                     type="number"
-                    step="1"
+                    step="0.01"
                     min="0"
                     max="100"
                     className="h-6 w-16 text-right px-1 py-0 bg-transparent border-none focus-visible:ring-0 text-xs"
