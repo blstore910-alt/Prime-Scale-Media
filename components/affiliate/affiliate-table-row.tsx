@@ -47,7 +47,7 @@ export default function AffiliateTableRow({
 }: AffiliateTableRowProps) {
   return (
     <tr>
-      <td>
+      <td data-label="Advertiser">
         <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
           {referral.referred_advertiser_name || EMPTY_VALUE}
           <span
@@ -66,7 +66,7 @@ export default function AffiliateTableRow({
           {referral.referred_advertiser_email || EMPTY_VALUE}
         </div>
       </td>
-      <td>
+      <td data-label="Affiliate">
         <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
           {referral.affiliate_advertiser_name || EMPTY_VALUE}
           <span
@@ -85,30 +85,30 @@ export default function AffiliateTableRow({
           {referral.affiliate_advertiser_email || EMPTY_VALUE}
         </div>
       </td>
-      <td style={{ textTransform: "capitalize" }}>
+      <td data-label="Commission Type" style={{ textTransform: "capitalize" }}>
         {COMMISSION_TYPE_LABELS[referral.commission_type as string] ||
           EMPTY_VALUE}
       </td>
-      <td className="r mono">
+      <td data-label="Commission Monthly" className="r mono">
         {formatCommissionAmount(
           referral.commission_monthly,
           referral.commission_currency,
         )}
       </td>
-      <td className="r mono">
+      <td data-label="Commission One-time" className="r mono">
         {formatCommissionAmount(
           referral.commission_onetime,
           referral.commission_currency,
         )}
       </td>
-      <td className="r mono">{formatPercent(referral.commission_pct)}</td>
-      <td className="r mono">
+      <td data-label="Commission Recurring" className="r mono">{formatPercent(referral.commission_pct)}</td>
+      <td data-label="Earnings USD" className="r mono">
         {formatCurrency(referral.earnings_usd as number, "USD")}
       </td>
-      <td className="r mono">
+      <td data-label="Earnings EUR" className="r mono">
         {formatCurrency(referral.earnings_eur as number, "EUR")}
       </td>
-      <td className="r">
+      <td data-label="Status" className="r">
         <ReferralStatusAction
           referralLinkId={referral.id}
           status={referral.status}

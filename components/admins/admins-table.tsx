@@ -149,11 +149,11 @@ export default function AdminsTable() {
                   const lastSeen = formatLastSeen(admin.last_seen_at);
                   return (
                     <tr key={admin.id}>
-                      <td style={{ fontWeight: 700 }}>
+                      <td data-label="Name" style={{ fontWeight: 700 }}>
                         {admin.full_name ?? "-"}
                       </td>
-                      <td>{admin.email ?? "-"}</td>
-                      <td>
+                      <td data-label="Email">{admin.email ?? "-"}</td>
+                      <td data-label="Status">
                         <span
                           className={`badge ${isActive ? "ok" : "due"}`}
                           style={{ textTransform: "capitalize" }}
@@ -161,7 +161,7 @@ export default function AdminsTable() {
                           {admin.status ?? "unknown"}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Last seen">
                         <span
                           style={{
                             fontSize: ".8rem",
@@ -175,7 +175,7 @@ export default function AdminsTable() {
                           {lastSeen.label}
                         </span>
                       </td>
-                      <td className="r">
+                      <td data-label="Action" className="r">
                         <button
                           className={`btn sm${isActive ? " ghost" : ""}`}
                           disabled={pendingAdminId === admin.id}

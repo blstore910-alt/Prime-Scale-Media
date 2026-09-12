@@ -358,7 +358,7 @@ function AdvertiserRow({
 
   return (
     <tr style={{ cursor: "pointer" }} onClick={onView}>
-      <td>
+      <td data-label="Advertiser">
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
           <span className={`ci ${tone}`} style={chipStyle}>
             {initials(profile.full_name)}
@@ -372,7 +372,7 @@ function AdvertiserRow({
           </div>
         </div>
       </td>
-      <td>
+      <td data-label="Plan">
         {hasSubscription ? (
           <div>
             <span
@@ -407,13 +407,13 @@ function AdvertiserRow({
           </button>
         )}
       </td>
-      <td className="r mono">
+      <td data-label="Wallet Topups" className="r mono">
         <div>{formatCurrency(topupTotals.eur, "EUR")}</div>
         <div style={{ color: "var(--faint)" }}>
           {formatCurrency(topupTotals.usd, "USD")}
         </div>
       </td>
-      <td>
+      <td data-label="Status">
         <span
           className={`badge ${isActive ? "ok" : "due"}`}
           style={{ textTransform: "capitalize" }}
@@ -421,7 +421,7 @@ function AdvertiserRow({
           {profile.status ?? "—"}
         </span>
       </td>
-      <td className="r">
+      <td data-label="Actions" className="r">
         <div
           style={{
             display: "grid",

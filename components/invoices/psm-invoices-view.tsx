@@ -220,33 +220,34 @@ export default function PsmInvoicesView() {
                   const paid = inv.status === "paid";
                   return (
                     <tr key={inv.id}>
-                      <td style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <td data-label="Invoice #" style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
                         {inv.number}
                       </td>
                       <td
+                        data-label="Type"
                         style={{ textTransform: "capitalize" }}
                         className="muted"
                       >
                         {inv.type ?? "—"}
                       </td>
-                      <td className="r mono" style={{ fontWeight: 700 }}>
+                      <td data-label="Amount" className="r mono" style={{ fontWeight: 700 }}>
                         {symbolFor(inv)}
                         {fmtAmount(inv.total)}
                       </td>
-                      <td className="r">
+                      <td data-label="Status" className="r">
                         <span className={`badge ${paid ? "ok" : "pend"}`}>
                           {paid ? "Paid" : "Unpaid"}
                         </span>
                       </td>
-                      <td className="r muted">
+                      <td data-label="Paid at" className="r muted">
                         {inv.paid_at
                           ? dayjs(inv.paid_at).format(DATE_FORMAT)
                           : "—"}
                       </td>
-                      <td className="r muted">
+                      <td data-label="Created on" className="r muted">
                         {dayjs(inv.created_at).format(DATE_FORMAT)}
                       </td>
-                      <td className="r">
+                      <td data-label="Invoice" className="r">
                         <button
                           className="btn ghost sm"
                           onClick={() => handleDownload(inv)}

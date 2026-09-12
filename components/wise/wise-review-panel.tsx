@@ -164,7 +164,7 @@ export default function WiseReviewPanel() {
                   const badge = statusBadge(r.status);
                   return (
                     <tr key={r.id}>
-                      <td style={{ verticalAlign: "top" }}>
+                      <td data-label="Amount & date" style={{ verticalAlign: "top" }}>
                         <div className="mono" style={{ fontWeight: 700 }}>
                           {r.currency} {(r.amount_cents / 100).toFixed(2)}
                         </div>
@@ -175,7 +175,7 @@ export default function WiseReviewPanel() {
                           {shortDate(r.created_at)}
                         </div>
                       </td>
-                      <td style={{ verticalAlign: "top" }}>
+                      <td data-label="Reference & sender" style={{ verticalAlign: "top" }}>
                         <div
                           className="mono"
                           style={{
@@ -207,7 +207,7 @@ export default function WiseReviewPanel() {
                           Wise: {r.external_id}
                         </div>
                       </td>
-                      <td style={{ verticalAlign: "top" }}>
+                      <td data-label="Result" style={{ verticalAlign: "top" }}>
                         <span
                           className={badge.cls}
                           style={{ textTransform: "capitalize", ...badge.style }}
@@ -215,7 +215,7 @@ export default function WiseReviewPanel() {
                           {r.status}
                         </span>
                       </td>
-                      <td style={{ verticalAlign: "top" }}>
+                      <td data-label="Note" style={{ verticalAlign: "top" }}>
                         <div
                           className="muted"
                           style={{ fontSize: ".82rem", ...clip, maxWidth: 240 }}
@@ -224,7 +224,7 @@ export default function WiseReviewPanel() {
                           {r.note ?? "—"}
                         </div>
                       </td>
-                      <td className="r" style={{ verticalAlign: "top" }}>
+                      <td data-label="Action" className="r" style={{ verticalAlign: "top" }}>
                         {r.status === "suggested" && r.suggested_topup_id ? (
                           <button
                             className="btn sm"

@@ -344,9 +344,9 @@ export default function ReconciliationView() {
               <tbody>
                 {(entriesQ.data ?? []).map((e) => (
                   <tr key={e.id}>
-                    <td style={{ whiteSpace: "nowrap" }}>{e.occurred_on}</td>
-                    <td>{DESTINATION_LABELS[e.destination]}</td>
-                    <td>
+                    <td data-label="Date" style={{ whiteSpace: "nowrap" }}>{e.occurred_on}</td>
+                    <td data-label="Destination">{DESTINATION_LABELS[e.destination]}</td>
+                    <td data-label="Direction">
                       <span
                         className={`badge ${
                           e.direction === "deposit" ? "ok" : "pend"
@@ -355,8 +355,9 @@ export default function ReconciliationView() {
                         {e.direction === "deposit" ? "in" : "out"}
                       </span>
                     </td>
-                    <td className="r mono">{fmt(e.amount, e.currency)}</td>
+                    <td data-label="Amount" className="r mono">{fmt(e.amount, e.currency)}</td>
                     <td
+                      data-label="Note"
                       className="muted"
                       style={{
                         maxWidth: "16rem",

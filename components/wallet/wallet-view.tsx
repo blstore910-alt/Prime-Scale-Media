@@ -286,18 +286,18 @@ export default function WalletView() {
                   const b = statusBadge(t.status);
                   return (
                     <tr key={t.id}>
-                      <td style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <td data-label="Date" style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
                         {dayjs(t.created_at).format("D MMM")}
                       </td>
-                      <td className="mono">{t.reference_no ?? "—"}</td>
-                      <td className="muted">
+                      <td data-label="Reference" className="mono">{t.reference_no ?? "—"}</td>
+                      <td data-label="Description" className="muted">
                         {t.description || "Wallet top-up"}
                       </td>
-                      <td className="r mono" style={{ fontWeight: 700 }}>
+                      <td data-label="Amount" className="r mono" style={{ fontWeight: 700 }}>
                         {t.currency === "USD" ? "$" : "€"}
                         {fmt2(t.amount)}
                       </td>
-                      <td className="r">
+                      <td data-label="Status" className="r">
                         <span className={`badge ${b.cls}`}>{b.label}</span>
                       </td>
                     </tr>

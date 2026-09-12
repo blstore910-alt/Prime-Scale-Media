@@ -131,7 +131,7 @@ export default function ActivityLogsTable() {
                   const authorEmail = log.author?.email || "--";
                   return (
                     <tr key={log.id}>
-                      <td>
+                      <td data-label="Author">
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 700 }}>{authorName}</div>
                           <div
@@ -144,12 +144,12 @@ export default function ActivityLogsTable() {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Action">
                         <span className={`badge ${dbActionBadge(log.db_action)}`}>
                           {formatActionLabel(log.action)}
                         </span>
                       </td>
-                      <td className="r">
+                      <td data-label="View Details" className="r">
                         <button
                           className="btn ghost sm"
                           onClick={() => setSelectedLog(log)}

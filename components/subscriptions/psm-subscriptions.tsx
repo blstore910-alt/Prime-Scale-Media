@@ -191,7 +191,7 @@ export default function PsmSubscriptions() {
                     isStatusUpdating && pendingSubscriptionId === s.id;
                   return (
                     <tr key={s.id}>
-                      <td>
+                      <td data-label="Advertiser">
                         <div
                           style={{
                             display: "flex",
@@ -227,19 +227,19 @@ export default function PsmSubscriptions() {
                           </div>
                         </div>
                       </td>
-                      <td className="r mono">
+                      <td data-label="Amount" className="r mono">
                         {formatCurrency(
                           Number(s.amount ?? 0),
                           s.currency || "EUR",
                         )}
                       </td>
-                      <td>{formatSubscriptionDate(s.start_date)}</td>
-                      <td>
+                      <td data-label="Start date">{formatSubscriptionDate(s.start_date)}</td>
+                      <td data-label="Next payment on">
                         {s.next_payment_date
                           ? dayjs(s.next_payment_date).format(DATE_FORMAT)
                           : "—"}
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span
                           className={`badge ${statusCls(s.status)}`}
                           style={{ textTransform: "capitalize" }}
@@ -247,7 +247,7 @@ export default function PsmSubscriptions() {
                           {s.status}
                         </span>
                       </td>
-                      <td className="r">
+                      <td data-label="Actions" className="r">
                         <div
                           style={{
                             display: "flex",

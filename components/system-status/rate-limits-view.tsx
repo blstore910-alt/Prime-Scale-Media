@@ -87,7 +87,11 @@ export default function RateLimitsView() {
 
       {isLoading ? (
         <div className="empty">Loading…</div>
-      ) : isError || !data?.length ? (
+      ) : isError ? (
+        <div className="empty">
+          Couldn&apos;t load rate-limit buckets. Try again.
+        </div>
+      ) : !data?.length ? (
         <div className="empty">No active rate-limit buckets.</div>
       ) : (
         <div className="tblwrap">
@@ -106,16 +110,16 @@ export default function RateLimitsView() {
                 const near = ceiling !== null && b.count / ceiling >= 0.8;
                 return (
                   <tr key={b.key}>
-                    <td className="keycell">{b.key}</td>
-                    <td className="r">
+                    <td data-label="Key" className="keycell">{b.key}</td>
+                    <td data-label="Count" className="r">
                       {near ? (
                         <span className="badge due">{b.count}</span>
                       ) : (
                         b.count
                       )}
                     </td>
-                    <td className="r est">{ceiling ?? "-"}</td>
-                    <td className="win">
+                    <td data-label="Ceiling (est.)" className="r est">{ceiling ?? "-"}</td>
+                    <td data-label="Window started" className="win">
                       {new Date(b.window_start).toLocaleString()}
                     </td>
                   </tr>

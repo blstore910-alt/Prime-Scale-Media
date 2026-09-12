@@ -254,16 +254,16 @@ export default function AuditEventsTable() {
               <tbody>
                 {events.map((ev) => (
                   <tr key={ev.id}>
-                    <td className="mono" style={{ whiteSpace: "nowrap" }}>
+                    <td data-label="When" className="mono" style={{ whiteSpace: "nowrap" }}>
                       {new Date(ev.occurred_at).toLocaleString()}
                     </td>
-                    <td className="mono">{ev.table_name}</td>
-                    <td>
+                    <td data-label="Table" className="mono">{ev.table_name}</td>
+                    <td data-label="Action">
                       <span className={`badge ${actionBadge(ev.action)}`}>
                         {ev.action}
                       </span>
                     </td>
-                    <td className="mono">
+                    <td data-label="Row" className="mono">
                       {ev.row_id ? (
                         <span
                           style={{
@@ -312,6 +312,7 @@ export default function AuditEventsTable() {
                       )}
                     </td>
                     <td
+                      data-label="Actor"
                       className="mono"
                       style={{
                         color: "var(--muted)",
@@ -323,7 +324,7 @@ export default function AuditEventsTable() {
                     >
                       {ev.actor_profile_id ?? "—"}
                     </td>
-                    <td className="r">
+                    <td data-label="Details" className="r">
                       <button
                         className="btn ghost sm"
                         onClick={() => setSelected(ev)}

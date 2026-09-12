@@ -242,7 +242,7 @@ export default function CommissionsTable() {
                           (commission.status ?? "").toLowerCase() === "paid";
                         return (
                           <tr key={commission.id}>
-                            <td>
+                            <td data-label="Advertiser">
                               <div style={{ fontWeight: 700 }}>
                                 {commission.referred_advertiser_name || "—"}
                               </div>
@@ -255,7 +255,7 @@ export default function CommissionsTable() {
                               </div>
                             </td>
                             {isAdmin && (
-                              <td>
+                              <td data-label="Affiliate">
                                 <div style={{ fontWeight: 600 }}>
                                   {commission.affiliate_advertiser_name || "—"}
                                 </div>
@@ -269,13 +269,14 @@ export default function CommissionsTable() {
                               </td>
                             )}
                             <td
+                              data-label="Commission"
                               className="r mono"
                               style={{ fontWeight: 700, color: "#0e8f66" }}
                             >
                               {currencySymbol}
                               {formatAmount(commission.amount)}
                             </td>
-                            <td>
+                            <td data-label="Commission Type">
                               <span
                                 className="badge info"
                                 style={{ textTransform: "capitalize" }}
@@ -284,7 +285,7 @@ export default function CommissionsTable() {
                                   commission.type}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="Status">
                               <span
                                 className={`badge ${paid ? "ok" : "pend"}`}
                                 style={{ textTransform: "capitalize" }}
@@ -292,11 +293,11 @@ export default function CommissionsTable() {
                                 {commission.status || "—"}
                               </span>
                             </td>
-                            <td className="r muted">
+                            <td data-label="Date" className="r muted">
                               {formatDate(commission.created_at)}
                             </td>
                             {isAdmin && (
-                              <td className="r">
+                              <td data-label="Action" className="r">
                                 <CommissionStatusAction
                                   commissionId={commission.id}
                                   status={commission.status}

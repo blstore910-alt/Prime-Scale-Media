@@ -683,10 +683,10 @@ function PsmAdminAccountRow({
 
   return (
     <tr onClick={handleRowClick} style={{ cursor: "pointer" }}>
-      <td className="mono">{account.advertiser?.tenant_client_code || "—"}</td>
-      <td style={{ fontWeight: 600 }}>{account.name}</td>
-      <td>{account.advertiser?.profile?.full_name || "—"}</td>
-      <td>
+      <td data-label="Client Code" className="mono">{account.advertiser?.tenant_client_code || "—"}</td>
+      <td data-label="Account Name" style={{ fontWeight: 600 }}>{account.name}</td>
+      <td data-label="Advertiser">{account.advertiser?.profile?.full_name || "—"}</td>
+      <td data-label="Platform">
         <span
           style={{ display: "inline-flex", alignItems: "center", gap: 9 }}
         >
@@ -697,14 +697,15 @@ function PsmAdminAccountRow({
         </span>
       </td>
       <td
+        data-label="Fee"
         className="r"
         onClick={handleFeeEdit}
         style={{ cursor: isAdmin ? "pointer" : "default" }}
       >
         {fee}%
       </td>
-      <td>{account.currency || "N/A"}</td>
-      <td>
+      <td data-label="Currency">{account.currency || "N/A"}</td>
+      <td data-label="Status">
         <span
           className={`badge ${statusCls}`}
           style={{ textTransform: "capitalize" }}
@@ -712,7 +713,7 @@ function PsmAdminAccountRow({
           {account.status}
         </span>
       </td>
-      <td className="r">
+      <td data-label="Actions" className="r">
         {isDirty ? (
           <div
             style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}

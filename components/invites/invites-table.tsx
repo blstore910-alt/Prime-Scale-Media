@@ -146,7 +146,7 @@ export default function InvitesTable() {
                   INVITE_BADGE.pending;
                 return (
                   <tr key={invite.id}>
-                    <td>
+                    <td data-label="Sender">
                       <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
                         {invite.sender?.full_name || "N/A"}
                       </div>
@@ -156,15 +156,15 @@ export default function InvitesTable() {
                         {invite.sender?.email || "No email"}
                       </div>
                     </td>
-                    <td style={{ fontWeight: 600 }}>{invite.email || "—"}</td>
-                    <td>
+                    <td data-label="Recipient Email" style={{ fontWeight: 600 }}>{invite.email || "—"}</td>
+                    <td data-label="Status">
                       <span className={`badge ${badge.cls}`}>
                         {badge.label}
                       </span>
                     </td>
-                    <td>{dayjs(invite.created_at).format(DATE_TIME_FORMAT)}</td>
-                    <td>{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
-                    <td className="r">
+                    <td data-label="Created on">{dayjs(invite.created_at).format(DATE_TIME_FORMAT)}</td>
+                    <td data-label="Expires on">{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
+                    <td data-label="Action" className="r">
                       {invite.status === "pending" ? (
                         <button
                           className="btn ghost sm"

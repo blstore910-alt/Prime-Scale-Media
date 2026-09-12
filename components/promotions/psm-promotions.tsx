@@ -388,7 +388,7 @@ export default function PsmPromotions() {
               <tbody>
                 {rows.map((p) => (
                   <tr key={p.id} style={p.active ? undefined : { opacity: 0.55 }}>
-                    <td>
+                    <td data-label="Perk">
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span
                           className="ci p"
@@ -417,7 +417,7 @@ export default function PsmPromotions() {
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Advertiser">
                       <div style={{ fontWeight: 600 }}>
                         {name(p.advertiser?.profile ?? null) ?? "-"}
                       </div>
@@ -428,13 +428,13 @@ export default function PsmPromotions() {
                         {p.advertiser?.tenant_client_code ?? "-"}
                       </div>
                     </td>
-                    <td>{perkDetail(p)}</td>
-                    <td>
+                    <td data-label="Detail">{perkDetail(p)}</td>
+                    <td data-label="Expiry">
                       {p.expires_at
                         ? new Date(p.expires_at).toLocaleDateString()
                         : "No expiry"}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       {p.active ? (
                         <span className="badge ok">Active</span>
                       ) : (
@@ -449,7 +449,7 @@ export default function PsmPromotions() {
                         </span>
                       )}
                     </td>
-                    <td className="r">
+                    <td data-label="Action" className="r">
                       {p.active && (
                         <button
                           className="btn ghost sm"
