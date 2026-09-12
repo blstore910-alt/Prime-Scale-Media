@@ -12,6 +12,7 @@ const adminLinks = [
   { href: "/settings/ad-account-types", label: "Ad account types" },
   { href: "/settings/plans", label: "Plans" },
   { href: "/settings/integrations", label: "Integrations" },
+  { href: "/settings/banks", label: "Banks" },
 ];
 
 export default function SettingsNavbar() {

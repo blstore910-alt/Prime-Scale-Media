@@ -18,12 +18,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "PSM",
   },
+  // Favicon comes from the app/icon.svg file convention (the PSM rocket).
+  // Only the apple-touch icon is declared here.
   icons: {
-    icon: [
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    shortcut: "/icon-192.png",
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };

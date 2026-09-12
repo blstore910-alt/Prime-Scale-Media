@@ -58,6 +58,7 @@ declare
     'tenants',
     'invitations',
     'fee_defaults',
+    'bank_accounts',
     'integration_jobs',
     'bank_ledger_entries',
     'plans'
