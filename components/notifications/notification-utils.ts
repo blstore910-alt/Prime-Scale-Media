@@ -97,6 +97,12 @@ export function getNotificationCopy(notification: Notification): {
         description:
           "The ad-account supplier's spendable balance is below the threshold — top up soon.",
       };
+    case "rate_limit_abuse":
+      return {
+        title: "Suspicious activity",
+        description:
+          "Someone hit a rate limit on a sensitive action — check the activity log if this is unexpected.",
+      };
     default:
       return {
         title: "New Notification",

@@ -8,7 +8,8 @@ export type NotificationType =
   | "subscription_invoice"
   | "subscription_past_due"
   | "subscription_changed"
-  | "supplier_low_balance";
+  | "supplier_low_balance"
+  | "rate_limit_abuse";
 
 export type NotificationAuthor = {
   id: string;
@@ -62,6 +63,11 @@ export type SupplierLowBalanceNotificationPayload = {
   threshold?: number;
 };
 
+export type RateLimitAbuseNotificationPayload = {
+  buckets?: number;
+  summary?: string;
+};
+
 export interface NotificationPayloadByType {
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
@@ -73,6 +79,7 @@ export interface NotificationPayloadByType {
   subscription_past_due: SubscriptionInvoiceNotificationPayload;
   subscription_changed: SubscriptionChangedNotificationPayload;
   supplier_low_balance: SupplierLowBalanceNotificationPayload;
+  rate_limit_abuse: RateLimitAbuseNotificationPayload;
 }
 
 export type NotificationPayload =

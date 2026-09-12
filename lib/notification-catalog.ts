@@ -78,6 +78,13 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
       "When the ad-account supplier's spendable balance drops below the safety threshold.",
     audience: "admin",
   },
+  {
+    type: "rate_limit_abuse",
+    label: "Suspicious activity (rate limit)",
+    description:
+      "When someone hits a rate limit on a sensitive action (signups, invites, financial requests) — possible abuse.",
+    audience: "admin",
+  },
 ];
 
 // Map a profile role to the audience whose toggles they should see.

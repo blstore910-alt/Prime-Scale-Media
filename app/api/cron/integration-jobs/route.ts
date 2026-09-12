@@ -95,6 +95,72 @@ async function checkSupplierBalance(
   return { checked: true, low: low.map((l) => l.currency) };
 }
 
+// Alert super-admins when a sensitive rate-limit bucket hits its ceiling in the
+// last hour (possible abuse). rate_limit_buckets is global; service-role reads
+// it. Only the security-relevant buckets (not heartbeat / client-error noise).
+// Hourly gate + 24h throttle per recipient, like the balance check.
+const RATE_ABUSE_CEILINGS: Record<string, number> = {
+  "financial-request": 30,
+  signup: 5,
+  "send-invite": 20,
+  "accept-invite": 10,
+  "gdpr-export": 10,
+};
+
+async function checkRateLimitAbuse(
+  supabase: Pick<SupabaseClient, "from">,
+): Promise<{ checked: boolean; abused?: string[] }> {
+  if (new Date().getUTCMinutes() !== 0) return { checked: false };
+  const cutoff = new Date(Date.now() - 3600_000).toISOString();
+  const { data: buckets } = await supabase
+    .from("rate_limit_buckets")
+    .select("key, count, window_start")
+    .gte("window_start", cutoff)
+    .order("count", { ascending: false })
+    .limit(50);
+
+  const kind = (k: string) => k.split(":")[0];
+  const abused = (
+    (buckets ?? []) as Array<{ key: string; count: number }>
+  ).filter((b) => {
+    const ceil = RATE_ABUSE_CEILINGS[kind(b.key)];
+    return ceil != null && b.count >= ceil;
+  });
+  if (!abused.length) return { checked: true, abused: [] };
+
+  const { data: tenants } = await supabase
+    .from("tenants")
+    .select("id, owner_id");
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const summary = abused
+    .slice(0, 5)
+    .map((b) => `${b.key} (${b.count})`)
+    .join(", ");
+
+  for (const t of (tenants ?? []) as Array<{
+    id: string;
+    owner_id: string | null;
+  }>) {
+    if (!t.owner_id) continue;
+    const { data: recent } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("recipient_user_id", t.owner_id)
+      .eq("type", "rate_limit_abuse")
+      .gte("created_at", since)
+      .limit(1);
+    if (recent && recent.length) continue;
+    await supabase.from("notifications").insert({
+      recipient_user_id: t.owner_id,
+      tenant_id: t.id,
+      type: "rate_limit_abuse",
+      payload: { buckets: abused.length, summary },
+      is_read: false,
+    });
+  }
+  return { checked: true, abused: abused.map((b) => b.key) };
+}
+
 export async function GET(req: NextRequest) {
   if (!isAuthorised(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -131,7 +197,21 @@ export async function GET(req: NextRequest) {
         error: err instanceof Error ? err.message : "balance check failed",
       };
     }
-    return NextResponse.json({ ok: true, ...summary, supplierBalance });
+    let rateLimitAbuse;
+    try {
+      rateLimitAbuse = await checkRateLimitAbuse(supabase);
+    } catch (err) {
+      rateLimitAbuse = {
+        checked: true,
+        error: err instanceof Error ? err.message : "rate-abuse check failed",
+      };
+    }
+    return NextResponse.json({
+      ok: true,
+      ...summary,
+      supplierBalance,
+      rateLimitAbuse,
+    });
   } catch (err) {
     return NextResponse.json(
       {
