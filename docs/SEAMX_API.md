@@ -1,0 +1,91 @@
+# SeamX (Supplier 1) API — contract & adapter mapping
+
+Source: SeamX Postman collection "Api Documentation" (v `latest`), captured
+2026-09-12. SeamX is our ad-account supplier — internal only, **never**
+surface the name to advertisers/affiliates. Adapter: `lib/integrations/supplier1.ts`.
+
+## Auth & base
+
+- **Auth header:** `authToken: <token>` — a raw token, **not** `Bearer`.
+  (One example uses lowercase `authtoken`; HTTP header names are
+  case-insensitive, so either works.)
+- **Base URL:** the collection uses `{{baseUrl}}` with no value published.
+  **NEEDED FROM USER:** the real host (e.g. `https://api.seamx.…`) and the
+  `authToken` value (the API key).
+- Paths are versioned under `/v1`. Note the supplier's own spelling
+  `/v1/withdrawls` (no "a").
+
+## Endpoints
+
+| # | Name | Method | Path | Body |
+|---|------|--------|------|------|
+| 1 | Get All Ad Accounts | GET | `/v1/adaccounts` | — (paginated) |
+| 2 | Get Ad Account | GET | `/v1/adaccounts/{id}` | — |
+| 3 | Request Ad Account | POST | `/v1/adaccounts` | see below (per platform) |
+| 4 | Search Ad Accounts | GET | `/v1/adaccounts/search?q=` | — |
+| 5 | Get Ad Account Topups | GET | `/v1/adaccounts/{id}/topups` | — |
+| 6 | Calculate Location Fee (DST) | POST | `/v1/adaccounts/calculate-fee` | `{ad_account_id, country, amount}` |
+| 7 | Get Ad Account Spend & Taxes | GET | `/v1/adaccounts/{id}/spend-taxes?start_date=&end_date=` | — |
+| 8 | Get Ad Account Tax Entries | GET | `/v1/adaccounts/{id}/tax-entries?kind=&from=&to=` | — |
+| 9 | Get Tax Summary | GET | `/v1/adaccounts/tax-summary?include_zero=0` | — |
+| 10 | Charge Wallet | POST | `/v1/wallets/charge` | `{amount, currency, reference_number_type}` |
+| 11 | Get Balance | GET | `/v1/wallets/balance` | — |
+| 12 | Get All Topups | GET | `/v1/topups` | — |
+| 13 | Get Topup | GET | `/v1/topups/{id}` | — |
+| 14 | Request Topup | POST | `/v1/topups` | `{ad_account_id, amount, currency}` |
+| 15 | Request Withdrawl | POST | `/v1/withdrawls` | `{ad_account_id, amount, destination:"wallet"}` |
+| 16 | Get Withdrawl | GET | `/v1/withdrawls/{id}` | — |
+
+### Ad account shape (1/2/4)
+`{ ad_account_id, account_platform: "tiktok"|"meta"|"google", account_name,
+currency, time_zone, account_status: "accepted"|"pending", fee_percentage,
+countries: [], created_at, (meta only: meta_account_id, meta_bm_id) }`
+plus `pagination: {page, per_page, total, total_pages}` on lists.
+**There is no per-ad-account balance field, and no per-account balance
+endpoint.** Balance is wallet-level only (#11).
+
+### Request Ad Account body (3) — differs per platform
+- tiktok: `{account_type:"tiktok", timezone, currency, countries:"AX,AF", tiktok_id, website_url, email, note, ad_accounts_count}`
+- meta: `{account_type:"meta", timezone, currency, website_url, business_manager_id, meta_account_type, ad_accounts_count, personal_profile_link}`
+- google: `{account_type:"google", timezone, currency, website_url, email, note, ad_accounts_count}`
+
+### Get Balance (11)
+`{ data: { usd_balance, eur_balance, tax_reserve:{usd,eur}, available_balance:{usd,eur} } }`
+
+### Topup shapes
+- list (12) / per-account (5): `{ id, amount, currency, status:"pending"|"approved", created_at, metadata:{ad_account_id, ad_account_name} }`
+- single (13): adds `total_amount, topup_amount, topup_fee, description` — **SeamX computes the topup fee server-side.**
+- request (14) response: `{ data:{id, amount, currency, status, created_at, metadata}, message }`
+
+### Calculate Location Fee (6) — the DST module
+`{ data: { ad_account_id, location_fee_percentage, country, fee_source,
+topup_amount, existing_fee_percentage, existing_fee_amount,
+location_fee_amount, advertising_amount_before_location_fee,
+advertising_amount_after_location_fee, total_tax_amount } }`
+
+## Mapping to `Supplier1Adapter` (only the 4 functions we already have)
+
+| Our method | SeamX endpoint | Maps? |
+|---|---|---|
+| `listAdAccounts()` | GET `/v1/adaccounts` (follow `pagination`) | ✅ — but `balance_cents` is not available (drop / 0) |
+| `pushTopup({external_ad_account_id, amount_cents, currency})` | POST `/v1/topups {ad_account_id, amount, currency}` | ✅ (amount is major units, not cents) |
+| `pushWithdraw({external_ad_account_id, amount_cents, currency})` | POST `/v1/withdrawls {ad_account_id, amount, destination:"wallet"}` | ✅ |
+| `getBalance(externalAdAccountId)` | **no per-account balance endpoint** | ⚠️ mismatch — SeamX only has wallet-level `/v1/wallets/balance` |
+
+Notes for the live implementation (when key arrives):
+- SeamX amounts are **major units** (e.g. `10`, `100.44`), our adapter speaks
+  `_cents` — convert at the boundary.
+- SeamX returns a `topup_fee` it computed itself (#13). Decide whether our
+  fee display should mirror SeamX's or stay our `topup_fee_pct` — must agree.
+- Idempotency: the collection shows no idempotency header; our worker passes
+  an `idempotency_key`. Confirm with SeamX whether they dedup, else we rely on
+  our `integration_jobs` dedup only.
+- The DST `calculate-fee` endpoint (#6) is the location-fee/tax module noted
+  in the roadmap — separate from the 4 adapter methods; wire only if/when we
+  build the DST feature (not now).
+
+## Still needed from the user
+1. Base URL (host) for SeamX.
+2. `authToken` API key.
+3. Confirm whether `pushTopup`/`pushWithdraw` amounts are per-currency major
+   units (assumed yes) and whether SeamX dedups repeated requests.
