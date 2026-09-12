@@ -220,8 +220,8 @@ export default function PsmWallets() {
                     <td className="r mono">{formatAmount(wallet.eur_balance)}</td>
                     <td className="r mono">{formatAmount(wallet.usd_balance)}</td>
                     <td>
-                      {wallet.updated_at
-                        ? dayjs(wallet.updated_at).format(DATE_FORMAT)
+                      {wallet.created_at
+                        ? dayjs(wallet.created_at).format(DATE_FORMAT)
                         : "—"}
                     </td>
                     <td className="r">
