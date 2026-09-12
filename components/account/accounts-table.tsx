@@ -27,6 +27,7 @@ import TablePagination from "@/components/ui/table-pagination";
 import { PLATFORMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { useQuery } from "@tanstack/react-query";
 import { Parser } from "json2csv";
 import { ClipboardList, FileDown, Filter, Loader2, Plus } from "lucide-react";
@@ -212,7 +213,7 @@ export default function AccountsTable() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error(error);
+      console.error(safeErrorMessage(error));
     } finally {
       setDownloadingCSV(false);
     }

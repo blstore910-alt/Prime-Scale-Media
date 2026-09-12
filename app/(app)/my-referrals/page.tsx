@@ -1,6 +1,4 @@
 import AffiliateApp from "@/components/affiliate/aff-app";
-import AffiliateDashboard from "@/components/affiliate/affiliate-dashboard";
-import ReferralLinkBox from "@/components/affiliate/referral-link-box";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -19,31 +17,13 @@ export default async function Page() {
     profile?.role === "advertiser" || profile?.role === "affiliate";
   if (!allowed) redirect("/");
 
-  // Standalone affiliates get the full single-page affiliate app (its own
-  // shell + all screens). Advertisers-as-affiliate see the referrals inside
-  // their own advertiser shell.
+  // Standalone affiliates get the full single-page affiliate app.
   if (profile?.role === "affiliate") {
     return <AffiliateApp />;
   }
 
-  return (
-    <div className="flex flex-1 flex-col">
-      <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-6 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
-              My Referrals
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Track the advertisers you referred, their spend, and your
-              earnings.
-            </p>
-          </div>
-
-          <ReferralLinkBox />
-          <AffiliateDashboard />
-        </div>
-      </div>
-    </div>
-  );
+  // Advertisers-as-affiliate see referrals as the "Affiliate program" view
+  // inside their own single-page advertiser shell (at /dashboard), so send
+  // them there rather than rendering a shell-less page here.
+  redirect("/dashboard");
 }

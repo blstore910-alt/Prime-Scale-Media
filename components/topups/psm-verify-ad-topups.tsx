@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import useTopups from "./use-topups";
 import VerifyTopupDialog from "./verify-topup-dialog";
 import RejectTopupDialog from "./reject-topup-dialog";
+import { TopupDetailsSheet } from "./topup-details-sheet";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -35,6 +36,7 @@ export default function PsmVerifyAdTopups() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 400);
@@ -134,30 +136,48 @@ export default function PsmVerifyAdTopups() {
                     fee {money(t.fee_amount, cur)}
                   </span>
                 </div>
-                {pend && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button
-                      className="btn sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setVerifyId(t.id);
-                        setVerifyOpen(true);
-                      }}
-                    >
-                      <Check /> Verify
-                    </button>
-                    <button
-                      className="btn ghost sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRejectId(t.id);
-                        setRejectOpen(true);
-                      }}
-                    >
-                      <X /> Reject
-                    </button>
-                  </div>
-                )}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {pend && (
+                    <>
+                      <button
+                        className="btn sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setVerifyId(t.id);
+                          setVerifyOpen(true);
+                        }}
+                      >
+                        <Check /> Verify
+                      </button>
+                      <button
+                        className="btn ghost sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRejectId(t.id);
+                          setRejectOpen(true);
+                        }}
+                      >
+                        <X /> Reject
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="btn ghost sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetailsId(t.id);
+                    }}
+                  >
+                    Details
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -179,6 +199,11 @@ export default function PsmVerifyAdTopups() {
         open={rejectOpen}
         onOpenChange={setRejectOpen}
         topupId={rejectId}
+      />
+      <TopupDetailsSheet
+        open={!!detailsId}
+        onOpenChange={(o) => !o && setDetailsId(null)}
+        topupId={detailsId}
       />
     </div>
   );

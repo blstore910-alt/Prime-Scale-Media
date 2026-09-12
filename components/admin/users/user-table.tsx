@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import { Advertiser } from "@/lib/types/advertiser";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { Affiliate } from "@/lib/types/affiliate";
 import { UserProfile } from "@/lib/types/user";
 import { Parser } from "json2csv";
@@ -163,7 +164,7 @@ export default function UserTable() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error(error);
+      console.error(safeErrorMessage(error));
     } finally {
       setDownloadingCSV(false);
     }

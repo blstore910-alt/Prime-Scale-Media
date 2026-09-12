@@ -1,13 +1,17 @@
 "use client";
 
 import { useUpdateTransaction } from "@/hooks/use-update-transaction";
+import { prechargeTopup } from "@/actions/precharge-actions";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
-import { Check, Search, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, FileText, Search, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import useWalletTransactions from "./use-wallet-transactions";
 import WalletTransactionApproveDialog from "./wallet-transaction-approve-dialog";
 import WalletTransactionDetailsSheet from "./wallet-transaction-details-sheet";
 import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
+import PaymentSlipDialog from "./payment-slip-dialog";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -43,6 +47,28 @@ export default function PsmVerifyTopups({
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [prechargingId, setPrechargingId] = useState<string | null>(null);
+  const [slipUrl, setSlipUrl] = useState<string | null>(null);
+  const [slipOpen, setSlipOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const doPrecharge = async (t: WalletTopupWithAdvertiser) => {
+    setPrechargingId(t.id);
+    try {
+      const res = await prechargeTopup(t.id);
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Precharged — wallet credited in advance");
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
+    } catch (e) {
+      toast.error("Precharge failed", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setPrechargingId(null);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 400);
@@ -168,28 +194,62 @@ export default function PsmVerifyTopups({
                 >
                   Bank transfer
                 </div>
-                {pend && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button
-                      className="btn sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(t);
-                        setApproveOpen(true);
-                      }}
-                    >
-                      <Check /> Verify
-                    </button>
-                    <button
-                      className="btn ghost sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(t);
-                        setRejectOpen(true);
-                      }}
-                    >
-                      <X /> Reject
-                    </button>
+                {(pend || t.payment_slip) && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginTop: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {pend && (
+                      <>
+                        <button
+                          className="btn sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelected(t);
+                            setApproveOpen(true);
+                          }}
+                        >
+                          <Check /> Verify
+                        </button>
+                        <button
+                          className="btn ghost sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelected(t);
+                            setRejectOpen(true);
+                          }}
+                        >
+                          <X /> Reject
+                        </button>
+                        <button
+                          className="btn ghost sm"
+                          disabled={prechargingId === t.id}
+                          title="Advance-credit the wallet now; settles on verify"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            doPrecharge(t);
+                          }}
+                        >
+                          <Zap /> Precharge
+                        </button>
+                      </>
+                    )}
+                    {t.payment_slip && (
+                      <button
+                        className="btn ghost sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSlipUrl(t.payment_slip ?? null);
+                          setSlipOpen(true);
+                        }}
+                      >
+                        <FileText /> Slip
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -223,6 +283,11 @@ export default function PsmVerifyTopups({
         open={!!detailsId}
         onOpenChange={(o) => !o && setDetailsId(null)}
         topupId={detailsId}
+      />
+      <PaymentSlipDialog
+        open={slipOpen}
+        onOpenChange={setSlipOpen}
+        paymentSlipUrl={slipUrl}
       />
     </div>
   );

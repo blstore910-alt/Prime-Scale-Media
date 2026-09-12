@@ -3,6 +3,8 @@
 import { dmSans, jakarta } from "@/lib/fonts";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
+import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import { getURL } from "@/lib/utils";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
 import { PLATFORMS } from "@/lib/constants";
@@ -10,6 +12,7 @@ import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ADV_CSS } from "./adv-shell-css";
@@ -28,6 +31,7 @@ type View =
   | "accounts"
   | "requests"
   | "billing"
+  | "referrals"
   | "notif"
   | "settings"
   | "help";
@@ -37,6 +41,7 @@ const TITLES: Record<View, string> = {
   accounts: "Ad accounts",
   requests: "Requests",
   billing: "Billing",
+  referrals: "Affiliate program",
   notif: "Notifications",
   settings: "Settings",
   help: "Get help",
@@ -204,6 +209,29 @@ export default function AdvertiserApp() {
     },
   });
 
+  // Advertiser-as-affiliate: their referral book (empty for a plain
+  // advertiser). Shown under the "Affiliate program" view.
+  const aff = useAffiliateStats({ enabled: !!advertiserId });
+  const referralCode = profile?.advertiser?.[0]?.tenant_client_code;
+  const referralLink =
+    profile?.tenant?.slug && referralCode
+      ? (() => {
+          const u = new URL(`${getURL().replace(/\/$/, "")}/auth/sign-up`);
+          u.searchParams.set("t", profile.tenant.slug as string);
+          u.searchParams.set("ref", referralCode);
+          return u.toString();
+        })()
+      : "";
+  const copyReferral = async () => {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      toast.success("Referral link copied.");
+    } catch {
+      toast.error("Couldn't copy the link.");
+    }
+  };
+
   const eurBal = Number(wallet?.eur_balance ?? 0);
   const usdBal = Number(wallet?.usd_balance ?? 0);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
@@ -223,6 +251,12 @@ export default function AdvertiserApp() {
   const openDetails = (id: string) => {
     setDetailsId(id);
     setDetailsOpen(true);
+  };
+  const router = useRouter();
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/auth/login");
   };
 
   const NAV: { v: View; icon: string; label: string; aff?: boolean }[] = [
@@ -349,6 +383,13 @@ export default function AdvertiserApp() {
             <Ic name={item.icon} /> {item.label}
           </button>
         ))}
+        <div className="navsec">Earn</div>
+        <button
+          className={`navlink${view === "referrals" ? " on" : ""}`}
+          onClick={() => go("referrals")}
+        >
+          <Ic name="i-gift" /> Affiliate program
+        </button>
         <div className="side-foot">
           <span className="avatar">{ini}</span>
           <div className="who">
@@ -386,17 +427,17 @@ export default function AdvertiserApp() {
                 <b>{eur(eurBal)}</b>
               </span>
             </button>
-            <button
-              className="tool st"
-              onClick={() => go("billing")}
-              title="Subscription"
-            >
-              <Ic name="i-shield" />{" "}
-              {subscription?.status
-                ? subscription.status[0].toUpperCase() +
-                  subscription.status.slice(1)
-                : "Active"}
-            </button>
+            {subscription?.status && (
+              <button
+                className="tool st"
+                onClick={() => go("billing")}
+                title="Subscription"
+              >
+                <Ic name="i-shield" />{" "}
+                {subscription.status[0].toUpperCase() +
+                  subscription.status.slice(1)}
+              </button>
+            )}
             <button
               className="tool ic-btn"
               onClick={() => go("notif")}
@@ -411,6 +452,25 @@ export default function AdvertiserApp() {
             >
               <span className="avatar">{ini}</span>
               <Ic name="i-chev" />
+            </button>
+            <button
+              className="tool ic-btn"
+              onClick={logout}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" x2="9" y1="12" y2="12" />
+              </svg>
             </button>
           </div>
         </div>
@@ -525,6 +585,146 @@ export default function AdvertiserApp() {
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}
               />
+            </div>
+          </div>
+
+          {/* AFFILIATE PROGRAM (advertiser-as-affiliate) */}
+          <div className={`view${view === "referrals" ? " on" : ""}`}>
+            <div className="phead">
+              <div>
+                <h1>Affiliate program</h1>
+                <p>Refer advertisers and earn commission on what they pay PSM.</p>
+              </div>
+            </div>
+            <div className="card">
+              <h2>Your referral link</h2>
+              <p className="cap" style={{ margin: "6px 0 12px" }}>
+                Anyone who signs up through your link is tracked as your
+                referral.
+              </p>
+              {referralLink ? (
+                <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+                  <div
+                    className="mono"
+                    style={{
+                      flex: 1,
+                      minWidth: 200,
+                      background: "var(--panel-2)",
+                      border: "1px solid var(--line-2)",
+                      borderRadius: 11,
+                      padding: "12px 13px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontSize: ".84rem",
+                    }}
+                  >
+                    {referralLink}
+                  </div>
+                  <button className="btn" onClick={copyReferral}>
+                    <Ic name="i-check" /> Copy link
+                  </button>
+                </div>
+              ) : (
+                <p className="muted" style={{ margin: 0 }}>
+                  Your referral link isn&apos;t set up yet — ask an admin to
+                  enable the affiliate program for your account, or apply via
+                  Settings.
+                </p>
+              )}
+            </div>
+            <div className="stats">
+              <div className="stat">
+                <div className="k">
+                  <span className="ci b">
+                    <Ic name="i-user" />
+                  </span>{" "}
+                  Referred
+                </div>
+                <div className="v">{aff.rows.length}</div>
+              </div>
+              <div className="stat">
+                <div className="k">
+                  <span className="ci t">
+                    <Ic name="i-trend" />
+                  </span>{" "}
+                  Active
+                </div>
+                <div className="v">
+                  {aff.rows.filter((r) => Number(r.topup_count) > 0).length}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="k">
+                  <span className="ci g">
+                    <Ic name="i-wallet" />
+                  </span>{" "}
+                  Commission
+                </div>
+                <div className="v">{eur(aff.totals.earnings_eur)}</div>
+              </div>
+              <div className="stat">
+                <div className="k">
+                  <span className="ci p">
+                    <Ic name="i-trend" />
+                  </span>{" "}
+                  Spend driven
+                </div>
+                <div className="v">{eur(aff.totals.spend_eur)}</div>
+              </div>
+            </div>
+            <div className="card" style={{ padding: "16px 8px 8px" }}>
+              <div style={{ padding: "0 14px 8px" }}>
+                <h2>Your referrals</h2>
+              </div>
+              <div className="tblwrap">
+                <table className="tbl wide">
+                  <thead>
+                    <tr>
+                      <th style={{ paddingLeft: 14 }}>Advertiser</th>
+                      <th>Code</th>
+                      <th className="r">Top-ups</th>
+                      <th className="r">Spend</th>
+                      <th className="r">Commission</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aff.rows.length ? (
+                      aff.rows.map((r) => (
+                        <tr key={r.referred_advertiser_id}>
+                          <td style={{ fontWeight: 600 }}>
+                            {r.referred_advertiser_name || "Advertiser"}
+                          </td>
+                          <td className="mono">
+                            {r.referred_advertiser_code || "—"}
+                          </td>
+                          <td className="r">{r.topup_count}</td>
+                          <td className="r mono">{eur(r.spend_eur)}</td>
+                          <td
+                            className="r mono"
+                            style={{ fontWeight: 700, color: "var(--win)" }}
+                          >
+                            {eur(r.earnings_eur)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          style={{
+                            textAlign: "center",
+                            padding: 24,
+                            color: "var(--faint)",
+                          }}
+                        >
+                          No referrals yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -720,7 +920,7 @@ export default function AdvertiserApp() {
                   {subscription?.status
                     ? subscription.status[0].toUpperCase() +
                       subscription.status.slice(1)
-                    : "Active"}
+                    : "No plan"}
                 </span>
                 <div className="plan">
                   {subscription?.amount

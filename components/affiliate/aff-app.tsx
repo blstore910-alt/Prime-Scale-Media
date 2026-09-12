@@ -2,8 +2,10 @@
 
 import { jakarta } from "@/lib/fonts";
 import { useAppContext } from "@/context/app-provider";
+import { createClient } from "@/lib/supabase/client";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import { getURL } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
@@ -96,6 +98,12 @@ export default function AffiliateApp() {
     return u.toString();
   }, [tenantSlug, referralCode]);
 
+  const router = useRouter();
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/auth/login");
+  };
   const go = (v: View) => {
     setView(v);
     setNavOpen(false);
@@ -223,6 +231,25 @@ export default function AffiliateApp() {
             >
               <span className="avatar">{ini}</span>
               <Ic name="i-chev" />
+            </button>
+            <button
+              className="tool ic-btn"
+              onClick={logout}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" x2="9" y1="12" y2="12" />
+              </svg>
             </button>
           </div>
         </div>

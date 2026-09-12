@@ -10,6 +10,7 @@ import {
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { Topup } from "@/lib/types/topup";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { IconCashRegister } from "@tabler/icons-react";
 import { Parser } from "json2csv";
 import { FileDown, Loader2 } from "lucide-react";
@@ -170,7 +171,7 @@ export default function TopupsTable() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error(error);
+      console.error(safeErrorMessage(error));
     } finally {
       setDownloadingCSV(false);
     }

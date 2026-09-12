@@ -143,6 +143,25 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
 
+    // Block a second invite while one is still pending for this email.
+    const { data: pendingInvite } = await supabase
+      .from("invitations")
+      .select("id")
+      .eq("email", email)
+      .eq("tenant_id", profile.tenant_id)
+      .eq("status", "pending")
+      .limit(1);
+
+    if (pendingInvite && pendingInvite.length > 0)
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "There's already a pending invitation for this email in your organization.",
+        },
+        { status: 400 },
+      );
+
     const { data: tenant } = await supabase
       .from("tenants")
       .select("id, name")

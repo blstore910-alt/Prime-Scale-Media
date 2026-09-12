@@ -278,27 +278,31 @@ export function AccountDetailsSheet({
                       </>
                     );
                   })()}
-                <Separator />
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-muted-foreground">
-                      Status:
-                    </span>{" "}
-                    <Select
-                      value={data.status}
-                      onValueChange={updateAccountStatus}
-                    >
-                      <SelectTrigger className="capitalize" size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="paused">Paused</SelectItem>
-                        <SelectItem value="banned">Banned</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                {!isAdvertiser && (
+                  <>
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-muted-foreground">
+                          Status:
+                        </span>{" "}
+                        <Select
+                          value={data.status}
+                          onValueChange={updateAccountStatus}
+                        >
+                          <SelectTrigger className="capitalize" size="sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="paused">Paused</SelectItem>
+                            <SelectItem value="banned">Banned</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
+                )}
               </Card>
 
               {/* --- Advertiser Information --- */}

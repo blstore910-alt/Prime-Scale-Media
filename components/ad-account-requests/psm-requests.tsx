@@ -127,9 +127,11 @@ export default function PsmRequests() {
         >
           <option value="all">All statuses</option>
           <option value="pending">Pending</option>
-          <option value="in_review">In review</option>
-          <option value="live">Live</option>
+          <option value="payment_pending">Payment pending</option>
+          <option value="in_progress">In progress</option>
+          <option value="completed">Completed</option>
           <option value="rejected">Rejected</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
 
