@@ -30,7 +30,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import dayjs from "dayjs";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, Resolver, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
@@ -42,6 +42,15 @@ type AdvertiserQueryRow = {
   id: string;
   tenant_client_code: string | null;
   profile: { full_name: string | null } | { full_name: string | null }[] | null;
+};
+
+// A plan/community preset the admin can pick to pre-fill the amount.
+type PlanPreset = {
+  id: string;
+  name: string;
+  kind: string;
+  monthly_fee: number | string | null;
+  currency: string | null;
 };
 
 const subscriptionFormSchema = z.object({
@@ -96,10 +105,13 @@ export default function CreateSubscriptionDialog({
     defaultValues.advertiser_id = defaultAdvertiserId;
   }
 
+  const [planId, setPlanId] = useState("");
+
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<SubscriptionFormValues>({
     defaultValues,
@@ -115,6 +127,7 @@ export default function CreateSubscriptionDialog({
       newDefaultValues.advertiser_id = defaultAdvertiserId;
     }
     reset(newDefaultValues);
+    setPlanId("");
   }, [defaultAdvertiserId, reset]);
 
   const {
@@ -141,6 +154,32 @@ export default function CreateSubscriptionDialog({
     },
   });
 
+  const { data: plans = [] } = useQuery<PlanPreset[]>({
+    queryKey: ["plans", profile?.tenant_id, "sub-preset"],
+    enabled: profile?.role === "admin" && !!profile?.tenant_id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("plans")
+        .select("id, name, kind, monthly_fee, currency")
+        .eq("tenant_id", profile?.tenant_id)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as PlanPreset[];
+    },
+  });
+
+  const applyPlan = (id: string) => {
+    setPlanId(id);
+    const p = plans.find((pl) => pl.id === id);
+    if (!p) return;
+    setValue("amount", Number(p.monthly_fee) || 0);
+    if (p.currency === "EUR" || p.currency === "USD") {
+      setValue("currency", p.currency);
+    }
+  };
+
   const currencyOptions = CURRENCIES.filter((currency) =>
     ["EUR", "USD"].includes(currency.value),
   );
@@ -164,6 +203,7 @@ export default function CreateSubscriptionDialog({
       onSuccess: () => {
         toast.success("Subscription created successfully.");
         reset(getDefaultValues());
+        setPlanId("");
         onOpenChange(false);
       },
       onError: (error) => {
@@ -184,6 +224,7 @@ export default function CreateSubscriptionDialog({
             resetValues.advertiser_id = defaultAdvertiserId;
           }
           reset(resetValues);
+          setPlanId("");
         }
         onOpenChange(value);
       }}
@@ -219,6 +260,34 @@ export default function CreateSubscriptionDialog({
                 ? advertisersError.message
                 : "Failed to load advertisers."}
             </p>
+          )}
+
+          {plans.length > 0 && (
+            <Field>
+              <FieldLabel htmlFor="subscription-plan-select">
+                Plan (optional)
+              </FieldLabel>
+              <Select value={planId} onValueChange={applyPlan}>
+                <SelectTrigger
+                  id="subscription-plan-select"
+                  className="h-9 w-full"
+                >
+                  <SelectValue placeholder="Pick a plan to pre-fill the amount…" />
+                </SelectTrigger>
+                <SelectContent position="item-aligned">
+                  {plans.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.kind === "community" ? " · community" : ""} —{" "}
+                      {p.currency ?? "EUR"} {Number(p.monthly_fee) || 0}/mo
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Fills the amount from the plan — you can still edit it.
+              </p>
+            </Field>
           )}
 
           <Field
