@@ -38,12 +38,13 @@ test("calculateTopupAmount USD passes through with fee", () => {
   assert.equal(result.topupAmount, 95);
 });
 
-test("calculateTopupAmount EUR uses first exchange rate", () => {
-  // Rate object shape: eur is EUR-per-USD, so 100 EUR at 0.9 rate = 90 USD.
-  const rates = [{ eur: 0.9, gbp: 0.8, hkd: 7.8 }] as never;
+test("calculateTopupAmount EUR converts by dividing by the USD rate", () => {
+  // eur is EUR-per-USD (1 USD = 0.8 EUR), matching the wallet RPCs, so
+  // 100 EUR = 100 / 0.8 = 125 USD.
+  const rates = [{ eur: 0.8, gbp: 0.8, hkd: 7.8 }] as never;
   const result = calculateTopupAmount(100, rates, "EUR", 0);
-  assert.equal(result.amountUSD, 90);
-  assert.equal(result.topupAmount, 90);
+  assert.equal(result.amountUSD, 125);
+  assert.equal(result.topupAmount, 125);
 });
 
 test("calculateTopupAmount returns zeros when rates undefined", () => {

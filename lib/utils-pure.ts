@@ -42,7 +42,11 @@ export const calculateTopupAmount = (
 
   const key = currency.toLowerCase() as keyof MinimalRate;
   const rate = currency === "USD" ? 1 : Number(exchangeRates[0]?.[key] ?? 0);
-  const amountUSD = amountReceived * rate;
+  // The rate is "1 USD = N <currency>" (the same convention the wallet RPCs
+  // and top_up_create_for_advertiser use), so converting a foreign amount to
+  // USD DIVIDES by the rate. Previously this multiplied, which disagreed with
+  // the server RPC and understated USD for EUR/GBP/HKD top-ups.
+  const amountUSD = rate > 0 ? amountReceived / rate : 0;
   const feeAmount = amountUSD * (fee / 100);
   const topupAmount = amountUSD - feeAmount;
   return { topupAmount, amountUSD, feeAmount };
