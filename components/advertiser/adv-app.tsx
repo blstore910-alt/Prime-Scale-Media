@@ -834,15 +834,20 @@ export default function AdvertiserApp() {
                     {aff.rows.length ? (
                       aff.rows.map((r) => (
                         <tr key={r.referred_advertiser_id}>
-                          <td style={{ fontWeight: 600 }}>
+                          <td data-label="Advertiser" style={{ fontWeight: 600 }}>
                             {r.referred_advertiser_name || "Advertiser"}
                           </td>
-                          <td className="mono">
+                          <td data-label="Code" className="mono">
                             {r.referred_advertiser_code || "—"}
                           </td>
-                          <td className="r">{r.topup_count}</td>
-                          <td className="r mono">{eur(r.spend_eur)}</td>
+                          <td data-label="Top-ups" className="r">
+                            {r.topup_count}
+                          </td>
+                          <td data-label="Spend" className="r mono">
+                            {eur(r.spend_eur)}
+                          </td>
                           <td
+                            data-label="Commission"
                             className="r mono"
                             style={{ fontWeight: 700, color: "var(--win)" }}
                           >
@@ -954,18 +959,27 @@ export default function AdvertiserApp() {
                     {(activity ?? []).length ? (
                       (activity ?? []).map((t) => (
                         <tr key={t.id}>
-                          <td style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                          <td
+                            data-label="Date"
+                            style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                          >
                             {dayjs(t.created_at).format("D MMM")}
                           </td>
-                          <td className="mono">{t.reference_no ?? "—"}</td>
-                          <td style={{ color: "var(--muted)" }}>
+                          <td data-label="Reference" className="mono">
+                            {t.reference_no ?? "—"}
+                          </td>
+                          <td data-label="Description" style={{ color: "var(--muted)" }}>
                             {t.description || "Wallet top-up"}
                           </td>
-                          <td className="r mono" style={{ fontWeight: 700 }}>
+                          <td
+                            data-label="Amount"
+                            className="r mono"
+                            style={{ fontWeight: 700 }}
+                          >
                             {t.currency === "USD" ? "$" : "€"}
                             {money2(t.amount)}
                           </td>
-                          <td className="r">
+                          <td data-label="Status" className="r">
                             <span
                               className={`badge ${
                                 t.status === "completed" ? "ok" : "pend"
@@ -1108,7 +1122,7 @@ export default function AdvertiserApp() {
                           {dayjs(subscription.next_payment_date).format(
                             "D MMM YYYY",
                           )}{" "}
-                          · {eur(subscription.amount)}
+                          · €{money2(subscription.amount)}
                         </div>
                       </div>
                       <span
@@ -1129,8 +1143,8 @@ export default function AdvertiserApp() {
                         else toast.message("No unpaid invoice to pay.");
                       }}
                     >
-                      <Ic name="i-check" /> Pay {eur(subscription.amount)} from
-                      wallet
+                      <Ic name="i-check" /> Pay €{money2(subscription.amount)}{" "}
+                      from wallet
                     </button>
                   </>
                 ) : (
@@ -1161,15 +1175,21 @@ export default function AdvertiserApp() {
                         const paid = inv.status === "paid";
                         return (
                           <tr key={inv.id}>
-                            <td style={{ fontWeight: 600 }}>{inv.number}</td>
-                            <td>{dayjs(inv.created_at).format("D MMM YYYY")}</td>
-                            <td className="r mono">{eur(inv.total)}</td>
-                            <td className="r">
+                            <td data-label="Invoice" style={{ fontWeight: 600 }}>
+                              {inv.number}
+                            </td>
+                            <td data-label="Date">
+                              {dayjs(inv.created_at).format("D MMM YYYY")}
+                            </td>
+                            <td data-label="Amount" className="r mono">
+                              €{money2(inv.total)}
+                            </td>
+                            <td data-label="Status" className="r">
                               <span className={`badge ${paid ? "ok" : "due"}`}>
                                 {paid ? "Paid" : "Due"}
                               </span>
                             </td>
-                            <td className="r">
+                            <td data-label="" className="r">
                               {!paid && (
                                 <button
                                   className="btn ghost sm"

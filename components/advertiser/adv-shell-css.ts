@@ -240,5 +240,26 @@ export const ADV_CSS = `
   .umenu-item.danger{color:var(--danger)}.umenu-item.danger:hover{background:var(--danger-soft)}.umenu-item.danger svg{color:var(--danger)}
   .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
   .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.btn.danger:hover{background:var(--danger)}
+  /* Phone: wide tables collapse into stacked cards — the header row is
+     hidden and each <tr> becomes a bordered card whose <td>s are
+     label/value lines (label from the cell's data-label attribute).
+     Mirrors the .psmapp shell so advertisers get the same mobile cards
+     instead of a horizontally-scrolling table. */
+  @media (max-width:640px){
+    .tbl.wide{min-width:0}
+    .tbl.wide thead{display:none}
+    .tbl.wide,.tbl.wide tbody,.tbl.wide tr{display:block;width:100%}
+    .tbl.wide tr{border:1px solid var(--line);border-radius:14px;margin:0 0 12px;padding:4px 12px;background:var(--panel);box-shadow:var(--shadow)}
+    .tbl.wide tr:last-child{margin-bottom:0}
+    .tbl.wide tr:hover td{background:transparent}
+    .tbl.wide td{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 16px;padding:10px 2px;border-top:1px solid var(--line);text-align:right;min-width:0}
+    .tbl.wide tr td:first-child{border-top:0}
+    .tbl.wide td::before{content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
+    .tbl.wide td>*{grid-column:2;min-width:0}
+    .tbl.wide td>span{justify-self:end}
+    .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
+    .tbl.wide td[colspan]::before{display:none}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;

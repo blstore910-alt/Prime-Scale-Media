@@ -7,6 +7,7 @@ import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { getURL } from "@/lib/utils";
+import { Parser } from "json2csv";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -194,6 +195,76 @@ export default function AffiliateApp() {
       toast.success("Referral link copied.");
     } catch {
       toast.error("Couldn't copy the link.");
+    }
+  };
+
+  const shareMessage = () =>
+    `Join Prime Scale Media with my referral link: ${referralLink}`;
+
+  const shareWhatsApp = () => {
+    if (!referralLink) {
+      toast.error("Your referral link isn't set up yet.");
+      return;
+    }
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(shareMessage())}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
+  const shareEmail = () => {
+    if (!referralLink) {
+      toast.error("Your referral link isn't set up yet.");
+      return;
+    }
+    const subject = encodeURIComponent("Join Prime Scale Media");
+    const body = encodeURIComponent(shareMessage());
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const shareQr = async () => {
+    // No QR renderer is bundled, so rather than fake a QR that never
+    // appears, copy the link so it can be pasted into any QR generator.
+    if (!referralLink) {
+      toast.error("Your referral link isn't set up yet.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      toast.success("Link copied — paste it into any QR generator.");
+    } catch {
+      toast.error("Couldn't copy the link.");
+    }
+  };
+
+  const exportReferrals = () => {
+    if (!refs.rows.length) {
+      toast.info("Nothing to export for this range.");
+      return;
+    }
+    try {
+      const flat = refs.rows.map((r) => ({
+        Advertiser: r.referred_advertiser_name ?? "",
+        Code: r.referred_advertiser_code ?? "",
+        "Spend USD": Number(r.spend_usd) || 0,
+        "Spend EUR": Number(r.spend_eur) || 0,
+        "Top-ups": r.topup_count,
+        "Earnings USD": Number(r.earnings_usd) || 0,
+        "Earnings EUR": Number(r.earnings_eur) || 0,
+      }));
+      const csv = new Parser().parse(flat);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "my_referrals.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error("Export failed", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
   };
 
@@ -430,22 +501,13 @@ export default function AffiliateApp() {
                 </button>
               </div>
               <div className="share">
-                <button
-                  className="btn ghost"
-                  onClick={() => toast.success("Shared via WhatsApp")}
-                >
+                <button className="btn ghost" onClick={shareWhatsApp}>
                   <Ic name="i-msg" /> WhatsApp
                 </button>
-                <button
-                  className="btn ghost"
-                  onClick={() => toast.success("Shared via email")}
-                >
+                <button className="btn ghost" onClick={shareEmail}>
                   <Ic name="i-mail" /> Email
                 </button>
-                <button
-                  className="btn ghost"
-                  onClick={() => toast.success("QR code ready to scan")}
-                >
+                <button className="btn ghost" onClick={shareQr}>
                   <Ic name="i-qr" /> QR code
                 </button>
               </div>
@@ -480,10 +542,7 @@ export default function AffiliateApp() {
                   </div>
                 )}
               </div>
-              <button
-                className="dd expbtn"
-                onClick={() => toast.success("Exported all referrals (CSV)")}
-              >
+              <button className="dd expbtn" onClick={exportReferrals}>
                 <Ic name="i-download" /> Export all
               </button>
             </div>
@@ -827,14 +886,16 @@ export default function AffiliateApp() {
 
           {/* NOTIFICATIONS */}
           <div className={`view${view === "notif" ? " on" : ""}`}>
+            {/* No <h2> here — the topbar already shows "Notifications"
+                (TITLES.notif); a section heading would duplicate it. */}
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 alignItems: "center",
+                minHeight: 4,
               }}
             >
-              <h2>Notifications</h2>
               {notifs.some((n) => !n.is_read) && (
                 <button
                   className="btn ghost sm"
