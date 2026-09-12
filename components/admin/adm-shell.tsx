@@ -7,6 +7,7 @@ import { usePendingCounts } from "@/hooks/use-pending-counts";
 import { PSM_APP_CSS } from "@/components/advertiser/psm-shell-css";
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   Coins,
   Download,
@@ -48,6 +49,7 @@ const TITLES: Record<string, string> = {
   "/invoices": "Invoices",
   "/subscriptions": "Subscriptions",
   "/promotions": "Promotions",
+  "/manual": "Manual",
   "/reconciliation": "Reconciliation",
   "/affiliates": "Referral Links",
   "/commissions": "Referral Commissions",
@@ -131,6 +133,7 @@ export default function AdminShell({
       title: "More",
       items: [
         { title: "Promotions", href: "/promotions", icon: Gift },
+        { title: "Manual", href: "/manual", icon: BookOpen },
         { title: "Get Help", href: "/help", icon: HelpCircle },
       ],
     },
