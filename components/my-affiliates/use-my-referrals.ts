@@ -45,16 +45,20 @@ export default function useMyReferrals(params: UseMyReferralsParams = {}) {
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;
 
+      // An affiliate may only ever see their OWN referral book. Without an
+      // affiliate id, return nothing rather than the whole view — defence in
+      // depth on top of RLS / the view's own scoping.
+      if (!params.affiliateAdvertiserId) {
+        return { items: [], total: 0 };
+      }
+
       let query = supabase
         .from("referral_links_with_details")
-        .select("*", { count: "exact" });
+        .select("*", { count: "exact" })
+        .eq("affiliate_advertiser_id", params.affiliateAdvertiserId);
 
       if (params.tenantId) {
         query = query.eq("tenant_id", params.tenantId);
-      }
-
-      if (params.affiliateAdvertiserId) {
-        query = query.eq("affiliate_advertiser_id", params.affiliateAdvertiserId);
       }
 
       if (params.search?.trim()) {
