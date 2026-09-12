@@ -101,11 +101,11 @@ export default function AuthLayout({
           </span>
         </div>
         <h1>
-          Scale your ads with <span className="g">wallets that just work.</span>
+          Scale your ads with <span className="g">one simple platform.</span>
         </h1>
         <p className="sub">
-          Fund your campaigns by bank transfer, hold EUR &amp; USD, and keep
-          track of every euro — all in one place.
+          Manage your advertising accounts and grow your campaigns —
+          everything in one place.
         </p>
         <div className="pts">
           <div className="pt">
@@ -114,7 +114,7 @@ export default function AuthLayout({
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             </span>{" "}
-            EUR &amp; USD wallets with instant exchange
+            One dashboard for all your ad accounts
           </div>
           <div className="pt">
             <span className="d">
@@ -122,7 +122,7 @@ export default function AuthLayout({
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             </span>{" "}
-            One balance across all your marketing channels
+            A clear overview across every channel
           </div>
           <div className="pt">
             <span className="d">
@@ -130,7 +130,7 @@ export default function AuthLayout({
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             </span>{" "}
-            Every top-up verified, every cent reconciled
+            Fast, transparent, and secure
           </div>
         </div>
       </aside>
