@@ -15,14 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import TablePagination from "@/components/ui/table-pagination";
 import { PLATFORMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
@@ -30,31 +22,48 @@ import { AdAccount } from "@/lib/types/account";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { useQuery } from "@tanstack/react-query";
 import { Parser } from "json2csv";
-import { ClipboardList, FileDown, Filter, Loader2, Plus } from "lucide-react";
+import {
+  Check,
+  ClipboardList,
+  Eye,
+  FileDown,
+  Filter,
+  Loader2,
+  Monitor,
+  Pencil,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useIsTablet } from "@/hooks/use-is-tablet";
 import CreateTopupDialog from "../topups/create-topup-dialog";
 import BulkTopupAdAccountsDialog from "../topups/bulk-ad-accounts-topup-dialog";
 import { Button } from "../ui/button";
-import AccountCard from "./account-card";
 import AdvertiserAccountCard from "./advertiser-account-card";
 import { AccountDetailsSheet } from "./account-details-sheet";
-import AccountRow from "./account-row";
 import CreateAccountDialog from "./create-account-dialog";
 import { useAppContext } from "@/context/app-provider";
 import RequestAdAccountDialog from "./request-ad-account-dialog";
 import AdvertiserAdAccountRequestsDialog from "../ad-account-requests/advertiser-ad-account-requests-dialog";
 import UpdateAccountDialog from "./update-account-dialog";
 import AccountMinTopupDialog from "./account-min-topup-dialog";
+import useUpdateAccount from "./use-update-account";
 
+// Admin Ad Accounts monolith, ported to the mockup look (.psmapp shell,
+// injected by AdminShell). Reuses the exact data hooks, search/platform/
+// status/fee filters, pagination, and every dialog (create / edit / set
+// min-topup / details / topup) — presentation only, no new data writes.
+// The advertiser branch is kept intact below (the router redirects
+// advertisers to the single-page app, so it is not normally reached, but
+// nothing is dropped).
 export default function AccountsTable() {
   const { profile } = useAppContext();
   const supabase = createClient();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
   );
-  const isTabletScreen = useIsTablet() ?? true;
 
   const [account, setAccount] = useState<AdAccount | null>(null);
   const [accountToEdit, setAccountToEdit] = useState<AdAccount | null>(null);
@@ -90,7 +99,7 @@ export default function AccountsTable() {
         .select(
           `*,
           advertiser:advertisers(
-            tenant_client_code, 
+            tenant_client_code,
             profile:user_profiles(
               full_name,
               email
@@ -221,284 +230,11 @@ export default function AccountsTable() {
 
   const isAdvertiser = profile?.role === "advertiser";
   const hasAdvertiserAccounts = (advertiserAccounts?.length ?? 0) > 0;
-  return (
-    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-      <div className="flex sm:items-center gap-2 sm:gap-3">
-        <Input
-          placeholder={
-            isAdvertiser
-              ? "Search accounts..."
-              : "Search client, account or advertiser..."
-          }
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="w-full sm:max-w-xs"
-        />
 
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="sm:w-auto sm:px-3"
-                aria-label="Filters"
-              >
-                <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline ml-1">Filters</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent>
-              <div className="flex flex-col gap-3">
-                <div>
-                  <label className="text-sm mb-1 block">Platform</label>
-                  <Select onValueChange={(v) => setPlatformFilter(v || null)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {PLATFORMS.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm mb-1 block">Status</label>
-                  <Select onValueChange={(v) => setStatusFilter(v || null)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="active">active</SelectItem>
-                      <SelectItem value="paused">paused</SelectItem>
-                      <SelectItem value="inactive">inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm mb-1 block">
-                    Max Fee: {maxFee}%
-                  </label>
-                  <div className="w-full">
-                    <Slider
-                      value={[maxFee]}
-                      min={0}
-                      max={100}
-                      onValueChange={(v: number[]) => setMaxFee(v[0] ?? 0)}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setPlatformFilter(null);
-                      setStatusFilter(null);
-                      setMaxFee(100);
-                    }}
-                  >
-                    Reset
-                  </Button>
-                  <Button size="sm" onClick={() => {}}>
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          {!isAdvertiser && (
-            <>
-              <Button
-                variant="outline"
-                size="icon"
-                className="sm:w-auto sm:px-3"
-                onClick={handleDownload}
-                aria-label="Download CSV"
-              >
-                {downloadingCSV ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileDown className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline ml-1">Download CSV</span>
-              </Button>
-              <CreateAccountDialog />
-            </>
-          )}
-          {isAdvertiser && (
-            <>
-              {!isAdvertiserAccountsLoading && hasAdvertiserAccounts && (
-                <BulkTopupAdAccountsDialog
-                  accounts={advertiserAccounts ?? []}
-                />
-              )}
-              <RequestAdAccountDialog>
-                <Button
-                  size="icon"
-                  className="sm:w-auto sm:px-3"
-                  aria-label="Request Ad Account"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-1">Request New</span>
-                </Button>
-              </RequestAdAccountDialog>
-              <AdvertiserAdAccountRequestsDialog>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="sm:w-auto sm:px-3"
-                  aria-label="View Requests"
-                >
-                  <ClipboardList className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-1">
-                    Pending Requests
-                  </span>
-                </Button>
-              </AdvertiserAdAccountRequestsDialog>
-            </>
-          )}
-        </div>
-      </div>
-      {/* Advertiser Card View */}
-      {isAdvertiser ? (
-        isLoading ? (
-          <div className="flex flex-col gap-3">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div key={idx} className="animate-pulse rounded-lg border p-3">
-                <div className="h-4 bg-muted rounded w-1/3 mb-2" />
-                <div className="h-3 bg-muted rounded w-1/4" />
-              </div>
-            ))}
-          </div>
-        ) : isError ? (
-          <div>
-            <p className="text-center text-destructive">{error?.message}</p>
-          </div>
-        ) : paginatedAccounts.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {paginatedAccounts.map((account: any) => (
-              <AdvertiserAccountCard
-                key={account.id}
-                account={account}
-                onView={handleAccountClick}
-                onAddTopup={setAccount}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="h-48 text-center flex flex-col items-center justify-center gap-4">
-            <p>No Ad Accounts Found</p>
-            <div className="flex items-center gap-2">
-              <RequestAdAccountDialog />
-              <AdvertiserAdAccountRequestsDialog />
-            </div>
-          </div>
-        )
-      ) : /* Admin Table / Mobile Card View */
-      isTabletScreen ? (
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              <TableRow>
-                <TableHead>Client Code</TableHead>
-                <TableHead>Account Name</TableHead>
-                <TableHead>Advertiser Name</TableHead>
-                <TableHead>Platform</TableHead>
-                <TableHead>Fee</TableHead>
-                <TableHead>Currency</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <TableRow key={idx} className="animate-pulse">
-                    {Array.from({ length: 7 }).map((_, cellIdx) => (
-                      <LoaderCell key={cellIdx} />
-                    ))}
-                  </TableRow>
-                ))
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center text-destructive py-8"
-                  >
-                    <div role="alert" aria-live="assertive">
-                      <p className="font-medium">Failed to load accounts.</p>
-                      <p className="mt-2 text-sm">
-                        {(error as Error)?.message ?? String(error)}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : paginatedAccounts.length > 0 ? (
-                paginatedAccounts.map((account: any) => (
-                  <AccountRow
-                    key={account.id}
-                    account={account}
-                    onRowClick={handleAccountClick}
-                    onAddTopup={setAccount}
-                    onEdit={setAccountToEdit}
-                    onSetMinTopup={setAccountToMinTopup}
-                  />
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <p>No Ad Accounts Found</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      ) : isLoading ? (
-        Array.from({ length: 5 }).map((_, idx) => (
-          <div key={idx} className="animate-pulse">
-            <div className="h-1p bg-muted"></div>
-          </div>
-        ))
-      ) : isError ? (
-        <div>
-          <p className="text-center text-destructive">{error?.message}</p>
-        </div>
-      ) : accounts?.length ? (
-        paginatedAccounts.map((account) => (
-          <AccountCard
-            key={account.id}
-            account={account}
-            onView={handleAccountClick}
-            onEdit={setAccountToEdit}
-            onSetMinTopup={setAccountToMinTopup}
-          />
-        ))
-      ) : (
-        <div className="h-48 text-center flex flex-col items-center justify-center gap-4">
-          <p>No Ad Accounts Found</p>
-        </div>
-      )}
-      <div className="p-4 pb-16">
-        <TablePagination
-          total={totalFiltered}
-          page={page}
-          perPage={perPage}
-          onPageChange={(p) => setPage(p)}
-        />
-      </div>
+  // Shared dialogs — mounted regardless of role; they portal outside the
+  // .psmapp shell, so they keep working unchanged.
+  const dialogs = (
+    <>
       <CreateTopupDialog
         account={account}
         open={account !== null}
@@ -523,14 +259,525 @@ export default function AccountsTable() {
         open={selectedAccountId !== null}
         setOpen={() => setSelectedAccountId(null)}
       />
+    </>
+  );
+
+  // ------------------------------------------------------------------
+  // Advertiser view (legacy). Kept intact so no advertiser flow is lost.
+  // ------------------------------------------------------------------
+  if (isAdvertiser) {
+    return (
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
+        <div className="flex sm:items-center gap-2 sm:gap-3">
+          <Input
+            placeholder="Search accounts..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full sm:max-w-xs"
+          />
+
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="sm:w-auto sm:px-3"
+                  aria-label="Filters"
+                >
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline ml-1">Filters</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-sm mb-1 block">Platform</label>
+                    <Select onValueChange={(v) => setPlatformFilter(v || null)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        {PLATFORMS.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm mb-1 block">Status</label>
+                    <Select onValueChange={(v) => setStatusFilter(v || null)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="active">active</SelectItem>
+                        <SelectItem value="paused">paused</SelectItem>
+                        <SelectItem value="inactive">inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm mb-1 block">
+                      Max Fee: {maxFee}%
+                    </label>
+                    <div className="w-full">
+                      <Slider
+                        value={[maxFee]}
+                        min={0}
+                        max={100}
+                        onValueChange={(v: number[]) => setMaxFee(v[0] ?? 0)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPlatformFilter(null);
+                        setStatusFilter(null);
+                        setMaxFee(100);
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button size="sm" onClick={() => {}}>
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {!isAdvertiserAccountsLoading && hasAdvertiserAccounts && (
+              <BulkTopupAdAccountsDialog accounts={advertiserAccounts ?? []} />
+            )}
+            <RequestAdAccountDialog>
+              <Button
+                size="icon"
+                className="sm:w-auto sm:px-3"
+                aria-label="Request Ad Account"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Request New</span>
+              </Button>
+            </RequestAdAccountDialog>
+            <AdvertiserAdAccountRequestsDialog>
+              <Button
+                variant="outline"
+                size="icon"
+                className="sm:w-auto sm:px-3"
+                aria-label="View Requests"
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Pending Requests</span>
+              </Button>
+            </AdvertiserAdAccountRequestsDialog>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={idx} className="animate-pulse rounded-lg border p-3">
+                <div className="h-4 bg-muted rounded w-1/3 mb-2" />
+                <div className="h-3 bg-muted rounded w-1/4" />
+              </div>
+            ))}
+          </div>
+        ) : isError ? (
+          <div>
+            <p className="text-center text-destructive">{error?.message}</p>
+          </div>
+        ) : paginatedAccounts.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {paginatedAccounts.map((acc: any) => (
+              <AdvertiserAccountCard
+                key={acc.id}
+                account={acc}
+                onView={handleAccountClick}
+                onAddTopup={setAccount}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="h-48 text-center flex flex-col items-center justify-center gap-4">
+            <p>No Ad Accounts Found</p>
+            <div className="flex items-center gap-2">
+              <RequestAdAccountDialog />
+              <AdvertiserAdAccountRequestsDialog />
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 pb-16">
+          <TablePagination
+            total={totalFiltered}
+            page={page}
+            perPage={perPage}
+            onPageChange={(p) => setPage(p)}
+          />
+        </div>
+
+        {dialogs}
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Admin view — mockup look.
+  // ------------------------------------------------------------------
+  const hasFilters =
+    Boolean(platformFilter) ||
+    Boolean(statusFilter) ||
+    maxFee < 100 ||
+    Boolean(search.trim());
+
+  return (
+    <div
+      className="psmview"
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
+      <div className="phead">
+        <div>
+          <h1>Ad Accounts</h1>
+          <p>
+            Create accounts, assign advertisers, set fees, and manage account
+            status.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn ghost"
+            onClick={handleDownload}
+            aria-label="Download CSV"
+          >
+            {downloadingCSV ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <FileDown />
+            )}
+            Download CSV
+          </button>
+          <CreateAccountDialog>
+            <button className="btn grad" aria-label="Create new account">
+              <Plus /> Create New
+            </button>
+          </CreateAccountDialog>
+        </div>
+      </div>
+
+      <div className="fbar">
+        <label className="fsr">
+          <Search />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search client, account or advertiser…"
+          />
+        </label>
+        <select
+          value={platformFilter ?? "all"}
+          onChange={(e) => {
+            setPlatformFilter(e.target.value === "all" ? null : e.target.value);
+            setPage(1);
+          }}
+          aria-label="Platform"
+        >
+          <option value="all">All platforms</option>
+          {PLATFORMS.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={statusFilter ?? "all"}
+          onChange={(e) => {
+            setStatusFilter(e.target.value === "all" ? null : e.target.value);
+            setPage(1);
+          }}
+          aria-label="Status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            fontFamily: "var(--bd)",
+            fontWeight: 600,
+            fontSize: ".84rem",
+            color: "var(--muted)",
+            border: "1px solid var(--line-2)",
+            borderRadius: 11,
+            padding: "8px 13px",
+            background: "var(--panel)",
+          }}
+        >
+          Max fee&nbsp;
+          <b style={{ color: "var(--ink)" }}>{maxFee}%</b>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={maxFee}
+            onChange={(e) => {
+              setMaxFee(Number(e.target.value));
+              setPage(1);
+            }}
+            aria-label="Maximum fee"
+            style={{ accentColor: "var(--primary)", width: 120 }}
+          />
+        </label>
+        {hasFilters && (
+          <button
+            className="btn ghost sm"
+            onClick={() => {
+              setPlatformFilter(null);
+              setStatusFilter(null);
+              setMaxFee(100);
+              setSearch("");
+              setPage(1);
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <p className="muted">Loading…</p>
+      ) : isError ? (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            Failed to load accounts.{" "}
+            {(error as Error)?.message ?? String(error)}
+          </p>
+        </div>
+      ) : paginatedAccounts.length ? (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tblwrap">
+            <table className="tbl wide">
+              <thead>
+                <tr>
+                  <th>Client Code</th>
+                  <th>Account Name</th>
+                  <th>Advertiser</th>
+                  <th>Platform</th>
+                  <th className="r">Fee</th>
+                  <th>Currency</th>
+                  <th>Status</th>
+                  <th className="r">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedAccounts.map((acc: any) => (
+                  <PsmAdminAccountRow
+                    key={acc.id}
+                    account={acc}
+                    onRowClick={handleAccountClick}
+                    onEdit={setAccountToEdit}
+                    onSetMinTopup={setAccountToMinTopup}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No Ad Accounts Found
+          </p>
+        </div>
+      )}
+
+      <TablePagination
+        total={totalFiltered}
+        page={page}
+        perPage={perPage}
+        onPageChange={(p) => setPage(p)}
+      />
+
+      {dialogs}
     </div>
   );
 }
 
-function LoaderCell() {
+// Admin ad-account row in the mockup look. Ports account-row.tsx faithfully:
+// clickable row (opens details), inline fee-edit machinery + the
+// useUpdateAccount mutation, and the Edit / Set Topup Limit / View actions.
+function PsmAdminAccountRow({
+  account,
+  onRowClick,
+  onEdit,
+  onSetMinTopup,
+}: {
+  account: AdAccount;
+  onRowClick: (id: string) => void;
+  onEdit: (account: AdAccount) => void;
+  onSetMinTopup: (account: AdAccount) => void;
+}) {
+  const { profile } = useAppContext();
+  const isAdmin = profile?.role === "admin";
+  const { updateAccount } = useUpdateAccount();
+  const initialFee = account.fee;
+  const [fee, setFee] = useState<number | string>(account.fee);
+  const [editing, setEditing] = useState({ fee: false });
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setIsDirty(fee !== initialFee);
+  }, [fee, initialFee]);
+
+  const handleFeeEdit = (e: React.MouseEvent<HTMLTableCellElement>) => {
+    e.stopPropagation();
+    if (!isAdmin) return;
+    setEditing({ ...editing, fee: true });
+  };
+
+  const updateFee = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setIsDirty(false);
+    updateAccount({
+      id: account.id,
+      payload: {
+        fee: +fee,
+      },
+    });
+  };
+
+  const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
+    // Ignore portal-originated events (e.g. dialog clicks bubbling through the React tree).
+    if (!e.currentTarget.contains(e.target as Node)) return;
+    onRowClick(account.id);
+  };
+
+  const platformLabel =
+    PLATFORMS.find((p) => p.value === account.platform)?.label ??
+    account.platform;
+
+  const statusCls =
+    account.status === "active"
+      ? "ok"
+      : account.status === "paused"
+        ? "pend"
+        : "due";
+
   return (
-    <TableCell>
-      <div className="h-4 bg-muted rounded w-8" />
-    </TableCell>
+    <tr onClick={handleRowClick} style={{ cursor: "pointer" }}>
+      <td className="mono">{account.advertiser?.tenant_client_code || "—"}</td>
+      <td style={{ fontWeight: 600 }}>{account.name}</td>
+      <td>{account.advertiser?.profile?.full_name || "—"}</td>
+      <td>
+        <span
+          style={{ display: "inline-flex", alignItems: "center", gap: 9 }}
+        >
+          <span className="pfi">
+            <Monitor />
+          </span>
+          {platformLabel}
+        </span>
+      </td>
+      <td
+        className="r"
+        onClick={handleFeeEdit}
+        style={{ cursor: isAdmin ? "pointer" : "default" }}
+      >
+        {fee}%
+      </td>
+      <td>{account.currency || "N/A"}</td>
+      <td>
+        <span
+          className={`badge ${statusCls}`}
+          style={{ textTransform: "capitalize" }}
+        >
+          {account.status}
+        </span>
+      </td>
+      <td className="r">
+        {isDirty ? (
+          <div
+            style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
+          >
+            <button
+              className="btn ghost sm"
+              aria-label="Save fee"
+              onClick={updateFee}
+            >
+              <Check />
+            </button>
+            <button
+              className="btn ghost sm"
+              aria-label="Cancel fee edit"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFee(account.fee);
+                setIsDirty(false);
+              }}
+            >
+              <X />
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+            }}
+          >
+            {isAdmin && (
+              <button
+                className="btn ghost sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(account);
+                }}
+              >
+                <Pencil /> Edit
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                className="btn ghost sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSetMinTopup(account);
+                }}
+              >
+                <SlidersHorizontal /> Set Topup Limit
+              </button>
+            )}
+            <button
+              className="btn ghost sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRowClick(account.id);
+              }}
+            >
+              <Eye /> View
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }

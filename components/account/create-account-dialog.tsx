@@ -13,17 +13,23 @@ import AccountForm from "./account-form";
 import { useState } from "react";
 import { useAppContext } from "@/context/app-provider";
 
-export default function CreateAccountDialog() {
+export default function CreateAccountDialog({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const { profile } = useAppContext();
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {profile?.role === "admin" && (
         <DialogTrigger asChild>
-          <Button aria-label="Create new account">
-            <PlusCircle />
-            <span>Create New</span>
-          </Button>
+          {children ?? (
+            <Button aria-label="Create new account">
+              <PlusCircle />
+              <span>Create New</span>
+            </Button>
+          )}
         </DialogTrigger>
       )}
       <DialogContent className="w-[calc(100vw-1rem)] max-h-[92vh] overflow-hidden sm:max-w-lg">
