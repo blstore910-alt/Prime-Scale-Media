@@ -6,12 +6,17 @@ surface the name to advertisers/affiliates. Adapter: `lib/integrations/supplier1
 
 ## Auth & base
 
-- **Auth header:** `authToken: <token>` — a raw token, **not** `Bearer`.
-  (One example uses lowercase `authtoken`; HTTP header names are
-  case-insensitive, so either works.)
-- **Base URL:** the collection uses `{{baseUrl}}` with no value published.
-  **NEEDED FROM USER:** the real host (e.g. `https://api.seamx.…`) and the
-  `authToken` value (the API key).
+- **Base URL (LIVE-CONFIRMED 2026-09-12): `https://app.gradyn.io/api`**
+  (SeamX = Gradyn). Endpoints resolve to `https://app.gradyn.io/api/v1/...`.
+  Env vars the adapter reads: `SUPPLIER1_BASE_URL`, `SUPPLIER1_AUTH_TOKEN`,
+  `SUPPLIER1_MODE=live`.
+- **Auth header:** a raw token (not `Bearer`) — but the **casing is
+  inconsistent and matters**:
+  - `GET /v1/adaccounts` (list) accepts **only lowercase `authtoken`**;
+    camelCase `authToken` there **500s** (server-side HTML crash).
+  - Balance and every other endpoint use camelCase **`authToken`**.
+  - The adapter's `seamxFetch` sends `authToken` by default and lowercase
+    `authtoken` for the list call.
 - Paths are versioned under `/v1`. Note the supplier's own spelling
   `/v1/withdrawls` (no "a").
 
@@ -70,7 +75,7 @@ advertising_amount_after_location_fee, total_tax_amount } }`
 | `listAdAccounts()` | GET `/v1/adaccounts` (follow `pagination`) | ✅ — but `balance_cents` is not available (drop / 0) |
 | `pushTopup({external_ad_account_id, amount_cents, currency})` | POST `/v1/topups {ad_account_id, amount, currency}` | ✅ (amount is major units, not cents) |
 | `pushWithdraw({external_ad_account_id, amount_cents, currency})` | POST `/v1/withdrawls {ad_account_id, amount, destination:"wallet"}` | ✅ |
-| `getBalance(externalAdAccountId)` | **no per-account balance endpoint** | ⚠️ mismatch — SeamX only has wallet-level `/v1/wallets/balance` |
+| `getBalance(externalAdAccountId)` | GET `/v1/adaccounts/{id}` → `current_balance` | ✅ per-account balance DOES exist (Postman sample omitted it) |
 
 Notes for the live implementation (when key arrives):
 - SeamX amounts are **major units** (e.g. `10`, `100.44`), our adapter speaks
@@ -84,8 +89,11 @@ Notes for the live implementation (when key arrives):
   in the roadmap — separate from the 4 adapter methods; wire only if/when we
   build the DST feature (not now).
 
-## Still needed from the user
-1. Base URL (host) for SeamX.
-2. `authToken` API key.
-3. Confirm whether `pushTopup`/`pushWithdraw` amounts are per-currency major
-   units (assumed yes) and whether SeamX dedups repeated requests.
+## Resolved / still open
+- ✅ Base URL: `https://app.gradyn.io/api`. ✅ Key works (balance returns live
+  data). ✅ List works with lowercase `authtoken`. ✅ Per-account balance maps.
+- Open: confirm `pushTopup`/`pushWithdraw` amounts are per-currency major units
+  (assumed yes) and whether Gradyn dedups repeated requests (no idempotency
+  header documented — we rely on our `integration_jobs` dedup).
+- Note: some accounts return `fee_percentage` 0 or 2 and `account_status`
+  `deleted` — filter/skip `deleted` when syncing if needed.
