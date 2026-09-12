@@ -25,6 +25,7 @@ import WalletExchangeDialog from "@/components/wallet/wallet-exchange-dialog";
 import CreateTopupDialog from "@/components/topups/create-topup-dialog";
 import RequestAdAccountDialog from "@/components/account/request-ad-account-dialog";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
+import OnboardingChecklist from "./onboarding-checklist";
 
 dayjs.extend(relativeTime);
 
@@ -555,6 +556,14 @@ export default function AdvertiserApp() {
         <div className="content">
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
+            <OnboardingChecklist
+              advertiserId={advertiserId}
+              company={company ?? null}
+              eurBalance={eurBal}
+              usdBalance={usdBal}
+              accountsCount={(accounts ?? []).length}
+              onNavigate={(v) => go(v as View)}
+            />
             <div className="phead">
               <div>
                 <h1>Welcome back, {firstName}</h1>
