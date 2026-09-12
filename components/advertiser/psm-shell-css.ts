@@ -26,7 +26,7 @@ export const PSM_APP_CSS = `
 .psmapp .grad{background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
 .psmapp .mono{font-family:ui-monospace,Menlo,monospace}
 
-.psmapp .sidebar{width:var(--sidebar);flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh}
+.psmapp .sidebar{width:var(--sidebar);flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden}
 .psmapp .logo{display:flex;align-items:center;gap:11px;padding:6px 8px 18px}
 .psmapp .mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;flex:0 0 auto;background:linear-gradient(135deg,var(--navy1),var(--navy2),var(--navy3));box-shadow:0 0 22px rgba(91,141,255,.4),0 0 0 1px rgba(91,141,255,.28)}
 .psmapp .mark svg{width:20px;height:20px;stroke:#fff}
@@ -68,7 +68,7 @@ export const PSM_APP_CSS = `
 .psmapp .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:grid;place-items:center;cursor:pointer}
 .psmapp .ham{display:none}
 
-.psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto}
+.psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto;min-width:0;overflow-x:auto}
 .psmapp .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .psmapp .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
 .psmapp .phead p{color:var(--muted);font-size:.92rem;margin:4px 0 0}

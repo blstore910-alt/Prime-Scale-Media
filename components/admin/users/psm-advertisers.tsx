@@ -28,6 +28,7 @@ import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 const chipStyle = {
   width: 36,
   height: 36,
+  flex: "0 0 auto" as const,
   borderRadius: 10,
   display: "grid" as const,
   placeItems: "center" as const,
