@@ -25,6 +25,8 @@ import WalletExchangeDialog from "@/components/wallet/wallet-exchange-dialog";
 import CreateTopupDialog from "@/components/topups/create-topup-dialog";
 import RequestAdAccountDialog from "@/components/account/request-ad-account-dialog";
 import useAdAccountRequests from "@/components/ad-account-requests/use-ad-account-requests";
+import useNotificationPreferences from "@/hooks/use-notification-preferences";
+import type { NotificationType } from "@/lib/types/notification";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 
@@ -61,6 +63,9 @@ const money2 = (n: number | string | null | undefined) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(n ?? 0));
+
+// Support inbox for the "contact us" actions. Change here if it differs.
+const SUPPORT_EMAIL = "info@primescalemedia.com";
 
 const platformLabel = (p: string | null) =>
   PLATFORMS.find((x) => x.value === p)?.label ?? p ?? "—";
@@ -1415,10 +1420,16 @@ export default function AdvertiserApp() {
               <div className="card">
                 <h2>Notification preferences</h2>
                 <p className="cap">Choose what pings you.</p>
-                <Toggle label="Top-up verified" desc="When a payment is credited" def />
-                <Toggle label="Invoice / fee due" desc="Before your monthly fee is charged" def />
-                <Toggle label="Ad account status" desc="When a request goes live or needs action" def />
-                <Toggle label="Low balance" desc="When your wallet runs low" />
+                <Toggle
+                  label="Top-up verified"
+                  desc="When a payment is credited"
+                  notifType="topup_completed"
+                />
+                <Toggle
+                  label="Invoice / fee due"
+                  desc="Before your monthly fee is charged"
+                  notifType="subscription_invoice"
+                />
               </div>
             </div>
             <div className="card">
@@ -1435,9 +1446,13 @@ export default function AdvertiserApp() {
               </p>
               <button
                 className="btn ghost sm"
-                onClick={() =>
-                  toast.success("Affiliate application sent — we'll review it")
-                }
+                onClick={() => {
+                  window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                    "Affiliate program application",
+                  )}&body=${encodeURIComponent(
+                    "Hi PSM team, I'd like to join the affiliate program.",
+                  )}`;
+                }}
               >
                 Apply to the affiliate program
               </button>
@@ -1483,7 +1498,11 @@ export default function AdvertiserApp() {
                 <p className="cap">Your account manager is one tap away.</p>
                 <button
                   className="btn block grad"
-                  onClick={() => toast.success("Opening WhatsApp…")}
+                  onClick={() => {
+                    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                      "Question about my account",
+                    )}`;
+                  }}
                 >
                   <Ic name="i-mail" /> Message your manager
                 </button>
@@ -1628,13 +1647,14 @@ function WalletCard({
 function Toggle({
   label,
   desc,
-  def,
+  notifType,
 }: {
   label: string;
   desc: string;
-  def?: boolean;
+  notifType: NotificationType;
 }) {
-  const [on, setOn] = useState(!!def);
+  const { isEnabled, setPreference } = useNotificationPreferences();
+  const on = isEnabled(notifType);
   return (
     <div className="toggle-row">
       <div>
@@ -1643,7 +1663,8 @@ function Toggle({
       </div>
       <button
         className={`sw${on ? " on" : ""}`}
-        onClick={() => setOn((v) => !v)}
+        disabled={setPreference.isPending}
+        onClick={() => setPreference.mutate({ type: notifType, enabled: !on })}
         aria-label={label}
       />
     </div>

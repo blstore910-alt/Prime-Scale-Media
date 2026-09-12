@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
 
+// Support inbox for the "contact us" actions. Change here if it differs.
+const SUPPORT_EMAIL = "info@primescalemedia.com";
+
 type View = "dash" | "refs" | "pay" | "notif" | "set" | "help";
 const TITLES: Record<View, string> = {
   dash: "Dashboard",
@@ -967,7 +970,7 @@ export default function AffiliateApp() {
                 <div style={{ marginTop: 16 }}>
                   <div className="field">
                     <label>Full name</label>
-                    <input defaultValue={name} />
+                    <input defaultValue={name} disabled />
                   </div>
                   <div className="field">
                     <label>Email</label>
@@ -992,21 +995,15 @@ export default function AffiliateApp() {
                       </button>
                     </div>
                   </div>
-                  <button
-                    className="btn sm"
-                    onClick={() => toast.success("Profile saved")}
-                  >
-                    Save profile
-                  </button>
                 </div>
               </div>
               <div className="card">
                 <h2>Notification preferences</h2>
                 <p className="cap">Choose what pings you.</p>
-                <NotifToggle label="New referral joined" desc="When someone signs up via your link" def />
-                <NotifToggle label="Commission earned" desc="When a referral tops up" def />
-                <NotifToggle label="Payout status" desc="When a payout is requested or paid" def />
-                <NotifToggle label="Tier changes" desc="When you reach a new tier" />
+                <NotifToggle label="New referral joined" desc="When someone signs up via your link" storeKey="new-referral" def />
+                <NotifToggle label="Commission earned" desc="When a referral tops up" storeKey="commission" def />
+                <NotifToggle label="Payout status" desc="When a payout is requested or paid" storeKey="payout" def />
+                <NotifToggle label="Tier changes" desc="When you reach a new tier" storeKey="tier" />
               </div>
             </div>
             <div className="card">
@@ -1054,9 +1051,15 @@ export default function AffiliateApp() {
               </div>
               <button
                 className="btn sm"
-                onClick={() => toast.success("Payout details saved")}
+                onClick={() => {
+                  window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                    "Payout details setup",
+                  )}&body=${encodeURIComponent(
+                    "Hi PSM team, here are my payout details:\n\nAccount holder:\nIBAN:\nBIC / SWIFT:\nBilling address:\nVAT / Tax ID:",
+                  )}`;
+                }}
               >
-                Save payout details
+                Email payout details to set up
               </button>
             </div>
           </div>
@@ -1103,7 +1106,11 @@ export default function AffiliateApp() {
                 <button
                   className="btn"
                   style={{ width: "100%", justifyContent: "center" }}
-                  onClick={() => toast.success("Opening email to your manager…")}
+                  onClick={() => {
+                    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                      "Affiliate question",
+                    )}`;
+                  }}
                 >
                   <Ic name="i-mail" /> Contact your PSM manager
                 </button>
@@ -1243,13 +1250,31 @@ function LogoutGlyph() {
 function NotifToggle({
   label,
   desc,
+  storeKey,
   def,
 }: {
   label: string;
   desc: string;
+  storeKey: string;
   def?: boolean;
 }) {
+  // Affiliates have no server-side notification types yet, so the choice
+  // is remembered per-device rather than lost on reload.
   const [on, setOn] = useState(!!def);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(`aff-notif-${storeKey}`);
+      if (v !== null) setOn(v === "1");
+    } catch {}
+  }, [storeKey]);
+  const toggle = () =>
+    setOn((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(`aff-notif-${storeKey}`, next ? "1" : "0");
+      } catch {}
+      return next;
+    });
   return (
     <div className="toggle-row">
       <div>
@@ -1258,7 +1283,7 @@ function NotifToggle({
       </div>
       <button
         className={`sw${on ? " on" : ""}`}
-        onClick={() => setOn((v) => !v)}
+        onClick={toggle}
         aria-label={label}
       />
     </div>
