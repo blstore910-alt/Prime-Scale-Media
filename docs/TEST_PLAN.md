@@ -469,6 +469,102 @@ via server action beveiligd — zie follow-up in P0-rest commit.)
 
 ---
 
+## 4b. Nieuw in 2026-09 (pool, auto-push, trigger-fix)
+
+### 4b.1 Wallet top-up dubbele creditering — REGRESSIE
+
+De live DB draaide twee complete balans-systemen op `wallet_topups`:
+de repo-trigger én een handgeschreven paar. Beide vuurden op
+`pending → completed`, dus elke goedkeuring crediteerde **2×**.
+Gefixt door `20260913220000_fix_wallet_topup_balance_sync` (één
+trigger, expliciete volgorde). Nooit echt getriggerd in productie —
+`audit_events` toont nul `pending → completed` overgangen — dus geen
+historische schade.
+
+Test (moet blijven kloppen na élke migratie op wallets):
+
+1. Noteer het wallet-saldo. Keur één top-up van bedrag X goed.
+2. **Verwacht:** saldo stijgt met precies X. Niet 2X.
+3. Undo (`completed → pending`): saldo daalt met precies X.
+
+Verifiëren zonder iets te muteren — een `DO` blok dat eindigt in
+`RAISE EXCEPTION` rolt zelf terug én print de cijfers (de SQL editor
+toont alleen het resultaat van het láátste statement, dus
+`begin; … select …; rollback;` laat niets zien):
+
+```sql
+do $$
+declare v_before numeric; v_after numeric; v_id uuid; v_amt numeric; v_w uuid;
+begin
+  select id, amount, wallet_id into v_id, v_amt, v_w
+    from wallet_topups where status = 'pending' limit 1;
+  select balance into v_before from wallets where id = v_w;
+  update wallet_topups set status = 'completed' where id = v_id;
+  select balance into v_after from wallets where id = v_w;
+  raise exception 'TEST >> amount=% before=% after=% delta=%',
+    v_amt, v_before, v_after, v_after - v_before;
+end $$;
+```
+
+`delta` MOET gelijk zijn aan `amount`. (Uitgevoerd 2026-09-13:
+amount=300, before=300, after=600, delta=300 → PASS.)
+
+### 4b.2 Ad-account pool (SeamX + handmatig)
+
+Migratie `20260913200000_supplier_ad_account_pool` vereist.
+
+1. Admin → Account pool: lijst toont zowel **SeamX**- als
+   **Manual**-rijen (kolom Source).
+2. "Sync" haalt SeamX-inventaris op (upsert op
+   `tenant_id, provider, external_id`) — twee keer syncen maakt géén
+   duplicaten.
+3. "Add manual" voegt een eigen account toe met `provider='manual'`.
+4. Allocate → kies advertiser: er ontstaat een `ad_accounts` rij én
+   de poolrij wordt geclaimd.
+5. **Race-check:** alloceer dezelfde poolrij vanuit twee sessies.
+   De tweede moet falen (claim is `.is("advertiser_id", null)`-guarded).
+6. Release geeft de rij terug aan de pool.
+
+### 4b.3 Auto-push naar de leverancier — VEILIGHEIDSCHECK
+
+Auto-push betekent: een betaald gemarkeerde ad-account top-up laat de
+app het account **automatisch** bij de leverancier volstorten. Dat
+beweegt echt geld. Hij staat achter **twee** schakelaars die allebei
+aan moeten:
+
+| Env | Standaard | Betekenis |
+| --- | --- | --- |
+| `SUPPLIER1_MODE` | `mock` | `live` = de adapter praat met de echte API |
+| `SUPPLIER1_AUTOPUSH` | leeg | `on` = wij mogen zélf geld verplaatsen |
+
+`SUPPLIER1_MODE=live` zet óók de read-only paden aan (saldo, sync,
+de pool). Die wil je lang vóór het schrijfpad aan hebben — vandaar
+twee vlaggen in plaats van één.
+
+Vóór élke test tegen een live leverancier:
+
+1. Settings → Integrations toont **"Auto-push is OFF"** met een slot.
+   Staat er amber "ARMED", dan stop: er kan geld weg.
+2. Markeer een ad-account top-up als betaald.
+   **Verwacht:** géén nieuwe rij in `integration_jobs`. Bij een
+   gesloten poort doet de enqueue niet eens een DB-read.
+3. Zet `SUPPLIER1_MODE=live` (AUTOPUSH nog leeg), herhaal 2.
+   **Verwacht:** nog steeds niets — en een bestaande job wordt door
+   de worker *vastgehouden* (terug naar `pending`, poging
+   teruggedraaid), niet verstuurd.
+4. Pas als je écht wil pushen: `SUPPLIER1_AUTOPUSH=on`. De teller
+   "N push jobs waiting" in Settings laat vooraf zien wat er dan
+   meteen vertrekt.
+
+Alleen leverancier-accounts kunnen pushen: het externe id komt uit
+`supplier_ad_accounts` met `provider='supplier1'`. Handmatige accounts
+worden overgeslagen met een reden.
+
+Regressietests: `npm test` → `tests/lib/autopush.test.ts` (14 checks,
+waaronder "schrijft niets én leest niets als de poort dicht is").
+
+---
+
 ## 5. Bekende follow-ups (niet blocking voor go-live, maar tracken)
 
 Deze items zijn bewust nog niet gehard. Ze werken wel, maar leunen
