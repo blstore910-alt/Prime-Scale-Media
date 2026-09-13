@@ -223,7 +223,11 @@ export default function WalletTopupDialog({
     formKey: `wallet-topup:${walletId ?? "unknown"}`,
     values: draftValues,
     userScope: profile?.id ?? null,
-    enabled: open,
+    // Stop persisting once the request is submitted: otherwise the debounced
+    // saver re-writes the draft we just cleared (with step=SUCCESS), and the
+    // next open shows a phantom "Resume" that jumps straight to the success
+    // screen for a top-up that was never re-submitted.
+    enabled: open && step !== STEPS.SUCCESS,
   });
 
   // Reset state when dialog opens/closes

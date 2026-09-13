@@ -3,7 +3,7 @@
 import { loginUser } from "@/actions/user-actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 const REDIRECT_REASONS: Record<string, string> = {
@@ -28,7 +28,6 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const reason = searchParams?.get("reason");
   const reasonMessage = reason ? REDIRECT_REASONS[reason] : null;
 
@@ -71,22 +70,34 @@ export function LoginForm() {
     formData.append("password", password);
 
     startTransition(async () => {
-      const result = await loginUser(formData);
-      if (result?.error) {
+      try {
+        const result = await loginUser(formData);
+        if (result?.error) {
+          shell?.removeAttribute("data-launching");
+          setError(result.error);
+          return;
+        }
+        if (result?.redirectTo) {
+          // Let the launch animation play out, then HARD-navigate. A full-page
+          // load re-runs the auth middleware with the freshly-set cookie
+          // guaranteed present, so the protected /dashboard request is
+          // authenticated. A soft router.push could render a prefetched,
+          // still-unauthenticated redirect and bounce the user back to
+          // /auth/login — the magic-link path below uses the same hard nav.
+          const dest = result.redirectTo;
+          setTimeout(() => window.location.assign(dest), 1000);
+          return;
+        }
+        // Neither error nor redirect (shouldn't happen) — recover the UI so the
+        // rocket-launch fade never strands the user on a blank screen.
         shell?.removeAttribute("data-launching");
-        setError(result.error);
-      } else if (result?.redirectTo) {
-        // Let the launch animation play out, then navigate (a full-page nav
-        // so the just-set auth cookie is sent with the request).
-        const dest = result.redirectTo;
-        // Client-side navigation (no full page reload). The login stays
-        // visible with the rocket launching while the dashboard's data
-        // loads in the background, then swaps in the moment it's ready —
-        // so there's no dead white wait. The auth cookie set by the action
-        // above is already applied, so the RSC request is authenticated.
-        // Prefetch immediately to overlap the load with the launch.
-        router.prefetch(dest);
-        setTimeout(() => router.push(dest), 1000);
+        setError("Something went wrong. Please try again.");
+      } catch {
+        // Network drop / 500 / action-transport failure: always restore the
+        // form (the launch CSS fades it to opacity:0) and show a retryable
+        // error instead of a dead, faded screen.
+        shell?.removeAttribute("data-launching");
+        setError("We couldn't sign you in. Please try again.");
       }
     });
   };
