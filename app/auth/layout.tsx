@@ -153,19 +153,22 @@ const AUTH_CSS = `
    ~2.8s. Frozen under prefers-reduced-motion. ── */
 .psmauth[data-launching]{overflow:hidden}
 .psmauth[data-launching] .brand{overflow:visible}
-.psmauth[data-launching] .ship{animation:psmloop 2.8s cubic-bezier(.45,.05,.55,.95) forwards}
+.psmauth[data-launching] .ship{animation:psmloop 2.9s linear forwards}
 @keyframes psmloop{
   0%{transform:translate(0,0) rotate(0deg) scale(1)}
-  7%{transform:translate(-2px,2px) rotate(1.5deg)}
-  14%{transform:translate(2px,3px) rotate(-1.5deg)}
-  21%{transform:translate(-2px,4px) rotate(1.5deg)}
-  27%{transform:translate(0,7px) rotate(0deg) scale(.94)}
-  38%{transform:translate(26px,-24px) rotate(90deg) scale(1)}
-  47%{transform:translate(0,-50px) rotate(180deg)}
-  56%{transform:translate(-26px,-24px) rotate(270deg)}
-  63%{transform:translate(0,2px) rotate(360deg)}
-  69%{transform:translate(0,7px) rotate(360deg) scale(.95)}
-  100%{transform:translate(0,-155vh) rotate(360deg) scale(1.2)}
+  8%{transform:translate(-2px,2px) rotate(0deg) scale(1)}
+  14%{transform:translate(2px,3px) rotate(0deg) scale(1)}
+  20%{transform:translate(-2px,4px) rotate(0deg) scale(1)}
+  27%{transform:translate(0,6px) rotate(0deg) scale(.94)}
+  31.75%{transform:translate(18px,-2px) rotate(45deg) scale(1)}
+  36.5%{transform:translate(26px,-20px) rotate(90deg) scale(1)}
+  41.25%{transform:translate(18px,-38px) rotate(135deg) scale(1)}
+  46%{transform:translate(0,-46px) rotate(180deg) scale(1)}
+  50.75%{transform:translate(-18px,-38px) rotate(225deg) scale(1)}
+  55.5%{transform:translate(-26px,-20px) rotate(270deg) scale(1)}
+  60.25%{transform:translate(-18px,-2px) rotate(315deg) scale(1)}
+  65%{transform:translate(0,6px) rotate(360deg) scale(.96);animation-timing-function:cubic-bezier(.55,0,.85,.3)}
+  100%{transform:translate(0,-160vh) rotate(360deg) scale(1.2)}
 }
 .psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
 @keyframes psmflameburst{from{transform:scaleY(1.4) scaleX(1.06);opacity:1}to{transform:scaleY(2.6) scaleX(.9);opacity:1}}
