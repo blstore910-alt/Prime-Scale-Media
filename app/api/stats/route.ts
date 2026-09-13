@@ -71,6 +71,19 @@ export async function GET() {
 
   const supabase = await createClient();
 
+  // All-time profit / revenue is a super-admin (tenant-owner) surface — the
+  // reduced employee-admin dashboard never calls this endpoint. Gate it to
+  // the owner so a plain admin can't read total_profit / fees / top-ups by
+  // hitting the route directly.
+  const { data: statsTenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  if (!statsTenant || statsTenant.owner_id !== profile.user_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const [
     topupsResult,
     adAccountsTotalResult,

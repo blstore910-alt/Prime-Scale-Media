@@ -139,12 +139,29 @@ export async function setInvoicePaidStatus(
   void ifUpdatedAt;
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, status, type")
     .eq("id", invoiceId)
     .maybeSingle();
   if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
   if (invoice.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  // Marking a PAID subscription invoice back to unpaid does NOT re-credit the
+  // wallet (it may have been collected via invoice_pay_from_wallet), and the
+  // daily billing cron re-collects any unpaid subscription invoice past its
+  // due date — so the advertiser would be charged twice for one period.
+  // Block that transition; a genuine reversal must go through a refund.
+  if (
+    invoice.status === "paid" &&
+    status === "unpaid" &&
+    invoice.type === "subscription"
+  ) {
+    return {
+      ok: false,
+      error:
+        "A paid subscription invoice can't be marked unpaid — the wallet isn't re-credited and the billing run would charge it again. Issue a refund instead.",
+      code: "invalid",
+    };
   }
 
   const { error: updateError } = await supabase

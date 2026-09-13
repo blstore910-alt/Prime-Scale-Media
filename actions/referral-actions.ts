@@ -58,6 +58,21 @@ export async function setCommissionStatus(
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
+  // Marking commissions paid is an owner-level action (payouts are
+  // owner-controlled, and /commissions is a super-admin page) — a plain
+  // admin must not flip commission status by invoking this directly.
+  const { data: commTenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  if (!commTenant || commTenant.owner_id !== profile.user_id) {
+    return {
+      ok: false,
+      error: "Only the tenant owner can change commission status.",
+    };
+  }
+
   const { data: commission } = await supabase
     .from("referral_commissions")
     .select("id, tenant_id")

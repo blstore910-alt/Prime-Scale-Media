@@ -8,14 +8,19 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 
 type PageProps = {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; t?: string; ref?: string }>;
 };
 export default async function Page({ searchParams }: PageProps) {
-  const { token } = await searchParams;
+  const { token, t, ref } = await searchParams;
   const supabase = await createClient();
   const cookieStore = await cookies();
-  const referralCode = cookieStore.get("ref")?.value;
-  const tenantSlug = cookieStore.get("tenant")?.value;
+  // The referral link is /auth/sign-up?t=<slug>&ref=<code>. Middleware writes
+  // those into cookies, but on the FIRST click that cookie is set on the
+  // response and isn't yet readable on this same request — which used to
+  // bounce a brand-new prospect to /auth/login and drop the referral. Fall
+  // back to the query params so the first click works.
+  const referralCode = cookieStore.get("ref")?.value ?? ref;
+  const tenantSlug = cookieStore.get("tenant")?.value ?? t;
 
   if (!token) {
     if (!referralCode || !tenantSlug) {
