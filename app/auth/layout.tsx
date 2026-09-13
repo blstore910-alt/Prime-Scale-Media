@@ -148,22 +148,26 @@ const AUTH_CSS = `
 @keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
 @keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
 /* ── Launch sequence: data-launching is set on .psmauth on sign-in.
-   ~2.6s — a short ignition shake, then the rocket blasts up off-screen
-   while the copy rises away, the glow booms and the stars streak. ── */
+   The page fades and a rocket blasts from below, up through the WHOLE
+   screen and out the top, with speed lines and a flash. ~2.9s. ── */
 .psmauth[data-launching]{overflow:hidden}
-.psmauth[data-launching] .brand{overflow:visible}
-.psmauth[data-launching] .ship{animation:psmlaunch 2.6s cubic-bezier(.5,0,.78,.12) forwards}
-@keyframes psmlaunch{0%{transform:translateY(0) scale(1) rotate(0)}8%{transform:translate(-1.5px,2px) rotate(.6deg)}15%{transform:translate(1.5px,3px) rotate(-.6deg)}22%{transform:translate(-1.5px,4px) rotate(.6deg)}29%{transform:translate(1.5px,4px) rotate(-.6deg)}36%{transform:translateY(6px) scale(.955) rotate(0)}50%{transform:translateY(-5px) scale(1.05)}100%{transform:translateY(-142vh) scale(1.22) rotate(-4deg)}}
-.psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
-@keyframes psmflameburst{from{transform:scaleY(1.6) scaleX(1.08);opacity:1}to{transform:scaleY(3) scaleX(.88);opacity:1}}
-.psmauth[data-launching] .rocketstage .glow{animation:psmboom 2.6s ease-out forwards}
-@keyframes psmboom{0%{opacity:.45;transform:translate(-50%,-50%) scale(1)}36%{opacity:.9;transform:translate(-50%,-50%) scale(1.5)}52%{opacity:1;transform:translate(-50%,-40%) scale(2.3)}100%{opacity:0;transform:translate(-50%,-30%) scale(3.2)}}
-.psmauth[data-launching] .stars{animation:psmstreak 2.6s cubic-bezier(.5,0,.78,.12) forwards}
-@keyframes psmstreak{0%,36%{transform:translateY(0);opacity:.85}100%{transform:translateY(160px);opacity:.1}}
-.psmauth[data-launching] .moon{animation:psmmoonfade 2.6s ease forwards}
-@keyframes psmmoonfade{0%,40%{transform:scale(1);opacity:1}100%{transform:scale(1.15);opacity:.4}}
-.psmauth[data-launching] .brand h1,.psmauth[data-launching] .brand .sub{animation:psmrise 2.6s cubic-bezier(.5,0,.78,.12) forwards}
-@keyframes psmrise{0%,44%{transform:translateY(0);opacity:1}100%{transform:translateY(-40px);opacity:0}}
+.psmauth[data-launching] .brand,.psmauth[data-launching] .card{animation:psmfade .45s ease forwards}
+@keyframes psmfade{to{opacity:0}}
+.launchfx{position:fixed;inset:0;z-index:300;pointer-events:none;opacity:0;overflow:hidden}
+.psmauth[data-launching] .launchfx{opacity:1}
+.launchfx .lf-rocket{position:absolute;left:50%;top:50%;width:158px;margin-top:-172px;transform:translate(-50%,118vh)}
+.launchfx .lf-rocket .ship-svg{width:100%;height:auto;display:block;stroke:none;fill:none;filter:drop-shadow(0 14px 46px rgba(91,141,255,.6))}
+.psmauth[data-launching] .lf-rocket{animation:lffly 2.9s cubic-bezier(.32,.12,.6,.92) forwards}
+@keyframes lffly{0%{transform:translate(-50%,118vh) scale(.9);opacity:0}12%{opacity:1}94%{opacity:1}100%{transform:translate(-50%,-125vh) scale(1.32);opacity:0}}
+.psmauth[data-launching] .launchfx .flame,.psmauth[data-launching] .launchfx .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
+@keyframes psmflameburst{from{transform:scaleY(1.6) scaleX(1.08);opacity:1}to{transform:scaleY(3) scaleX(.9);opacity:1}}
+.launchfx .lf-streaks{position:absolute;inset:0}
+.launchfx .lf-streaks i{position:absolute;top:0;width:2px;height:20%;background:linear-gradient(rgba(180,205,255,.9),transparent);border-radius:2px;opacity:0}
+.psmauth[data-launching] .lf-streaks i{animation:lfstreak .85s linear infinite}
+@keyframes lfstreak{0%{transform:translateY(-30vh);opacity:0}25%{opacity:.6}100%{transform:translateY(135vh);opacity:0}}
+.launchfx .lf-flash{position:absolute;left:50%;top:50%;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(150,180,255,.5),transparent 62%);opacity:0}
+.psmauth[data-launching] .lf-flash{animation:lfflash 2.9s ease-out forwards}
+@keyframes lfflash{0%{opacity:0;transform:translate(-50%,60%) scale(.4)}16%{opacity:.85;transform:translate(-50%,30%) scale(1.1)}48%{opacity:.3;transform:translate(-50%,0) scale(1.6)}100%{opacity:0;transform:translate(-50%,-40%) scale(2.4)}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -209,12 +213,9 @@ const AUTH_CSS = `
    into the form, no white card. Email + password sit on the brand
    background in light-on-dark controls. */
 @media(max-width:860px){
-  html,body{background:#080b1e}
-  .psmauth{grid-template-columns:1fr;align-content:safe center;
-    background:
-      radial-gradient(130% 46% at 50% 4%,rgba(91,141,255,.26),transparent 60%),
-      radial-gradient(85% 34% at 84% 20%,rgba(139,92,246,.20),transparent 55%),
-      #080b1e}
+  html,body{background:#07091a}
+  .psmauth{grid-template-columns:1fr;align-content:center;
+    background:radial-gradient(340px 320px at 50% 19%,rgba(99,130,240,.20),transparent 68%),#07091a}
   .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
   .psmauth .brand{background:transparent;padding:18px 22px 12px;min-height:auto;text-align:center;align-items:center;border-radius:0}
   .psmauth .brand .logo{align-self:center}
@@ -259,6 +260,23 @@ export default function AuthLayout({
   return (
     <div className={`psmauth ${jakarta.variable} ${dmSans.variable}`}>
       <style>{AUTH_CSS}</style>
+
+      {/* Full-screen launch effect, revealed when signing in (data-launching). */}
+      <div className="launchfx" aria-hidden="true">
+        <span className="lf-flash" />
+        <div className="lf-streaks">
+          {[10, 20, 32, 44, 56, 68, 80, 90].map((l, i) => (
+            <i
+              key={l}
+              style={{ left: `${l}%`, animationDelay: `${(i % 5) * 0.12}s` }}
+            />
+          ))}
+        </div>
+        <div className="lf-rocket">
+          <LaunchRocket />
+        </div>
+      </div>
+
       <aside className="brand">
         <div className="ribbon" aria-hidden="true" />
         <div className="stars" aria-hidden="true" />
