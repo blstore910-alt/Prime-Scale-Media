@@ -88,9 +88,11 @@ export default function WalletRecoveryDialog({
         <DialogHeader>
           <DialogTitle>Reconstruct wallet balance</DialogTitle>
           <DialogDescription>
-            Replays every completed wallet top-up for this wallet from
-            <span className="font-mono"> audit_events</span> and reports the
-            delta versus the live balance. Read-only — will not adjust
+            Sums only the completed wallet <strong>top-ups</strong> for this
+            wallet from <span className="font-mono">audit_events</span> — this
+            is <strong>not</strong> the expected balance. Spend, withdrawals,
+            refunds, adjustments, precharges, fees and exchanges are not
+            included, so a difference is normal. Read-only — will not adjust
             anything.
           </DialogDescription>
         </DialogHeader>
@@ -155,7 +157,7 @@ export default function WalletRecoveryDialog({
               })}
               <div className="grid grid-cols-4 gap-2 text-[10px] uppercase text-muted-foreground pt-1 border-t">
                 <span></span>
-                <span className="text-right">From audit</span>
+                <span className="text-right">Top-ups Σ</span>
                 <span className="text-right">Live</span>
                 <span className="text-right">Diff</span>
               </div>
@@ -164,9 +166,13 @@ export default function WalletRecoveryDialog({
                 <div className="flex items-start gap-2 mt-2 text-amber-700 dark:text-amber-500">
                   <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
                   <span className="text-xs">
-                    Balance drifted. Snapshot the DB, then reconcile via
-                    the <span className="font-mono">wallet_admin_adjust</span>{" "}
-                    RPC.
+                    The diff is the sum of every non-top-up flow (spend,
+                    withdrawals, refunds, adjustments, precharges, fees,
+                    exchanges), so a gap is expected. Do <strong>not</strong>{" "}
+                    reconcile the balance to the top-ups figure via{" "}
+                    <span className="font-mono">wallet_admin_adjust</span>{" "}
+                    unless you have confirmed those flows fully explain the
+                    difference.
                   </span>
                 </div>
               )}

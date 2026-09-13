@@ -185,6 +185,26 @@ export async function createTopupAsAdmin(
     return { ok: false, error: "Forbidden" };
   }
 
+  // Verify the target ad account (when given) belongs to this tenant AND to
+  // the same advertiser — an admin must not be able to attach a top-up to
+  // another tenant's or another advertiser's account.
+  if (typeof input.account_id === "string" && input.account_id.length > 0) {
+    const { data: acct } = await supabase
+      .from("ad_accounts")
+      .select("id, tenant_id, advertiser_id")
+      .eq("id", input.account_id)
+      .maybeSingle();
+    if (!acct || acct.tenant_id !== profile.tenant_id) {
+      return { ok: false, error: "Ad account not found" };
+    }
+    if (acct.advertiser_id !== input.advertiser_id) {
+      return {
+        ok: false,
+        error: "Ad account does not belong to this advertiser",
+      };
+    }
+  }
+
   const cleaned: Record<string, unknown> = {};
   for (const col of TOPUP_INSERT_ALLOWED) {
     if (col in input) cleaned[col] = input[col];
@@ -292,6 +312,42 @@ export async function bulkCreateTopupsAsAdmin(
   );
   if (validIds.size !== advertiserIds.length) {
     return { ok: false, error: "Forbidden advertiser id in batch" };
+  }
+
+  // Verify every referenced ad account belongs to caller's tenant and to the
+  // advertiser it's paired with in the same row — no cross-tenant / mismatched
+  // account attachment.
+  const accountIds = Array.from(
+    new Set(
+      rows
+        .map((r) => r.account_id)
+        .filter((v): v is string => typeof v === "string" && v.length > 0),
+    ),
+  );
+  if (accountIds.length > 0) {
+    const { data: accts, error: acctsError } = await supabase
+      .from("ad_accounts")
+      .select("id, tenant_id, advertiser_id")
+      .in("id", accountIds);
+    if (acctsError) return { ok: false, error: acctsError.message };
+    const acctById = new Map(
+      (accts ?? [])
+        .filter((a) => a.tenant_id === profile.tenant_id)
+        .map((a) => [a.id, a.advertiser_id]),
+    );
+    for (const row of rows) {
+      const acctId = row.account_id;
+      if (typeof acctId !== "string" || acctId.length === 0) continue;
+      if (!acctById.has(acctId)) {
+        return { ok: false, error: "Forbidden ad account id in batch" };
+      }
+      if (acctById.get(acctId) !== row.advertiser_id) {
+        return {
+          ok: false,
+          error: "Ad account does not belong to the paired advertiser",
+        };
+      }
+    }
   }
 
   const author = {

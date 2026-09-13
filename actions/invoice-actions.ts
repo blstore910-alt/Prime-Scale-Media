@@ -76,6 +76,25 @@ export async function createInvoiceAsAdmin(
     return { ok: false, error: "Forbidden" };
   }
 
+  // Verify the company (when given) belongs to this tenant and advertiser —
+  // don't let an admin attach an invoice to an unrelated company_id.
+  if (typeof input.company_id === "string" && input.company_id.length > 0) {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("id, tenant_id, advertiser_id")
+      .eq("id", input.company_id)
+      .maybeSingle();
+    if (!company || company.tenant_id !== profile.tenant_id) {
+      return { ok: false, error: "Company not found" };
+    }
+    if (company.advertiser_id !== input.advertiser_id) {
+      return {
+        ok: false,
+        error: "Company does not belong to this advertiser",
+      };
+    }
+  }
+
   const cleaned: Record<string, unknown> = {};
   for (const col of INVOICE_INSERT_ALLOWED) {
     if (col in input) cleaned[col] = input[col];
