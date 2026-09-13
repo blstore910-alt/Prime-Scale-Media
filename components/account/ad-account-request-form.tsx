@@ -99,7 +99,7 @@ const validations = z
           path: ["personal_facebook_profile_link"],
         });
       } else if (
-        !z.string().safeParse(data.personal_facebook_profile_link).success
+        !z.string().url().safeParse(data.personal_facebook_profile_link).success
       ) {
         ctx.addIssue({
           code: "custom",

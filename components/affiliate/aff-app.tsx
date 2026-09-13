@@ -534,7 +534,7 @@ export default function AffiliateApp() {
                   <Ic name="i-mail" /> Email
                 </button>
                 <button className="btn ghost" onClick={shareQr}>
-                  <Ic name="i-qr" /> QR code
+                  <Ic name="i-qr" /> Copy for QR
                 </button>
               </div>
             </div>
@@ -569,7 +569,7 @@ export default function AffiliateApp() {
                 )}
               </div>
               <button className="dd expbtn" onClick={exportReferrals}>
-                <Ic name="i-download" /> Export all
+                <Ic name="i-download" /> Export (current range)
               </button>
             </div>
             <div className="sumbar">
@@ -703,7 +703,7 @@ export default function AffiliateApp() {
                   )}
                 </p>
                 <p className="tierlegend">
-                  Your <b>lifetime earnings</b> unlock tier bonuses. Your
+                  Your <b>lifetime earnings</b> move you up the tiers. Your
                   commission rate stays whatever was agreed per referral.
                 </p>
               </div>
@@ -1114,10 +1114,9 @@ export default function AffiliateApp() {
                   <div>
                     <div className="q">What are tiers?</div>
                     <div className="a">
-                      Tiers track your <b>total lifetime earnings</b> (Bronze →
-                      Platinum). Each threshold unlocks a one-time bonus. Your
-                      commission rate is set per referral and doesn&apos;t change
-                      with tier.
+                      Tiers track your <b>total lifetime earnings</b> (Starter →
+                      Riser → Scaler → Legend). Your commission rate is set per
+                      referral and doesn&apos;t change with tier.
                     </div>
                   </div>
                 </div>

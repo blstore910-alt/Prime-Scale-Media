@@ -422,7 +422,7 @@ function TopupHistory({ account }: { account: AdAccount }) {
                   {topup.amount_received}
                 </TableCell>
                 <TableCell>
-                  {CURRENCY_SYMBOLS["USD"]}&nbsp;
+                  {CURRENCY_SYMBOLS[topup.currency]}&nbsp;
                   {topup.topup_amount}
                 </TableCell>
                 <TableCell>{topup.fee}%</TableCell>
