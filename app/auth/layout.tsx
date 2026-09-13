@@ -1,4 +1,11 @@
+import type { Viewport } from "next";
 import { dmSans, jakarta } from "@/lib/fonts";
+
+// The auth pages are dark, so give the mobile browser chrome a matching
+// dark bar (overrides the root's light theme-color for /auth routes).
+export const viewport: Viewport = {
+  themeColor: "#080b1c",
+};
 
 // The rocket mark used in the mockup's logo tiles.
 function Rocket() {

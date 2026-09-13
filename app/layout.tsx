@@ -25,7 +25,9 @@ export const metadata: Metadata = {
   },
 };
 export const viewport: Viewport = {
-  themeColor: "#2b7fff",
+  // Light app chrome by default (the dashboard is light); the dark auth
+  // pages override this to a dark bar via their own viewport export.
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
 };

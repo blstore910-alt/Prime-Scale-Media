@@ -3,7 +3,7 @@
 import { loginUser } from "@/actions/user-actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 const REDIRECT_REASONS: Record<string, string> = {
@@ -28,6 +28,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const reason = searchParams?.get("reason");
   const reasonMessage = reason ? REDIRECT_REASONS[reason] : null;
 
@@ -78,11 +79,14 @@ export function LoginForm() {
         // Let the launch animation play out, then navigate (a full-page nav
         // so the just-set auth cookie is sent with the request).
         const dest = result.redirectTo;
-        // Navigate once the rocket has cleared the screen (~1.5s), so the
-        // launch looks complete without dead time before the dashboard.
-        setTimeout(() => {
-          window.location.href = dest;
-        }, 1500);
+        // Client-side navigation (no full page reload). The login stays
+        // visible with the rocket launching while the dashboard's data
+        // loads in the background, then swaps in the moment it's ready —
+        // so there's no dead white wait. The auth cookie set by the action
+        // above is already applied, so the RSC request is authenticated.
+        // Prefetch immediately to overlap the load with the launch.
+        router.prefetch(dest);
+        setTimeout(() => router.push(dest), 1000);
       }
     });
   };
