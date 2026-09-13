@@ -232,8 +232,11 @@ const AUTH_CSS = `
   .psmauth .brand .logo .mk svg{width:21px;height:21px}
   .psmauth .rocketstage{min-height:118px;margin:2px 0 0;width:100%}
   .psmauth .rocketstage .moon{top:2%;right:16%;width:36px;height:36px}
-  /* Tight, subtle glow right behind the rocket only — not a wide top band. */
-  .psmauth .rocketstage .glow{width:150px;height:150px;background:radial-gradient(circle,rgba(91,141,255,.32),transparent 66%)}
+  /* At rest the glow AND the ribbon swirl are hidden, so the surface is
+     100% flat (no lighter top zone). The glow only appears during the
+     launch boom, where psmboom overrides its opacity. */
+  .psmauth .rocketstage .glow{width:160px;height:160px;background:radial-gradient(circle,rgba(91,141,255,.42),transparent 66%);animation:none;opacity:0}
+  .psmauth .brand .ribbon{display:none}
   .psmauth .ship{width:76px}
   .psmauth .brand h1{font-size:1.5rem;margin:6px auto 7px;max-width:18ch}
   .psmauth .brand .sub{font-size:.88rem;margin:0 auto;max-width:32ch}
