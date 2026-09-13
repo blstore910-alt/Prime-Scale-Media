@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Ad-account top-up types that carry a fee (mirrors the topup form).
@@ -270,6 +271,15 @@ export async function createTopupAsAdmin(
     currency: input.currency,
   });
 
+  // Created already-paid → the supplier has to fund the account. No-op unless
+  // the auto-push gate is armed; never fails the top-up. See lib/integrations/autopush.
+  if (requested === "completed") {
+    await enqueueSupplierTopupPush(supabase, {
+      topupId: inserted.id,
+      tenantId: profile.tenant_id,
+    });
+  }
+
   return { ok: true, data: { id: inserted.id } };
 }
 
@@ -371,8 +381,24 @@ export async function bulkCreateTopupsAsAdmin(
     return cleaned;
   });
 
-  const { error: insertError } = await supabase.from("top_ups").insert(payload);
+  const { data: insertedRows, error: insertError } = await supabase
+    .from("top_ups")
+    .insert(payload)
+    .select("id, status");
   if (insertError) return { ok: false, error: insertError.message };
+
+  // Queue a supplier push for each row that went in already-paid. Sequential
+  // on purpose: a bulk run is at most 200 rows and each enqueue is two small
+  // reads plus an insert — hammering the DB in parallel here buys nothing and
+  // makes a partial failure harder to read. No-op unless the gate is armed.
+  for (const row of (insertedRows ?? []) as Array<{ id: string; status: string }>) {
+    if (row.status !== "completed") continue;
+    await enqueueSupplierTopupPush(supabase, {
+      topupId: row.id,
+      tenantId: profile.tenant_id,
+    });
+  }
+
   return { ok: true, data: { inserted: payload.length } };
 }
 
@@ -460,6 +486,16 @@ export async function updateTopupAsAdmin(
     payload.is_deleted === true ? "delete" : "update",
     payload,
   );
+
+  // Marked paid → queue the supplier push. Enqueue is idempotent on the
+  // top-up id, so re-saving an already-completed row can't double-fund.
+  // No-op unless the auto-push gate is armed. See lib/integrations/autopush.
+  if (cleaned.status === "completed" && payload.is_deleted !== true) {
+    await enqueueSupplierTopupPush(supabase, {
+      topupId,
+      tenantId: profile.tenant_id,
+    });
+  }
 
   return { ok: true, data: null };
 }

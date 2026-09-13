@@ -20,6 +20,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Supplier1Adapter, WiseAdapter } from "./types";
+import { autoPushGate } from "./autopush";
 
 export type IntegrationJobRow = {
   id: string;
@@ -42,6 +43,7 @@ export type WorkerContext = {
   supplier1: Supplier1Adapter;
   wise: WiseAdapter;
   now?: () => Date; // injectable for tests
+  env?: Record<string, string | undefined>; // injectable for tests
 };
 
 export type ProcessResult = {
@@ -50,7 +52,18 @@ export type ProcessResult = {
   retried: number;
   failed: number;
   skipped: number;
+  /** Held back by the auto-push gate — left pending, no attempt consumed. */
+  blocked: number;
 };
+
+// Operations that MOVE REAL MONEY at the supplier. Gated separately from
+// read-only work (sync_ad_accounts, balance) so we can run the reads live
+// long before we trust the writes. See ./autopush.
+const MONEY_OPERATIONS = new Set(["push_topup", "push_withdraw"]);
+
+function isGatedMoneyJob(job: IntegrationJobRow): boolean {
+  return job.provider === "supplier1" && MONEY_OPERATIONS.has(job.operation);
+}
 
 // Exponential backoff for retry scheduling. Growth by attempt number:
 //   1 → 30s, 2 → 60s, 3 → 2min, 4 → 5min, 5 → 15min, ≥6 → 30min.
@@ -252,8 +265,27 @@ export async function processIntegrationJobs(
     retried: 0,
     failed: 0,
     skipped: 0,
+    blocked: 0,
   };
+  const gate = autoPushGate(ctx.env ?? process.env);
   for (const job of claimed) {
+    // Hard stop before any adapter is touched. A money job that exists while
+    // the gate is shut is put BACK to pending with its attempt refunded — not
+    // failed, not retried-with-backoff. It simply waits. That way a queue
+    // built up during testing can never be drained by accident, and the jobs
+    // are still there (intact, un-aged) if the gate is opened deliberately.
+    if (isGatedMoneyJob(job) && !gate.enabled) {
+      summary.blocked++;
+      await ctx.supabase
+        .from("integration_jobs")
+        .update({
+          status: "pending",
+          attempts: job.attempts - 1,
+          last_error: `held: ${gate.reason}`,
+        })
+        .eq("id", job.id);
+      continue;
+    }
     try {
       const outcome = await dispatch(ctx, job);
       const state = await finaliseJob(ctx, job, outcome);

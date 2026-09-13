@@ -233,11 +233,23 @@ describe("backoffSeconds", () => {
   });
 });
 
+// These suites exercise the claim/retry/finalise state machine using a
+// push_topup job. push_topup moves real money, so the worker refuses to
+// dispatch it unless the auto-push gate is armed (lib/integrations/autopush).
+// Arm it explicitly here — the gate's own behaviour is covered in
+// tests/lib/autopush.test.ts.
+const ARMED = { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" };
+
 describe("processIntegrationJobs — success path", () => {
   it("succeeded run marks job succeeded with result", async () => {
     const { supabase, rows } = makeMockSupabase([baseJob()]);
     const summary = await processIntegrationJobs(
-      { supabase, ...okAdapter, now: () => new Date("2026-08-30T10:00:00Z") },
+      {
+        supabase,
+        ...okAdapter,
+        env: ARMED,
+        now: () => new Date("2026-08-30T10:00:00Z"),
+      },
       { batchSize: 5 },
     );
     assert.equal(summary.succeeded, 1);
@@ -256,6 +268,7 @@ describe("processIntegrationJobs — retry path", () => {
       {
         supabase,
         ...brokenAdapter,
+        env: ARMED,
         now: () => new Date("2026-08-30T10:00:00Z"),
       },
       { batchSize: 5 },
@@ -278,6 +291,7 @@ describe("processIntegrationJobs — terminal failure", () => {
       {
         supabase,
         ...brokenAdapter,
+        env: ARMED,
         now: () => new Date("2026-08-30T10:00:00Z"),
       },
       { batchSize: 5 },
