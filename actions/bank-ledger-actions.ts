@@ -19,13 +19,33 @@ function n(v: unknown): number {
   return Number.isFinite(x) ? x : 0;
 }
 
+// Reconciliation is super-admin-only in the UI (/reconciliation uses
+// requireSuperAdmin). Server actions are independently-invokable endpoints,
+// so a plain admin could otherwise call these directly to read the books or
+// inject fake "received" deposits that hide a rogue admin. Re-fetch the
+// tenant owner and require the caller to be it — mirroring bank-account-actions.
+async function resolveOwnerContext() {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return auth;
+  const { supabase, profile } = auth.ctx;
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  if (!tenant || tenant.owner_id !== profile.user_id) {
+    return { ok: false as const, error: "Only the tenant owner can do this" };
+  }
+  return auth;
+}
+
 // ─────────────────────────────────────────
 // listLedgerEntries — recent manual bank/supplier entries, admin-only.
 // ─────────────────────────────────────────
 export async function listLedgerEntries(
   limit = 100,
 ): Promise<ActionResult<BankLedgerEntry[]>> {
-  const auth = await resolveAdminContext();
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -55,7 +75,7 @@ export async function addLedgerEntry(input: {
   occurred_on?: string;
   note?: string;
 }): Promise<ActionResult<{ id: string }>> {
-  const auth = await resolveAdminContext();
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -111,7 +131,7 @@ export async function addLedgerEntry(input: {
 export async function getReconciliation(): Promise<
   ActionResult<{ rows: ReconciliationRow[]; balances: DestinationBalance[] }>
 > {
-  const auth = await resolveAdminContext();
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

@@ -80,10 +80,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Must not be already used
-  if (validInvite.status === "accepted" || validInvite.status === "rejected") {
+  // Must still be pending. Checking only for accepted/rejected let a
+  // CANCELLED (or otherwise non-pending) invite be redeemed — cancelInvitation
+  // sets status='cancelled' without touching expires_at, so the original link
+  // stayed live inside the expiry window. The existing-user path already
+  // requires 'pending'; match it here.
+  if (validInvite.status !== "pending") {
     return NextResponse.json(
-      { success: false, message: "Invitation has already been used" },
+      { success: false, message: "This invitation is no longer valid" },
       { status: 403 },
     );
   }

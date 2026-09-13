@@ -39,7 +39,7 @@ const advName = (w: WalletWithAdvertiser) =>
 // dialogs — presentation only, no new mutations.
 export default function PsmWallets() {
   const { wallets, isLoading, isError, error } = useWallets();
-  const { profile } = useAppContext();
+  const { profile, isSuperAdmin } = useAppContext();
   const isAdmin = profile?.role === "admin";
 
   const [search, setSearch] = useState("");
@@ -253,13 +253,18 @@ export default function PsmWallets() {
                           gap: 8,
                         }}
                       >
-                        <button
-                          className="btn ghost sm"
-                          style={{ width: "100%", justifyContent: "center" }}
-                          onClick={() => setEditingWallet(wallet)}
-                        >
-                          <Pencil /> Edit
-                        </button>
+                        {/* Editing balances (wallet_admin_adjust) is a
+                            super-admin-only capability — hide it from
+                            non-owner admins. */}
+                        {isSuperAdmin && (
+                          <button
+                            className="btn ghost sm"
+                            style={{ width: "100%", justifyContent: "center" }}
+                            onClick={() => setEditingWallet(wallet)}
+                          >
+                            <Pencil /> Edit
+                          </button>
+                        )}
                         <button
                           className="btn ghost sm"
                           style={{ width: "100%", justifyContent: "center" }}
