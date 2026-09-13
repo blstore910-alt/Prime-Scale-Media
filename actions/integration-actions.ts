@@ -3,6 +3,7 @@
 import { resolveAdminContext } from "./_shared";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
+import { autoPushGate } from "@/lib/integrations/autopush";
 
 // A redacted connectivity summary — never the token, never raw rows.
 export type IntegrationPing =
@@ -34,6 +35,41 @@ async function requireOwner(): Promise<
     return { ok: false, error: "Forbidden (super-admin only)" };
   }
   return { ok: true, ctx };
+}
+
+export type AutoPushStatus = {
+  armed: boolean;
+  reason: string;
+  mode: string;
+  /** Number of push jobs currently waiting, if any are held. */
+  held: number;
+};
+
+// Whether the app is allowed to fund ad accounts at the supplier by itself.
+// Surfaced in Settings → Integrations so an owner can SEE the state of the
+// money switch instead of inferring it from a deployment's env vars, and can
+// see whether anything is queued behind it. Owner-only: the count is a
+// business signal and the reason string names env vars.
+export async function getAutoPushStatus(): Promise<
+  AutoPushStatus | { error: string }
+> {
+  const guard = await requireOwner();
+  if (!guard.ok) return { error: guard.error };
+
+  const gate = autoPushGate();
+  let held = 0;
+  if (!guard.ctx.ok) return { error: "Forbidden" };
+  const { supabase, profile } = guard.ctx.ctx;
+  const { count } = await supabase
+    .from("integration_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", profile.tenant_id)
+    .eq("provider", "supplier1")
+    .in("operation", ["push_topup", "push_withdraw"])
+    .eq("status", "pending");
+  held = count ?? 0;
+
+  return { armed: gate.enabled, reason: gate.reason, mode: gate.mode, held };
 }
 
 // Calls the WIRED SeamX adapter (mock or live, per SUPPLIER1_MODE) and

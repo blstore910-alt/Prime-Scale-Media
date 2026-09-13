@@ -9,12 +9,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  getAutoPushStatus,
   testSupplier1Connection,
   testWiseConnection,
+  type AutoPushStatus,
   type IntegrationPing,
 } from "@/actions/integration-actions";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle2, Loader2, Lock, XCircle, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 
 // Super-admin connectivity check for the external integrations. Shows the
 // adapter mode (mock/live), a record count, and one redacted sample row —
@@ -32,10 +34,82 @@ export default function IntegrationStatusCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        <AutoPushRow />
         <IntegrationRow label="SeamX" test={testSupplier1Connection} />
         <IntegrationRow label="Wise" test={testWiseConnection} />
       </CardContent>
     </Card>
+  );
+}
+
+// The money switch, stated plainly. "Connected" and "allowed to spend" are
+// two different things and an owner should never have to guess which one a
+// deployment is in — especially while testing against a live supplier.
+function AutoPushRow() {
+  const [status, setStatus] = useState<AutoPushStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getAutoPushStatus()
+      .then((res) => {
+        if (!alive) return;
+        if ("error" in res) setError(res.error);
+        else setStatus(res);
+      })
+      .catch(() => alive && setError("Could not read auto-push status"));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="rounded-lg border p-3 text-sm text-muted-foreground">
+        Auto-push status unavailable: {error}
+      </div>
+    );
+  }
+  if (!status) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border p-3 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Checking auto-push…
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={
+        status.armed
+          ? "rounded-lg border border-amber-400 bg-amber-50 p-3 dark:bg-amber-950/30"
+          : "rounded-lg border p-3"
+      }
+    >
+      <div className="flex items-start gap-2">
+        {status.armed ? (
+          <Zap className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        ) : (
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <div className="min-w-0 text-sm">
+          <div className="font-medium">
+            {status.armed
+              ? "Auto-push is ARMED — paid top-ups fund ad accounts automatically"
+              : "Auto-push is OFF — top-ups are funded by hand"}
+          </div>
+          <div className="mt-0.5 text-muted-foreground">{status.reason}</div>
+          {status.held > 0 && (
+            <div className="mt-1 text-muted-foreground">
+              {status.held} push job{status.held === 1 ? "" : "s"} waiting.
+              {status.armed
+                ? " These will run on the next cron pass."
+                : " Held — nothing is sent while auto-push is off."}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
