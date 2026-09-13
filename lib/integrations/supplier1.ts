@@ -183,6 +183,8 @@ const mockSupplier1Adapter: Supplier1Adapter = {
           assigned_to: null,
           timezone: "Europe/Amsterdam",
           updated_at: "2026-08-30T09:00:00.000Z",
+          name: "Mock Meta Account 001",
+          fee_percentage: 2,
         },
         {
           external_id: "supplier1-mock-002",
@@ -194,6 +196,8 @@ const mockSupplier1Adapter: Supplier1Adapter = {
           assigned_to: null,
           timezone: "Europe/Amsterdam",
           updated_at: "2026-08-30T09:00:00.000Z",
+          name: "Mock TikTok Account 002",
+          fee_percentage: 3,
         },
       ],
     };
@@ -274,6 +278,11 @@ const realSupplier1Adapter: Supplier1Adapter = {
           assigned_to: null,
           timezone: a.time_zone ?? null,
           updated_at: a.created_at,
+          name: a.account_name ?? null,
+          fee_percentage:
+            a.fee_percentage == null || a.fee_percentage === ""
+              ? null
+              : Number(a.fee_percentage),
         });
       }
       const pg = res.data?.pagination;

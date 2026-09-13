@@ -38,6 +38,10 @@ export interface Supplier1AdAccount {
   assigned_to: string | null;  // Supplier 1-side advertiser identifier
   timezone: string | null;
   updated_at: string;
+  // Supplier-side display name and their fee %, carried through so the
+  // ad-account pool can show a usable row before we allocate it.
+  name: string | null;
+  fee_percentage: number | null;
 }
 
 export interface Supplier1TopupPushInput {

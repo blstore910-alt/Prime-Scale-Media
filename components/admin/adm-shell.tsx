@@ -21,6 +21,7 @@ import {
   Mail,
   Menu,
   Monitor,
+  Boxes,
   Receipt,
   RefreshCw,
   Scale,
@@ -104,6 +105,7 @@ export default function AdminShell({
       items: [
         { title: "Advertisers", href: "/users", icon: Users },
         { title: "Ad Accounts", href: "/accounts", icon: Monitor },
+        { title: "Account Pool", href: "/account-pool", icon: Boxes },
         {
           title: "Account Requests",
           href: "/ad-account-requests",
