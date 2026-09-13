@@ -308,9 +308,14 @@ export default function BanksCard() {
         <CardTitle>Banks</CardTitle>
         <CardDescription>
           Beneficiary bank destinations per ad-account type and currency
-          (EUR / USD / HKD). Advertisers are shown the right one based on the
-          type they fund and the currency they transfer in. Changing a bank
-          asks for a double-confirm — advertisers send real money here.
+          (EUR / USD / HKD).{" "}
+          <strong>
+            Not yet wired to the advertiser top-up screen — it currently shows
+            the built-in beneficiaries, so edits here don’t change what
+            advertisers see.
+          </strong>{" "}
+          Use this to prepare the destinations; ask an engineer to switch the
+          top-up flow over to them. Changes still ask for a double-confirm.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -378,8 +383,9 @@ export default function BanksCard() {
                   <span className="font-medium text-foreground">
                     {pending.currency}
                   </span>
-                  . Advertisers will transfer real money here — double-check
-                  the IBAN/account before confirming.
+                  . Note: this destination is not yet shown to advertisers
+                  (the top-up screen uses the built-in beneficiaries) — double-check
+                  the IBAN/account before confirming anyway.
                 </>
               )}
             </DialogDescription>

@@ -106,6 +106,8 @@ export default function AffiliateApp() {
 
   const lifetimeEur = all.totals.earnings_eur;
   const monthEur = month.totals.earnings_eur;
+  const lifetimeUsd = all.totals.earnings_usd;
+  const monthUsd = month.totals.earnings_usd;
   const referredCount = all.rows.length;
   const activeCount = all.rows.filter((r) => Number(r.topup_count) > 0).length;
 
@@ -117,20 +119,24 @@ export default function AffiliateApp() {
   const refsReferred = refs.rows.length;
   const refsActive = refs.rows.filter((r) => Number(r.topup_count) > 0).length;
 
+  // Tier progression counts BOTH currencies — a USD-paid affiliate was
+  // otherwise stuck at Starter with €0. (Combined figure mirrors the sibling
+  // affiliate-dashboard; the headline shows each currency separately below.)
+  const lifetimeCombined = lifetimeEur + lifetimeUsd;
   const tierIndex = useMemo(() => {
     let idx = 0;
     TIERS.forEach((t, i) => {
-      if (lifetimeEur >= t.min) idx = i;
+      if (lifetimeCombined >= t.min) idx = i;
     });
     return idx;
-  }, [lifetimeEur]);
+  }, [lifetimeCombined]);
   const tier = TIERS[tierIndex];
   const nextTier = TIERS[tierIndex + 1];
   const tierPct = nextTier
     ? Math.min(
         100,
         Math.round(
-          ((lifetimeEur - tier.min) / (nextTier.min - tier.min)) * 100,
+          ((lifetimeCombined - tier.min) / (nextTier.min - tier.min)) * 100,
         ),
       )
     : 100;
@@ -464,13 +470,29 @@ export default function AffiliateApp() {
                 <div className="k">
                   <Ic name="i-trophy" /> Lifetime
                 </div>
-                <div className="v gold">{eur(lifetimeEur)}</div>
+                <div className="v gold">
+                  {eur(lifetimeEur)}
+                  {lifetimeUsd > 0 && (
+                    <span style={{ fontSize: ".6em", opacity: 0.8 }}>
+                      {" "}
+                      · {usd(lifetimeUsd)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="stat" onClick={() => go("pay")}>
                 <div className="k">
                   <Ic name="i-trend" /> This month
                 </div>
-                <div className="v win">{eur(monthEur)}</div>
+                <div className="v win">
+                  {eur(monthEur)}
+                  {monthUsd > 0 && (
+                    <span style={{ fontSize: ".6em", opacity: 0.8 }}>
+                      {" "}
+                      · {usd(monthUsd)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="stat" onClick={() => go("refs")}>
                 <div className="k">
@@ -668,7 +690,8 @@ export default function AffiliateApp() {
                 <p className="tiernote">
                   {nextTier ? (
                     <>
-                      {eur(nextTier.min - lifetimeEur)} more in lifetime earnings
+                      {eur(nextTier.min - lifetimeCombined)} more in lifetime
+                      earnings
                       to reach <b className="gold">{nextTier.name}</b>.
                     </>
                   ) : (
