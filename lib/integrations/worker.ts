@@ -120,6 +120,17 @@ async function dispatch(
           retryable: res.retryable ?? true,
         };
       }
+      // Transport success is NOT business success: the supplier can accept the
+      // request and still reject the movement. We were dumping that status
+      // into the result blob and marking the job 'succeeded', so a rejected
+      // top-up was indistinguishable from a settled one and alerted nobody.
+      if (res.data?.status === "failed") {
+        return {
+          ok: false,
+          error: `Supplier rejected the top-up (external id ${res.data.external_topup_id || "unknown"})`,
+          retryable: false,
+        };
+      }
       return { ok: true, result: res.data as unknown as Record<string, unknown> };
     }
     if (job.operation === "push_withdraw") {
@@ -134,6 +145,13 @@ async function dispatch(
           ok: false,
           error: res.error,
           retryable: res.retryable ?? true,
+        };
+      }
+      if (res.data?.status === "failed") {
+        return {
+          ok: false,
+          error: `Supplier rejected the withdrawal (external id ${res.data.external_withdraw_id || "unknown"})`,
+          retryable: false,
         };
       }
       return { ok: true, result: res.data as unknown as Record<string, unknown> };

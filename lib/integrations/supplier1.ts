@@ -103,6 +103,11 @@ async function seamxFetch<T>(
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...(reqInit.headers ?? {}),
       },
+      // Bound the request. Without this a hung SeamX connection blocks until
+      // the serverless function is killed mid-flight, which is exactly how a
+      // job row gets stranded in 'processing' with nothing to reclaim it.
+      // An abort lands in the catch below and is treated as retryable.
+      signal: reqInit.signal ?? AbortSignal.timeout(20_000),
       cache: "no-store",
     });
     const text = await res.text();
@@ -167,6 +172,19 @@ function balanceToCents(v: number | string | null | undefined): number {
 
 // Amounts cross the boundary in cents on our side; SeamX speaks major units.
 const toMajor = (cents: number) => Math.round(cents) / 100;
+
+// SeamX returns money as a number OR a formatted string ("4,849.50").
+// Number("4,849.50") is NaN, and every comparison against NaN is false — so a
+// formatted balance silently disabled the low-balance alarm (NaN < threshold
+// === false) while the cron reported healthy. Parse defensively.
+function num(v: unknown, fallback = 0): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : fallback;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/[,\s]/g, ""));
+    return Number.isFinite(n) ? n : fallback;
+  }
+  return fallback;
+}
 
 const mockSupplier1Adapter: Supplier1Adapter = {
   async listAdAccounts() {
@@ -317,20 +335,31 @@ const realSupplier1Adapter: Supplier1Adapter = {
         usd_balance?: number | string;
         eur_balance?: number | string;
         available_balance?: { usd?: number | string; eur?: number | string };
+        tax_reserve?: { usd?: number | string; eur?: number | string };
       };
     }>("/v1/wallets/balance");
     if (!res.ok) return res;
     const d = res.data?.data;
-    const usd = Number(d?.usd_balance ?? 0);
-    const eur = Number(d?.eur_balance ?? 0);
+    const usd = num(d?.usd_balance);
+    const eur = num(d?.eur_balance);
+    // Spendable = what they report as available; else gross minus the DST tax
+    // reserve when they report one; else gross. Previously a missing
+    // available_balance made a reserved balance look fully spendable.
+    const availUsd =
+      d?.available_balance?.usd != null
+        ? num(d.available_balance.usd)
+        : usd - num(d?.tax_reserve?.usd);
+    const availEur =
+      d?.available_balance?.eur != null
+        ? num(d.available_balance.eur)
+        : eur - num(d?.tax_reserve?.eur);
     return {
       ok: true,
       data: {
         usd_balance: usd,
         eur_balance: eur,
-        // Spendable after DST tax reserve; fall back to the gross balance.
-        available_usd: Number(d?.available_balance?.usd ?? usd),
-        available_eur: Number(d?.available_balance?.eur ?? eur),
+        available_usd: availUsd,
+        available_eur: availEur,
       },
     };
   },
@@ -343,10 +372,17 @@ const realSupplier1Adapter: Supplier1Adapter = {
       data?: { id?: string | number; status?: string };
     }>("/v1/topups", {
       method: "POST",
+      // The key was validated above and then never sent, while transport
+      // failures are retried — so a timeout on a request that actually landed
+      // could double-fund the ad account. Send it both ways; harmless if the
+      // supplier ignores it, and the only protection we have until they
+      // confirm server-side dedup (see docs/SEAMX_API.md).
+      headers: { "Idempotency-Key": input.idempotency_key },
       body: JSON.stringify({
         ad_account_id: input.external_ad_account_id,
         amount: toMajor(input.amount_cents),
         currency: input.currency,
+        idempotency_key: input.idempotency_key,
       }),
     });
     if (!res.ok) return res;
@@ -368,10 +404,15 @@ const realSupplier1Adapter: Supplier1Adapter = {
       data?: { id?: string | number; status?: string };
     }>("/v1/withdrawls", {
       method: "POST",
+      headers: { "Idempotency-Key": input.idempotency_key },
       body: JSON.stringify({
         ad_account_id: input.external_ad_account_id,
         amount: toMajor(input.amount_cents),
+        // currency was accepted on the input and then silently dropped, so a
+        // EUR and a USD withdrawal of the same number were byte-identical.
+        currency: input.currency,
         destination: "wallet",
+        idempotency_key: input.idempotency_key,
       }),
     });
     if (!res.ok) return res;
