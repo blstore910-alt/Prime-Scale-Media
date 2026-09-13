@@ -133,6 +133,8 @@ const AUTH_CSS = `
 .psmauth .rocketstage .glow{position:absolute;left:50%;top:54%;width:280px;height:280px;transform:translate(-50%,-50%);
   background:radial-gradient(circle,rgba(91,141,255,.5),rgba(139,92,246,.2) 45%,transparent 70%);filter:blur(6px);
   animation:psmglow 5.5s ease-in-out infinite}
+.psmauth .rocketstage .smoke{position:absolute;left:50%;top:62%;width:130px;height:130px;transform:translate(-50%,-50%) scale(.3);border-radius:50%;filter:blur(9px);opacity:0;
+  background:radial-gradient(circle,rgba(226,230,248,.55),rgba(150,162,200,.28) 46%,transparent 72%)}
 @keyframes psmglow{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.12)}}
 .psmauth .rocketstage .moon{position:absolute;top:4%;right:15%;width:56px;height:56px;border-radius:50%;
   background:radial-gradient(circle at 34% 30%,#fdfcff,#cdd7ff 58%,#98a8e0);
@@ -182,6 +184,9 @@ const AUTH_CSS = `
 @keyframes psmboom{0%,56%{opacity:0;transform:translate(-50%,-50%) scale(1)}66%{opacity:.9;transform:translate(-50%,-40%) scale(1.9)}100%{opacity:0;transform:translate(-50%,-20%) scale(3.2)}}
 .psmauth[data-launching] .stars{animation:psmstreak 3.3s linear forwards}
 @keyframes psmstreak{0%,58%{transform:translateY(0);opacity:.85}100%{transform:translateY(180px);opacity:.08}}
+/* "pfff" — a smoke puff billows out at the base when the rocket blasts off */
+.psmauth[data-launching] .smoke{animation:psmsmoke 3.3s ease-out forwards}
+@keyframes psmsmoke{0%,53%{opacity:0;transform:translate(-50%,-50%) scale(.3)}59%{opacity:.75;transform:translate(-50%,-34%) scale(1.05)}74%{opacity:.4;transform:translate(-50%,6%) scale(1.7)}100%{opacity:0;transform:translate(-50%,40%) scale(2.3)}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -234,19 +239,22 @@ const AUTH_CSS = `
   .psmauth{grid-template-columns:1fr;align-content:center;min-height:100dvh;background:#080b1c}
   .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
   .psmauth .brand{background:transparent;padding:22px 22px 4px;min-height:auto;text-align:center;align-items:center;border-radius:0}
-  /* stacked logo — icon centered above the centered wordmark */
-  .psmauth .brand .logo{align-self:center;flex-direction:column;gap:8px}
-  .psmauth .brand .logo .mk{width:44px;height:44px}
-  .psmauth .brand .logo .mk svg{width:24px;height:24px}
-  .psmauth .brand .logo b{font-size:1.16rem}
-  .psmauth .rocketstage{min-height:120px;margin:6px 0 2px;width:100%}
-  .psmauth .rocketstage .moon{top:2%;right:16%;width:36px;height:36px}
+  /* icon LEFT of the wordmark, but a right spacer equal to the icon keeps
+     "Prime Scale Media" mathematically centered on the page. */
+  .psmauth .brand .logo{align-self:center;justify-content:center;gap:11px}
+  .psmauth .brand .logo::after{content:"";flex:0 0 42px}
+  .psmauth .brand .logo .mk{width:42px;height:42px}
+  .psmauth .brand .logo .mk svg{width:23px;height:23px}
+  .psmauth .brand .logo b{font-size:1.14rem}
+  .psmauth .brand .logo small{font-size:.7rem}
+  .psmauth .rocketstage{min-height:142px;margin:18px 0 4px;width:100%}
+  .psmauth .rocketstage .moon{top:0;right:16%;width:34px;height:34px}
   /* At rest the glow AND the ribbon swirl are hidden, so the surface is
      100% flat (no lighter top zone). The glow only appears during the
      launch boom, where psmboom overrides its opacity. */
   .psmauth .rocketstage .glow{width:160px;height:160px;background:radial-gradient(circle,rgba(91,141,255,.42),transparent 66%);animation:none;opacity:0}
   .psmauth .brand .ribbon{display:none}
-  .psmauth .ship{width:78px}
+  .psmauth .ship{width:74px}
   .psmauth .brand h1{font-size:1.62rem;margin:8px auto 8px;max-width:16ch;line-height:1.12}
   .psmauth .brand .sub{font-size:.86rem;margin:0 auto;max-width:30ch;color:rgba(255,255,255,.6)}
   .psmauth .pts{display:none}
@@ -266,6 +274,8 @@ const AUTH_CSS = `
   .psmauth input::placeholder{color:rgba(255,255,255,.4)}
   .psmauth .inp>svg{color:rgba(255,255,255,.5)}
   .psmauth input:focus,.psmauth select:focus{background:rgba(255,255,255,.1);border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,141,255,.28)}
+  /* brighter, glossier sign-in button */
+  .psmauth .btn{background:linear-gradient(118deg,#4f83ff 0%,#6d63ff 52%,#9a6bff 100%);box-shadow:0 16px 34px -12px rgba(96,86,255,.7),inset 0 1px 0 rgba(255,255,255,.3);font-weight:800;letter-spacing:.01em;padding:14px 16px;margin-top:10px}
   .psmauth .meta{color:rgba(255,255,255,.62)}
   .psmauth a.lnk{color:#9db8ff}
   .psmauth .err{color:#ff9ba0}
@@ -299,6 +309,7 @@ export default function AuthLayout({
 
         <div className="rocketstage" aria-hidden="true">
           <span className="glow" />
+          <span className="smoke" />
           <span className="moon" />
           <div className="ship">
             <LaunchRocket />
