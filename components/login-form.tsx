@@ -78,9 +78,11 @@ export function LoginForm() {
         // Let the launch animation play out, then navigate (a full-page nav
         // so the just-set auth cookie is sent with the request).
         const dest = result.redirectTo;
+        // Navigate once the rocket has cleared the screen (~1.5s), so the
+        // launch looks complete without dead time before the dashboard.
         setTimeout(() => {
           window.location.href = dest;
-        }, 2800);
+        }, 1500);
       }
     });
   };

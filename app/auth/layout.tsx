@@ -149,44 +149,41 @@ const AUTH_CSS = `
 .psmauth .flame2{transform-box:fill-box;transform-origin:50% 0;animation:psmflame2 .19s ease-in-out infinite alternate}
 @keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
 @keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
-/* ── Launch sequence: data-launching on .psmauth on sign-in. EVERYTHING
-   fades except the rocket, which does a smooth full loop (a somersault at
-   constant speed) and then flies far away up and out. ~3.3s. The client
-   holds navigation until it plays out. Frozen under prefers-reduced-motion. ── */
+/* ── Launch sequence: data-launching on .psmauth on sign-in. A REAL rocket
+   launch — everything fades, the rocket rumbles on ignition, a smoke plume
+   billows, then it lifts off slow and accelerates straight up and off the
+   screen. No loop. ~1.9s (client navigates ~1.5s, once it's cleared).
+   Frozen under prefers-reduced-motion. ── */
 .psmauth[data-launching]{overflow:hidden}
 .psmauth[data-launching] .brand{overflow:visible}
 .psmauth[data-launching] .logo,
 .psmauth[data-launching] .brand h1,
 .psmauth[data-launching] .brand .sub,
-.psmauth[data-launching] .card{animation:psmfade .55s ease forwards}
+.psmauth[data-launching] .card{animation:psmfade .4s ease forwards}
 @keyframes psmfade{to{opacity:0}}
-.psmauth[data-launching] .ship{animation:psmloop 3.3s linear forwards}
-@keyframes psmloop{
-  0%{transform:translate(0,0) rotate(0deg) scale(1)}
-  7%{transform:translate(-2px,2px) rotate(0deg) scale(1)}
-  13%{transform:translate(2px,3px) rotate(0deg) scale(1)}
-  19%{transform:translate(-2px,4px) rotate(0deg) scale(1)}
-  24%{transform:translate(0,6px) rotate(0deg) scale(.94)}
-  28%{transform:translate(18px,-2px) rotate(45deg) scale(1)}
-  32%{transform:translate(26px,-20px) rotate(90deg) scale(1)}
-  36%{transform:translate(18px,-38px) rotate(135deg) scale(1)}
-  40%{transform:translate(0,-46px) rotate(180deg) scale(1)}
-  44%{transform:translate(-18px,-38px) rotate(225deg) scale(1)}
-  48%{transform:translate(-26px,-20px) rotate(270deg) scale(1)}
-  52%{transform:translate(-18px,-2px) rotate(315deg) scale(1)}
-  56%{transform:translate(0,4px) rotate(360deg) scale(1)}
-  62%{transform:translate(0,8px) rotate(360deg) scale(.95);animation-timing-function:cubic-bezier(.5,0,.85,.35)}
-  100%{transform:translate(0,-170vh) rotate(360deg) scale(1.28)}
+.psmauth[data-launching] .ship{animation:psmascend 1.9s linear forwards}
+@keyframes psmascend{
+  0%{transform:translate(0,0) scale(1)}
+  6%{transform:translate(-1.6px,1px) scale(1)}
+  11%{transform:translate(1.6px,2px) scale(1)}
+  16%{transform:translate(-1.6px,1px) scale(1)}
+  21%{transform:translate(1.4px,2px) scale(1)}
+  26%{transform:translate(0,3px) scale(.97)}
+  37%{transform:translateY(-10px) scale(1.04)}
+  53%{transform:translateY(-55px) scale(1.09)}
+  70%{transform:translateY(-165px) scale(1.13)}
+  100%{transform:translateY(-185vh) scale(1.2)}
 }
 .psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
 @keyframes psmflameburst{from{transform:scaleY(1.4) scaleX(1.06);opacity:1}to{transform:scaleY(2.6) scaleX(.9);opacity:1}}
-.psmauth[data-launching] .rocketstage .glow{animation:psmboom 3.3s ease-out forwards}
-@keyframes psmboom{0%,56%{opacity:0;transform:translate(-50%,-50%) scale(1)}66%{opacity:.9;transform:translate(-50%,-40%) scale(1.9)}100%{opacity:0;transform:translate(-50%,-20%) scale(3.2)}}
-.psmauth[data-launching] .stars{animation:psmstreak 3.3s linear forwards}
-@keyframes psmstreak{0%,58%{transform:translateY(0);opacity:.85}100%{transform:translateY(180px);opacity:.08}}
-/* "pfff" — a smoke puff billows out at the base when the rocket blasts off */
-.psmauth[data-launching] .smoke{animation:psmsmoke 3.3s ease-out forwards}
-@keyframes psmsmoke{0%,53%{opacity:0;transform:translate(-50%,-50%) scale(.3)}59%{opacity:.75;transform:translate(-50%,-34%) scale(1.05)}74%{opacity:.4;transform:translate(-50%,6%) scale(1.7)}100%{opacity:0;transform:translate(-50%,40%) scale(2.3)}}
+.psmauth[data-launching] .rocketstage .glow{animation:psmboom 1.9s ease-out forwards}
+@keyframes psmboom{0%,24%{opacity:0;transform:translate(-50%,-50%) scale(1)}34%{opacity:.9;transform:translate(-50%,-42%) scale(1.7)}60%{opacity:.4;transform:translate(-50%,-30%) scale(2.4)}100%{opacity:0;transform:translate(-50%,-20%) scale(3)}}
+.psmauth[data-launching] .stars{animation:psmstreak 1.9s linear forwards}
+@keyframes psmstreak{0%,45%{transform:translateY(0);opacity:.85}100%{transform:translateY(200px);opacity:.06}}
+/* smoke plume — builds on ignition, billows at the base, stays low as the
+   rocket climbs away */
+.psmauth[data-launching] .smoke{animation:psmsmoke 1.9s ease-out forwards}
+@keyframes psmsmoke{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}18%{opacity:.5;transform:translate(-50%,-46%) scale(.7)}36%{opacity:.85;transform:translate(-50%,-30%) scale(1.35)}68%{opacity:.4;transform:translate(-50%,-8%) scale(2.1)}100%{opacity:0;transform:translate(-50%,12%) scale(2.7)}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -236,17 +233,17 @@ const AUTH_CSS = `
   /* Flat, single-colour surface — no background gradient (which read as
      two tones); the rocket carries its own glow. min-height:100dvh so it
      always fills the screen when the mobile address bar moves. */
-  .psmauth{grid-template-columns:1fr;align-content:center;min-height:100dvh;background:#080b1c}
+  .psmauth{grid-template-columns:1fr;align-content:start;min-height:100dvh;background:#080b1c;padding-top:5vh}
   .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
   .psmauth .brand{background:transparent;padding:22px 22px 4px;min-height:auto;text-align:center;align-items:center;border-radius:0}
   /* icon LEFT of the wordmark, but a right spacer equal to the icon keeps
      "Prime Scale Media" mathematically centered on the page. */
-  .psmauth .brand .logo{align-self:center;justify-content:center;gap:11px}
-  .psmauth .brand .logo::after{content:"";flex:0 0 42px}
-  .psmauth .brand .logo .mk{width:42px;height:42px}
-  .psmauth .brand .logo .mk svg{width:23px;height:23px}
-  .psmauth .brand .logo b{font-size:1.14rem}
-  .psmauth .brand .logo small{font-size:.7rem}
+  .psmauth .brand .logo{align-self:center;justify-content:center;gap:10px}
+  .psmauth .brand .logo::after{content:"";flex:0 0 34px}
+  .psmauth .brand .logo .mk{width:34px;height:34px;border-radius:10px}
+  .psmauth .brand .logo .mk svg{width:19px;height:19px}
+  .psmauth .brand .logo b{font-size:1.1rem}
+  .psmauth .brand .logo small{font-size:.68rem}
   .psmauth .rocketstage{min-height:142px;margin:18px 0 4px;width:100%}
   .psmauth .rocketstage .moon{top:0;right:16%;width:34px;height:34px}
   /* At rest the glow AND the ribbon swirl are hidden, so the surface is
