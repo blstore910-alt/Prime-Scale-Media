@@ -1,6 +1,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
+import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -37,7 +38,7 @@ export default function useWalletTransactions(
     ],
   );
 
-  const { data, isLoading, isError, error } = useQuery<
+  const { data, isLoading, isError, error, refetch } = useQuery<
     { items: WalletTopupWithAdvertiser[]; total: number } | undefined
   >({
     queryKey,
@@ -63,14 +64,17 @@ export default function useWalletTransactions(
         query = query.eq("currency", currency);
       }
 
+      // reference_no is TEXT, zero-padded to 10 by the create RPC — so every
+      // real reference starts with at least one '0'. Coercing the term with
+      // Number() dropped that padding and the text comparison could never
+      // match; the non-numeric branch was a deliberate match-nothing. Both
+      // failed into the same empty card as "this top-up doesn't exist", on the
+      // screen an admin uses to find a payment before crediting real money.
+      // Text match now, same as the sibling ad-account queue.
       if (search && search.trim() !== "") {
-        const term = search.trim();
-        const numericOnly = /^\d+$/.test(term);
-
-        if (numericOnly) {
-          query = query.eq("reference_no", Number(term));
-        } else {
-          query = query.eq("reference_no", -1);
+        const term = safeIlikeTerm(search.trim());
+        if (term.length > 0) {
+          query = query.ilike("reference_no", `%${term}%`);
         }
       }
 
@@ -95,5 +99,6 @@ export default function useWalletTransactions(
     isLoading,
     isError,
     error,
+    refetch,
   };
 }

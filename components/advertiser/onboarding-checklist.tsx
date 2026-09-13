@@ -220,12 +220,16 @@ export default function OnboardingChecklist({
         {steps.map((s) => {
           const done = isDone(s);
           return (
+            /* .onbrow handles the layout (see adv-shell-css.ts). It used to
+               be a single non-wrapping flex line: the tick, the icon and a
+               nowrap CTA are all unshrinkable, so on a phone the text was the
+               only thing that could give and collapsed to a ~55px column —
+               one word per line, turning the first card on the dashboard into
+               a ~1100px wall. */
             <div
               key={s.id}
+              className="onbrow"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
                 padding: "12px 13px",
                 border: "1px solid var(--line)",
                 borderRadius: 13,
@@ -266,7 +270,7 @@ export default function OnboardingChecklist({
               >
                 <Ic name={s.icon} />
               </span>
-              <div style={{ minWidth: 0 }}>
+              <div className="otx">
                 <div
                   style={{
                     fontWeight: 700,
@@ -281,13 +285,10 @@ export default function OnboardingChecklist({
                 </div>
               </div>
               {done ? (
-                <span className="badge ok" style={{ marginLeft: "auto" }}>
-                  Done
-                </span>
+                <span className="badge ok ocat">Done</span>
               ) : (
                 <button
-                  className="btn ghost sm"
-                  style={{ marginLeft: "auto" }}
+                  className="btn ghost sm ocat"
                   onClick={() => onNavigate(s.view)}
                 >
                   {s.cta} <Ic name="i-arrow" />

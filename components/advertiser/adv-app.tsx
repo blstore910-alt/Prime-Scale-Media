@@ -120,7 +120,7 @@ export default function AdvertiserApp() {
   const firstName = name.split(" ")[0];
   const ini = initials(name);
 
-  const { data: wallet } = useQuery<Wallet | null>({
+  const { data: wallet, isError: walletError } = useQuery<Wallet | null>({
     queryKey: ["wallet", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -303,6 +303,11 @@ export default function AdvertiserApp() {
 
   const eurBal = Number(wallet?.eur_balance ?? 0);
   const usdBal = Number(wallet?.usd_balance ?? 0);
+  // When the wallet read fails, `wallet` is undefined and both balances fall
+  // to 0 — which renders as a confident "€0.00". Show "—" instead: an unknown
+  // balance and an empty one are very different things to tell a customer.
+  const eurText = walletError ? "—" : eur(eurBal);
+  const usdText = walletError ? "—" : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
   const pendingTopups = (activity ?? []).filter(
     (t) =>
@@ -564,7 +569,7 @@ export default function AdvertiserApp() {
               <Ic name="i-wallet" />
               <span className="e">
                 <small>Wallet</small>
-                <b>{eur(eurBal)}</b>
+                <b>{eurText}</b>
               </span>
             </button>
             {subscription?.status && (
@@ -694,7 +699,7 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   Wallet balance
                 </div>
-                <div className="v">{eur(eurBal)}</div>
+                <div className="v">{eurText}</div>
               </div>
               <div className="stat" onClick={() => go("wallet")}>
                 <div className="k">
@@ -703,7 +708,7 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   USD balance
                 </div>
-                <div className="v">{usd(usdBal)}</div>
+                <div className="v">{usdText}</div>
               </div>
               <div className="stat" onClick={() => go("billing")}>
                 <div className="k">
@@ -748,7 +753,7 @@ export default function AdvertiserApp() {
               <WalletCard
                 cur="eur"
                 label="EUR wallet"
-                value={eur(eurBal)}
+                value={eurText}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}
@@ -756,7 +761,7 @@ export default function AdvertiserApp() {
               <WalletCard
                 cur="usd"
                 label="USD wallet"
-                value={usd(usdBal)}
+                value={usdText}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}
@@ -928,7 +933,7 @@ export default function AdvertiserApp() {
               <WalletCard
                 cur="eur"
                 label="EUR wallet"
-                value={eur(eurBal)}
+                value={eurText}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}
@@ -936,7 +941,7 @@ export default function AdvertiserApp() {
               <WalletCard
                 cur="usd"
                 label="USD wallet"
-                value={usd(usdBal)}
+                value={usdText}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}

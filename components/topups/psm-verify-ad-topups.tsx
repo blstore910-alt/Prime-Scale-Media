@@ -46,7 +46,7 @@ export default function PsmVerifyAdTopups() {
   }, [search]);
   useEffect(() => setPage(1), [status, debounced]);
 
-  const { topups, isLoading, total } = useTopups({
+  const { topups, isLoading, total, isError, error, refetch } = useTopups({
     status,
     search: debounced,
     page,
@@ -183,6 +183,20 @@ export default function PsmVerifyAdTopups() {
               </div>
             );
           })}
+        </div>
+      ) : isError ? (
+        /* A failed read must never look like an empty queue. */
+        <div className="card">
+          <p style={{ margin: 0, fontWeight: 600 }}>
+            Couldn&apos;t load the ad-account top-ups.
+          </p>
+          <p className="muted" style={{ margin: "6px 0 12px" }}>
+            {(error as Error)?.message ??
+              "The request failed. This is NOT an empty queue — do not assume there is nothing to verify."}
+          </p>
+          <button className="btn ghost sm" onClick={() => refetch()}>
+            Retry
+          </button>
         </div>
       ) : (
         <div className="card">

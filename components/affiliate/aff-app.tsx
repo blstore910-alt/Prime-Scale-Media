@@ -116,6 +116,17 @@ export default function AffiliateApp() {
   // dedupes with the all-time query above, so it adds no extra fetch.
   const [refsRange, setRefsRange] = useState<RangeKey>("all");
   const [rangeOpen, setRangeOpen] = useState(false);
+  // Payout details. These were six uncontrolled inputs and the button sent a
+  // hard-coded empty template, so everything typed — including the IBAN — was
+  // silently thrown away. Held in state and interpolated into the mail body.
+  const [payout, setPayout] = useState({
+    holder: "",
+    accountType: "",
+    taxId: "",
+    address: "",
+    iban: "",
+    bic: "",
+  });
   const refs = useAffiliateStats(rangeFromTo(refsRange));
   const refsReferred = refs.rows.length;
   const refsActive = refs.rows.filter((r) => Number(r.topup_count) > 0).length;
@@ -719,12 +730,12 @@ export default function AffiliateApp() {
               {refs.rows.length ? (
                 refs.rows.map((r) => (
                   <div className="rrow" key={r.referred_advertiser_id}>
-                    <div
-                      className="rhead"
-                      style={{
-                        gridTemplateColumns: "46px 1.5fr 1fr 1fr 128px",
-                      }}
-                    >
+                    {/* Track list lives in aff-shell-css.ts, NOT inline: an
+                        inline declaration outranks the ≤900px media query, so
+                        the phone layout never applied and the Commission
+                        column was clipped off the right edge of every phone —
+                        on the affiliate's default screen. */}
+                    <div className="rhead">
                       <div className="ava">
                         {initials(r.referred_advertiser_name)}
                       </div>
@@ -1068,48 +1079,108 @@ export default function AffiliateApp() {
                 each payout.
               </p>
               <div className="field">
-                <label>Business / account holder</label>
-                <input placeholder="Your company or name" />
+                <label htmlFor="po-holder">Business / account holder</label>
+                <input
+                  id="po-holder"
+                  value={payout.holder}
+                  onChange={(e) =>
+                    setPayout({ ...payout, holder: e.target.value })
+                  }
+                  placeholder="Your company or name"
+                />
               </div>
               <div className="frow">
                 <div className="field">
-                  <label>Account type</label>
-                  <input placeholder="Business / Personal" />
+                  <label htmlFor="po-type">Account type</label>
+                  <input
+                    id="po-type"
+                    value={payout.accountType}
+                    onChange={(e) =>
+                      setPayout({ ...payout, accountType: e.target.value })
+                    }
+                    placeholder="Business / Personal"
+                  />
                 </div>
                 <div className="field">
-                  <label>VAT / Tax ID</label>
-                  <input className="mono" placeholder="Optional" />
+                  <label htmlFor="po-tax">VAT / Tax ID</label>
+                  <input
+                    id="po-tax"
+                    className="mono"
+                    value={payout.taxId}
+                    onChange={(e) =>
+                      setPayout({ ...payout, taxId: e.target.value })
+                    }
+                    placeholder="Optional"
+                  />
                 </div>
               </div>
               <div className="field">
-                <label>Billing address</label>
-                <input placeholder="Street, city, country" />
+                <label htmlFor="po-addr">Billing address</label>
+                <input
+                  id="po-addr"
+                  value={payout.address}
+                  onChange={(e) =>
+                    setPayout({ ...payout, address: e.target.value })
+                  }
+                  placeholder="Street, city, country"
+                />
               </div>
               <div className="subhead2">
                 <Ic name="i-wallet" /> EUR bank (SEPA)
               </div>
               <div className="frow">
                 <div className="field">
-                  <label>IBAN</label>
-                  <input className="mono" placeholder="NL00 BANK 0000 0000 00" />
+                  <label htmlFor="po-iban">IBAN</label>
+                  <input
+                    id="po-iban"
+                    className="mono"
+                    value={payout.iban}
+                    onChange={(e) =>
+                      setPayout({ ...payout, iban: e.target.value })
+                    }
+                    placeholder="NL00 BANK 0000 0000 00"
+                  />
                 </div>
                 <div className="field">
-                  <label>BIC / SWIFT</label>
-                  <input className="mono" placeholder="BANKNL2A" />
+                  <label htmlFor="po-bic">BIC / SWIFT</label>
+                  <input
+                    id="po-bic"
+                    className="mono"
+                    value={payout.bic}
+                    onChange={(e) =>
+                      setPayout({ ...payout, bic: e.target.value })
+                    }
+                    placeholder="BANKNL2A"
+                  />
                 </div>
               </div>
               <button
                 className="btn sm"
                 onClick={() => {
+                  const line = (label: string, v: string) =>
+                    `${label}: ${v.trim() || "—"}`;
                   window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
                     "Payout details setup",
                   )}&body=${encodeURIComponent(
-                    "Hi PSM team, here are my payout details:\n\nAccount holder:\nIBAN:\nBIC / SWIFT:\nBilling address:\nVAT / Tax ID:",
+                    [
+                      "Hi PSM team, here are my payout details:",
+                      "",
+                      line("Account holder", payout.holder),
+                      line("Account type", payout.accountType),
+                      line("IBAN", payout.iban),
+                      line("BIC / SWIFT", payout.bic),
+                      line("Billing address", payout.address),
+                      line("VAT / Tax ID", payout.taxId),
+                    ].join("\n"),
                   )}`;
                 }}
               >
                 Email payout details to set up
               </button>
+              <p className="cap" style={{ marginTop: 8 }}>
+                This opens an email with what you typed above — nothing is
+                stored until we confirm it.
+              </p>
             </div>
           </div>
 

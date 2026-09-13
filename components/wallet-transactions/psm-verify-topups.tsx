@@ -80,13 +80,14 @@ export default function PsmVerifyTopups({
   }, [search]);
   useEffect(() => setPage(1), [status, currency, debounced]);
 
-  const { transactions, isLoading, total } = useWalletTransactions({
-    status,
-    currency,
-    search: debounced,
-    page,
-    perPage,
-  });
+  const { transactions, isLoading, total, isError, error, refetch } =
+    useWalletTransactions({
+      status,
+      currency,
+      search: debounced,
+      page,
+      perPage,
+    });
 
   const { mutate: updateTransaction, isPending } = useUpdateTransaction(
     selected ?? ({} as WalletTopupWithAdvertiser),
@@ -216,16 +217,29 @@ export default function PsmVerifyTopups({
                 >
                   Bank transfer
                 </div>
-                {(pend || t.payment_slip) && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      marginTop: 12,
-                      flexWrap: "wrap",
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {/* The card's own onClick is a mouse convenience. This is
+                      the keyboard route to the details sheet — the view an
+                      admin reads (reference, slip, advertiser) before
+                      crediting real money. Without it the sheet was
+                      unreachable without a pointer. */}
+                  <button
+                    className="btn ghost sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetailsId(t.id);
                     }}
                   >
-                    {pend && (
+                    <FileText /> Details
+                  </button>
+                  {pend && (
                       <>
                         <button
                           className="btn sm"
@@ -272,11 +286,25 @@ export default function PsmVerifyTopups({
                         <FileText /> Slip
                       </button>
                     )}
-                  </div>
-                )}
+                </div>
               </div>
             );
           })}
+        </div>
+      ) : isError ? (
+        /* A failed read must never look like an empty queue — this is the
+           screen that says whether anyone is waiting on their money. */
+        <div className="card">
+          <p style={{ margin: 0, fontWeight: 600 }}>
+            Couldn&apos;t load the wallet top-ups.
+          </p>
+          <p className="muted" style={{ margin: "6px 0 12px" }}>
+            {(error as Error)?.message ??
+              "The request failed. This is NOT an empty queue — do not assume there is nothing to verify."}
+          </p>
+          <button className="btn ghost sm" onClick={() => refetch()}>
+            Retry
+          </button>
         </div>
       ) : (
         <div className="card">

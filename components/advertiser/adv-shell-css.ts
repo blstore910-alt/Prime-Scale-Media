@@ -193,6 +193,17 @@ export const ADV_CSS = `
   @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
   .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.mhead h2{font-size:1.15rem}.mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
   .mlabel{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
+  /* Onboarding checklist row. The tick (28px), the icon (34px) and the CTA
+     (.btn is white-space:nowrap) can't shrink, so on a narrow screen the text
+     absorbed all of it. Below 560px the text takes its own full-width line and
+     the CTA drops beneath it instead. */
+  .onbrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .onbrow .otx{flex:1 1 150px;min-width:0}
+  .onbrow .ocat{margin-left:auto}
+  @media(max-width:560px){
+    .onbrow .otx{flex:1 1 100%;order:3}
+    .onbrow .ocat{order:4;margin-left:0;width:100%;justify-content:center;text-align:center}
+  }
   .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
   .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.86rem;color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer}
   .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}

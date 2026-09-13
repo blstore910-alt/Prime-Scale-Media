@@ -199,7 +199,8 @@ export const AFF_CSS = `
 
   .rrow{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-sm);overflow:hidden;transition:.15s}
   .rrow.open{border-color:var(--primary);box-shadow:0 20px 40px -24px rgba(61,123,244,.4)}
-  .rhead{display:grid;grid-template-columns:46px 1.5fr 1fr 1fr 128px 24px;gap:14px;align-items:center;padding:15px 18px;cursor:pointer}
+  .rhead{display:grid;grid-template-columns:46px 1.5fr 1fr 1fr 128px;gap:14px;align-items:center;padding:15px 18px;cursor:pointer}
+  .rhead>*{min-width:0}.rhead .who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rhead:hover{background:var(--panel-2)}
   .ava{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-family:var(--font-sora);font-weight:700;font-size:.95rem;color:#fff;background:linear-gradient(135deg,#5b93ff,var(--primary))}
   .rhead .who{font-weight:700;line-height:1.2}.rhead .code{color:var(--faint);font-size:.78rem;font-family:ui-monospace,monospace}
@@ -322,7 +323,16 @@ export const AFF_CSS = `
     .sidebar{position:fixed;z-index:60;left:0;top:0;transform:translateX(-100%);transition:transform .22s;box-shadow:var(--shadow)}.sidebar.open{transform:none}
     .ham{display:grid}.scrim{display:none;position:fixed;inset:0;background:rgba(22,26,35,.4);z-index:55}.scrim.on{display:block}
     .stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.sumbar{grid-template-columns:repeat(2,1fr)}
-    .tool.earn,.tool.tier2,.tdiv{display:none}.rhead{grid-template-columns:44px 1fr 108px 22px}.rhead .col.hide{display:none}
+    .tool.earn,.tool.tier2,.tdiv{display:none}
+    /* Phone: avatar + identity on the first line with the commission (the
+       number that matters) beside it; Top-ups / Spend wrap underneath.
+       The old 4-track rule was for a markup shape that no longer exists —
+       5 children, and no .col.hide anywhere in the JSX. */
+    .rhead{grid-template-columns:44px minmax(0,1fr) auto;gap:8px 12px;padding:13px 14px}
+    .rhead .col.comm{grid-column:3;grid-row:1}
+    .rhead .col:not(.comm){grid-column:2 / 4;display:flex;gap:14px;align-items:baseline}
+    .rhead .col:not(.comm) .lbl{margin:0}
+    .rhead .col.comm .lbl{white-space:normal}
     .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:color-mix(in srgb,var(--panel) 96%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
     .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
     .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
