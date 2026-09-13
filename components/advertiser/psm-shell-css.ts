@@ -72,7 +72,8 @@ export const PSM_APP_CSS = `
 .psmapp .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:grid;place-items:center;cursor:pointer}
 .psmapp .ham{display:none}
 
-.psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto;min-width:0;overflow-x:auto}
+.psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto;min-width:0;overflow-x:auto;animation:psmcontentin .5s cubic-bezier(.2,.7,.3,1) both}
+@keyframes psmcontentin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .psmapp .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .psmapp .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
 .psmapp .phead p{color:var(--muted);font-size:.92rem;margin:4px 0 0}

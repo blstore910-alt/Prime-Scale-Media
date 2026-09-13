@@ -240,9 +240,9 @@ const AUTH_CSS = `
   /* Flat, single-colour surface — no background gradient (which read as
      two tones); the rocket carries its own glow. min-height:100dvh so it
      always fills the screen when the mobile address bar moves. */
-  .psmauth{grid-template-columns:1fr;align-content:start;min-height:100dvh;background:#080b1c;padding-top:5vh}
+  .psmauth{grid-template-columns:1fr;align-content:start;min-height:100dvh;background:#080b1c;padding-top:1vh}
   .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
-  .psmauth .brand{background:transparent;padding:22px 22px 4px;min-height:auto;text-align:center;align-items:center;border-radius:0}
+  .psmauth .brand{background:transparent;padding:10px 22px 4px;min-height:auto;text-align:center;align-items:center;border-radius:0}
   /* icon LEFT of the wordmark, but a right spacer equal to the icon keeps
      "Prime Scale Media" mathematically centered on the page. */
   .psmauth .brand .logo{align-self:center;justify-content:center;gap:10px}
