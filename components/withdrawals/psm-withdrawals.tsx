@@ -358,7 +358,14 @@ function WithdrawalsSection() {
                                 <button
                                   className="btn sm"
                                   disabled={actingId === w.id}
-                                  onClick={() => approve.mutate(w.id)}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        "Approve this withdrawal? It credits the advertiser's wallet immediately and can't be undone here.",
+                                      )
+                                    )
+                                      approve.mutate(w.id);
+                                  }}
                                 >
                                   {actingId === w.id ? "…" : "Approve"}
                                 </button>
@@ -643,7 +650,14 @@ function RefundsSection() {
                               <button
                                 className="btn sm"
                                 disabled={actingId === r.id}
-                                onClick={() => approve.mutate(r.id)}
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      "Approve this refund? It debits the advertiser's wallet immediately and can't be undone here.",
+                                    )
+                                  )
+                                    approve.mutate(r.id);
+                                }}
                               >
                                 {actingId === r.id ? "…" : "Approve"}
                               </button>
@@ -1123,7 +1137,14 @@ function AdjustmentsSection() {
                                 <button
                                   className="btn sm"
                                   disabled={actingId === r.id}
-                                  onClick={() => approve.mutate(r.id)}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        "Approve this adjustment? It changes the advertiser's wallet balance immediately and can't be undone here.",
+                                      )
+                                    )
+                                      approve.mutate(r.id);
+                                  }}
                                 >
                                   {actingId === r.id ? "…" : "Approve"}
                                 </button>

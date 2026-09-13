@@ -56,8 +56,8 @@ export function AdminTopupDialog({
             Create new topup to an{" "}
             {type === "account" ? "ad account" : "advertiser"}
           </DialogDescription>
-          <TopupForm type={type} closeDialog={() => setOpen(false)} />
         </DialogHeader>
+        <TopupForm type={type} closeDialog={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );
@@ -117,7 +117,7 @@ function TopupForm({
           currency: z.string().min(1, "Currency is required"),
           amount_received: z.coerce
             .number()
-            .min(0, `Amount must be at least 0`),
+            .gt(0, `Amount must be greater than 0`),
           payment_slip: z.string().optional(),
           advertiser_id: z.string().optional(),
           account_id: z.string().optional(),
@@ -238,6 +238,7 @@ function TopupForm({
   useEffect(() => {
     if (accountId) {
       const account = accounts?.find((account) => account.id === accountId);
+      if (!account) return; // account may vanish on a background refetch
       setAccount(account);
       setValue("fee", String(account.fee));
     }

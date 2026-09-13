@@ -180,6 +180,17 @@ export default function AdminsTable() {
                           className={`btn sm${isActive ? " ghost" : ""}`}
                           disabled={pendingAdminId === admin.id}
                           onClick={() => {
+                            const verb = isActive ? "Deactivate" : "Activate";
+                            if (
+                              !window.confirm(
+                                `${verb} ${admin.full_name ?? admin.email ?? "this admin"}? ${
+                                  isActive
+                                    ? "They lose access immediately."
+                                    : "They regain admin access."
+                                }`,
+                              )
+                            )
+                              return;
                             setPendingAdminId(admin.id);
                             toggleStatus(admin);
                           }}
