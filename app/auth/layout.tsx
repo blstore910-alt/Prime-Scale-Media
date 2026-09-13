@@ -213,9 +213,11 @@ const AUTH_CSS = `
    into the form, no white card. Email + password sit on the brand
    background in light-on-dark controls. */
 @media(max-width:860px){
-  html,body{background:#07091a}
-  .psmauth{grid-template-columns:1fr;align-content:center;
-    background:radial-gradient(340px 320px at 50% 19%,rgba(99,130,240,.20),transparent 68%),#07091a}
+  html,body{background:#080b1c}
+  /* Flat, single-colour surface — no background gradient (which read as
+     two tones); the rocket carries its own glow. min-height:100dvh so it
+     always fills the screen when the mobile address bar moves. */
+  .psmauth{grid-template-columns:1fr;align-content:center;min-height:100dvh;background:#080b1c}
   .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
   .psmauth .brand{background:transparent;padding:18px 22px 12px;min-height:auto;text-align:center;align-items:center;border-radius:0}
   .psmauth .brand .logo{align-self:center}

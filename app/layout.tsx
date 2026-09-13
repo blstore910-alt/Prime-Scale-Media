@@ -26,6 +26,8 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = {
   themeColor: "#2b7fff",
+  width: "device-width",
+  initialScale: 1,
 };
 
 const sora = Sora({
