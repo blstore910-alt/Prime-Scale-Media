@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export async function changeProfile(profileId: string, pathname: string) {
   const supabase = await createClient();
@@ -82,9 +81,8 @@ export async function loginUser(formData: FormData) {
 
   const isVerified = data.user?.user_metadata?.email_verified;
 
-  if (isVerified) {
-    redirect("/dashboard");
-  } else {
-    redirect("/auth/sign-up-success");
-  }
+  // Return the destination instead of redirecting server-side, so the client
+  // can let the sign-in launch animation finish before navigating. The cookie
+  // set above is still applied on this action's response.
+  return { redirectTo: isVerified ? "/dashboard" : "/auth/sign-up-success" };
 }

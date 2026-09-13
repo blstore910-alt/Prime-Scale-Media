@@ -74,6 +74,13 @@ export function LoginForm() {
       if (result?.error) {
         shell?.removeAttribute("data-launching");
         setError(result.error);
+      } else if (result?.redirectTo) {
+        // Let the launch animation play out, then navigate (a full-page nav
+        // so the just-set auth cookie is sent with the request).
+        const dest = result.redirectTo;
+        setTimeout(() => {
+          window.location.href = dest;
+        }, 2800);
       }
     });
   };

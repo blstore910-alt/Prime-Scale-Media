@@ -147,37 +147,41 @@ const AUTH_CSS = `
 .psmauth .flame2{transform-box:fill-box;transform-origin:50% 0;animation:psmflame2 .19s ease-in-out infinite alternate}
 @keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
 @keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
-/* ── Launch sequence: data-launching on .psmauth on sign-in. The rocket
-   you see ignites (shake), does a full loop (a somersault/circle), then
-   blasts away up and out. The copy lifts off with it; the form stays.
-   ~2.8s. Frozen under prefers-reduced-motion. ── */
+/* ── Launch sequence: data-launching on .psmauth on sign-in. EVERYTHING
+   fades except the rocket, which does a smooth full loop (a somersault at
+   constant speed) and then flies far away up and out. ~3.3s. The client
+   holds navigation until it plays out. Frozen under prefers-reduced-motion. ── */
 .psmauth[data-launching]{overflow:hidden}
 .psmauth[data-launching] .brand{overflow:visible}
-.psmauth[data-launching] .ship{animation:psmloop 2.9s linear forwards}
+.psmauth[data-launching] .logo,
+.psmauth[data-launching] .brand h1,
+.psmauth[data-launching] .brand .sub,
+.psmauth[data-launching] .card{animation:psmfade .55s ease forwards}
+@keyframes psmfade{to{opacity:0}}
+.psmauth[data-launching] .ship{animation:psmloop 3.3s linear forwards}
 @keyframes psmloop{
   0%{transform:translate(0,0) rotate(0deg) scale(1)}
-  8%{transform:translate(-2px,2px) rotate(0deg) scale(1)}
-  14%{transform:translate(2px,3px) rotate(0deg) scale(1)}
-  20%{transform:translate(-2px,4px) rotate(0deg) scale(1)}
-  27%{transform:translate(0,6px) rotate(0deg) scale(.94)}
-  31.75%{transform:translate(18px,-2px) rotate(45deg) scale(1)}
-  36.5%{transform:translate(26px,-20px) rotate(90deg) scale(1)}
-  41.25%{transform:translate(18px,-38px) rotate(135deg) scale(1)}
-  46%{transform:translate(0,-46px) rotate(180deg) scale(1)}
-  50.75%{transform:translate(-18px,-38px) rotate(225deg) scale(1)}
-  55.5%{transform:translate(-26px,-20px) rotate(270deg) scale(1)}
-  60.25%{transform:translate(-18px,-2px) rotate(315deg) scale(1)}
-  65%{transform:translate(0,6px) rotate(360deg) scale(.96);animation-timing-function:cubic-bezier(.55,0,.85,.3)}
-  100%{transform:translate(0,-160vh) rotate(360deg) scale(1.2)}
+  7%{transform:translate(-2px,2px) rotate(0deg) scale(1)}
+  13%{transform:translate(2px,3px) rotate(0deg) scale(1)}
+  19%{transform:translate(-2px,4px) rotate(0deg) scale(1)}
+  24%{transform:translate(0,6px) rotate(0deg) scale(.94)}
+  28%{transform:translate(18px,-2px) rotate(45deg) scale(1)}
+  32%{transform:translate(26px,-20px) rotate(90deg) scale(1)}
+  36%{transform:translate(18px,-38px) rotate(135deg) scale(1)}
+  40%{transform:translate(0,-46px) rotate(180deg) scale(1)}
+  44%{transform:translate(-18px,-38px) rotate(225deg) scale(1)}
+  48%{transform:translate(-26px,-20px) rotate(270deg) scale(1)}
+  52%{transform:translate(-18px,-2px) rotate(315deg) scale(1)}
+  56%{transform:translate(0,4px) rotate(360deg) scale(1)}
+  62%{transform:translate(0,8px) rotate(360deg) scale(.95);animation-timing-function:cubic-bezier(.5,0,.85,.35)}
+  100%{transform:translate(0,-170vh) rotate(360deg) scale(1.28)}
 }
 .psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
 @keyframes psmflameburst{from{transform:scaleY(1.4) scaleX(1.06);opacity:1}to{transform:scaleY(2.6) scaleX(.9);opacity:1}}
-.psmauth[data-launching] .rocketstage .glow{animation:psmboom 2.8s ease-out forwards}
-@keyframes psmboom{0%{opacity:.4;transform:translate(-50%,-50%) scale(1)}63%{opacity:.85;transform:translate(-50%,-50%) scale(1.6)}80%{opacity:1;transform:translate(-50%,-40%) scale(2.3)}100%{opacity:0;transform:translate(-50%,-30%) scale(3.1)}}
-.psmauth[data-launching] .stars{animation:psmstreak 2.8s cubic-bezier(.45,.05,.55,.95) forwards}
-@keyframes psmstreak{0%,63%{transform:translateY(0);opacity:.85}100%{transform:translateY(150px);opacity:.1}}
-.psmauth[data-launching] .brand h1,.psmauth[data-launching] .brand .sub{animation:psmrise 2.8s ease-in forwards}
-@keyframes psmrise{0%,70%{transform:translateY(0);opacity:1}100%{transform:translateY(-44px);opacity:0}}
+.psmauth[data-launching] .rocketstage .glow{animation:psmboom 3.3s ease-out forwards}
+@keyframes psmboom{0%,56%{opacity:0;transform:translate(-50%,-50%) scale(1)}66%{opacity:.9;transform:translate(-50%,-40%) scale(1.9)}100%{opacity:0;transform:translate(-50%,-20%) scale(3.2)}}
+.psmauth[data-launching] .stars{animation:psmstreak 3.3s linear forwards}
+@keyframes psmstreak{0%,58%{transform:translateY(0);opacity:.85}100%{transform:translateY(180px);opacity:.08}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -229,29 +233,33 @@ const AUTH_CSS = `
      always fills the screen when the mobile address bar moves. */
   .psmauth{grid-template-columns:1fr;align-content:center;min-height:100dvh;background:#080b1c}
   .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
-  .psmauth .brand{background:transparent;padding:18px 22px 12px;min-height:auto;text-align:center;align-items:center;border-radius:0}
-  .psmauth .brand .logo{align-self:center}
-  .psmauth .brand .logo .mk{width:38px;height:38px}
-  .psmauth .brand .logo .mk svg{width:21px;height:21px}
-  .psmauth .rocketstage{min-height:118px;margin:2px 0 0;width:100%}
+  .psmauth .brand{background:transparent;padding:22px 22px 4px;min-height:auto;text-align:center;align-items:center;border-radius:0}
+  /* stacked logo — icon centered above the centered wordmark */
+  .psmauth .brand .logo{align-self:center;flex-direction:column;gap:8px}
+  .psmauth .brand .logo .mk{width:44px;height:44px}
+  .psmauth .brand .logo .mk svg{width:24px;height:24px}
+  .psmauth .brand .logo b{font-size:1.16rem}
+  .psmauth .rocketstage{min-height:120px;margin:6px 0 2px;width:100%}
   .psmauth .rocketstage .moon{top:2%;right:16%;width:36px;height:36px}
   /* At rest the glow AND the ribbon swirl are hidden, so the surface is
      100% flat (no lighter top zone). The glow only appears during the
      launch boom, where psmboom overrides its opacity. */
   .psmauth .rocketstage .glow{width:160px;height:160px;background:radial-gradient(circle,rgba(91,141,255,.42),transparent 66%);animation:none;opacity:0}
   .psmauth .brand .ribbon{display:none}
-  .psmauth .ship{width:76px}
-  .psmauth .brand h1{font-size:1.5rem;margin:6px auto 7px;max-width:18ch}
-  .psmauth .brand .sub{font-size:.88rem;margin:0 auto;max-width:32ch}
+  .psmauth .ship{width:78px}
+  .psmauth .brand h1{font-size:1.62rem;margin:8px auto 8px;max-width:16ch;line-height:1.12}
+  .psmauth .brand .sub{font-size:.86rem;margin:0 auto;max-width:30ch;color:rgba(255,255,255,.6)}
   .psmauth .pts{display:none}
   /* the form has no background of its own — it flows on the same surface */
-  .psmauth .side{background:transparent;min-height:auto;justify-content:flex-start;padding:2px clamp(18px,6vw,30px) 40px}
+  .psmauth .side{background:transparent;min-height:auto;justify-content:flex-start;padding:14px clamp(18px,6vw,30px) 40px}
   .psmauth .card{margin:0 auto;max-width:400px}
   .psmauth .lmk{display:none}
   .psmauth .login-card{background:transparent;border:0;box-shadow:none;padding:0;margin:0 auto}
   /* light-on-dark form controls */
-  .psmauth .login-card h2,.psmauth h2{font-size:1.6rem;margin:4px 0 6px;color:#fff}
-  .psmauth .lede{color:rgba(255,255,255,.62);margin-bottom:20px}
+  /* "Sign in" is a small uppercase eyebrow, not a bulky heading — the
+     tagline leads. "Welcome back" lede is dropped to keep it to one page. */
+  .psmauth .login-card h2,.psmauth h2{font-size:.76rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:0 0 16px;color:rgba(255,255,255,.5)}
+  .psmauth .lede{display:none}
   .psmauth .field label{color:rgba(255,255,255,.8)}
   .psmauth .field label .opt{color:rgba(255,255,255,.5)}
   .psmauth input,.psmauth select{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:#fff}
