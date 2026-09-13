@@ -24,7 +24,6 @@ import InputField from "../form/input-field";
 import useExchangeRates from "../settings/finance/use-exchange-rates";
 import { Button } from "../ui/button";
 import { createTopup } from "./topup-form";
-import { updateTopupLogs } from "./use-update-topup";
 
 import SwitchField from "../form/switch-field";
 
@@ -181,8 +180,8 @@ function TopupForm({
       );
       return data;
     },
-    onSuccess: async (data) => {
-      await updateTopupLogs(data, "create");
+    onSuccess: () => {
+      // The create audit row is written inside createTopupAsAdmin (server).
       toast.success("Topup added successfully");
       closeDialog();
       queryClient.invalidateQueries({ queryKey: ["top-ups"] });

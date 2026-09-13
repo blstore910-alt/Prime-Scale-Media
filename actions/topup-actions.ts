@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
+import { safeErrorMessage } from "@/lib/pure-error";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Ad-account top-up types that carry a fee (mirrors the topup form).
@@ -117,6 +118,51 @@ type TopupInsertInput = Partial<
   mark_paid?: boolean;
 };
 
+// Write the top_up audit-trail row SERVER-side so updated_by/author are the
+// authenticated session admin — never a client-supplied value. The old
+// client-side insert let any admin forge the author or fabricate new_values
+// (and for "create" it was actually broken: the returned {id} had no
+// `author`, so author.id threw). Best-effort: the row already committed and
+// the trigger-based audit_events still captures the change, so a log-insert
+// failure must not fail the mutation.
+async function writeTopupLog(
+  supabase: SupabaseClient,
+  profile: { id: string; full_name?: string | null; email?: string | null },
+  topupId: string,
+  action: "create" | "update" | "delete",
+  values: Partial<
+    Record<
+      | "fee"
+      | "topup_amount"
+      | "amount_received"
+      | "amount_usd"
+      | "currency"
+      | "status"
+      | "is_deleted",
+      unknown
+    >
+  >,
+) {
+  const { error } = await supabase.from("topup_logs").insert({
+    topup_id: topupId,
+    updated_by: profile.id,
+    action,
+    author: { id: profile.id, name: profile.full_name, email: profile.email },
+    new_values: {
+      fee: values.fee ?? null,
+      topup_amount: values.topup_amount ?? null,
+      amount_received: values.amount_received ?? null,
+      amount_usd: values.amount_usd ?? null,
+      currency: values.currency ?? null,
+      status: values.status ?? null,
+      is_deleted: values.is_deleted ?? null,
+    },
+  });
+  if (error) {
+    console.warn("topup_logs insert failed:", safeErrorMessage(error));
+  }
+}
+
 export async function createTopupAsAdmin(
   input: TopupInsertInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -197,6 +243,12 @@ export async function createTopupAsAdmin(
     .select("id")
     .single();
   if (insertError) return { ok: false, error: insertError.message };
+
+  await writeTopupLog(supabase, profile, inserted.id, "create", {
+    ...cleaned,
+    amount_received: input.amount_received,
+    currency: input.currency,
+  });
 
   return { ok: true, data: { id: inserted.id } };
 }
@@ -344,6 +396,14 @@ export async function updateTopupAsAdmin(
     .eq("id", topupId)
     .eq("tenant_id", profile.tenant_id);
   if (updateError) return { ok: false, error: updateError.message };
+
+  await writeTopupLog(
+    supabase,
+    profile,
+    topupId,
+    payload.is_deleted === true ? "delete" : "update",
+    payload,
+  );
 
   return { ok: true, data: null };
 }

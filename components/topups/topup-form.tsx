@@ -20,7 +20,6 @@ import SelectField from "../form/select-field";
 import useExchangeRates from "../settings/finance/use-exchange-rates";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
-import { updateTopupLogs } from "./use-update-topup";
 
 type FormValues = {
   type: string;
@@ -180,8 +179,8 @@ export default function TopupForm({
       );
       return data;
     },
-    onSuccess: async (data) => {
-      await updateTopupLogs(data, "create");
+    onSuccess: () => {
+      // The create audit row is written inside createTopupAsAdmin (server).
       const description =
         "Your payment has been sent for approval. Please wait until it gets approved from the team.";
       toast.success("Topup requested successfully", {

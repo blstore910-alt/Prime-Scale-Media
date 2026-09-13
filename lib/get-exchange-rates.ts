@@ -24,7 +24,10 @@ export async function getExchangeRate(
       if (!rate) throw new Error(`Rate for ${from} not found`);
     }
 
-    return to ? (amount ? amount * rate.toFixed(2) : rate.toFixed(2)) : data;
+    // Keep full rate precision and return a number (rate.toFixed(2) both
+    // rounded the FX rate to 2 decimals and returned a string that only
+    // multiplied via JS coercion).
+    return to ? (amount ? amount * rate : rate) : data;
   } catch (error) {
     console.error("Exchange API Error:", safeErrorMessage(error));
     throw error;
