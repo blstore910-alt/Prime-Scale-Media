@@ -751,6 +751,31 @@ export default function AffiliateApp() {
                     </div>
                   </div>
                 ))
+              ) : refs.isLoading ? (
+                <div className="card">
+                  <p className="cap" style={{ margin: 0 }}>
+                    Loading your referrals…
+                  </p>
+                </div>
+              ) : refs.isError ? (
+                <div className="card">
+                  <p className="cap" style={{ margin: 0 }}>
+                    Couldn&apos;t load your referrals.{" "}
+                    <button
+                      type="button"
+                      className="lnk"
+                      style={{
+                        background: "none",
+                        border: 0,
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
+                      onClick={() => refs.refetch()}
+                    >
+                      Retry
+                    </button>
+                  </p>
+                </div>
               ) : (
                 <div className="card">
                   <p className="cap" style={{ margin: 0 }}>

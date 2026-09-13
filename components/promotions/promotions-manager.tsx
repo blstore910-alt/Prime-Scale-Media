@@ -96,6 +96,12 @@ export default function PromotionsManager() {
   const grant = useMutation({
     mutationFn: async () => {
       if (!advertiserId) throw new Error("Pick an advertiser.");
+      if (isDiscount) {
+        const pct = Number(amount);
+        if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+          throw new Error("Discount must be between 1 and 100%.");
+        }
+      }
       const res = await grantPerk({
         advertiser_id: advertiserId,
         kind,

@@ -106,8 +106,12 @@ export async function addLedgerEntry(input: {
     recorded_by: profile.user_id,
   };
   // occurred_on optional — DB defaults to current_date. Only pass a
-  // valid ISO date if given.
+  // valid ISO date if given, and never a future date (a future occurred_on
+  // mis-orders the ledger and skews reconciliation).
   if (input.occurred_on && /^\d{4}-\d{2}-\d{2}$/.test(input.occurred_on)) {
+    if (input.occurred_on > new Date().toISOString().slice(0, 10)) {
+      return { ok: false, error: "Date can't be in the future." };
+    }
     row.occurred_on = input.occurred_on;
   }
   if (typeof input.note === "string" && input.note.trim()) {
