@@ -265,7 +265,7 @@ export default function AdAccountRequestForm({
     enabled: !!advertiserId && !!profile?.tenant_id,
     queryFn: async () => {
       const supabase = createClient();
-      const [w, r, plan, reqs] = await Promise.all([
+      const [w, r, plan, reqs, perks] = await Promise.all([
         supabase
           .from("wallets")
           .select("usd_balance, eur_balance")
@@ -287,17 +287,39 @@ export default function AdAccountRequestForm({
           .from("ad_account_requests")
           .select("id, status")
           .eq("advertiser_id", advertiserId),
+        // A free_ad_account_requests perk also makes the request free once
+        // the plan allowance is used up — mirror ad_account_request_create_paid
+        // so the preview doesn't show a fee (and block submit) for a request
+        // the server would grant for free.
+        supabase
+          .from("advertiser_perks")
+          .select("remaining, expires_at, starts_at")
+          .eq("advertiser_id", advertiserId)
+          .eq("kind", "free_ad_account_requests")
+          .eq("active", true),
       ]);
       const used = (reqs.data ?? []).filter(
         (x: { status: string | null }) =>
           !["rejected", "cancelled"].includes((x.status ?? "").toLowerCase()),
       ).length;
+      const nowMs = new Date().getTime();
+      const hasFreePerk = (perks.data ?? []).some(
+        (p: {
+          remaining: number | null;
+          expires_at: string | null;
+          starts_at: string | null;
+        }) =>
+          Number(p.remaining ?? 0) > 0 &&
+          (!p.expires_at || new Date(p.expires_at).getTime() > nowMs) &&
+          (!p.starts_at || new Date(p.starts_at).getTime() <= nowMs),
+      );
       return {
         usd: Number(w.data?.usd_balance ?? 0),
         eur: Number(w.data?.eur_balance ?? 0),
         rate: Number(r.data?.eur) || 0.86,
         included: Number(plan.data?.included_ad_accounts ?? 0),
         used,
+        hasFreePerk,
       };
     },
   });
@@ -306,7 +328,7 @@ export default function AdAccountRequestForm({
   // the included allowance is used up. Mirrors ad_account_request_create_paid.
   const included = feePreview?.included ?? 0;
   const used = feePreview?.used ?? 0;
-  const isFree = used < included;
+  const isFree = used < included || (feePreview?.hasFreePerk ?? false);
   const feeAmount = isFree
     ? 0
     : selectedCurrency === "EUR"
