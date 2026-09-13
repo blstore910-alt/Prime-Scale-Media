@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard } from "./_shared";
+import { checkVersion, maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -45,6 +45,7 @@ async function requireAdminCtx() {
 export async function setCommissionStatus(
   commissionId: string,
   status: "paid" | "unpaid",
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof commissionId !== "string" || commissionId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -65,6 +66,12 @@ export async function setCommissionStatus(
   if (!commission) return { ok: false, error: "Commission not found" };
   if (commission.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+  if (!(await checkVersion(supabase, "referral_commissions", commissionId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This commission was changed by someone else. Reload and retry.",
+    };
   }
 
   const { error } = await supabase
@@ -162,6 +169,7 @@ export async function assignAffiliateToAdvertiser(
 export async function setReferralLinkStatus(
   referralLinkId: string,
   status: "active" | "rejected",
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof referralLinkId !== "string" || referralLinkId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -182,6 +190,12 @@ export async function setReferralLinkStatus(
   if (!link) return { ok: false, error: "Referral not found" };
   if (link.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+  if (!(await checkVersion(supabase, "referral_links", referralLinkId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This referral link was changed by someone else. Reload and retry.",
+    };
   }
 
   const { error } = await supabase

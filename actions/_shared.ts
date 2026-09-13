@@ -142,3 +142,30 @@ export function versionMatches(
     return false;
   }
 }
+
+/**
+ * Optimistic-concurrency guard for actions that don't already fetch
+ * `updated_at`. Returns true (proceed) when the caller passed no
+ * `ifUpdatedAt`, OR when the row's `updated_at` can't be read — e.g. a table
+ * that has no `updated_at` column on this hand-authored DB. That tolerance
+ * is deliberate: the separate read must never turn a missing column into a
+ * broken mutation. Returns false ONLY when a real `updated_at` was read and
+ * it differs from what the caller last saw (a genuine concurrent edit).
+ */
+export async function checkVersion(
+  supabase: SupabaseClient,
+  table: string,
+  id: string,
+  ifUpdatedAt: string | null | undefined,
+): Promise<boolean> {
+  if (ifUpdatedAt == null) return true;
+  const { data } = await supabase
+    .from(table)
+    .select("updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  return versionMatches(
+    (data as { updated_at?: string } | null)?.updated_at,
+    ifUpdatedAt,
+  );
+}

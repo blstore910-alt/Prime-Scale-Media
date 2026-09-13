@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
+import {
+  checkVersion,
+  maintenanceGuard,
+  versionMatches,
+  type ActionResult,
+} from "./_shared";
 
 type CallerContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -86,6 +91,7 @@ async function assertSuperAdmin() {
 // ─────────────────────────────────────────
 export async function toggleAdminStatus(
   adminId: string,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult<{ status: "active" | "inactive" }>> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
@@ -115,6 +121,13 @@ export async function toggleAdminStatus(
   }
   if (target.role !== "admin") {
     return { ok: false, error: "Target is not an admin" };
+  }
+  if (!(await checkVersion(supabase, "user_profiles", adminId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This admin was changed by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const nextStatus = target.status === "active" ? "inactive" : "active";

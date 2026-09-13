@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import dayjs from "dayjs";
-import { maintenanceGuard } from "./_shared";
+import { checkVersion, maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -126,6 +126,7 @@ export async function createSubscriptionAsAdmin(
 export async function setSubscriptionStatus(
   subscriptionId: string,
   status: SubscriptionStatus,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (
     typeof subscriptionId !== "string" ||
@@ -150,6 +151,12 @@ export async function setSubscriptionStatus(
   if (sub.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
   }
+  if (!(await checkVersion(supabase, "subscriptions", subscriptionId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This subscription was changed by someone else. Reload and retry.",
+    };
+  }
 
   const { error } = await supabase
     .from("subscriptions")
@@ -171,6 +178,7 @@ export async function changeSubscriptionAmount(
   subscriptionId: string,
   newAmount: number,
   newCurrency?: "EUR" | "USD",
+  ifUpdatedAt?: string,
 ): Promise<ActionResult<{ action: string }>> {
   if (typeof subscriptionId !== "string" || subscriptionId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -195,6 +203,12 @@ export async function changeSubscriptionAmount(
   if (!sub) return { ok: false, error: "Subscription not found" };
   if (sub.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+  if (!(await checkVersion(supabase, "subscriptions", subscriptionId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This subscription was changed by someone else. Reload and retry.",
+    };
   }
 
   const { data, error } = await supabase.rpc("change_subscription_amount", {

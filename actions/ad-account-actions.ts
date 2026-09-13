@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
+import {
+  checkVersion,
+  maintenanceGuard,
+  versionMatches,
+  type ActionResult,
+} from "./_shared";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -176,6 +181,7 @@ export async function updateAdAccountAsAdmin(
 export async function rejectAdAccountRequest(
   requestId: string,
   reason: string,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof requestId !== "string" || requestId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -195,6 +201,13 @@ export async function rejectAdAccountRequest(
   }
   if (req.status === "completed") {
     return { ok: false, error: "Request already completed" };
+  }
+  if (!(await checkVersion(supabase, "ad_account_requests", requestId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This request was changed by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const trimmedReason = typeof reason === "string" ? reason.trim() : "";
@@ -226,6 +239,7 @@ type RequestStatus = (typeof REQUEST_STATUS)[number];
 export async function setAdAccountRequestStatus(
   requestId: string,
   status: RequestStatus,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof requestId !== "string" || requestId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -245,6 +259,13 @@ export async function setAdAccountRequestStatus(
   if (!req) return { ok: false, error: "Request not found" };
   if (req.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+  if (!(await checkVersion(supabase, "ad_account_requests", requestId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This request was changed by someone else. Reload and retry.",
+      code: "conflict",
+    };
   }
 
   const { error } = await supabase
