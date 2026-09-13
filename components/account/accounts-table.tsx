@@ -93,7 +93,13 @@ export default function AccountsTable() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["ad-accounts", page, perPage],
+    // No page/perPage in the key. This query deliberately fetches the whole
+    // set once, because search, platform, status and fee filtering all happen
+    // in the browser below (and paging is a client-side slice). Keying on the
+    // page meant every pagination click minted a fresh cache entry, so
+    // staleTime never applied and each click was another full-table round
+    // trip for the same rows it already had.
+    queryKey: ["ad-accounts"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ad_accounts")

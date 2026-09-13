@@ -9,6 +9,13 @@ export default function useNotifications() {
   const { user } = useAppContext();
   const userId = user?.id ?? null;
 
+  // Capped. This hook is mounted at the ROOT of both SPA shells, so it runs on
+  // first paint for every advertiser and affiliate — not only when the
+  // notifications view is opened. Unbounded, it pulled the user's entire
+  // history on every app load, and only read-and-older-than-30-days rows are
+  // ever pruned, so unread rows accumulate forever.
+  const RECENT_LIMIT = 50;
+
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["notifications", userId],
     enabled: !!userId,
@@ -18,14 +25,31 @@ export default function useNotifications() {
         .from("notifications")
         .select("*")
         .eq("recipient_user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(RECENT_LIMIT);
 
       if (error) throw error;
       return data as Notification[];
     },
   });
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  // Counted server-side, so the badge stays honest past the cap instead of
+  // undercounting to at most RECENT_LIMIT.
+  const { data: unreadCount = 0 } = useQuery({
+    // Nested under "notifications" on purpose: the three mutations below
+    // invalidate that prefix, so the badge refreshes with the list.
+    queryKey: ["notifications", userId, "unread-count"],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_user_id", userId)
+        .eq("is_read", false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {

@@ -135,8 +135,13 @@ export default function PlansCard() {
   const anyDirty = rows.some((r) => r.dirty);
   const sym = (c: PlanCurrency) => (c === "USD" ? "$" : "€");
 
+  // min-w keeps the 1fr name column from collapsing. The four fixed tracks
+  // plus gaps already exceed a phone's width, so on mobile the name Input —
+  // the row's only identifier — resolved to 0px and was unreachable. The grid
+  // now has a floor and scrolls horizontally inside its own container instead
+  // of pushing the whole admin content column sideways.
   const cols =
-    "grid grid-cols-[1fr_90px_90px_70px_70px_52px] gap-2 items-center";
+    "grid grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_52px] gap-2 items-center min-w-[560px]";
 
   return (
     <Card>
@@ -157,7 +162,7 @@ export default function PlansCard() {
         ) : isError ? (
           <p className="text-destructive">{(error as Error)?.message}</p>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-3 overflow-x-auto">
             <div className={`${cols} text-xs text-muted-foreground border-b pb-1`}>
               <span>Name</span>
               <span>Kind</span>
@@ -225,9 +230,9 @@ export default function PlansCard() {
               </div>
             ))}
 
-            <div className="mt-2 border-t pt-3 grid gap-2">
+            <div className="mt-2 border-t pt-3 grid gap-2 overflow-x-auto">
               <Label className="text-xs text-muted-foreground">Add a plan</Label>
-              <div className="grid grid-cols-[1fr_90px_90px_70px_70px_auto] gap-2 items-center">
+              <div className="grid grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_auto] gap-2 items-center min-w-[560px]">
                 <Input
                   value={nName}
                   placeholder="e.g. VIP"
