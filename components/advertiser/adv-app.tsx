@@ -305,8 +305,28 @@ export default function AdvertiserApp() {
   const usdBal = Number(wallet?.usd_balance ?? 0);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
   const pendingTopups = (activity ?? []).filter(
-    (t) => t.status !== "completed" && t.status !== "failed",
+    (t) =>
+      t.status !== "completed" &&
+      t.status !== "failed" &&
+      t.status !== "rejected",
   );
+
+  // The subscription invoice the "Pay … from wallet" button should settle:
+  // the OLDEST unpaid invoice of type 'subscription'. Picking the newest
+  // unpaid invoice of ANY type could charge a smaller adjustment invoice
+  // while the real subscription stays unpaid, under a label that showed the
+  // subscription amount.
+  const dueSubInvoice = (invoices ?? [])
+    .filter((i) => i.status !== "paid" && i.type === "subscription")
+    .sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    )[0];
+  const dueSubSymbol =
+    ((dueSubInvoice?.items as Array<{ currency?: string }> | undefined)?.[0]
+      ?.currency ?? "EUR") === "USD"
+      ? "$"
+      : "€";
 
   const go = (v: View) => {
     setView(v);
@@ -996,10 +1016,18 @@ export default function AdvertiserApp() {
                           <td data-label="Status" className="r">
                             <span
                               className={`badge ${
-                                t.status === "completed" ? "ok" : "pend"
+                                t.status === "completed"
+                                  ? "ok"
+                                  : t.status === "rejected"
+                                    ? "due"
+                                    : "pend"
                               }`}
                             >
-                              {t.status === "completed" ? "Credited" : "Pending"}
+                              {t.status === "completed"
+                                ? "Credited"
+                                : t.status === "rejected"
+                                  ? "Rejected"
+                                  : "Pending"}
                             </span>
                           </td>
                         </tr>
@@ -1208,16 +1236,16 @@ export default function AdvertiserApp() {
                     <button
                       className="btn block grad"
                       style={{ marginTop: 14 }}
+                      disabled={!dueSubInvoice}
                       onClick={() => {
-                        const unpaid = (invoices ?? []).find(
-                          (i) => i.status !== "paid",
-                        );
-                        if (unpaid) payInvoice(unpaid.id);
-                        else toast.message("No unpaid invoice to pay.");
+                        if (dueSubInvoice) payInvoice(dueSubInvoice.id);
+                        else toast.message("No unpaid subscription invoice to pay.");
                       }}
                     >
-                      <Ic name="i-check" /> Pay €{money2(subscription.amount)}{" "}
-                      from wallet
+                      <Ic name="i-check" />{" "}
+                      {dueSubInvoice
+                        ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
+                        : "No subscription invoice due"}
                     </button>
                   </>
                 ) : (

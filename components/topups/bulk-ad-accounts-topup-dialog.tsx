@@ -198,7 +198,7 @@ export default function BulkTopupAdAccountsDialog({
     handleSubmit,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<BulkTopupFormValues>({
     defaultValues: {
       rows: defaultRows,
@@ -221,7 +221,13 @@ export default function BulkTopupAdAccountsDialog({
 
   const handleBulkTopup = async (values: BulkTopupFormValues) => {
     const filteredValues = values.rows.filter((row) => row.enabled);
-    if (!exchangeRates) return;
+    // useExchangeRates returns the raw array, which is [] (truthy) when no
+    // active rate exists — guard on length AND the first row so we never
+    // destructure undefined inside prepareTopupObject.
+    if (!exchangeRates?.length || !exchangeRates[0]) {
+      toast.error("No active exchange rate configured — try again shortly.");
+      return;
+    }
     const topupObjects = filteredValues.map((v) =>
       prepareTopupObject(v, exchangeRates[0]),
     );
@@ -539,8 +545,8 @@ export default function BulkTopupAdAccountsDialog({
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" size="sm">
-              Submit Bulk Topup
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting…" : "Submit Bulk Topup"}
             </Button>
           </div>
         </form>
