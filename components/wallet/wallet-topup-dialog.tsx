@@ -22,12 +22,17 @@ import { toast } from "sonner";
 import * as z from "zod";
 import {
   BankTransferInstructions,
-  AccountType,
   InstantTransferInstructions,
+  bankTransferCurrencies,
+  bankBeneficiary,
+  type BankGroup,
+  type TransferCurrency,
 } from "./bank-transfer-instructions";
 
 import { createClient } from "@/lib/supabase/client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
+import { formatCurrency } from "@/lib/utils-pure";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Loader2,
@@ -55,6 +60,75 @@ const STEPS = {
   SUCCESS: 4,
 };
 
+// Exchange-rate rows store "1 USD = N <currency>". Convert an amount held in
+// the wallet currency (EUR/USD) into the currency the advertiser will
+// physically transfer in. Display-only hint — the recorded top-up and the
+// wallet credit stay in the EUR/USD wallet currency (the admin credits from
+// the slip). Returns null when rates are unavailable so the hint hides.
+function convertWalletToTransfer(
+  amount: number,
+  walletCurrency: CurrencyCode,
+  transferCurrency: TransferCurrency,
+  rate: { eur?: number | null; gbp?: number | null; hkd?: number | null } | undefined,
+): number | null {
+  if (!amount || amount <= 0) return null;
+  if (walletCurrency === transferCurrency) return amount;
+  const eur = Number(rate?.eur ?? 0);
+  const gbp = Number(rate?.gbp ?? 0);
+  const hkd = Number(rate?.hkd ?? 0);
+  // First to a USD base.
+  let usd: number;
+  if (walletCurrency === "USD") {
+    usd = amount;
+  } else {
+    if (eur <= 0) return null;
+    usd = amount / eur;
+  }
+  // Then USD → the transfer currency (multiply by "N per USD").
+  switch (transferCurrency) {
+    case "USD":
+      return usd;
+    case "EUR":
+      return eur > 0 ? usd * eur : null;
+    case "GBP":
+      return gbp > 0 ? usd * gbp : null;
+    case "HKD":
+      return hkd > 0 ? usd * hkd : null;
+    default:
+      return null;
+  }
+}
+
+// Old drafts stored the 2-way "meta_eu" | "others" group. Map any stale value
+// onto the current 3-bank groups so a restored draft never lands invalid.
+function normalizeBankGroup(value: unknown): BankGroup {
+  if (value === "turlit" || value === "zanel" || value === "muxue") {
+    return value;
+  }
+  return value === "others" ? "muxue" : "turlit";
+}
+
+// Beneficiary bank options shown in the selection step. Each lists the
+// ad-account families that route to that bank so the advertiser picks the
+// right destination for the accounts they fund.
+const BANK_GROUP_OPTIONS: { value: BankGroup; title: string; sub: string }[] = [
+  {
+    value: "turlit",
+    title: "TURLIT LLC",
+    sub: "Meta-EU-PSM · Google · TikTok · Taboola · Snapchat",
+  },
+  {
+    value: "zanel",
+    title: "ZANEL ENTERPRISE",
+    sub: "Meta-EU-PSM-GH · USD only",
+  },
+  {
+    value: "muxue",
+    title: "MUXUE TRADE LIMITED",
+    sub: "Meta-HK-Premium · Meta-HK-Business",
+  },
+];
+
 export default function WalletTopupDialog({
   open,
   onOpenChange,
@@ -70,7 +144,12 @@ export default function WalletTopupDialog({
 }) {
   const [step, setStep] = useState(STEPS.SELECTION);
   const [currency, setCurrency] = useState<CurrencyCode>("EUR");
-  const [accountType, setAccountType] = useState<AccountType>("meta_eu");
+  // Which beneficiary bank the transfer routes to.
+  const [bankGroup, setBankGroup] = useState<BankGroup>("turlit");
+  // The currency the advertiser will physically transfer in (picks the bank
+  // account shown). Defaults to the wallet currency.
+  const [transferCurrency, setTransferCurrency] =
+    useState<TransferCurrency>("EUR");
   const [paymentSlipUrl, setPaymentSlipUrl] = useState<string | null>(null);
   const [paymentSlipPreview, setPaymentSlipPreview] = useState<
     "image" | "unavailable" | null
@@ -85,28 +164,28 @@ export default function WalletTopupDialog({
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
 
-  // Group 1 (our bank, no slip) = the API-automatable types. Pull their
-  // names from the types table so "Other Ad Accounts" always means
-  // "everything except the API types" — no hardcoded "Meta-EU-PSM".
-  // RLS lets any tenant member read the active types.
-  const { data: apiTypeLabels } = useQuery({
-    queryKey: ["ad-account-types", "api", profile?.tenant_id],
-    enabled: open,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("ad_account_types")
-        .select("label")
-        .eq("is_active", true)
-        .eq("api_topup_enabled", true)
-        .order("sort_order", { ascending: true });
-      return (data ?? []).map((t) => t.label as string);
-    },
-  });
-  const apiGroupLabel =
-    apiTypeLabels && apiTypeLabels.length
-      ? apiTypeLabels.join(", ")
-      : "Meta - EU - PSM";
+  // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the
+  // advertiser pays in a currency other than their wallet currency. Rates
+  // are read-only here; advertisers already read these elsewhere.
+  const { exchangeRates } = useExchangeRates({ activeOnly: true });
+  const rate = exchangeRates?.[0] as
+    | { eur?: number | null; gbp?: number | null; hkd?: number | null }
+    | undefined;
+
+  // The transfer currencies the chosen bank can receive.
+  const availableTransferCurrencies = bankTransferCurrencies(bankGroup);
+
+  // Keep the transfer currency valid for the selected bank. ZANEL is USD
+  // only, so switching to it from an EUR transfer snaps back to USD.
+  useEffect(() => {
+    if (!availableTransferCurrencies.includes(transferCurrency)) {
+      setTransferCurrency(
+        availableTransferCurrencies.includes(currency)
+          ? currency
+          : availableTransferCurrencies[0],
+      );
+    }
+  }, [bankGroup, currency, transferCurrency, availableTransferCurrencies]);
   const formSchema = z.object({
     amount: z
       .number()
@@ -134,7 +213,8 @@ export default function WalletTopupDialog({
   const currentAmount = watch("amount");
   const draftValues = {
     currency,
-    accountType,
+    bankGroup,
+    transferCurrency,
     amount: currentAmount,
     step,
     paymentSlipUrl,
@@ -152,7 +232,8 @@ export default function WalletTopupDialog({
       setTimeout(() => {
         setStep(STEPS.SELECTION);
         setCurrency("EUR");
-        setAccountType("meta_eu");
+        setBankGroup("turlit");
+        setTransferCurrency("EUR");
         setPaymentSlipUrl(null);
         setPaymentSlipPreview(null);
         setPreviewSrc(null);
@@ -323,7 +404,8 @@ export default function WalletTopupDialog({
               onClick={() => {
                 const v = draft.restoredDraft!.values;
                 setCurrency(v.currency);
-                setAccountType(v.accountType);
+                setBankGroup(normalizeBankGroup(v.bankGroup));
+                if (v.transferCurrency) setTransferCurrency(v.transferCurrency);
                 setPaymentSlipUrl(v.paymentSlipUrl);
                 setPaymentSlipPreview(v.paymentSlipUrl ? "image" : null);
                 setValue("amount", v.amount || 0);
@@ -351,7 +433,7 @@ export default function WalletTopupDialog({
             {step === STEPS.SELECTION && (
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <Label>Select Currency</Label>
+                  <Label>Wallet to fund</Label>
                   <Select
                     value={currency}
                     onValueChange={(val: CurrencyCode) => setCurrency(val)}
@@ -360,58 +442,72 @@ export default function WalletTopupDialog({
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro</SelectItem>
+                      <SelectItem value="USD">USD - US Dollar wallet</SelectItem>
+                      <SelectItem value="EUR">EUR - Euro wallet</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Your wallet is credited in {currency}. You can still
+                    transfer in another currency below.
+                  </p>
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Choose Account Group</Label>
+                  <Label>Which accounts are you funding?</Label>
                   <RadioGroup
-                    value={accountType}
-                    onValueChange={(val: AccountType) => setAccountType(val)}
+                    value={bankGroup}
+                    onValueChange={(val: BankGroup) => setBankGroup(val)}
                     className="grid gap-3"
                   >
-                    <div>
-                      <RadioGroupItem
-                        value="meta_eu"
-                        id="meta_eu"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="meta_eu"
-                        className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <span className="font-semibold text-base">
-                          {apiGroupLabel}
-                        </span>
-                        <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
-                          Select this if you are topping up for {apiGroupLabel}{" "}
-                          accounts.
-                        </span>
-                      </Label>
-                    </div>
-
-                    <div>
-                      <RadioGroupItem
-                        value="others"
-                        id="others"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="others"
-                        className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <span className="font-semibold text-base">
-                          Other Ad Accounts
-                        </span>
-                        <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
-                          Select this option for all other ad account types.
-                        </span>
-                      </Label>
-                    </div>
+                    {BANK_GROUP_OPTIONS.map((opt) => (
+                      <div key={opt.value}>
+                        <RadioGroupItem
+                          value={opt.value}
+                          id={`bankgroup-${opt.value}`}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={`bankgroup-${opt.value}`}
+                          className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                        >
+                          <span className="font-semibold text-base">
+                            {opt.title}
+                          </span>
+                          <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
+                            {opt.sub}
+                          </span>
+                        </Label>
+                      </div>
+                    ))}
                   </RadioGroup>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Transfer currency</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTransferCurrencies.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setTransferCurrency(c)}
+                        className={
+                          "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors " +
+                          (transferCurrency === c
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted bg-popover hover:bg-accent hover:text-accent-foreground")
+                        }
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {bankBeneficiary(bankGroup)} receives{" "}
+                    {availableTransferCurrencies.join(" / ")}.
+                    {transferCurrency !== currency
+                      ? ` You'll pay in ${transferCurrency}; your ${currency} wallet is credited from the slip.`
+                      : ""}
+                  </p>
                 </div>
 
                 <Button className="w-full mt-4" onClick={handleNextStep}>
@@ -425,12 +521,12 @@ export default function WalletTopupDialog({
               <div className="space-y-6">
                 <div className="rounded-lg border bg-muted/20 p-4">
                   <BankTransferInstructions
-                    currency={currency}
-                    accountType={accountType}
+                    group={bankGroup}
+                    transferCurrency={transferCurrency}
                   />
                 </div>
 
-                {accountType === "others" && <InstantTransferInstructions />}
+                {bankGroup === "muxue" && <InstantTransferInstructions />}
 
                 <div className="rounded-lg border bg-muted/20 p-4">
                   <p className="text-sm text-muted-foreground">
@@ -467,10 +563,7 @@ export default function WalletTopupDialog({
                       Transferring to
                     </span>
                     <span className="font-medium">
-                      {accountType === "meta_eu"
-                        ? "TURLIT LLC"
-                        : "Guangzhou Haoqianyi"}{" "}
-                      ({currency})
+                      {bankBeneficiary(bankGroup)} ({transferCurrency})
                     </span>
                   </div>
                   <Button
@@ -486,7 +579,9 @@ export default function WalletTopupDialog({
 
                 <div className="space-y-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="amount">Transferred Amount</Label>
+                    <Label htmlFor="amount">
+                      Amount to credit ({currency} wallet)
+                    </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                         {currency === "USD" ? "$" : "€"}
@@ -506,6 +601,28 @@ export default function WalletTopupDialog({
                         {errors.amount.message}
                       </p>
                     )}
+                    {transferCurrency !== currency &&
+                      (() => {
+                        const converted = convertWalletToTransfer(
+                          currentAmount,
+                          currency,
+                          transferCurrency,
+                          rate,
+                        );
+                        if (converted === null) return null;
+                        return (
+                          <p className="text-xs text-muted-foreground">
+                            ≈ transfer{" "}
+                            <span className="font-semibold text-foreground">
+                              {formatCurrency(converted, transferCurrency)}
+                            </span>{" "}
+                            to {bankBeneficiary(bankGroup)} (
+                            {transferCurrency}). Your {currency} wallet is
+                            credited {formatCurrency(currentAmount || 0, currency)}{" "}
+                            from the slip.
+                          </p>
+                        );
+                      })()}
                   </div>
                 </div>
 
