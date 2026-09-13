@@ -14,6 +14,7 @@ import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
 import PaymentSlipDialog from "./payment-slip-dialog";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import { CommunityPill } from "@/components/community/community-pill";
+import TablePagination from "../ui/table-pagination";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -79,7 +80,7 @@ export default function PsmVerifyTopups({
   }, [search]);
   useEffect(() => setPage(1), [status, currency, debounced]);
 
-  const { transactions, isLoading } = useWalletTransactions({
+  const { transactions, isLoading, total } = useWalletTransactions({
     status,
     currency,
     search: debounced,
@@ -284,6 +285,17 @@ export default function PsmVerifyTopups({
           </p>
         </div>
       )}
+
+      {!isLoading && transactions?.length && total > perPage ? (
+        <div className="my-4 px-4">
+          <TablePagination
+            page={page}
+            total={total}
+            perPage={perPage}
+            onPageChange={(p) => setPage(p)}
+          />
+        </div>
+      ) : null}
 
       {selected && (
         <WalletTransactionApproveDialog

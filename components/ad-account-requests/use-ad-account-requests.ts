@@ -6,6 +6,7 @@ import { useMemo } from "react";
 export type AdAccountRequestsQueryParams = {
   search?: string | undefined;
   sort?: string | undefined;
+  status?: string | undefined;
   page?: number;
   perPage?: number;
   advertiserId?: string | undefined;
@@ -46,6 +47,7 @@ export default function useAdAccountRequests(
       "ad-account-requests",
       params.search ?? "",
       params.sort ?? "newest",
+      params.status ?? "all",
       params.page ?? 1,
       params.perPage ?? 10,
       params.advertiserId ?? "all",
@@ -55,6 +57,7 @@ export default function useAdAccountRequests(
     [
       params.search,
       params.sort,
+      params.status,
       params.page,
       params.perPage,
       params.advertiserId,
@@ -71,6 +74,7 @@ export default function useAdAccountRequests(
     queryFn: async () => {
       const {
         search,
+        status,
         page = 1,
         perPage = 10,
         advertiserId,
@@ -93,6 +97,10 @@ export default function useAdAccountRequests(
 
       if (tenantId) {
         query = query.eq("tenant_id", tenantId);
+      }
+
+      if (status && status !== "all") {
+        query = query.eq("status", status);
       }
 
       if (search && search.trim() !== "") {

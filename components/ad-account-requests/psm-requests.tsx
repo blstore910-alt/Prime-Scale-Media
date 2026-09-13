@@ -13,6 +13,7 @@ import AdAccountRequestRejectDialog from "./ad-account-request-reject-dialog";
 import AdAccountRequestDetailsSheet from "./ad-account-request-details-sheet";
 import CreateAdAccountFromRequestDialog from "./create-ad-account-from-request-dialog";
 import CreateAdAccountRequestInvoiceDialog from "./create-ad-account-request-invoice-dialog";
+import TablePagination from "../ui/table-pagination";
 
 const platformLabel = (p: string | null) =>
   PLATFORMS.find((x) => x.value === p)?.label ?? p ?? "—";
@@ -61,16 +62,17 @@ export default function PsmRequests() {
   }, [search]);
   useEffect(() => setPage(1), [debounced, sort, statusFilter]);
 
-  const { requests, isLoading, refetch } = useAdAccountRequests({
+  const { requests, isLoading, refetch, total } = useAdAccountRequests({
     search: debounced,
     sort,
+    status: statusFilter,
     page,
     perPage,
   });
 
-  const rows = (requests ?? []).filter((r) =>
-    statusFilter === "all" ? true : r.status === statusFilter,
-  );
+  // Status now filters server-side, so we no longer filter the fetched page
+  // client-side (which hid pending requests on unreachable later pages).
+  const rows = requests ?? [];
 
   const handleRejectRequest = async (reason: string) => {
     if (!requestToReject) return;
@@ -193,6 +195,17 @@ export default function PsmRequests() {
           </p>
         </div>
       )}
+
+      {!isLoading && rows.length && total > perPage ? (
+        <div className="my-4 px-4">
+          <TablePagination
+            page={page}
+            total={total}
+            perPage={perPage}
+            onPageChange={(p) => setPage(p)}
+          />
+        </div>
+      ) : null}
 
       <AdAccountRequestReviewDialog
         requestId={selectedRequestId}
