@@ -2,6 +2,7 @@
 
 import { jakarta } from "@/lib/fonts";
 import { useAppContext } from "@/context/app-provider";
+import { csvSafe } from "@/lib/csv-safe";
 import { createClient } from "@/lib/supabase/client";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -254,8 +255,8 @@ export default function AffiliateApp() {
     }
     try {
       const flat = refs.rows.map((r) => ({
-        Advertiser: r.referred_advertiser_name ?? "",
-        Code: r.referred_advertiser_code ?? "",
+        Advertiser: csvSafe(r.referred_advertiser_name ?? ""),
+        Code: csvSafe(r.referred_advertiser_code ?? ""),
         "Spend USD": Number(r.spend_usd) || 0,
         "Spend EUR": Number(r.spend_eur) || 0,
         "Top-ups": r.topup_count,

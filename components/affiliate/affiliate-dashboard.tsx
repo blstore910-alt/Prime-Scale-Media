@@ -7,6 +7,7 @@ import useAffiliateStats, {
   AffiliateReferralStat,
 } from "@/hooks/use-affiliate-stats";
 import { formatCurrency } from "@/lib/utils";
+import { csvSafe } from "@/lib/csv-safe";
 import { Parser } from "json2csv";
 import {
   FileDown,
@@ -99,8 +100,8 @@ export default function AffiliateDashboard() {
     }
     try {
       const flat = rows.map((r) => ({
-        Advertiser: r.referred_advertiser_name ?? "",
-        Code: r.referred_advertiser_code ?? "",
+        Advertiser: csvSafe(r.referred_advertiser_name ?? ""),
+        Code: csvSafe(r.referred_advertiser_code ?? ""),
         "Spend USD": Number(r.spend_usd) || 0,
         "Spend EUR": Number(r.spend_eur) || 0,
         "Top-ups": r.topup_count,

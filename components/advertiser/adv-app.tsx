@@ -1274,6 +1274,14 @@ export default function AdvertiserApp() {
                     {(invoices ?? []).length ? (
                       (invoices ?? []).map((inv) => {
                         const paid = inv.status === "paid";
+                        const invSym =
+                          ((
+                            inv.items as
+                              | Array<{ currency?: string }>
+                              | undefined
+                          )?.[0]?.currency ?? "EUR") === "USD"
+                            ? "$"
+                            : "€";
                         return (
                           <tr key={inv.id}>
                             <td data-label="Invoice" style={{ fontWeight: 600 }}>
@@ -1283,7 +1291,8 @@ export default function AdvertiserApp() {
                               {dayjs(inv.created_at).format("D MMM YYYY")}
                             </td>
                             <td data-label="Amount" className="r mono">
-                              €{money2(inv.total)}
+                              {invSym}
+                              {money2(inv.total)}
                             </td>
                             <td data-label="Status" className="r">
                               <span className={`badge ${paid ? "ok" : "due"}`}>

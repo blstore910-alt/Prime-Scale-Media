@@ -354,6 +354,13 @@ export default function WalletTopupDialog({
       queryClient.invalidateQueries({
         queryKey: ["wallet"],
       });
+      // The advertiser wallet page's pending-top-up card + activity table are
+      // keyed ['adv-wallet-activity', walletId], which none of the above
+      // prefixes cover — invalidate it too so the new pending top-up shows
+      // without a full reload.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-wallet-activity"],
+      });
     },
     onError: (err: Error) => {
       toast.error("Unable to request topup", { description: err.message });
