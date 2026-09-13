@@ -251,35 +251,41 @@ const AUTH_CSS = `
   .psmauth .brand .logo .mk svg{width:19px;height:19px}
   .psmauth .brand .logo b{font-size:1.1rem}
   .psmauth .brand .logo small{font-size:.68rem}
-  .psmauth .rocketstage{min-height:142px;margin:18px 0 4px;width:100%}
+  .psmauth .rocketstage{min-height:196px;margin:26px 0 10px;width:100%}
   .psmauth .rocketstage .moon{top:0;right:16%;width:34px;height:34px}
   /* At rest the glow AND the ribbon swirl are hidden, so the surface is
      100% flat (no lighter top zone). The glow only appears during the
      launch boom, where psmboom overrides its opacity. */
   .psmauth .rocketstage .glow{width:160px;height:160px;background:radial-gradient(circle,rgba(91,141,255,.42),transparent 66%);animation:none;opacity:0}
   .psmauth .brand .ribbon{display:none}
-  .psmauth .ship{width:74px}
+  .psmauth .ship{width:90px}
   .psmauth .brand h1{font-size:1.62rem;margin:8px auto 8px;max-width:16ch;line-height:1.12}
   .psmauth .brand .sub{font-size:.86rem;margin:0 auto;max-width:30ch;color:rgba(255,255,255,.6)}
   .psmauth .pts{display:none}
   /* the form has no background of its own — it flows on the same surface */
-  .psmauth .side{background:transparent;min-height:auto;justify-content:flex-start;padding:14px clamp(18px,6vw,30px) 40px}
+  /* compact sign-in: small fields + tight spacing so the form takes up
+     far less of the screen and the rocket/brand up top gets the room. */
+  .psmauth .side{background:transparent;min-height:auto;justify-content:flex-start;padding:4px clamp(18px,6vw,30px) 26px}
+  .psmauth .field{margin-bottom:8px}
+  .psmauth input,.psmauth select{padding:9px 12px;font-size:.88rem;border-radius:10px}
+  .psmauth .inp input{padding-left:36px}
+  .psmauth .inp>svg{width:15px;height:15px;left:12px}
   .psmauth .card{margin:0 auto;max-width:400px}
   .psmauth .lmk{display:none}
   .psmauth .login-card{background:transparent;border:0;box-shadow:none;padding:0;margin:0 auto}
   /* light-on-dark form controls */
   /* "Sign in" is a small uppercase eyebrow, not a bulky heading — the
      tagline leads. "Welcome back" lede is dropped to keep it to one page. */
-  .psmauth .login-card h2,.psmauth h2{font-size:.76rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:0 0 16px;color:rgba(255,255,255,.5)}
+  .psmauth .login-card h2,.psmauth h2{font-size:.76rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:0 0 11px;color:rgba(255,255,255,.5)}
   .psmauth .lede{display:none}
-  .psmauth .field label{color:rgba(255,255,255,.8)}
+  .psmauth .field label{color:rgba(255,255,255,.8);font-size:.78rem;margin-bottom:4px}
   .psmauth .field label .opt{color:rgba(255,255,255,.5)}
   .psmauth input,.psmauth select{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:#fff}
   .psmauth input::placeholder{color:rgba(255,255,255,.4)}
   .psmauth .inp>svg{color:rgba(255,255,255,.5)}
   .psmauth input:focus,.psmauth select:focus{background:rgba(255,255,255,.1);border-color:var(--blue);box-shadow:0 0 0 3px rgba(91,141,255,.28)}
   /* brighter, glossier sign-in button */
-  .psmauth .btn{background:linear-gradient(118deg,#4f83ff 0%,#6d63ff 52%,#9a6bff 100%);box-shadow:0 16px 34px -12px rgba(96,86,255,.7),inset 0 1px 0 rgba(255,255,255,.3);font-weight:800;letter-spacing:.01em;padding:14px 16px;margin-top:10px}
+  .psmauth .btn{background:linear-gradient(118deg,#4f83ff 0%,#6d63ff 52%,#9a6bff 100%);box-shadow:0 16px 34px -12px rgba(96,86,255,.7),inset 0 1px 0 rgba(255,255,255,.3);font-weight:800;letter-spacing:.01em;padding:12px 16px;margin-top:6px}
   .psmauth .meta{color:rgba(255,255,255,.62)}
   .psmauth a.lnk{color:#9db8ff}
   .psmauth .err{color:#ff9ba0}
