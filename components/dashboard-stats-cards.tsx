@@ -95,10 +95,11 @@ const STATS_CSS = `
 .psm-stats{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:12px}
 
 /* Period control — one clearly-labelled bar that governs the metrics below. */
-.psm-stats .statctl{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:7px 9px;box-shadow:var(--shadow-sm)}
-.psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
-.psm-stats .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:nowrap}
-.psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.82rem;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.13s}
+.psm-stats .statctl{display:flex;align-items:center;gap:9px;flex-wrap:nowrap;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:7px 9px;box-shadow:var(--shadow-sm)}
+.psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+.psm-stats .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.psm-stats .seg2::-webkit-scrollbar{display:none}
+.psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.82rem;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.13s;white-space:nowrap}
 .psm-stats .seg2 button:hover{color:var(--ink)}
 .psm-stats .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}
 .psm-stats .rangebtn{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;font-family:var(--bd);font-weight:700;font-size:.83rem;color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
@@ -144,10 +145,19 @@ const STATS_CSS = `
 .psm-stats .ci.d{background:var(--danger-soft);color:var(--danger)}
 .psm-stats .skel{display:inline-block;height:1.1em;width:130px;max-width:100%;border-radius:6px;background:var(--panel-2)}
 
+/* "This period" cards (shadcn Card) restyled to the SAME premium panel look
+   as the all-time metric tiles — one cohesive dashboard. The label reads
+   like a metric label (faint), the amount like a metric value (bold). */
+.psm-stats [data-slot=card]{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:transform .16s,box-shadow .16s}
+.psm-stats [data-slot=card]:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.psm-stats [data-slot=card-description]{font-family:var(--hd);font-weight:700;font-size:.86rem;color:var(--faint);letter-spacing:.01em}
+.psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;font-size:1.28rem;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
+
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.psm-stats .mgrid{grid-template-columns:1fr}}
-/* Only very narrow screens let the period bar wrap. */
-@media (max-width:640px){.psm-stats .seg2{flex-wrap:wrap}.psm-stats .statctl-lbl{flex:1 1 100%;margin:0 0 2px}}
+/* Period bar stays one row; the segments scroll horizontally and the label
+   is dropped on narrow screens so nothing wraps. */
+@media (max-width:640px){.psm-stats .statctl-lbl{display:none}}
 @media (max-width:640px){.psm-stats .profit-hero .pv{font-size:1.85rem}}
 @media (prefers-reduced-motion:reduce){.psm-stats .profit-hero .ring{animation:none}}
 `;
@@ -263,17 +273,24 @@ export function DashboardStatsCards() {
     </button>
   );
 
+  // The month step arrows only make sense once a month is in focus — when
+  // "This Month" / "Last month" / a custom range is active. For Today/Week/
+  // Year they'd do nothing meaningful, so they stay hidden (cleaner bar).
+  const showStepArrows = period === "month" || hasRange;
+
   const periodControl = (
     <div className="statctl">
       <span className="statctl-lbl">Period</span>
-      <button
-        type="button"
-        className="stepbtn"
-        aria-label="Previous month"
-        onClick={() => stepMonth(-1)}
-      >
-        <ChevronLeft />
-      </button>
+      {showStepArrows && (
+        <button
+          type="button"
+          className="stepbtn"
+          aria-label="Previous month"
+          onClick={() => stepMonth(-1)}
+        >
+          <ChevronLeft />
+        </button>
+      )}
       <div className="seg2" role="group" aria-label="Dashboard period">
         {PERIODS.map((p) => (
           <button
@@ -295,15 +312,17 @@ export function DashboardStatsCards() {
           Last month
         </button>
       </div>
-      <button
-        type="button"
-        className="stepbtn"
-        aria-label="Next month"
-        onClick={() => stepMonth(1)}
-        disabled={!canStepForward}
-      >
-        <ChevronRight />
-      </button>
+      {showStepArrows && (
+        <button
+          type="button"
+          className="stepbtn"
+          aria-label="Next month"
+          onClick={() => stepMonth(1)}
+          disabled={!canStepForward}
+        >
+          <ChevronRight />
+        </button>
+      )}
 
       {isMobile ? (
         <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
