@@ -147,18 +147,23 @@ const AUTH_CSS = `
 .psmauth .flame2{transform-box:fill-box;transform-origin:50% 0;animation:psmflame2 .19s ease-in-out infinite alternate}
 @keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
 @keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
-/* ── Launch sequence: data-launching is set on .psmauth on sign-in ── */
+/* ── Launch sequence: data-launching is set on .psmauth on sign-in.
+   ~2.6s — a short ignition shake, then the rocket blasts up off-screen
+   while the copy rises away, the glow booms and the stars streak. ── */
+.psmauth[data-launching]{overflow:hidden}
 .psmauth[data-launching] .brand{overflow:visible}
-.psmauth[data-launching] .ship{animation:psmlaunch 1.5s cubic-bezier(.4,0,.7,.25) forwards}
-@keyframes psmlaunch{0%{transform:translateY(0) scale(1)}14%{transform:translateY(9px) scale(.95)}30%{transform:translateY(-6px) scale(1.03)}100%{transform:translateY(-135vh) scale(1.16) rotate(-3deg)}}
-.psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .07s ease-in-out infinite alternate}
-@keyframes psmflameburst{from{transform:scaleY(1.5) scaleX(1.06);opacity:1}to{transform:scaleY(2.7) scaleX(.9);opacity:1}}
-.psmauth[data-launching] .rocketstage .glow{animation:psmboom 1.5s ease-out forwards}
-@keyframes psmboom{0%{opacity:.5;transform:translate(-50%,-50%) scale(1)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.8)}100%{opacity:0;transform:translate(-50%,-50%) scale(2.7)}}
-.psmauth[data-launching] .stars{animation:psmstreak 1.5s ease-in forwards}
-@keyframes psmstreak{to{transform:translateY(90px);opacity:.12}}
-.psmauth[data-launching] .moon{animation:psmmoonfade 1.5s ease forwards}
-@keyframes psmmoonfade{to{transform:scale(1.12);opacity:.45}}
+.psmauth[data-launching] .ship{animation:psmlaunch 2.6s cubic-bezier(.5,0,.78,.12) forwards}
+@keyframes psmlaunch{0%{transform:translateY(0) scale(1) rotate(0)}8%{transform:translate(-1.5px,2px) rotate(.6deg)}15%{transform:translate(1.5px,3px) rotate(-.6deg)}22%{transform:translate(-1.5px,4px) rotate(.6deg)}29%{transform:translate(1.5px,4px) rotate(-.6deg)}36%{transform:translateY(6px) scale(.955) rotate(0)}50%{transform:translateY(-5px) scale(1.05)}100%{transform:translateY(-142vh) scale(1.22) rotate(-4deg)}}
+.psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
+@keyframes psmflameburst{from{transform:scaleY(1.6) scaleX(1.08);opacity:1}to{transform:scaleY(3) scaleX(.88);opacity:1}}
+.psmauth[data-launching] .rocketstage .glow{animation:psmboom 2.6s ease-out forwards}
+@keyframes psmboom{0%{opacity:.45;transform:translate(-50%,-50%) scale(1)}36%{opacity:.9;transform:translate(-50%,-50%) scale(1.5)}52%{opacity:1;transform:translate(-50%,-40%) scale(2.3)}100%{opacity:0;transform:translate(-50%,-30%) scale(3.2)}}
+.psmauth[data-launching] .stars{animation:psmstreak 2.6s cubic-bezier(.5,0,.78,.12) forwards}
+@keyframes psmstreak{0%,36%{transform:translateY(0);opacity:.85}100%{transform:translateY(160px);opacity:.1}}
+.psmauth[data-launching] .moon{animation:psmmoonfade 2.6s ease forwards}
+@keyframes psmmoonfade{0%,40%{transform:scale(1);opacity:1}100%{transform:scale(1.15);opacity:.4}}
+.psmauth[data-launching] .brand h1,.psmauth[data-launching] .brand .sub{animation:psmrise 2.6s cubic-bezier(.5,0,.78,.12) forwards}
+@keyframes psmrise{0%,44%{transform:translateY(0);opacity:1}100%{transform:translateY(-40px);opacity:0}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -204,11 +209,13 @@ const AUTH_CSS = `
    into the form, no white card. Email + password sit on the brand
    background in light-on-dark controls. */
 @media(max-width:860px){
-  .psmauth{grid-template-columns:1fr;
+  html,body{background:#080b1e}
+  .psmauth{grid-template-columns:1fr;align-content:safe center;
     background:
-      radial-gradient(110% 42% at 50% 0%,rgba(91,141,255,.30),transparent 55%),
-      radial-gradient(85% 36% at 84% 22%,rgba(139,92,246,.26),transparent 52%),
-      linear-gradient(180deg,#04050E 0%,#0a0f2a 44%,#0e1740 100%)}
+      radial-gradient(130% 46% at 50% 4%,rgba(91,141,255,.26),transparent 60%),
+      radial-gradient(85% 34% at 84% 20%,rgba(139,92,246,.20),transparent 55%),
+      #080b1e}
+  .psmauth input:-webkit-autofill,.psmauth input:-webkit-autofill:hover,.psmauth input:-webkit-autofill:focus{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 1000px #191c2e inset;caret-color:#fff;transition:background-color 9999s}
   .psmauth .brand{background:transparent;padding:18px 22px 12px;min-height:auto;text-align:center;align-items:center;border-radius:0}
   .psmauth .brand .logo{align-self:center}
   .psmauth .brand .logo .mk{width:38px;height:38px}
