@@ -29,6 +29,28 @@
 
 set search_path = public;
 
+-- Admin-of-tenant check. Defined here (create or replace) so the policy
+-- below never depends on a pre-existing _is_admin_of — the hand-authored
+-- live DB may not have it. SECURITY DEFINER so the subquery on user_profiles
+-- does not recurse through this same policy.
+create or replace function public._is_admin_of(p_tenant uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_profiles up
+    where up.user_id = auth.uid()
+      and up.tenant_id = p_tenant
+      and up.role = 'admin'
+  );
+$$;
+revoke all on function public._is_admin_of(uuid) from public, anon;
+grant execute on function public._is_admin_of(uuid) to authenticated;
+
 -- Is there a pending/accepted invitation into p_tenant for the CALLER's own
 -- email (taken from the JWT, not a client-supplied column)?
 create or replace function public._invited_to(p_tenant uuid)
