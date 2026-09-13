@@ -147,27 +147,34 @@ const AUTH_CSS = `
 .psmauth .flame2{transform-box:fill-box;transform-origin:50% 0;animation:psmflame2 .19s ease-in-out infinite alternate}
 @keyframes psmflame{from{transform:scaleY(.82) scaleX(1.05);opacity:.9}to{transform:scaleY(1.18) scaleX(.94);opacity:1}}
 @keyframes psmflame2{from{transform:scaleY(.66)}to{transform:scaleY(1.28)}}
-/* ── Launch sequence: data-launching is set on .psmauth on sign-in.
-   The page fades and a rocket blasts from below, up through the WHOLE
-   screen and out the top, with speed lines and a flash. ~2.9s. ── */
+/* ── Launch sequence: data-launching on .psmauth on sign-in. The rocket
+   you see ignites (shake), does a full loop (a somersault/circle), then
+   blasts away up and out. The copy lifts off with it; the form stays.
+   ~2.8s. Frozen under prefers-reduced-motion. ── */
 .psmauth[data-launching]{overflow:hidden}
-.psmauth[data-launching] .brand,.psmauth[data-launching] .card{animation:psmfade .45s ease forwards}
-@keyframes psmfade{to{opacity:0}}
-.launchfx{position:fixed;inset:0;z-index:300;pointer-events:none;opacity:0;overflow:hidden}
-.psmauth[data-launching] .launchfx{opacity:1}
-.launchfx .lf-rocket{position:absolute;left:50%;top:50%;width:158px;margin-top:-172px;transform:translate(-50%,118vh)}
-.launchfx .lf-rocket .ship-svg{width:100%;height:auto;display:block;stroke:none;fill:none;filter:drop-shadow(0 14px 46px rgba(91,141,255,.6))}
-.psmauth[data-launching] .lf-rocket{animation:lffly 2.9s cubic-bezier(.32,.12,.6,.92) forwards}
-@keyframes lffly{0%{transform:translate(-50%,118vh) scale(.9);opacity:0}12%{opacity:1}94%{opacity:1}100%{transform:translate(-50%,-125vh) scale(1.32);opacity:0}}
-.psmauth[data-launching] .launchfx .flame,.psmauth[data-launching] .launchfx .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
-@keyframes psmflameburst{from{transform:scaleY(1.6) scaleX(1.08);opacity:1}to{transform:scaleY(3) scaleX(.9);opacity:1}}
-.launchfx .lf-streaks{position:absolute;inset:0}
-.launchfx .lf-streaks i{position:absolute;top:0;width:2px;height:20%;background:linear-gradient(rgba(180,205,255,.9),transparent);border-radius:2px;opacity:0}
-.psmauth[data-launching] .lf-streaks i{animation:lfstreak .85s linear infinite}
-@keyframes lfstreak{0%{transform:translateY(-30vh);opacity:0}25%{opacity:.6}100%{transform:translateY(135vh);opacity:0}}
-.launchfx .lf-flash{position:absolute;left:50%;top:50%;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(150,180,255,.5),transparent 62%);opacity:0}
-.psmauth[data-launching] .lf-flash{animation:lfflash 2.9s ease-out forwards}
-@keyframes lfflash{0%{opacity:0;transform:translate(-50%,60%) scale(.4)}16%{opacity:.85;transform:translate(-50%,30%) scale(1.1)}48%{opacity:.3;transform:translate(-50%,0) scale(1.6)}100%{opacity:0;transform:translate(-50%,-40%) scale(2.4)}}
+.psmauth[data-launching] .brand{overflow:visible}
+.psmauth[data-launching] .ship{animation:psmloop 2.8s cubic-bezier(.45,.05,.55,.95) forwards}
+@keyframes psmloop{
+  0%{transform:translate(0,0) rotate(0deg) scale(1)}
+  7%{transform:translate(-2px,2px) rotate(1.5deg)}
+  14%{transform:translate(2px,3px) rotate(-1.5deg)}
+  21%{transform:translate(-2px,4px) rotate(1.5deg)}
+  27%{transform:translate(0,7px) rotate(0deg) scale(.94)}
+  38%{transform:translate(26px,-24px) rotate(90deg) scale(1)}
+  47%{transform:translate(0,-50px) rotate(180deg)}
+  56%{transform:translate(-26px,-24px) rotate(270deg)}
+  63%{transform:translate(0,2px) rotate(360deg)}
+  69%{transform:translate(0,7px) rotate(360deg) scale(.95)}
+  100%{transform:translate(0,-155vh) rotate(360deg) scale(1.2)}
+}
+.psmauth[data-launching] .flame,.psmauth[data-launching] .flame2{animation:psmflameburst .06s ease-in-out infinite alternate}
+@keyframes psmflameburst{from{transform:scaleY(1.4) scaleX(1.06);opacity:1}to{transform:scaleY(2.6) scaleX(.9);opacity:1}}
+.psmauth[data-launching] .rocketstage .glow{animation:psmboom 2.8s ease-out forwards}
+@keyframes psmboom{0%{opacity:.4;transform:translate(-50%,-50%) scale(1)}63%{opacity:.85;transform:translate(-50%,-50%) scale(1.6)}80%{opacity:1;transform:translate(-50%,-40%) scale(2.3)}100%{opacity:0;transform:translate(-50%,-30%) scale(3.1)}}
+.psmauth[data-launching] .stars{animation:psmstreak 2.8s cubic-bezier(.45,.05,.55,.95) forwards}
+@keyframes psmstreak{0%,63%{transform:translateY(0);opacity:.85}100%{transform:translateY(150px);opacity:.1}}
+.psmauth[data-launching] .brand h1,.psmauth[data-launching] .brand .sub{animation:psmrise 2.8s ease-in forwards}
+@keyframes psmrise{0%,70%{transform:translateY(0);opacity:1}100%{transform:translateY(-44px);opacity:0}}
 /* brand copy */
 .psmauth .brand h1{font-family:var(--hd);font-weight:800;font-size:2.15rem;line-height:1.08;letter-spacing:-.02em;margin:0 0 14px;max-width:15ch;text-wrap:balance}
 .psmauth .brand h1 .g{background:linear-gradient(135deg,#9db8ff,#c9b3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -225,7 +232,8 @@ const AUTH_CSS = `
   .psmauth .brand .logo .mk svg{width:21px;height:21px}
   .psmauth .rocketstage{min-height:118px;margin:2px 0 0;width:100%}
   .psmauth .rocketstage .moon{top:2%;right:16%;width:36px;height:36px}
-  .psmauth .rocketstage .glow{width:178px;height:178px}
+  /* Tight, subtle glow right behind the rocket only — not a wide top band. */
+  .psmauth .rocketstage .glow{width:150px;height:150px;background:radial-gradient(circle,rgba(91,141,255,.32),transparent 66%)}
   .psmauth .ship{width:76px}
   .psmauth .brand h1{font-size:1.5rem;margin:6px auto 7px;max-width:18ch}
   .psmauth .brand .sub{font-size:.88rem;margin:0 auto;max-width:32ch}
@@ -262,23 +270,6 @@ export default function AuthLayout({
   return (
     <div className={`psmauth ${jakarta.variable} ${dmSans.variable}`}>
       <style>{AUTH_CSS}</style>
-
-      {/* Full-screen launch effect, revealed when signing in (data-launching). */}
-      <div className="launchfx" aria-hidden="true">
-        <span className="lf-flash" />
-        <div className="lf-streaks">
-          {[10, 20, 32, 44, 56, 68, 80, 90].map((l, i) => (
-            <i
-              key={l}
-              style={{ left: `${l}%`, animationDelay: `${(i % 5) * 0.12}s` }}
-            />
-          ))}
-        </div>
-        <div className="lf-rocket">
-          <LaunchRocket />
-        </div>
-      </div>
-
       <aside className="brand">
         <div className="ribbon" aria-hidden="true" />
         <div className="stars" aria-hidden="true" />
