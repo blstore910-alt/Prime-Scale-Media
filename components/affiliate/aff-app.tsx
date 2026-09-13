@@ -1178,8 +1178,23 @@ export default function AffiliateApp() {
                 marginTop: 12,
               }}
               onClick={() => {
+                // Payouts are processed manually — actually deliver the
+                // request to the team (a prefilled email) instead of a
+                // toast that persists nothing and notifies nobody.
+                const amount =
+                  showEurUsd === "EUR"
+                    ? eur(all.totals.earnings_eur)
+                    : usd(all.totals.earnings_usd);
+                const subject = encodeURIComponent(
+                  `Payout request — ${amount} (${showEurUsd})`,
+                );
+                const body = encodeURIComponent(
+                  `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\n` +
+                    `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n\nThank you.`,
+                );
+                window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
                 setPayOpen(false);
-                toast.success("Payout requested — our team will process it.");
+                toast.success("Opening your email to send the payout request.");
               }}
             >
               <Ic name="i-download" /> Request payout

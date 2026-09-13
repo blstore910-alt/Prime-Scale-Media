@@ -1,6 +1,6 @@
 import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -79,12 +79,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Update invitation status
-  const { error: updateError } = await supabase
+  // Consume the invitation with a compare-and-swap. The invitee is not an
+  // admin of this tenant, so the RLS-bound client's UPDATE matched 0 rows
+  // silently (invitations only have an admin write policy) — the invite
+  // stayed pending and the SAME link could be accepted again and again,
+  // inserting a duplicate user_profiles row each time. Do the write with the
+  // admin client, gated on `status = 'pending'`, and require exactly one row
+  // to change: the first accept wins, any replay/race gets 0 rows and stops.
+  const admin = await createAdminClient();
+  const { data: consumed, error: updateError } = await admin
     .from("invitations")
     .update({ status })
     .eq("id", invite_id)
-    .select("*");
+    .eq("status", "pending")
+    .select("id");
 
   if (updateError) {
     console.error(
@@ -100,6 +108,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!consumed || consumed.length === 0) {
+    // Someone already accepted/rejected this invite (replay or race).
+    return NextResponse.json(
+      { success: false, message: "Invitation is no longer valid" },
+      { status: 409 },
+    );
+  }
+
   // If rejected, we're done
   if (status === "rejected") {
     return NextResponse.json(
@@ -108,35 +124,48 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Accepted: create user profile using SERVER-VALIDATED values
-  const { data: profileData, error: profileError } = await supabase
+  // Accepted: create the user profile using SERVER-VALIDATED values.
+  // Reuse an existing profile for this (user, tenant) if one is already
+  // there, so a retried accept never leaves duplicate memberships.
+  const { data: existingProfile } = await supabase
     .from("user_profiles")
-    .insert({
-      user_id: userData.user.id,
-      tenant_id: invitation.tenant_id,
-      role: invitation.role,
-      full_name:
-        userData.user.user_metadata?.display_name ||
-        `${userData.user.user_metadata?.first_name ?? ""} ${userData.user.user_metadata?.last_name ?? ""}`.trim() ||
-        userData.user.email ||
-        null,
-      email: userData.user.email,
-    })
-    .select()
-    .single();
+    .select("id")
+    .eq("user_id", userData.user.id)
+    .eq("tenant_id", invitation.tenant_id)
+    .maybeSingle();
 
-  if (profileError) {
-    console.error(
-      "accept-invite profile insert failed:",
-      safeErrorMessage(profileError),
-    );
-    return NextResponse.json(
-      {
-        success: false,
-        message: "An error occurred while creating user profile",
-      },
-      { status: 500 },
-    );
+  let profileData = existingProfile;
+  if (!profileData) {
+    const { data: inserted, error: profileError } = await supabase
+      .from("user_profiles")
+      .insert({
+        user_id: userData.user.id,
+        tenant_id: invitation.tenant_id,
+        role: invitation.role,
+        full_name:
+          userData.user.user_metadata?.display_name ||
+          `${userData.user.user_metadata?.first_name ?? ""} ${userData.user.user_metadata?.last_name ?? ""}`.trim() ||
+          userData.user.email ||
+          null,
+        email: userData.user.email,
+      })
+      .select("id")
+      .single();
+
+    if (profileError || !inserted) {
+      console.error(
+        "accept-invite profile insert failed:",
+        safeErrorMessage(profileError),
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          message: "An error occurred while creating user profile",
+        },
+        { status: 500 },
+      );
+    }
+    profileData = inserted;
   }
 
   // For advertiser invites we also need an advertisers row + wallet.
