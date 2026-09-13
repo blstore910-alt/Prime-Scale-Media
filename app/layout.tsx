@@ -18,9 +18,16 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "PSM",
   },
-  // Favicon comes from the app/icon.svg file convention (the PSM rocket).
-  // Only the apple-touch icon is declared here.
+  // Declaring `icons.apple` alone suppressed the app/icon.svg file
+  // convention, so the page emitted no <link rel="icon"> and desktop tabs
+  // showed no favicon. Declare the favicon explicitly: SVG for modern
+  // browsers, a PNG fallback for those that don't render SVG favicons.
   icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    shortcut: [{ url: "/icon-192.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };

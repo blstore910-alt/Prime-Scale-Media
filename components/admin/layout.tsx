@@ -3,13 +3,14 @@
 import { AppProvider } from "@/context/app-provider";
 import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "../ui/sonner";
 import InviteForm from "../invites/invite-form";
 import PushNotificationManager from "../push-notification-manager";
 import AdminShell from "./adm-shell";
+import { makeQueryClient } from "@/lib/make-query-client";
 
-const queryClient = new QueryClient();
+const queryClient = makeQueryClient();
 
 export default function AdminLayout({
   children,
