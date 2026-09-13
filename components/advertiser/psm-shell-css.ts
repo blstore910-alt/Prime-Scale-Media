@@ -222,6 +222,17 @@ export const PSM_APP_CSS = `
 .psmapp .mcard{position:relative;width:min(400px,100%);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;animation:pop .2s ease}
 .psmapp .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.psmapp .mhead h2{font-family:var(--hd);font-weight:800;font-size:1.15rem;letter-spacing:-.02em}.psmapp .mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
 .psmapp .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+/* Modal form fields. The admin shell only ever styled controls inside .fbar,
+   so a modal's inputs fell through to Tailwind's preflight — no border, no
+   padding, transparent on a white card, i.e. invisible. Mirrors the advertiser
+   and affiliate shells, which have carried .mlabel/.mnote all along. 16px on
+   the control is deliberate: iOS zooms the page on focus below that. */
+.psmapp .mlabel{display:block;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
+.psmapp .mnote{font-size:.8rem;color:var(--faint);text-align:center;margin:12px 0 0}
+.psmapp .mcard input,.psmapp .mcard select,.psmapp .mcard textarea{width:100%;font-family:var(--bd);font-size:16px;border:1px solid var(--line-2);border-radius:11px;padding:11px 13px;background:var(--panel-2);color:var(--ink)}
+.psmapp .mcard input:focus,.psmapp .mcard select:focus,.psmapp .mcard textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.18)}
+.psmapp .mrow{display:flex;gap:10px;flex-wrap:wrap}
+.psmapp .mrow>*{flex:1 1 120px;min-width:0}
 .psmapp .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.psmapp .btn.danger:hover{background:var(--danger)}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.psmapp *{animation:none!important;transition:none!important}}

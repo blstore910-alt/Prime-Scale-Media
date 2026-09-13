@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, type ActionResult } from "./_shared";
+import { checkVersion, maintenanceGuard, type ActionResult } from "./_shared";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { safeErrorMessage } from "@/lib/pure-error";
 import type { SupplierAdAccount } from "@/lib/types/supplier-ad-account";
@@ -47,9 +47,14 @@ export async function listSupplierAdAccounts(): Promise<
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
+  // Explicit column list, not '*': the table carries a `raw` jsonb blob (the
+  // whole supplier payload, kept for debugging) that the UI never reads.
+  // Shipping it for up to 1000 rows inflated the payload several times over.
   const { data, error } = await supabase
     .from("supplier_ad_accounts")
-    .select("*")
+    .select(
+      "id, tenant_id, provider, external_id, name, bm_id, platform, currency, timezone, status, fee_percentage, balance_cents, supplier_assigned_to, ad_account_id, advertiser_id, assigned_at, assigned_by, notes, synced_at, created_at, updated_at",
+    )
     .eq("tenant_id", profile.tenant_id)
     .order("advertiser_id", { ascending: true, nullsFirst: true })
     .order("synced_at", { ascending: false })
@@ -83,29 +88,48 @@ export async function syncSupplierAdAccounts(): Promise<
   }
 
   const nowIso = new Date().toISOString();
-  const rows = accounts.map((a) => ({
-    tenant_id: profile.tenant_id,
-    provider: "supplier1",
-    external_id: a.external_id,
-    name: a.name ?? null,
-    bm_id: a.bm_id ?? null,
-    platform: a.platform ?? null,
-    currency: a.currency ?? null,
-    timezone: a.timezone ?? null,
-    status: a.status ?? null,
-    fee_percentage: a.fee_percentage ?? null,
-    balance_cents: a.balance_cents ?? null,
-    supplier_assigned_to: a.assigned_to ?? null,
-    raw: a as unknown as Record<string, unknown>,
-    synced_at: nowIso,
-  }));
 
-  const { error } = await supabase
-    .from("supplier_ad_accounts")
-    .upsert(rows, { onConflict: "tenant_id,provider,external_id" });
-  if (error) {
-    console.error("supplier pool upsert failed:", safeErrorMessage(error));
-    return { ok: false, error: error.message };
+  // De-duplicate on external_id BEFORE writing. supabase-js sends an upsert as
+  // one INSERT … ON CONFLICT DO UPDATE, and Postgres aborts the whole
+  // statement with 21000 ("cannot affect row a second time") if the payload
+  // names the same conflict key twice — so one duplicated row from the
+  // supplier's pagination would discard every good row with it. The adapter
+  // pages until page >= total_pages with no de-dup of its own, so drift from a
+  // supplier-side insert mid-sync is enough to trigger it. Last write wins.
+  const byExternalId = new Map<string, Record<string, unknown>>();
+  for (const a of accounts) {
+    if (!a.external_id) continue;
+    byExternalId.set(a.external_id, {
+      tenant_id: profile.tenant_id,
+      provider: "supplier1",
+      external_id: a.external_id,
+      name: a.name ?? null,
+      bm_id: a.bm_id ?? null,
+      platform: a.platform ?? null,
+      currency: a.currency ?? null,
+      timezone: a.timezone ?? null,
+      status: a.status ?? null,
+      fee_percentage: a.fee_percentage ?? null,
+      balance_cents: a.balance_cents ?? null,
+      supplier_assigned_to: a.assigned_to ?? null,
+      raw: a as unknown as Record<string, unknown>,
+      synced_at: nowIso,
+    });
+  }
+  const rows = [...byExternalId.values()];
+
+  // Chunked so a large inventory doesn't become one oversized statement.
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await supabase
+      .from("supplier_ad_accounts")
+      .upsert(rows.slice(i, i + CHUNK), {
+        onConflict: "tenant_id,provider,external_id",
+      });
+    if (error) {
+      console.error("supplier pool upsert failed:", safeErrorMessage(error));
+      return { ok: false, error: error.message };
+    }
   }
 
   return { ok: true, data: { fetched: accounts.length, upserted: rows.length } };
@@ -199,7 +223,7 @@ export async function assignSupplierAdAccount(input: {
   const { data: pool } = await supabase
     .from("supplier_ad_accounts")
     .select(
-      "id, tenant_id, provider, external_id, name, platform, currency, timezone, fee_percentage, advertiser_id",
+      "id, tenant_id, provider, external_id, name, bm_id, platform, currency, timezone, fee_percentage, advertiser_id",
     )
     .eq("id", input.poolId)
     .maybeSingle();
@@ -226,43 +250,35 @@ export async function assignSupplierAdAccount(input: {
     return { ok: false, error: "Forbidden", code: "forbidden" };
   }
 
-  const fee = input.fee != null ? Number(input.fee) : Number(pool.fee_percentage ?? 0);
+  // The fee is what PSM earns on every future top-up on this account, so an
+  // ambiguous fee is refused rather than defaulted. Falling back to 0 when the
+  // pool row had no supplier fee (a manual row added with the field blank, or
+  // a synced row whose fee came back null — both shown as "—" in the table)
+  // silently created an account PSM earns nothing on, while the modal's label
+  // promised "defaults to the supplier's".
+  if (input.fee == null && pool.fee_percentage == null) {
+    return {
+      ok: false,
+      error:
+        "This account has no supplier fee — enter the fee to charge on top-ups.",
+      code: "invalid",
+    };
+  }
+  const fee = input.fee != null ? Number(input.fee) : Number(pool.fee_percentage);
   if (!Number.isFinite(fee) || fee < 0 || fee > 100) {
     return { ok: false, error: "Fee must be between 0 and 100", code: "invalid" };
   }
 
-  const { data: created, error: createError } = await supabase
-    .from("ad_accounts")
-    .insert({
-      name: input.name?.trim() || pool.name || `Account ${pool.external_id}`,
-      advertiser_id: input.advertiserId,
-      tenant_id: profile.tenant_id,
-      platform: pool.platform,
-      currency: pool.currency,
-      timezone: pool.timezone,
-      fee,
-      created_by: profile.id,
-      metadata: {
-        // 'supplier1' rows can be addressed on the supplier API by this id;
-        // 'manual' rows are ours and carry it for reference only.
-        source: pool.provider,
-        supplier_external_id: pool.external_id,
-        allocated_from_pool_id: pool.id,
-      },
-    })
-    .select("id")
-    .single();
-  if (createError || !created) {
-    console.error("pool allocate insert failed:", safeErrorMessage(createError));
-    return { ok: false, error: createError?.message ?? "Could not create ad account" };
-  }
-
-  // Stamp the allocation. Guarded on advertiser_id IS NULL so two admins
-  // allocating the same pooled account at once can't both win.
+  // CLAIM FIRST, then create. The order matters: these are two separate
+  // writes, and the claim is the only point of mutual exclusion. Creating the
+  // ad_accounts row first meant the admin who LOST the race — or any failure
+  // on the second statement — left a real, advertiser-visible ad account
+  // behind that no pool row referenced, while being told the allocation
+  // failed. Claiming first means a lost race costs nothing, and the only
+  // failure left to compensate for (the insert) is one we can undo.
   const { data: claimed, error: claimError } = await supabase
     .from("supplier_ad_accounts")
     .update({
-      ad_account_id: created.id,
       advertiser_id: input.advertiserId,
       assigned_at: new Date().toISOString(),
       assigned_by: profile.id,
@@ -280,17 +296,76 @@ export async function assignSupplierAdAccount(input: {
     };
   }
 
+  const { data: created, error: createError } = await supabase
+    .from("ad_accounts")
+    .insert({
+      name: input.name?.trim() || pool.name || `Account ${pool.external_id}`,
+      advertiser_id: input.advertiserId,
+      tenant_id: profile.tenant_id,
+      bm_id: pool.bm_id,
+      platform: pool.platform,
+      currency: pool.currency,
+      timezone: pool.timezone,
+      // Non-nullable in lib/types/account.ts and required by the ad-account
+      // form; the sibling createAdAccountAsAdmin defaults it the same way.
+      start_date: new Date().toISOString(),
+      fee,
+      created_by: profile.user_id,
+      metadata: {
+        // 'supplier1' rows can be addressed on the supplier API by this id;
+        // 'manual' rows are ours and carry it for reference only.
+        source: pool.provider,
+        supplier_external_id: pool.external_id,
+        allocated_from_pool_id: pool.id,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (createError || !created) {
+    // Release the claim so the account goes back in the pool instead of being
+    // stuck allocated-to-nothing.
+    await supabase
+      .from("supplier_ad_accounts")
+      .update({
+        advertiser_id: null,
+        assigned_at: null,
+        assigned_by: null,
+      })
+      .eq("id", pool.id)
+      .eq("tenant_id", profile.tenant_id);
+    console.error("pool allocate insert failed:", safeErrorMessage(createError));
+    return { ok: false, error: createError?.message ?? "Could not create ad account" };
+  }
+
+  // Link the two. Best-effort: the allocation itself already holds, and
+  // leaving ad_account_id unset only affects the auto-push lookup, which is
+  // recoverable by re-allocating.
+  const { error: linkError } = await supabase
+    .from("supplier_ad_accounts")
+    .update({ ad_account_id: created.id })
+    .eq("id", pool.id)
+    .eq("tenant_id", profile.tenant_id);
+  if (linkError) {
+    console.error("pool link failed:", safeErrorMessage(linkError));
+  }
+
   return { ok: true, data: { ad_account_id: created.id } };
 }
 
 // ─────────────────────────────────────────
 // releaseSupplierAdAccount — put an allocated account back in the pool
 // ─────────────────────────────────────────
-// Clears the allocation stamp only. The advertiser's ad_accounts row is left
-// alone on purpose (it may already carry spend/top-up history) — delete or
-// reassign it deliberately from the Ad Accounts screen.
+// Clears the allocation stamp. REFUSES while the advertiser's ad_accounts row
+// is still active, because releasing does real damage in that state: the
+// auto-push path resolves the supplier's id by looking the pool row up on
+// ad_account_id (lib/integrations/enqueue.ts), so nulling it makes every
+// future top-up on that live account fall through to "not supplier-managed"
+// and stop being pushed — silently. Worse, the pool row could then be
+// allocated to a SECOND advertiser with no warning on either screen.
 export async function releaseSupplierAdAccount(
   poolId: string,
+  ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   const ctx = await requireAdminCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
@@ -298,7 +373,7 @@ export async function releaseSupplierAdAccount(
 
   const { data: pool } = await supabase
     .from("supplier_ad_accounts")
-    .select("id, tenant_id")
+    .select("id, tenant_id, ad_account_id, advertiser_id")
     .eq("id", poolId)
     .maybeSingle();
   if (!pool) return { ok: false, error: "Pool account not found", code: "not_found" };
@@ -306,7 +381,40 @@ export async function releaseSupplierAdAccount(
     return { ok: false, error: "Forbidden", code: "forbidden" };
   }
 
-  const { error } = await supabase
+  // Optimistic concurrency (CLAUDE.md mutation rule 4) — the pool list has a
+  // 30s staleTime, so acting on a stale row is routine.
+  const fresh = await checkVersion(
+    supabase,
+    "supplier_ad_accounts",
+    poolId,
+    ifUpdatedAt,
+  );
+  if (!fresh) {
+    return {
+      ok: false,
+      error: "This pool account changed since you loaded it. Reload and retry.",
+      code: "conflict",
+    };
+  }
+
+  if (pool.ad_account_id) {
+    const { data: acct } = await supabase
+      .from("ad_accounts")
+      .select("id, name, status")
+      .eq("id", pool.ad_account_id)
+      .maybeSingle();
+    if (acct && (acct.status ?? "active") !== "inactive") {
+      return {
+        ok: false,
+        error: `"${acct.name ?? "The linked ad account"}" is still active. Deactivate or reassign it on the Ad Accounts screen first — releasing now would stop its top-ups reaching the supplier.`,
+        code: "conflict",
+      };
+    }
+  }
+
+  // Guarded on the advertiser we read, so a concurrent re-allocation isn't
+  // wiped by a stale release.
+  const query = supabase
     .from("supplier_ad_accounts")
     .update({
       ad_account_id: null,
@@ -316,6 +424,17 @@ export async function releaseSupplierAdAccount(
     })
     .eq("id", poolId)
     .eq("tenant_id", profile.tenant_id);
+  const { data: releasedRows, error } = await (pool.advertiser_id
+    ? query.eq("advertiser_id", pool.advertiser_id)
+    : query
+  ).select("id");
   if (error) return { ok: false, error: error.message };
+  if (pool.advertiser_id && (!releasedRows || releasedRows.length === 0)) {
+    return {
+      ok: false,
+      error: "This ad account was just re-allocated. Reload and retry.",
+      code: "conflict",
+    };
+  }
   return { ok: true, data: null };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, Search, UserPlus, Undo2 } from "lucide-react";
@@ -48,6 +48,73 @@ function advertiserLabel(a: AdvertiserOption) {
   );
 }
 
+// A real dialog, not a styled div. Both modals on this screen allocate ad
+// accounts to advertisers, which has money consequences, so a keyboard user
+// must be able to see where they are and get out: role/aria-modal so the
+// screen reader announces it, focus moved in and restored on close, Escape to
+// dismiss, and Tab cycled inside. The admin shell had no such primitive — the
+// sign-out modal in adm-shell.tsx hand-rolls only the Escape half.
+function Modal({
+  titleId,
+  onClose,
+  children,
+}: {
+  titleId: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    cardRef.current?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !cardRef.current) return;
+      const focusable = cardRef.current.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, [onClose]);
+
+  return (
+    <div className="modal">
+      <div className="mback" onClick={onClose} />
+      <div
+        ref={cardRef}
+        className="mcard"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function PsmAccountPool() {
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
@@ -58,6 +125,8 @@ export default function PsmAccountPool() {
   const [feeInput, setFeeInput] = useState("");
   const [source, setSource] = useState<"all" | "supplier1" | "manual">("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const uid = useId();
   const [manual, setManual] = useState({
     name: "",
     externalId: "",
@@ -114,6 +183,7 @@ export default function PsmAccountPool() {
         poolId: assigning.id,
         advertiserId,
         fee: feeInput.trim() === "" ? undefined : Number(feeInput),
+        name: nameInput.trim() || undefined,
       });
       if (!res.ok) throw new Error(res.error);
       return res.data;
@@ -123,7 +193,13 @@ export default function PsmAccountPool() {
       setAssigning(null);
       setAdvertiserId("");
       setFeeInput("");
+      setNameInput("");
       queryClient.invalidateQueries({ queryKey: ["supplier-ad-account-pool"] });
+      // The account now exists in three places. ["accounts"] alone refreshed
+      // only the two top-up dropdowns, so the admin who just allocated it saw
+      // nothing on the Ad Accounts screen for up to the 30s staleTime.
+      queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["adv-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
     },
     onError: (e: Error) =>
@@ -164,8 +240,8 @@ export default function PsmAccountPool() {
   });
 
   const release = useMutation({
-    mutationFn: async (poolId: string) => {
-      const res = await releaseSupplierAdAccount(poolId);
+    mutationFn: async (row: SupplierAdAccount) => {
+      const res = await releaseSupplierAdAccount(row.id, row.updated_at);
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
@@ -220,7 +296,7 @@ export default function PsmAccountPool() {
             are free inventory — allocate them to an advertiser.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn ghost" onClick={() => setAddOpen(true)}>
             <UserPlus /> Add manual account
           </button>
@@ -249,6 +325,7 @@ export default function PsmAccountPool() {
           />
         </label>
         <select
+          aria-label="Allocation status"
           value={filter}
           onChange={(e) =>
             setFilter(e.target.value as SupplierAdAccountFilter)
@@ -261,6 +338,7 @@ export default function PsmAccountPool() {
           <option value="all">All ({counts.all})</option>
         </select>
         <select
+          aria-label="Source"
           value={source}
           onChange={(e) =>
             setSource(e.target.value as "all" | "supplier1" | "manual")
@@ -309,7 +387,7 @@ export default function PsmAccountPool() {
                     : null;
                   return (
                     <tr key={r.id}>
-                      <td data-label="Account" style={{ paddingLeft: 14 }}>
+                      <td data-label="Account">
                         <div style={{ fontWeight: 700 }}>
                           {r.name ?? "Unnamed account"}
                         </div>
@@ -354,7 +432,11 @@ export default function PsmAccountPool() {
                       <td data-label="Allocated to">
                         {r.advertiser_id ? (
                           <span className="badge info">
-                            {adv ? advertiserLabel(adv) : "Allocated"}
+                            {adv
+                              ? advertiserLabel(adv)
+                              : advertisers.isError
+                                ? "Allocated (name unavailable)"
+                                : "Allocated"}
                           </span>
                         ) : (
                           <span style={{ color: "var(--faint)" }}>
@@ -363,37 +445,42 @@ export default function PsmAccountPool() {
                         )}
                       </td>
                       <td data-label="Action" className="r">
-                        {r.advertiser_id ? (
-                          <button
-                            className="btn ghost sm"
-                            disabled={release.isPending}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  "Return this ad account to the pool? The advertiser's existing account row is left as-is.",
+                        <div
+                          style={{ display: "flex", justifyContent: "flex-end" }}
+                        >
+                          {r.advertiser_id ? (
+                            <button
+                              className="btn ghost sm"
+                              disabled={release.isPending}
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    "Return this ad account to the pool? The advertiser's own account row stays as-is — and if it's still active the release is refused, because it would silently stop that account's top-ups reaching the supplier.",
+                                  )
                                 )
-                              )
-                                release.mutate(r.id);
-                            }}
-                          >
-                            <Undo2 /> Release
-                          </button>
-                        ) : (
-                          <button
-                            className="btn sm"
-                            onClick={() => {
-                              setAssigning(r);
-                              setAdvertiserId("");
-                              setFeeInput(
-                                r.fee_percentage == null
-                                  ? ""
-                                  : String(r.fee_percentage),
-                              );
-                            }}
-                          >
-                            <UserPlus /> Allocate
-                          </button>
-                        )}
+                                  release.mutate(r);
+                              }}
+                            >
+                              <Undo2 /> Release
+                            </button>
+                          ) : (
+                            <button
+                              className="btn sm"
+                              onClick={() => {
+                                setAssigning(r);
+                                setAdvertiserId("");
+                                setNameInput("");
+                                setFeeInput(
+                                  r.fee_percentage == null
+                                    ? ""
+                                    : String(r.fee_percentage),
+                                );
+                              }}
+                            >
+                              <UserPlus /> Allocate
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -413,175 +500,231 @@ export default function PsmAccountPool() {
       )}
 
       {addOpen && (
-        <div className="modal">
-          <div className="mback" onClick={() => setAddOpen(false)} />
-          <div className="mcard">
-            <div className="mhead">
-              <h2>Add a manual ad account</h2>
-              <button
-                className="iconbtn"
-                onClick={() => setAddOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="cap">
-              An account you hold yourself (not from SeamX). It joins the same
-              pool and is allocated the same way. Syncing never touches it.
-            </p>
-
-            <div className="mlabel">Name</div>
-            <input
-              value={manual.name}
-              onChange={(e) => setManual({ ...manual, name: e.target.value })}
-              placeholder="e.g. PSM Meta 014"
-              style={{ width: "100%" }}
-            />
-
-            <div className="mlabel" style={{ marginTop: 12 }}>
-              Account ID (optional — yours, for reference)
-            </div>
-            <input
-              value={manual.externalId}
-              onChange={(e) =>
-                setManual({ ...manual, externalId: e.target.value })
-              }
-              placeholder="e.g. act_123456789"
-              style={{ width: "100%" }}
-            />
-
-            <div className="mlabel" style={{ marginTop: 12 }}>
-              BM ID (optional)
-            </div>
-            <input
-              value={manual.bmId}
-              onChange={(e) => setManual({ ...manual, bmId: e.target.value })}
-              style={{ width: "100%" }}
-            />
-
-            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div className="mlabel">Platform</div>
-                <select
-                  value={manual.platform}
-                  onChange={(e) =>
-                    setManual({ ...manual, platform: e.target.value })
-                  }
-                  style={{ width: "100%" }}
-                >
-                  <option value="meta-ads">Meta</option>
-                  <option value="tiktok-ads">TikTok</option>
-                  <option value="google-ads">Google</option>
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="mlabel">Currency</div>
-                <select
-                  value={manual.currency}
-                  onChange={(e) =>
-                    setManual({ ...manual, currency: e.target.value })
-                  }
-                  style={{ width: "100%" }}
-                >
-                  <option value="EUR">EUR</option>
-                  <option value="USD">USD</option>
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="mlabel">Fee %</div>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={manual.feePercentage}
-                  onChange={(e) =>
-                    setManual({ ...manual, feePercentage: e.target.value })
-                  }
-                  style={{ width: "100%" }}
-                />
-              </div>
-            </div>
-
+        <Modal titleId={`${uid}-add-title`} onClose={() => setAddOpen(false)}>
+          <div className="mhead">
+            <h2 id={`${uid}-add-title`}>Add a manual ad account</h2>
             <button
-              className="btn block grad"
-              style={{ marginTop: 14 }}
-              disabled={addManual.isPending || !manual.name.trim()}
-              onClick={() => addManual.mutate()}
+              className="iconbtn"
+              onClick={() => setAddOpen(false)}
+              aria-label="Close"
             >
-              {addManual.isPending && <Loader2 className="animate-spin" />}
-              Add to pool
+              ✕
             </button>
           </div>
-        </div>
+          <p className="cap">
+            An account you hold yourself (not from SeamX). It joins the same
+            pool and is allocated the same way. Syncing never touches it.
+          </p>
+
+          <label className="mlabel" htmlFor={`${uid}-m-name`}>
+            Name
+          </label>
+          <input
+            id={`${uid}-m-name`}
+            value={manual.name}
+            onChange={(e) => setManual({ ...manual, name: e.target.value })}
+            placeholder="e.g. PSM Meta 014"
+          />
+
+          <label className="mlabel" htmlFor={`${uid}-m-ext`}>
+            Account ID (optional — yours, for reference)
+          </label>
+          <input
+            id={`${uid}-m-ext`}
+            value={manual.externalId}
+            onChange={(e) =>
+              setManual({ ...manual, externalId: e.target.value })
+            }
+            placeholder="e.g. act_123456789"
+          />
+
+          <label className="mlabel" htmlFor={`${uid}-m-bm`}>
+            BM ID (optional)
+          </label>
+          <input
+            id={`${uid}-m-bm`}
+            value={manual.bmId}
+            onChange={(e) => setManual({ ...manual, bmId: e.target.value })}
+            placeholder="e.g. 1234567890"
+          />
+
+          <div className="mrow">
+            <div>
+              <label className="mlabel" htmlFor={`${uid}-m-plat`}>
+                Platform
+              </label>
+              <select
+                id={`${uid}-m-plat`}
+                value={manual.platform}
+                onChange={(e) =>
+                  setManual({ ...manual, platform: e.target.value })
+                }
+              >
+                <option value="meta-ads">Meta</option>
+                <option value="tiktok-ads">TikTok</option>
+                <option value="google-ads">Google</option>
+              </select>
+            </div>
+            <div>
+              <label className="mlabel" htmlFor={`${uid}-m-cur`}>
+                Currency
+              </label>
+              <select
+                id={`${uid}-m-cur`}
+                value={manual.currency}
+                onChange={(e) =>
+                  setManual({ ...manual, currency: e.target.value })
+                }
+              >
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+            <div>
+              <label className="mlabel" htmlFor={`${uid}-m-fee`}>
+                Fee %
+              </label>
+              <input
+                id={`${uid}-m-fee`}
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="e.g. 2"
+                value={manual.feePercentage}
+                onChange={(e) =>
+                  setManual({ ...manual, feePercentage: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <button
+            className="btn block grad"
+            style={{ marginTop: 14 }}
+            disabled={addManual.isPending || !manual.name.trim()}
+            onClick={() => addManual.mutate()}
+          >
+            {addManual.isPending && <Loader2 className="animate-spin" />}
+            Add to pool
+          </button>
+          <p className="mnote">
+            Leave Fee % blank only if you&apos;ll set it when allocating — an
+            account with no fee anywhere can&apos;t be allocated.
+          </p>
+        </Modal>
       )}
 
       {assigning && (
-        <div className="modal">
-          <div className="mback" onClick={() => setAssigning(null)} />
-          <div className="mcard">
-            <div className="mhead">
-              <h2>Allocate ad account</h2>
-              <button
-                className="iconbtn"
-                onClick={() => setAssigning(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="cap">
-              <b>{assigning.name ?? assigning.external_id}</b> ·{" "}
-              {PLATFORM_LABEL[assigning.platform ?? ""] ??
-                assigning.platform ??
-                "—"}{" "}
-              · {(assigning.currency ?? "").toUpperCase()}
-            </p>
-
-            <div className="mlabel">Advertiser</div>
-            <select
-              value={advertiserId}
-              onChange={(e) => setAdvertiserId(e.target.value)}
-              style={{ width: "100%" }}
-            >
-              <option value="">Select an advertiser…</option>
-              {(advertisers.data ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {advertiserLabel(a)}
-                </option>
-              ))}
-            </select>
-
-            <div className="mlabel" style={{ marginTop: 12 }}>
-              Fee % (defaults to the supplier&apos;s)
-            </div>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={feeInput}
-              onChange={(e) => setFeeInput(e.target.value)}
-              placeholder="e.g. 2"
-              style={{ width: "100%" }}
-            />
-
+        <Modal
+          titleId={`${uid}-alloc-title`}
+          onClose={() => setAssigning(null)}
+        >
+          <div className="mhead">
+            <h2 id={`${uid}-alloc-title`}>Allocate ad account</h2>
             <button
-              className="btn block grad"
-              style={{ marginTop: 14 }}
-              disabled={assign.isPending || !advertiserId}
-              onClick={() => assign.mutate()}
+              className="iconbtn"
+              onClick={() => setAssigning(null)}
+              aria-label="Close"
             >
-              {assign.isPending && <Loader2 className="animate-spin" />}
-              Allocate to advertiser
+              ✕
             </button>
-            <p className="mnote">
-              This creates the advertiser&apos;s ad account and links it to the
-              supplier account.
-            </p>
           </div>
-        </div>
+          <p className="cap">
+            <b>{assigning.name ?? assigning.external_id}</b> ·{" "}
+            {PLATFORM_LABEL[assigning.platform ?? ""] ??
+              assigning.platform ??
+              "—"}{" "}
+            · {(assigning.currency ?? "").toUpperCase()}
+          </p>
+
+          <label className="mlabel" htmlFor={`${uid}-a-adv`}>
+            Advertiser
+          </label>
+          <select
+            id={`${uid}-a-adv`}
+            value={advertiserId}
+            onChange={(e) => setAdvertiserId(e.target.value)}
+            disabled={advertisers.isLoading || advertisers.isError}
+          >
+            <option value="">
+              {advertisers.isLoading
+                ? "Loading advertisers…"
+                : advertisers.isError
+                  ? "Couldn't load advertisers"
+                  : (advertisers.data ?? []).length === 0
+                    ? "No advertisers in this tenant"
+                    : "Select an advertiser…"}
+            </option>
+            {(advertisers.data ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {advertiserLabel(a)}
+              </option>
+            ))}
+          </select>
+          {advertisers.isError && (
+            <p className="cap" style={{ color: "var(--danger)" }}>
+              {(advertisers.error as Error)?.message ?? "Request failed."}{" "}
+              <button
+                className="btn ghost sm"
+                onClick={() => advertisers.refetch()}
+              >
+                Retry
+              </button>
+            </p>
+          )}
+
+          {/* The advertiser sees this name in their dashboard. Defaulting to
+              the supplier's own naming would put their internal codes — and
+              potentially their brand — in front of a customer. */}
+          <label className="mlabel" htmlFor={`${uid}-a-name`}>
+            Account name (shown to the advertiser)
+          </label>
+          <input
+            id={`${uid}-a-name`}
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder={
+              assigning.name ??
+              `PSM ${PLATFORM_LABEL[assigning.platform ?? ""] ?? "Ads"}`
+            }
+          />
+
+          <label className="mlabel" htmlFor={`${uid}-a-fee`}>
+            Fee %{" "}
+            {assigning.fee_percentage == null
+              ? "(required — this account has no supplier fee)"
+              : `(defaults to ${assigning.fee_percentage}%)`}
+          </label>
+          <input
+            id={`${uid}-a-fee`}
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={feeInput}
+            onChange={(e) => setFeeInput(e.target.value)}
+            placeholder="e.g. 2"
+          />
+
+          <button
+            className="btn block grad"
+            style={{ marginTop: 14 }}
+            disabled={
+              assign.isPending ||
+              !advertiserId ||
+              (assigning.fee_percentage == null && feeInput.trim() === "")
+            }
+            onClick={() => assign.mutate()}
+          >
+            {assign.isPending && <Loader2 className="animate-spin" />}
+            Allocate to advertiser
+          </button>
+          <p className="mnote">
+            This creates the advertiser&apos;s ad account and links it to the
+            supplier account.
+          </p>
+        </Modal>
       )}
     </div>
   );
