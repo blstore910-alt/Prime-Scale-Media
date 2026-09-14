@@ -8,6 +8,7 @@ import {
   versionMatches,
   type ActionResult,
 } from "./_shared";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -40,10 +41,45 @@ async function requireAdminCtx() {
 // ─────────────────────────────────────────
 // ad_accounts: create
 // ─────────────────────────────────────────
+// supplier_fee_pct is what WE pay the supplier — a cost figure, not a
+// customer-facing one. Only the tenant owner (super-admin) may set or change
+// it: a regular admin editing an ad account must not be able to move our
+// margin, and the UI hiding the field is not a boundary since a server action
+// is directly invokable. Absent from the payload = untouched, which keeps
+// every existing caller working.
+async function checkSupplierFee(
+  supabase: SupabaseClient,
+  profile: { user_id: string; tenant_id: string },
+  raw: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (raw === undefined) return { ok: true };
+
+  if (raw !== null && raw !== "") {
+    const pct = Number(raw);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return { ok: false, error: "Supplier fee must be between 0 and 100" };
+    }
+  }
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  if (!tenant || tenant.owner_id !== profile.user_id) {
+    return {
+      ok: false,
+      error: "Only the super-admin can set the supplier fee",
+    };
+  }
+  return { ok: true };
+}
+
 const AD_ACCOUNT_INSERT_ALLOWED = [
   "name",
   "bm_id",
   "fee",
+  "supplier_fee_pct",
   "advertiser_id",
   "platform",
   "airtable",
@@ -86,6 +122,12 @@ export async function createAdAccountAsAdmin(
       return { ok: false, error: "Fee must be between 0 and 100" };
     }
   }
+  const supplierFeeGuard = await checkSupplierFee(
+    supabase,
+    profile,
+    input.supplier_fee_pct,
+  );
+  if (!supplierFeeGuard.ok) return { ok: false, error: supplierFeeGuard.error };
 
   const cleaned: Record<string, unknown> = {};
   for (const col of AD_ACCOUNT_INSERT_ALLOWED) {
@@ -113,6 +155,7 @@ const AD_ACCOUNT_UPDATE_ALLOWED = [
   "name",
   "bm_id",
   "fee",
+  "supplier_fee_pct",
   "airtable",
   "timezone",
   "notes",
@@ -161,6 +204,12 @@ export async function updateAdAccountAsAdmin(
   if (typeof cleaned.fee === "number" && (cleaned.fee < 0 || cleaned.fee > 100)) {
     return { ok: false, error: "Fee must be between 0 and 100" };
   }
+  const supplierFeeGuard = await checkSupplierFee(
+    supabase,
+    profile,
+    payload.supplier_fee_pct,
+  );
+  if (!supplierFeeGuard.ok) return { ok: false, error: supplierFeeGuard.error };
   if (Object.keys(cleaned).length === 0) {
     return { ok: false, error: "No updatable fields" };
   }

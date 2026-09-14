@@ -30,6 +30,9 @@ const defaultValues = {
   name: "",
   bm_id: "",
   fee: 0,
+  // Empty string, not 0: a blank box means "not recorded", while 0 would be a
+  // claim that the supplier charges us nothing.
+  supplier_fee_pct: "",
   advertiser_id: "",
   platform: "",
   airtable: false,
@@ -51,6 +54,18 @@ const validations = z
     name: z.string().min(1, "Name is required"),
     bm_id: z.string().optional(),
     fee: z.coerce.number().min(0).max(100),
+    // Kept as a plain string so "" stays "not recorded"; the range is checked
+    // here for the message and again server-side, which is the real boundary.
+    supplier_fee_pct: z
+      .string()
+      .optional()
+      .refine(
+        (v) =>
+          v == null ||
+          v === "" ||
+          (Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 100),
+        { message: "Supplier fee must be between 0 and 100" },
+      ),
     advertiser_id: z.string().min(1, "Advertiser is required"),
     platform: z.string().min(1, "Platform is required"),
     airtable: z.boolean(),
@@ -248,7 +263,21 @@ export default function AccountForm({
   }, [selectedPlatform, bySlug, setValue]);
 
   const queryClient = useQueryClient();
-  const { profile, dispatch } = useAppContext();
+  const { profile, dispatch, isSuperAdmin } = useAppContext();
+
+  const supplierFeeWatch = watch("supplier_fee_pct");
+  const feeWatch = watch("fee");
+  const marginText = (() => {
+    const charge = Number(feeWatch);
+    const cost = Number(supplierFeeWatch);
+    if (!Number.isFinite(charge) || !Number.isFinite(cost)) {
+      return "Enter both fees to see the margin.";
+    }
+    const margin = charge - cost;
+    return margin < 0
+      ? `⚠ Margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
+      : `Margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+  })();
 
   const draft = useFormDraft<FormValues>({
     formKey: "account-form",
@@ -295,6 +324,12 @@ export default function AccountForm({
         name: values.name,
         bm_id: values.bm_id || null,
         fee: values.fee,
+        // Only sent by a super-admin, and only when actually filled in —
+        // omitting the key entirely leaves it untouched server-side, and a
+        // blank box means "not recorded" rather than 0.
+        ...(isSuperAdmin && values.supplier_fee_pct !== "" && values.supplier_fee_pct != null
+          ? { supplier_fee_pct: Number(values.supplier_fee_pct) }
+          : {}),
         advertiser_id: values.advertiser_id,
         platform: values.platform,
         airtable: values.airtable,
@@ -419,6 +454,26 @@ export default function AccountForm({
             type="number"
             control={control}
           />
+
+          {/* What WE pay the supplier — a cost figure, so super-admin only.
+              The server enforces this too (checkSupplierFee in
+              ad-account-actions); hiding the field is not a boundary. */}
+          {isSuperAdmin && (
+            <div className="space-y-1">
+              <InputField
+                label="Supplier fee (%) — what we pay"
+                name="supplier_fee_pct"
+                id="supplier-fee-percent"
+                type="number"
+                control={control}
+              />
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {supplierFeeWatch === "" || supplierFeeWatch == null
+                  ? "Leave blank if unknown — margin stays unreported rather than assumed."
+                  : marginText}
+              </p>
+            </div>
+          )}
 
           <SelectField
             label="Timezone"

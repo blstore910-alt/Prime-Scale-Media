@@ -4,7 +4,7 @@ import { PLATFORMS } from "@/lib/constants";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { Eye, Search } from "lucide-react";
+import { Clock, Eye, Search, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import useAdAccountRequests from "./use-ad-account-requests";
@@ -37,6 +37,7 @@ const statusCls = (s: string | null) => {
 // (which carry the approve → BM / invoice logic) — presentation only.
 export default function PsmRequests() {
   const queryClient = useQueryClient();
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [sort, setSort] = useState("newest");
@@ -73,6 +74,44 @@ export default function PsmRequests() {
   // Status now filters server-side, so we no longer filter the fetched page
   // client-side (which hid pending requests on unreachable later pages).
   const rows = requests ?? [];
+
+  // Claim / un-claim a request. Passes the row's updated_at so two admins
+  // picking up the same request at once get a conflict instead of one
+  // silently overwriting the other.
+  const setRequestStatus = async (
+    r: AdAccountRequest,
+    status: "in_progress" | "pending",
+    okMessage: string,
+  ) => {
+    setBusyId(r.id);
+    try {
+      const { setAdAccountRequestStatus } = await import(
+        "@/actions/ad-account-actions"
+      );
+      const result = await setAdAccountRequestStatus(
+        r.id,
+        status,
+        r.updated_at ?? undefined,
+      );
+      if (!result.ok) throw new Error(result.error);
+      toast.success(okMessage);
+      await queryClient.invalidateQueries({
+        queryKey: ["ad-account-request-details", r.id],
+      });
+      await refetch();
+    } catch (err) {
+      toast.error("Couldn't update the request", {
+        description: err instanceof Error ? err.message : "Failed.",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const markInProgress = (r: AdAccountRequest) =>
+    setRequestStatus(r, "in_progress", "Marked as in progress.");
+  const markPending = (r: AdAccountRequest) =>
+    setRequestStatus(r, "pending", "Moved back to pending.");
 
   const handleRejectRequest = async (reason: string) => {
     if (!requestToReject) return;
@@ -171,13 +210,42 @@ export default function PsmRequests() {
                   {(r.status ?? "pending").replace(/_/g, " ")}
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  marginTop: 4,
+                  flexWrap: "wrap",
+                }}
+              >
                 <button
                   className="btn sm"
                   onClick={() => setSelectedRequestId(r.id)}
                 >
                   Review
                 </button>
+                {/* "in_progress" existed in the status list and in the filter
+                    dropdown, but nothing could ever SET it — so a request an
+                    admin had picked up looked identical to one nobody had
+                    touched. This is that missing half. */}
+                {(r.status ?? "pending") === "pending" && (
+                  <button
+                    className="btn ghost sm"
+                    disabled={busyId === r.id}
+                    onClick={() => markInProgress(r)}
+                  >
+                    <Clock /> I&apos;m on it
+                  </button>
+                )}
+                {(r.status ?? "") === "in_progress" && (
+                  <button
+                    className="btn ghost sm"
+                    disabled={busyId === r.id}
+                    onClick={() => markPending(r)}
+                  >
+                    <Undo2 /> Back to pending
+                  </button>
+                )}
                 <button
                   className="btn ghost sm"
                   onClick={() => setDetailsId(r.id)}

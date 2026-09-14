@@ -6,6 +6,10 @@ export interface AdAccount {
   bm_id: string | number | null;
   currency: string | null;
   fee: number;
+  // What WE pay the supplier on a top-up for this account, as a percentage.
+  // NULL means "not recorded", which is NOT the same as 0 ("they charge us
+  // nothing") — margin is only shown when it is actually known.
+  supplier_fee_pct?: number | null;
   fee_status: "pending" | "completed" | string;
   advertiser_id: string;
   platform: string;

@@ -135,6 +135,7 @@ export default function PsmAccountPool() {
   const [source, setSource] = useState<"all" | "supplier1" | "manual">("all");
   const [addOpen, setAddOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [supplierFeeInput, setSupplierFeeInput] = useState("");
   const uid = useId();
   const [manual, setManual] = useState({
     name: "",
@@ -192,6 +193,8 @@ export default function PsmAccountPool() {
         poolId: assigning.id,
         advertiserId,
         fee: feeInput.trim() === "" ? undefined : Number(feeInput),
+        supplierFeePct:
+          supplierFeeInput.trim() === "" ? null : Number(supplierFeeInput),
         name: nameInput.trim() || undefined,
       });
       if (!res.ok) throw new Error(res.error);
@@ -203,6 +206,7 @@ export default function PsmAccountPool() {
       setAdvertiserId("");
       setFeeInput("");
       setNameInput("");
+      setSupplierFeeInput("");
       queryClient.invalidateQueries({ queryKey: ["supplier-ad-account-pool"] });
       // The account now exists in three places. ["accounts"] alone refreshed
       // only the two top-up dropdowns, so the admin who just allocated it saw
@@ -484,6 +488,13 @@ export default function PsmAccountPool() {
                                     ? ""
                                     : String(r.fee_percentage),
                                 );
+                                // Seed our cost from what the supplier
+                                // reports; the operator can correct it.
+                                setSupplierFeeInput(
+                                  r.fee_percentage == null
+                                    ? ""
+                                    : String(r.fee_percentage),
+                                );
                               }}
                             >
                               <UserPlus /> Allocate
@@ -715,6 +726,42 @@ export default function PsmAccountPool() {
             onChange={(e) => setFeeInput(e.target.value)}
             placeholder="e.g. 2"
           />
+
+          {/* What WE pay the supplier. Kept next to what we charge so the
+              margin is a decision made once, at allocation, instead of being
+              reconstructed later from two places. */}
+          <label className="mlabel" htmlFor={`${uid}-a-sfee`}>
+            Supplier fee % — what we pay
+          </label>
+          <input
+            id={`${uid}-a-sfee`}
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={supplierFeeInput}
+            onChange={(e) => setSupplierFeeInput(e.target.value)}
+            placeholder="leave blank if unknown"
+          />
+          <p
+            className="cap"
+            style={{ margin: "8px 0 0" }}
+            aria-live="polite"
+          >
+            {(() => {
+              const charge = Number(feeInput);
+              const cost = Number(supplierFeeInput);
+              if (supplierFeeInput.trim() === "")
+                return "Supplier fee not recorded — margin unknown for this account.";
+              if (!Number.isFinite(charge) || feeInput.trim() === "")
+                return "Set the customer fee to see the margin.";
+              if (!Number.isFinite(cost)) return "Supplier fee is not a number.";
+              const margin = charge - cost;
+              return margin < 0
+                ? `⚠ Margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
+                : `Margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+            })()}
+          </p>
 
           <button
             className="btn block grad"

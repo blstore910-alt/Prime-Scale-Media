@@ -14,6 +14,10 @@ export type AdAccountRequest = {
   advertiser_id: string | null;
   tenant_id: string | null;
   created_at: string;
+  // Present on the table (it is in the _touch_updated_at trigger list) but
+  // optional here because the live schema is hand-authored; checkVersion
+  // tolerates it being absent and simply skips the guard.
+  updated_at?: string | null;
   platform: string | null;
   currency: string | null;
   timezone: string | null;

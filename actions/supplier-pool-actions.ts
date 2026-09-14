@@ -206,6 +206,8 @@ export async function assignSupplierAdAccount(input: {
   poolId: string;
   advertiserId: string;
   fee?: number;
+  /** What WE pay the supplier. Defaults to the supplier's own reported fee. */
+  supplierFeePct?: number | null;
   name?: string;
 }): Promise<ActionResult<{ ad_account_id: string }>> {
   const ctx = await requireAdminCtx();
@@ -269,6 +271,28 @@ export async function assignSupplierAdAccount(input: {
     return { ok: false, error: "Fee must be between 0 and 100", code: "invalid" };
   }
 
+  // What WE pay the supplier. Seeded from the supplier's own reported figure
+  // so the common case needs no typing, but stored on the ad account rather
+  // than read from the pool row at display time — the pool row is a mirror
+  // that every sync overwrites, and it can be released while the advertiser's
+  // account lives on. NULL stays NULL: "not recorded" is not "they charge us
+  // nothing", and a 0 default would make every account claim full margin.
+  const supplierFeeRaw =
+    input.supplierFeePct !== undefined
+      ? input.supplierFeePct
+      : pool.fee_percentage;
+  let supplierFeePct: number | null = null;
+  if (supplierFeeRaw != null && supplierFeeRaw !== "") {
+    supplierFeePct = Number(supplierFeeRaw);
+    if (!Number.isFinite(supplierFeePct) || supplierFeePct < 0 || supplierFeePct > 100) {
+      return {
+        ok: false,
+        error: "Supplier fee must be between 0 and 100",
+        code: "invalid",
+      };
+    }
+  }
+
   // CLAIM FIRST, then create. The order matters: these are two separate
   // writes, and the claim is the only point of mutual exclusion. Creating the
   // ad_accounts row first meant the admin who LOST the race — or any failure
@@ -310,6 +334,7 @@ export async function assignSupplierAdAccount(input: {
       // form; the sibling createAdAccountAsAdmin defaults it the same way.
       start_date: new Date().toISOString(),
       fee,
+      supplier_fee_pct: supplierFeePct,
       created_by: profile.user_id,
       metadata: {
         // 'supplier1' rows can be addressed on the supplier API by this id;
