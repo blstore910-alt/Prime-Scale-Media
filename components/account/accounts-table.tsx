@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -86,6 +87,15 @@ export default function AccountsTable() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [maxFee, setMaxFee] = useState<number>(100);
   const [filterOpen, setFilterOpen] = useState(false);
+
+  // "You have none" and "your filters match none" are different facts and
+  // must read differently — otherwise a stray filter looks like data loss.
+  const resetFilters = () => {
+    setSearch("");
+    setPlatformFilter(null);
+    setStatusFilter(null);
+    setMaxFee(100);
+  };
 
   const {
     data: accountsData,
@@ -177,6 +187,8 @@ export default function AccountsTable() {
   );
 
   const totalFiltered = filteredAccounts.length;
+  // Distinguishes the two empty states below.
+  const hasAnyAccounts = accounts.length > 0;
 
   useEffect(() => {
     const params = new URLSearchParams(Array.from(searchParams ?? []));
@@ -608,10 +620,33 @@ export default function AccountsTable() {
           </div>
         </div>
       ) : (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            No Ad Accounts Found
+        /* An empty screen is the first one a new tenant sees, so it should
+           teach rather than report. It also has to distinguish "you have
+           none yet" from "your filters match none" — otherwise someone with
+           a stray filter concludes their accounts are gone. */
+        <div className="card" style={{ textAlign: "center", padding: "34px 20px" }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: "1rem" }}>
+            {hasAnyAccounts
+              ? "No ad accounts match these filters"
+              : "No ad accounts yet"}
           </p>
+          <p
+            className="muted"
+            style={{ margin: "6px auto 16px", maxWidth: 380, fontSize: ".9rem" }}
+          >
+            {hasAnyAccounts
+              ? "Clear the search, platform, status or max-fee filter to see the rest."
+              : "Allocate one from the Account Pool, or create it by hand if it isn't supplier-managed."}
+          </p>
+          {hasAnyAccounts ? (
+            <button className="btn ghost sm" onClick={resetFilters}>
+              Clear filters
+            </button>
+          ) : (
+            <Link className="btn sm" href="/account-pool">
+              Open the Account Pool
+            </Link>
+          )}
         </div>
       )}
 
