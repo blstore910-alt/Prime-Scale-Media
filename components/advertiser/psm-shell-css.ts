@@ -399,17 +399,38 @@ export const PSM_APP_CSS = `
 .psmapp .topbar{padding-left:14px;padding-right:14px}
 @media (max-width:900px){
   .psmapp .tb-left{display:inline-flex}
-  /* Both clusters get identical geometry — same height, radius, padding —
-     so they weigh the same either side of the title. */
   .psmapp .toolbar{padding:4px;border-radius:14px;gap:4px}
+
+  /* ONE square for every control in the bar. 36x36, 10px radius, an 18px
+     icon dead centre. The bar used to hold four different sizes.
+     place-items:center is the load-bearing part: .tool is an inline-flex
+     with gap:8px and no justify-content, so in a zero-padding 36px box the
+     flex line started at the left edge and every icon-only button sat 8px
+     left of centre — a quarter of the button, measured, not guessed. */
   .psmapp .toolbar .tool{height:36px;padding:0 9px;border-radius:10px}
-  .psmapp .tb-left .ham{display:grid;place-items:center;width:36px;padding:0}
-  .psmapp .tb-left .tb-brand{display:inline-flex;align-items:center;padding-right:3px}
-  .psmapp .tb-left .mark{width:30px;height:30px;border-radius:9px}
-  .psmapp .tb-left .mark svg{width:17px;height:17px}
-  .psmapp .toolbar .ava-btn{padding:0 6px 0 3px}
+  .psmapp .toolbar .ic-btn,
+  .psmapp .tb-left .ham{
+    display:grid;place-items:center;
+    width:36px;height:36px;padding:0;gap:0;
+  }
+  .psmapp .toolbar .ic-btn svg,
+  .psmapp .tb-left .ham svg{width:18px;height:18px;display:block}
+
+  /* The brand tile is a control-sized square too, so the left cluster has
+     the same rhythm as the right instead of a 30px tile beside a 36px one. */
+  .psmapp .tb-left .tb-brand{display:inline-flex;align-items:center}
+  .psmapp .tb-left .mark{
+    display:grid;place-items:center;
+    width:36px;height:36px;border-radius:10px;
+  }
+  .psmapp .tb-left .mark svg{width:18px;height:18px;display:block}
+
+  /* The avatar keeps its chevron, so it is the one deliberately wider
+     control — but its inner square matches the icon squares. */
+  .psmapp .toolbar .ava-btn{padding:0 7px 0 4px;gap:3px}
   .psmapp .toolbar .ava-btn .avatar{width:28px;height:28px;border-radius:8px;font-size:.74rem}
-  .psmapp .toolbar .ic-btn{width:36px;padding:0}
+  .psmapp .toolbar .ava-btn svg{width:14px;height:14px}
+
   /* The title stays hidden — every view renders its own <h1> directly
      below, and repeating it in the bar is duplication, not hierarchy. The
      spacer carries the gap so the two clusters sit at the edges. */
