@@ -33,7 +33,8 @@ export interface Supplier1AdAccount {
   bm_id: string | null;
   platform: Supplier1Platform;
   currency: string;
-  balance_cents: number;
+  // null = the supplier did not report one (the list endpoint never does).
+  balance_cents: number | null;
   status: "active" | "paused" | "suspended";
   assigned_to: string | null;  // Supplier 1-side advertiser identifier
   timezone: string | null;

@@ -427,7 +427,17 @@ export default function PsmAccountPool() {
                       <td data-label="Currency">
                         {(r.currency ?? "—").toUpperCase()}
                       </td>
-                      <td data-label="Balance" className="r mono">
+                      <td
+                        data-label="Balance"
+                        className="r mono"
+                        title={
+                          r.balance_cents == null
+                            ? r.provider === "manual"
+                              ? "Manual account — we hold it ourselves, so there is no supplier balance to read."
+                              : "Not reported by the supplier's account list. Balance lives on the per-account endpoint."
+                            : undefined
+                        }
+                      >
                         {money(r.balance_cents, r.currency)}
                       </td>
                       <td data-label="Fee" className="r mono">

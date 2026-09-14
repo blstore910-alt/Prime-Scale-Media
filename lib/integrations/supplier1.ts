@@ -164,10 +164,15 @@ type SeamxList<T> = {
 };
 
 // current_balance comes back as a number, "", or null. Normalise to cents.
-function balanceToCents(v: number | string | null | undefined): number {
-  if (v === null || v === undefined || v === "") return 0;
+// Returns null for "not reported", NOT 0. The list endpoint (/v1/adaccounts)
+// carries no balance field at all — balance lives on the per-account endpoint
+// and on the wallet — so coercing an absent value to 0 made every synced pool
+// row claim an empty account. "We never fetched this" and "this account is
+// empty" are different facts and must render differently.
+function balanceToCents(v: number | string | null | undefined): number | null {
+  if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
 // Amounts cross the boundary in cents on our side; SeamX speaks major units.
@@ -320,10 +325,21 @@ const realSupplier1Adapter: Supplier1Adapter = {
     );
     if (!res.ok) return res;
     const a = res.data?.data;
+    const cents = balanceToCents(a?.current_balance);
+    // This endpoint exists to answer exactly one question. If it comes back
+    // without a balance, say so — returning 0 here would put a fabricated
+    // "empty account" in front of whoever asked.
+    if (cents === null) {
+      return {
+        ok: false,
+        error: `Supplier returned no balance for ad account ${externalAdAccountId}`,
+        retryable: true,
+      };
+    }
     return {
       ok: true,
       data: {
-        balance_cents: balanceToCents(a?.current_balance),
+        balance_cents: cents,
         currency: a?.balance_currency || a?.currency || "USD",
       },
     };
