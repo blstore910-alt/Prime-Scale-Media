@@ -311,9 +311,13 @@ export default function PsmAccountPool() {
             are free inventory — allocate them to an advertiser.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {/* .pactions lets the two buttons share one row on a phone instead of
+            stacking into ~90px of header. The long half of each label is in a
+            .lbl-long span the shell hides under 560px — the icon plus the
+            short word still says what it does. */}
+        <div className="pactions">
           <button className="btn ghost" onClick={() => setAddOpen(true)}>
-            <UserPlus /> Add manual account
+            <UserPlus /> Add <span className="lbl-long">manual account</span>
           </button>
           <button
             className="btn"
@@ -325,7 +329,13 @@ export default function PsmAccountPool() {
             ) : (
               <RefreshCw />
             )}
-            {sync.isPending ? "Syncing…" : "Sync from SeamX"}
+            {sync.isPending ? (
+              "Syncing…"
+            ) : (
+              <>
+                Sync <span className="lbl-long">from SeamX</span>
+              </>
+            )}
           </button>
         </div>
       </div>

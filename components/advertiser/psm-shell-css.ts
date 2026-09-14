@@ -226,6 +226,8 @@ export const PSM_APP_CSS = `
   /* Page actions sit side by side instead of one full-width block each. */
   .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
   .psmapp .phead .btn svg{width:15px;height:15px}
+  .psmapp .pactions{display:flex;gap:8px;width:100%}
+  .psmapp .pactions .btn{flex:1 1 0;min-width:0;justify-content:center}
 
   /* Filters: search on its own line, the selects sharing the next one. */
   .psmapp .fbar{gap:8px;padding:8px;margin-bottom:10px;border-radius:13px}
@@ -269,6 +271,9 @@ export const PSM_APP_CSS = `
 .psmapp .mcard input:focus,.psmapp .mcard select:focus,.psmapp .mcard textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.18)}
 .psmapp .mrow{display:flex;gap:10px;flex-wrap:wrap}
 .psmapp .mrow>*{flex:1 1 120px;min-width:0}
+/* Desktop shows the full label; the phone block below drops the long half. */
+.psmapp .pactions{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:560px){.psmapp .lbl-long{display:none}}
 .psmapp .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.psmapp .btn.danger:hover{background:var(--danger)}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.psmapp *{animation:none!important;transition:none!important}}
