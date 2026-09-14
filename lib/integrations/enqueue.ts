@@ -135,6 +135,24 @@ export async function enqueueSupplierTopupPush(
         reason: `top-up is in ${paidCurrency || "an unknown currency"} but the ad account is ${accountCurrency} — amount denomination is ambiguous, fund it by hand`,
       };
     }
+    // Matching LABELS are not enough — the earlier version of this guard
+    // stopped here and was wrong. `topup_amount` is USD by construction on the
+    // form path: calculateTopupAmount divides amount_received by the rate and
+    // then nets the fee, so the stored number is USD even when `currency` says
+    // EUR. A EUR top-up on a EUR account therefore passed the label check and
+    // would have pushed a USD figure under a EUR label — over-funding by 1/rate
+    // (~16% at 0.86), out of our own supplier balance.
+    //
+    // USD is the one currency where the stored number and the label agree by
+    // construction. Until both writers sit behind one explicitly denominated
+    // column, anything else is funded by hand. Refusing is cheap; guessing is
+    // not recoverable.
+    if (accountCurrency !== "USD") {
+      return {
+        enqueued: false,
+        reason: `ad account is ${accountCurrency} but topup_amount is stored in USD — cannot push a converted amount safely, fund it by hand`,
+      };
+    }
 
     const idempotencyKey = `topup:${topup.id}`;
     const { data: job, error: jobErr } = await supabase

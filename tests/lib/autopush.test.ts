@@ -170,7 +170,12 @@ describe("enqueueSupplierTopupPush", () => {
     assert.equal(s.inserted.length, 0);
   });
 
-  it("pushes the AD ACCOUNT's currency, not the payment currency", async () => {
+  // This test previously asserted the OPPOSITE and blessed a real bug: with
+  // EUR/EUR it expected a push of the raw topup_amount labelled EUR. But
+  // topup_amount is USD by construction (calculateTopupAmount divides by the
+  // rate), so that push would have over-funded the account by 1/rate. Matching
+  // labels are not the same as a matching denomination.
+  it("refuses EUR/EUR, because topup_amount is stored in USD", async () => {
     const s = stubSupabase({
       top_ups: { ...COMPLETED_TOPUP, currency: "eur" },
       supplier_ad_accounts: {
@@ -184,11 +189,9 @@ describe("enqueueSupplierTopupPush", () => {
       { topupId: "topup-1", tenantId: "tenant-1" },
       { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
     );
-    assert.equal(res.enqueued, true);
-    const payload = (s.inserted[0].values as Record<string, never>)
-      .payload as unknown as Record<string, unknown>;
-    assert.equal(payload.currency, "EUR");
-    assert.equal(payload.amount_cents, 25050);
+    assert.equal(res.enqueued, false);
+    assert.match(res.reason, /stored in USD/);
+    assert.equal(s.inserted.length, 0);
   });
 
   it("refuses a manual (non-supplier) ad account", async () => {
