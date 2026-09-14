@@ -274,9 +274,14 @@ export default function AccountForm({
       return "Enter both fees to see the margin.";
     }
     const margin = charge - cost;
-    return margin < 0
-      ? `⚠ Margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
-      : `Margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+    const base =
+      margin < 0
+        ? `⚠ Top-up margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
+        : `Top-up margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+    // Deliberately named "top-up margin": DST is a separate cost, charged
+    // against our reserve as the advertiser spends, at a per-country rate.
+    // Calling this the margin full stop would overstate what we earn.
+    return `${base} Excludes DST, charged on spend per country.`;
   })();
 
   const draft = useFormDraft<FormValues>({
@@ -455,25 +460,28 @@ export default function AccountForm({
             control={control}
           />
 
-          {/* What WE pay the supplier — a cost figure, so super-admin only.
-              The server enforces this too (checkSupplierFee in
-              ad-account-actions); hiding the field is not a boundary. */}
-          {isSuperAdmin && (
-            <div className="space-y-1">
-              <InputField
-                label="Supplier fee (%) — what we pay"
-                name="supplier_fee_pct"
-                id="supplier-fee-percent"
-                type="number"
-                control={control}
-              />
-              <p className="text-xs text-muted-foreground" aria-live="polite">
-                {supplierFeeWatch === "" || supplierFeeWatch == null
+          {/* What WE pay the supplier. This whole form is admin-only, and the
+              value is stored in the admin-only ad_account_costs table — never
+              on the ad_accounts row an advertiser can read. Admins may SEE it;
+              only the tenant owner may change it, enforced server-side
+              (upsertSupplierFee), since hiding a field is not a boundary. */}
+          <div className="space-y-1">
+            <InputField
+              label="Supplier top-up fee (%) — what we pay"
+              name="supplier_fee_pct"
+              id="supplier-fee-percent"
+              type="number"
+              control={control}
+              disabled={!isSuperAdmin}
+            />
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {!isSuperAdmin
+                ? "Visible to admins; only the super-admin can change it."
+                : supplierFeeWatch === "" || supplierFeeWatch == null
                   ? "Leave blank if unknown — margin stays unreported rather than assumed."
                   : marginText}
-              </p>
-            </div>
-          )}
+            </p>
+          </div>
 
           <SelectField
             label="Timezone"

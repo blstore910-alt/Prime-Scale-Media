@@ -4,7 +4,11 @@
  */
 
 export type ActionResult<T = null> =
-  | { ok: true; data: T }
+  // `warning` is for the case where the main write succeeded but a secondary
+  // one did not — returning ok:false would be a lie (the thing exists), and
+  // swallowing it silently is how a half-applied action looks like a clean
+  // one. The caller should surface it.
+  | { ok: true; data: T; warning?: string }
   | { ok: false; error: string; code?: "conflict" | "forbidden" | "not_found" | "invalid" };
 
 /**

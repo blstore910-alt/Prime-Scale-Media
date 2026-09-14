@@ -126,7 +126,7 @@ function Modal({
 
 export default function PsmAccountPool() {
   const queryClient = useQueryClient();
-  const { profile } = useAppContext();
+  const { profile, isSuperAdmin } = useAppContext();
   const [filter, setFilter] = useState<SupplierAdAccountFilter>("unassigned");
   const [search, setSearch] = useState("");
   const [assigning, setAssigning] = useState<SupplierAdAccount | null>(null);
@@ -198,10 +198,12 @@ export default function PsmAccountPool() {
         name: nameInput.trim() || undefined,
       });
       if (!res.ok) throw new Error(res.error);
-      return res.data;
+      return { ...res.data, warning: res.warning };
     },
-    onSuccess: () => {
-      toast.success("Ad account allocated to the advertiser.");
+    onSuccess: (d) => {
+      // A half-applied allocation must not read as a clean one.
+      if (d?.warning) toast.warning(d.warning);
+      else toast.success("Ad account allocated to the advertiser.");
       setAssigning(null);
       setAdvertiserId("");
       setFeeInput("");
@@ -741,7 +743,7 @@ export default function PsmAccountPool() {
               margin is a decision made once, at allocation, instead of being
               reconstructed later from two places. */}
           <label className="mlabel" htmlFor={`${uid}-a-sfee`}>
-            Supplier fee % — what we pay
+            Supplier top-up fee % — what we pay
           </label>
           <input
             id={`${uid}-a-sfee`}
@@ -751,7 +753,10 @@ export default function PsmAccountPool() {
             step="0.01"
             value={supplierFeeInput}
             onChange={(e) => setSupplierFeeInput(e.target.value)}
-            placeholder="leave blank if unknown"
+            placeholder={
+              isSuperAdmin ? "leave blank if unknown" : "super-admin only"
+            }
+            disabled={!isSuperAdmin}
           />
           <p
             className="cap"
@@ -767,9 +772,14 @@ export default function PsmAccountPool() {
                 return "Set the customer fee to see the margin.";
               if (!Number.isFinite(cost)) return "Supplier fee is not a number.";
               const margin = charge - cost;
-              return margin < 0
-                ? `⚠ Margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
-                : `Margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+              const base =
+                margin < 0
+                  ? `⚠ Top-up margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
+                  : `Top-up margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+              // DST is charged against OUR reserve as the advertiser spends,
+              // at a rate that varies by country — it is not a fixed
+              // percentage on the account and is NOT in this figure.
+              return `${base} Excludes DST, which is charged on spend per country.`;
             })()}
           </p>
 

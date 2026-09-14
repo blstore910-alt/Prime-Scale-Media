@@ -334,7 +334,6 @@ export async function assignSupplierAdAccount(input: {
       // form; the sibling createAdAccountAsAdmin defaults it the same way.
       start_date: new Date().toISOString(),
       fee,
-      supplier_fee_pct: supplierFeePct,
       created_by: profile.user_id,
       metadata: {
         // 'supplier1' rows can be addressed on the supplier API by this id;
@@ -375,7 +374,25 @@ export async function assignSupplierAdAccount(input: {
     console.error("pool link failed:", safeErrorMessage(linkError));
   }
 
-  return { ok: true, data: { ad_account_id: created.id } };
+  // What WE pay goes in the admin-only cost table, never on the ad_accounts
+  // row — an advertiser can read their own ad_accounts through RLS.
+  let warning: string | undefined;
+  if (supplierFeePct != null) {
+    const { error: costError } = await supabase.from("ad_account_costs").upsert(
+      {
+        ad_account_id: created.id,
+        tenant_id: profile.tenant_id,
+        supplier_fee_pct: supplierFeePct,
+      },
+      { onConflict: "ad_account_id" },
+    );
+    if (costError) {
+      console.error("cost row failed:", safeErrorMessage(costError));
+      warning = `Allocated, but the supplier fee was not saved: ${costError.message}`;
+    }
+  }
+
+  return { ok: true, data: { ad_account_id: created.id }, warning };
 }
 
 // ─────────────────────────────────────────

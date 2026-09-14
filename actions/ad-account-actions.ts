@@ -41,24 +41,37 @@ async function requireAdminCtx() {
 // ─────────────────────────────────────────
 // ad_accounts: create
 // ─────────────────────────────────────────
-// supplier_fee_pct is what WE pay the supplier — a cost figure, not a
-// customer-facing one. Only the tenant owner (super-admin) may set or change
-// it: a regular admin editing an ad account must not be able to move our
-// margin, and the UI hiding the field is not a boundary since a server action
-// is directly invokable. Absent from the payload = untouched, which keeps
-// every existing caller working.
-async function checkSupplierFee(
+// The supplier fee is what WE pay — a cost figure that must NEVER reach a
+// customer. It lives in public.ad_account_costs, not on the ad_accounts row,
+// precisely because advertisers can read their own ad_accounts through RLS and
+// the advertiser app reads them with select("*"). Keeping it off that row
+// makes the leak structurally impossible instead of dependent on every future
+// query being written carefully.
+//
+// Read is admin-of-tenant (RLS). Write is the tenant owner only: a regular
+// admin editing an ad account must not be able to move our margin, and hiding
+// the field in the UI is not a boundary since a server action is directly
+// invokable.
+//
+// `raw === undefined` means "not supplied" → leave untouched, so every
+// existing caller keeps working. `null` or "" means "not recorded" and clears
+// it — deliberately distinct from 0, which would claim the supplier charges
+// us nothing.
+async function upsertSupplierFee(
   supabase: SupabaseClient,
   profile: { user_id: string; tenant_id: string },
+  adAccountId: string,
   raw: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (raw === undefined) return { ok: true };
 
+  let pct: number | null = null;
   if (raw !== null && raw !== "") {
-    const pct = Number(raw);
-    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
       return { ok: false, error: "Supplier fee must be between 0 and 100" };
     }
+    pct = n;
   }
 
   const { data: tenant } = await supabase
@@ -72,14 +85,50 @@ async function checkSupplierFee(
       error: "Only the super-admin can set the supplier fee",
     };
   }
+
+  const { error } = await supabase.from("ad_account_costs").upsert(
+    {
+      ad_account_id: adAccountId,
+      tenant_id: profile.tenant_id,
+      supplier_fee_pct: pct,
+    },
+    { onConflict: "ad_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+// Admin-only read of the cost figures, keyed by ad account id. Separate from
+// the ad-account read on purpose — a caller has to ask for costs explicitly,
+// so no customer-facing query picks them up by accident.
+export async function getAdAccountCosts(): Promise<
+  ActionResult<Record<string, number | null>>
+> {
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
+  const { supabase, profile } = ctx;
+
+  const { data, error } = await supabase
+    .from("ad_account_costs")
+    .select("ad_account_id, supplier_fee_pct")
+    .eq("tenant_id", profile.tenant_id);
+  if (error) return { ok: false, error: error.message };
+
+  const out: Record<string, number | null> = {};
+  for (const row of (data ?? []) as Array<{
+    ad_account_id: string;
+    supplier_fee_pct: number | null;
+  }>) {
+    out[row.ad_account_id] =
+      row.supplier_fee_pct == null ? null : Number(row.supplier_fee_pct);
+  }
+  return { ok: true, data: out };
 }
 
 const AD_ACCOUNT_INSERT_ALLOWED = [
   "name",
   "bm_id",
   "fee",
-  "supplier_fee_pct",
   "advertiser_id",
   "platform",
   "airtable",
@@ -95,7 +144,7 @@ type AdAccountInsertInput = Partial<
 >;
 
 export async function createAdAccountAsAdmin(
-  input: AdAccountInsertInput,
+  input: AdAccountInsertInput & { supplier_fee_pct?: unknown },
 ): Promise<ActionResult<{ id: string }>> {
   const ctx = await requireAdminCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error };
@@ -122,13 +171,6 @@ export async function createAdAccountAsAdmin(
       return { ok: false, error: "Fee must be between 0 and 100" };
     }
   }
-  const supplierFeeGuard = await checkSupplierFee(
-    supabase,
-    profile,
-    input.supplier_fee_pct,
-  );
-  if (!supplierFeeGuard.ok) return { ok: false, error: supplierFeeGuard.error };
-
   const cleaned: Record<string, unknown> = {};
   for (const col of AD_ACCOUNT_INSERT_ALLOWED) {
     if (col in input) cleaned[col] = input[col];
@@ -145,6 +187,25 @@ export async function createAdAccountAsAdmin(
     .select("id")
     .single();
   if (insertError) return { ok: false, error: insertError.message };
+
+  // Cost row is written after the account exists, and only when supplied.
+  // A refusal here is reported but does not undo the account — the account
+  // is the customer-facing thing and is already correct; the fee can be set
+  // afterwards by the owner.
+  const feeRes = await upsertSupplierFee(
+    supabase,
+    profile,
+    inserted.id,
+    input.supplier_fee_pct,
+  );
+  if (!feeRes.ok) {
+    return {
+      ok: true,
+      data: { id: inserted.id },
+      warning: `Ad account created, but the supplier fee was not saved: ${feeRes.error}`,
+    };
+  }
+
   return { ok: true, data: { id: inserted.id } };
 }
 
@@ -155,7 +216,6 @@ const AD_ACCOUNT_UPDATE_ALLOWED = [
   "name",
   "bm_id",
   "fee",
-  "supplier_fee_pct",
   "airtable",
   "timezone",
   "notes",
@@ -170,7 +230,7 @@ type AdAccountUpdateInput = Partial<
 
 export async function updateAdAccountAsAdmin(
   accountId: string,
-  payload: AdAccountUpdateInput,
+  payload: AdAccountUpdateInput & { supplier_fee_pct?: unknown },
   ifUpdatedAt?: string,
 ): Promise<ActionResult> {
   if (typeof accountId !== "string" || accountId.length === 0) {
@@ -204,23 +264,37 @@ export async function updateAdAccountAsAdmin(
   if (typeof cleaned.fee === "number" && (cleaned.fee < 0 || cleaned.fee > 100)) {
     return { ok: false, error: "Fee must be between 0 and 100" };
   }
-  const supplierFeeGuard = await checkSupplierFee(
-    supabase,
-    profile,
-    payload.supplier_fee_pct,
-  );
-  if (!supplierFeeGuard.ok) return { ok: false, error: supplierFeeGuard.error };
-  if (Object.keys(cleaned).length === 0) {
+  // The cost row is its own write, so an update that ONLY changes the
+  // supplier fee is legitimate and must not trip "No updatable fields".
+  const touchesFee = payload.supplier_fee_pct !== undefined;
+  if (Object.keys(cleaned).length === 0 && !touchesFee) {
     return { ok: false, error: "No updatable fields" };
   }
-  cleaned.updated_at = new Date().toISOString();
 
-  const { error: updateError } = await supabase
-    .from("ad_accounts")
-    .update(cleaned)
-    .eq("id", accountId)
-    .eq("tenant_id", profile.tenant_id);
-  if (updateError) return { ok: false, error: updateError.message };
+  if (Object.keys(cleaned).length > 0) {
+    cleaned.updated_at = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from("ad_accounts")
+      .update(cleaned)
+      .eq("id", accountId)
+      .eq("tenant_id", profile.tenant_id);
+    if (updateError) return { ok: false, error: updateError.message };
+  }
+
+  const feeRes = await upsertSupplierFee(
+    supabase,
+    profile,
+    accountId,
+    payload.supplier_fee_pct,
+  );
+  if (!feeRes.ok) {
+    // The ad-account fields (if any) did save. Say so rather than reporting
+    // a clean success or a total failure — neither would be true.
+    return Object.keys(cleaned).length > 0
+      ? { ok: true, data: null, warning: `Saved, but the supplier fee was not: ${feeRes.error}` }
+      : { ok: false, error: feeRes.error, code: "forbidden" };
+  }
+
   return { ok: true, data: null };
 }
 
