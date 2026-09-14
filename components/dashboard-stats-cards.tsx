@@ -154,7 +154,10 @@ const STATS_CSS = `
 .psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;font-size:1.28rem;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
 
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:520px){.psm-stats .mgrid{grid-template-columns:1fr}}
+/* Two columns all the way down: these tiles are a label plus a number,
+   so one-per-row turned the dashboard into 1846px of scrolling on a phone
+   for figures that fit side by side. */
+@media (max-width:520px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr);gap:8px}}
 /* Period bar stays one row; the segments scroll horizontally and the label
    is dropped on narrow screens so nothing wraps. */
 @media (max-width:640px){.psm-stats .statctl-lbl{display:none}}
@@ -373,7 +376,7 @@ export function DashboardStatsCards() {
         <>
           {periodControl}
           <div className="slab">This period</div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
             <TopupsStatsCard period={period} dateRange={dateRange} />
             <SubscriptionsStatsCard period={period} dateRange={dateRange} />
             <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
@@ -439,7 +442,7 @@ export function DashboardStatsCards() {
               period cards for them repeated the same stat blocks (de-duplicated
               per feedback). The cards that remain are unique to this section. */}
           <div className="slab">This period</div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 *:data-[slot=card]:shadow-xs">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 *:data-[slot=card]:shadow-xs">
             <AffiliateCommissionsStatsCard period={period} dateRange={dateRange} />
             <SubscriptionsStatsCard period={period} dateRange={dateRange} />
             <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
