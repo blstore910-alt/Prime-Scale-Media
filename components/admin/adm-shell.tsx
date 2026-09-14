@@ -253,19 +253,26 @@ export default function AdminShell({
 
       <div className="main">
         <div className="topbar">
-          <button
-            className="iconbtn ham"
-            aria-label="Menu"
-            onClick={() => setOpen((o) => !o)}
-          >
-            <Menu />
-          </button>
-          <div className="tb-brand">
-            <span className="mark">
-              <Rocket />
+          {/* Left cluster uses the SAME .toolbar treatment as the right one.
+              Before, the bar held three different shape languages at once: a
+              loose outlined square, a loose dark tile, and a grouped pill —
+              which is why it never read as one object. Two matched clusters
+              either side of the title does. */}
+          <div className="toolbar tb-left">
+            <button
+              className="tool ic-btn ham"
+              aria-label="Menu"
+              onClick={() => setOpen((o) => !o)}
+            >
+              <Menu />
+            </button>
+            <span className="tb-brand">
+              <span className="mark">
+                <Rocket />
+              </span>
             </span>
-            <span className="tb-title">{title}</span>
           </div>
+          <span className="tb-title">{title}</span>
           <div className="tb-spacer" />
           <div className="toolbar">
             <span className="tool st" style={{ cursor: "default" }}>

@@ -391,6 +391,30 @@ export const PSM_APP_CSS = `
 .psmapp .tb-brand .mark{
   box-shadow:0 0 0 1px rgba(91,141,255,.3),0 6px 18px -8px rgba(91,141,255,.75);
 }
+/* One shape language across the whole bar. The left cluster is the same
+   .toolbar as the right, so the eye sees two matched groups rather than a
+   loose button, a loose tile and a pill. Desktop shows the logo in the
+   sidebar, so the left cluster only exists on the mobile breakpoint. */
+.psmapp .tb-left{display:none}
+.psmapp .topbar{padding-left:14px;padding-right:14px}
+@media (max-width:900px){
+  .psmapp .tb-left{display:inline-flex}
+  /* Both clusters get identical geometry — same height, radius, padding —
+     so they weigh the same either side of the title. */
+  .psmapp .toolbar{padding:4px;border-radius:14px;gap:4px}
+  .psmapp .toolbar .tool{height:36px;padding:0 9px;border-radius:10px}
+  .psmapp .tb-left .ham{display:grid;place-items:center;width:36px;padding:0}
+  .psmapp .tb-left .tb-brand{display:inline-flex;align-items:center;padding-right:3px}
+  .psmapp .tb-left .mark{width:30px;height:30px;border-radius:9px}
+  .psmapp .tb-left .mark svg{width:17px;height:17px}
+  .psmapp .toolbar .ava-btn{padding:0 6px 0 3px}
+  .psmapp .toolbar .ava-btn .avatar{width:28px;height:28px;border-radius:8px;font-size:.74rem}
+  .psmapp .toolbar .ic-btn{width:36px;padding:0}
+  /* The title stays hidden — every view renders its own <h1> directly
+     below, and repeating it in the bar is duplication, not hierarchy. The
+     spacer carries the gap so the two clusters sit at the edges. */
+  .psmapp .topbar{gap:8px;padding:8px 12px}
+}
 
 @media (max-width:900px){
   /* The bottom bar sits on the thumb rail, so it gets the most care:

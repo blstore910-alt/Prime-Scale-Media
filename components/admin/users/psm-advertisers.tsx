@@ -361,9 +361,12 @@ function AdvertiserRow({
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700 }}>{profile.full_name ?? "—"}</div>
-            <div style={{ color: "var(--faint)", fontSize: ".8rem" }}>
-              <span className="mono">{clientCode}</span>
-              {profile.email ? ` · ${profile.email}` : ""}
+            {/* Client code only. The email pushed this to a second line on
+                every row and is one tap away in Details, where it can be
+                copied — a list is for finding someone, not for reading their
+                contact card. */}
+            <div className="mono" style={{ color: "var(--faint)", fontSize: ".8rem" }}>
+              {clientCode}
             </div>
           </div>
         </div>
