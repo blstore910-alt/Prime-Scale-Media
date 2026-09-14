@@ -10,10 +10,12 @@ import {
 } from "@/components/ui/card";
 import {
   getAutoPushStatus,
+  probeSupplierAdAccount,
   testSupplier1Connection,
   testWiseConnection,
   type AutoPushStatus,
   type IntegrationPing,
+  type SupplierAccountProbe,
 } from "@/actions/integration-actions";
 import { CheckCircle2, Loader2, Lock, XCircle, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -37,6 +39,7 @@ export default function IntegrationStatusCard() {
         <AutoPushRow />
         <IntegrationRow label="SeamX" test={testSupplier1Connection} />
         <IntegrationRow label="Wise" test={testWiseConnection} />
+        <AccountProbeRow />
       </CardContent>
     </Card>
   );
@@ -109,6 +112,113 @@ function AutoPushRow() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Read-only probe of one supplier ad account. Answers the question the docs
+// do not: the wallet balance splits gross from spendable-after-tax-reserve,
+// but the per-account balance has no such split, so we cannot yet tell whether
+// it is before or after DST. Until that is settled the figure is not shown to
+// advertisers — a gross number would tell them they can spend money they can't.
+function AccountProbeRow() {
+  const [id, setId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [res, setRes] = useState<SupplierAccountProbe | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    try {
+      setRes(await probeSupplierAdAccount(id));
+    } catch (err) {
+      setRes({
+        ok: false,
+        mode: "?",
+        error: err instanceof Error ? err.message : "Request failed",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const money = (n: number) =>
+    n.toLocaleString("nl-NL", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="font-medium">Inspect an ad account</div>
+      <p className="mt-0.5 text-sm text-muted-foreground">
+        Reads one account&apos;s balance straight from the supplier, next to the
+        wallet figures. Nothing is written.
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <input
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+          placeholder="Supplier ad account id (e.g. 70093)"
+          className="min-w-0 flex-1 rounded-md border px-3 py-2 text-base sm:text-sm"
+          aria-label="Supplier ad account id"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={run}
+          disabled={loading || !id.trim()}
+          type="button"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Inspect"}
+        </Button>
+      </div>
+
+      {res && !res.ok && (
+        <div className="mt-2 flex items-start gap-2 text-sm text-destructive">
+          <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0 break-words">
+            Failed (mode {res.mode}): {res.error}
+          </div>
+        </div>
+      )}
+
+      {res && res.ok && (
+        <div className="mt-2 space-y-2 text-sm">
+          <div className="text-muted-foreground">
+            mode <b>{res.mode}</b> · account <b>{res.externalId}</b>
+          </div>
+
+          {res.accountBalance ? (
+            <div>
+              Account balance:{" "}
+              <b>
+                {res.accountBalance.currency}{" "}
+                {money(res.accountBalance.balance_cents / 100)}
+              </b>
+            </div>
+          ) : (
+            <div className="text-amber-600">
+              Account balance unavailable: {res.accountBalanceError}
+            </div>
+          )}
+
+          {res.wallet ? (
+            <div className="rounded bg-muted p-2 font-mono text-xs text-foreground">
+              USD gross {money(res.wallet.usd_balance)} · spendable{" "}
+              {money(res.wallet.available_usd)}
+              <br />
+              EUR gross {money(res.wallet.eur_balance)} · spendable{" "}
+              {money(res.wallet.available_eur)}
+            </div>
+          ) : (
+            <div className="text-amber-600">
+              Wallet balance unavailable: {res.walletError}
+            </div>
+          )}
+
+          <p className="text-muted-foreground">{res.note}</p>
+        </div>
+      )}
     </div>
   );
 }

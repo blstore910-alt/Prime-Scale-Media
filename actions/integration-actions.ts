@@ -72,6 +72,74 @@ export async function getAutoPushStatus(): Promise<
   return { armed: gate.enabled, reason: gate.reason, mode: gate.mode, held };
 }
 
+export type SupplierAccountProbe =
+  | {
+      ok: true;
+      mode: string;
+      externalId: string;
+      /** Per-account balance as the supplier reports it. */
+      accountBalance: { balance_cents: number; currency: string } | null;
+      accountBalanceError: string | null;
+      /** Wallet-level figures, which DO distinguish gross from spendable. */
+      wallet: {
+        usd_balance: number;
+        eur_balance: number;
+        available_usd: number;
+        available_eur: number;
+      } | null;
+      walletError: string | null;
+      /** Our own reading of whether a tax reserve is in play. */
+      note: string;
+    }
+  | { ok: false; mode: string; error: string };
+
+// Read-only probe of ONE supplier ad account. Exists to answer a question we
+// could not answer from the docs: the wallet balance explicitly separates
+// gross from spendable-after-tax-reserve, but the per-account `current_balance`
+// has no such split, so it is unknown whether it is before or after the DST
+// reserve. Showing an advertiser a gross figure would tell them they can spend
+// money they cannot.
+//
+// Read-only and owner-only: it calls the same GET endpoints the balance check
+// already uses and writes nothing.
+export async function probeSupplierAdAccount(
+  externalId: string,
+): Promise<SupplierAccountProbe> {
+  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
+  const guard = await requireOwner();
+  if (!guard.ok) return { ok: false, mode, error: guard.error };
+
+  const id = (externalId ?? "").trim();
+  if (!id) return { ok: false, mode, error: "Enter the supplier's ad account id" };
+
+  const adapter = getSupplier1Adapter();
+  const [acct, wallet] = await Promise.all([
+    adapter.getBalance(id),
+    adapter.getWalletBalance(),
+  ]);
+
+  const reserveUsd = wallet.ok
+    ? wallet.data.usd_balance - wallet.data.available_usd
+    : 0;
+  const reserveEur = wallet.ok
+    ? wallet.data.eur_balance - wallet.data.available_eur
+    : 0;
+  const hasReserve = reserveUsd > 0.005 || reserveEur > 0.005;
+
+  return {
+    ok: true,
+    mode,
+    externalId: id,
+    accountBalance: acct.ok ? acct.data : null,
+    accountBalanceError: acct.ok ? null : acct.error,
+    wallet: wallet.ok ? wallet.data : null,
+    walletError: wallet.ok ? null : wallet.error,
+    note: hasReserve
+      ? `A tax reserve IS in play at wallet level (USD ${reserveUsd.toFixed(2)}, EUR ${reserveEur.toFixed(2)}). Compare this account's balance against the supplier's own dashboard for the same account: if they match, current_balance is GROSS and must have the reserve applied before an advertiser sees it.`
+      : "No tax reserve reported at wallet level right now, so this run cannot tell gross from net. Re-run when a reserve exists.",
+  };
+}
+
 // Calls the WIRED SeamX adapter (mock or live, per SUPPLIER1_MODE) and
 // returns a small redacted summary so an owner can verify the connection
 // on any deployment without reading logs.
