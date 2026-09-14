@@ -276,5 +276,67 @@ export const PSM_APP_CSS = `
 @media (max-width:560px){.psmapp .lbl-long{display:none}}
 .psmapp .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.psmapp .btn.danger:hover{background:var(--danger)}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+
+/* ══ Polish pass ═══════════════════════════════════════════════════════
+   Three goals, in order: feel fast, line up, then look expensive. Last
+   because a slow, misaligned screen doesn't get nicer with more shadow. */
+
+/* ── Speed ───────────────────────────────────────────────────────────
+   Every navigation ran a 500ms entrance. That is not load time, it is a
+   deliberate wait, and it was the single biggest reason the app felt
+   sluggish — you had already arrived and were still watching it arrive.
+   180ms reads as "instant but not jarring"; the travel drops with it so
+   the eye has less to follow. */
+.psmapp .content{animation-duration:.18s}
+@keyframes psmcontentin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Alignment ───────────────────────────────────────────────────────
+   Digits get tabular figures wherever money or counts appear, so columns
+   of numbers line up on the decimal instead of wandering by glyph width.
+   This is the cheapest thing that separates a finance tool from a form. */
+.psmapp .mono,
+.psmapp .tbl td.r,
+.psmapp .tbl th.r,
+.psmapp .stat .v,
+.psmapp .tool.wal b{font-variant-numeric:tabular-nums}
+/* One label column width across every stacked card, so the values form a
+   single right edge down the card instead of a ragged one. */
+@media (max-width:900px){
+  .psmapp .tbl.wide td{grid-template-columns:minmax(88px,auto) 1fr}
+}
+
+/* ── Depth ───────────────────────────────────────────────────────────
+   One flat shadow reads as a sticker. Two layers — a tight contact
+   shadow plus a wide soft one — read as a surface above a surface. */
+.psmapp .card{box-shadow:0 1px 2px rgba(20,30,80,.04),0 12px 28px -22px rgba(20,30,80,.55)}
+.psmapp .tbl.wide tr{box-shadow:0 1px 2px rgba(20,30,80,.04),0 10px 24px -20px rgba(20,30,80,.5)}
+
+/* ── Response ────────────────────────────────────────────────────────
+   A control that doesn't acknowledge the press feels broken on touch,
+   where there is no hover to fall back on. */
+.psmapp .btn:active{transform:translateY(1px);box-shadow:0 6px 14px -10px rgba(58,111,255,.7)}
+.psmapp .iconbtn:active,.psmapp .tool:active{transform:translateY(1px)}
+.psmapp .tbl.wide tr:active{transform:scale(.995)}
+.psmapp .tbl.wide tr{transition:transform .12s ease,box-shadow .12s ease}
+
+/* ── Where am I ──────────────────────────────────────────────────────
+   The active nav item had a tint and nothing else. A left rail makes the
+   current section findable at a glance in a 22-item drawer. */
+.psmapp .navlink{position:relative}
+.psmapp .navlink.on::before{
+  content:"";position:absolute;left:-14px;top:50%;transform:translateY(-50%);
+  width:3px;height:18px;border-radius:0 3px 3px 0;background:var(--primary)
+}
+.psmapp .navsec{position:sticky;top:0;background:var(--panel);z-index:1}
+
+/* ── Badges ──────────────────────────────────────────────────────────
+   A hairline in the badge's own hue stops the soft fills dissolving into
+   the card behind them. */
+.psmapp .badge{border:1px solid rgba(20,30,80,.06)}
+.psmapp .badge.ok{border-color:rgba(16,185,129,.22)}
+.psmapp .badge.pend{border-color:rgba(224,138,0,.22)}
+.psmapp .badge.due{border-color:rgba(229,72,77,.22)}
+.psmapp .badge.info{border-color:rgba(58,111,255,.22)}
+
 @media (prefers-reduced-motion:reduce){.psmapp *{animation:none!important;transition:none!important}}
 `;
