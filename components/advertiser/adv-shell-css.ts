@@ -277,5 +277,62 @@ export const ADV_CSS = `
     .tbl.wide td[colspan]::before{display:none}
   }
 
+
+  /* ── The two bars ──────────────────────────────────────────────────
+     These frame every screen a customer sees. Both were correct and
+     plain; this is the difference between "a bar" and a surface.
+     saturate() lifts the colour of whatever scrolls underneath so the
+     bar reads as glass rather than a grey wash — biggest step, one
+     property. The inset highlight is the lit top edge of that pane. */
+  .topbar{
+    background:var(--panel);
+    background:linear-gradient(180deg,
+      color-mix(in srgb,var(--panel) 92%,transparent),
+      color-mix(in srgb,var(--panel) 78%,transparent));
+    -webkit-backdrop-filter:blur(16px) saturate(1.6);
+    backdrop-filter:blur(16px) saturate(1.6);
+    border-bottom:0;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 1px 0 var(--line);
+  }
+  .topbar::after{
+    content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,transparent,var(--line-2) 22%,var(--line-2) 78%,transparent);
+    pointer-events:none;
+  }
+  .tb-brand .mark{box-shadow:0 0 0 1px rgba(91,141,255,.3),0 6px 18px -8px rgba(91,141,255,.75)}
+
+  @media (max-width:900px){
+    /* The thumb rail gets the most care: lifted off the edge with light,
+       a lit top edge, and generous taps. */
+    .bottombar{
+      background:var(--panel);
+      background:linear-gradient(180deg,
+        color-mix(in srgb,var(--panel) 86%,transparent),
+        color-mix(in srgb,var(--panel) 98%,transparent));
+      -webkit-backdrop-filter:blur(18px) saturate(1.7);
+      backdrop-filter:blur(18px) saturate(1.7);
+      border-top:0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 -1px 0 var(--line),
+        0 -14px 34px -22px rgba(20,30,80,.5);
+      padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    }
+    /* The pill is a pseudo-element that SCALES, so the active state
+       springs in while the icon itself stays perfectly still —
+       movement under a finger reads as a glitch. */
+    .bbic::before{
+      content:"";position:absolute;inset:0;border-radius:99px;
+      background:var(--primary-tint);transform:scale(.6);opacity:0;
+      transition:transform .26s cubic-bezier(.34,1.56,.64,1),opacity .18s ease;
+    }
+    .bb.on .bbic::before{transform:scale(1);opacity:1}
+    .bbic svg{position:relative;z-index:1}
+    /* Weight change alongside colour: a stronger "you are here" signal
+       than hue alone, and it survives colour-blindness. */
+    .bb.on svg{stroke-width:2.3}
+    .bb{gap:3px;font-size:.62rem;letter-spacing:.01em;padding:5px 2px;border-radius:12px;
+      transition:color .16s ease,transform .12s ease}
+    .bb:active{transform:scale(.94)}
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;

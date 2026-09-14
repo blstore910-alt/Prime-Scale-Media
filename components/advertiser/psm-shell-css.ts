@@ -329,6 +329,79 @@ export const PSM_APP_CSS = `
 }
 .psmapp .navsec{position:sticky;top:0;background:var(--panel);z-index:1}
 
+/* ── The two bars ────────────────────────────────────────────────────
+   These frame every screen, so they are the first and last thing seen.
+   Both were correct and plain: a flat translucent fill and a hairline.
+   What follows is the difference between "a bar" and a surface. */
+
+/* Real glass, not just transparency. saturate() lifts the colour of
+   whatever scrolls underneath so the bar reads as a pane of glass rather
+   than a grey wash — this is the single biggest step, and it costs one
+   property. The inset highlight is the lit top edge of that pane. */
+.psmapp .topbar{
+  background:var(--panel);
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--panel) 92%,transparent),
+    color-mix(in srgb,var(--panel) 78%,transparent));
+  -webkit-backdrop-filter:blur(16px) saturate(1.6);
+  backdrop-filter:blur(16px) saturate(1.6);
+  border-bottom:0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 1px 0 var(--line);
+  transition:box-shadow .2s ease;
+}
+/* A border-image gradient makes the hairline fade at the edges instead of
+   stopping dead, which is what reads as "drawn" rather than "bolted on". */
+.psmapp .topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--line-2) 22%,var(--line-2) 78%,transparent);
+  pointer-events:none;
+}
+.psmapp .topbar{position:sticky}
+/* The brand mark earns a soft brand-coloured bloom instead of a flat tile. */
+.psmapp .tb-brand .mark{
+  box-shadow:0 0 0 1px rgba(91,141,255,.3),0 6px 18px -8px rgba(91,141,255,.75);
+}
+
+@media (max-width:900px){
+  /* The bottom bar sits on the thumb rail, so it gets the most care:
+     lifted off the edge with light, a lit top edge, and generous taps. */
+  .psmapp .bottombar{
+    background:var(--panel);
+    background:linear-gradient(180deg,
+      color-mix(in srgb,var(--panel) 86%,transparent),
+      color-mix(in srgb,var(--panel) 98%,transparent));
+    -webkit-backdrop-filter:blur(18px) saturate(1.7);
+    backdrop-filter:blur(18px) saturate(1.7);
+    border-top:0;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.7),
+      0 -1px 0 var(--line),
+      0 -14px 34px -22px rgba(20,30,80,.5);
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+  }
+  /* The pill is a child that SCALES, so the active state springs in
+     instead of snapping. Transforming a pseudo-element keeps the icon
+     itself perfectly still — movement under a finger reads as a glitch. */
+  .psmapp .bbic::before{
+    content:"";position:absolute;inset:0;border-radius:99px;
+    background:var(--primary-tint);
+    transform:scale(.6);opacity:0;
+    transition:transform .26s cubic-bezier(.34,1.56,.64,1),opacity .18s ease;
+  }
+  .psmapp .bb.on .bbic::before{transform:scale(1);opacity:1}
+  .psmapp .bbic svg{position:relative;z-index:1}
+  /* Active label and icon take the brand, and the icon thickens slightly —
+     weight change is a stronger "you are here" signal than colour alone,
+     and it survives colour-blindness. */
+  .psmapp .bb.on{color:var(--primary-600)}
+  .psmapp .bb.on svg{stroke-width:2.3}
+  .psmapp .bb{gap:3px;font-size:.62rem;letter-spacing:.01em;padding:5px 2px;border-radius:12px}
+  .psmapp .bb:active{transform:scale(.94)}
+  .psmapp .bb{transition:color .16s ease,transform .12s ease}
+}
+
 /* ── Badges ──────────────────────────────────────────────────────────
    A hairline in the badge's own hue stops the soft fills dissolving into
    the card behind them. */
