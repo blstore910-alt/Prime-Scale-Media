@@ -67,9 +67,11 @@ const DASH_CSS = `
 .psm-dash .qcard:hover{border-color:var(--primary);transform:translateY(-2px)}
 .psm-dash .qcard .qi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
 .psm-dash .qcard .qi svg{width:17px;height:17px}
-.psm-dash .qcard .qn{font-family:var(--hd);font-weight:800;font-size:1.05rem;line-height:1.1}
-.psm-dash .qcard .qn.lbl{font-size:.92rem}
-.psm-dash .qcard .ql{color:var(--muted);font-size:.82rem;margin-top:1px}
+.psm-dash .qcard .ql{flex:1;min-width:0;font-family:var(--hd);font-weight:700;font-size:.92rem;line-height:1.25;color:var(--ink)}
+.psm-dash .qcard .qbadge{flex:0 0 auto;min-width:24px;height:24px;padding:0 8px;border-radius:99px;display:grid;place-items:center;background:var(--primary);color:#fff;font-family:var(--hd);font-weight:800;font-size:.78rem;font-variant-numeric:tabular-nums;box-shadow:0 6px 14px -8px rgba(58,111,255,.9)}
+/* An unreadable count is not zero. It renders as a muted dash, never as a
+   number, so "nothing to do" can only ever mean nothing to do. */
+.psm-dash .qcard .qbadge.unknown{background:var(--panel-2);color:var(--faint);box-shadow:none;border:1px solid var(--line-2)}
 .psm-dash .qcard .go{margin-left:auto;color:var(--faint);width:17px;height:17px;flex:0 0 auto}
 
 /* Profit & activity — one cohesive section: header + hero + control + metrics.
@@ -180,6 +182,22 @@ export default function AdminDashboard() {
               </Link>
             )}
           </div>
+        ) : pending.isError ? (
+          /* Never claim "all caught up" off a failed read. The counts are
+             unknown, not zero, and this banner is the one place an admin
+             decides whether anyone is waiting on their money. */
+          <div className="attn">
+            <span className="ai">
+              <Zap />
+            </span>
+            <div>
+              <b>Couldn&apos;t load the queues</b>
+              <div className="sub">
+                This is NOT an empty queue — the counts could not be read.
+                Reload, and open each queue to check.
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="attn ok">
             <span className="ai">
@@ -205,20 +223,25 @@ export default function AdminDashboard() {
           const Icon = q.icon;
           const hasCount = typeof q.count === "number";
           return (
+            /* One structure for all five. Two of them carried no count and
+               were built differently — a different element, a different
+               size, a different height — which is the first thing the eye
+               catches in a row of cards. The count moves to a badge on the
+               right: present only when there is work, so the screen reads
+               as "what needs me" at a glance instead of three large zeros
+               repeating what the banner above already says. */
             <Link key={q.href} href={q.href} className="qcard">
               <span className={`qi ci ${q.ci}`}>
                 <Icon />
               </span>
-              {hasCount ? (
-                <div>
-                  <div className="qn">{q.count}</div>
-                  <div className="ql">{q.label}</div>
-                </div>
-              ) : (
-                <div>
-                  <div className="qn lbl">{q.label}</div>
-                </div>
-              )}
+              <span className="ql">{q.label}</span>
+              {pending.isError && hasCount ? (
+                <span className="qbadge unknown" title="Could not read the count">
+                  —
+                </span>
+              ) : hasCount && (q.count as number) > 0 ? (
+                <span className="qbadge">{q.count}</span>
+              ) : null}
               <ArrowRight className="go" />
             </Link>
           );
