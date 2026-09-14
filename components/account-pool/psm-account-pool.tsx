@@ -65,6 +65,15 @@ function Modal({
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // onClose is read through a ref, and the effect has an EMPTY dep list.
+  // Callers pass an inline arrow (`onClose={() => setAddOpen(false)}`), which
+  // is a new identity on every render — so depending on it re-ran this effect
+  // on every keystroke: the cleanup threw focus back to the button behind the
+  // modal and the effect then yanked it to the card, making the fields
+  // impossible to type in. Mount once, unmount once.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     cardRef.current?.focus();
@@ -72,7 +81,7 @@ function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !cardRef.current) return;
@@ -96,7 +105,7 @@ function Modal({
       document.removeEventListener("keydown", onKey);
       opener?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal">
