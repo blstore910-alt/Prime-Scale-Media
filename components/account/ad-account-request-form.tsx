@@ -477,7 +477,7 @@ export default function AdAccountRequestForm({
             </Button>
           </div>
         )}
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 py-2">
+        <div className="space-y-6 max-h-[70dvh] overflow-y-auto px-1 py-2">
           {/* Platform Radio Group */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Select Platform</Label>

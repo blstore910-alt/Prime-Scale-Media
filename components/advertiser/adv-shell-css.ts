@@ -32,7 +32,7 @@ export const ADV_CSS = `
   .side-foot .who{font-size:.85rem;font-weight:700;line-height:1.2}.side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
-  .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:30;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   .tb-brand{display:flex;align-items:center;gap:10px}.tb-brand .mark{width:34px;height:34px;display:none}/* sidebar shows the logo on desktop */
   /* The page content renders its own <h1> per view (.phead h1), so the
      topbar title would duplicate it on desktop — hide it everywhere, same
@@ -228,11 +228,16 @@ export const ADV_CSS = `
   .bottombar{display:none}.bb{font-family:var(--bd)}
   @media (max-width:1000px){.search{display:none}}
   @media (max-width:900px){
-    .sidebar{position:fixed;z-index:60;left:0;top:0;transform:translateX(-100%);transition:transform .22s;box-shadow:var(--shadow)}.sidebar.open{transform:none}
+    /* dvh + scroll + visibility — see the same block in psm-shell-css.ts.
+       Without overflow-y the last drawer items (Get help, Affiliate program)
+       were unreachable in landscape and on short phones. */
+    .sidebar{position:fixed;z-index:60;left:0;top:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-100%);transition:transform .22s,visibility .22s;box-shadow:var(--shadow);visibility:hidden}.sidebar.open{transform:none;visibility:visible}
+    .fbar .fsr input,.fbar select,.fbar input{font-size:16px}
+    .stat{min-width:0}.stat .v{min-width:0;overflow-wrap:anywhere}
     .ham{display:grid}.scrim{display:none;position:fixed;inset:0;background:rgba(12,18,48,.4);z-index:55}.scrim.on{display:block}
     .stats{grid-template-columns:repeat(2,1fr)}.grid2,.grid3{grid-template-columns:1fr}.sub-grid{grid-template-columns:1fr 1fr}.frow{grid-template-columns:1fr}
     .tool.wal,.tool.st{display:none}.tb-title{display:none}.tb-brand .mark{display:grid}
-    .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:color-mix(in srgb,var(--panel) 96%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
+    .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
     .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
     .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
     .bb svg{width:22px;height:22px}.bb.on{color:var(--primary-600)}.bb.on .bbic{background:var(--primary-tint)}

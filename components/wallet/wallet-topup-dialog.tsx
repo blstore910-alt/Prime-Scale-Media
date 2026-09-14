@@ -438,7 +438,7 @@ export default function WalletTopupDialog({
             </Button>
           </div>
         )}
-        <ScrollArea className="max-h-[70vh] pr-2">
+        <ScrollArea className="max-h-[70dvh] pr-2">
           <div className="px-1 py-2">
             {/* STEP 1: SELECTION */}
             {step === STEPS.SELECTION && (

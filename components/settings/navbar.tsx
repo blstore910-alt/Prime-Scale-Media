@@ -24,7 +24,9 @@ export default function SettingsNavbar() {
       aria-label="Section"
       className="w-full px-4 mt-4 sticky top-0 bg-background"
     >
-      <ul className="flex items-center gap-1 border-b">
+      {/* Own scroller: the tab strip is wider than a phone, and without this
+          it pushed the whole settings page sideways instead of scrolling. */}
+      <ul className="flex items-center gap-1 border-b overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {links.map(({ href, label }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (

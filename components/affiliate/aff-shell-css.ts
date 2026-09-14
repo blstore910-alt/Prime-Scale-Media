@@ -29,7 +29,7 @@ export const AFF_CSS = `
   .side-foot .who{font-size:.85rem;font-weight:600;line-height:1.2}.side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
-  .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:20;background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 93%,transparent),color-mix(in srgb,var(--panel) 80%,transparent));backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:20;background:var(--panel);background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 93%,transparent),color-mix(in srgb,var(--panel) 80%,transparent));backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   .tb-brand{display:flex;align-items:center;gap:10px}
   .tb-brand .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#04050E,#0c1230,#0f172a);box-shadow:0 0 20px rgba(91,141,255,.4),0 0 0 1px rgba(91,141,255,.28)}
   .tb-brand .mark svg{width:19px;height:19px}
@@ -89,7 +89,7 @@ export const AFF_CSS = `
   .hero .glow{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:min(640px,94%);height:270px;background:radial-gradient(ellipse at center,rgba(255,198,64,.4),rgba(255,170,40,0) 66%);filter:blur(12px);pointer-events:none;z-index:0;animation:glowpulse 3.4s ease-in-out infinite}
   @keyframes glowpulse{0%,100%{opacity:.72;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.07)}}
   .eyebrow{display:inline-flex;align-items:center;gap:9px;font-weight:800;font-size:.74rem;letter-spacing:.26em;text-transform:uppercase;color:#ffd98a;margin:0 0 12px;text-shadow:0 2px 14px rgba(255,190,60,.45)}.eyebrow svg{width:15px;height:15px;color:#ffcf6a}
-  .jackpot{position:relative;display:inline-block;font-family:var(--font-sora);font-weight:800;letter-spacing:-.035em;line-height:.9;font-size:clamp(3.6rem,14vw,7rem);
+  .jackpot{position:relative;display:inline-block;font-family:var(--font-sora);font-weight:800;letter-spacing:-.035em;line-height:.9;font-size:clamp(2.4rem,11vw,7rem);max-width:100%;
     background:linear-gradient(100deg,#e0980f 0%,#ffdf85 28%,#fff7de 42%,#ffdf85 56%,#e0980f 82%);background-size:230% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
     text-shadow:0 0 48px rgba(255,198,64,.42);filter:drop-shadow(0 10px 22px rgba(255,170,40,.32));margin:0;animation:shine 3.8s ease-in-out infinite}
   @keyframes shine{0%{background-position:185% 0}55%,100%{background-position:-45% 0}}
@@ -320,7 +320,16 @@ export const AFF_CSS = `
 
   @media (max-width:960px){.search{display:none}}
   @media (max-width:900px){
-    .sidebar{position:fixed;z-index:60;left:0;top:0;transform:translateX(-100%);transition:transform .22s;box-shadow:var(--shadow)}.sidebar.open{transform:none}
+    /* dvh + scroll + visibility — see psm-shell-css.ts for the why. */
+    .sidebar{position:fixed;z-index:60;left:0;top:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-100%);transition:transform .22s,visibility .22s;box-shadow:var(--shadow);visibility:hidden}.sidebar.open{transform:none;visibility:visible}
+    .fbar .fsr input,.fbar select,.fbar input{font-size:16px}
+    /* The share row was clipped by .invite{overflow:hidden} at 360-390px. */
+    .share{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
+    .share .btn{min-width:0;padding-left:8px;padding-right:8px}
+    /* Two-column summary bar: keep the grid lines honest, no dangling edge. */
+    .sumbar .c{border-right:0;border-bottom:1px solid var(--line)}
+    .sumbar .c:nth-child(odd){border-right:1px solid var(--line)}
+    .sumbar .c:nth-last-child(-n+2){border-bottom:0}
     .ham{display:grid}.scrim{display:none;position:fixed;inset:0;background:rgba(22,26,35,.4);z-index:55}.scrim.on{display:block}
     .stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.sumbar{grid-template-columns:repeat(2,1fr)}
     .tool.earn,.tool.tier2,.tdiv{display:none}
@@ -333,7 +342,7 @@ export const AFF_CSS = `
     .rhead .col:not(.comm){grid-column:2 / 4;display:flex;gap:14px;align-items:baseline}
     .rhead .col:not(.comm) .lbl{margin:0}
     .rhead .col.comm .lbl{white-space:normal}
-    .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:color-mix(in srgb,var(--panel) 96%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
+    .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
     .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
     .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
     .bb svg{width:22px;height:22px}

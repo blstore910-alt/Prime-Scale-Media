@@ -425,7 +425,7 @@ function AdvertiserRow({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: "repeat(auto-fit,minmax(min(120px,100%),1fr))",
             gap: 8,
           }}
         >

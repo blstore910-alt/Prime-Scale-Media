@@ -173,8 +173,8 @@ export default function AdAccountTypesCard() {
             <p className="text-destructive">{error?.message}</p>
           </div>
         ) : (
-          <div className="grid gap-3">
-            <div className="grid grid-cols-[1fr_100px_78px_52px_52px] gap-2 text-xs text-muted-foreground pb-1 border-b">
+          <div className="grid gap-3 overflow-x-auto">
+            <div className="grid grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] gap-2 min-w-[470px] text-xs text-muted-foreground pb-1 border-b">
               <span>Type name</span>
               <span>Platform</span>
               <span className="text-right">Fee %</span>
@@ -184,7 +184,7 @@ export default function AdAccountTypesCard() {
             {rows.map((row, idx) => (
               <div
                 key={row.id}
-                className="grid grid-cols-[1fr_100px_78px_52px_52px] gap-2 items-center"
+                className="grid grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] gap-2 min-w-[470px] items-center"
               >
                 <Input
                   value={row.label}

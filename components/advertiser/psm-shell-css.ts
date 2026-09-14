@@ -45,7 +45,7 @@ export const PSM_APP_CSS = `
 .psmapp .side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
 .psmapp .main{flex:1;min-width:0;display:flex;flex-direction:column}
-.psmapp .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--panel) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.psmapp .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:30;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .psmapp .tb-brand{display:flex;align-items:center;gap:10px}
 .psmapp .tb-brand .mark{width:34px;height:34px;display:none}
 .psmapp .tb-title{font-family:var(--hd);font-weight:800;font-size:1.1rem;letter-spacing:-.02em}
@@ -154,8 +154,16 @@ export const PSM_APP_CSS = `
 .psmapp .bottombar{display:none}
 
 @media (max-width:900px){
-  .psmapp .sidebar{position:fixed;z-index:60;left:0;top:0;transform:translateX(-100%);transition:transform .22s;box-shadow:var(--shadow)}
-  .psmapp .sidebar.open{transform:none}
+  /* dvh, not vh: on a phone 100vh is the viewport WITHOUT the browser
+     toolbar, so the bottom of the nav sat underneath it and the last items
+     were unreachable. overflow-y because the drawer is taller than a short
+     or landscape screen. visibility:hidden while closed so the ~22 nav links
+     are not in the tab order in front of the page content. */
+  .psmapp .sidebar{position:fixed;z-index:60;left:0;top:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-100%);transition:transform .22s,visibility .22s;box-shadow:var(--shadow);visibility:hidden}
+  .psmapp .sidebar.open{transform:none;visibility:visible}
+  /* 16px is the threshold below which iOS Safari zooms the whole page on
+     focus, which then leaves the layout scrolled sideways. */
+  .psmapp .fbar .fsr input,.psmapp .fbar select,.psmapp .fbar input{font-size:16px}
   .psmapp .ham{display:grid}
   .psmapp .scrim{display:none;position:fixed;inset:0;background:rgba(12,18,48,.4);z-index:55}
   .psmapp .scrim.on{display:block}
@@ -164,7 +172,7 @@ export const PSM_APP_CSS = `
   .psmapp .tool.wal,.psmapp .tool.st{display:none}
   .psmapp .tb-title{display:none}
   .psmapp .tb-brand .mark{display:grid}
-  .psmapp .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:color-mix(in srgb,var(--panel) 96%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
+  .psmapp .bottombar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--panel);background:color-mix(in srgb,var(--panel) 96%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;gap:2px}
   .psmapp .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
   .psmapp .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
   .psmapp .bb svg{width:22px;height:22px}.psmapp .bb.on{color:var(--primary-600)}.psmapp .bb.on .bbic{background:var(--primary-tint)}
@@ -219,7 +227,7 @@ export const PSM_APP_CSS = `
 .psmapp .modal{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px}
 .psmapp .modal[hidden]{display:none}
 .psmapp .mback{position:absolute;inset:0;background:rgba(12,18,48,.5);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
-.psmapp .mcard{position:relative;width:min(400px,100%);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;animation:pop .2s ease}
+.psmapp .mcard{position:relative;width:min(400px,100%);max-height:90vh;max-height:90dvh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;animation:pop .2s ease}
 .psmapp .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.psmapp .mhead h2{font-family:var(--hd);font-weight:800;font-size:1.15rem;letter-spacing:-.02em}.psmapp .mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
 .psmapp .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
 /* Modal form fields. The admin shell only ever styled controls inside .fbar,

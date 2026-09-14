@@ -23,7 +23,11 @@ export default function AppVersionBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-md border bg-card text-card-foreground shadow-lg px-4 py-3 text-sm max-w-sm"
+      /* On a phone this sat directly on top of the advertiser/affiliate
+         bottom nav (which is fixed at bottom:0, ~76px tall) and swallowed
+         its taps — you could not navigate until you dismissed it. Lifted
+         clear of the bar and given the full width there. */
+      className="fixed bottom-4 right-4 z-[60] flex items-center gap-3 rounded-md border bg-card text-card-foreground shadow-lg px-4 py-3 text-sm max-w-sm max-sm:left-4 max-sm:right-4 max-sm:max-w-none max-sm:bottom-[calc(84px+env(safe-area-inset-bottom))]"
     >
       <div className="flex-1">
         <p className="font-medium">New version available</p>
