@@ -11,9 +11,11 @@ import {
 import {
   getAutoPushStatus,
   probeSupplierAdAccount,
+  reconcileSupplierFees,
   testSupplier1Connection,
   testWiseConnection,
   type AutoPushStatus,
+  type FeeReconResult,
   type IntegrationPing,
   type SupplierAccountProbe,
 } from "@/actions/integration-actions";
@@ -40,6 +42,7 @@ export default function IntegrationStatusCard() {
         <IntegrationRow label="SeamX" test={testSupplier1Connection} />
         <IntegrationRow label="Wise" test={testWiseConnection} />
         <AccountProbeRow />
+        <FeeReconRow />
       </CardContent>
     </Card>
   );
@@ -112,6 +115,130 @@ function AutoPushRow() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Compares the fee we believe we pay against the fee the supplier actually
+// charged, per account. The supplier computes its own fee server-side and the
+// rate has not been the same for every account over time, so our recorded
+// figure is a belief until it is checked against theirs.
+function FeeReconRow() {
+  const [loading, setLoading] = useState(false);
+  const [res, setRes] = useState<FeeReconResult | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    try {
+      setRes(await reconcileSupplierFees());
+    } catch (err) {
+      setRes({
+        ok: false,
+        mode: "?",
+        error: err instanceof Error ? err.message : "Request failed",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pct = (n: number | null) => (n == null ? "—" : `${n.toFixed(2)}%`);
+
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-medium">Check supplier fees</div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Compares what we have on record against what was actually charged,
+            from the supplier&apos;s own top-up history. Reads only.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={run}
+          disabled={loading}
+          type="button"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Compare"}
+        </Button>
+      </div>
+
+      {res && !res.ok && (
+        <div className="mt-2 flex items-start gap-2 text-sm text-destructive">
+          <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0 break-words">
+            Failed (mode {res.mode}): {res.error}
+          </div>
+        </div>
+      )}
+
+      {res && res.ok && (
+        <div className="mt-3 space-y-2 text-sm">
+          <p className="text-muted-foreground">{res.note}</p>
+
+          {res.rows.length === 0 ? (
+            <p className="text-muted-foreground">
+              No allocated supplier accounts to check yet.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-left text-xs">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="py-1 pr-2">Account</th>
+                    <th className="py-1 pr-2 text-right">On record</th>
+                    <th className="py-1 pr-2 text-right">Actually charged</th>
+                    <th className="py-1 pr-2 text-right">Top-ups</th>
+                    <th className="py-1">Verdict</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {res.rows.map((r) => (
+                    <tr key={r.externalId} className="border-t">
+                      <td className="py-1.5 pr-2">
+                        {r.name ?? r.externalId}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">
+                        {pct(r.recordedPct)}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">
+                        {pct(r.actualPct)}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">
+                        {r.topupsChecked}
+                        {r.topupsWithoutFee > 0 && (
+                          <span
+                            className="text-amber-600"
+                            title={`${r.topupsWithoutFee} top-up(s) had no fee reported and were left out of the rate`}
+                          >
+                            {" "}
+                            +{r.topupsWithoutFee}?
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5">
+                        {r.error ? (
+                          <span className="text-destructive">{r.error}</span>
+                        ) : r.mismatch ? (
+                          <span className="text-amber-600">{r.mismatch}</span>
+                        ) : r.actualPct == null ? (
+                          <span className="text-muted-foreground">
+                            nothing to compare
+                          </span>
+                        ) : (
+                          <span className="text-green-600">matches</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

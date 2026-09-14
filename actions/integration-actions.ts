@@ -140,6 +140,173 @@ export async function probeSupplierAdAccount(
   };
 }
 
+export type FeeReconRow = {
+  adAccountId: string | null;
+  externalId: string;
+  name: string | null;
+  /** What we have on record as the fee we pay. null = not recorded. */
+  recordedPct: number | null;
+  /** Effective fee actually charged, across the top-ups we could read. */
+  actualPct: number | null;
+  topupsChecked: number;
+  /** Top-ups where the supplier reported no fee figure at all. */
+  topupsWithoutFee: number;
+  grossCents: number;
+  feeCents: number;
+  /** Set when recorded and actual disagree by more than the tolerance. */
+  mismatch: string | null;
+  error: string | null;
+};
+
+export type FeeReconResult =
+  | {
+      ok: true;
+      mode: string;
+      rows: FeeReconRow[];
+      accountsChecked: number;
+      accountsSkipped: number;
+      note: string;
+    }
+  | { ok: false; mode: string; error: string };
+
+// Compare the supplier fee we BELIEVE we pay against the fee actually charged.
+// The supplier computes its own fee server-side, so ad_account_costs is a
+// belief until it is checked — and the rate has not been the same for every
+// account over time.
+//
+// Read-only. Bounded on purpose: it walks allocated supplier accounts and
+// reads each one's top-up history, which is one request per account plus (when
+// the listing omits the fee) one per top-up. The caps are reported back rather
+// than silently applied, because "we checked everything" must not be a guess.
+const RECON_MAX_ACCOUNTS = 40;
+
+export async function reconcileSupplierFees(): Promise<FeeReconResult> {
+  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
+  const guard = await requireOwner();
+  if (!guard.ok) return { ok: false, mode, error: guard.error };
+  if (!guard.ctx.ok) return { ok: false, mode, error: "Forbidden" };
+  const { supabase, profile } = guard.ctx.ctx;
+
+  const { data: pool, error: poolErr } = await supabase
+    .from("supplier_ad_accounts")
+    .select("external_id, name, ad_account_id, fee_percentage")
+    .eq("tenant_id", profile.tenant_id)
+    .eq("provider", "supplier1")
+    .not("ad_account_id", "is", null)
+    .limit(RECON_MAX_ACCOUNTS + 1);
+  if (poolErr) return { ok: false, mode, error: poolErr.message };
+
+  const all = (pool ?? []) as Array<{
+    external_id: string;
+    name: string | null;
+    ad_account_id: string | null;
+    fee_percentage: number | null;
+  }>;
+  const accounts = all.slice(0, RECON_MAX_ACCOUNTS);
+  const skipped = Math.max(0, all.length - accounts.length);
+
+  // What we have on record, from the admin-only cost table.
+  const ids = accounts.map((a) => a.ad_account_id).filter(Boolean) as string[];
+  const recorded = new Map<string, number | null>();
+  if (ids.length) {
+    const { data: costs } = await supabase
+      .from("ad_account_costs")
+      .select("ad_account_id, supplier_fee_pct")
+      .in("ad_account_id", ids);
+    for (const c of (costs ?? []) as Array<{
+      ad_account_id: string;
+      supplier_fee_pct: number | null;
+    }>) {
+      recorded.set(
+        c.ad_account_id,
+        c.supplier_fee_pct == null ? null : Number(c.supplier_fee_pct),
+      );
+    }
+  }
+
+  const adapter = getSupplier1Adapter();
+  const rows: FeeReconRow[] = [];
+
+  for (const a of accounts) {
+    const res = await adapter.listAccountTopups(a.external_id);
+    const rec = a.ad_account_id ? (recorded.get(a.ad_account_id) ?? null) : null;
+
+    if (!res.ok) {
+      rows.push({
+        adAccountId: a.ad_account_id,
+        externalId: a.external_id,
+        name: a.name,
+        recordedPct: rec,
+        actualPct: null,
+        topupsChecked: 0,
+        topupsWithoutFee: 0,
+        grossCents: 0,
+        feeCents: 0,
+        mismatch: null,
+        error: res.error,
+      });
+      continue;
+    }
+
+    let gross = 0;
+    let fee = 0;
+    let withoutFee = 0;
+    let counted = 0;
+    for (const t of res.data) {
+      // A top-up whose fee the supplier didn't report cannot contribute to an
+      // effective rate — counting it as zero would drag the average down and
+      // manufacture a mismatch.
+      if (t.fee_cents == null || t.gross_cents == null) {
+        withoutFee++;
+        continue;
+      }
+      // Rate against what LANDED, matching how the supplier quotes it
+      // (fee 6.00 on 299.76 net = 2%, not 1.96% of the 305.76 gross).
+      const net = t.net_cents ?? t.gross_cents - t.fee_cents;
+      if (net <= 0) continue;
+      gross += net;
+      fee += t.fee_cents;
+      counted++;
+    }
+
+    const actual = counted > 0 && gross > 0 ? (fee / gross) * 100 : null;
+    let mismatch: string | null = null;
+    if (actual != null && rec != null && Math.abs(actual - rec) > 0.05) {
+      mismatch = `recorded ${rec}%, actually charged ${actual.toFixed(2)}%`;
+    } else if (actual != null && rec == null) {
+      mismatch = `not recorded, actually charged ${actual.toFixed(2)}%`;
+    }
+
+    rows.push({
+      adAccountId: a.ad_account_id,
+      externalId: a.external_id,
+      name: a.name,
+      recordedPct: rec,
+      actualPct: actual,
+      topupsChecked: counted,
+      topupsWithoutFee: withoutFee,
+      grossCents: gross,
+      feeCents: fee,
+      mismatch,
+      error: null,
+    });
+  }
+
+  rows.sort((x, y) => (y.mismatch ? 1 : 0) - (x.mismatch ? 1 : 0));
+
+  return {
+    ok: true,
+    mode,
+    rows,
+    accountsChecked: accounts.length,
+    accountsSkipped: skipped,
+    note:
+      mode === "live"
+        ? `Compared against the supplier's own top-up records.${skipped ? ` ${skipped} allocated account(s) beyond the ${RECON_MAX_ACCOUNTS}-per-run cap were NOT checked.` : ""}`
+        : "Mock mode — these are canned figures, not your real fees. Set SUPPLIER1_MODE=live to compare real data.",
+  };
+}
+
 // Calls the WIRED SeamX adapter (mock or live, per SUPPLIER1_MODE) and
 // returns a small redacted summary so an owner can verify the connection
 // on any deployment without reading logs.

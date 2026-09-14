@@ -24,6 +24,7 @@ import type {
   Supplier1AdAccount,
   Supplier1Adapter,
   Supplier1Platform,
+  Supplier1SuppliedTopup,
   Supplier1TopupPushInput,
   Supplier1TopupPushResult,
   Supplier1WithdrawPushInput,
@@ -233,6 +234,50 @@ const mockSupplier1Adapter: Supplier1Adapter = {
     return { ok: true, data: { balance_cents: 12500_00, currency: "USD" } };
   },
 
+  async listAccountTopups(externalAdAccountId) {
+    if (!externalAdAccountId) {
+      return { ok: false, error: "external_id required" };
+    }
+    // Deliberately mixed: one with a fee, one charged at 0%, and one the
+    // listing didn't report a fee for — so the reconciliation UI can be
+    // checked against all three cases before going anywhere near live data.
+    return {
+      ok: true,
+      data: [
+        {
+          external_id: "TOP-MOCK-1",
+          external_ad_account_id: externalAdAccountId,
+          currency: "EUR",
+          gross_cents: 305_76,
+          net_cents: 299_76,
+          fee_cents: 6_00,
+          status: "approved",
+          created_at: "2026-06-22T08:09:32.000Z",
+        },
+        {
+          external_id: "TOP-MOCK-2",
+          external_ad_account_id: externalAdAccountId,
+          currency: "EUR",
+          gross_cents: 1000_00,
+          net_cents: 1000_00,
+          fee_cents: 0,
+          status: "approved",
+          created_at: "2026-07-02T10:00:00.000Z",
+        },
+        {
+          external_id: "TOP-MOCK-3",
+          external_ad_account_id: externalAdAccountId,
+          currency: "EUR",
+          gross_cents: 500_00,
+          net_cents: null,
+          fee_cents: null,
+          status: "approved",
+          created_at: "2026-08-11T12:00:00.000Z",
+        },
+      ],
+    };
+  },
+
   async getWalletBalance() {
     return {
       ok: true,
@@ -440,6 +485,73 @@ const realSupplier1Adapter: Supplier1Adapter = {
         balance_after_cents: null,
       } satisfies Supplier1WithdrawPushResult,
     };
+  },
+
+  async listAccountTopups(externalAdAccountId) {
+    if (!externalAdAccountId) {
+      return { ok: false, error: "external_id required", retryable: false };
+    }
+
+    type SeamxTopup = {
+      id?: string | number;
+      amount?: number | string;
+      total_amount?: number | string;
+      topup_amount?: number | string;
+      topup_fee?: number | string;
+      currency?: string;
+      status?: string;
+      created_at?: string;
+      metadata?: { ad_account_id?: string | number };
+    };
+
+    const res = await seamxFetch<{ data?: SeamxTopup[] }>(
+      `/v1/adaccounts/${encodeURIComponent(externalAdAccountId)}/topups`,
+    );
+    if (!res.ok) return res;
+
+    const rows = res.data?.data ?? [];
+    const out: Supplier1SuppliedTopup[] = [];
+
+    for (const t of rows) {
+      const id = String(t.id ?? "");
+      // The documented LIST shape carries no fee — only the per-top-up
+      // endpoint adds total_amount/topup_amount/topup_fee. So when the list
+      // omits them we fetch the detail rather than reporting a fee of zero,
+      // which would read as "they charged us nothing".
+      let gross = t.total_amount ?? t.amount;
+      let net = t.topup_amount;
+      let fee = t.topup_fee;
+
+      if (id && (net === undefined || fee === undefined)) {
+        const one = await seamxFetch<{ data?: SeamxTopup }>(
+          `/v1/topups/${encodeURIComponent(id)}`,
+        );
+        if (one.ok && one.data?.data) {
+          const d = one.data.data;
+          gross = d.total_amount ?? d.amount ?? gross;
+          net = d.topup_amount ?? net;
+          fee = d.topup_fee ?? fee;
+        }
+        // A failed detail fetch leaves the fields null — "not reported",
+        // which the caller renders differently from a real zero.
+      }
+
+      out.push({
+        external_id: id,
+        external_ad_account_id:
+          t.metadata?.ad_account_id != null
+            ? String(t.metadata.ad_account_id)
+            : externalAdAccountId,
+        currency: t.currency ?? null,
+        gross_cents: balanceToCents(gross),
+        net_cents: balanceToCents(net),
+        fee_cents: fee === undefined || fee === null ? null : balanceToCents(fee) ?? 0,
+        status: t.status ?? null,
+        created_at: t.created_at ?? null,
+      });
+    }
+
+    return { ok: true, data: out };
   },
 };
 

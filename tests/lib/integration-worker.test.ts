@@ -159,6 +159,9 @@ const okAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
     async getBalance() {
       return { ok: true, data: { balance_cents: 0, currency: "USD" } };
     },
+    async listAccountTopups() {
+      return { ok: true, data: [] };
+    },
     async getWalletBalance() {
       return {
         ok: true,
@@ -204,6 +207,9 @@ const brokenAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
       return { ok: false, error: "boom", retryable: true };
     },
     async getBalance() {
+      return { ok: false, error: "boom", retryable: true };
+    },
+    async listAccountTopups() {
       return { ok: false, error: "boom", retryable: true };
     },
     async getWalletBalance() {

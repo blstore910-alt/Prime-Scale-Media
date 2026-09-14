@@ -94,6 +94,31 @@ export interface Supplier1Adapter {
   pushWithdraw(
     input: Supplier1WithdrawPushInput,
   ): Promise<IntegrationResult<Supplier1WithdrawPushResult>>;
+  // One ad account's top-up history AS THE SUPPLIER RECORDS IT. Used to
+  // reconcile the fee we believe we pay against the fee actually charged —
+  // the supplier computes its own fee server-side, so our recorded figure is
+  // a belief until it is compared with theirs.
+  listAccountTopups(
+    externalAdAccountId: string,
+  ): Promise<IntegrationResult<Supplier1SuppliedTopup[]>>;
+}
+
+// A top-up as the SUPPLIER reports it. `fee` and `net` are null when the
+// listing doesn't carry them (the documented list shape omits both; the
+// per-top-up endpoint adds them), so a caller can tell "no fee" from
+// "not reported".
+export interface Supplier1SuppliedTopup {
+  external_id: string;
+  external_ad_account_id: string | null;
+  currency: string | null;
+  /** What was taken from our wallet, in cents. */
+  gross_cents: number | null;
+  /** What landed on the ad account, in cents. */
+  net_cents: number | null;
+  /** What the supplier charged us, in cents. */
+  fee_cents: number | null;
+  status: string | null;
+  created_at: string | null;
 }
 
 // ─────────────────────────────────────────
