@@ -103,8 +103,21 @@ export default function WiseReviewPanel() {
     onSettled: () => setActingId(null),
   });
 
-  const rows = data ?? [];
-  const suggestedCount = rows.filter((r) => r.status === "suggested").length;
+  const allRows = data ?? [];
+  const suggestedCount = allRows.filter((r) => r.status === "suggested").length;
+
+  // Rendering all 100 made this page 28,000px tall on a phone — 35 screens of
+  // scrolling, and the handful of deposits that actually need a decision were
+  // buried among dozens of unmatched ones the admin can do nothing about.
+  // Anything needing action comes first and is always shown; the rest is
+  // capped behind a count the admin can open.
+  const REST_PREVIEW = 8;
+  const [showAll, setShowAll] = useState(false);
+  const needsAction = allRows.filter((r) => r.status === "suggested");
+  const rest = allRows.filter((r) => r.status !== "suggested");
+  const restShown = showAll ? rest : rest.slice(0, REST_PREVIEW);
+  const rows = [...needsAction, ...restShown];
+  const hiddenCount = rest.length - restShown.length;
 
   return (
     <div
@@ -251,6 +264,29 @@ export default function WiseReviewPanel() {
             </tbody>
           </table>
         </div>
+        {hiddenCount > 0 && (
+          <div style={{ padding: "12px 14px", borderTop: "1px solid var(--line)" }}>
+            <button
+              className="btn ghost sm"
+              onClick={() => setShowAll(true)}
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              Show {hiddenCount} more deposit{hiddenCount === 1 ? "" : "s"} with
+              nothing to confirm
+            </button>
+          </div>
+        )}
+        {showAll && rest.length > REST_PREVIEW && (
+          <div style={{ padding: "12px 14px", borderTop: "1px solid var(--line)" }}>
+            <button
+              className="btn ghost sm"
+              onClick={() => setShowAll(false)}
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              Show fewer
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
