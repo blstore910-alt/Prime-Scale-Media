@@ -5,6 +5,7 @@ import Heartbeat from "@/components/heartbeat";
 import IdleTimeoutManager from "@/components/idle-timeout-manager";
 import MaintenanceBanner from "@/components/maintenance-banner";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfiles, getSessionUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import React from "react";
 
@@ -28,15 +29,16 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
   const cookieStore = await cookies();
   const existingProfile = cookieStore.get("profile_id")?.value;
 
-  const { data, error: userError } = await supabase.auth.getUser();
-  const { data: profiles, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("*, tenant:tenants(*), advertiser:advertisers(*)")
-    .eq("user_id", data.user?.id);
+  // Shared with the page's own requireAdmin() through React cache(), so the
+  // session and profile are fetched once per navigation instead of twice.
+  // See lib/auth/session.ts for the measurement that prompted it.
+  const { data, error: userError } = await getSessionUser();
+  const { data: profiles, error: profileError } = await getSessionProfiles(
+    data.user?.id ?? "",
+  );
 
   if (userError || profileError)
     throw new Error(userError?.message || profileError?.message);
@@ -65,6 +67,7 @@ export default async function AppLayout({
       : null;
 
     if (advertiser) {
+      const supabase = await createClient();
       const { data: company } = await supabase
         .from("companies")
         .select("*, billings(*)")

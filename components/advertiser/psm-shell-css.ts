@@ -218,6 +218,18 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell::before{grid-row:1}
   .psmapp .tbl.wide td.fullcell>*{grid-column:1}
   .psmapp .tbl.wide td.fullcell>span{justify-self:start}
+  /* Row actions: one row, always. Equal widths so they read as a set, and
+     min-width:0 so they shrink together instead of one wrapping away. */
+  .psmapp .actrow{display:flex;gap:7px;width:100%}
+  .psmapp .actrow .btn{flex:1 1 0;min-width:0;justify-content:center;padding:9px 8px;white-space:nowrap}
+  .psmapp .actrow .btn svg{flex:0 0 auto}
+  .psmapp .actrow .alab{overflow:hidden;text-overflow:ellipsis}
+  /* Below 420px three labels cannot fit without shrinking the tap target,
+     so the icons carry it. Each button keeps its title for a long-press. */
+  @media (max-width:420px){
+    .psmapp .actrow .alab{display:none}
+    .psmapp .actrow .btn{padding:10px 8px}
+  }
 
   /* ── Density ──────────────────────────────────────────────────────
      Measured on the pool screen at 375x812 before this block: the page
@@ -237,11 +249,19 @@ export const PSM_APP_CSS = `
   .psmapp .pactions{display:flex;gap:8px;width:100%}
   .psmapp .pactions .btn{flex:1 1 0;min-width:0;justify-content:center}
 
-  /* Filters: search on its own line, the selects sharing the next one. */
-  .psmapp .fbar{gap:8px;padding:8px;margin-bottom:10px;border-radius:13px}
-  .psmapp .fbar .fsr{flex:1 1 100%;max-width:none;padding:8px 11px}
-  .psmapp .fbar select{flex:1 1 0;min-width:0;padding:8px 11px;padding-right:30px}
-  .psmapp .fbar .fexp{flex:1 1 100%;margin-left:0;justify-content:center;padding:8px 12px}
+  /* Filters: search on its own line, then everything else shares ONE row.
+     Three stacked full-width controls was 158px of chrome above a list —
+     and a column of identical pills reads as a form, not as a toolbar. */
+  .psmapp .fbar{gap:7px;padding:7px;margin-bottom:10px;border-radius:14px}
+  .psmapp .fbar .fsr{flex:1 1 100%;max-width:none;padding:9px 12px}
+  .psmapp .fbar select{flex:1 1 0;min-width:0;padding:9px 10px;padding-right:28px;background-position:right 8px center}
+  /* The export sits with the filters rather than under them, and shrinks to
+     its icon when three controls have to share 340px. */
+  .psmapp .fbar .fexp{flex:0 0 auto;margin-left:0;padding:9px 12px}
+  @media (max-width:420px){
+    .psmapp .fbar .fexp{padding:9px 11px;gap:0}
+    .psmapp .fbar .fexp span{display:none}
+  }
 
   /* Cards: same information, less air. 459px per record was roughly
      double what it needs. */

@@ -1,3 +1,4 @@
+import { getSessionProfiles, getSessionUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -14,8 +15,9 @@ type TenantRecord = {
 };
 
 export async function requireSuperAdmin(redirectTo = "/dashboard") {
-  const supabase = await createClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  // Cached per render, so this is free when the (app) layout already ran it.
+  // See lib/auth/session.ts.
+  const { data: userData, error: userError } = await getSessionUser();
 
   if (userError || !userData.user) {
     redirect("/auth/login");
@@ -24,10 +26,9 @@ export async function requireSuperAdmin(redirectTo = "/dashboard") {
   const cookieStore = await cookies();
   const existingProfile = cookieStore.get("profile_id")?.value;
 
-  const { data: profiles, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("id, role, tenant_id, user_id")
-    .eq("user_id", userData.user.id);
+  const { data: profiles, error: profileError } = await getSessionProfiles(
+    userData.user.id,
+  );
 
   if (profileError) {
     throw new Error(profileError.message);
@@ -46,6 +47,7 @@ export async function requireSuperAdmin(redirectTo = "/dashboard") {
     redirect(redirectTo);
   }
 
+  const supabase = await createClient();
   const { data: tenant, error: tenantError } = await supabase
     .from("tenants")
     .select("owner_id")

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSessionProfiles, getSessionUser } from "@/lib/auth/session";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -8,8 +8,12 @@ type ProfileRecord = {
 };
 
 export async function requireAdmin(redirectTo = "/dashboard") {
-  const supabase = await createClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  // These two go through React cache(), so when the (app) layout has already
+  // fetched them for this same render they cost nothing. Before, every page
+  // repeated the layout's auth.getUser() and profile query — four sequential
+  // Supabase round trips per navigation, ~475ms of the ~700ms server render.
+  // Same checks, same freshness; just not asked twice.
+  const { data: userData, error: userError } = await getSessionUser();
 
   if (userError || !userData.user) {
     redirect("/auth/login");
@@ -18,10 +22,9 @@ export async function requireAdmin(redirectTo = "/dashboard") {
   const cookieStore = await cookies();
   const existingProfile = cookieStore.get("profile_id")?.value;
 
-  const { data: profiles, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("id, role, is_active, status")
-    .eq("user_id", userData.user.id);
+  const { data: profiles, error: profileError } = await getSessionProfiles(
+    userData.user.id,
+  );
 
   if (profileError) {
     throw new Error(profileError.message);

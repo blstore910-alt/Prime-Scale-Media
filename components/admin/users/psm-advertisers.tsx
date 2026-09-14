@@ -35,14 +35,6 @@ const chipStyle = {
   placeItems: "center" as const,
 };
 
-// Row action buttons render as an equal-width 3-up grid so they stay tidy,
-// never overflow the row (which would scroll the table sideways), and wrap
-// as a clean 3-per-row rather than a ragged 2+1.
-const actBtnStyle = {
-  width: "100%",
-  justifyContent: "center" as const,
-};
-
 const TONES = ["b", "t", "g", "p"] as const;
 
 function initials(name?: string | null) {
@@ -189,7 +181,7 @@ export default function PsmAdvertisers() {
         </select>
         <button className="fexp" onClick={handleDownload} disabled={downloadingCSV}>
           {downloadingCSV ? <Loader2 className="animate-spin" /> : <FileDown />}
-          Download CSV
+          <span>Download CSV</span>
         </button>
       </div>
 
@@ -425,33 +417,28 @@ function AdvertiserRow({
           {profile.status ?? "—"}
         </span>
       </td>
+      {/* .actrow keeps all three on ONE row at every width by letting them
+          shrink together — a 2+1 wrap reads as an accident, and the odd one
+          out looks like it belongs to the row below. Under 420px the labels
+          give way to the icons, which is the only honest way to fit three
+          controls in 340px without shrinking the tap target. */}
       <td data-label="Actions" className="r fullcell">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(min(120px,100%),1fr))",
-            gap: 8,
-          }}
-        >
-          <button
-            className="btn ghost sm"
-            style={actBtnStyle}
-            onClick={stop(onView)}
-          >
-            <Eye /> Details
+        <div className="actrow">
+          <button className="btn ghost sm" onClick={stop(onView)} title="Details">
+            <Eye /> <span className="alab">Details</span>
           </button>
           <button
             className="btn ghost sm"
-            style={actBtnStyle}
             onClick={stop(() => onCommissionSetup(advertiser))}
+            title="Commission"
           >
-            <HandCoins /> Commission
+            <HandCoins /> <span className="alab">Commission</span>
           </button>
           <button
             className="btn ghost sm"
-            style={actBtnStyle}
             disabled={isPending}
             onClick={stop(toggleStatus)}
+            title={isActive ? "Deactivate" : "Activate"}
           >
             {isPending ? (
               <Loader2 className="animate-spin" />
@@ -460,7 +447,7 @@ function AdvertiserRow({
             ) : (
               <UserCheck />
             )}
-            {isActive ? "Deactivate" : "Activate"}
+            <span className="alab">{isActive ? "Deactivate" : "Activate"}</span>
           </button>
         </div>
       </td>
