@@ -210,6 +210,34 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td>span{justify-self:end}
   .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
   .psmapp .tbl.wide td[colspan]::before{display:none}
+
+  /* ── Density ──────────────────────────────────────────────────────
+     Measured on the pool screen at 375x812 before this block: the page
+     header was 225px, the filter bar 174px, and the first data row began
+     at 560px — 69% of the screen was chrome, so a phone showed ZERO
+     records without scrolling. Desktop is untouched. */
+
+  /* Header: the title is a label, not a hero. The description is read
+     once; keep it to two lines and let the content start sooner. */
+  .psmapp .phead{gap:10px}
+  .psmapp .phead h1{font-size:1.3rem;line-height:1.2}
+  .psmapp .phead p{font-size:.85rem;margin-top:2px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* Page actions sit side by side instead of one full-width block each. */
+  .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
+  .psmapp .phead .btn svg{width:15px;height:15px}
+
+  /* Filters: search on its own line, the selects sharing the next one. */
+  .psmapp .fbar{gap:8px;padding:8px;margin-bottom:10px;border-radius:13px}
+  .psmapp .fbar .fsr{flex:1 1 100%;max-width:none;padding:8px 11px}
+  .psmapp .fbar select{flex:1 1 0;min-width:0;padding:8px 11px;padding-right:30px}
+  .psmapp .fbar .fexp{flex:1 1 100%;margin-left:0;justify-content:center;padding:8px 12px}
+
+  /* Cards: same information, less air. 459px per record was roughly
+     double what it needs. */
+  .psmapp .tbl.wide tr{padding:2px 11px;margin-bottom:9px;border-radius:13px}
+  .psmapp .tbl.wide td{padding:7px 2px;gap:2px 14px}
+  .psmapp .tbl.wide td::before{font-size:.62rem}
 }
 
 /* Topbar account menu (anchored to the avatar) */
