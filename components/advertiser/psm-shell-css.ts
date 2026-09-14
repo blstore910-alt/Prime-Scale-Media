@@ -210,6 +210,14 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td>span{justify-self:end}
   .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
   .psmapp .tbl.wide td[colspan]::before{display:none}
+  /* Rich cells — an avatar plus a name plus an email, or a row of action
+     buttons — do not belong in the narrow right-hand value column, where
+     they wrapped into several differently aligned lines and read as
+     broken. They stack under their label at full width instead. */
+  .psmapp .tbl.wide td.fullcell{grid-template-columns:1fr;text-align:left;gap:6px}
+  .psmapp .tbl.wide td.fullcell::before{grid-row:1}
+  .psmapp .tbl.wide td.fullcell>*{grid-column:1}
+  .psmapp .tbl.wide td.fullcell>span{justify-self:start}
 
   /* ── Density ──────────────────────────────────────────────────────
      Measured on the pool screen at 375x812 before this block: the page

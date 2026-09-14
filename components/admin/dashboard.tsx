@@ -71,6 +71,7 @@ const DASH_CSS = `
 .psm-dash .qcard .qbadge{flex:0 0 auto;min-width:24px;height:24px;padding:0 8px;border-radius:99px;display:grid;place-items:center;background:var(--primary);color:#fff;font-family:var(--hd);font-weight:800;font-size:.78rem;font-variant-numeric:tabular-nums;box-shadow:0 6px 14px -8px rgba(58,111,255,.9)}
 /* An unreadable count is not zero. It renders as a muted dash, never as a
    number, so "nothing to do" can only ever mean nothing to do. */
+.psm-dash .qcard .qbadge.zero{background:var(--panel-2);color:var(--muted);box-shadow:none;border:1px solid var(--line)}
 .psm-dash .qcard .qbadge.unknown{background:var(--panel-2);color:var(--faint);box-shadow:none;border:1px solid var(--line-2)}
 .psm-dash .qcard .go{margin-left:auto;color:var(--faint);width:17px;height:17px;flex:0 0 auto}
 
@@ -235,12 +236,23 @@ export default function AdminDashboard() {
                 <Icon />
               </span>
               <span className="ql">{q.label}</span>
-              {pending.isError && hasCount ? (
-                <span className="qbadge unknown" title="Could not read the count">
-                  —
-                </span>
-              ) : hasCount && (q.count as number) > 0 ? (
-                <span className="qbadge">{q.count}</span>
+              {hasCount ? (
+                pending.isError ? (
+                  <span className="qbadge unknown" title="Could not read the count">
+                    —
+                  </span>
+                ) : (
+                  /* The number is ALWAYS shown — zero is information too, and
+                     an absent badge would be indistinguishable from a queue
+                     that has no count at all. Zero recedes into a quiet chip;
+                     anything above it takes the brand colour so real work is
+                     what your eye lands on. */
+                  <span
+                    className={`qbadge${(q.count as number) === 0 ? " zero" : ""}`}
+                  >
+                    {q.count}
+                  </span>
+                )
               ) : null}
               <ArrowRight className="go" />
             </Link>

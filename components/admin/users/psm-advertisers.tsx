@@ -358,7 +358,11 @@ function AdvertiserRow({
 
   return (
     <tr style={{ cursor: "pointer" }} onClick={onView}>
-      <td data-label="Advertiser">
+      {/* .fullcell: on a phone this stacks under its label at full width
+          instead of being squeezed into the right-hand value column, where
+          an avatar plus a name plus an email wrapped into three differently
+          aligned lines and read as broken. */}
+      <td data-label="Advertiser" className="fullcell">
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
           <span className={`ci ${tone}`} style={chipStyle}>
             {initials(profile.full_name)}
@@ -421,7 +425,7 @@ function AdvertiserRow({
           {profile.status ?? "—"}
         </span>
       </td>
-      <td data-label="Actions" className="r">
+      <td data-label="Actions" className="r fullcell">
         <div
           style={{
             display: "grid",
