@@ -108,7 +108,11 @@ describe("enqueueSupplierTopupPush", () => {
   it("queues a job with the supplier's external id when armed", async () => {
     const s = stubSupabase({
       top_ups: COMPLETED_TOPUP,
-      supplier_ad_accounts: { external_id: "seamx-9001", provider: "supplier1" },
+      supplier_ad_accounts: {
+        external_id: "seamx-9001",
+        provider: "supplier1",
+        currency: "USD",
+      },
     });
     const res = await enqueueSupplierTopupPush(
       s.client as never,
@@ -125,6 +129,66 @@ describe("enqueueSupplierTopupPush", () => {
     assert.equal(payload.external_ad_account_id, "seamx-9001");
     assert.equal(payload.amount_cents, 25050);
     assert.equal(payload.currency, "USD");
+  });
+
+  // The bug this guards: `topup_amount` is written in USD by the single
+  // top-up form but in the payment currency by the bulk dialog, while
+  // `currency` always holds the payment currency. Pairing them sent a USD
+  // number labelled EUR to the supplier — ~9% overfunding per EUR top-up.
+  // Every earlier fixture used USD, the one case where that is invisible.
+  it("refuses when the payment currency differs from the ad account's", async () => {
+    const s = stubSupabase({
+      top_ups: { ...COMPLETED_TOPUP, currency: "eur" },
+      supplier_ad_accounts: {
+        external_id: "seamx-9001",
+        provider: "supplier1",
+        currency: "USD",
+      },
+    });
+    const res = await enqueueSupplierTopupPush(
+      s.client as never,
+      { topupId: "topup-1", tenantId: "tenant-1" },
+      { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
+    );
+    assert.equal(res.enqueued, false);
+    assert.match(res.reason, /ambiguous/);
+    assert.equal(s.inserted.length, 0);
+  });
+
+  it("refuses when the pool row has no currency at all", async () => {
+    const s = stubSupabase({
+      top_ups: COMPLETED_TOPUP,
+      supplier_ad_accounts: { external_id: "seamx-9001", provider: "supplier1" },
+    });
+    const res = await enqueueSupplierTopupPush(
+      s.client as never,
+      { topupId: "topup-1", tenantId: "tenant-1" },
+      { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
+    );
+    assert.equal(res.enqueued, false);
+    assert.match(res.reason, /no currency/);
+    assert.equal(s.inserted.length, 0);
+  });
+
+  it("pushes the AD ACCOUNT's currency, not the payment currency", async () => {
+    const s = stubSupabase({
+      top_ups: { ...COMPLETED_TOPUP, currency: "eur" },
+      supplier_ad_accounts: {
+        external_id: "seamx-9001",
+        provider: "supplier1",
+        currency: "eur",
+      },
+    });
+    const res = await enqueueSupplierTopupPush(
+      s.client as never,
+      { topupId: "topup-1", tenantId: "tenant-1" },
+      { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
+    );
+    assert.equal(res.enqueued, true);
+    const payload = (s.inserted[0].values as Record<string, never>)
+      .payload as unknown as Record<string, unknown>;
+    assert.equal(payload.currency, "EUR");
+    assert.equal(payload.amount_cents, 25050);
   });
 
   it("refuses a manual (non-supplier) ad account", async () => {
@@ -171,7 +235,11 @@ describe("enqueueSupplierTopupPush", () => {
             data:
               table === "top_ups"
                 ? COMPLETED_TOPUP
-                : { external_id: "seamx-9001", provider: "supplier1" },
+                : {
+                    external_id: "seamx-9001",
+                    provider: "supplier1",
+                    currency: "USD",
+                  },
             error: null,
           }),
           insert: () => ({

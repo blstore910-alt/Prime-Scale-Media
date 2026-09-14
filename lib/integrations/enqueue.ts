@@ -91,7 +91,7 @@ export async function enqueueSupplierTopupPush(
     // the supplier pool have one.
     const { data: pool, error: poolErr } = await supabase
       .from("supplier_ad_accounts")
-      .select("external_id, provider")
+      .select("external_id, provider, currency")
       .eq("ad_account_id", topup.account_id)
       .eq("provider", "supplier1")
       .maybeSingle();
@@ -103,6 +103,36 @@ export async function enqueueSupplierTopupPush(
       return {
         enqueued: false,
         reason: "ad account is not supplier-managed (manual account) — fund it by hand",
+      };
+    }
+
+    // ── Currency safety ───────────────────────────────────────────────
+    // `topup_amount` and `currency` are NOT guaranteed to be the same money.
+    // The two writers disagree: the single top-up form stores topup_amount in
+    // USD (utils-pure.calculateTopupAmount divides by the rate, then nets the
+    // fee) while leaving `currency` as the PAYMENT currency; the bulk dialog
+    // stores it in the payment currency. Pairing them blindly asked the
+    // supplier for a USD number labelled EUR — roughly 9% too much on every
+    // EUR top-up, out of our own supplier balance, irreversibly.
+    //
+    // The only currency the supplier will actually credit is the ad account's
+    // own, so that is what we send. And because we cannot tell from the row
+    // which writer produced it, we REFUSE rather than convert whenever the
+    // payment currency differs from the account currency — a wrong guess here
+    // spends real money. The admin funds those by hand until the two writers
+    // are reconciled behind one explicitly-denominated column.
+    const accountCurrency = String(pool.currency || "").toUpperCase();
+    const paidCurrency = String(topup.currency || "").toUpperCase();
+    if (!accountCurrency) {
+      return {
+        enqueued: false,
+        reason: "ad account has no currency on the pool row — fund it by hand",
+      };
+    }
+    if (!paidCurrency || paidCurrency !== accountCurrency) {
+      return {
+        enqueued: false,
+        reason: `top-up is in ${paidCurrency || "an unknown currency"} but the ad account is ${accountCurrency} — amount denomination is ambiguous, fund it by hand`,
       };
     }
 
@@ -118,7 +148,10 @@ export async function enqueueSupplierTopupPush(
         payload: {
           external_ad_account_id: pool.external_id,
           amount_cents: amountCents,
-          currency: String(topup.currency || "USD").toUpperCase(),
+          // The ad account's currency, not the payment currency — they are
+          // equal here by the guard above, but this names the authoritative
+          // source so a later edit can't silently reintroduce the mismatch.
+          currency: accountCurrency,
           topup_id: topup.id,
           ad_account_id: topup.account_id,
         },
