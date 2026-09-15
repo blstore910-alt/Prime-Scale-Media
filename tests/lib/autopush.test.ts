@@ -301,8 +301,12 @@ function workerStub(job: Record<string, unknown>) {
         limit: async () => ({ data: claimed ? [] : [job], error: null }),
         update: (values: Record<string, unknown>) => {
           updates.push(values);
-          const after = {
+          const after: Record<string, unknown> = {
             eq: () => after,
+            // The stale-claim reaper filters on updated_at < cutoff; this
+            // stub holds a single in-memory job that is never stale, so the
+            // reaper must resolve to an empty set rather than blow up.
+            lt: () => after,
             select: () => after,
             maybeSingle: async () => {
               claimed = true;
@@ -311,7 +315,8 @@ function workerStub(job: Record<string, unknown>) {
                 error: null,
               };
             },
-            then: (r: (v: unknown) => unknown) => Promise.resolve(r(undefined)),
+            then: (r: (v: unknown) => unknown) =>
+              Promise.resolve(r({ data: [], error: null })),
           };
           return after;
         },

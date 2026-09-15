@@ -116,7 +116,7 @@ export default function UserDetailsSheet({
       const { data, error } = await supabase
         .from("user_profiles")
         .select(
-          "*, advertiser:advertisers(*, subscriptions(amount, start_date, status),  wallet_topups:wallet_topups(amount, currency, status), companies(*))",
+          "*, advertiser:advertisers(*, subscriptions(amount, currency, start_date, status),  wallet_topups:wallet_topups(amount, currency, status), companies(*))",
         )
         .eq("id", profileId)
         .single();

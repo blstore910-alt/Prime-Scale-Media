@@ -139,7 +139,7 @@ export async function setInvoicePaidStatus(
   void ifUpdatedAt;
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, tenant_id, status, type")
+    .select("id, tenant_id, status, type, subscription_id")
     .eq("id", invoiceId)
     .maybeSingle();
   if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
@@ -151,15 +151,24 @@ export async function setInvoicePaidStatus(
   // daily billing cron re-collects any unpaid subscription invoice past its
   // due date — so the advertiser would be charged twice for one period.
   // Block that transition; a genuine reversal must go through a refund.
+  //
+  // The test is subscription_id, not type. The guard used to read
+  // `type === "subscription"`, but the cron's collect loop
+  // (20260901380000_subscription_billing.sql:164-172) selects on
+  //   i.subscription_id is not null and i.status = 'unpaid' and due_date <= now()
+  // with NO filter on type — so a `subscription_adjustment` invoice, which
+  // carries a subscription_id, went straight past this guard and was
+  // collected a second time. Match the condition the cron actually uses, so
+  // a new invoice type can never quietly reopen this.
   if (
     invoice.status === "paid" &&
     status === "unpaid" &&
-    invoice.type === "subscription"
+    invoice.subscription_id
   ) {
     return {
       ok: false,
       error:
-        "A paid subscription invoice can't be marked unpaid — the wallet isn't re-credited and the billing run would charge it again. Issue a refund instead.",
+        "A paid subscription invoice can't be marked unpaid — the wallet isn't re-credited and the billing run would collect it again. Issue a refund instead.",
       code: "invalid",
     };
   }

@@ -2,9 +2,12 @@ import React from "react";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 
 interface Subscription {
   amount: number;
+  /** Subscriptions default to EUR everywhere else in the app. */
+  currency?: string | null;
   start_date: string;
   status: string;
 }
@@ -44,7 +47,13 @@ export default function UserSubscriptionDetails({
                 <span className="font-medium text-muted-foreground">
                   Price:
                 </span>{" "}
-                ${sub.amount}
+                {/* This used to be a hard-coded "$". Subscriptions are EUR
+                    by default (subscription_from_invite, subscription_billing
+                    both coalesce to 'EUR'), so a EUR 500 plan read "$500" in
+                    this drawer while /subscriptions showed "€500" — a ~15%
+                    misstatement of a recurring charge, on a screen an admin
+                    uses to answer billing questions. */}
+                {formatCurrency(sub.amount, (sub.currency ?? "EUR").toUpperCase())}
               </div>
               <div>
                 <span className="font-medium text-muted-foreground">

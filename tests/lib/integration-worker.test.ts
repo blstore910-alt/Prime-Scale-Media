@@ -29,6 +29,10 @@ function makeMockSupabase(initial: IntegrationJobRow[]) {
     let eqStatus: string | null = null;
     let updateBody: Partial<IntegrationJobRow> | null = null;
     let mode: "select" | "update" = "select";
+    // The stale-claim reaper filters on updated_at < cutoff rather than on
+    // an id, so the fake needs both .lt() and a bulk update path.
+    let ltField: string | null = null;
+    let ltVal: string | null = null;
 
     const api = {
       select(spec: string) {
@@ -42,6 +46,11 @@ function makeMockSupabase(initial: IntegrationJobRow[]) {
       lte(field: string, val: string) {
         lteField = field;
         lteVal = val;
+        return api;
+      },
+      lt(field: string, val: string) {
+        ltField = field;
+        ltVal = val;
         return api;
       },
       order(field: string, opts: { ascending: boolean }) {
@@ -81,6 +90,20 @@ function makeMockSupabase(initial: IntegrationJobRow[]) {
         return { data: null, error: null };
       },
       then(_res: (v: unknown) => unknown, _rej?: (e: unknown) => unknown) {
+        // Bulk update with no id — the stale-claim reaper.
+        if (mode === "update" && !eqVal && eqStatus && ltField) {
+          const hit: IntegrationJobRow[] = [];
+          for (const [id, r] of rows) {
+            if (r.status !== eqStatus) continue;
+            if (ltField === "updated_at" && ltVal && !(r.updated_at < ltVal)) {
+              continue;
+            }
+            const merged = { ...r, ...updateBody } as IntegrationJobRow;
+            rows.set(id, merged);
+            hit.push(merged);
+          }
+          return Promise.resolve({ data: hit, error: null }).then(_res, _rej);
+        }
         // Terminal `await` — only used by claim query batch select
         if (mode === "select" && selectSpec) {
           const list = Array.from(rows.values()).filter((r) => {

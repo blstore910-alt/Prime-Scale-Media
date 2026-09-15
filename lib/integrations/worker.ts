@@ -54,6 +54,8 @@ export type ProcessResult = {
   skipped: number;
   /** Held back by the auto-push gate — left pending, no attempt consumed. */
   blocked: number;
+  /** Abandoned 'processing' claims returned to the queue this tick. */
+  reclaimed: number;
 };
 
 // Operations that MOVE REAL MONEY at the supplier. Gated separately from
@@ -73,6 +75,50 @@ export function backoffSeconds(attempts: number): number {
   const table = [30, 60, 120, 300, 900, 1800];
   const idx = Math.min(Math.max(attempts, 0), table.length - 1);
   return table[idx];
+}
+
+// How long a claim is allowed to be held before another tick may take it
+// back. A claimed job stays "processing" for exactly as long as the function
+// invocation that took it — so anything much older than a platform timeout
+// is a job whose worker died, not one still working.
+//
+// 10 minutes: far longer than any single dispatch (the supplier call is
+// bounded at 20s), so this can never steal a job from a live worker, and
+// short enough that a funded top-up is retried within the hour.
+const CLAIM_LEASE_MS = 10 * 60 * 1000;
+
+/**
+ * Return abandoned claims to the queue.
+ *
+ * claimBatch only ever selected status='pending', and nothing anywhere put a
+ * job back. So a job flipped to 'processing' by a worker that then died —
+ * platform timeout mid-batch, a deploy swapping the function out, an
+ * unhandled throw — stayed 'processing' forever. For a push_topup that means
+ * the advertiser's money was taken and the supplier was never told, silently,
+ * with no way to requeue except editing the row by hand.
+ *
+ * The attempt is NOT refunded: the work may well have reached the supplier
+ * before the worker died, so this is a retry, and max_attempts still bounds
+ * it. A job that burns through its attempts this way ends up 'failed', which
+ * is visible, rather than 'processing', which looks like progress.
+ */
+async function reclaimStaleJobs(ctx: WorkerContext): Promise<number> {
+  const now = ctx.now?.() ?? new Date();
+  const cutoff = new Date(now.getTime() - CLAIM_LEASE_MS).toISOString();
+
+  const { data, error } = await ctx.supabase
+    .from("integration_jobs")
+    .update({ status: "pending", next_run_at: now.toISOString() })
+    .eq("status", "processing")
+    .lt("updated_at", cutoff)
+    .select("id");
+
+  if (error) {
+    // Never fail the tick over this — the normal queue must still drain.
+    console.error("reclaimStaleJobs failed:", error.message);
+    return 0;
+  }
+  return data?.length ?? 0;
 }
 
 async function claimBatch(
@@ -258,6 +304,10 @@ export async function processIntegrationJobs(
   ctx: WorkerContext,
   { batchSize = 10 }: { batchSize?: number } = {},
 ): Promise<ProcessResult> {
+  // Before claiming anything new, take back claims whose worker never came
+  // home. Runs first so a reclaimed job can be picked up in this same tick.
+  const reclaimed = await reclaimStaleJobs(ctx);
+
   const claimed = await claimBatch(ctx, batchSize);
   const summary: ProcessResult = {
     claimed: claimed.length,
@@ -266,6 +316,7 @@ export async function processIntegrationJobs(
     failed: 0,
     skipped: 0,
     blocked: 0,
+    reclaimed,
   };
   const gate = autoPushGate(ctx.env ?? process.env);
   for (const job of claimed) {
