@@ -65,18 +65,28 @@ async function syncSupplierPools(
   if (!isSupplier1Live()) return { ran: false };
   if (new Date().getUTCMinutes() % 15 !== 0) return { ran: false };
 
-  const { data: tenantRows, error } = await supabase
-    .from("supplier_ad_accounts")
-    .select("tenant_id")
-    .eq("provider", "supplier1")
-    .limit(1000);
-  if (error) return { ran: true, error: error.message };
+  // Paged and ORDERED by tenant_id. Reading the first 1000 rows unordered
+  // meant that on a pool large enough to exceed one page, a tenant whose rows
+  // all sat past row 1000 would never be discovered and so would never sync —
+  // silently, forever. Ordering makes the walk deterministic; the page cap
+  // stops a pathological pool from turning one cron tick into a full scan.
+  const PAGE = 1000;
+  const MAX_PAGES = 20;
+  const tenantSet = new Set<string>();
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await supabase
+      .from("supplier_ad_accounts")
+      .select("tenant_id")
+      .eq("provider", "supplier1")
+      .order("tenant_id", { ascending: true })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) return { ran: true, error: error.message };
+    const rows = (data ?? []) as Array<{ tenant_id: string }>;
+    for (const r of rows) tenantSet.add(r.tenant_id);
+    if (rows.length < PAGE) break;
+  }
 
-  const tenants = [
-    ...new Set(
-      ((tenantRows ?? []) as Array<{ tenant_id: string }>).map((r) => r.tenant_id),
-    ),
-  ];
+  const tenants = [...tenantSet];
   if (!tenants.length) return { ran: true, tenants: 0 };
 
   const adapter = getSupplier1Adapter();

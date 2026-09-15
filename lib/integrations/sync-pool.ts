@@ -43,18 +43,30 @@ export async function syncSupplierPool(
   // What we hold now, so the caller can be told what actually CHANGED rather
   // than just how many rows were written. "47 accounts synced" is noise; "2
   // new, 1 suspended" is the thing an admin needs to see.
-  const { data: existingRows } = await supabase
+  const { data: existingRows, error: existingError } = await supabase
     .from("supplier_ad_accounts")
     .select("external_id, status")
     .eq("tenant_id", tenantId)
     .eq("provider", "supplier1");
 
+  // If this read fails, `before` is EMPTY — and an empty before means every
+  // account the supplier returns looks brand new. On a tenant with a few
+  // hundred pooled accounts that is a notification per admin announcing
+  // hundreds of "new" accounts that have been there for weeks, every fifteen
+  // minutes for as long as the read keeps failing.
+  //
+  // So a failed read means we do not KNOW what changed, and the honest thing
+  // is to say nothing about it. The upsert below still runs — refreshing the
+  // mirror matters more than reporting on it.
+  const knowsBefore = !existingError;
   const before = new Map<string, string | null>();
-  for (const r of (existingRows ?? []) as Array<{
-    external_id: string;
-    status: string | null;
-  }>) {
-    before.set(r.external_id, r.status ?? null);
+  if (knowsBefore) {
+    for (const r of (existingRows ?? []) as Array<{
+      external_id: string;
+      status: string | null;
+    }>) {
+      before.set(r.external_id, r.status ?? null);
+    }
   }
 
   const nowIso = new Date().toISOString();
@@ -72,7 +84,9 @@ export async function syncSupplierPool(
 
   for (const a of accounts) {
     if (!a.external_id) continue;
-    if (!before.has(a.external_id)) {
+    if (!knowsBefore) {
+      // Deliberately reports nothing rather than everything.
+    } else if (!before.has(a.external_id)) {
       newExternalIds.push(a.external_id);
     } else if ((before.get(a.external_id) ?? null) !== (a.status ?? null)) {
       statusChanges.push({
