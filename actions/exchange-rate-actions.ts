@@ -129,16 +129,59 @@ export async function upsertExchangeRate(
     return { ok: false, error: "Rate values out of range" };
   }
 
-  const { error } = await supabase.from("exchange_rates").upsert({
+  const makeActive = input.is_active ?? true;
+
+  // Every reader of this table does
+  //   .eq("tenant_id", …).eq("is_active", true).maybeSingle()
+  // so the tenant may have exactly ONE active row. The upsert below has no
+  // conflict target and the payload carries no id, so it INSERTS — saving
+  // rates a second time left two rows active, and from that moment
+  // maybeSingle() returned PGRST116 ("more than one row") to every caller:
+  // the top-up calculator, the fee preview, the request form. The app stops
+  // being able to convert currency at all, and the only visible symptom is
+  // things quietly failing elsewhere.
+  //
+  // So: stand the new row down over the old one, explicitly, first. Two
+  // statements rather than one — if the deactivate succeeds and the write
+  // then fails, the tenant is left with NO active row, which every reader
+  // already handles (maybeSingle returns null) and which is recoverable by
+  // saving again. The other order could leave two active rows, which is the
+  // state we are removing.
+  if (makeActive) {
+    const { error: standDownError } = await supabase
+      .from("exchange_rates")
+      .update({ is_active: false })
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true);
+    if (standDownError) return { ok: false, error: standDownError.message };
+  }
+
+  // Update the tenant's row for this currency if it exists, insert if not.
+  // There is no unique constraint on (tenant_id, currency) in the repo
+  // migrations to conflict-target, so this is done by hand.
+  const { data: existing } = await supabase
+    .from("exchange_rates")
+    .select("id")
+    .eq("tenant_id", profile.tenant_id)
+    .eq("currency", currency)
+    .limit(1)
+    .maybeSingle();
+
+  const row = {
     currency,
     eur: input.eur,
     gbp: input.gbp,
     hkd: input.hkd,
-    is_active: input.is_active ?? true,
+    is_active: makeActive,
     tenant_id: profile.tenant_id,
     updated_by: profile.user_id,
     updated_at: new Date().toISOString(),
-  });
+  };
+
+  const { error } = existing?.id
+    ? await supabase.from("exchange_rates").update(row).eq("id", existing.id)
+    : await supabase.from("exchange_rates").insert(row);
+
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: null };
 }

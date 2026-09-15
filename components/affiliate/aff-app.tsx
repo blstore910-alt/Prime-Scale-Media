@@ -134,6 +134,11 @@ export default function AffiliateApp() {
   // Tier progression counts BOTH currencies — a USD-paid affiliate was
   // otherwise stuck at Starter with €0. (Combined figure mirrors the sibling
   // affiliate-dashboard; the headline shows each currency separately below.)
+  // The earnings read failed, or has not landed yet. Either way the totals
+  // below are 0 because there is nothing to add up — not because nothing was
+  // earned — so every screen that states a figure has to say so instead.
+  const statsUnavailable = all.isError || all.isLoading;
+
   const lifetimeCombined = lifetimeEur + lifetimeUsd;
   const tierIndex = useMemo(() => {
     let idx = 0;
@@ -457,25 +462,46 @@ export default function AffiliateApp() {
                 <p className="eyebrow">
                   <Ic name="i-spark" /> Your total earnings
                 </p>
-                <h1 className="jackpot" onClick={() => go("pay")}>
-                  <span className="cur">€</span>
-                  {Math.round(lifetimeEur).toLocaleString("nl-NL")}
-                </h1>
-                <div className="hero-tiles">
-                  <div className="ht" onClick={() => go("refs")}>
-                    <Ic name="i-users" className="ic hti" />
-                    <div className="v">{referredCount}</div>
-                    <div className="l">Referred</div>
-                  </div>
-                  <div className="ht win" onClick={() => go("refs")}>
-                    <Ic name="i-trend" className="ic hti" />
-                    <div className="v">{activeCount}</div>
-                    <div className="l">Active now</div>
-                  </div>
-                </div>
-                <span className="rise-pill" onClick={() => go("pay")}>
-                  <Ic name="i-trend" /> +{eur(monthEur)} this month
-                </span>
+                {/* When the stats read fails, `rows` is [] and every total
+                    reduces to 0 — so this hero told an affiliate they had
+                    earned nothing, referred nobody and had nobody active,
+                    and the tier calculation below demoted them to Starter.
+                    All from a dropped connection. That is the single worst
+                    screen in the app to be confidently wrong on, because it
+                    is the one an affiliate opens to see what they are owed. */}
+                {statsUnavailable ? (
+                  <>
+                    <h1 className="jackpot">
+                      <span className="cur">€</span>—
+                    </h1>
+                    <p className="eyebrow" style={{ opacity: 0.9 }}>
+                      We couldn&apos;t load your earnings just now. This is NOT
+                      a zero — pull down to retry.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="jackpot" onClick={() => go("pay")}>
+                      <span className="cur">€</span>
+                      {Math.round(lifetimeEur).toLocaleString("nl-NL")}
+                    </h1>
+                    <div className="hero-tiles">
+                      <div className="ht" onClick={() => go("refs")}>
+                        <Ic name="i-users" className="ic hti" />
+                        <div className="v">{referredCount}</div>
+                        <div className="l">Referred</div>
+                      </div>
+                      <div className="ht win" onClick={() => go("refs")}>
+                        <Ic name="i-trend" className="ic hti" />
+                        <div className="v">{activeCount}</div>
+                        <div className="l">Active now</div>
+                      </div>
+                    </div>
+                    <span className="rise-pill" onClick={() => go("pay")}>
+                      <Ic name="i-trend" /> +{eur(monthEur)} this month
+                    </span>
+                  </>
+                )}
               </div>
             </section>
             <div className="stats">
@@ -827,9 +853,20 @@ export default function AffiliateApp() {
                   and we settle it to your account.
                 </div>
                 <div className="bactions">
+                  {/* Disabled while the balance is unknown. The payout mail
+                      is composed from these totals, so with a failed read it
+                      would have sent a request for €0 — a message that
+                      cannot be acted on and looks, to whoever receives it,
+                      like the affiliate is owed nothing. */}
                   <button
                     className="btn gold"
                     onClick={() => setPayOpen(true)}
+                    disabled={statsUnavailable}
+                    title={
+                      statsUnavailable
+                        ? "Your balance couldn't be loaded — reload before requesting a payout."
+                        : undefined
+                    }
                   >
                     <Ic name="i-download" /> Request payout
                   </button>

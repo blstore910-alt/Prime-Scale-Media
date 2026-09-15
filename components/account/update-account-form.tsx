@@ -463,9 +463,9 @@ export default function UpdateAccountForm({
         </div>
       </form>
       <DialogFooter className="mt-4">
-        <Button type="submit" form="update-account-form">
+        <Button type="submit" form="update-account-form" disabled={isPending}>
           {isPending && <Loader2 className="animate-spin" />}
-          <span>Update Account</span>
+          <span>{isPending ? "Saving…" : "Update Account"}</span>
         </Button>
       </DialogFooter>
     </>

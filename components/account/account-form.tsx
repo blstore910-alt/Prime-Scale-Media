@@ -517,9 +517,16 @@ export default function AccountForm({
         </div>
       </form>
       <DialogFooter className="mt-4">
-        <Button type="submit" form="account-form">
+        {/* disabled, not just a spinner. The handler is sync, so RHF's
+            isSubmitting is already false during the round trip, and
+            react-query builds a fresh mutation per .mutate() call — so a
+            second click on a slow connection ran createAdAccountAsAdmin
+            twice. That action is a bare INSERT with no idempotency key, so
+            the advertiser ended up with two identical ad accounts and the
+            top-ups afterwards split across them. */}
+        <Button type="submit" form="account-form" disabled={isPending}>
           {isPending && <Loader2 className="animate-spin" />}
-          <span>Create Account</span>
+          <span>{isPending ? "Creating…" : "Create Account"}</span>
         </Button>
       </DialogFooter>
     </>

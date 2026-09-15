@@ -65,6 +65,21 @@ export function useSystemStatus() {
           .eq("status", "pending"),
       ]);
 
+      // Promise.all resolves even when an individual query carries an
+      // .error, so `count ?? 0` turned an RLS denial or a dropped connection
+      // into "nothing is pending" — on the panel an owner opens specifically
+      // to check whether anything is pending. Fail loudly instead; the panel
+      // reads isError and says so.
+      const failed = [
+        activeAdmins,
+        auditEvents24h,
+        totalAudit,
+        walletTopups,
+        adRequests,
+        topUps,
+      ].find((r) => r.error);
+      if (failed?.error) throw failed.error;
+
       return {
         activeAdmins24h: activeAdmins.count ?? 0,
         auditEvents24h: auditEvents24h.count ?? 0,

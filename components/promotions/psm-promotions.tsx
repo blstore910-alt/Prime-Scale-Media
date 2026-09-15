@@ -129,10 +129,23 @@ export default function PsmPromotions() {
   const grant = useMutation({
     mutationFn: async () => {
       if (!advertiserId) throw new Error("Pick an advertiser.");
+      // A discount perk with a blank amount used to fall through `|| 0` and
+      // be granted as 0% off — then report "Perk granted." The advertiser
+      // carries a live perk worth nothing, and the admin believes they gave
+      // one. An empty field is a mistake, not a zero.
+      if (isDiscount) {
+        const parsed = Number(amount);
+        if (!amount.trim() || !Number.isFinite(parsed) || parsed <= 0) {
+          throw new Error("Enter a discount percentage above 0.");
+        }
+        if (parsed > 100) {
+          throw new Error("A discount cannot exceed 100%.");
+        }
+      }
       const res = await grantPerk({
         advertiser_id: advertiserId,
         kind,
-        amount: isDiscount ? Number(amount) || 0 : null,
+        amount: isDiscount ? Number(amount) : null,
         remaining: isCount ? Number(count) || 1 : null,
         expires_at: expires
           ? new Date(`${expires}T23:59:59`).toISOString()
