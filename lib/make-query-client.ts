@@ -33,6 +33,11 @@ export function makeQueryClient() {
     // is still better where it matters; this is the floor beneath them.
     queryCache: new QueryCache({
       onError: (error, query) => {
+        // Background probes (health polling) opt out: their failure is not
+        // something the user can act on, and a toast for it would train
+        // people to dismiss the toasts that do matter.
+        if (query.meta?.silent) return;
+
         const key = JSON.stringify(query.queryKey);
         const now = Date.now();
         const last = lastToastAt.get(key) ?? 0;

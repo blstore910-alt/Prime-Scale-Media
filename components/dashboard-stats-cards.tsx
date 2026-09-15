@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useStatsDataset } from "@/hooks/use-stats-batch";
 import dayjs from "dayjs";
 import {
   CalendarIcon,
@@ -67,15 +67,6 @@ interface StatsResponse {
   };
 }
 
-async function fetchStats(): Promise<StatsResponse> {
-  const res = await fetch("/api/stats");
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch stats");
-  }
-
-  return res.json();
-}
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US").format(Math.floor(value));
@@ -179,18 +170,14 @@ export function DashboardStatsCards() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date | undefined>();
   const isAdminDashboard = profile?.role === "admin" && !isSuperAdmin;
-  const showFullDashboard = !isAdminDashboard;
 
+  // Rides the same batched request as the period cards below, so the whole
+  // dashboard costs one round trip instead of five.
   const {
     data: stats,
     isLoading: isStatsLoading,
     isError: isStatsError,
-  } = useQuery({
-    queryKey: ["stats", "overview"],
-    queryFn: fetchStats,
-    enabled: showFullDashboard,
-    staleTime: 1000 * 60 * 5,
-  });
+  } = useStatsDataset<StatsResponse>("summary", period, dateRange);
 
   const isMobile = useIsMobile();
 

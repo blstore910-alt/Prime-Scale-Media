@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useStatsDataset } from "@/hooks/use-stats-batch";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import {
@@ -20,7 +20,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   DashboardDateRange,
   DashboardPeriod,
-  getPeriodRange,
 } from "@/lib/dashboard-period";
 import { formatCurrency } from "@/lib/utils";
 
@@ -57,20 +56,6 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-async function fetchSubscriptionsStats(
-  period: DashboardPeriod,
-  dateRange?: DashboardDateRange,
-): Promise<SubscriptionsStatsResponse> {
-  const { from, to } = getPeriodRange(period, dateRange);
-  const searchParams = new URLSearchParams({ from, to });
-  const res = await fetch(
-    `/api/stats/subscriptions?${searchParams.toString()}`,
-  );
-  if (!res.ok) {
-    throw new Error("Failed to fetch subscriptions stats");
-  }
-  return res.json();
-}
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(Math.floor(value));
@@ -83,17 +68,13 @@ export function SubscriptionsStatsCard({
   period: DashboardPeriod;
   dateRange?: DashboardDateRange;
 }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: [
-      "stats",
-      "subscriptions",
-      period,
-      dateRange?.from?.toISOString(),
-      dateRange?.to?.toISOString(),
-    ],
-    queryFn: () => fetchSubscriptionsStats(period, dateRange),
-    staleTime: 1000 * 60 * 5,
-  });
+  // One shared batched request feeds every card on this dashboard —
+  // see hooks/use-stats-batch.ts for why.
+  const { data, isLoading, isError } = useStatsDataset<SubscriptionsStatsResponse>(
+    "subscriptions",
+    period,
+    dateRange,
+  );
 
   if (isLoading) {
     return (
