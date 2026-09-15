@@ -150,10 +150,10 @@ export default function PsmAdvertisers() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Advertisers</h1>
-          <p>Every advertiser on your tenant — plans, wallet topups and status.</p>
+          <p>Plans, wallet topups and status.</p>
         </div>
       </div>
 

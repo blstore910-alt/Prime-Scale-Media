@@ -83,8 +83,12 @@ export const PSM_APP_CSS = `
    on every other admin page. */
 .psmapp .phead-actions{align-items:center;flex-wrap:nowrap;gap:10px}
 .psmapp .phead-actions .ptxt{flex:1 1 auto;min-width:0}
-.psmapp .phead-actions .pacts{flex:0 0 auto;display:flex;gap:8px;align-items:center}
-.psmapp .phead-actions .pacts .btn{white-space:nowrap}
+/* A page with two header actions can run out of room before the title does.
+   Letting the action group shrink — and its buttons ellipsize — keeps the
+   header on ONE row instead of wrapping the buttons underneath, which is the
+   92px header this replaced. */
+.psmapp .phead-actions .pacts{flex:0 1 auto;min-width:0;display:flex;gap:8px;align-items:center}
+.psmapp .phead-actions .pacts .btn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Row actions: equal-width buttons on ONE line. Buttons of different widths
    wrapping onto a second row was the single most repeated ugliness in the

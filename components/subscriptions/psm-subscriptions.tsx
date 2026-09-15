@@ -1,6 +1,7 @@
 "use client";
 
 import { DATE_FORMAT } from "@/lib/constants";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { formatCurrency } from "@/lib/utils";
 import dayjs from "dayjs";
 import {
@@ -100,14 +101,16 @@ export default function PsmSubscriptions() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Subscriptions</h1>
-          <p>Recurring monthly plans — change the amount, pause, or disable.</p>
+          <p>Recurring monthly plans.</p>
         </div>
-        <button className="btn grad" onClick={() => setIsCreateOpen(true)}>
-          <Plus /> New Subscription
-        </button>
+        <div className="pacts">
+          <button className="btn grad" onClick={() => setIsCreateOpen(true)}>
+            <Plus /> <span className="blab">New Subscription</span>
+          </button>
+        </div>
       </div>
 
       <div className="fbar">
@@ -119,17 +122,27 @@ export default function PsmSubscriptions() {
             placeholder="Search advertiser…"
           />
         </label>
-        <select
-          value={status}
-          onChange={(e) =>
-            setStatus(e.target.value as SubscriptionStatus | "all")
-          }
-        >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="paused">Paused</option>
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: (v) => setStatus(v as SubscriptionStatus | "all"),
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+                { value: "paused", label: "Paused" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("all");
+            setSearch("");
+          }}
+        />
         <input
           type="date"
           value={date}

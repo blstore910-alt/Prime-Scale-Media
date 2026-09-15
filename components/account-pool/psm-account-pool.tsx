@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, Search, UserPlus, Undo2 } from "lucide-react";
@@ -303,19 +304,16 @@ export default function PsmAccountPool() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Ad Account Pool</h1>
-          <p>
-            Every ad account the supplier has provisioned to us. Unassigned ones
-            are free inventory — allocate them to an advertiser.
-          </p>
+          <p>Unassigned accounts are free inventory.</p>
         </div>
         {/* .pactions lets the two buttons share one row on a phone instead of
             stacking into ~90px of header. The long half of each label is in a
             .lbl-long span the shell hides under 560px — the icon plus the
             short word still says what it does. */}
-        <div className="pactions">
+        <div className="pacts">
           <button className="btn ghost" onClick={() => setAddOpen(true)}>
             <UserPlus /> Add <span className="lbl-long">manual account</span>
           </button>
@@ -349,30 +347,42 @@ export default function PsmAccountPool() {
             placeholder="Search name, supplier ID, BM ID…"
           />
         </label>
-        <select
-          aria-label="Allocation status"
-          value={filter}
-          onChange={(e) =>
-            setFilter(e.target.value as SupplierAdAccountFilter)
-          }
-        >
-          <option value="unassigned">
-            Unassigned ({counts.unassigned})
-          </option>
-          <option value="assigned">Allocated ({counts.assigned})</option>
-          <option value="all">All ({counts.all})</option>
-        </select>
-        <select
-          aria-label="Source"
-          value={source}
-          onChange={(e) =>
-            setSource(e.target.value as "all" | "supplier1" | "manual")
-          }
-        >
-          <option value="all">All sources</option>
-          <option value="supplier1">SeamX</option>
-          <option value="manual">Manual (ours)</option>
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "alloc",
+              label: "Allocation status",
+              value: filter,
+              // "unassigned" is this screen's working default — the pool is
+              // what you have LEFT to allocate — so the badge treats anything
+              // else as narrowing, and Reset brings you back to it.
+              allValue: "unassigned",
+              onChange: (v) => setFilter(v as SupplierAdAccountFilter),
+              options: [
+                { value: "unassigned", label: `Unassigned (${counts.unassigned})` },
+                { value: "assigned", label: `Allocated (${counts.assigned})` },
+                { value: "all", label: `All (${counts.all})` },
+              ],
+            },
+            {
+              id: "source",
+              label: "Source",
+              value: source,
+              onChange: (v) => setSource(v as "all" | "supplier1" | "manual"),
+              options: [
+                { value: "all", label: "All sources" },
+                { value: "supplier1", label: "SeamX" },
+                { value: "manual", label: "Manual (ours)" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setFilter("unassigned" as SupplierAdAccountFilter);
+            setSource("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       {pool.isLoading ? (

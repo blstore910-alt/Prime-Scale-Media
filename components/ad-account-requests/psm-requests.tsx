@@ -1,6 +1,7 @@
 "use client";
 
 import { PLATFORMS } from "@/lib/constants";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -142,10 +143,10 @@ export default function PsmRequests() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Account Requests</h1>
-          <p>Approve to set up on our Business Manager (live in 3–12h).</p>
+          <p>Requests waiting on you.</p>
         </div>
       </div>
 
@@ -158,22 +159,37 @@ export default function PsmRequests() {
             placeholder="Search requests…"
           />
         </label>
-        <select value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="newest">Sort: Newest</option>
-          <option value="oldest">Oldest</option>
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="payment_pending">Payment pending</option>
-          <option value="in_progress">In progress</option>
-          <option value="completed">Completed</option>
-          <option value="rejected">Rejected</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        <PsmSortFilter
+          sort={sort}
+          onSortChange={setSort}
+          sortOptions={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+          ]}
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "pending", label: "Pending" },
+                { value: "payment_pending", label: "Payment pending" },
+                { value: "in_progress", label: "In progress" },
+                { value: "completed", label: "Completed" },
+                { value: "rejected", label: "Rejected" },
+                { value: "cancelled", label: "Cancelled" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setSort("newest");
+            setStatusFilter("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       {isLoading ? (

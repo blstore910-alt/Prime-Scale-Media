@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
 import dayjs from "dayjs";
 import { Parser } from "json2csv";
@@ -140,10 +141,10 @@ export default function PsmInvoicesView() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Invoices</h1>
-          <p>View and download all invoices for your account.</p>
+          <p>View and download your invoices.</p>
         </div>
       </div>
 
@@ -156,23 +157,48 @@ export default function PsmInvoicesView() {
             placeholder="Search invoice no…"
           />
         </label>
-        <select value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="newest">Sort: Newest</option>
-          <option value="oldest">Oldest</option>
-          <option value="amount_desc">Amount ↓</option>
-          <option value="amount_asc">Amount ↑</option>
-        </select>
-        <select value={range} onChange={(e) => setRange(e.target.value)}>
-          <option value="all">All dates</option>
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="month">This month</option>
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="paid">Paid</option>
-          <option value="unpaid">Unpaid</option>
-        </select>
+        <PsmSortFilter
+          sort={sort}
+          onSortChange={setSort}
+          sortOptions={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+            { value: "amount_desc", label: "Amount — highest first" },
+            { value: "amount_asc", label: "Amount — lowest first" },
+          ]}
+          filters={[
+            {
+              id: "range",
+              label: "Date range",
+              value: range,
+              onChange: setRange,
+              options: [
+                { value: "all", label: "All dates" },
+                { value: "7", label: "Last 7 days" },
+                { value: "30", label: "Last 30 days" },
+                { value: "month", label: "This month" },
+              ],
+            },
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: setStatus,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "paid", label: "Paid" },
+                { value: "unpaid", label: "Unpaid" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setSort("newest");
+            setRange("all");
+            setStatus("all");
+            setSearch("");
+          }}
+        />
         <button className="fexp" onClick={exportCsv}>
           <Download /> Export
         </button>
