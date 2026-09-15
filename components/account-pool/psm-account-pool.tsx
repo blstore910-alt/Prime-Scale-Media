@@ -134,6 +134,10 @@ export default function PsmAccountPool() {
   const [advertiserId, setAdvertiserId] = useState("");
   const [feeInput, setFeeInput] = useState("");
   const [source, setSource] = useState<"all" | "supplier1" | "manual">("all");
+  // The supplier's own status for the account: active, paused, or suspended
+  // (what a ban looks like on their side). Worth filtering on, because a
+  // suspended account in the pool is inventory you must NOT allocate.
+  const [supplierStatus, setSupplierStatus] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [supplierFeeInput, setSupplierFeeInput] = useState("");
@@ -281,6 +285,16 @@ export default function PsmAccountPool() {
       if (filter === "unassigned" && r.advertiser_id) return false;
       if (filter === "assigned" && !r.advertiser_id) return false;
       if (source !== "all" && (r.provider ?? "supplier1") !== source) return false;
+      if (supplierStatus !== "all") {
+        const st = (r.status ?? "unknown").toLowerCase();
+        if (supplierStatus === "unhealthy") {
+          // Anything that is not plainly usable, in one click — which is what
+          // you actually want to see before allocating anything.
+          if (st === "active") return false;
+        } else if (st !== supplierStatus) {
+          return false;
+        }
+      }
       if (!term) return true;
       return (
         (r.name ?? "").toLowerCase().includes(term) ||
@@ -288,7 +302,7 @@ export default function PsmAccountPool() {
         (r.bm_id ?? "").toLowerCase().includes(term)
       );
     });
-  }, [pool.data, filter, search, source]);
+  }, [pool.data, filter, search, source, supplierStatus]);
 
   const counts = useMemo(() => {
     const all = pool.data ?? [];
@@ -365,6 +379,19 @@ export default function PsmAccountPool() {
               ],
             },
             {
+              id: "supplierStatus",
+              label: "Account status",
+              value: supplierStatus,
+              onChange: setSupplierStatus,
+              options: [
+                { value: "all", label: "Any status" },
+                { value: "active", label: "Active" },
+                { value: "paused", label: "Paused" },
+                { value: "suspended", label: "Suspended / banned" },
+                { value: "unhealthy", label: "Anything not active" },
+              ],
+            },
+            {
               id: "source",
               label: "Source",
               value: source,
@@ -380,6 +407,7 @@ export default function PsmAccountPool() {
           onReset={() => {
             setFilter("unassigned" as SupplierAdAccountFilter);
             setSource("all");
+            setSupplierStatus("all");
             setSearch("");
           }}
         />

@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isSupplier1Live } from "@/lib/integrations/autopush";
+import { syncSupplierPool } from "@/lib/integrations/sync-pool";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
 import { processIntegrationJobs } from "@/lib/integrations/worker";
@@ -36,6 +37,101 @@ const LOW_BALANCE_THRESHOLD = 8000;
 // to once / 24h per recipient+currency, so it never spams. Trusted server
 // context (service_role) — a direct notifications insert is the same pattern
 // the billing/perks crons use.
+/**
+ * Keep the ad-account pool fresh without anyone pressing Sync.
+ *
+ * The pool was only ever as current as the last manual click, so a new
+ * supplier account, or one they suspended, was invisible until someone
+ * happened to look. That is the wrong way round: the whole reason to mirror
+ * their inventory is to be told about it.
+ *
+ * Every 15 minutes rather than every minute. The supplier's inventory changes
+ * on a human timescale — accounts are provisioned and banned in ones, not in
+ * bursts — and a minute-by-minute list call on someone else's API for a
+ * number that rarely moves is rude and buys nothing. Four calls an hour.
+ *
+ * This is a READ, so it runs on SUPPLIER1_MODE=live alone and is deliberately
+ * NOT behind the auto-push gate: knowing what inventory exists is exactly the
+ * thing we want working long before we trust the write path.
+ *
+ * Tenants are taken from the pool itself. The supplier credentials are one
+ * set of env vars for the whole deployment, so the inventory belongs to
+ * whichever tenant already mirrors it; a tenant that has never synced has
+ * nothing to refresh and is reached by the Sync button instead.
+ */
+async function syncSupplierPools(
+  supabase: Pick<SupabaseClient, "from">,
+): Promise<{ ran: boolean; tenants?: number; newAccounts?: number; statusChanges?: number; error?: string }> {
+  if (!isSupplier1Live()) return { ran: false };
+  if (new Date().getUTCMinutes() % 15 !== 0) return { ran: false };
+
+  const { data: tenantRows, error } = await supabase
+    .from("supplier_ad_accounts")
+    .select("tenant_id")
+    .eq("provider", "supplier1")
+    .limit(1000);
+  if (error) return { ran: true, error: error.message };
+
+  const tenants = [
+    ...new Set(
+      ((tenantRows ?? []) as Array<{ tenant_id: string }>).map((r) => r.tenant_id),
+    ),
+  ];
+  if (!tenants.length) return { ran: true, tenants: 0 };
+
+  const adapter = getSupplier1Adapter();
+  let newAccounts = 0;
+  let statusChanges = 0;
+
+  for (const tenantId of tenants) {
+    const res = await syncSupplierPool(supabase, adapter, tenantId);
+    if (!res.ok) {
+      console.error("pool sync failed:", res.error);
+      continue;
+    }
+    newAccounts += res.data.newExternalIds.length;
+    statusChanges += res.data.statusChanges.length;
+
+    // Only tell anyone when something actually changed. A notification every
+    // fifteen minutes saying "nothing happened" is a notification nobody
+    // reads, and then neither is the one that matters.
+    if (res.data.newExternalIds.length || res.data.statusChanges.length) {
+      const parts: string[] = [];
+      if (res.data.newExternalIds.length) {
+        parts.push(`${res.data.newExternalIds.length} new ad account(s) in the pool`);
+      }
+      for (const c of res.data.statusChanges.slice(0, 5)) {
+        parts.push(`${c.externalId}: ${c.from ?? "unknown"} → ${c.to ?? "unknown"}`);
+      }
+      try {
+        const { data: admins } = await supabase
+          .from("user_profiles")
+          .select("user_id")
+          .eq("tenant_id", tenantId)
+          .eq("role", "admin")
+          .limit(20);
+        for (const a of (admins ?? []) as Array<{ user_id: string }>) {
+          await supabase.from("notifications").insert({
+            recipient_user_id: a.user_id,
+            tenant_id: tenantId,
+            type: "supplier_pool_changed",
+            payload: {
+              new_accounts: res.data.newExternalIds.length,
+              status_changes: res.data.statusChanges.length,
+              summary: parts.join(" · "),
+            },
+            is_read: false,
+          });
+        }
+      } catch (err) {
+        console.error("pool notify failed:", err instanceof Error ? err.message : "unknown");
+      }
+    }
+  }
+
+  return { ran: true, tenants: tenants.length, newAccounts, statusChanges };
+}
+
 async function checkSupplierBalance(
   supabase: Pick<SupabaseClient, "from">,
 ): Promise<{ checked: boolean; low?: string[]; error?: string }> {
@@ -189,6 +285,15 @@ export async function GET(req: NextRequest) {
       },
       { batchSize: 10 },
     );
+    let poolSync;
+    try {
+      poolSync = await syncSupplierPools(supabase);
+    } catch (err) {
+      poolSync = {
+        ran: true,
+        error: err instanceof Error ? err.message : "pool sync failed",
+      };
+    }
     let supplierBalance;
     try {
       supplierBalance = await checkSupplierBalance(supabase);
@@ -210,6 +315,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       ...summary,
+      poolSync,
       supplierBalance,
       rateLimitAbuse,
     });

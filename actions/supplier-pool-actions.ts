@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { syncSupplierPool } from "@/lib/integrations/sync-pool";
 import { cookies } from "next/headers";
 import { checkVersion, maintenanceGuard, type ActionResult } from "./_shared";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
@@ -76,63 +77,27 @@ export async function syncSupplierAdAccounts(): Promise<
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
-  const adapter = getSupplier1Adapter();
-  const res = await adapter.listAdAccounts();
-  if (!res.ok) {
-    return { ok: false, error: `Supplier sync failed: ${res.error}` };
-  }
+  // The work itself lives in lib/integrations/sync-pool.ts so the scheduled
+  // run and this button do exactly the same thing. They used to diverge: the
+  // worker's sync_ad_accounts job fetched the list and wrote nothing.
+  const res = await syncSupplierPool(
+    supabase,
+    getSupplier1Adapter(),
+    profile.tenant_id,
+  );
+  if (!res.ok) return { ok: false, error: res.error };
 
-  const accounts = res.data ?? [];
-  if (accounts.length === 0) {
-    return { ok: true, data: { fetched: 0, upserted: 0 } };
-  }
+  const { fetched, upserted, newExternalIds, statusChanges } = res.data;
+  const notes: string[] = [];
+  if (newExternalIds.length) notes.push(`${newExternalIds.length} new`);
+  if (statusChanges.length) notes.push(`${statusChanges.length} changed status`);
 
-  const nowIso = new Date().toISOString();
-
-  // De-duplicate on external_id BEFORE writing. supabase-js sends an upsert as
-  // one INSERT … ON CONFLICT DO UPDATE, and Postgres aborts the whole
-  // statement with 21000 ("cannot affect row a second time") if the payload
-  // names the same conflict key twice — so one duplicated row from the
-  // supplier's pagination would discard every good row with it. The adapter
-  // pages until page >= total_pages with no de-dup of its own, so drift from a
-  // supplier-side insert mid-sync is enough to trigger it. Last write wins.
-  const byExternalId = new Map<string, Record<string, unknown>>();
-  for (const a of accounts) {
-    if (!a.external_id) continue;
-    byExternalId.set(a.external_id, {
-      tenant_id: profile.tenant_id,
-      provider: "supplier1",
-      external_id: a.external_id,
-      name: a.name ?? null,
-      bm_id: a.bm_id ?? null,
-      platform: a.platform ?? null,
-      currency: a.currency ?? null,
-      timezone: a.timezone ?? null,
-      status: a.status ?? null,
-      fee_percentage: a.fee_percentage ?? null,
-      balance_cents: a.balance_cents ?? null,
-      supplier_assigned_to: a.assigned_to ?? null,
-      raw: a as unknown as Record<string, unknown>,
-      synced_at: nowIso,
-    });
-  }
-  const rows = [...byExternalId.values()];
-
-  // Chunked so a large inventory doesn't become one oversized statement.
-  const CHUNK = 500;
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const { error } = await supabase
-      .from("supplier_ad_accounts")
-      .upsert(rows.slice(i, i + CHUNK), {
-        onConflict: "tenant_id,provider,external_id",
-      });
-    if (error) {
-      console.error("supplier pool upsert failed:", safeErrorMessage(error));
-      return { ok: false, error: error.message };
-    }
-  }
-
-  return { ok: true, data: { fetched: accounts.length, upserted: rows.length } };
+  return {
+    ok: true,
+    data: { fetched, upserted },
+    // "47 accounts synced" is noise. What changed is the thing worth saying.
+    warning: notes.length ? notes.join(", ") : undefined,
+  };
 }
 
 // ─────────────────────────────────────────
