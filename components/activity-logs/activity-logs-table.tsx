@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { customerLabel } from "@/lib/display-name";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { Eye, Search } from "lucide-react";
 import { ACTIVITY_LOG_ACTIONS } from "@/lib/activity-log-actions";
 // TODO(activity-logs): re-add ACTIVITY_LOG_DB_ACTIONS + setDbAction wiring
@@ -36,46 +40,40 @@ function dbActionBadge(dbAction?: string | null) {
 // Activity logs list, ported to the mockup look. Reuses the real
 // useActivityLogs data hook + the real details sheet — presentation only.
 /**
- * What the entry is ABOUT.
+ * What the entry is ABOUT: the record, and the customer it belongs to.
  *
  * The row said who did it and what kind of thing they did — "Bart · Ad
- * Account Created" — and then stopped. Which ad account? The snapshot and the
- * table name were both fetched and neither was shown, so the only way to find
- * out was to open every entry one at a time.
+ * Account Created" — and then stopped. Which ad account? Whose subscription?
+ * data_snapshot, table_name and reference_record_id were all being fetched
+ * and none of them shown, so the only way to find out was to open every entry
+ * one at a time.
  *
- * Picks the most human field the snapshot happens to carry, in the order a
- * person would recognise it, and falls back to the table plus a short id
- * rather than to nothing.
+ * Two parts, because they answer two different questions:
+ *   record   — the thing itself, when it has a name of its own
+ *   customer — "PSM0002 · john doe", resolved from the snapshot's
+ *              advertiser_id, which is the only identity most snapshots carry
+ *
+ * A subscription has no name, so its subject IS the customer — showing
+ * "€150.00" there answered the wrong question entirely.
  */
-function subjectOf(log: {
-  table_name?: string | null;
-  reference_record_id?: string | null;
-  data_snapshot?: unknown;
-}): string {
-  const snap = (log.data_snapshot ?? {}) as Record<string, unknown>;
-  const pick = [
-    "name",
-    "account_name",
-    "full_name",
-    "title",
-    "invoice_no",
-    "reference",
-    "tenant_client_code",
-    "email",
-  ];
-  for (const k of pick) {
+function recordLabel(snap: Record<string, unknown>): string | null {
+  for (const k of ["name", "account_name", "title", "invoice_no", "reference"]) {
     const v = snap[k];
     if (typeof v === "string" && v.trim()) return v.trim();
   }
-  // An amount is the next most recognisable thing on a money row.
+  return null;
+}
+
+function amountLabel(snap: Record<string, unknown>): string | null {
   const amount = snap.amount ?? snap.total ?? snap.topup_amount;
+  if (amount == null || !Number.isFinite(Number(amount))) return null;
   const currency = typeof snap.currency === "string" ? snap.currency : "";
-  if (amount != null && Number.isFinite(Number(amount))) {
-    return `${currency} ${Number(amount).toFixed(2)}`.trim();
-  }
-  const table = (log.table_name ?? "record").replace(/_/g, " ");
-  const id = (log.reference_record_id ?? "").slice(0, 8);
-  return id ? `${table} ${id}` : table;
+  return `${currency} ${Number(amount).toFixed(2)}`.trim();
+}
+
+function advertiserIdOf(snap: Record<string, unknown>): string | null {
+  const v = snap.advertiser_id;
+  return typeof v === "string" && v ? v : null;
 }
 
 export default function ActivityLogsTable() {
@@ -95,6 +93,42 @@ export default function ActivityLogsTable() {
     dbAction,
     page,
     perPage,
+  });
+
+  // Resolve the advertiser_id most snapshots carry into something a person
+  // can read. One query for the ids on THIS page only — the page is at most
+  // a few dozen rows, and doing it per row would be a request per record.
+  const advertiserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const l of (logs ?? []) as ActivityLog[]) {
+      const id = advertiserIdOf((l.data_snapshot ?? {}) as Record<string, unknown>);
+      if (id) ids.add(id);
+    }
+    return [...ids];
+  }, [logs]);
+
+  const { data: customerById } = useQuery({
+    queryKey: ["activity-log-customers", advertiserIds],
+    enabled: advertiserIds.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertisers")
+        .select("id, tenant_client_code, profile:user_profiles(full_name)")
+        .in("id", advertiserIds);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const row of (data ?? []) as Array<{
+        id: string;
+        tenant_client_code: string | null;
+        profile: { full_name: string | null } | { full_name: string | null }[] | null;
+      }>) {
+        const prof = Array.isArray(row.profile) ? row.profile[0] : row.profile;
+        map[row.id] = customerLabel(row.tenant_client_code, prof?.full_name);
+      }
+      return map;
+    },
   });
 
   // Narrow the already-fetched page of logs by the actor (author) who
@@ -133,17 +167,25 @@ export default function ActivityLogsTable() {
             aria-label="Filter by user"
           />
         </label>
-        <select
-          value={action}
-          onChange={(e) => setAction(e.target.value)}
-          aria-label="Action"
-        >
-          {actionOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "action",
+              label: "Action",
+              value: action,
+              onChange: setAction,
+              options: actionOptions.map((o) => ({
+                value: o.value,
+                label: o.label,
+              })),
+            },
+          ]}
+          searchActive={!!actor.trim()}
+          onReset={() => {
+            setAction("all");
+            setActor("");
+          }}
+        />
       </div>
 
       {isLoading ? (
@@ -194,17 +236,52 @@ export default function ActivityLogsTable() {
                         </span>
                       </td>
                       <td data-label="Subject">
-                        <span
-                          style={{
-                            display: "block",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                          title={subjectOf(log)}
-                        >
-                          {subjectOf(log)}
-                        </span>
+                        {(() => {
+                          const snap = (log.data_snapshot ?? {}) as Record<
+                            string,
+                            unknown
+                          >;
+                          const advId = advertiserIdOf(snap);
+                          const customer = advId
+                            ? (customerById?.[advId] ?? "")
+                            : "";
+                          const record = recordLabel(snap);
+                          // A record with a name of its own leads; otherwise
+                          // the customer IS the subject (a subscription has no
+                          // name — showing its amount answered the wrong
+                          // question). The second line carries whichever of
+                          // the two did not lead.
+                          const main =
+                            record || customer || amountLabel(snap) ||
+                            `${(log.table_name ?? "record").replace(/_/g, " ")} ${(log.reference_record_id ?? "").slice(0, 8)}`.trim();
+                          const sub =
+                            record && customer
+                              ? customer
+                              : record
+                                ? amountLabel(snap)
+                                : customer
+                                  ? amountLabel(snap)
+                                  : null;
+                          return (
+                            <div style={{ minWidth: 0 }}>
+                              <div className="oneline" title={main}>
+                                {main}
+                              </div>
+                              {sub && (
+                                <div
+                                  className="oneline"
+                                  style={{
+                                    color: "var(--faint)",
+                                    fontSize: ".8rem",
+                                  }}
+                                  title={sub}
+                                >
+                                  {sub}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td data-label="View Details" className="r fullcell">
                         <button

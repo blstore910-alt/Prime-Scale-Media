@@ -97,6 +97,15 @@ export const PSM_APP_CSS = `
 .psmapp .actrow{display:flex;gap:8px;justify-content:flex-end;align-items:center}
 .psmapp .actrow .btn{white-space:nowrap}
 
+/* One row, and if it genuinely cannot fit, an ellipsis at the END rather than
+   a word sliced in half. Used wherever a list cell names a person or a
+   record: the label is chosen short enough (client code + first name) that
+   this should almost never fire. */
+.psmapp .oneline{
+  display:block;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
 /* Inline fee editor in the Ad Accounts list. Sized to the number it holds,
    so turning a cell into an input does not shove the column wider. */
 .psmapp .feeedit{display:inline-flex;align-items:center;gap:4px}

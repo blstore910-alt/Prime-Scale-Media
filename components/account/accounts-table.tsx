@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { firstName } from "@/lib/display-name";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -58,11 +59,6 @@ import useUpdateAccount from "./use-update-account";
 // The advertiser branch is kept intact below (the router redirects
 // advertisers to the single-page app, so it is not normally reached, but
 // nothing is dropped).
-// Lists show the first name; the detail sheet shows the whole one.
-function firstName(name?: string | null): string {
-  return (name ?? "").trim().split(/\s+/)[0] ?? "";
-}
-
 export default function AccountsTable() {
   const { profile } = useAppContext();
   const supabase = createClient();

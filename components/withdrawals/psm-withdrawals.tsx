@@ -535,12 +535,27 @@ function RefundsSection() {
             placeholder="Search ref, advertiser, payee…"
           />
         </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: setStatus,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "pending", label: "Pending" },
+                { value: "approved", label: "Approved" },
+                { value: "rejected", label: "Rejected" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>
@@ -1057,12 +1072,27 @@ function AdjustmentsSection() {
             placeholder="Search ref, advertiser, reason…"
           />
         </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: setStatus,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "pending", label: "Pending" },
+                { value: "approved", label: "Approved" },
+                { value: "rejected", label: "Rejected" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>
