@@ -319,7 +319,13 @@ export const PSM_APP_CSS = `
     .psmapp .phead-actions .btn.ghost .blab{display:none}
     .psmapp .phead-actions .btn.ghost{padding:9px 11px}
   }
-  @media (max-width:380px){
+  /* 340px, not 380px: at 375px this stripped the label off "Create New"
+     too, leaving a bare "+" as the primary action. A secondary action can
+     be an icon — people find it once they look — but the primary one is
+     what they arrive hunting for, so it keeps its word until the screen
+     genuinely cannot hold it. The subtitle truncates first; it is read
+     once, the button is used every time. */
+  @media (max-width:340px){
     .psmapp .phead-actions .btn .blab{display:none}
     .psmapp .phead-actions .btn{padding:9px 11px}
   }
