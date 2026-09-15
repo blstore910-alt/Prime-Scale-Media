@@ -148,7 +148,10 @@ async function writeTopupLog(
     topup_id: topupId,
     updated_by: profile.id,
     action,
-    author: { id: profile.id, name: profile.full_name, email: profile.email },
+    // topup_logs is readable by the advertiser who owns the top-up
+    // (topup_logs_select in 20260828140000_rls_templates.sql allows
+    // _is_own_advertiser), so this is a customer-facing row too. Id only.
+    author: { id: profile.id },
     new_values: {
       fee: values.fee ?? null,
       topup_amount: values.topup_amount ?? null,
@@ -218,11 +221,11 @@ export async function createTopupAsAdmin(
   }
   cleaned.status = requested;
   cleaned.tenant_id = profile.tenant_id;
-  cleaned.author = {
-    id: profile.id,
-    name: profile.full_name,
-    email: profile.email,
-  };
+  // Only the profile id. An advertiser reads their own top_ups rows, so a
+  // name and work email stamped here is our staff's PII delivered to the
+  // customer — and nothing in the app ever read these fields back; who did
+  // what is reconstructable from audit_events, which is admin-only.
+  cleaned.author = { id: profile.id };
 
   // Authoritative fee: for fee-bearing top-ups, let the advertiser's plan
   // rate + active top-up perks drive the fee, and recompute the derived
@@ -360,11 +363,9 @@ export async function bulkCreateTopupsAsAdmin(
     }
   }
 
-  const author = {
-    id: profile.id,
-    name: profile.full_name,
-    email: profile.email,
-  };
+  // Id only — see the note on the single-create path. This lands on
+  // customer-readable top_ups rows.
+  const author = { id: profile.id };
   const payload = rows.map((row) => {
     const cleaned: Record<string, unknown> = {};
     for (const col of TOPUP_INSERT_ALLOWED) {
@@ -466,11 +467,11 @@ export async function updateTopupAsAdmin(
     return { ok: false, error: "No updatable fields" };
   }
   cleaned.updated_at = new Date().toISOString();
-  cleaned.author = {
-    id: profile.id,
-    name: profile.full_name,
-    email: profile.email,
-  };
+  // Only the profile id. An advertiser reads their own top_ups rows, so a
+  // name and work email stamped here is our staff's PII delivered to the
+  // customer — and nothing in the app ever read these fields back; who did
+  // what is reconstructable from audit_events, which is admin-only.
+  cleaned.author = { id: profile.id };
 
   const { error: updateError } = await supabase
     .from("top_ups")

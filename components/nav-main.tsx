@@ -21,8 +21,11 @@ export type NavMainItem = {
   /**
    * Optional badge count (e.g. pending items). Rendered as a small
    * pill to the right of the label; omitted when 0 or undefined.
+   * `null` means the count could NOT be read — rendered as a muted dash,
+   * because an absent badge would claim "nothing is waiting", which is the
+   * one thing we do not know.
    */
-  badge?: number;
+  badge?: number | null;
 };
 
 export function NavMain({ items }: { items: NavMainItem[] }) {
@@ -51,13 +54,24 @@ export function NavMain({ items }: { items: NavMainItem[] }) {
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </span>
-                  {typeof item.badge === "number" && item.badge > 0 && (
+                  {item.badge === null ? (
                     <span
-                      aria-label={`${item.badge} pending`}
-                      className="ml-auto rounded-full bg-amber-500 text-white text-[10px] font-semibold min-w-5 h-5 px-1.5 inline-flex items-center justify-center tabular-nums"
+                      aria-label="Count could not be read"
+                      title="Count could not be read"
+                      className="ml-auto rounded-full bg-muted text-muted-foreground border text-[10px] font-semibold min-w-5 h-5 px-1.5 inline-flex items-center justify-center"
                     >
-                      {item.badge > 99 ? "99+" : item.badge}
+                      —
                     </span>
+                  ) : (
+                    typeof item.badge === "number" &&
+                    item.badge > 0 && (
+                      <span
+                        aria-label={`${item.badge} pending`}
+                        className="ml-auto rounded-full bg-amber-500 text-white text-[10px] font-semibold min-w-5 h-5 px-1.5 inline-flex items-center justify-center tabular-nums"
+                      >
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )
                   )}
                 </Link>
               </SidebarMenuButton>

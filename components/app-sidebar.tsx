@@ -262,7 +262,9 @@ function AdminSidebarContent({
 }) {
   const pending = usePendingCounts();
 
-  const badgeFor = (url: string): number | undefined => {
+  // null = unknown (the count could not be read), which the badge must not
+  // render as a zero or as an absent badge.
+  const badgeFor = (url: string): number | null | undefined => {
     if (url === "/wallet-topups") return pending.walletTopups;
     if (url === "/top-ups") return pending.topUps;
     if (url === "/ad-account-requests") return pending.adAccountRequests;

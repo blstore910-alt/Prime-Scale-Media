@@ -28,7 +28,8 @@ type Queue = {
   href: string;
   icon: LucideIcon;
   ci: string;
-  count?: number;
+  /** null = unknown (not read). Distinct from 0. */
+  count?: number | null;
   label: string;
 };
 
@@ -111,16 +112,22 @@ export default function AdminDashboard() {
   const { isSuperAdmin, dispatch } = useAppContext();
   const pending = usePendingCounts();
 
+  // A count that could not be read contributes nothing to the total — the
+  // banner below already refuses to claim "all caught up" whenever
+  // pending.isError is true, so an unknown queue can never be summed into a
+  // reassuring zero.
   const needsAction =
-    pending.walletTopups + pending.topUps + pending.adAccountRequests;
+    (pending.walletTopups ?? 0) +
+    (pending.topUps ?? 0) +
+    (pending.adAccountRequests ?? 0);
 
   // Jump the "needs action" CTA to the most urgent non-empty queue.
   const primaryQueue =
-    pending.walletTopups > 0
+    (pending.walletTopups ?? 0) > 0
       ? "/wallet-topups"
-      : pending.adAccountRequests > 0
+      : (pending.adAccountRequests ?? 0) > 0
         ? "/ad-account-requests"
-        : pending.topUps > 0
+        : (pending.topUps ?? 0) > 0
           ? "/top-ups"
           : null;
 
@@ -231,7 +238,10 @@ export default function AdminDashboard() {
       <div className="qgrid">
         {queues.map((q) => {
           const Icon = q.icon;
-          const hasCount = typeof q.count === "number";
+          // A queue that declares a count still has one when it is null —
+          // null means "we could not read it", and that must render as the
+          // dash, not vanish into a card that looks like it never had a badge.
+          const hasCount = q.count !== undefined;
           return (
             /* One structure for all five. Two of them carried no count and
                were built differently — a different element, a different
@@ -246,7 +256,10 @@ export default function AdminDashboard() {
               </span>
               <span className="ql">{q.label}</span>
               {hasCount ? (
-                pending.isError ? (
+                /* Per-queue, deliberately: pending.isError is true when ANY
+                   of the three failed, so testing it here would put a dash on
+                   two queues whose counts came back perfectly well. */
+                q.count === null ? (
                   <span className="qbadge unknown" title="Could not read the count">
                     —
                   </span>

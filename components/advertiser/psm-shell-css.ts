@@ -38,6 +38,7 @@ export const PSM_APP_CSS = `
 .psmapp .navlink.on{background:var(--primary-tint);color:var(--primary-600)}
 .psmapp .navlink svg{width:19px;height:19px}
 .psmapp .navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center}
+.psmapp .navlink .n.unknown{background:var(--panel-2);color:var(--faint);border:1px solid var(--line-2);font-weight:800}
 .psmapp .navlink.aff{color:var(--purple)}.psmapp .navlink.aff svg{color:var(--purple)}.psmapp .navlink .n.new{background:var(--purple)}
 .psmapp .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .psmapp .side-foot .avatar{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.85rem;color:#fff;background:var(--brand)}
@@ -299,9 +300,17 @@ export const PSM_APP_CSS = `
      out of thumb reach. */
   .psmapp .fgroup{margin-left:0;flex:1 1 0;min-width:0}
   .psmapp .fbtn{width:100%;justify-content:center;padding:9px 12px}
-  .psmapp .fscrim{background:rgba(9,14,40,.36);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  /* The bottom nav is position:fixed at z-index 50, so both the sheet and
+     its scrim must sit ABOVE it — at z-index 40 the sheet's own Reset/Done
+     row rendered underneath the nav bar and could not be tapped. A sheet
+     covering the nav while it is open is the normal pattern; the scrim
+     dims the nav too, so it reads as disabled rather than missing. */
+  .psmapp .fscrim{
+    z-index:59;background:rgba(9,14,40,.36);
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  }
   .psmapp .fpanel{
-    position:fixed;left:10px;right:10px;top:auto;
+    position:fixed;left:10px;right:10px;top:auto;z-index:60;
     bottom:calc(10px + env(safe-area-inset-bottom));
     width:auto;border-radius:20px;padding:15px;
     max-height:min(74vh,560px);overflow-y:auto;

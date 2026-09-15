@@ -335,13 +335,11 @@ export async function assignSupplierAdAccount(input: {
       start_date: new Date().toISOString(),
       fee,
       created_by: profile.user_id,
-      metadata: {
-        // 'supplier1' rows can be addressed on the supplier API by this id;
-        // 'manual' rows are ours and carry it for reference only.
-        source: pool.provider,
-        supplier_external_id: pool.external_id,
-        allocated_from_pool_id: pool.id,
-      },
+      // NOTHING about the supplier goes on this row. The advertiser reads
+      // their own ad_accounts through RLS with select("*"), so anything put
+      // here is delivered to the customer's browser — and the supplier must
+      // never be visible to a customer under any name. The provenance is
+      // recorded below in the admin-only cost table instead.
     })
     .select("id")
     .single();
@@ -374,22 +372,27 @@ export async function assignSupplierAdAccount(input: {
     console.error("pool link failed:", safeErrorMessage(linkError));
   }
 
-  // What WE pay goes in the admin-only cost table, never on the ad_accounts
-  // row — an advertiser can read their own ad_accounts through RLS.
+  // What WE pay AND where the account came from both go in the admin-only
+  // cost table, never on the ad_accounts row — an advertiser can read their
+  // own ad_accounts through RLS.
   let warning: string | undefined;
-  if (supplierFeePct != null) {
-    const { error: costError } = await supabase.from("ad_account_costs").upsert(
-      {
-        ad_account_id: created.id,
-        tenant_id: profile.tenant_id,
-        supplier_fee_pct: supplierFeePct,
-      },
-      { onConflict: "ad_account_id" },
-    );
-    if (costError) {
-      console.error("cost row failed:", safeErrorMessage(costError));
-      warning = `Allocated, but the supplier fee was not saved: ${costError.message}`;
-    }
+  const { error: costError } = await supabase.from("ad_account_costs").upsert(
+    {
+      ad_account_id: created.id,
+      tenant_id: profile.tenant_id,
+      ...(supplierFeePct != null ? { supplier_fee_pct: supplierFeePct } : {}),
+      supplier_source: pool.provider,
+      supplier_external_id: pool.external_id,
+      pool_id: pool.id,
+    },
+    { onConflict: "ad_account_id" },
+  );
+  if (costError) {
+    console.error("cost row failed:", safeErrorMessage(costError));
+    // Say which half failed — a missing fee costs us margin reporting, a
+    // missing link costs us the provenance trail. Neither undoes the
+    // allocation, which already holds.
+    warning = `Allocated, but the supplier fee and provenance were not saved: ${costError.message}`;
   }
 
   return { ok: true, data: { ad_account_id: created.id }, warning };

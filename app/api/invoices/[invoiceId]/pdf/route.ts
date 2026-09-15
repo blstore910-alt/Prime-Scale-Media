@@ -712,7 +712,7 @@ export async function GET(
 
     const { data: profiles, error: profileError } = await supabase
       .from("user_profiles")
-      .select("id, tenant_id")
+      .select("id, tenant_id, role")
       .eq("user_id", auth.user.id);
 
     if (profileError) throw profileError;
@@ -723,14 +723,39 @@ export async function GET(
     const activeProfile =
       profiles.find((profile) => profile.id === existingProfile) ?? profiles[0];
 
-    const { data: invoice, error: invoiceError } = await supabase
+    // Tenant match alone is NOT authorization here. Every advertiser in a
+    // tenant shares that tenant_id, so filtering on it only let advertiser A
+    // fetch advertiser B's invoice PDF — company name, address, VAT number
+    // and amounts — with nothing but the invoice UUID, which travels in
+    // forwarded links and shared browser history. A non-admin may only read
+    // an invoice that belongs to one of their OWN advertiser rows.
+    let invoiceQuery = supabase
       .from("invoices")
       .select(
         "*, company:companies(*), advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name, email)), tenant:tenants(*)",
       )
       .eq("id", invoiceId)
-      .eq("tenant_id", activeProfile.tenant_id)
-      .maybeSingle();
+      .eq("tenant_id", activeProfile.tenant_id);
+
+    if (activeProfile.role !== "admin") {
+      // user_id, not profile_id: this is the exact predicate the RLS helper
+      // _is_own_advertiser uses (advertisers.user_id = auth.uid()), so the
+      // endpoint can never be more permissive than the database is.
+      const { data: ownAdvertisers, error: advError } = await supabase
+        .from("advertisers")
+        .select("id")
+        .eq("user_id", auth.user.id);
+
+      if (advError) throw advError;
+
+      const ownIds = (ownAdvertisers ?? []).map((a: { id: string }) => a.id);
+      if (!ownIds.length) {
+        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+      }
+      invoiceQuery = invoiceQuery.in("advertiser_id", ownIds);
+    }
+
+    const { data: invoice, error: invoiceError } = await invoiceQuery.maybeSingle();
 
     if (invoiceError) throw invoiceError;
     if (!invoice) {

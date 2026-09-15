@@ -36,7 +36,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-type Item = { title: string; href: string; icon: LucideIcon; badge?: number };
+type Item = {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  /** null = the count could not be read. NOT the same as 0. */
+  badge?: number | null;
+};
 type Group = { title?: string; items: Item[] };
 
 const TITLES: Record<string, string> = {
@@ -243,8 +249,20 @@ export default function AdminShell({
                   className={`navlink${isActive(pathname, item.href) ? " on" : ""}`}
                 >
                   <Icon /> {item.title}
-                  {typeof item.badge === "number" && item.badge > 0 && (
-                    <span className="n">{item.badge > 99 ? "99+" : item.badge}</span>
+                  {/* An unreadable count used to render as no badge at all,
+                      which says "nothing is waiting" — the one thing it does
+                      not know. It gets a muted dash instead. */}
+                  {item.badge === null ? (
+                    <span className="n unknown" title="Count could not be read">
+                      —
+                    </span>
+                  ) : (
+                    typeof item.badge === "number" &&
+                    item.badge > 0 && (
+                      <span className="n">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )
                   )}
                 </Link>
               );
