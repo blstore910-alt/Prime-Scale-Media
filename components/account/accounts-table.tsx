@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import TablePagination from "@/components/ui/table-pagination";
 import { PLATFORMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
@@ -85,8 +84,22 @@ export default function AccountsTable() {
   const [search, setSearch] = useState("");
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [maxFee, setMaxFee] = useState<number>(100);
+  // Filtering on a fee ceiling was a filter nobody reaches for; SORTING by
+  // fee is what you actually want when scanning a list of accounts. Numbers
+  // are the useful sort keys here, so they lead.
+  const [sort, setSort] = useState("newest");
   const [filterOpen, setFilterOpen] = useState(false);
+
+  // The scrim catches clicks; Escape is the other way out of a panel, and
+  // leaving it out is the difference between a control and a trap.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFilterOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [filterOpen]);
 
   // "You have none" and "your filters match none" are different facts and
   // must read differently — otherwise a stray filter looks like data loss.
@@ -94,7 +107,6 @@ export default function AccountsTable() {
     setSearch("");
     setPlatformFilter(null);
     setStatusFilter(null);
-    setMaxFee(100);
   };
 
   const {
@@ -176,12 +188,43 @@ export default function AccountsTable() {
         ? true
         : a.status === statusFilter;
 
-    const matchesFee = typeof a.fee === "number" ? a.fee <= maxFee : true;
-
-    return matchesSearch && matchesPlatform && matchesStatus && matchesFee;
+    return matchesSearch && matchesPlatform && matchesStatus;
   });
 
-  const paginatedAccounts = filteredAccounts.slice(
+  // Sorting happens after filtering and before paging. Numeric keys sort
+  // numerically (a string compare would put 9% above 10%); text keys use
+  // localeCompare so accented names land where a reader expects.
+  const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
+  const txt = (v: unknown) => String(v ?? "");
+  const sortedAccounts = [...filteredAccounts].sort((a: any, b: any) => {
+    switch (sort) {
+      case "fee-desc":
+        return num(b.fee) - num(a.fee);
+      case "fee-asc":
+        return num(a.fee) - num(b.fee);
+      case "name-asc":
+        return txt(a.name).localeCompare(txt(b.name));
+      case "client-asc":
+        return txt(a.advertiser?.tenant_client_code).localeCompare(
+          txt(b.advertiser?.tenant_client_code),
+        );
+      case "oldest":
+        return txt(a.created_at).localeCompare(txt(b.created_at));
+      case "newest":
+      default:
+        return txt(b.created_at).localeCompare(txt(a.created_at));
+    }
+  });
+
+  // Shown on the one control that now carries sort + filters, so it is
+  // obvious at a glance that something is narrowing the list.
+  const activeFilterCount =
+    (platformFilter ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    (search.trim() ? 1 : 0) +
+    (sort !== "newest" ? 1 : 0);
+
+  const paginatedAccounts = sortedAccounts.slice(
     (page - 1) * perPage,
     (page - 1) * perPage + perPage,
   );
@@ -343,19 +386,6 @@ export default function AccountsTable() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <label className="text-sm mb-1 block">
-                      Max Fee: {maxFee}%
-                    </label>
-                    <div className="w-full">
-                      <Slider
-                        value={[maxFee]}
-                        min={0}
-                        max={100}
-                        onValueChange={(v: number[]) => setMaxFee(v[0] ?? 0)}
-                      />
-                    </div>
-                  </div>
                   <div className="flex justify-between">
                     <Button
                       variant="ghost"
@@ -363,7 +393,6 @@ export default function AccountsTable() {
                       onClick={() => {
                         setPlatformFilter(null);
                         setStatusFilter(null);
-                        setMaxFee(100);
                       }}
                     >
                       Reset
@@ -457,7 +486,6 @@ export default function AccountsTable() {
   const hasFilters =
     Boolean(platformFilter) ||
     Boolean(statusFilter) ||
-    maxFee < 100 ||
     Boolean(search.trim());
 
   return (
@@ -506,78 +534,105 @@ export default function AccountsTable() {
             placeholder="Search client, account or advertiser…"
           />
         </label>
-        <select
-          value={platformFilter ?? "all"}
-          onChange={(e) => {
-            setPlatformFilter(e.target.value === "all" ? null : e.target.value);
-            setPage(1);
-          }}
-          aria-label="Platform"
-        >
-          <option value="all">All platforms</option>
-          {PLATFORMS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter ?? "all"}
-          onChange={(e) => {
-            setStatusFilter(e.target.value === "all" ? null : e.target.value);
-            setPage(1);
-          }}
-          aria-label="Status"
-        >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="paused">Paused</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        <label
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            fontFamily: "var(--bd)",
-            fontWeight: 600,
-            fontSize: ".84rem",
-            color: "var(--muted)",
-            border: "1px solid var(--line-2)",
-            borderRadius: 11,
-            padding: "8px 13px",
-            background: "var(--panel)",
-          }}
-        >
-          Max fee&nbsp;
-          <b style={{ color: "var(--ink)" }}>{maxFee}%</b>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={maxFee}
-            onChange={(e) => {
-              setMaxFee(Number(e.target.value));
-              setPage(1);
-            }}
-            aria-label="Maximum fee"
-            style={{ accentColor: "var(--primary)", width: 120 }}
-          />
-        </label>
-        {hasFilters && (
+        {/* Everything that shapes the list — sort and both filters — lives
+            behind ONE control, with a count so you can see at a glance that
+            something is narrowing the results. A row of loose selects reads
+            as a form and, on a phone, ate three full-width lines. */}
+        <div className="fgroup">
           <button
-            className="btn ghost sm"
-            onClick={() => {
-              setPlatformFilter(null);
-              setStatusFilter(null);
-              setMaxFee(100);
-              setSearch("");
-              setPage(1);
-            }}
+            className={`fbtn${activeFilterCount ? " on" : ""}`}
+            onClick={() => setFilterOpen((o) => !o)}
+            aria-expanded={filterOpen}
           >
-            Clear
+            <SlidersHorizontal />
+            <span>Sort &amp; filter</span>
+            {activeFilterCount > 0 && (
+              <span className="fcount">{activeFilterCount}</span>
+            )}
           </button>
-        )}
+
+          {filterOpen && (
+            <>
+              <div className="fscrim" onClick={() => setFilterOpen(false)} />
+              <div className="fpanel" role="dialog" aria-label="Sort and filter">
+                <label className="flab" htmlFor="ac-sort">
+                  Sort by
+                </label>
+                <select
+                  id="ac-sort"
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="fee-desc">Fee — highest first</option>
+                  <option value="fee-asc">Fee — lowest first</option>
+                  <option value="name-asc">Account name A → Z</option>
+                  <option value="client-asc">Client code A → Z</option>
+                </select>
+
+                <label className="flab" htmlFor="ac-platform">
+                  Platform
+                </label>
+                <select
+                  id="ac-platform"
+                  value={platformFilter ?? "all"}
+                  onChange={(e) => {
+                    setPlatformFilter(
+                      e.target.value === "all" ? null : e.target.value,
+                    );
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">All platforms</option>
+                  {PLATFORMS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="flab" htmlFor="ac-status">
+                  Status
+                </label>
+                <select
+                  id="ac-status"
+                  value={statusFilter ?? "all"}
+                  onChange={(e) => {
+                    setStatusFilter(
+                      e.target.value === "all" ? null : e.target.value,
+                    );
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+
+                <div className="fpanel-foot">
+                  <button
+                    className="btn ghost sm"
+                    onClick={() => {
+                      resetFilters();
+                      setPage(1);
+                    }}
+                    disabled={!hasFilters}
+                  >
+                    Reset
+                  </button>
+                  <button className="btn sm" onClick={() => setFilterOpen(false)}>
+                    Done
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {isLoading ? (

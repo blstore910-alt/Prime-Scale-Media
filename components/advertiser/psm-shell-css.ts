@@ -142,6 +142,35 @@ export const PSM_APP_CSS = `
 .psmapp .fbar .fexp svg{width:16px;height:16px}
 .psmapp .fbar .fexp:hover{background:var(--primary);color:#fff;border-color:var(--primary);transform:translateY(-1px)}
 
+/* ── One control for sort + every filter ─────────────────────────────
+   A row of loose selects reads as a form, scales badly (each new filter
+   costs a line) and on a phone ate three full-width rows before you saw
+   a single record. One button opens all of it, and carries a count so a
+   narrowed list can never look like missing data. */
+.psmapp .fgroup{position:relative;margin-left:auto;display:inline-flex}
+.psmapp .fbtn{display:inline-flex;align-items:center;gap:8px;font-family:var(--bd);font-weight:700;font-size:.84rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 14px;background:var(--panel);color:var(--ink);cursor:pointer;transition:.14s}
+.psmapp .fbtn svg{width:16px;height:16px;color:var(--muted)}
+.psmapp .fbtn:hover{border-color:var(--primary);color:var(--primary-600)}
+.psmapp .fbtn:hover svg{color:var(--primary-600)}
+.psmapp .fbtn:focus-visible{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
+/* Active state is the whole point of bundling: with the controls hidden,
+   the button is the only thing left that can say "this list is filtered". */
+.psmapp .fbtn.on{background:var(--primary-tint);border-color:#cfe0ff;color:var(--primary-600)}
+.psmapp .fbtn.on svg{color:var(--primary-600)}
+.psmapp .fcount{min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+/* Full-viewport click-catcher. Invisible on desktop — the panel is anchored
+   to its button there, so dimming the page would be noise. */
+.psmapp .fscrim{position:fixed;inset:0;z-index:39}
+.psmapp .fpanel{position:absolute;top:calc(100% + 8px);right:0;z-index:40;width:min(268px,calc(100vw - 24px));display:grid;gap:6px;padding:13px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);transform-origin:top right;animation:fpop .17s cubic-bezier(.34,1.3,.64,1)}
+@keyframes fpop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+.psmapp .flab{font-size:.63rem;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-top:6px}
+.psmapp .flab:first-child{margin-top:0}
+.psmapp .fpanel select{width:100%;font-family:var(--bd);font-weight:600;font-size:.86rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;padding-right:34px;background:var(--panel);color:var(--ink);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:15px;transition:border-color .14s,color .14s}
+.psmapp .fpanel select:hover{border-color:var(--primary);color:var(--primary-600)}
+.psmapp .fpanel select:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
+.psmapp .fpanel-foot{display:flex;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
+.psmapp .fpanel-foot .btn{flex:1;justify-content:center}
+
 .psmapp .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:12px}
 .psmapp .acard .top{display:flex;align-items:center;gap:11px}
 .psmapp .acard .nm{font-weight:700}.psmapp .acard .sub{color:var(--faint);font-size:.78rem}
@@ -263,11 +292,60 @@ export const PSM_APP_CSS = `
     .psmapp .fbar .fexp span{display:none}
   }
 
+  /* The bundled control shares that row, and its panel becomes a bottom
+     sheet: a 268px popover anchored to a button near the top of a phone
+     screen would open upward into the top bar, and its selects would sit
+     out of thumb reach. */
+  .psmapp .fgroup{margin-left:0;flex:1 1 0;min-width:0}
+  .psmapp .fbtn{width:100%;justify-content:center;padding:9px 12px}
+  .psmapp .fscrim{background:rgba(9,14,40,.36);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  .psmapp .fpanel{
+    position:fixed;left:10px;right:10px;top:auto;
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    width:auto;border-radius:20px;padding:15px;
+    max-height:min(74vh,560px);overflow-y:auto;
+    animation:fsheet .22s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes fsheet{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
   /* Cards: same information, less air. 459px per record was roughly
      double what it needs. */
   .psmapp .tbl.wide tr{padding:2px 11px;margin-bottom:9px;border-radius:13px}
   .psmapp .tbl.wide td{padding:7px 2px;gap:2px 14px}
   .psmapp .tbl.wide td::before{font-size:.62rem}
+
+  /* ── Two-up card ─────────────────────────────────────────────────
+     A row of label-left/value-right lines is the shape of a form, and
+     it spends a whole 375px line on "Fee  3%". Measured: one ad account
+     took 430px for nine fields.
+
+     So the record becomes a two-column grid of small stacked cells —
+     label above value — which is how a data card is normally read and
+     roughly halves the height. Anything that genuinely needs the width
+     (an identity block, a row of buttons, an address) keeps it by being
+     marked .fullcell. */
+  .psmapp .tbl.wide tr{
+    display:grid;grid-template-columns:1fr 1fr;gap:0 12px;padding:4px 12px 10px;
+  }
+  .psmapp .tbl.wide td{
+    display:block;text-align:left;padding:8px 0 0;border-top:0;
+  }
+  /* The rule above removes every divider, so put one back between ROWS of
+     the grid only — a line under each pair, never between the pair. */
+  .psmapp .tbl.wide td{box-shadow:0 -1px 0 var(--line)}
+  .psmapp .tbl.wide tr td:first-child,
+  .psmapp .tbl.wide tr td:nth-child(2){box-shadow:none}
+  .psmapp .tbl.wide td::before{
+    display:block;margin-bottom:2px;color:var(--faint);
+    font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;
+  }
+  .psmapp .tbl.wide td>*{min-width:0}
+  .psmapp .tbl.wide td>span{justify-self:start}
+  /* .r cells (money, counts) keep their right alignment on desktop but read
+     better left-aligned in a narrow stacked cell. */
+  .psmapp .tbl.wide td.r{text-align:left}
+  .psmapp .tbl.wide td.fullcell{grid-column:1 / -1}
+  .psmapp .tbl.wide td[colspan]{grid-column:1 / -1;text-align:center;padding:22px 2px;box-shadow:none}
 }
 
 /* Topbar account menu (anchored to the avatar) */
