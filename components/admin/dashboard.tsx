@@ -42,11 +42,16 @@ type Queue = {
 const DASH_CSS = `
 .psm-dash{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:12px}
 
-/* Needs-action hero and the New invite button share one row: hero grows,
-   invite stays its natural (compact) size on the right. */
+/* Title row: heading + subtitle on the left, invite pinned right. The text
+   column must be allowed to shrink (min-width:0) or the long subtitle sets
+   the column's floor and pushes the button onto its own wrapped line —
+   which is the layout this replaced. */
+.psm-dash .phead{align-items:center;flex-wrap:nowrap;gap:10px}
+.psm-dash .phead .ptxt{flex:1 1 auto;min-width:0}
+.psm-dash .phead .invite{flex:0 0 auto;white-space:nowrap}
+
 .psm-dash .attnrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .psm-dash .attnrow>.attn{flex:1 1 340px}
-.psm-dash .attnrow>.invite{flex:0 0 auto}
 
 .psm-dash .attn{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,var(--primary-tint),var(--purple-tint));border:1px solid #d9e2ff;border-radius:14px;padding:11px 14px;flex-wrap:wrap}
 .psm-dash .attn .ai{width:34px;height:34px;border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--primary-600);flex:0 0 auto}
@@ -152,11 +157,21 @@ export default function AdminDashboard() {
     <div className="psmview psm-dash">
       <style>{DASH_CSS}</style>
 
+      {/* The invite moved up here. It used to sit on its own row under the
+          banner, which cost a full line of a phone screen for one button,
+          and the subtitle was long enough to wrap to two — so the header
+          alone ate ~150px before a single queue was visible. */}
       <div className="phead">
-        <div>
+        <div className="ptxt">
           <h1>Dashboard</h1>
-          <p>Your operations at a glance — what needs action right now.</p>
+          <p>What needs your action right now.</p>
         </div>
+        <button
+          className="btn grad sm invite"
+          onClick={() => dispatch("open-invite-user")}
+        >
+          <UserPlus /> <span className="ilab">New invite</span>
+        </button>
       </div>
 
       {/* Needs-your-action hero (mockup .attn) + New invite share one row —
@@ -210,12 +225,6 @@ export default function AdminDashboard() {
             </span>
           </div>
         )}
-        <button
-          className="btn grad sm invite"
-          onClick={() => dispatch("open-invite-user")}
-        >
-          <UserPlus /> New invite
-        </button>
       </div>
 
       <h2>Queues</h2>

@@ -266,12 +266,13 @@ export const PSM_APP_CSS = `
      at 560px — 69% of the screen was chrome, so a phone showed ZERO
      records without scrolling. Desktop is untouched. */
 
-  /* Header: the title is a label, not a hero. The description is read
-     once; keep it to two lines and let the content start sooner. */
+  /* Header: the title is a label, not a hero. The description is read once
+     and then never again, so on a phone it gets exactly ONE line — a second
+     line of context costs a queue card you could have seen instead. */
   .psmapp .phead{gap:10px}
   .psmapp .phead h1{font-size:1.3rem;line-height:1.2}
   .psmapp .phead p{font-size:.85rem;margin-top:2px;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
   /* Page actions sit side by side instead of one full-width block each. */
   .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
   .psmapp .phead .btn svg{width:15px;height:15px}
