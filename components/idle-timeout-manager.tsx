@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useRouter } from "next/navigation";
 import { useIdleTimeout } from "@/hooks/use-idle-timeout";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,8 +42,7 @@ export default function IdleTimeoutManager() {
     onTimeout: async () => {
       setWarningOpen(false);
       try {
-        const supabase = createClient();
-        await supabase.auth.signOut();
+        await signOutCompletely();
       } catch {
         // ignore — we still want to redirect
       }

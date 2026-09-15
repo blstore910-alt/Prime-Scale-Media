@@ -85,7 +85,14 @@ export function LoginForm() {
           // still-unauthenticated redirect and bounce the user back to
           // /auth/login — the magic-link path below uses the same hard nav.
           const dest = result.redirectTo;
-          setTimeout(() => window.location.assign(dest), 1000);
+          // The launch animation used to be WAITED for — a flat 1000ms added
+          // to every sign-in before the browser was even asked for the next
+          // page. It does not need to be: location.assign() leaves the
+          // current document on screen, still animating, until the new one
+          // paints, so the rocket plays THROUGH the load instead of before
+          // it. The short delay that remains only lets the data-launching
+          // attribute take effect so the transition actually starts.
+          setTimeout(() => window.location.assign(dest), 120);
           return;
         }
         // Neither error nor redirect (shouldn't happen) — recover the UI so the

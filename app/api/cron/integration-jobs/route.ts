@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { isSupplier1Live } from "@/lib/integrations/autopush";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
 import { processIntegrationJobs } from "@/lib/integrations/worker";
@@ -38,7 +39,7 @@ const LOW_BALANCE_THRESHOLD = 8000;
 async function checkSupplierBalance(
   supabase: Pick<SupabaseClient, "from">,
 ): Promise<{ checked: boolean; low?: string[]; error?: string }> {
-  if ((process.env.SUPPLIER1_MODE ?? "mock").toLowerCase() !== "live") {
+  if (!isSupplier1Live()) {
     return { checked: false };
   }
   if (new Date().getUTCMinutes() !== 0) return { checked: false };

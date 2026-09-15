@@ -19,6 +19,7 @@
 // specific implementation. That way we can flip the env var per
 // tenant without redeploying the app.
 
+import { isSupplier1Live } from "./autopush";
 import type {
   IntegrationResult,
   Supplier1AdAccount,
@@ -556,8 +557,9 @@ const realSupplier1Adapter: Supplier1Adapter = {
 };
 
 export function getSupplier1Adapter(): Supplier1Adapter {
-  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
-  return mode === "live" ? realSupplier1Adapter : mockSupplier1Adapter;
+  // One shared reading of the env var — see supplier1Mode() for why a local
+  // copy of this parsing is a money bug and not a style nit.
+  return isSupplier1Live() ? realSupplier1Adapter : mockSupplier1Adapter;
 }
 
 // Exported for direct use in tests that want the deterministic

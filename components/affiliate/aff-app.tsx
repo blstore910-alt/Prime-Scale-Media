@@ -1,9 +1,9 @@
 "use client";
 
 import { jakarta } from "@/lib/fonts";
+import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { csvSafe } from "@/lib/csv-safe";
-import { createClient } from "@/lib/supabase/client";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
@@ -166,8 +166,9 @@ export default function AffiliateApp() {
 
   const router = useRouter();
   const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    // Clears the session AND the httpOnly profile_id cookie — see
+    // lib/auth/sign-out.ts for why the second half matters.
+    await signOutCompletely();
     router.push("/auth/login");
   };
 

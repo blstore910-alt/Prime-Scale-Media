@@ -1,6 +1,7 @@
 "use client";
 
 import { dmSans, jakarta } from "@/lib/fonts";
+import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { Wallet as WalletType } from "@/lib/types/wallet";
@@ -155,8 +156,9 @@ export default function PsmAppShell({
   });
 
   const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    // Clears the session AND the httpOnly profile_id cookie — see
+    // lib/auth/sign-out.ts for why the second half matters.
+    await signOutCompletely();
     router.push("/auth/login");
   };
 

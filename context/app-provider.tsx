@@ -1,6 +1,4 @@
-import { ensureInitialExchangeRates } from "@/actions/exchange-rate-actions";
-import { ensureInitialFeeDefaults } from "@/actions/fee-default-actions";
-import { ensureInitialAdAccountTypes } from "@/actions/ad-account-type-actions";
+import { ensureTenantBootstrap } from "@/actions/bootstrap-actions";
 import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
 import {
@@ -67,23 +65,40 @@ export function AppProvider({
     ? profile?.tenant?.[0]
     : profile?.tenant;
   const isSuperAdmin = tenant?.owner_id === user?.id;
+  const tenantId = tenant?.id ?? null;
   useEffect(() => {
-    if (profile.role !== "admin") return;
-    // Fire-and-forget seed; the server action validates the 3rd-party
-    // response and enforces admin + tenant server-side.
-    ensureInitialExchangeRates().catch(() => {
-      // Non-fatal for UI; surfaced only in server logs.
-    });
-    ensureInitialFeeDefaults().catch(() => {
-      // Same — seed missing fee_defaults so /settings/finance and topup
-      // fee resolution have a baseline to work with on a fresh tenant.
-    });
-    ensureInitialAdAccountTypes().catch(() => {
-      // Same — seed the ad-account types so the create form and the
-      // /settings/finance types screen have the baseline set on a fresh
-      // tenant (the migration seeds existing tenants; this covers new).
-    });
-  }, [profile.role]);
+    if (profile.role !== "admin" || !tenantId) return;
+
+    // Seeds a fresh tenant with exchange rates, fee defaults and ad-account
+    // types. These only ever DO anything once, but they used to be fired as
+    // three separate server actions on every single page load — and Next
+    // serialises server actions per client, so they queued: measured at
+    // 1.19s + 1.29s + 1.34s back to back, ~3.8s added to every cold load.
+    //
+    // Now: one round trip, parallel inside, and at most once per browser
+    // session per tenant. sessionStorage rather than localStorage so a new
+    // session still re-checks — a tenant whose seed failed must not be
+    // permanently unseeded because of a flag in a browser.
+    const key = `psm-bootstrap:${tenantId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+    } catch {
+      // Private mode / blocked storage: fall through and just run it.
+    }
+
+    ensureTenantBootstrap()
+      .then(() => {
+        try {
+          sessionStorage.setItem(key, "1");
+        } catch {
+          // Nothing to do — worst case we re-run it next navigation.
+        }
+      })
+      .catch(() => {
+        // Non-fatal for UI; surfaced only in server logs. Deliberately NOT
+        // marked done, so the next navigation retries.
+      });
+  }, [profile.role, tenantId]);
 
   return (
     <AppContext.Provider

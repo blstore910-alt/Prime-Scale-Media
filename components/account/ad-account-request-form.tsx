@@ -298,6 +298,17 @@ export default function AdAccountRequestForm({
           .eq("kind", "free_ad_account_requests")
           .eq("active", true),
       ]);
+      // Promise.all resolves even when an individual sub-query carries an
+      // .error, so a failed read became a confident zero: a failed `wallets`
+      // read meant balance 0 and blocked submit with "not enough balance"
+      // on a wallet holding thousands, and a failed `advertiser_plans` read
+      // meant "0 included" and charged for a request the server would have
+      // granted for free. The code below already handles feePreview being
+      // undefined correctly (see feeEnough) — so make a partial failure
+      // behave like the total failure it effectively is.
+      const failed = [w, r, plan, reqs, perks].find((res) => res.error);
+      if (failed?.error) throw failed.error;
+
       const used = (reqs.data ?? []).filter(
         (x: { status: string | null }) =>
           !["rejected", "cancelled"].includes((x.status ?? "").toLowerCase()),

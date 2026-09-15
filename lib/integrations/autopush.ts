@@ -36,10 +36,31 @@ export type AutoPushGate = {
 // to arm, never merely present.
 const ON_VALUES = new Set(["on", "true", "1", "enabled", "yes"]);
 
+/**
+ * The ONE reading of SUPPLIER1_MODE. Every consumer must use this.
+ *
+ * The gate trimmed the value and getSupplier1Adapter did not, so
+ * SUPPLIER1_MODE="live " (a trailing space from the Vercel env UI, or a
+ * newline from `vercel env add` reading a file) armed the money gate while
+ * handing the job to the MOCK adapter — which reports success. Two switches
+ * that disagree about what "live" means is worse than either being wrong.
+ */
+export function supplier1Mode(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  return (env.SUPPLIER1_MODE ?? "mock").trim().toLowerCase();
+}
+
+export function isSupplier1Live(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return supplier1Mode(env) === "live";
+}
+
 export function autoPushGate(
   env: Record<string, string | undefined> = process.env,
 ): AutoPushGate {
-  const mode = (env.SUPPLIER1_MODE ?? "mock").toLowerCase().trim();
+  const mode = supplier1Mode(env);
   const flag = (env.SUPPLIER1_AUTOPUSH ?? "").toLowerCase().trim();
 
   if (mode !== "live") {

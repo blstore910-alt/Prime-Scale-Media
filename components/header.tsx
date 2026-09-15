@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { signOutCompletely } from "@/lib/auth/sign-out";
 import { Button } from "@/components/ui/button";
 import { cn, getInitials } from "@/lib/utils";
 import {
@@ -23,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { createClient } from "@/lib/supabase/client";
 import { ThemeSwitcher } from "./theme-switcher";
 
 const navLinks = [
@@ -38,8 +38,9 @@ export default function Header() {
   const router = useRouter();
 
   const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    // Clears the session AND the httpOnly profile_id cookie — see
+    // lib/auth/sign-out.ts for why the second half matters.
+    await signOutCompletely();
     router.push("/auth/login");
   };
   return (

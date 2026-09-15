@@ -3,7 +3,7 @@
 import { resolveAdminContext } from "./_shared";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
-import { autoPushGate } from "@/lib/integrations/autopush";
+import { autoPushGate, supplier1Mode } from "@/lib/integrations/autopush";
 
 // A redacted connectivity summary — never the token, never raw rows.
 export type IntegrationPing =
@@ -105,7 +105,7 @@ export type SupplierAccountProbe =
 export async function probeSupplierAdAccount(
   externalId: string,
 ): Promise<SupplierAccountProbe> {
-  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
+  const mode = supplier1Mode();
   const guard = await requireOwner();
   if (!guard.ok) return { ok: false, mode, error: guard.error };
 
@@ -181,7 +181,7 @@ export type FeeReconResult =
 const RECON_MAX_ACCOUNTS = 40;
 
 export async function reconcileSupplierFees(): Promise<FeeReconResult> {
-  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
+  const mode = supplier1Mode();
   const guard = await requireOwner();
   if (!guard.ok) return { ok: false, mode, error: guard.error };
   if (!guard.ctx.ok) return { ok: false, mode, error: "Forbidden" };
@@ -311,7 +311,7 @@ export async function reconcileSupplierFees(): Promise<FeeReconResult> {
 // returns a small redacted summary so an owner can verify the connection
 // on any deployment without reading logs.
 export async function testSupplier1Connection(): Promise<IntegrationPing> {
-  const mode = (process.env.SUPPLIER1_MODE ?? "mock").toLowerCase();
+  const mode = supplier1Mode();
   const guard = await requireOwner();
   if (!guard.ok) return { ok: false, mode, error: guard.error };
 

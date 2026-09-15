@@ -1,6 +1,11 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { autoPushGate, autoPushEnabled } from "../../lib/integrations/autopush.ts";
+import {
+  autoPushGate,
+  autoPushEnabled,
+  supplier1Mode,
+  isSupplier1Live,
+} from "../../lib/integrations/autopush.ts";
 import { enqueueSupplierTopupPush } from "../../lib/integrations/enqueue.ts";
 import { processIntegrationJobs } from "../../lib/integrations/worker.ts";
 
@@ -418,5 +423,33 @@ describe("worker auto-push gate", () => {
     assert.deepEqual(calls, ["listAdAccounts"]);
     assert.equal(res.blocked, 0);
     assert.equal(res.succeeded, 1);
+  });
+});
+
+describe("supplier1Mode — one reading of the env var", () => {
+  // The gate trimmed SUPPLIER1_MODE and getSupplier1Adapter did not, so
+  // "live " armed the money gate while the job went to the MOCK adapter,
+  // which reports success. The app would then believe it had funded an
+  // account it never touched. Both now go through supplier1Mode().
+  it("treats whitespace-padded values as live", () => {
+    assert.equal(supplier1Mode({ SUPPLIER1_MODE: "live " }), "live");
+    assert.equal(supplier1Mode({ SUPPLIER1_MODE: " live\n" }), "live");
+    assert.equal(supplier1Mode({ SUPPLIER1_MODE: "LIVE" }), "live");
+    assert.equal(isSupplier1Live({ SUPPLIER1_MODE: "live " }), true);
+  });
+
+  it("defaults to mock and never guesses", () => {
+    assert.equal(supplier1Mode({}), "mock");
+    assert.equal(isSupplier1Live({}), false);
+    assert.equal(isSupplier1Live({ SUPPLIER1_MODE: "" }), false);
+    assert.equal(isSupplier1Live({ SUPPLIER1_MODE: "livex" }), false);
+    assert.equal(isSupplier1Live({ SUPPLIER1_MODE: "production" }), false);
+  });
+
+  it("agrees with the gate on the same value", () => {
+    // The whole point: gate and adapter must never disagree.
+    const env = { SUPPLIER1_MODE: "live ", SUPPLIER1_AUTOPUSH: "on" };
+    assert.equal(autoPushGate(env).enabled, true);
+    assert.equal(isSupplier1Live(env), true);
   });
 });

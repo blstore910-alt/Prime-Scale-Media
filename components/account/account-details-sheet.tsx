@@ -371,7 +371,7 @@ export function AccountDetailsSheet({
 }
 
 function TopupHistory({ account }: { account: AdAccount }) {
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["top-ups", account.id],
     queryFn: async () => {
       const supabase = createClient();
@@ -396,21 +396,43 @@ function TopupHistory({ account }: { account: AdAccount }) {
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Amount Paid</TableHead>
-              <TableHead>Topup Amount</TableHead>
+              <TableHead>Topup Amount (USD)</TableHead>
               <TableHead>Fee</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!data?.length && (
+            {/* Three different facts, three different sentences. "No Topups
+                yet" was shown while loading AND after a failed read, so an
+                account that had received tens of thousands could state that
+                it had received nothing. */}
+            {isLoading ? (
               <TableRow>
                 <TableCell
                   className="text-center text-muted-foreground"
                   colSpan={5}
                 >
-                  No Topups yet
+                  Loading…
                 </TableCell>
               </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell className="text-center text-destructive" colSpan={5}>
+                  Couldn&apos;t load the top-up history — this is NOT an empty
+                  history. Reload to retry.
+                </TableCell>
+              </TableRow>
+            ) : (
+              !data?.length && (
+                <TableRow>
+                  <TableCell
+                    className="text-center text-muted-foreground"
+                    colSpan={5}
+                  >
+                    No Topups yet
+                  </TableCell>
+                </TableRow>
+              )
             )}
             {data?.map((topup) => (
               <TableRow key={topup.id}>
@@ -421,10 +443,12 @@ function TopupHistory({ account }: { account: AdAccount }) {
                   {CURRENCY_SYMBOLS[topup.currency]}&nbsp;
                   {topup.amount_received}
                 </TableCell>
-                <TableCell>
-                  {CURRENCY_SYMBOLS[topup.currency]}&nbsp;
-                  {topup.topup_amount}
-                </TableCell>
+                {/* topup_amount is a USD figure by construction —
+                    calculateTopupAmount divides the received amount by the
+                    rate and subtracts the fee (lib/utils-pure.ts). Labelling
+                    it with the PAYMENT currency's symbol turned $1,139.53
+                    into "€1,139.53", a ~16% misstatement on a money screen. */}
+                <TableCell>$&nbsp;{topup.topup_amount}</TableCell>
                 <TableCell>{topup.fee}%</TableCell>
                 <TableCell className="capitalize">
                   <Badge variant={"outline"}>
