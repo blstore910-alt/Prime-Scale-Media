@@ -58,6 +58,11 @@ import useUpdateAccount from "./use-update-account";
 // The advertiser branch is kept intact below (the router redirects
 // advertisers to the single-page app, so it is not normally reached, but
 // nothing is dropped).
+// Lists show the first name; the detail sheet shows the whole one.
+function firstName(name?: string | null): string {
+  return (name ?? "").trim().split(/\s+/)[0] ?? "";
+}
+
 export default function AccountsTable() {
   const { profile } = useAppContext();
   const supabase = createClient();
@@ -320,6 +325,7 @@ export default function AccountsTable() {
         accountId={selectedAccountId}
         open={selectedAccountId !== null}
         setOpen={() => setSelectedAccountId(null)}
+        onSetMinTopup={isAdvertiser ? undefined : setAccountToMinTopup}
       />
     </>
   );
@@ -493,30 +499,34 @@ export default function AccountsTable() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      {/* Header actions sit ON the title row, the same shape the dashboard
+          uses. Stacked underneath, the title block plus a full-width button
+          row measured 99px against 48px on every other admin page — a whole
+          extra record's worth of screen, on the one page where you want to
+          see records. The CSV label collapses to its icon on a phone: it is
+          the secondary action and its icon is unambiguous. */}
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Ad Accounts</h1>
-          <p>
-            Create accounts, assign advertisers, set fees, and manage account
-            status.
-          </p>
+          <p>Create accounts, assign advertisers and set fees.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="pacts">
           <button
             className="btn ghost"
             onClick={handleDownload}
             aria-label="Download CSV"
+            title="Download CSV"
           >
             {downloadingCSV ? (
               <Loader2 className="animate-spin" />
             ) : (
               <FileDown />
             )}
-            Download CSV
+            <span className="blab">Download CSV</span>
           </button>
           <CreateAccountDialog>
             <button className="btn grad" aria-label="Create new account">
-              <Plus /> Create New
+              <Plus /> <span className="blab">Create New</span>
             </button>
           </CreateAccountDialog>
         </div>
@@ -667,7 +677,6 @@ export default function AccountsTable() {
                     account={acc}
                     onRowClick={handleAccountClick}
                     onEdit={setAccountToEdit}
-                    onSetMinTopup={setAccountToMinTopup}
                   />
                 ))}
               </tbody>
@@ -724,12 +733,10 @@ function PsmAdminAccountRow({
   account,
   onRowClick,
   onEdit,
-  onSetMinTopup,
 }: {
   account: AdAccount;
   onRowClick: (id: string) => void;
   onEdit: (account: AdAccount) => void;
-  onSetMinTopup: (account: AdAccount) => void;
 }) {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
@@ -781,7 +788,12 @@ function PsmAdminAccountRow({
     <tr onClick={handleRowClick} style={{ cursor: "pointer" }}>
       <td data-label="Client Code" className="mono">{account.advertiser?.tenant_client_code || "—"}</td>
       <td data-label="Account Name" style={{ fontWeight: 600 }}>{account.name}</td>
-      <td data-label="Advertiser">{account.advertiser?.profile?.full_name || "—"}</td>
+      {/* First name only. A list cell is for recognising someone at a
+          glance, and a full name pushed the two-up card wider than the
+          column it sits in. The full name is in the detail sheet. */}
+      <td data-label="Advertiser">
+        {firstName(account.advertiser?.profile?.full_name) || "—"}
+      </td>
       <td data-label="Platform">
         <span
           style={{ display: "inline-flex", alignItems: "center", gap: 9 }}
@@ -834,14 +846,13 @@ function PsmAdminAccountRow({
             </button>
           </div>
         ) : (
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              justifyContent: "flex-end",
-              flexWrap: "wrap",
-            }}
-          >
+          /* Two equal buttons on ONE row. It was three, wrapping onto two
+             rows at unequal widths, on every single record. "Set Topup
+             Limit" is a rarely-touched setting, not a row action — it lives
+             in the account's own detail sheet now, next to the other
+             settings, which is where you go when you want to change a spec
+             rather than scan a list. */
+          <div className="actrow">
             {isAdmin && (
               <button
                 className="btn ghost sm"
@@ -850,18 +861,7 @@ function PsmAdminAccountRow({
                   onEdit(account);
                 }}
               >
-                <Pencil /> Edit
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                className="btn ghost sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSetMinTopup(account);
-                }}
-              >
-                <SlidersHorizontal /> Set Topup Limit
+                <Pencil /> <span className="alab">Edit</span>
               </button>
             )}
             <button
@@ -871,7 +871,7 @@ function PsmAdminAccountRow({
                 onRowClick(account.id);
               }}
             >
-              <Eye /> View
+              <Eye /> <span className="alab">View</span>
             </button>
           </div>
         )}

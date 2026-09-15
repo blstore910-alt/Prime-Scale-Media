@@ -78,6 +78,20 @@ export const PSM_APP_CSS = `
 .psmapp .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .psmapp .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
 .psmapp .phead p{color:var(--muted);font-size:.92rem;margin:4px 0 0}
+/* A page header whose actions share the title row rather than stacking
+   under it. Measured: stacked, /accounts cost 99px of header against 48px
+   on every other admin page. */
+.psmapp .phead-actions{align-items:center;flex-wrap:nowrap;gap:10px}
+.psmapp .phead-actions .ptxt{flex:1 1 auto;min-width:0}
+.psmapp .phead-actions .pacts{flex:0 0 auto;display:flex;gap:8px;align-items:center}
+.psmapp .phead-actions .pacts .btn{white-space:nowrap}
+
+/* Row actions: equal-width buttons on ONE line. Buttons of different widths
+   wrapping onto a second row was the single most repeated ugliness in the
+   admin lists — it happened on every record, so it read as the layout being
+   broken rather than as a long label. */
+.psmapp .actrow{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.psmapp .actrow .btn{white-space:nowrap}
 
 .psmapp .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
 .psmapp .btn{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;border-radius:11px;padding:11px 16px;background:var(--primary);color:#fff;white-space:nowrap;box-shadow:0 12px 26px -12px rgba(58,111,255,.7);transition:.12s}
@@ -248,6 +262,28 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell::before{grid-row:1}
   .psmapp .tbl.wide td.fullcell>*{grid-column:1}
   .psmapp .tbl.wide td.fullcell>span{justify-self:start}
+
+  /* ── One voice for values ──────────────────────────────────────────
+     A record card had four different typographic treatments for things
+     that are all just VALUES: a code, a name, a person, a platform, a
+     percentage. Some inherited the heading face, some the body face, at
+     three different weights. A data card has exactly two roles — the
+     label and the value — so it gets exactly two treatments.
+
+     Anything that is deliberately NOT plain text (a status pill, a
+     button, a platform chip, an editable cell) opts out below, because
+     those carry meaning through their shape and should stay distinct. */
+  .psmapp .tbl.wide td{
+    font-family:var(--bd);font-weight:600;font-size:.88rem;
+    color:var(--ink);line-height:1.35;
+  }
+  .psmapp .tbl.wide td.r,
+  .psmapp .tbl.wide td.num{font-variant-numeric:tabular-nums}
+  .psmapp .tbl.wide td b,
+  .psmapp .tbl.wide td strong{font-family:var(--bd);font-weight:700}
+  /* The mono code column keeps its face — a client code is read
+     character by character, which is what mono is for. */
+  .psmapp .tbl.wide td .mono{font-family:ui-monospace,Menlo,monospace;font-weight:600}
   /* Row actions: one row, always. Equal widths so they read as a set, and
      min-width:0 so they shrink together instead of one wrapping away. */
   .psmapp .actrow{display:flex;gap:7px;width:100%}
@@ -276,6 +312,17 @@ export const PSM_APP_CSS = `
     display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
   /* Page actions sit side by side instead of one full-width block each. */
   .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
+  /* Header buttons keep their icons and drop their words on a phone. The
+     primary action keeps its label down to 380px, because an icon-only
+     "+" is the one control people hunt for. */
+  @media (max-width:430px){
+    .psmapp .phead-actions .btn.ghost .blab{display:none}
+    .psmapp .phead-actions .btn.ghost{padding:9px 11px}
+  }
+  @media (max-width:380px){
+    .psmapp .phead-actions .btn .blab{display:none}
+    .psmapp .phead-actions .btn{padding:9px 11px}
+  }
   .psmapp .phead .btn svg{width:15px;height:15px}
   .psmapp .pactions{display:flex;gap:8px;width:100%}
   .psmapp .pactions .btn{flex:1 1 0;min-width:0;justify-content:center}
@@ -285,6 +332,9 @@ export const PSM_APP_CSS = `
      and a column of identical pills reads as a form, not as a toolbar. */
   .psmapp .fbar{gap:7px;padding:7px;margin-bottom:10px;border-radius:14px}
   .psmapp .fbar .fsr{flex:1 1 100%;max-width:none;padding:9px 12px}
+  /* When the bar carries the bundled control there are only two things in
+     it, so they share one row instead of spending two. */
+  .psmapp .fbar:has(.fgroup) .fsr{flex:1 1 auto;min-width:0}
   .psmapp .fbar select{flex:1 1 0;min-width:0;padding:9px 10px;padding-right:28px;background-position:right 8px center}
   /* The export sits with the filters rather than under them, and shrinks to
      its icon when three controls have to share 340px. */
@@ -298,8 +348,13 @@ export const PSM_APP_CSS = `
      sheet: a 268px popover anchored to a button near the top of a phone
      screen would open upward into the top bar, and its selects would sit
      out of thumb reach. */
-  .psmapp .fgroup{margin-left:0;flex:1 1 0;min-width:0}
-  .psmapp .fbtn{width:100%;justify-content:center;padding:9px 12px}
+  .psmapp .fgroup{margin-left:0;flex:0 0 auto}
+  .psmapp .fbtn{justify-content:center;padding:9px 12px}
+  @media (max-width:430px){
+    /* The words go, the count stays — it is the part that carries state. */
+    .psmapp .fbtn>span:not(.fcount){display:none}
+    .psmapp .fbtn{gap:6px;padding:9px 11px}
+  }
   /* The bottom nav is position:fixed at z-index 50, so both the sheet and
      its scrim must sit ABOVE it — at z-index 40 the sheet's own Reset/Done
      row rendered underneath the nav bar and could not be tapped. A sheet

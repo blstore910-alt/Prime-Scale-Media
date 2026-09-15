@@ -19,7 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { AlertCircle, CheckCircle2, Loader2, XIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, XIcon, SlidersHorizontal } from "lucide-react";
 
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
@@ -48,10 +48,18 @@ export function AccountDetailsSheet({
   accountId,
   open,
   setOpen,
+  onSetMinTopup,
 }: {
   open: boolean;
   setOpen: () => void;
   accountId: string | null;
+  /**
+   * Admin-only. "Set topup limit" used to be a third button on every row of
+   * the accounts list, where it wrapped the actions onto a second line for a
+   * setting almost nobody touches. It belongs here, with the account's other
+   * settings — a list is for scanning, a detail sheet is for changing specs.
+   */
+  onSetMinTopup?: (account: AdAccount) => void;
 }) {
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
@@ -338,16 +346,27 @@ export function AccountDetailsSheet({
                 </Card>
               )}
 
-              {isAdvertiser && (
-                <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                {!isAdvertiser && onSetMinTopup && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setOpen();
+                      onSetMinTopup(data);
+                    }}
+                  >
+                    <SlidersHorizontal /> Set topup limit
+                  </Button>
+                )}
+                {isAdvertiser && (
                   <Button
                     variant="outline"
                     onClick={() => setWithdrawOpen(true)}
                   >
                     Withdraw to wallet
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
 
               <TopupHistory account={data} />
             </div>

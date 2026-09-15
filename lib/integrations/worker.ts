@@ -33,6 +33,8 @@ export type IntegrationJobRow = {
   attempts: number;
   max_attempts: number;
   next_run_at: string;
+  /** Bumped by trg_touch_integration_jobs; the stale-claim reaper reads it. */
+  updated_at?: string;
   last_error: string | null;
   result: Record<string, unknown> | null;
   finished_at: string | null;

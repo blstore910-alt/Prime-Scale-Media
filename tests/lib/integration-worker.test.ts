@@ -95,7 +95,7 @@ function makeMockSupabase(initial: IntegrationJobRow[]) {
           const hit: IntegrationJobRow[] = [];
           for (const [id, r] of rows) {
             if (r.status !== eqStatus) continue;
-            if (ltField === "updated_at" && ltVal && !(r.updated_at < ltVal)) {
+            if (ltField === "updated_at" && ltVal && !((r.updated_at ?? "") < ltVal)) {
               continue;
             }
             const merged = { ...r, ...updateBody } as IntegrationJobRow;
