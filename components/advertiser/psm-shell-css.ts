@@ -492,8 +492,25 @@ export const PSM_APP_CSS = `
     display:grid;place-items:center;
     width:36px;height:36px;padding:0;gap:0;
   }
+  /* Optical sizing, not box sizing. Every icon already sits dead-centre in
+     an identical 36px square — measured 9px of padding on all four sides —
+     and the bar still read as uneven, because a shared BOX is not a shared
+     SIZE. Lucide draws each glyph to a different fraction of its 24-unit
+     viewBox, so at a uniform 18px the actual ink came out:
+
+       hamburger 10.5px tall · bell 16.5 · rocket 16.1 · logout 15.0
+
+     The hamburger was 57% smaller than its neighbours, which is exactly why
+     it looked like it was floating in too much air. Each icon is now scaled
+     so the INK lands on ~16px, which is what the eye compares. The
+     hamburger is capped below its true match (27px) because its glyph is
+     wide and short — matching its height exactly would make it 21px wide
+     against a 15px bell. */
   .psmapp .toolbar .ic-btn svg,
-  .psmapp .tb-left .ham svg{width:18px;height:18px;display:block}
+  .psmapp .tb-left .ham svg{display:block}
+  .psmapp .topbar .ham svg{width:25px;height:25px}
+  .psmapp .topbar a.ic-btn svg{width:17.5px;height:17.5px}
+  .psmapp .topbar button.ic-btn:not(.ham) svg{width:19px;height:19px}
 
   /* The brand tile is a control-sized square too, so the left cluster has
      the same rhythm as the right instead of a 30px tile beside a 36px one. */

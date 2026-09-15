@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useRef } from "react";
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -12,6 +13,12 @@ const POLL_INTERVAL_MS = 60_000;
  * The caller decides how to surface the mismatch. A subtle banner
  * with a "reload" button is usually enough; hard-reloading behind
  * the user's back would drop typed input and defeat the purpose.
+ *
+ * Runs through react-query so that mounting it in more than one place
+ * costs one poll, not one poll each: measured on a cold dashboard load,
+ * /api/version was fetched twice at ~1.0s apiece while the page was still
+ * assembling. The boot version is captured in a ref on first success, so it
+ * survives the refetches that later detect the change.
  */
 export function useAppVersion(): {
   bootVersion: string | null;
@@ -19,45 +26,28 @@ export function useAppVersion(): {
   outdated: boolean;
   reload: () => void;
 } {
-  const [bootVersion, setBootVersion] = useState<string | null>(null);
-  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
   const bootRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data } = useQuery({
+    queryKey: ["app-version"],
+    queryFn: async () => {
+      const res = await fetch("/api/version", { cache: "no-store" });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { version?: string };
+      return body.version ?? null;
+    },
+    refetchInterval: POLL_INTERVAL_MS,
+    staleTime: POLL_INTERVAL_MS,
+    retry: false,
+    // A version probe that fails is not something the user can act on.
+    meta: { silent: true },
+  });
 
-    async function fetchVersion(): Promise<string | null> {
-      try {
-        const res = await fetch("/api/version", { cache: "no-store" });
-        if (!res.ok) return null;
-        const data = (await res.json()) as { version?: string };
-        return data.version ?? null;
-      } catch {
-        return null;
-      }
-    }
-
-    // Boot
-    (async () => {
-      const v = await fetchVersion();
-      if (cancelled) return;
-      bootRef.current = v;
-      setBootVersion(v);
-      setCurrentVersion(v);
-    })();
-
-    // Poll
-    const timer = setInterval(async () => {
-      const v = await fetchVersion();
-      if (cancelled) return;
-      if (v) setCurrentVersion(v);
-    }, POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+  const currentVersion = data ?? null;
+  if (currentVersion && bootRef.current === null) {
+    bootRef.current = currentVersion;
+  }
+  const bootVersion = bootRef.current;
 
   return {
     bootVersion,

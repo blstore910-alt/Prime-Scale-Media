@@ -231,6 +231,15 @@ export default function AdminShell({
                   key={item.href}
                   href={item.href}
                   onClick={close}
+                  /* The sidebar holds up to 20 links and on a phone it lives
+                     behind the hamburger, closed. Next still prefetched them
+                     on load: measured four sidebar routes fetched during the
+                     first paint at ~0.9-1.3s each, competing with the data
+                     the visible page actually needed. prefetch={false} only
+                     drops the on-render prefetch — hover and touch still
+                     prefetch, so opening the drawer and tapping is no
+                     slower. */
+                  prefetch={false}
                   className={`navlink${isActive(pathname, item.href) ? " on" : ""}`}
                 >
                   <Icon /> {item.title}
