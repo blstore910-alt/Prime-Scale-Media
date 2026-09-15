@@ -25,15 +25,44 @@
 --
 -- After this, the database enforces what the actions always claimed.
 --
--- _is_super_admin_of(tenant) already exists (20260828140000_rls_templates)
--- and is exactly the right predicate: role='admin' AND tenants.owner_id is
--- this user.
+-- The predicate is "role='admin' AND tenants.owner_id is this user".
+-- 20260828140000_rls_templates.sql defines _is_super_admin_of(uuid) for
+-- exactly this, but the live database is hand-authored and that helper is
+-- NOT there — applying this migration failed on it. So it is (re)defined
+-- below rather than assumed. `create or replace` leaves an existing one
+-- with the same signature working exactly as before.
 --
 -- ⚠️ APPLY ON SUPABASE MANUALLY (git push ships only the frontend).
 -- Safe to re-run.
 -- =====================================================================
 
 set search_path = public;
+
+-- ---------------------------------------------------------------------
+-- The owner predicate, defined here so this migration has no prerequisite.
+-- SECURITY DEFINER because it reads tenants and user_profiles, which the
+-- calling user may not be able to read directly; STABLE so the planner can
+-- cache it within a statement.
+-- ---------------------------------------------------------------------
+create or replace function public._is_super_admin_of(tenant uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $fn$
+  select exists (
+    select 1
+      from public.tenants t
+      join public.user_profiles up on up.tenant_id = t.id
+     where t.id = tenant
+       and t.owner_id = auth.uid()
+       and up.user_id = auth.uid()
+       and up.role = 'admin'
+  );
+$fn$;
+revoke all on function public._is_super_admin_of(uuid) from public;
+grant execute on function public._is_super_admin_of(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- bank_ledger_entries — owner only, read AND write.

@@ -500,3 +500,54 @@ export async function updateTopupAsAdmin(
 
   return { ok: true, data: null };
 }
+
+// ─────────────────────────────────────────
+// verifyAdTopup — the admin "Verify payment" action
+// ─────────────────────────────────────────
+// The verify dialog used to call the top_up_admin_verify RPC straight from
+// the browser. The RPC itself is safe (SECURITY DEFINER, it does its own
+// authorization), so nothing was exposed — but going around the server
+// action also went around the supplier push. Verifying a top-up is EXACTLY
+// the moment we learn the money is ours and the supplier should be told, and
+// it was the one path that never told them. Silently: no error, no queued
+// job, just an account that never gets funded.
+//
+// Everything else that marks a top-up completed already enqueues here. This
+// makes the canonical path do the same.
+export async function verifyAdTopup(
+  topupId: string,
+  newFeePercent: number | null,
+): Promise<ActionResult<unknown>> {
+  if (typeof topupId !== "string" || topupId.length === 0) {
+    return { ok: false, error: "Invalid input", code: "invalid" };
+  }
+  if (
+    newFeePercent !== null &&
+    (typeof newFeePercent !== "number" ||
+      !Number.isFinite(newFeePercent) ||
+      newFeePercent < 0 ||
+      newFeePercent > 100)
+  ) {
+    return { ok: false, error: "Invalid fee percentage", code: "invalid" };
+  }
+
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
+  const { supabase, profile } = ctx;
+
+  const { data, error } = await supabase.rpc("top_up_admin_verify", {
+    p_top_up_id: topupId,
+    p_new_fee_percent: newFeePercent,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  // Idempotent on the top-up id, and a no-op unless BOTH auto-push switches
+  // are armed — so this cannot fund anything while the gate is shut, and
+  // re-verifying cannot fund it twice.
+  await enqueueSupplierTopupPush(supabase, {
+    topupId,
+    tenantId: profile.tenant_id,
+  });
+
+  return { ok: true, data };
+}

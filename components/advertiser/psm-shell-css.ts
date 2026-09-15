@@ -94,10 +94,20 @@ export const PSM_APP_CSS = `
 .psmapp .actrow .btn{white-space:nowrap}
 
 .psmapp .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
-.psmapp .btn{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;border-radius:11px;padding:11px 16px;background:var(--primary);color:#fff;white-space:nowrap;box-shadow:0 12px 26px -12px rgba(58,111,255,.7);transition:.12s}
-.psmapp .btn:hover{transform:translateY(-1px);background:var(--primary-600)}.psmapp .btn svg{width:17px;height:17px}
+/* Button scale. These were sized like page-level calls to action and then
+   used everywhere, including inside dense record cards, where a 40px-tall
+   control sat next to a 19px line of text and dominated it. The scale is
+   now deliberate and proportional to the type it sits beside:
+     .btn     14px text, 38px tall — page actions
+     .btn.sm  12.8px text, 30px tall — row and panel actions
+   Icons track the text rather than staying fixed, so a small button gets a
+   small icon instead of a full-size one crammed into less padding. */
+.psmapp .btn{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.875rem;line-height:1.2;border-radius:10px;padding:10px 15px;background:var(--primary);color:#fff;white-space:nowrap;box-shadow:0 10px 22px -12px rgba(58,111,255,.7);transition:.12s}
+.psmapp .btn:hover{transform:translateY(-1px);background:var(--primary-600)}.psmapp .btn svg{width:16px;height:16px}
 .psmapp .btn:disabled{opacity:.6;cursor:default;transform:none}
-.psmapp .btn.sm{padding:8px 12px;font-size:.85rem}
+.psmapp .btn.sm{padding:7px 11px;font-size:.8rem;gap:6px;border-radius:9px;box-shadow:0 6px 14px -10px rgba(58,111,255,.6)}
+.psmapp .btn.sm svg{width:14px;height:14px}
+.psmapp .btn.ghost.sm{box-shadow:none}
 .psmapp .btn.ghost{background:var(--panel);color:var(--ink);box-shadow:none;border:1px solid var(--line-2)}
 .psmapp .btn.ghost:hover{background:var(--panel-2);border-color:var(--primary);color:var(--primary-600)}
 .psmapp .btn.grad{background:var(--brand);box-shadow:0 12px 26px -12px rgba(124,92,255,.7)}
@@ -286,8 +296,11 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td .mono{font-family:ui-monospace,Menlo,monospace;font-weight:600}
   /* Row actions: one row, always. Equal widths so they read as a set, and
      min-width:0 so they shrink together instead of one wrapping away. */
-  .psmapp .actrow{display:flex;gap:7px;width:100%}
-  .psmapp .actrow .btn{flex:1 1 0;min-width:0;justify-content:center;padding:9px 8px;white-space:nowrap}
+  /* Sized to content, not stretched across the cell. Two buttons filling a
+     full-width cell read as the main event of the card; they are not. A
+     shared min-width keeps them identical without inflating them. */
+  .psmapp .actrow{display:flex;gap:7px;justify-content:flex-end}
+  .psmapp .actrow .btn{flex:0 0 auto;min-width:46px;justify-content:center;padding:7px 10px;white-space:nowrap}
   .psmapp .actrow .btn svg{flex:0 0 auto}
   .psmapp .actrow .alab{overflow:hidden;text-overflow:ellipsis}
   /* Below 420px three labels cannot fit without shrinking the tap target,

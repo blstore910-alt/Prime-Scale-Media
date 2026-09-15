@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { verifyAdTopup } from "@/actions/topup-actions";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/client";
 import { Topup } from "@/lib/types/topup";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -142,13 +142,12 @@ function VerifyTopupInvoice({
       topupId: string;
       newFeePercent: number | null;
     }) => {
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("top_up_admin_verify", {
-        p_top_up_id: vars.topupId,
-        p_new_fee_percent: vars.newFeePercent,
-      });
-      if (error) throw error;
-      return data;
+      // Through the server action, not the RPC directly: verifying is what
+      // tells us the money is ours, and the supplier push is queued on the
+      // same step. Calling the RPC from here skipped that silently.
+      const res = await verifyAdTopup(vars.topupId, vars.newFeePercent);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
     },
     onSuccess: () => {
       toast.success("Topup verified successfully");
