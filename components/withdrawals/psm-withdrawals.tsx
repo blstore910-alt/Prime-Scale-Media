@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -255,13 +256,28 @@ function WithdrawalsSection() {
             placeholder="Search ref, advertiser, account…"
           />
         </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: setStatus,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "pending", label: "Pending" },
+                { value: "approved", label: "Approved" },
+                { value: "rejected", label: "Rejected" },
+                { value: "cancelled", label: "Cancelled" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>

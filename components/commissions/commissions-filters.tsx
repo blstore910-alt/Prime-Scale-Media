@@ -1,7 +1,7 @@
 "use client";
 
 import dayjs from "dayjs";
-import { CalendarIcon, Filter, X } from "lucide-react";
+import { CalendarIcon, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 
@@ -110,11 +110,15 @@ export default function CommissionsFilters({
     setOpen(false);
   };
 
-  const isApplied =
-    currency !== "all" ||
-    commissionType !== "all" ||
-    sort !== "newest" ||
-    Boolean(dateRange?.from && dateRange?.to);
+  // How many things are narrowing the list. The button shows this, because
+  // once the controls are behind it the button is the only thing left that
+  // can say the list is filtered.
+  const appliedCount =
+    (currency !== "all" ? 1 : 0) +
+    (commissionType !== "all" ? 1 : 0) +
+    (sort !== "newest" ? 1 : 0) +
+    (dateRange?.from && dateRange?.to ? 1 : 0);
+  const isApplied = appliedCount > 0;
 
   const clearFilters = () => {
     setCurrency("all");
@@ -245,22 +249,29 @@ export default function CommissionsFilters({
         )}
       </div>
 
-      <div className="md:hidden gap-2">
-        {isApplied && (
-          <Button size="sm" variant="ghost" onClick={clearFilters}>
-            <X />
-            Clear
-          </Button>
-        )}
-        <Button size="icon" variant="outline" onClick={() => setOpen(true)}>
-          <Filter />
-        </Button>
+      {/* Same control as every other list: one button beside the search,
+          carrying a count. It used to be a bare icon-only funnel PLUS a
+          separate Clear button, which wrapped onto a second row under the
+          search field — a filter bar taller than it needed to be, in a
+          shape that appeared nowhere else in the app. Clearing lives inside
+          the dialog, where the filters it clears are. */}
+      <div className="fgroup md:hidden">
+        <button
+          className={`fbtn${isApplied ? " on" : ""}`}
+          onClick={() => setOpen(true)}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+        >
+          <SlidersHorizontal />
+          <span>Sort &amp; filter</span>
+          {appliedCount > 0 && <span className="fcount">{appliedCount}</span>}
+        </button>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Filters</DialogTitle>
+            <DialogTitle>Sort &amp; filter</DialogTitle>
           </DialogHeader>
 
           <div className="mt-2 flex flex-col gap-3">
@@ -337,6 +348,19 @@ export default function CommissionsFilters({
           </div>
 
           <DialogFooter className="mt-4 flex flex-row justify-end gap-2">
+            {/* Reset moved in here from the filter bar, so clearing lives
+                next to the filters it clears. */}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                clearFilters();
+                setOpen(false);
+              }}
+              disabled={!isApplied}
+            >
+              Reset
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>

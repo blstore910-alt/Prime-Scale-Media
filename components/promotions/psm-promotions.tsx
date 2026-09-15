@@ -1,6 +1,7 @@
 "use client";
 
 import { grantPerk, revokePerk } from "@/actions/perk-actions";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -360,25 +361,37 @@ export default function PsmPromotions() {
             placeholder="Search perks…"
           />
         </label>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="revoked">Revoked</option>
-        </select>
-        <select
-          value={kindFilter}
-          onChange={(e) => setKindFilter(e.target.value)}
-        >
-          <option value="all">All perks</option>
-          {KINDS.map((k) => (
-            <option key={k} value={k}>
-              {PERK_KIND_LABELS[k]}
-            </option>
-          ))}
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "revoked", label: "Revoked" },
+              ],
+            },
+            {
+              id: "kind",
+              label: "Perk type",
+              value: kindFilter,
+              onChange: setKindFilter,
+              options: [
+                { value: "all", label: "All perks" },
+                ...KINDS.map((k) => ({ value: k, label: PERK_KIND_LABELS[k] })),
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatusFilter("all");
+            setKindFilter("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       {/* Active & recent perks */}
