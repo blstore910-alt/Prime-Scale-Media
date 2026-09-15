@@ -1,7 +1,7 @@
 "use client";
 
 import { SlidersHorizontal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 export type PsmOption = { value: string; label: string };
 
@@ -58,6 +58,12 @@ export default function PsmSortFilter({
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Element ids must be unique per INSTANCE. /withdrawals renders three of
+  // these on one page (Withdrawals, Refunds, Adjustments), so a fixed
+  // "psf-status" appeared three times in the DOM — and a <label htmlFor>
+  // pointing at a duplicated id focuses whichever one the browser finds
+  // first, which is not the one you clicked.
+  const uid = useId();
 
   // The scrim catches clicks; Escape is the other way out of a panel, and
   // leaving it out is the difference between a control and a trap.
@@ -98,11 +104,11 @@ export default function PsmSortFilter({
           <div className="fpanel" role="dialog" aria-label={label}>
             {sortOptions && sortOptions.length > 0 && onSortChange && (
               <>
-                <label className="flab" htmlFor="psf-sort">
+                <label className="flab" htmlFor={`${uid}-sort`}>
                   Sort by
                 </label>
                 <select
-                  id="psf-sort"
+                  id={`${uid}-sort`}
                   value={sort}
                   onChange={(e) => onSortChange(e.target.value)}
                 >
@@ -117,11 +123,11 @@ export default function PsmSortFilter({
 
             {filters.map((f) => (
               <div key={f.id} style={{ display: "contents" }}>
-                <label className="flab" htmlFor={`psf-${f.id}`}>
+                <label className="flab" htmlFor={`${uid}-${f.id}`}>
                   {f.label}
                 </label>
                 <select
-                  id={`psf-${f.id}`}
+                  id={`${uid}-${f.id}`}
                   value={f.value}
                   onChange={(e) => f.onChange(e.target.value)}
                 >
