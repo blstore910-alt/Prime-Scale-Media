@@ -573,7 +573,14 @@ export const PSM_APP_CSS = `
 .psmapp .topbar{padding-left:14px;padding-right:14px}
 @media (max-width:900px){
   .psmapp .tb-left{display:inline-flex}
-  .psmapp .toolbar{padding:4px;border-radius:14px;gap:4px}
+  /* More room on the LEFT and RIGHT than above and below. Even padding
+     measured the same on all four sides but did not look it: the two end
+     controls are a filled dark tile and an outlined square, and a filled
+     shape reads as touching an edge it is merely close to, while the open
+     space above and below an icon is visually part of the icon's own
+     breathing room. 8px horizontal against 4px vertical evens it out to the
+     eye without making the bar any taller. */
+  .psmapp .toolbar{padding:4px 8px;border-radius:14px;gap:5px}
 
   /* ONE square for every control in the bar. 36x36, 10px radius, an 18px
      icon dead centre. The bar used to hold four different sizes.
@@ -616,11 +623,26 @@ export const PSM_APP_CSS = `
   }
   .psmapp .tb-left .mark svg{width:18px;height:18px;display:block}
 
-  /* The avatar keeps its chevron, so it is the one deliberately wider
-     control — but its inner square matches the icon squares. */
-  .psmapp .toolbar .ava-btn{padding:0 7px 0 4px;gap:3px}
-  .psmapp .toolbar .ava-btn .avatar{width:28px;height:28px;border-radius:8px;font-size:.74rem}
-  .psmapp .toolbar .ava-btn svg{width:14px;height:14px}
+  /* Every control in the bar is the SAME 36px square. The avatar used to
+     keep its chevron and so came out 58px wide — the one odd size, sitting
+     in the middle of the right-hand cluster, which is exactly where a
+     broken rhythm is most visible. On a phone the chevron is not carrying
+     its cost: a tappable avatar tile is already understood to open a menu.
+
+     Measured before: 36, 58, 36 on the right against 36, 36 on the left.
+     After: two matched pairs of 36px squares either side of the bar. */
+  .psmapp .toolbar .ava-btn{
+    display:grid;place-items:center;
+    width:36px;height:36px;padding:0;gap:0;
+  }
+  .psmapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:8px;font-size:.76rem}
+  .psmapp .toolbar .ava-btn svg{display:none}
+  /* The standalone sign-out duplicates the one inside that menu. */
+  .psmapp .topbar .so-btn{display:none}
+  /* The role chip renders to 0x0 here — it is hidden by its own rule — so
+     take it out of the flex line entirely instead of leaving a zero-size
+     node between two real controls. */
+  .psmapp .topbar .tool.st{display:none}
 
   /* The title stays hidden — every view renders its own <h1> directly
      below, and repeating it in the bar is duplication, not hierarchy. The

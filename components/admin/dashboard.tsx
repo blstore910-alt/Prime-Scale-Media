@@ -112,10 +112,14 @@ export default function AdminDashboard() {
   const { isSuperAdmin, dispatch } = useAppContext();
   const pending = usePendingCounts();
 
-  // A count that could not be read contributes nothing to the total — the
-  // banner below already refuses to claim "all caught up" whenever
-  // pending.isError is true, so an unknown queue can never be summed into a
-  // reassuring zero.
+  // An unreadable count renders as a dash, never as a number.
+  const n = (v: number | null) => (v === null ? "—" : v);
+
+  // A count that could not be read contributes nothing to the total. That is
+  // only honest because the banner refuses to render this headline at all
+  // when pending.isError is true — it shows "Couldn't load the queues"
+  // instead — so an unknown queue can never be quietly summed into a
+  // reassuring number.
   const needsAction =
     (pending.walletTopups ?? 0) +
     (pending.topUps ?? 0) +
@@ -194,9 +198,14 @@ export default function AdminDashboard() {
                 {needsAction} {needsAction === 1 ? "item needs" : "items need"}{" "}
                 action
               </b>
+              {/* A null count is unknown, and rendering it directly printed
+                  NOTHING — "  wallet topups · 7 ad-account topups" — while
+                  the headline above it counted that queue as zero. Each
+                  number says what it knows. */}
               <div className="sub">
-                {pending.walletTopups} wallet topups · {pending.topUps} ad-account
-                topups · {pending.adAccountRequests} account requests
+                {n(pending.walletTopups)} wallet topups · {n(pending.topUps)}{" "}
+                ad-account topups · {n(pending.adAccountRequests)} account
+                requests
               </div>
             </div>
             {primaryQueue && (

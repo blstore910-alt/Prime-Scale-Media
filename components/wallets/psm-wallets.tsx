@@ -1,6 +1,7 @@
 "use client";
 
 import { DATE_FORMAT } from "@/lib/constants";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { useAppContext } from "@/context/app-provider";
 import { WalletWithAdvertiser } from "@/lib/types/wallet";
 import dayjs from "dayjs";
@@ -142,19 +143,23 @@ export default function PsmWallets() {
             placeholder="Search client, advertiser, or wallet ID"
           />
         </label>
-        <select
-          value={sort}
-          onChange={(e) => {
-            setSort(e.target.value);
+        {/* Sorting lives behind the same one control every other list uses,
+            so the bar is one row instead of two and the button can say at a
+            glance that the list is narrowed. */}
+        <PsmSortFilter
+          sort={sort}
+          onSortChange={(v) => {
+            setSort(v);
             setPage(1);
           }}
-        >
-          {sortOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          sortOptions={sortOptions}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setSort(sortOptions[0]?.value ?? "");
+            handleSearchChange("");
+            setPage(1);
+          }}
+        />
       </div>
 
       {isLoading ? (
@@ -246,39 +251,40 @@ export default function PsmWallets() {
                         : "—"}
                     </td>
                     <td className="r" data-label="Actions">
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit,minmax(min(120px,100%),1fr))",
-                          gap: 8,
-                        }}
-                      >
+                      {/* One row, equal widths. The auto-fit grid with a
+                          120px minimum meant every button took a full line
+                          of its own on a phone — three buttons, three rows,
+                          on every wallet. .actrow keeps them together and
+                          collapses their labels to icons when the screen is
+                          too narrow for words. */}
+                      <div className="actrow">
                         {/* Editing balances (wallet_admin_adjust) is a
                             super-admin-only capability — hide it from
                             non-owner admins. */}
                         {isSuperAdmin && (
                           <button
                             className="btn ghost sm"
-                            style={{ width: "100%", justifyContent: "center" }}
                             onClick={() => setEditingWallet(wallet)}
+                            title="Edit balance"
                           >
-                            <Pencil /> Edit
+                            <Pencil /> <span className="alab">Edit</span>
                           </button>
                         )}
                         <button
                           className="btn ghost sm"
-                          style={{ width: "100%", justifyContent: "center" }}
                           onClick={() => setSelectedWalletId(wallet.id)}
+                          title="Details"
                         >
-                          <Eye /> Details
+                          <Eye /> <span className="alab">Details</span>
                         </button>
                         {isAdmin && (
                           <button
                             className="btn ghost sm"
-                            style={{ width: "100%", justifyContent: "center" }}
                             onClick={() => setMinTopupWallet(wallet)}
+                            title="Minimum top-up amount"
                           >
-                            <SlidersHorizontal /> Min amount
+                            <SlidersHorizontal />{" "}
+                            <span className="alab">Min amount</span>
                           </button>
                         )}
                       </div>

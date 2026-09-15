@@ -9,8 +9,10 @@ export type PendingCounts = {
   walletTopups: number | null;
   topUps: number | null;
   adAccountRequests: number | null;
-  /** True when at least one count could not be read. */
+  /** True when at least one count could not be read. Never true while the
+   *  first request is still in flight — unknown-yet is not unknown. */
   isError: boolean;
+  isLoading: boolean;
 };
 
 /**
@@ -23,7 +25,7 @@ export function usePendingCounts(): PendingCounts {
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
 
-  const { data, isError } = useQuery<{
+  const { data, isError, isLoading } = useQuery<{
     walletTopups: number | null;
     topUps: number | null;
     adAccountRequests: number | null;
@@ -79,10 +81,16 @@ export function usePendingCounts(): PendingCounts {
 
   return {
     ...counts,
+    // NOT while loading. Before the first response every count is null, and
+    // treating that as an error meant the dashboard opened with "Couldn't
+    // load the queues" on every single page load — an alarm that cried wolf
+    // so reliably it would have trained people to ignore the real one.
     isError:
-      isError ||
-      counts.walletTopups === null ||
-      counts.topUps === null ||
-      counts.adAccountRequests === null,
+      !isLoading &&
+      (isError ||
+        counts.walletTopups === null ||
+        counts.topUps === null ||
+        counts.adAccountRequests === null),
+    isLoading,
   };
 }

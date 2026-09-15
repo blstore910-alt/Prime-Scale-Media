@@ -47,6 +47,13 @@ const publicRoutes = [
   "/api/health",
   "/api/version",
   "/api/log/client-error",
+  // Clearing the profile_id cookie must work AFTER the session is gone —
+  // which is precisely when the middleware would redirect it to
+  // /auth/login. Leaving it out made the sign-out endpoint inert: the POST
+  // never reached the route and the httpOnly cookie survived into the next
+  // person's session. Safe to expose: it takes no input, reads nothing, and
+  // only ever deletes a cookie belonging to the caller's own browser.
+  "/api/auth/sign-out",
   // /api/me/export lives under authenticated routes; not public
 ];
 

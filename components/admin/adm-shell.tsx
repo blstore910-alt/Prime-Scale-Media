@@ -349,8 +349,13 @@ export default function AdminShell({
                 </div>
               )}
             </div>
+            {/* Redundant on a phone: the avatar menu right next to it
+                already carries Sign out, and two ways to do the same thing
+                in a five-control bar is what made it feel cluttered. Kept on
+                desktop, where there is room and one-click sign-out is a
+                genuine convenience. */}
             <button
-              className="tool ic-btn"
+              className="tool ic-btn so-btn"
               onClick={() => setSignOutOpen(true)}
               aria-label="Sign out"
               title="Sign out"

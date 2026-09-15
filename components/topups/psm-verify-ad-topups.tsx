@@ -1,6 +1,7 @@
 "use client";
 
 import { Topup } from "@/lib/types/topup";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { Check, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import useTopups from "./use-topups";
@@ -74,11 +75,26 @@ export default function PsmVerifyAdTopups() {
             placeholder="Search advertiser, code, number…"
           />
         </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: setStatus,
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "pending", label: "Pending" },
+                { value: "completed", label: "Completed" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       {isLoading ? (

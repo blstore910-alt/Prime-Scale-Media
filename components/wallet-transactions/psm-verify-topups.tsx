@@ -1,6 +1,7 @@
 "use client";
 
 import { useUpdateTransaction } from "@/hooks/use-update-transaction";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { prechargeTopup } from "@/actions/precharge-actions";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useQueryClient } from "@tanstack/react-query";
@@ -132,17 +133,47 @@ export default function PsmVerifyTopups({
             placeholder="Search reference…"
           />
         </label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="rejected">Rejected</option>
-          <option value="all">All statuses</option>
-        </select>
-        <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-          <option value="all">All currencies</option>
-          <option value="EUR">EUR</option>
-          <option value="USD">USD</option>
-        </select>
+        {/* Both filters behind one control: two loose selects cost a whole
+            second row of the bar on a phone, above a queue you are trying to
+            work through. The count on the button is what stops a filtered
+            queue from looking like an empty one. */}
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              // "pending" is this screen's working default, not "no filter" —
+              // it is a verification queue. So the badge counts anything else
+              // as narrowing, and Reset returns you to the queue.
+              allValue: "pending",
+              onChange: setStatus,
+              options: [
+                { value: "pending", label: "Pending" },
+                { value: "completed", label: "Completed" },
+                { value: "rejected", label: "Rejected" },
+                { value: "all", label: "All statuses" },
+              ],
+            },
+            {
+              id: "currency",
+              label: "Currency",
+              value: currency,
+              onChange: setCurrency,
+              options: [
+                { value: "all", label: "All currencies" },
+                { value: "EUR", label: "EUR" },
+                { value: "USD", label: "USD" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("pending");
+            setCurrency("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       {isLoading ? (
