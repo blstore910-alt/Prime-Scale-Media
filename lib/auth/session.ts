@@ -31,6 +31,11 @@ export const getSessionProfiles = cache(async (userId: string) => {
   const supabase = await createClient();
   return supabase
     .from("user_profiles")
-    .select("*, tenant:tenants(*), advertiser:advertisers(*)")
+    .select(
+      // Explicit columns, NOT advertisers(*) — see
+      // lib/types/advertiser-columns.ts for what that leaked and why a
+      // literal list is the only thing PostgREST type inference accepts.
+      "*, tenant:tenants(*), advertiser:advertisers(id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at)",
+    )
     .eq("user_id", userId);
 });

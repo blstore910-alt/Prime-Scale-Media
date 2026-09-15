@@ -29,7 +29,21 @@ export function LoginForm() {
   const [isPending, startTransition] = useTransition();
   const searchParams = useSearchParams();
   const reason = searchParams?.get("reason");
-  const reasonMessage = reason ? REDIRECT_REASONS[reason] : null;
+  // Captured once, on first render. The ?reason= is then stripped from the
+  // URL below, so the notice survives this visit but NOT a refresh — it
+  // explains why you landed here, and after you have read it once the page
+  // should just be the login page again. Leaving it in the URL meant it
+  // reappeared on every reload, and stayed in any bookmark or shared link.
+  const [reasonMessage] = useState<string | null>(() =>
+    reason ? REDIRECT_REASONS[reason] ?? null : null,
+  );
+
+  useEffect(() => {
+    if (!reason) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("reason");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, [reason]);
 
   // Magic-link + email-confirm redirects land here with an
   // #access_token=… URL fragment. The @supabase/ssr browser client

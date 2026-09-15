@@ -30,7 +30,11 @@ export default async function CompleteProfilePage() {
 
   const { data: profiles } = await supabase
     .from("user_profiles")
-    .select("*, advertiser:advertisers(*)")
+    .select(
+      // Explicit columns, NOT advertisers(*) — see
+      // lib/types/advertiser-columns.ts.
+      "*, advertiser:advertisers(id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at)",
+    )
     .eq("user_id", user.id);
 
   const profileList = (profiles ?? []) as UserProfile[];
