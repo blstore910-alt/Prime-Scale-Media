@@ -101,6 +101,26 @@ export const PSM_APP_CSS = `
    a word sliced in half. Used wherever a list cell names a person or a
    record: the label is chosen short enough (client code + first name) that
    this should almost never fire. */
+.psmapp .copyable{
+  display:inline-flex;align-items:center;gap:6px;max-width:100%;min-width:0;
+  border:0;background:none;padding:0;margin:0;cursor:pointer;
+  font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;
+  text-align:left;border-radius:7px;transition:color .12s;
+}
+.psmapp .copyable.mono .cv{font-family:ui-monospace,Menlo,monospace}
+.psmapp .copyable .cv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* The icon is quiet until you go for it — a row of detail fields should read
+   as information, not as a column of buttons. */
+.psmapp .copyable .ci{width:13px;height:13px;flex:0 0 auto;color:var(--faint);opacity:.45;transition:opacity .12s,color .12s}
+.psmapp .copyable:hover .ci,.psmapp .copyable:focus-visible .ci{opacity:1;color:var(--primary-600)}
+.psmapp .copyable:hover{color:var(--primary-600)}
+.psmapp .copyable:focus-visible{outline:0;box-shadow:0 0 0 3px var(--primary-tint)}
+.psmapp .copyable.done{color:var(--win)}
+.psmapp .copyable.done .ci{color:var(--win);opacity:1}
+.psmapp .copyable .cfail{font-size:.68rem;color:var(--danger);font-weight:700}
+/* On touch there is no hover, so the affordance has to be visible already. */
+@media (hover:none){.psmapp .copyable .ci{opacity:.8}}
+
 .psmapp .oneline{
   display:block;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;

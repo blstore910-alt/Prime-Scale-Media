@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import Copyable from "@/components/psm/copyable";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
@@ -185,10 +186,16 @@ export default function UserDetailsSheet({
           <span className="uds-av">{initials(data?.full_name)}</span>
           <div className="uds-id">
             <div className="uds-nm">{data?.full_name || "User Details"}</div>
+            {/* The email is off the list rows now, so this is where you
+                come to get it — which makes it worth being able to take
+                rather than select by hand on a phone. */}
             <div className="uds-sub">
               {clientCode && <span className="uds-cd">{clientCode}</span>}
-              {clientCode && data?.email ? " · " : ""}
-              {data?.email || (!clientCode ? "—" : "")}
+              {data?.email ? (
+                <Copyable value={data.email} label="email" />
+              ) : (
+                !clientCode && "—"
+              )}
             </div>
           </div>
           {saving && (
@@ -273,39 +280,39 @@ export default function UserDetailsSheet({
                 <div className="uds-cgrid">
                   <div className="uds-f">
                     <span className="l">Name</span>
-                    <div className="d">{company.name || "—"}</div>
+                    <Copyable value={company.name} label="company name" />
                   </div>
                   <div className="uds-f">
                     <span className="l">Email</span>
-                    <div className="d">{company.official_email || "—"}</div>
+                    <Copyable value={company.official_email} label="email" />
                   </div>
                   <div className="uds-f">
                     <span className="l">Phone</span>
-                    <div className="d">{company.phone || "—"}</div>
+                    <Copyable value={company.phone} label="phone" />
                   </div>
                   <div className="uds-f">
                     <span className="l">Website</span>
-                    <div className="d">{company.website_url || "—"}</div>
+                    <Copyable value={company.website_url} label="website" />
                   </div>
                   <div className="uds-f">
                     <span className="l">VAT No</span>
-                    <div className="d">
-                      {company.is_not_vat
-                        ? "Not Applicable"
-                        : company.vat_no || "—"}
-                    </div>
+                    {company.is_not_vat ? (
+                      <div className="d">Not Applicable</div>
+                    ) : (
+                      <Copyable value={company.vat_no} label="VAT number" mono />
+                    )}
                   </div>
                   <div className="uds-f">
                     <span className="l">Registration No</span>
-                    <div className="d">{company.registration_no || "—"}</div>
+                    <Copyable value={company.registration_no} label="registration number" mono />
                   </div>
                   <div className="uds-f full">
                     <span className="l">Address</span>
-                    <div className="d">{company.address || "—"}</div>
+                    <Copyable value={company.address} label="address" />
                   </div>
                   <div className="uds-f">
                     <span className="l">Country</span>
-                    <div className="d">{company.country || "—"}</div>
+                    <Copyable value={company.country} label="country" />
                   </div>
                   <div className="uds-f">
                     <span className="l">State</span>
