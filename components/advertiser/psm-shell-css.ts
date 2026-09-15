@@ -409,11 +409,23 @@ export const PSM_APP_CSS = `
      (an identity block, a row of buttons, an address) keeps it by being
      marked .fullcell. */
   .psmapp .tbl.wide tr{
-    display:grid;grid-template-columns:1fr 1fr;gap:0 12px;padding:4px 12px 10px;
+    display:grid;grid-template-columns:1fr 1fr;gap:0 12px;padding:2px 13px 4px;
   }
+  /* SYMMETRIC vertical padding. It was padding-top only, so a cell's content
+     sat 8px below the divider above it and flush against the divider below —
+     the platform chip and the fee value visibly touched the line. Each cell
+     now owns equal space on both sides of its content, which is what makes
+     the stack of dividers read as an even rhythm instead of a list of things
+     resting on lines. */
   .psmapp .tbl.wide td{
-    display:block;text-align:left;padding:8px 0 0;border-top:0;
+    display:block;text-align:left;padding:10px 0;border-top:0;
+    min-height:0;
   }
+  /* The chip and the pill are taller than plain text, so without this they
+     push their own row taller than its neighbour and the rhythm breaks. */
+  .psmapp .tbl.wide td .pfi,
+  .psmapp .tbl.wide td .badge,
+  .psmapp .tbl.wide td .pill{vertical-align:middle}
   /* The rule above removes every divider, so put one back between ROWS of
      the grid only — a line under each pair, never between the pair. */
   .psmapp .tbl.wide td{box-shadow:0 -1px 0 var(--line)}
