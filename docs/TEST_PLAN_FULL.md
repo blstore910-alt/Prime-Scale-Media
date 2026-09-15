@@ -309,6 +309,99 @@ The four bold cells are the ones that were wrong today.
 
 ---
 
+## 3b. The one live supplier push
+
+The point of this test is narrow: prove that ONE real top-up reaches SeamX,
+that the figures match on both sides, and that SeamX's own portal still shows
+what it should afterwards. Nothing more goes out.
+
+### What the app does to SeamX when nobody is testing
+
+Measured from the code, not assumed:
+
+| path | frequency |
+|---|---|
+| `/api/cron/integration-jobs` | every minute, but it only claims QUEUED jobs. An empty queue means zero calls to SeamX. |
+| supplier balance check | once an hour, on the hour only (`getUTCMinutes() !== 0` returns early), and only when `SUPPLIER1_MODE=live`. |
+| ad-account sync / pool listing | on demand only. Nothing enqueues it on a schedule. |
+
+So with the gate shut and nobody clicking, live traffic is one balance read
+per hour. SeamX's portal sees nothing else from us.
+
+### The trap
+
+Arming `SUPPLIER1_AUTOPUSH` does not open the gate for one job. It opens it
+for **every held money job at once**, and the cron will pick them up within
+60 seconds. Every top-up verified while the gate was shut may still be
+sitting in `integration_jobs` as `pending`. That is exactly the situation the
+two-switch gate exists to prevent, so do not defeat it by accident.
+
+### Procedure
+
+1. **Count what is waiting.** Gate still shut:
+
+   ```sql
+   select id, operation, status, attempts,
+          payload->>'external_ad_account_id' as acct,
+          payload->>'amount_cents' as cents,
+          payload->>'currency' as cur, created_at
+     from public.integration_jobs
+    where provider = 'supplier1'
+      and operation in ('push_topup','push_withdraw')
+      and status in ('pending','processing')
+    order by created_at;
+   ```
+
+   Anything in that list that is not the test top-up gets `status='cancelled'`
+   BEFORE the gate opens. Write down what you cancelled.
+
+2. **Create the test top-up.** Smallest amount that the supplier accepts, on
+   a USD ad account. USD matters: `topup_amount` is stored in USD by
+   construction, and the enqueue refuses any account whose currency is not
+   USD rather than pushing a converted figure.
+
+3. **Verify it** through the normal admin dialog. Confirm exactly one
+   `push_topup` row now exists, held.
+
+4. **Record the before state**: SeamX wallet balance, and the ad account's
+   balance in their portal.
+
+5. **Open the gate**: `SUPPLIER1_MODE=live`, `SUPPLIER1_AUTOPUSH=on`. Note
+   both values are trimmed and lowercased identically now — a trailing space
+   used to arm the gate while routing the job to the MOCK adapter, which
+   reports success without sending anything.
+
+6. **Wait one minute.** The cron claims it, calls SeamX once, and writes the
+   result onto the job row.
+
+7. **Shut the gate immediately.** `SUPPLIER1_AUTOPUSH` off. Do this before
+   checking anything else.
+
+8. **Check three things agree**, in this order:
+   - `integration_jobs.status = 'succeeded'`, with the supplier's response in
+     `result`.
+   - SeamX's portal: the ad account's balance rose by the pushed amount, and
+     the wallet fell by that amount plus their fee.
+   - Our side: the ad account's recorded balance and the top-up row.
+   Any disagreement stops the test. A push that half-happened is worse than
+   one that did not.
+
+9. **Push the same top-up again** (re-verify) with the gate still shut, then
+   open it once more. The enqueue is idempotent on `topup:<id>`, so **no
+   second job may be created and no second push may leave.** If money moves
+   twice here, the gate is not the problem — the idempotency key is, and
+   nothing goes live until it holds.
+
+10. **Confirm SeamX's own portal still behaves**: log into it directly, load
+    the account list, the wallet, the top-up history. Our push must appear as
+    an ordinary entry, not as something that put their side into a strange
+    state.
+
+11. Leave `SUPPLIER1_MODE=live` if you want the read paths (balance, sync,
+    pool) — that is safe. Leave `SUPPLIER1_AUTOPUSH` off.
+
+---
+
 ## 4. What only SQL can prove
 
 Run these after a testing session. They check invariants no screen shows.
