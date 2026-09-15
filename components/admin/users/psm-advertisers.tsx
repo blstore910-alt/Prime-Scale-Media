@@ -175,8 +175,8 @@ export default function PsmAdvertisers() {
             { value: "oldest", label: "Oldest first" },
             { value: "a-z", label: "Name A → Z" },
             { value: "z-a", label: "Name Z → A" },
-            { value: "id-asc", label: "Client code — lowest first" },
-            { value: "id-desc", label: "Client code — highest first" },
+            { value: "code-asc", label: "Client code — lowest first" },
+            { value: "code-desc", label: "Client code — highest first" },
           ]}
           filters={[
             {

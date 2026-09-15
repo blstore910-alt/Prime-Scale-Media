@@ -59,18 +59,43 @@ export default function useUsers({
       }
 
       // map sort key to column + direction
-      const sortMap: Record<string, { column: string; ascending: boolean }> = {
+      //
+      // "code-asc"/"code-desc" order by the advertiser's CLIENT CODE, on the
+      // embedded advertisers row. They used to order by user_profiles.id — a
+      // UUID — which produces an order with no meaning to anybody: TA, PA,
+      // JR, HA, AA, JD. The options were labelled as sorting by client code,
+      // so the control was promising one thing and doing another, which is
+      // worse than not offering it.
+      const sortMap: Record<
+        string,
+        { column: string; ascending: boolean; foreignTable?: string }
+      > = {
         newest: { column: "created_at", ascending: false },
         oldest: { column: "created_at", ascending: true },
         "a-z": { column: "full_name", ascending: true },
         "z-a": { column: "full_name", ascending: false },
-        "id-asc": { column: "id", ascending: true },
-        "id-desc": { column: "id", ascending: false },
+        "code-asc": {
+          column: "tenant_client_code",
+          ascending: true,
+          foreignTable: "advertisers",
+        },
+        "code-desc": {
+          column: "tenant_client_code",
+          ascending: false,
+          foreignTable: "advertisers",
+        },
       };
 
       const sortOption = sortMap[sort] ?? sortMap["newest"];
       query = query.order(sortOption.column, {
         ascending: sortOption.ascending,
+        ...(sortOption.foreignTable
+          ? { foreignTable: sortOption.foreignTable }
+          : {}),
+        // Advertisers without a code yet ("—" on screen) go last in both
+        // directions: an empty value is not the smallest value, it is a
+        // missing one, and floating it to the top buries the real codes.
+        nullsFirst: false,
       });
 
       const start = (page - 1) * perPage;
