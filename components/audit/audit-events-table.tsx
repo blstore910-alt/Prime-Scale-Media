@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -163,53 +164,63 @@ export default function AuditEventsTable() {
             style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
           />
         </label>
-        {rowIdFromUrl && (
-          <button className="btn ghost sm" onClick={clearRowId}>
-            Clear
-          </button>
-        )}
-        <select
-          value={table}
-          onChange={(e) => {
-            setTable(e.target.value);
+        <PsmSortFilter
+          filters={[
+            {
+              id: "table",
+              label: "Table",
+              value: table,
+              onChange: (v) => {
+                setTable(v);
+                setPage(1);
+              },
+              options: [
+                { value: "all", label: "All tables" },
+                ...AUDITED_TABLES.map((t) => ({ value: t, label: t })),
+              ],
+            },
+            {
+              id: "since",
+              label: "Time range",
+              value: String(sinceMinutes),
+              allValue: "0",
+              onChange: (v) => {
+                setSinceMinutes(Number(v));
+                setPage(1);
+              },
+              options: [
+                { value: "0", label: "All time" },
+                { value: "15", label: "Last 15 min" },
+                { value: "60", label: "Last hour" },
+                { value: "1440", label: "Last 24 h" },
+                { value: "10080", label: "Last 7 days" },
+              ],
+            },
+            {
+              id: "action",
+              label: "Database action",
+              value: action,
+              onChange: (v) => {
+                setAction(v);
+                setPage(1);
+              },
+              options: [
+                { value: "all", label: "All actions" },
+                { value: "INSERT", label: "INSERT" },
+                { value: "UPDATE", label: "UPDATE" },
+                { value: "DELETE", label: "DELETE" },
+              ],
+            },
+          ]}
+          searchActive={!!rowIdFromUrl}
+          onReset={() => {
+            setTable("all");
+            setAction("all");
+            setSinceMinutes(0);
+            clearRowId();
             setPage(1);
           }}
-          aria-label="Table"
-        >
-          <option value="all">All tables</option>
-          {AUDITED_TABLES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <select
-          value={action}
-          onChange={(e) => {
-            setAction(e.target.value);
-            setPage(1);
-          }}
-          aria-label="Action"
-        >
-          <option value="all">All actions</option>
-          <option value="INSERT">INSERT</option>
-          <option value="UPDATE">UPDATE</option>
-          <option value="DELETE">DELETE</option>
-        </select>
-        <select
-          value={String(sinceMinutes)}
-          onChange={(e) => {
-            setSinceMinutes(Number(e.target.value));
-            setPage(1);
-          }}
-          aria-label="Since"
-        >
-          <option value="0">All time</option>
-          <option value="15">Last 15 min</option>
-          <option value="60">Last hour</option>
-          <option value="1440">Last 24 h</option>
-          <option value="10080">Last 7 days</option>
-        </select>
+        />
         <button
           className="btn ghost sm"
           onClick={() =>

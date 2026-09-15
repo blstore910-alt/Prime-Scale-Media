@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { firstName } from "@/lib/display-name";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,7 +35,6 @@ import {
   Pencil,
   Plus,
   Search,
-  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -217,13 +217,6 @@ export default function AccountsTable() {
     }
   });
 
-  // Shown on the one control that now carries sort + filters, so it is
-  // obvious at a glance that something is narrowing the list.
-  const activeFilterCount =
-    (platformFilter ? 1 : 0) +
-    (statusFilter ? 1 : 0) +
-    (search.trim() ? 1 : 0) +
-    (sort !== "newest" ? 1 : 0);
 
   const paginatedAccounts = sortedAccounts.slice(
     (page - 1) * perPage,
@@ -485,10 +478,6 @@ export default function AccountsTable() {
   // ------------------------------------------------------------------
   // Admin view — mockup look.
   // ------------------------------------------------------------------
-  const hasFilters =
-    Boolean(platformFilter) ||
-    Boolean(statusFilter) ||
-    Boolean(search.trim());
 
   return (
     <div
@@ -544,101 +533,57 @@ export default function AccountsTable() {
             behind ONE control, with a count so you can see at a glance that
             something is narrowing the results. A row of loose selects reads
             as a form and, on a phone, ate three full-width lines. */}
-        <div className="fgroup">
-          <button
-            className={`fbtn${activeFilterCount ? " on" : ""}`}
-            onClick={() => setFilterOpen((o) => !o)}
-            aria-expanded={filterOpen}
-          >
-            <SlidersHorizontal />
-            <span>Sort &amp; filter</span>
-            {activeFilterCount > 0 && (
-              <span className="fcount">{activeFilterCount}</span>
-            )}
-          </button>
-
-          {filterOpen && (
-            <>
-              <div className="fscrim" onClick={() => setFilterOpen(false)} />
-              <div className="fpanel" role="dialog" aria-label="Sort and filter">
-                <label className="flab" htmlFor="ac-sort">
-                  Sort by
-                </label>
-                <select
-                  id="ac-sort"
-                  value={sort}
-                  onChange={(e) => {
-                    setSort(e.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                  <option value="fee-desc">Fee — highest first</option>
-                  <option value="fee-asc">Fee — lowest first</option>
-                  <option value="name-asc">Account name A → Z</option>
-                  <option value="client-asc">Client code A → Z</option>
-                </select>
-
-                <label className="flab" htmlFor="ac-platform">
-                  Platform
-                </label>
-                <select
-                  id="ac-platform"
-                  value={platformFilter ?? "all"}
-                  onChange={(e) => {
-                    setPlatformFilter(
-                      e.target.value === "all" ? null : e.target.value,
-                    );
-                    setPage(1);
-                  }}
-                >
-                  <option value="all">All platforms</option>
-                  {PLATFORMS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-
-                <label className="flab" htmlFor="ac-status">
-                  Status
-                </label>
-                <select
-                  id="ac-status"
-                  value={statusFilter ?? "all"}
-                  onChange={(e) => {
-                    setStatusFilter(
-                      e.target.value === "all" ? null : e.target.value,
-                    );
-                    setPage(1);
-                  }}
-                >
-                  <option value="all">All statuses</option>
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-
-                <div className="fpanel-foot">
-                  <button
-                    className="btn ghost sm"
-                    onClick={() => {
-                      resetFilters();
-                      setPage(1);
-                    }}
-                    disabled={!hasFilters}
-                  >
-                    Reset
-                  </button>
-                  <button className="btn sm" onClick={() => setFilterOpen(false)}>
-                    Done
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <PsmSortFilter
+          sort={sort}
+          onSortChange={(v) => {
+            setSort(v);
+            setPage(1);
+          }}
+          sortOptions={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+            { value: "fee-desc", label: "Fee — highest first" },
+            { value: "fee-asc", label: "Fee — lowest first" },
+            { value: "name-asc", label: "Account name A → Z" },
+            { value: "client-asc", label: "Client code A → Z" },
+          ]}
+          filters={[
+            {
+              id: "platform",
+              label: "Platform",
+              value: platformFilter ?? "all",
+              onChange: (v) => {
+                setPlatformFilter(v === "all" ? null : v);
+                setPage(1);
+              },
+              options: [
+                { value: "all", label: "All platforms" },
+                ...PLATFORMS.map((pl) => ({ value: pl.value, label: pl.label })),
+              ],
+            },
+            {
+              id: "status",
+              label: "Status",
+              value: statusFilter ?? "all",
+              onChange: (v) => {
+                setStatusFilter(v === "all" ? null : v);
+                setPage(1);
+              },
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "paused", label: "Paused" },
+                { value: "inactive", label: "Inactive" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            resetFilters();
+            setSort("newest");
+            setPage(1);
+          }}
+        />
       </div>
 
       {isLoading ? (
