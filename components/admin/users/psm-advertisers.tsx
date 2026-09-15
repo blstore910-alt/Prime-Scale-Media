@@ -1,6 +1,7 @@
 "use client";
 
 import CreateSubscriptionDialog from "@/components/subscriptions/create-subscription-dialog";
+import PsmSortFilter from "@/components/psm/sort-filter";
 import { COMMISSION_TYPE_LABELS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { Advertiser } from "@/lib/types/advertiser";
@@ -166,19 +167,37 @@ export default function PsmAdvertisers() {
             placeholder="Search name or email…"
           />
         </label>
-        <select value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="newest">Sort: Newest</option>
-          <option value="oldest">Oldest</option>
-          <option value="a-z">Name A → Z</option>
-          <option value="z-a">Name Z → A</option>
-          <option value="id-asc">ID ↑</option>
-          <option value="id-desc">ID ↓</option>
-        </select>
-        <select value={active} onChange={(e) => setActive(e.target.value)}>
-          <option value="all">All</option>
-          <option value="yes">Active</option>
-          <option value="no">Inactive</option>
-        </select>
+        <PsmSortFilter
+          sort={sort}
+          onSortChange={setSort}
+          sortOptions={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+            { value: "a-z", label: "Name A → Z" },
+            { value: "z-a", label: "Name Z → A" },
+            { value: "id-asc", label: "Client code — lowest first" },
+            { value: "id-desc", label: "Client code — highest first" },
+          ]}
+          filters={[
+            {
+              id: "active",
+              label: "Account status",
+              value: active,
+              onChange: setActive,
+              options: [
+                { value: "all", label: "All" },
+                { value: "yes", label: "Active" },
+                { value: "no", label: "Inactive" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setSort("newest");
+            setActive("all");
+            setSearch("");
+          }}
+        />
         <button className="fexp" onClick={handleDownload} disabled={downloadingCSV}>
           {downloadingCSV ? <Loader2 className="animate-spin" /> : <FileDown />}
           <span>Download CSV</span>

@@ -93,7 +93,6 @@ export default function PsmSubscriptions() {
     );
   });
 
-  const hasFilters = status !== "all" || Boolean(date) || Boolean(q);
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   return (
@@ -138,41 +137,29 @@ export default function PsmSubscriptions() {
             },
           ]}
           searchActive={!!search.trim()}
+          extraActive={!!date}
+          extra={
+            <>
+              <label className="flab" htmlFor="sub-start">
+                Started on or after
+              </label>
+              <input
+                id="sub-start"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                aria-label="Start date"
+                className="fpanel-date"
+              />
+            </>
+          }
           onReset={() => {
             setStatus("all");
+            setDate("");
             setSearch("");
+            setPage(1);
           }}
         />
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Start date"
-          style={{
-            fontFamily: "var(--bd)",
-            fontWeight: 600,
-            fontSize: ".84rem",
-            border: "1px solid var(--line-2)",
-            borderRadius: 11,
-            padding: "9px 13px",
-            background: "var(--panel)",
-            color: "var(--ink)",
-            cursor: "pointer",
-          }}
-        />
-        {hasFilters && (
-          <button
-            className="btn ghost sm"
-            onClick={() => {
-              setStatus("all");
-              setDate("");
-              setSearch("");
-              setPage(1);
-            }}
-          >
-            Clear
-          </button>
-        )}
       </div>
 
       {isLoading ? (

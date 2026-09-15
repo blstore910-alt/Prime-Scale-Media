@@ -190,15 +190,20 @@ export default function InvoicesTable() {
         onOpenChange={setIsCreateInvoiceOpen}
       />
 
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Invoices</h1>
-          <p>View and download all invoices for your account.</p>
+          <p>View and download your invoices.</p>
         </div>
         {isAdmin && (
-          <button className="btn" onClick={() => setIsCreateInvoiceOpen(true)}>
-            <Plus /> Create Invoice
-          </button>
+          <div className="pacts">
+            <button
+              className="btn"
+              onClick={() => setIsCreateInvoiceOpen(true)}
+            >
+              <Plus /> <span className="blab">Create Invoice</span>
+            </button>
+          </div>
         )}
       </div>
 

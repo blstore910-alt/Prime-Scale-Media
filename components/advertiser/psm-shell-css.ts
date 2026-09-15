@@ -212,6 +212,10 @@ export const PSM_APP_CSS = `
 .psmapp .fpanel select:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
 .psmapp .fpanel-foot{display:flex;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
 .psmapp .fpanel-foot .btn{flex:1;justify-content:center}
+/* Non-select controls inside the panel (a date, a range) match the selects
+   so the panel reads as one form rather than a select plus a stray input. */
+.psmapp .fpanel-date{width:100%;font-family:var(--bd);font-weight:600;font-size:.86rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;background:var(--panel);color:var(--ink);cursor:pointer}
+.psmapp .fpanel-date:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
 
 .psmapp .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:12px}
 .psmapp .acard .top{display:flex;align-items:center;gap:11px}

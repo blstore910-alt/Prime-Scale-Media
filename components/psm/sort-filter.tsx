@@ -34,6 +34,8 @@ export default function PsmSortFilter({
   sortOptions,
   filters = [],
   searchActive = false,
+  extra,
+  extraActive = false,
   onReset,
   label = "Sort & filter",
 }: {
@@ -43,6 +45,15 @@ export default function PsmSortFilter({
   filters?: PsmFilter[];
   /** Counts the search box towards the badge, since it narrows too. */
   searchActive?: boolean;
+  /**
+   * Anything that is not a select — a date picker, a range — rendered at the
+   * bottom of the panel. Without this those controls stayed loose in the bar
+   * and cost it a second row, which is the thing this component exists to
+   * stop.
+   */
+  extra?: React.ReactNode;
+  /** Whether `extra` is currently narrowing the list, for the badge count. */
+  extraActive?: boolean;
   onReset: () => void;
   label?: string;
 }) {
@@ -65,7 +76,8 @@ export default function PsmSortFilter({
     (sort !== undefined && defaultSort !== undefined && sort !== defaultSort
       ? 1
       : 0) +
-    (searchActive ? 1 : 0);
+    (searchActive ? 1 : 0) +
+    (extraActive ? 1 : 0);
 
   return (
     <div className="fgroup">
@@ -121,6 +133,8 @@ export default function PsmSortFilter({
                 </select>
               </div>
             ))}
+
+            {extra}
 
             <div className="fpanel-foot">
               <button
