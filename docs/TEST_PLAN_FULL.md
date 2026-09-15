@@ -323,10 +323,11 @@ Measured from the code, not assumed:
 |---|---|
 | `/api/cron/integration-jobs` | every minute, but it only claims QUEUED jobs. An empty queue means zero calls to SeamX. |
 | supplier balance check | once an hour, on the hour only (`getUTCMinutes() !== 0` returns early), and only when `SUPPLIER1_MODE=live`. |
-| ad-account sync / pool listing | on demand only. Nothing enqueues it on a schedule. |
+| ad-account pool sync | every 15 minutes (4 calls/hour) when `SUPPLIER1_MODE=live`, plus on demand from the Sync button. A READ, so it is not behind the auto-push gate. |
 
 So with the gate shut and nobody clicking, live traffic is one balance read
-per hour. SeamX's portal sees nothing else from us.
+an hour plus four inventory reads an hour. No writes. SeamX's portal sees
+nothing else from us.
 
 ### The trap
 
