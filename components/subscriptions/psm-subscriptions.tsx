@@ -247,15 +247,12 @@ export default function PsmSubscriptions() {
                           {s.status}
                         </span>
                       </td>
-                      <td data-label="Actions" className="r">
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            justifyContent: "flex-end",
-                            flexWrap: "wrap",
-                          }}
-                        >
+                      {/* .actrow: equal widths on ONE line. flexWrap here
+                          meant three buttons of three different widths broke
+                          onto three separate rows on a phone — on every
+                          subscription in the list. */}
+                      <td data-label="Actions" className="r fullcell">
+                        <div className="actrow">
                           {isSuperAdmin && (
                             <button
                               className="btn ghost sm"
@@ -263,7 +260,7 @@ export default function PsmSubscriptions() {
                               disabled={pending}
                               title="Change the monthly amount (super-admin)"
                             >
-                              <Pencil /> Amount
+                              <Pencil /> <span className="alab">Amount</span>
                             </button>
                           )}
 
@@ -284,7 +281,7 @@ export default function PsmSubscriptions() {
                               ) : (
                                 <PlayCircle />
                               )}
-                              Activate
+                              <span className="alab">Activate</span>
                             </button>
                           )}
 
@@ -306,7 +303,7 @@ export default function PsmSubscriptions() {
                                 ) : (
                                   <PauseCircle />
                                 )}
-                                Pause
+                                <span className="alab">Pause</span>
                               </button>
                               <button
                                 className="btn ghost sm"
@@ -328,7 +325,7 @@ export default function PsmSubscriptions() {
                                 ) : (
                                   <MinusCircle />
                                 )}
-                                Disable
+                                <span className="alab">Disable</span>
                               </button>
                             </>
                           )}
