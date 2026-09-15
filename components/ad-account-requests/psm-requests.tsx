@@ -64,7 +64,7 @@ export default function PsmRequests() {
   }, [search]);
   useEffect(() => setPage(1), [debounced, sort, statusFilter]);
 
-  const { requests, isLoading, refetch, total } = useAdAccountRequests({
+  const { requests, isLoading, isError, refetch, total } = useAdAccountRequests({
     search: debounced,
     sort,
     status: statusFilter,
@@ -274,8 +274,17 @@ export default function PsmRequests() {
         </div>
       ) : (
         <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            No account requests to show.
+          {/* A failed read is not an empty queue. The hook has exposed
+              isError all along; this screen simply never asked for it, so a
+              dropped connection told an admin that nobody was waiting on
+              them — on the one screen whose job is to say who is. */}
+          <p
+            className={isError ? "err" : "muted"}
+            style={{ margin: 0 }}
+          >
+            {isError
+              ? "Couldn't load the account requests — this is NOT an empty queue. Reload to retry."
+              : "No account requests to show."}
           </p>
         </div>
       )}
