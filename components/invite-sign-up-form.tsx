@@ -356,9 +356,16 @@ export default function InviteSignUpForm({
                 </div>
               )}
 
-              <Button type="submit" className="w-full">
+              {/* disabled, not just a spinner. This is the button that
+                  CREATES the account — profile, advertiser, wallet and
+                  subscription — and it is the first thing a new customer
+                  ever presses, often on a phone on a bad connection, which
+                  is exactly when people press twice. react-hook-form has no
+                  re-entrancy lock of its own: without this, the second click
+                  runs the whole signup again. */}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className=" animate-spin" />}
-                Join PSM
+                {isSubmitting ? "Creating your account…" : "Join PSM"}
               </Button>
             </div>
           </form>
