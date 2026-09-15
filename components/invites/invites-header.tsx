@@ -9,15 +9,17 @@ import { MailPlus } from "lucide-react";
 export default function InvitesHeader() {
   const { dispatch, profile } = useAppContext();
   return (
-    <div className="phead">
-      <div>
+    <div className="phead phead-actions">
+      <div className="ptxt">
         <h1>Invites</h1>
-        <p>Invite advertisers and affiliates to your organization.</p>
+        <p>Invite advertisers and affiliates.</p>
       </div>
       {profile?.role === "admin" && (
-        <button className="btn" onClick={() => dispatch("open-invite-user")}>
-          <MailPlus /> New Invite
-        </button>
+        <div className="pacts">
+          <button className="btn" onClick={() => dispatch("open-invite-user")}>
+            <MailPlus /> <span className="blab">New Invite</span>
+          </button>
+        </div>
       )}
     </div>
   );

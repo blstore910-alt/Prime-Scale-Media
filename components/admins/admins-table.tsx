@@ -112,14 +112,16 @@ export default function AdminsTable() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
-      <div className="phead">
-        <div>
+      <div className="phead phead-actions">
+        <div className="ptxt">
           <h1>Admins</h1>
           <p>Manage admin access for this tenant.</p>
         </div>
-        <button className="btn" onClick={() => setCreateOpen(true)}>
-          <UserPlus /> Create Admin
-        </button>
+        <div className="pacts">
+          <button className="btn" onClick={() => setCreateOpen(true)}>
+            <UserPlus /> <span className="blab">Create Admin</span>
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
