@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import CompanyOnboardingForm from "@/components/company/company-onboarding-form";
 import { UserProfile } from "@/lib/types/user";
@@ -14,21 +15,47 @@ export default async function CompleteProfilePage() {
     redirect("/auth/login");
   }
 
-  const { data: profile } = await supabase
+  // .single() here was a lockout. A user can legitimately hold more than one
+  // user_profiles row — accept-invite dedupes on (user_id, tenant_id), so
+  // being an affiliate in one tenant and an advertiser in another produces
+  // two — and .single() turns "more than one row" into an ERROR with null
+  // data, not into a choice. profile was then null, this redirected to "/",
+  // and "/" sent an advertiser without a company straight back here. A loop
+  // with no way out except clearing cookies.
+  //
+  // So: read them all and honour the active profile_id cookie, which is what
+  // every other guard in the app does.
+  const cookieStore = await cookies();
+  const existingProfile = cookieStore.get("profile_id")?.value;
+
+  const { data: profiles } = await supabase
     .from("user_profiles")
     .select("*, advertiser:advertisers(*)")
-    .eq("user_id", user.id)
-    .single();
+    .eq("user_id", user.id);
 
-  if (!profile) {
-    redirect("/");
+  const profileList = (profiles ?? []) as UserProfile[];
+  if (!profileList.length) {
+    redirect("/onboard");
   }
+
+  // Prefer the profile the session is actually acting as; failing that, an
+  // advertiser profile, since this page exists only for advertisers.
+  const profile =
+    (existingProfile
+      ? profileList.find((p) => (p as { id: string }).id === existingProfile)
+      : undefined) ??
+    profileList.find((p) => p.role === "advertiser") ??
+    profileList[0];
 
   if (profile.role !== "advertiser") {
-    redirect("/");
+    redirect("/dashboard");
   }
 
-  const advertiser = profile.advertiser?.[0] || profile.advertiser;
+  // The embed comes back as an array or a single row depending on the
+  // relationship shape; narrow it explicitly so the type is honest.
+  const advertiser = Array.isArray(profile.advertiser)
+    ? profile.advertiser[0]
+    : profile.advertiser;
 
   if (!advertiser) {
     return <div>Error loading advertiser profile.</div>;
