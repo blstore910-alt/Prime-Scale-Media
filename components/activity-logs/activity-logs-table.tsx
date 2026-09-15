@@ -35,6 +35,49 @@ function dbActionBadge(dbAction?: string | null) {
 
 // Activity logs list, ported to the mockup look. Reuses the real
 // useActivityLogs data hook + the real details sheet — presentation only.
+/**
+ * What the entry is ABOUT.
+ *
+ * The row said who did it and what kind of thing they did — "Bart · Ad
+ * Account Created" — and then stopped. Which ad account? The snapshot and the
+ * table name were both fetched and neither was shown, so the only way to find
+ * out was to open every entry one at a time.
+ *
+ * Picks the most human field the snapshot happens to carry, in the order a
+ * person would recognise it, and falls back to the table plus a short id
+ * rather than to nothing.
+ */
+function subjectOf(log: {
+  table_name?: string | null;
+  reference_record_id?: string | null;
+  data_snapshot?: unknown;
+}): string {
+  const snap = (log.data_snapshot ?? {}) as Record<string, unknown>;
+  const pick = [
+    "name",
+    "account_name",
+    "full_name",
+    "title",
+    "invoice_no",
+    "reference",
+    "tenant_client_code",
+    "email",
+  ];
+  for (const k of pick) {
+    const v = snap[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  // An amount is the next most recognisable thing on a money row.
+  const amount = snap.amount ?? snap.total ?? snap.topup_amount;
+  const currency = typeof snap.currency === "string" ? snap.currency : "";
+  if (amount != null && Number.isFinite(Number(amount))) {
+    return `${currency} ${Number(amount).toFixed(2)}`.trim();
+  }
+  const table = (log.table_name ?? "record").replace(/_/g, " ");
+  const id = (log.reference_record_id ?? "").slice(0, 8);
+  return id ? `${table} ${id}` : table;
+}
+
 export default function ActivityLogsTable() {
   const [action, setAction] = useState("all");
   const [actor, setActor] = useState("");
@@ -122,6 +165,7 @@ export default function ActivityLogsTable() {
                 <tr>
                   <th>Author</th>
                   <th>Action</th>
+                  <th>Subject</th>
                   <th className="r">View Details</th>
                 </tr>
               </thead>
@@ -149,7 +193,20 @@ export default function ActivityLogsTable() {
                           {formatActionLabel(log.action)}
                         </span>
                       </td>
-                      <td data-label="View Details" className="r">
+                      <td data-label="Subject">
+                        <span
+                          style={{
+                            display: "block",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={subjectOf(log)}
+                        >
+                          {subjectOf(log)}
+                        </span>
+                      </td>
+                      <td data-label="View Details" className="r fullcell">
                         <button
                           className="btn ghost sm"
                           onClick={() => setSelectedLog(log)}

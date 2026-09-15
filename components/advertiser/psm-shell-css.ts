@@ -463,6 +463,24 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.r{text-align:left}
   .psmapp .tbl.wide td.fullcell{grid-column:1 / -1}
   .psmapp .tbl.wide td[colspan]{grid-column:1 / -1;text-align:center;padding:22px 2px;box-shadow:none}
+
+  /* ── Card inside a card ───────────────────────────────────────────
+     On a phone every ROW became its own card, but the table is still
+     wrapped in one. So a white panel sat behind a stack of white
+     panels, and the page's own ground colour only showed outside the
+     outer edge — which reads as a strange white band between records
+     rather than as space. The outer card stands down here: the rows
+     carry the borders, the shadows and the radius now, and the gaps
+     between them show the page. */
+  .psmapp .card:has(.tbl.wide){
+    background:transparent;border:0;box-shadow:none;padding:0;border-radius:0;
+  }
+  /* The empty/error row is the one case with no row-card of its own, so
+     it keeps a surface to sit on. */
+  .psmapp .card:has(.tbl.wide) .tbl.wide tr:has(td[colspan]){
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow-sm);
+  }
 }
 
 /* Topbar account menu (anchored to the avatar) */
