@@ -169,6 +169,7 @@ export default function AdvertiserApp() {
 
   const { data: subscription } = useQuery<{
     amount: number | null;
+    currency: string | null;
     status: string | null;
     next_payment_date: string | null;
   } | null>({
@@ -178,7 +179,7 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("amount, status, next_payment_date")
+        .select("amount, currency, status, next_payment_date")
         .eq("advertiser_id", advertiserId)
         .eq("tenant_id", tenantId)
         .order("start_date", { ascending: false })
@@ -673,7 +674,17 @@ export default function AdvertiserApp() {
                   <Ic name="i-clock" />
                 </span>
                 <div className="atx">
-                  <b>Monthly fee {eur(subscription.amount)}</b>
+                  {/* The € was hard-coded, directly above a button that
+                      debits the plan's own currency — so a USD plan read
+                      "Monthly fee €500" and then took $500. Subscriptions
+                      default to EUR everywhere (the billing RPCs coalesce to
+                      it), so that is the fallback, but a USD plan says so. */}
+                  <b>
+                    Monthly fee{" "}
+                    {(subscription.currency ?? "EUR").toUpperCase() === "USD"
+                      ? usd(subscription.amount)
+                      : eur(subscription.amount)}
+                  </b>
                   <span>
                     {" "}
                     · due {dayjs(subscription.next_payment_date).fromNow()}

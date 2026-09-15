@@ -93,6 +93,19 @@ export const PSM_APP_CSS = `
 .psmapp .actrow{display:flex;gap:8px;justify-content:flex-end;align-items:center}
 .psmapp .actrow .btn{white-space:nowrap}
 
+/* Inline fee editor in the Ad Accounts list. Sized to the number it holds,
+   so turning a cell into an input does not shove the column wider. */
+.psmapp .feeedit{display:inline-flex;align-items:center;gap:4px}
+.psmapp .feeedit input{
+  width:64px;font-family:var(--bd);font-weight:600;font-size:.86rem;
+  text-align:right;border:1px solid var(--primary);border-radius:8px;
+  padding:5px 7px;background:var(--panel);color:var(--ink);outline:0;
+  box-shadow:0 0 0 3px var(--primary-tint);
+}
+.psmapp .feeedit input::-webkit-outer-spin-button,
+.psmapp .feeedit input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.psmapp .feeedit .pct{color:var(--muted);font-weight:600;font-size:.86rem}
+
 .psmapp .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
 /* Button scale. These were sized like page-level calls to action and then
    used everywhere, including inside dense record cards, where a 40px-tall

@@ -422,7 +422,7 @@ function RefundsSection() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  const { data: rows, isLoading } = useQuery({
+  const { data: rows, isLoading, isError } = useQuery({
     queryKey: ["wallet-refunds", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -680,7 +680,17 @@ function RefundsSection() {
                         </td>
                       </tr>
                     ))
-                  : emptyRow(6, "No refund requests yet.")}
+                  : emptyRow(
+                      6,
+                      // A failed read is not an empty queue. Saying "no
+                      // refund requests yet" when the query errored tells an
+                      // admin there is nothing waiting — which is the one
+                      // thing it cannot know. The Withdrawals section in this
+                      // same file already got this right; these two did not.
+                      isError
+                        ? "Couldn't load refund requests — this is NOT an empty queue. Reload to retry."
+                        : "No refund requests yet.",
+                    )}
             </tbody>
           </table>
         </div>
@@ -934,7 +944,7 @@ function AdjustmentsSection() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  const { data: rows, isLoading } = useQuery({
+  const { data: rows, isLoading, isError } = useQuery({
     queryKey: ["wallet-adjustments", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -1171,7 +1181,12 @@ function AdjustmentsSection() {
                         </tr>
                       );
                     })
-                  : emptyRow(6, "No adjustment requests yet.")}
+                  : emptyRow(
+                      6,
+                      isError
+                        ? "Couldn't load adjustment requests — this is NOT an empty queue. Reload to retry."
+                        : "No adjustment requests yet.",
+                    )}
             </tbody>
           </table>
         </div>

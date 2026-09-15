@@ -139,29 +139,57 @@ export async function getReconciliation(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
-  const [topupsRes, ledgerRes] = await Promise.all([
-    supabase
+  // PostgREST caps a response at 1000 rows by default and says nothing about
+  // it. This screen exists to answer "does everything add up?", so a silently
+  // truncated sum does not merely under-report — it MANUFACTURES a gap
+  // between credited and received, on the one page an owner would use to
+  // decide whether an admin has been stealing. Both sides are paged in full.
+  const PAGE = 1000;
+
+  type TopupRow = { amount: number | string | null; currency: string | null };
+  type LedgerRow = {
+    destination: string | null;
+    currency: string | null;
+    direction: string | null;
+    amount: number | string | null;
+  };
+
+  const topupRows: TopupRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
       .from("wallet_topups")
       .select("amount, currency")
       .eq("tenant_id", profile.tenant_id)
-      .eq("status", "completed"),
-    supabase
+      .eq("status", "completed")
+      .range(from, from + PAGE - 1);
+    if (error) return { ok: false, error: error.message };
+    const page = (data ?? []) as TopupRow[];
+    topupRows.push(...page);
+    if (page.length < PAGE) break;
+  }
+
+  const ledgerRows: LedgerRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
       .from("bank_ledger_entries")
       .select("destination, currency, direction, amount")
-      .eq("tenant_id", profile.tenant_id),
-  ]);
-  if (topupsRes.error) return { ok: false, error: topupsRes.error.message };
-  if (ledgerRes.error) return { ok: false, error: ledgerRes.error.message };
+      .eq("tenant_id", profile.tenant_id)
+      .range(from, from + PAGE - 1);
+    if (error) return { ok: false, error: error.message };
+    const page = (data ?? []) as LedgerRow[];
+    ledgerRows.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   const credited: Record<string, number> = { USD: 0, EUR: 0 };
-  for (const t of topupsRes.data ?? []) {
+  for (const t of topupRows ?? []) {
     const c = String(t.currency ?? "").toUpperCase();
     if (c === "USD" || c === "EUR") credited[c] += n(t.amount);
   }
 
   const received: Record<string, number> = { USD: 0, EUR: 0 };
   const balMap = new Map<string, number>();
-  for (const e of ledgerRes.data ?? []) {
+  for (const e of ledgerRows ?? []) {
     const c = String(e.currency ?? "").toUpperCase();
     const dest = String(e.destination ?? "");
     const signed = e.direction === "withdrawal" ? -n(e.amount) : n(e.amount);

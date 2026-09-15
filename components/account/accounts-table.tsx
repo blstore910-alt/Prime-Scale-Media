@@ -759,6 +759,7 @@ function PsmAdminAccountRow({
   const updateFee = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setIsDirty(false);
+    setEditing({ fee: false });
     updateAccount({
       id: account.id,
       payload: {
@@ -804,13 +805,42 @@ function PsmAdminAccountRow({
           {platformLabel}
         </span>
       </td>
+      {/* The inline fee editor was half-built: the `fee` state, the isDirty
+          tracking and the Save/Cancel buttons in the actions cell all
+          existed, but `editing.fee` was set and never read, so no input ever
+          rendered. The cell showed a pointer cursor, swallowed the click and
+          did nothing — an affordance that promised an editor and delivered
+          silence. The input is the missing piece; everything else already
+          worked. */}
       <td
         data-label="Fee"
         className="r"
-        onClick={handleFeeEdit}
-        style={{ cursor: isAdmin ? "pointer" : "default" }}
+        onClick={editing.fee ? undefined : handleFeeEdit}
+        style={{ cursor: isAdmin && !editing.fee ? "pointer" : "default" }}
       >
-        {fee}%
+        {editing.fee && isAdmin ? (
+          <span className="feeedit" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={fee}
+              autoFocus
+              onChange={(e) => setFee(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setFee(initialFee);
+                  setEditing({ fee: false });
+                }
+              }}
+              aria-label="Fee percentage"
+            />
+            <span className="pct">%</span>
+          </span>
+        ) : (
+          `${fee}%`
+        )}
       </td>
       <td data-label="Currency">{account.currency || "N/A"}</td>
       <td data-label="Status">
@@ -840,6 +870,7 @@ function PsmAdminAccountRow({
                 e.stopPropagation();
                 setFee(account.fee);
                 setIsDirty(false);
+                setEditing({ fee: false });
               }}
             >
               <X />
