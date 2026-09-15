@@ -403,6 +403,24 @@ two-switch gate exists to prevent, so do not defeat it by accident.
 
 ---
 
+## 3c. Known limits — true today, will bite at scale
+
+Not defects yet. Written down so they are found on purpose rather than by
+surprise, and so nobody "discovers" them twice.
+
+| where | limit | what happens when it is reached |
+|---|---|---|
+| withdrawals → refund/adjustment advertiser picker | 200 rows | the 201st advertiser is silently missing from the dropdown. No message. Re-check when the tenant passes ~150 advertisers. |
+| /promotions perk list | PostgREST default 1000 | oldest perks stop appearing. Add paging before a tenant reaches a thousand perks. |
+| /withdrawals sections | PostgREST default 1000 per section | same. |
+
+Already fixed rather than listed: the reconciliation totals and the ad-account
+pool both page in FULL, because both derive figures presented as fact — a gap
+between credited and received, and "Unassigned (N)" — from the rows they read.
+A truncation there does not hide data, it misstates it.
+
+---
+
 ## 4. What only SQL can prove
 
 Run these after a testing session. They check invariants no screen shows.

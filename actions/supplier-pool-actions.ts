@@ -51,17 +51,29 @@ export async function listSupplierAdAccounts(): Promise<
   // Explicit column list, not '*': the table carries a `raw` jsonb blob (the
   // whole supplier payload, kept for debugging) that the UI never reads.
   // Shipping it for up to 1000 rows inflated the payload several times over.
-  const { data, error } = await supabase
-    .from("supplier_ad_accounts")
-    .select(
-      "id, tenant_id, provider, external_id, name, bm_id, platform, currency, timezone, status, fee_percentage, balance_cents, supplier_assigned_to, ad_account_id, advertiser_id, assigned_at, assigned_by, notes, synced_at, created_at, updated_at",
-    )
-    .eq("tenant_id", profile.tenant_id)
-    .order("advertiser_id", { ascending: true, nullsFirst: true })
-    .order("synced_at", { ascending: false })
-    .limit(1000);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as SupplierAdAccount[] };
+  // Paged in full rather than capped at 1000. The screen derives its own
+  // COUNTS from this list — "Unassigned (N)", "Allocated (N)" — and presents
+  // them as fact, so a silent truncation would not merely hide inventory, it
+  // would misstate how much of it is free. PostgREST caps a response at 1000
+  // by default and says nothing about having done so.
+  const PAGE = 1000;
+  const rows: SupplierAdAccount[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("supplier_ad_accounts")
+      .select(
+        "id, tenant_id, provider, external_id, name, bm_id, platform, currency, timezone, status, fee_percentage, balance_cents, supplier_assigned_to, ad_account_id, advertiser_id, assigned_at, assigned_by, notes, synced_at, created_at, updated_at",
+      )
+      .eq("tenant_id", profile.tenant_id)
+      .order("advertiser_id", { ascending: true, nullsFirst: true })
+      .order("synced_at", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) return { ok: false, error: error.message };
+    const page = (data ?? []) as SupplierAdAccount[];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return { ok: true, data: rows };
 }
 
 // ─────────────────────────────────────────
