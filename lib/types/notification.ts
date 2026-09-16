@@ -9,6 +9,7 @@ export type NotificationType =
   | "subscription_past_due"
   | "subscription_changed"
   | "supplier_low_balance"
+  | "supplier_pool_changed"
   | "rate_limit_abuse";
 
 export type NotificationAuthor = {
@@ -68,6 +69,13 @@ export type RateLimitAbuseNotificationPayload = {
   summary?: string;
 };
 
+/** Written by the scheduled pool sync — see lib/integrations/sync-pool.ts. */
+export type SupplierPoolChangedNotificationPayload = {
+  new_accounts: number;
+  status_changes: number;
+  summary: string;
+};
+
 export interface NotificationPayloadByType {
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
@@ -79,6 +87,7 @@ export interface NotificationPayloadByType {
   subscription_past_due: SubscriptionInvoiceNotificationPayload;
   subscription_changed: SubscriptionChangedNotificationPayload;
   supplier_low_balance: SupplierLowBalanceNotificationPayload;
+  supplier_pool_changed: SupplierPoolChangedNotificationPayload;
   rate_limit_abuse: RateLimitAbuseNotificationPayload;
 }
 

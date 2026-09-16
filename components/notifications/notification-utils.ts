@@ -97,6 +97,31 @@ export function getNotificationCopy(notification: Notification): {
         description:
           "The ad-account supplier's spendable balance is below the threshold — top up soon.",
       };
+    case "supplier_pool_changed": {
+      // The scheduled pool sync builds a real summary — "2 new ad account(s)
+      // in the pool · seamx-9001: active → suspended" — and this map did not
+      // know the type, so every one of them rendered as the default "You have
+      // a new notification." The whole point of only notifying when something
+      // changed is to say WHAT changed.
+      const p = (notification.payload ?? {}) as {
+        summary?: string;
+        new_accounts?: number;
+        status_changes?: number;
+      };
+      const added = Number(p.new_accounts ?? 0);
+      const changed = Number(p.status_changes ?? 0);
+      const parts: string[] = [];
+      if (added) parts.push(`${added} new`);
+      if (changed) parts.push(`${changed} changed status`);
+      return {
+        title: parts.length
+          ? `Ad account pool: ${parts.join(", ")}`
+          : "Ad account pool updated",
+        description:
+          p.summary ||
+          "The supplier's inventory changed — open the pool to see what is free to allocate.",
+      };
+    }
     case "rate_limit_abuse":
       return {
         title: "Suspicious activity",

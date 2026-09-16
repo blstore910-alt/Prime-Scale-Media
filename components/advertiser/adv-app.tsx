@@ -323,6 +323,17 @@ export default function AdvertiserApp() {
   // unpaid invoice of ANY type could charge a smaller adjustment invoice
   // while the real subscription stays unpaid, under a label that showed the
   // subscription amount.
+  // One reading of the plan's currency, used everywhere its amount appears.
+  // Three separate sites each hard-coded a euro sign, which is how a USD plan
+  // came to be labelled in euros directly above a button that charges
+  // dollars. Subscriptions default to EUR — the billing RPCs coalesce to it —
+  // so that is the fallback, but a USD plan says so.
+  const planCur = (subscription?.currency ?? "EUR").toUpperCase();
+  const planMoney = (v: number | string | null | undefined) =>
+    planCur === "USD" ? usd(v) : eur(v);
+  const planMoney2 = (v: number | string | null | undefined) =>
+    (planCur === "USD" ? "$" : "€") + money2(v);
+
   const dueSubInvoice = (invoices ?? [])
     .filter((i) => i.status !== "paid" && i.type === "subscription")
     .sort(
@@ -679,12 +690,7 @@ export default function AdvertiserApp() {
                       "Monthly fee €500" and then took $500. Subscriptions
                       default to EUR everywhere (the billing RPCs coalesce to
                       it), so that is the fallback, but a USD plan says so. */}
-                  <b>
-                    Monthly fee{" "}
-                    {(subscription.currency ?? "EUR").toUpperCase() === "USD"
-                      ? usd(subscription.amount)
-                      : eur(subscription.amount)}
-                  </b>
+                  <b>Monthly fee {planMoney(subscription.amount)}</b>
                   <span>
                     {" "}
                     · due {dayjs(subscription.next_payment_date).fromNow()}
@@ -1205,7 +1211,7 @@ export default function AdvertiserApp() {
                 </span>
                 <div className="plan">
                   {subscription?.amount
-                    ? `${eur(subscription.amount)} / month`
+                    ? `${planMoney(subscription.amount)} / month`
                     : "Subscription"}
                 </div>
                 <div className="meta">
@@ -1247,7 +1253,7 @@ export default function AdvertiserApp() {
                           {dayjs(subscription.next_payment_date).format(
                             "D MMM YYYY",
                           )}{" "}
-                          · €{money2(subscription.amount)}
+                          · {planMoney2(subscription.amount)}
                         </div>
                       </div>
                       <span
