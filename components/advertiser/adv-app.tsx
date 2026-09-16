@@ -326,6 +326,12 @@ export default function AdvertiserApp() {
   const eurText = walletError ? "—" : eur(eurBal);
   const usdText = walletError ? "—" : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
+  // An ad account is funded from the wallet, so requesting one before any
+  // money has landed produces work nobody can finish: the desk cannot open
+  // it, and the customer waits for something that was never going to happen.
+  // Having an account already means the gate has been passed once.
+  const canRequestAccount =
+    eurBal > 0 || usdBal > 0 || (accounts ?? []).length > 0;
   const pendingTopups = (activity ?? []).filter(
     (t) =>
       t.status !== "completed" &&
@@ -1154,11 +1160,26 @@ export default function AdvertiserApp() {
                 <h1>Ad accounts</h1>
                 <p>Top up, monitor and request withdrawals.</p>
               </div>
-              <RequestAdAccountDialog>
-                <button className="btn grad">
+              {/* An ad account costs money to open and is funded from the
+                  wallet, so there is nothing to act on until a payment has
+                  actually landed. Asking first and finding out afterwards is
+                  the worse order — for the customer, who waits, and for the
+                  desk, which has to chase. */}
+              {canRequestAccount ? (
+                <RequestAdAccountDialog>
+                  <button className="btn grad">
+                    <Ic name="i-plus" /> Request ad account
+                  </button>
+                </RequestAdAccountDialog>
+              ) : (
+                <button
+                  className="btn grad"
+                  disabled
+                  title="Top up your wallet first — we open the account once your payment has landed"
+                >
                   <Ic name="i-plus" /> Request ad account
                 </button>
-              </RequestAdAccountDialog>
+              )}
             </div>
             {(accounts ?? []).length ? (
               <div className="grid3">
@@ -1167,10 +1188,33 @@ export default function AdvertiserApp() {
                 ))}
               </div>
             ) : (
-              <div className="card">
-                <p className="cap" style={{ margin: 0 }}>
-                  No ad accounts yet. Request your first one to get started.
+              <div className="card empty">
+                <span className="empty-ic">
+                  <Ic name="i-ad" />
+                </span>
+                <h3>
+                  {canRequestAccount
+                    ? "No ad accounts yet"
+                    : "Top up your wallet first"}
+                </h3>
+                <p>
+                  {canRequestAccount
+                    ? "Request one and we set it up for you on our verified Business Manager. You fund it from your wallet and spend from there."
+                    : pendingTopups.length > 0
+                      ? "Your transfer is with us and being verified. As soon as it is credited you can request your first ad account."
+                      : "Ad accounts are funded from your wallet, so we open your first one once a payment has landed. It usually takes one bank transfer to get going."}
                 </p>
+                {canRequestAccount ? (
+                  <RequestAdAccountDialog>
+                    <button className="btn">
+                      <Ic name="i-plus" /> Request ad account
+                    </button>
+                  </RequestAdAccountDialog>
+                ) : (
+                  <button className="btn" onClick={() => go("wallet")}>
+                    <Ic name="i-wallet" /> Top up wallet
+                  </button>
+                )}
               </div>
             )}
           </div>

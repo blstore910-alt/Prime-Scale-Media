@@ -216,6 +216,23 @@ ${s} .sidebar,${s} .mcard{will-change:transform}
   ${s} .sidebar{transition:none}
 }
 
+/* ── Empty states ───────────────────────────────────────────────────────
+   "No ad accounts yet." in grey italics inside an otherwise blank card is
+   the least helpful screen in any app: it states the obvious and offers
+   nothing. An empty state is the first thing a new customer sees on half
+   these screens, so it gets an icon, a heading, a sentence that says what
+   happens next, and the button that does it. */
+${s} .card.empty{display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:4px;padding:34px 22px}
+${s} .card.empty .empty-ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
+  margin-bottom:10px;color:var(--primary-600);
+  background:linear-gradient(160deg,var(--primary-tint),#fff);
+  box-shadow:0 1px 0 #fff inset,0 10px 22px -14px rgba(58,111,255,.55),0 0 0 1px var(--line)}
+${s} .card.empty .empty-ic svg{width:24px;height:24px}
+${s} .card.empty h3{font-family:var(--hd);font-weight:800;font-size:1.05rem;letter-spacing:-.02em;margin:0}
+${s} .card.empty p{color:var(--muted);font-size:.88rem;margin:6px 0 16px;max-width:42ch;line-height:1.5}
+${s} .card.empty .btn{min-width:180px;justify-content:center}
+
 /* ── Badges ─────────────────────────────────────────────────────────────
    A hairline of the badge's own colour, so a pale pill still has an edge. */
 ${s} .badge{box-shadow:0 0 0 1px rgba(20,30,80,.05) inset;letter-spacing:.01em}
