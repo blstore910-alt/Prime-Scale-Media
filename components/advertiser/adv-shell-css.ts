@@ -87,6 +87,65 @@ export const ADV_CSS = `
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  /* ── Balance hero ───────────────────────────────────────────────────
+     The dashboard was a stack of flat white blocks that said the same
+     number three times — two stat tiles, a "Your wallets" section and the
+     top-bar chip — on a screen whose whole purpose is "what can I spend".
+     One panel, in the brand the sign-in screen used, answers it. */
+  .hero{position:relative;overflow:hidden;border-radius:22px;padding:22px;color:#fff;isolation:isolate;
+    background:radial-gradient(120% 90% at 12% 0%,rgba(91,141,255,.42),transparent 58%),
+               radial-gradient(110% 95% at 100% 100%,rgba(139,92,246,.44),transparent 55%),
+               linear-gradient(160deg,#04050E,#0c1230 55%,#141a3c);
+    box-shadow:0 30px 64px -34px rgba(20,30,80,.75)}
+  .hero-ribbon{position:absolute;inset:-45%;z-index:0;pointer-events:none;
+    background:conic-gradient(from 0deg,transparent,rgba(139,92,246,.16),transparent 26%,rgba(91,141,255,.2),transparent 58%);
+    animation:advspin 30s linear infinite}
+  @keyframes advspin{to{transform:rotate(360deg)}}
+  .hero-stars{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.8;
+    background-image:
+      radial-gradient(1.5px 1.5px at 14% 20%,#fff,transparent),
+      radial-gradient(1.3px 1.3px at 31% 68%,rgba(255,255,255,.75),transparent),
+      radial-gradient(1.8px 1.8px at 64% 14%,#cdd7ff,transparent),
+      radial-gradient(1.4px 1.4px at 86% 44%,#fff,transparent),
+      radial-gradient(1.3px 1.3px at 48% 86%,rgba(255,255,255,.65),transparent),
+      radial-gradient(1.5px 1.5px at 76% 76%,#fff,transparent),
+      radial-gradient(1.2px 1.2px at 8% 54%,#fff,transparent);
+    animation:advtwinkle 4.2s ease-in-out infinite}
+  @keyframes advtwinkle{0%,100%{opacity:.4}50%{opacity:.9}}
+  .hero>*{position:relative;z-index:1}
+  .hero-greet{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(255,255,255,.5);margin:0}
+  .hero-h{font-family:var(--hd);font-weight:800;font-size:1.55rem;letter-spacing:-.025em;
+    margin:2px 0 18px;color:#fff}
+  .hero-bal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* Each balance is the button that opens the wallet — the number IS the
+     link, so there is nothing extra to aim at. */
+  .hero-w{display:flex;flex-direction:column;gap:7px;text-align:left;cursor:pointer;
+    font-family:inherit;color:inherit;min-width:0;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:15px;padding:13px 14px;transition:.15s}
+  .hero-w:hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}
+  .hero-w .l{display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+  .hero-w .l i{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .hero-w .v{font-family:var(--hd);font-weight:800;letter-spacing:-.02em;
+    font-size:clamp(1.15rem,5.4vw,1.5rem);font-variant-numeric:tabular-nums;
+    overflow-wrap:anywhere}
+  .hero-a{display:flex;gap:8px;margin-top:15px;flex-wrap:wrap}
+  .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1 1 auto;
+    border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.88rem;
+    border-radius:12px;padding:11px 14px;color:#fff;
+    background:linear-gradient(118deg,#4f83ff,#6d63ff 52%,#9a6bff);
+    box-shadow:0 14px 30px -14px rgba(96,86,255,.8),inset 0 1px 0 rgba(255,255,255,.28);
+    transition:.14s}
+  .hero-btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  .hero-btn:disabled{opacity:.55;cursor:default;transform:none;filter:none}
+  .hero-btn.gh{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);box-shadow:none}
+  .hero-btn.gh:hover{background:rgba(255,255,255,.16)}
+  .hero-btn svg{width:16px;height:16px}
+  @media (prefers-reduced-motion:reduce){
+    .hero-ribbon,.hero-stars{animation:none}
+  }
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column}
   .stat .k{display:flex;align-items:center;gap:8px;font-size:.74rem;font-weight:600;color:var(--faint)}
@@ -197,13 +256,25 @@ export const ADV_CSS = `
      (.btn is white-space:nowrap) can't shrink, so on a narrow screen the text
      absorbed all of it. Below 560px the text takes its own full-width line and
      the CTA drops beneath it instead. */
-  .onbrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-    padding:12px 13px;border:1px solid var(--line);border-radius:13px;background:var(--panel-2)}
-  .onbrow .otx{flex:1 1 150px;min-width:0}
-  .onbrow .ocat{margin-left:auto}
-  @media(max-width:560px){
-    .onbrow .otx{flex:1 1 100%;order:3}
-    .onbrow .ocat{order:4;margin-left:0;width:100%;justify-content:center;text-align:center}
+  /* Tick, icon and title on the first line; description on its own; action
+     last. Flat white panels with a 1px line read as unfinished, so each row
+     gets a soft vertical wash and lifts a little under the pointer. */
+  .onbrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:13px 14px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,#fff,var(--panel-2));
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 8px 20px -18px rgba(20,30,80,.5);
+    transition:transform .14s,box-shadow .14s,border-color .14s}
+  .onbrow:hover{transform:translateY(-1px);border-color:var(--line-2);
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 14px 26px -18px rgba(20,30,80,.55)}
+  .onbrow .onb-t{flex:1 1 auto;min-width:0}
+  .onbrow .onb-d{flex:1 1 100%;margin:0;padding-left:44px}
+  .onbrow .ocat{flex:1 1 100%;margin:2px 0 0;justify-content:center}
+  @media(min-width:561px){
+    .onbrow .onb-d{flex:1 1 100%}
+    .onbrow .ocat{flex:0 0 auto;margin-left:auto;margin-top:0;width:auto}
+    /* Back to one line on a wider screen: title and action share the row and
+       the description tucks under both. */
+    .onbrow .onb-t{flex:1 1 150px}
   }
   /* ── Get-started card ───────────────────────────────────────────────
      Quieter than it was. This is the first card on the dashboard, and it
@@ -237,8 +308,26 @@ export const ADV_CSS = `
   .onb-ic{width:32px;height:32px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
     background:var(--primary-tint);color:var(--primary-600)}
   .onb-ic svg{width:17px;height:17px}
-  .onb-t{font-weight:700}
-  .onb-d{color:var(--faint);font-size:.82rem}
+  .onb-t{font-weight:700;overflow-wrap:anywhere}
+  .onb-d{color:var(--faint);font-size:.82rem;line-height:1.4}
+  /* The due row: one line, no filled banner, no solid button. Nothing is
+     wrong yet — the fee is simply due — and a notice that shouts competes
+     with the balances right above it. */
+  .duerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--warn-soft);border:1px solid #f2d9a3;border-radius:14px;padding:11px 13px}
+  .duerow .ai{width:28px;height:28px;border-radius:9px;background:#fff;display:grid;place-items:center;
+    color:var(--warn);flex:0 0 auto}
+  .duerow .ai svg{width:15px;height:15px}
+  .duerow .dtx{flex:1 1 140px;min-width:0;font-size:.84rem;color:#8a5a00;line-height:1.35}
+  .duerow .dtx b{font-weight:800}
+  .duerow .dlink{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;margin-left:auto;
+    border:0;background:none;cursor:pointer;font-family:var(--bd);font-weight:800;font-size:.84rem;
+    color:#8a5a00;padding:7px 4px;margin-right:-4px;border-radius:8px}
+  .duerow .dlink:hover{color:#6b4600;text-decoration:underline}
+  .duerow .dlink svg{width:15px;height:15px}
+  /* Two tiles rather than four, now the balances live in the hero. */
+  .stats-2{grid-template-columns:repeat(2,1fr)}
+  .stat .sub{color:var(--faint);font-size:.76rem;font-weight:600;margin-top:3px}
   /* A finished step folds to one line: tick, icon, title. No description, no
      "Done" badge, no green fill — it is a record of what is behind you, and
      it should take up about as much room as that deserves. */

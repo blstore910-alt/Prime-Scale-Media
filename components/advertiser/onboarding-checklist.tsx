@@ -257,6 +257,10 @@ export default function OnboardingChecklist({
                  the only thing that could give and collapsed to a ~55px
                  column — one word per line, turning the first card on the
                  dashboard into a ~1100px wall. */
+              /* Tick, icon and TITLE share the first line; the description
+                 takes its own. They used to be split the other way — the
+                 whole text block wrapped below on a phone — which left two
+                 small squares floating alone on a line of their own. */
               <div key={s.id} className="onbrow">
                 <button
                   className="onb-tick"
@@ -271,10 +275,8 @@ export default function OnboardingChecklist({
                 <span className="onb-ic">
                   <Ic name={s.icon} />
                 </span>
-                <div className="otx">
-                  <div className="onb-t">{s.title}</div>
-                  <div className="onb-d">{s.desc}</div>
-                </div>
+                <span className="onb-t">{s.title}</span>
+                <p className="onb-d">{s.desc}</p>
                 <button
                   className="btn ghost sm ocat"
                   onClick={() => onNavigate(s.view)}

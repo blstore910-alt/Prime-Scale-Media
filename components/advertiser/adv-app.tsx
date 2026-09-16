@@ -18,6 +18,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import BalanceHero from "./balance-hero";
 import { toast } from "sonner";
 import { ADV_CSS } from "./adv-shell-css";
 import { AdvIcons, Ic } from "./adv-icons";
@@ -95,6 +96,8 @@ export default function AdvertiserApp() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
   const [view, setView] = useState<View>("dash");
+  // Where the bell was pressed from, so pressing it again returns there.
+  const viewBeforeNotifs = useRef<View>("dash");
   const [navOpen, setNavOpen] = useState(false);
 
   const [topupOpen, setTopupOpen] = useState(false);
@@ -351,6 +354,17 @@ export default function AdvertiserApp() {
     setNavOpen(false);
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   };
+  // The bell is a peek, not a destination: press it, glance, press it again
+  // and you are back where you were. Going "back" to the dashboard instead
+  // would lose whichever screen you were actually working on.
+  const toggleNotifs = () => {
+    if (view === "notif") {
+      go(viewBeforeNotifs.current);
+      return;
+    }
+    viewBeforeNotifs.current = view;
+    go("notif");
+  };
   const openAcctTopup = (a: AdAccount) => {
     setAcctTopup(a);
     setAcctTopupOpen(true);
@@ -604,8 +618,9 @@ export default function AdvertiserApp() {
             )}
             <button
               className="tool ic-btn"
-              onClick={() => go("notif")}
+              onClick={toggleNotifs}
               aria-label="Notifications"
+              aria-pressed={view === "notif"}
             >
               <Ic name="i-bell" />
               {notifs.filter((n) => !n.is_read).length > 0 && (
@@ -682,35 +697,39 @@ export default function AdvertiserApp() {
               accountsCount={(accounts ?? []).length}
               onNavigate={(v) => go(v as View)}
             />
-            <div className="phead">
-              <div>
-                <h1>Welcome back, {firstName}</h1>
-                <p>Here&apos;s how your account is doing.</p>
-              </div>
-            </div>
+            <BalanceHero
+              firstName={firstName}
+              eurText={eurText}
+              usdText={usdText}
+              onTopup={() => setTopupOpen(true)}
+              onExchange={() => setExchangeOpen(true)}
+              onOpenWallet={() => go("wallet")}
+              disabled={!wallet}
+            />
             {subscription?.amount && subscription.next_payment_date && (
-              <div className="alert">
+              /* One quiet row, not a filled banner with a solid blue button
+                 in it. Nothing here is wrong yet — the fee is simply due —
+                 and a notice that shouts competes with the balances directly
+                 above it, which is what people actually came to see. */
+              <div className="duerow">
                 <span className="ai">
                   <Ic name="i-clock" />
                 </span>
-                <div className="atx">
-                  {/* The € was hard-coded, directly above a button that
-                      debits the plan's own currency — so a USD plan read
-                      "Monthly fee €500" and then took $500. Subscriptions
-                      default to EUR everywhere (the billing RPCs coalesce to
-                      it), so that is the fallback, but a USD plan says so. */}
-                  <b>Monthly fee {planMoney(subscription.amount)}</b>
-                  <span>
-                    {" "}
-                    · due {dayjs(subscription.next_payment_date).fromNow()}
-                  </span>
-                </div>
-                <button className="btn sm" onClick={() => go("billing")}>
-                  <Ic name="i-check" /> Pay now
+                {/* The € was hard-coded, directly above a button that debits
+                    the plan's own currency — so a USD plan read "Monthly fee
+                    €500" and then took $500. Subscriptions default to EUR
+                    (the billing RPCs coalesce to it), so that is the
+                    fallback, but a USD plan says so. */}
+                <span className="dtx">
+                  Monthly fee <b>{planMoney(subscription.amount)}</b> · due{" "}
+                  {dayjs(subscription.next_payment_date).fromNow()}
+                </span>
+                <button className="dlink" onClick={() => go("billing")}>
+                  Pay now <Ic name="i-arrow" />
                 </button>
               </div>
             )}
-            <div className="stats">
+            <div className="stats stats-2">
               <div className="stat" onClick={() => go("accounts")}>
                 <div className="k">
                   <span className="ci b">
@@ -720,24 +739,6 @@ export default function AdvertiserApp() {
                 </div>
                 <div className="v">{activeAccts.length}</div>
               </div>
-              <div className="stat" onClick={() => go("wallet")}>
-                <div className="k">
-                  <span className="ci t">
-                    <Ic name="i-wallet" />
-                  </span>{" "}
-                  Wallet balance
-                </div>
-                <div className="v">{eurText}</div>
-              </div>
-              <div className="stat" onClick={() => go("wallet")}>
-                <div className="k">
-                  <span className="ci p">
-                    <Ic name="i-wallet" />
-                  </span>{" "}
-                  USD balance
-                </div>
-                <div className="v">{usdText}</div>
-              </div>
               <div className="stat" onClick={() => go("billing")}>
                 <div className="k">
                   <span className="ci g">
@@ -745,8 +746,29 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   Plan
                 </div>
-                <div className="v" style={{ textTransform: "capitalize" }}>
-                  {subscription?.status ?? "—"}
+                {/* "Active" on its own contradicted the "Pay now" sitting
+                    right beside it, and for a customer who has paid nothing
+                    yet it claims more than is true. The status column says
+                    active from the moment the subscription is created; what
+                    someone wants to know is whether they owe anything. So
+                    an unpaid subscription invoice is what this reports. */}
+                <div
+                  className="v"
+                  style={{
+                    textTransform: "capitalize",
+                    color: dueSubInvoice ? "var(--warn)" : undefined,
+                  }}
+                >
+                  {dueSubInvoice
+                    ? "Unpaid"
+                    : (subscription?.status ?? "—")}
+                </div>
+                <div className="sub">
+                  {dueSubInvoice
+                    ? `${planMoney(subscription?.amount)} outstanding`
+                    : subscription?.next_payment_date
+                      ? `Renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
+                      : "No subscription"}
                 </div>
               </div>
             </div>
@@ -771,30 +793,9 @@ export default function AdvertiserApp() {
                 )}
               </div>
             </div>
-            <div className="phead" style={{ marginTop: 2 }}>
-              <h2>Your wallets</h2>
-              <button className="btn ghost sm" onClick={() => go("wallet")}>
-                Open wallet <Ic name="i-arrow" />
-              </button>
-            </div>
-            <div className="grid2">
-              <WalletCard
-                cur="eur"
-                label="EUR wallet"
-                value={eurText}
-                onTopup={() => setTopupOpen(true)}
-                onExchange={() => setExchangeOpen(true)}
-                disabled={!wallet}
-              />
-              <WalletCard
-                cur="usd"
-                label="USD wallet"
-                value={usdText}
-                onTopup={() => setTopupOpen(true)}
-                onExchange={() => setExchangeOpen(true)}
-                disabled={!wallet}
-              />
-            </div>
+            {/* "Your wallets" used to repeat both balances and both actions
+                here, a screen below the two stat tiles that already showed
+                them. The hero at the top of this view is that section now. */}
           </div>
 
           {/* AFFILIATE PROGRAM (advertiser-as-affiliate) */}
