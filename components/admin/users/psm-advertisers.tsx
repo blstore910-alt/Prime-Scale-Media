@@ -8,7 +8,6 @@ import { Advertiser } from "@/lib/types/advertiser";
 import { formatCurrency } from "@/lib/utils";
 import { Parser } from "json2csv";
 import {
-  Check,
   Eye,
   FileDown,
   HandCoins,
