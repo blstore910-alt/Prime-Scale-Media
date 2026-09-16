@@ -66,3 +66,38 @@ test("formatCurrency respects EUR", () => {
   const formatted = formatCurrency(1000, "EUR");
   assert.match(formatted, /€1,000/);
 });
+
+// ── The direction of conversion ─────────────────────────────────────────
+// The rate is "1 USD = N <currency>", the convention the wallet RPCs and
+// top_up_create_for_advertiser follow. Getting it backwards is not a rounding
+// difference: the bulk top-up dialog multiplied where it should divide, so at
+// a 0.86 EUR rate a EUR 1000 top-up was stored as $860 instead of $1162.79,
+// and a USD 1000 one as EUR 1163 instead of EUR 860. Both the single and bulk
+// paths go through this helper now; these lock the direction so a future
+// tidy-up cannot quietly invert it again.
+const RATES = [{ eur: 0.86, gbp: 0.79, hkd: 7.8 }];
+
+test("calculateTopupAmount converts to USD by DIVIDING by the rate", () => {
+  const { amountUSD } = calculateTopupAmount(1000, RATES, "EUR", 0);
+  assert.equal(Math.round(amountUSD * 100) / 100, 1162.79);
+});
+
+test("calculateTopupAmount leaves a USD amount alone", () => {
+  const { amountUSD } = calculateTopupAmount(1000, RATES, "USD", 0);
+  assert.equal(amountUSD, 1000);
+});
+
+test("calculateTopupAmount takes the fee off the USD amount, not the paid amount", () => {
+  // 2% of 1162.79 is 23.26 — not 2% of the 1000 EUR that was paid.
+  const { feeAmount, topupAmount } = calculateTopupAmount(1000, RATES, "EUR", 2);
+  assert.equal(Math.round(feeAmount * 100) / 100, 23.26);
+  assert.equal(Math.round(topupAmount * 100) / 100, 1139.53);
+});
+
+test("calculateTopupAmount returns zeroes rather than guessing with no rate", () => {
+  assert.deepEqual(calculateTopupAmount(1000, undefined, "EUR", 2), {
+    topupAmount: 0,
+    amountUSD: 0,
+    feeAmount: 0,
+  });
+});

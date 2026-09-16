@@ -1,4 +1,5 @@
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
 import { toast } from "sonner";
 import * as z from "zod";
 import {
@@ -50,35 +51,49 @@ type BulkTopupRow = {
 
 const prepareTopupObject = (
   row: Partial<BulkTopupRow>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exchangeRates: any,
+  exchangeRates: MinimalRate[],
 ) => {
   const { currency, amount, account_id, fee } = row;
   const receivedAmount = Number(amount);
+  const feePct = Number(fee);
+  const cur = String(currency ?? "USD");
 
-  const feeAmount = (Number(receivedAmount) * Number(fee)) / 100;
-  const topupAmount = receivedAmount - feeAmount;
+  // Use the SAME helper the single top-up form uses. This did its own
+  // arithmetic and got the direction wrong in both places: the rate is
+  // "1 USD = N <currency>" — the convention lib/utils-pure.ts documents and
+  // the server RPCs follow — so converting a foreign amount to USD DIVIDES.
+  // This multiplied. At a 0.86 EUR rate a EUR 1000 top-up was stored as $860
+  // instead of $1162.79, and a USD 1000 one as EUR 1163 instead of EUR 860.
+  //
+  // It also took the fee off the PAID amount while the single form takes it
+  // off the USD amount, so the two paths disagreed about fee_amount for the
+  // same top-up. One helper, one answer.
+  const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
+    receivedAmount,
+    exchangeRates,
+    cur,
+    feePct,
+  );
 
-  const { eur } = exchangeRates;
-  const eurAmount =
-    currency === "EUR" ? receivedAmount : receivedAmount * (1 / eur);
-  const usdAmount = currency === "USD" ? receivedAmount : receivedAmount * eur;
-  const eurTopupAmount =
-    currency === "EUR" ? topupAmount : topupAmount * (1 / eur);
-  const usdTopupAmount = currency === "USD" ? topupAmount : topupAmount * eur;
+  // EUR figures alongside the USD ones. Same convention, other direction:
+  // USD -> EUR MULTIPLIES by the rate.
+  const eurRate = Number(exchangeRates?.[0]?.eur ?? 0);
+  const toEur = (usd: number) => (eurRate > 0 ? usd * eurRate : 0);
+  const eurAmount = cur === "EUR" ? receivedAmount : toEur(amountUSD);
+  const eurTopupAmount = cur === "EUR" ? topupAmount * eurRate : toEur(topupAmount);
 
   return {
     amount_received: receivedAmount,
     account_id,
-    amount_usd: usdAmount,
-    topup_usd: usdTopupAmount,
+    amount_usd: amountUSD,
+    topup_usd: topupAmount,
     topup_amount: topupAmount,
     currency,
     fee,
     fee_amount: feeAmount,
     eur_value: eurAmount,
     eur_topup: eurTopupAmount,
-    rate: eur,
+    rate: eurRate,
   };
 };
 
