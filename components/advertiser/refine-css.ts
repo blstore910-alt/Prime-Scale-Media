@@ -39,6 +39,15 @@ ${s}{
   background-attachment:fixed;
   background-repeat:no-repeat;
 }
+/* The top bar is sticky and 88% opaque, which was fine over a white page and
+   wrong the moment anything dark scrolled beneath it: the hero showed through
+   as a muddy grey smear across the bar. Nearly opaque, with the blur kept for
+   the edge where content passes under it, and a soft lip so the bar reads as
+   sitting above the page rather than cut out of it. */
+${s} .topbar{
+  background:color-mix(in srgb,var(--panel) 97%,transparent);
+  box-shadow:0 1px 0 var(--line),0 10px 22px -20px rgba(20,30,80,.5);
+}
 /* Column headers and small caps pick up the brand hue instead of reading as
    grey furniture. */
 ${s} .tbl th{color:#6b7796}
@@ -66,6 +75,11 @@ ${s} .btn:active{transform:translateY(1px);filter:brightness(.98);
 ${s} .btn:disabled,${s} .btn[aria-disabled="true"]{
   opacity:.5;cursor:not-allowed;transform:none;filter:none;
   box-shadow:0 1px 2px -1px rgba(20,30,80,.25)}
+/* A trailing arrow leans toward where it is taking you. "View all →" appears
+   on nearly every list in this app, and a static arrow is the difference
+   between a control and a label. */
+${s} .btn>svg:last-child:not(:first-child){transition:transform .14s cubic-bezier(.2,.8,.25,1)}
+${s} .btn:hover>svg:last-child:not(:first-child){transform:translateX(2px)}
 ${s} .btn.ghost{background-image:linear-gradient(180deg,#fff,var(--panel-2));
   box-shadow:0 1px 0 #fff inset,0 2px 5px -4px rgba(20,30,80,.4)}
 ${s} .btn.ghost:hover{background-image:linear-gradient(180deg,#fff,var(--panel-2));
@@ -99,6 +113,16 @@ ${s} .card{
              0 1px 2px -1px rgba(20,30,80,.16),
              0 16px 34px -24px rgba(20,30,80,.42);
 }
+/* Three fixed rows — label, value, sub — so tiles line up with each other
+   whatever they contain. They did not: one label wrapped to two lines while
+   its neighbour stayed on one, which pushed its value a whole line lower, and
+   one tile had a sub-line the other did not. Both were visible as a wobble
+   between two tiles sitting side by side. */
+${s} .stat{display:grid;grid-template-rows:auto 1fr auto;align-content:start}
+${s} .stat .k{min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:.75rem;letter-spacing:.01em}
+${s} .stat .v{margin-top:11px;padding-top:0;line-height:1.08;align-self:end}
+${s} .stat .sub{min-height:1.15em;margin-top:4px}
 ${s} .stat{transition:transform .14s,box-shadow .14s,border-color .14s}
 ${s} .stat:hover{transform:translateY(-2px);border-color:var(--line-2);
   box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 20px 34px -22px rgba(20,30,80,.5)}

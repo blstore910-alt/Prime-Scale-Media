@@ -710,6 +710,7 @@ export default function AdvertiserApp() {
               onTopup={() => setTopupOpen(true)}
               onExchange={() => setExchangeOpen(true)}
               onOpenWallet={() => go("wallet")}
+              onOpenAccounts={() => go("accounts")}
               disabled={!wallet}
             />
             {subscription?.amount && subscription.next_payment_date && (
@@ -739,14 +740,24 @@ export default function AdvertiserApp() {
               </div>
             )}
             <div className="stats stats-2">
+              {/* "Active ad accounts" wrapped to two lines while "Plan" sat on
+                  one, so the two values no longer shared a baseline — the
+                  count sat visibly lower than the word beside it. Both tiles
+                  now have a one-line label, a value and a sub-line, which is
+                  what actually keeps them aligned. */}
               <div className="stat" onClick={() => go("accounts")}>
                 <div className="k">
                   <span className="ci b">
                     <Ic name="i-ad" />
                   </span>{" "}
-                  Active ad accounts
+                  Ad accounts
                 </div>
-                <div className="v">{activeAccts.length}</div>
+                <div className="v">{(accounts ?? []).length}</div>
+                <div className="sub">
+                  {(accounts ?? []).length === 0
+                    ? "None yet"
+                    : `${activeAccts.length} active`}
+                </div>
               </div>
               <div className="stat" onClick={() => go("billing")}>
                 <div className="k">

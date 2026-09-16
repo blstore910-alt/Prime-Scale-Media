@@ -22,6 +22,7 @@ export default function BalanceHero({
   onTopup,
   onExchange,
   onOpenWallet,
+  onOpenAccounts,
   disabled,
 }: {
   firstName: string;
@@ -30,6 +31,7 @@ export default function BalanceHero({
   onTopup: () => void;
   onExchange: () => void;
   onOpenWallet: () => void;
+  onOpenAccounts: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -81,8 +83,12 @@ export default function BalanceHero({
         >
           <Ic name="i-swap" /> Exchange
         </button>
-        <button className="hero-btn gh" onClick={onOpenWallet}>
-          <Ic name="i-arrow" /> Wallet
+        {/* Not "Wallet" — the two balances above ARE the wallet, and a third
+            button going where they already go is a control that repeats
+            itself. From here the next thing anyone does with funded money is
+            put it on an ad account. */}
+        <button className="hero-btn gh" onClick={onOpenAccounts}>
+          <Ic name="i-ad" /> Ad accounts
         </button>
       </div>
     </section>

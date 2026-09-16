@@ -314,23 +314,31 @@ export const ADV_CSS = `
   /* The due row: one line, no filled banner, no solid button. Nothing is
      wrong yet — the fee is simply due — and a notice that shouts competes
      with the balances right above it. */
-  /* One line. It wrapped because the text was allowed to, and a two-line
-     notice next to a one-line action looks like a mistake. The value is the
-     part that must survive, so the row never wraps and the text ellipsizes
-     instead — it is short enough that it should not have to. */
-  .duerow{display:flex;align-items:center;gap:9px;flex-wrap:nowrap;
-    background:var(--warn-soft);border:1px solid #f2d9a3;border-radius:14px;padding:10px 12px}
-  .duerow .ai{width:28px;height:28px;border-radius:9px;background:#fff;display:grid;place-items:center;
-    color:var(--warn);flex:0 0 auto}
-  .duerow .ai svg{width:15px;height:15px}
-  .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.82rem;color:#8a5a00;line-height:1.3;
+  /* One line, and a card rather than a slab of amber. Amber text on an amber
+     fill next to an amber button was one colour doing three jobs, and it
+     read as a warning for something that is not wrong — a fee that is simply
+     due. A white card with a single amber marker says "note", and keeps the
+     only saturated thing on the row the action you can take. */
+  .duerow{display:flex;align-items:center;gap:11px;flex-wrap:nowrap;position:relative;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 13px 11px 15px;
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px -1px rgba(20,30,80,.16),
+               0 14px 28px -24px rgba(20,30,80,.4);overflow:hidden}
+  .duerow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,#f5b544,var(--warn))}
+  .duerow .ai{width:30px;height:30px;border-radius:9px;background:var(--warn-soft);display:grid;
+    place-items:center;color:#a9740b;flex:0 0 auto}
+  .duerow .ai svg{width:16px;height:16px}
+  .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--muted);line-height:1.3;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .duerow .dtx b{font-weight:800}
-  .duerow .dlink{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;margin-left:auto;
-    border:0;background:none;cursor:pointer;font-family:var(--bd);font-weight:800;font-size:.84rem;
-    color:#8a5a00;padding:7px 4px;margin-right:-4px;border-radius:8px}
-  .duerow .dlink:hover{color:#6b4600;text-decoration:underline}
-  .duerow .dlink svg{width:15px;height:15px}
+  .duerow .dtx b{font-weight:800;color:var(--ink)}
+  .duerow .dlink{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
+    border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.82rem;
+    color:#fff;background:linear-gradient(180deg,#f0a92c,#e08a00);padding:7px 11px;border-radius:9px;
+    box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 8px 16px -10px rgba(224,138,0,.9);transition:.13s}
+  .duerow .dlink:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  .duerow .dlink:active{transform:translateY(1px)}
+  .duerow .dlink svg{width:14px;height:14px;transition:transform .14s}
+  .duerow .dlink:hover svg{transform:translateX(2px)}
   /* Two tiles rather than four, now the balances live in the hero. */
   .stats-2{grid-template-columns:repeat(2,1fr)}
   .stat .sub{color:var(--faint);font-size:.76rem;font-weight:600;margin-top:3px}
