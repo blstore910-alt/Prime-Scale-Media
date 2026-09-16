@@ -88,7 +88,23 @@ const STATS_CSS = `
 /* Period control — one clearly-labelled bar that governs the metrics below. */
 .psm-stats .statctl{display:flex;align-items:center;gap:9px;flex-wrap:nowrap;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:7px 9px;box-shadow:var(--shadow-sm)}
 .psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
-.psm-stats .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+/* The period strip scrolls — five options, and on a 400px screen two of them
+   sit outside the box. It hides its scrollbar (deliberately, a visible one
+   would be ugly at this size), which left nothing at all to say there was
+   more: measured, "Last month" ends at 464px on a 400px screen with no hint
+   it exists. A mask fades the last few pixels out instead, so the strip
+   visibly continues past its edge.
+
+   The fade is static, so it still softens the last option once you have
+   scrolled to the end. That is the honest trade: a permanent 22px hint that
+   the strip scrolls, against a scrollbar that would be uglier at this size
+   and a JS scroll listener that would not be worth the weight. */
+.psm-stats .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
+  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 22px),transparent 100%);
+  mask-image:linear-gradient(to right,#000 calc(100% - 22px),transparent 100%)}
+/* Snap so a swipe lands on a whole option rather than halfway through one. */
+.psm-stats .seg2{scroll-snap-type:x proximity}
+.psm-stats .seg2 button{scroll-snap-align:start}
 .psm-stats .seg2::-webkit-scrollbar{display:none}
 .psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.82rem;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.13s;white-space:nowrap}
 .psm-stats .seg2 button:hover{color:var(--ink)}
