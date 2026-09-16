@@ -459,7 +459,7 @@ export const PSM_APP_CSS = `
      (an identity block, a row of buttons, an address) keeps it by being
      marked .fullcell. */
   .psmapp .tbl.wide tr{
-    display:grid;grid-template-columns:1fr 1fr;gap:0 12px;padding:2px 13px 4px;
+    display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:8px 13px 10px;
   }
   /* SYMMETRIC vertical padding. It was padding-top only, so a cell's content
      sat 8px below the divider above it and flush against the divider below —
@@ -468,7 +468,7 @@ export const PSM_APP_CSS = `
      the stack of dividers read as an even rhythm instead of a list of things
      resting on lines. */
   .psmapp .tbl.wide td{
-    display:block;text-align:left;padding:10px 0;border-top:0;
+    display:block;text-align:left;padding:9px 0 3px;border-top:0;
     min-height:0;
   }
   /* The chip and the pill are taller than plain text, so without this they
@@ -476,11 +476,18 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td .pfi,
   .psmapp .tbl.wide td .badge,
   .psmapp .tbl.wide td .pill{vertical-align:middle}
-  /* The rule above removes every divider, so put one back between ROWS of
-     the grid only — a line under each pair, never between the pair. */
-  .psmapp .tbl.wide td{box-shadow:0 -1px 0 var(--line)}
-  .psmapp .tbl.wide tr td:first-child,
-  .psmapp .tbl.wide tr td:nth-child(2){box-shadow:none}
+  /* No internal dividers. They were drawn per CELL and suppressed on the
+     first two children — which only works if the first grid row is exactly
+     two cells. The moment a cell spans the full width (an identity block, a
+     row of buttons) the pairing shifts by one and the lines land on
+     alternating HALF rows: a hairline over the right-hand cell and nothing
+     over its neighbour. That stray half-line is what read as untidy.
+     
+     Getting it right per cell would mean knowing each cell's grid row, which
+     CSS will not tell us. So the card carries no internal rules at all and
+     lets the label/value rhythm and the spacing do the separating — which is
+     also calmer than a grid full of hairlines. */
+  .psmapp .tbl.wide td{box-shadow:none}
   .psmapp .tbl.wide td::before{
     display:block;margin-bottom:2px;color:var(--faint);
     font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;

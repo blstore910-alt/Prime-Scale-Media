@@ -333,6 +333,18 @@ function AdvertiserRow({
   const subscriptionStatus = hasSubscription
     ? subscriptions?.[0]?.status
     : null;
+  // What the PLAN is, not whether it is active. The cell used to render the
+  // subscription's status as a green "Active" pill, directly above the
+  // account's status as an identical green "Active" pill — two pills, same
+  // word, same colour, adjacent, about two different things. An amount can
+  // never be mistaken for an account status.
+  const sub0 = subscriptions?.[0] as
+    | { status?: string; amount?: number | string | null; currency?: string | null }
+    | undefined;
+  const planAmount =
+    sub0?.amount != null && Number.isFinite(Number(sub0.amount))
+      ? `${(sub0.currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€"}${Number(sub0.amount).toFixed(0)} / mo`
+      : null;
 
   const commissionType = advertiser?.commission_type
     ? COMMISSION_TYPE_LABELS[advertiser.commission_type] ??
@@ -393,17 +405,30 @@ function AdvertiserRow({
       <td data-label="Plan">
         {hasSubscription ? (
           <div>
-            <span
-              className={`badge ${subscriptionStatus === "active" ? "ok" : "pend"}`}
-              style={{
-                textTransform: "capitalize",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <Check style={{ width: 13, height: 13 }} /> {subscriptionStatus}
-            </span>
+            {/* The amount leads, because that is what a plan IS. A status
+                word here was indistinguishable from the account status pill
+                one row below it — same word, same green. A non-active plan
+                still needs saying, so it keeps a pill, but only when it is
+                NOT the ordinary case. */}
+            {planAmount ? (
+              <div style={{ fontWeight: 700 }}>{planAmount}</div>
+            ) : (
+              <div style={{ fontWeight: 700 }}>Subscribed</div>
+            )}
+            {subscriptionStatus && subscriptionStatus !== "active" && (
+              <span
+                className="badge pend"
+                style={{
+                  textTransform: "capitalize",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginTop: 4,
+                }}
+              >
+                {subscriptionStatus}
+              </span>
+            )}
             {commissionType && (
               <div
                 className="muted"

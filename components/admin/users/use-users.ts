@@ -36,7 +36,7 @@ export default function useUsers({
         .select(
           `
         *,
-        advertiser:advertisers(*, wallet_topups:wallet_topups(amount, currency, status), subscriptions(status))
+        advertiser:advertisers(*, wallet_topups:wallet_topups(amount, currency, status), subscriptions(status, amount, currency))
       `,
           { count: "exact" },
         )
