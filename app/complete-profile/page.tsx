@@ -120,16 +120,25 @@ export default async function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="w-full px-8 py-4 border-b bg-muted/20 flex items-center justify-between gap-4">
+      {/* Two lines, not one. Email, joined date and role used to share a
+          single truncated line, so on a phone it read
+          "xifape4500@jobscai.com | Joined Se…" — cut mid-word, with the role
+          lost entirely. The address is the identity and keeps the ellipsis;
+          the rest is short enough to wrap on its own line. px-4 on a phone
+          too: 32px of side padding each way is a lot of a 400px screen. */}
+      <div className="w-full px-4 sm:px-8 py-4 border-b bg-muted/20 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">
             Signed in as {displayName}
           </p>
-          <p className="text-xs text-muted-foreground truncate">
-            {userEmail}
-            {joinedDate ? ` | Joined ${joinedDate}` : ""}
-            {roleLabel ? ` | ${roleLabel}` : ""}
-          </p>
+          <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+          {(roleLabel || joinedDate) && (
+            <p className="text-xs text-muted-foreground">
+              {[roleLabel, joinedDate ? `Joined ${joinedDate}` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          )}
         </div>
         <LogoutButton />
       </div>

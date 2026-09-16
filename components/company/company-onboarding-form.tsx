@@ -21,7 +21,6 @@ import { useState } from "react";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import PhoneInputField from "../form/phone-input-field";
-import Image from "next/image";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
@@ -60,6 +59,27 @@ const companySchema = z
   );
 
 type FormValues = z.infer<typeof companySchema>;
+
+// The brand's rocket, same drawing the auth screens and both app shells use.
+function RocketMark() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={29}
+      height={29}
+      fill="none"
+      stroke="#fff"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    </svg>
+  );
+}
 
 export default function CompanyOnboardingForm({
   profile,
@@ -196,14 +216,22 @@ export default function CompanyOnboardingForm({
   return (
     <div className="max-w-3xl mx-auto py-10 px-4">
       <Card>
-        <div>
-          <Image
-            src={"/images/psm-logo.svg"}
-            height={150}
-            width={150}
-            alt="PSM Logo"
-            className="object-cover h-44 mx-auto w-auto"
-          />
+        {/* The real mark, at a size that leaves room for the form. This was
+            /images/psm-logo.svg — an older circular badge, unrelated to the
+            brand the rest of the app uses — rendered 176px tall with
+            object-cover, so it filled the first screenful of a page whose
+            whole job is a long form. */}
+        <div className="flex justify-center pt-6">
+          <span
+            className="grid h-14 w-14 place-items-center rounded-2xl"
+            style={{
+              background: "linear-gradient(135deg,#0c1030,#0a0e24)",
+              boxShadow:
+                "0 12px 30px -10px rgba(58,90,230,.6), 0 0 30px rgba(91,141,255,.45), 0 0 0 1px rgba(91,141,255,.32)",
+            }}
+          >
+            <RocketMark />
+          </span>
         </div>
         <CardHeader>
           <CardTitle>Complete Your Company Profile</CardTitle>

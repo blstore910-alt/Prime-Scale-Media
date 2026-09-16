@@ -15,6 +15,13 @@ type PhoneInputFieldProps<T extends FieldValues> = {
   label?: string;
   description?: string;
   className?: string;
+  /**
+   * ISO-2, lowercase. Defaults to "nl": this is a Netherlands-based business
+   * whose customers are billed in EUR and asked for a VAT number, so landing
+   * on the US flag and "+1" meant almost everyone had to change it before
+   * they could type their own number. Pass another code where that is wrong.
+   */
+  defaultCountry?: string;
 };
 
 export default function PhoneInputField<T extends FieldValues>({
@@ -25,6 +32,7 @@ export default function PhoneInputField<T extends FieldValues>({
   description,
   label,
   className,
+  defaultCountry = "nl",
 }: PhoneInputFieldProps<T>) {
   return (
     <Controller
@@ -35,7 +43,7 @@ export default function PhoneInputField<T extends FieldValues>({
           {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
           <div className={cn("phone-input-container", className)}>
             <PhoneInput
-              defaultCountry="us"
+              defaultCountry={defaultCountry}
               value={field.value}
               onChange={(phone) => field.onChange(phone)}
               inputProps={{

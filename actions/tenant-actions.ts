@@ -75,28 +75,6 @@ export async function createTenantForCurrentUser(input: {
     return { ok: false, error: "Slug already taken" };
   }
 
-  const { data: tenant, error: insertError } = await supabase
-    .from("tenants")
-    .insert({
-      name,
-      slug,
-      owner_id: userId,
-      initials,
-    })
-    .select("id")
-    .single();
-  if (insertError) return { ok: false, error: insertError.message };
-
-  // Also seed the user_profiles row so the caller has a working
-  // admin session on this tenant right away. A DB signup trigger
-  // may already have created a profile row with tenant_id=null —
-  // update it in place if so; otherwise insert.
-  const displayName =
-    (userData.user.user_metadata?.display_name as string | undefined) ||
-    (userData.user.user_metadata?.full_name as string | undefined) ||
-    userData.user.email ||
-    "Admin";
-
   // Adopt an existing profile ONLY if it is genuinely unclaimed. The comment
   // below says this is for a signup-trigger row with tenant_id = null, and
   // that is the only case it is safe for — but it never checked, and updated
@@ -136,6 +114,34 @@ export async function createTenantForCurrentUser(input: {
   const existingProfile = (profiles ?? []).find(
     (p: { tenant_id: string | null }) => p.tenant_id === null,
   );
+
+  // The tenant is created only once every refusal above has passed. It used
+  // to be inserted first, so someone who already belonged to an organisation
+  // got a tenants row written, the slug taken for good, and THEN the refusal
+  // — leaving an organisation nobody is a member of and a name that can never
+  // be used again. There is no transaction across these two writes, so the
+  // order is the only thing protecting it.
+  const { data: tenant, error: insertError } = await supabase
+    .from("tenants")
+    .insert({
+      name,
+      slug,
+      owner_id: userId,
+      initials,
+    })
+    .select("id")
+    .single();
+  if (insertError) return { ok: false, error: insertError.message };
+
+  // Seed the user_profiles row so the caller has a working admin session on
+  // this tenant right away. A DB signup trigger may already have created a
+  // profile row with tenant_id = null — update that in place; otherwise
+  // insert a fresh one.
+  const displayName =
+    (userData.user.user_metadata?.display_name as string | undefined) ||
+    (userData.user.user_metadata?.full_name as string | undefined) ||
+    userData.user.email ||
+    "Admin";
 
   let profileError: { message: string } | null = null;
   if (existingProfile?.id) {
