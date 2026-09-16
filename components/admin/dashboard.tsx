@@ -68,8 +68,18 @@ const DASH_CSS = `
 .psm-dash .attn.ok .sub{margin-top:0}
 
 .psm-dash .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:10px}
-.psm-dash .qcard{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.15s}
+.psm-dash .qcard{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.15s;position:relative;overflow:hidden}
 .psm-dash .qcard:hover{border-color:var(--primary);transform:translateY(-2px)}
+/* A queue with work in it looks different from an empty one BEFORE you read
+   the number: a coloured edge down the side and a title at full strength. An
+   empty queue keeps its place and goes quiet. This screen is scanned for
+   "who is waiting on me", and the answer should be visible from across a
+   desk, not counted. */
+.psm-dash .qcard:has(.qbadge:not(.zero)){border-color:#cfe0ff;background:linear-gradient(180deg,#fff,var(--primary-tint))}
+.psm-dash .qcard:has(.qbadge:not(.zero))::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary)}
+.psm-dash .qcard:has(.qbadge.unknown)::before{background:var(--faint)}
+.psm-dash .qcard:has(.qbadge.zero) .ql{color:var(--muted);font-weight:600}
+.psm-dash .qcard:has(.qbadge.zero) .qi{opacity:.55}
 .psm-dash .qcard .qi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
 .psm-dash .qcard .qi svg{width:17px;height:17px}
 .psm-dash .qcard .ql{flex:1;min-width:0;font-family:var(--hd);font-weight:700;font-size:.92rem;line-height:1.25;color:var(--ink)}
@@ -239,7 +249,20 @@ export default function AdminDashboard() {
 
       <h2>Queues</h2>
       <div className="qgrid">
-        {queues.map((q) => {
+        {/* Queues with work come FIRST. A fixed order is fine on a screen you
+            read top to bottom, but this one is scanned for "who is waiting on
+            me", and that answer should not be in position four. An unreadable
+            count sorts with the work rather than with the empties: it might
+            be work, and treating "unknown" as "nothing" is the mistake this
+            whole screen is careful about elsewhere. Ties keep their declared
+            order, so the layout does not shuffle on every refetch. */}
+        {[...queues]
+          .sort((a, b) => {
+            const weight = (c: number | null | undefined) =>
+              c === undefined ? 0 : c === null ? 2 : c > 0 ? 2 : 1;
+            return weight(b.count) - weight(a.count);
+          })
+          .map((q) => {
           const Icon = q.icon;
           // A queue that declares a count still has one when it is null —
           // null means "we could not read it", and that must render as the
@@ -282,7 +305,7 @@ export default function AdminDashboard() {
               <ArrowRight className="go" />
             </Link>
           );
-        })}
+          })}
       </div>
 
       {/* Real profit + activity metrics with the period toggle, grouped as one

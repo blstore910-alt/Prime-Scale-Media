@@ -142,6 +142,11 @@ ${s} .mcard{
 @keyframes psmpop{from{opacity:0;transform:translateY(10px) scale(.975)}to{opacity:1;transform:none}}
 ${s} .mhead{padding-bottom:13px;margin-bottom:15px;border-bottom:1px solid var(--line)}
 ${s} .mfoot{padding-top:15px;margin-top:17px;border-top:1px solid var(--line)}
+/* A dialog that holds a question and one line of answer should be the size
+   of a question and one line of answer. These were laid out for forms, so a
+   two-line confirmation came out as tall as a top-up. */
+${s} .mcard:has(.mfoot) .cap{margin-bottom:0}
+${s} .mcard .mfoot .btn{font-size:.9rem;padding:11px 18px}
 
 /* On a phone a dialog belongs at the bottom, under the thumb, with the
    corners squared off against the edge it is attached to — that is what

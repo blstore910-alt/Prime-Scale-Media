@@ -415,7 +415,7 @@ export default function AdminShell({
                 Cancel
               </button>
               <button
-                className="btn danger"
+                className="btn"
                 onClick={() => {
                   setSignOutOpen(false);
                   logout();

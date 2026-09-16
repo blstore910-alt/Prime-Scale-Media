@@ -1405,7 +1405,7 @@ export default function AffiliateApp() {
                 Cancel
               </button>
               <button
-                className="btn danger"
+                className="btn"
                 onClick={() => {
                   setSignOutOpen(false);
                   logout();
