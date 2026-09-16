@@ -1,6 +1,25 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
+import type { ExchangeRate } from "@/lib/types/exchange-rates";
 import { useQuery } from "@tanstack/react-query";
+
+// The browser Supabase client is created without the Database generic, so
+// every query it returns is `any[]`. That is why a caller could hand ONE rate
+// row to a parameter declared `MinimalRate[]` and have tsc stay silent while
+// every non-USD conversion quietly became zero. Naming the shape here is the
+// cheapest place to stop that: it costs nothing at runtime and turns the same
+// mistake into a compile error at the call site.
+//
+// `profile` is the embedded user_profiles row the select asks for; it is only
+// used to say who last changed a rate.
+export type ExchangeRateRow = ExchangeRate & {
+  id: string;
+  profile?: {
+    id?: string | null;
+    full_name?: string | null;
+    email?: string | null;
+  } | null;
+};
 
 export default function useExchangeRates({
   activeOnly = false,
@@ -15,7 +34,7 @@ export default function useExchangeRates({
     error,
   } = useQuery({
     queryKey: [activeOnly ? "exchange-rates-active-only" : "exchange-rates"],
-    queryFn: async () => {
+    queryFn: async (): Promise<ExchangeRateRow[]> => {
       const supabase = createClient();
       const query = supabase
         .from("exchange_rates")

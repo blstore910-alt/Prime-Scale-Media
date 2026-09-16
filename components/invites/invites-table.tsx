@@ -71,6 +71,42 @@ export default function InvitesTable() {
   const invites = invitesData?.items ?? [];
   const total = invitesData?.total ?? 0;
 
+  // The client code is NOT on the invitation — it is assigned when the
+  // advertiser row is created at signup, so a pending invite genuinely does
+  // not have one yet. (The send dialog shows "PSM 000005" as a preview of the
+  // next number, which is a preview and not a promise: invite two people and
+  // whoever signs up first takes it.) So look the real code up for the
+  // invitees who have actually joined, and leave the rest honestly blank.
+  //
+  // Scoped to the emails on THIS page, so the query stays ten rows wide
+  // however many advertisers the tenant has.
+  const pageEmails = invites
+    .map((i: any) => i.email)
+    .filter((e: unknown): e is string => typeof e === "string" && e.length > 0);
+
+  const { data: codeByEmail } = useQuery({
+    queryKey: ["invite-client-codes", profile?.tenant_id, pageEmails.join(",")],
+    enabled: pageEmails.length > 0 && !!profile?.tenant_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("advertisers")
+        .select("tenant_client_code, profile:user_profiles!inner(email)")
+        .eq("tenant_id", profile?.tenant_id)
+        .in("profile.email", pageEmails);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const row of (data ?? []) as any[]) {
+        const email = Array.isArray(row.profile)
+          ? row.profile[0]?.email
+          : row.profile?.email;
+        if (email && row.tenant_client_code) {
+          map[String(email).toLowerCase()] = String(row.tenant_client_code);
+        }
+      }
+      return map;
+    },
+  });
+
   useEffect(() => {
     const params = new URLSearchParams(Array.from(searchParams ?? []));
     if (page && page > 1) params.set("page", String(page));
@@ -131,6 +167,7 @@ export default function InvitesTable() {
           <table className="tbl wide">
             <thead>
               <tr>
+                <th>Client code</th>
                 <th>Sender</th>
                 <th>Recipient Email</th>
                 <th>Status</th>
@@ -144,18 +181,26 @@ export default function InvitesTable() {
                 const badge =
                   INVITE_BADGE[invite.status as InvitationStatus] ??
                   INVITE_BADGE.pending;
+                const code = invite.email
+                  ? codeByEmail?.[String(invite.email).toLowerCase()]
+                  : undefined;
                 return (
                   <tr key={invite.id}>
+                    <td data-label="Client code">
+                      {code ? (
+                        <span style={{ fontWeight: 800 }}>{code}</span>
+                      ) : (
+                        <span
+                          className="muted"
+                          title="Assigned when the invitee signs up"
+                        >
+                          —
+                        </span>
+                      )}
+                    </td>
                     <td data-label="Sender">
                       <div style={{ fontWeight: 700, lineHeight: 1.2 }}>
                         {invite.sender?.full_name || "N/A"}
-                      </div>
-                      <div
-                        className="oneline"
-                        style={{ color: "var(--faint)", fontSize: ".8rem" }}
-                        title={invite.sender?.email || undefined}
-                      >
-                        {invite.sender?.email || "No email"}
                       </div>
                     </td>
                     {/* The recipient IS the invite's identity, so it stays

@@ -244,7 +244,7 @@ export default function BulkTopupAdAccountsDialog({
       return;
     }
     const topupObjects = filteredValues.map((v) =>
-      prepareTopupObject(v, exchangeRates[0]),
+      prepareTopupObject(v, exchangeRates),
     );
 
     const advertiserId = accounts[0]?.advertiser_id;
