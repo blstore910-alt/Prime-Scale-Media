@@ -66,11 +66,9 @@ export default async function Page({ searchParams }: PageProps) {
     );
   }
 
-  return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-md">
-        <InviteSignUpForm invite={invite} />
-      </div>
-    </div>
-  );
+  // The auth layout already centres its .side column and .card sets the
+  // width, exactly as the sign-in page does. The extra flex wrapper that used
+  // to be here fought that: a second full-height centring context inside one
+  // that was already centring.
+  return <InviteSignUpForm invite={invite} />;
 }

@@ -222,6 +222,49 @@ const AUTH_CSS = `
 .psmauth input::placeholder{color:var(--faint)}
 .psmauth input:focus,.psmauth select:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
 .psmauth .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+/* ── Sign-up extras ──────────────────────────────────────────────────
+   The invite sign-up used shadcn Card/Input/Button, which put a WHITE card
+   inside this dark shell — so the .psmauth input rule (light-on-dark, below)
+   painted
+   a 6%-white fill and a 16%-white border onto white, and the fields were
+   invisible. Everything it needs now lives here instead, in the same
+   vocabulary the sign-in form already speaks. */
+/* Who the account is being created for. Someone is about to choose a
+   password; they should be able to see WHICH address it belongs to, and
+   spot a wrong link before they commit to it rather than after. */
+.psmauth .whoami{display:flex;align-items:center;gap:10px;background:var(--primary-tint);border:1px solid #cfe0ff;border-radius:12px;padding:10px 12px;margin:0 0 16px;text-align:left}
+.psmauth .whoami svg{width:17px;height:17px;color:var(--primary-600);flex:0 0 auto}
+.psmauth .whoami .t{min-width:0}
+.psmauth .whoami small{display:block;font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--primary-600)}
+.psmauth .whoami b{display:block;font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Show/hide password. Sits inside the field, so the input needs room for it. */
+.psmauth .inp.haseye input{padding-right:42px}
+.psmauth .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;display:grid;place-items:center;border:0;background:none;border-radius:9px;color:var(--faint);cursor:pointer}
+.psmauth .eye:hover{color:var(--ink);background:var(--panel-2)}
+.psmauth .eye svg{width:17px;height:17px}
+/* Strength meter. Five segments that fill as the score rises — they must
+   read as EMPTY when nothing is typed, which is what the shadcn version
+   failed at here: its bg-muted class resolved to solid slate against this
+   shell, so a blank field showed five filled bars. */
+.psmauth .pwbar{display:flex;gap:4px;margin-top:8px}
+.psmauth .pwbar i{height:4px;flex:1;border-radius:3px;background:var(--line-2);transition:background .18s}
+.psmauth .pwbar[data-score="1"] i.on,.psmauth .pwbar[data-score="2"] i.on{background:var(--danger)}
+.psmauth .pwbar[data-score="3"] i.on{background:var(--warn)}
+.psmauth .pwbar[data-score="4"] i.on,.psmauth .pwbar[data-score="5"] i.on{background:var(--win)}
+.psmauth .pwmeta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:.76rem;margin-top:5px;min-height:1.1em;text-align:left}
+.psmauth .pwmeta b{font-weight:700}
+.psmauth .pwmeta span{color:var(--faint);text-align:right}
+.psmauth .pwbar[data-score="1"]~.pwmeta b,.psmauth .pwbar[data-score="2"]~.pwmeta b{color:var(--danger)}
+.psmauth .pwbar[data-score="3"]~.pwmeta b{color:var(--warn)}
+.psmauth .pwbar[data-score="4"]~.pwmeta b,.psmauth .pwbar[data-score="5"]~.pwmeta b{color:var(--win)}
+/* Radios. Native inputs, so the shared full-width input rule above has
+   to be undone for them explicitly — otherwise each dot stretches the row. */
+.psmauth .radios{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.psmauth .radio{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;cursor:pointer;transition:.13s;text-align:left}
+.psmauth .radio:hover{border-color:var(--primary)}
+.psmauth .radio:has(input:checked){border-color:var(--primary);background:var(--primary-tint)}
+.psmauth .radio input[type=radio]{width:17px;height:17px;flex:0 0 auto;margin:0;padding:0;accent-color:var(--primary);cursor:pointer}
+.psmauth .radio span{font-size:.88rem;font-weight:600}
 .psmauth .btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.95rem;border-radius:12px;padding:13px 16px;background:var(--brand);color:#fff;box-shadow:0 14px 30px -14px rgba(124,92,255,.75);transition:.14s;margin-top:6px}
 .psmauth .btn:hover{transform:translateY(-1px);filter:brightness(1.03)}
 .psmauth .btn:disabled{opacity:.65;cursor:default;transform:none;filter:none}
@@ -300,6 +343,25 @@ const AUTH_CSS = `
   .psmauth .err{color:#ff9ba0}
   .psmauth .note{background:rgba(255,214,120,.12);border-color:rgba(240,217,168,.32);color:#ffdf9e}
   .psmauth .btn.ghost{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
+  /* sign-up extras, light-on-dark */
+  .psmauth .whoami{background:rgba(91,141,255,.12);border-color:rgba(91,141,255,.3);color:#fff;padding:9px 11px;margin-bottom:12px}
+  .psmauth .whoami svg{color:#9db8ff}
+  .psmauth .whoami small{color:#9db8ff}
+  .psmauth .eye{color:rgba(255,255,255,.5)}
+  .psmauth .eye:hover{color:#fff;background:rgba(255,255,255,.1)}
+  .psmauth .pwbar i{background:rgba(255,255,255,.14)}
+  .psmauth .pwmeta span{color:rgba(255,255,255,.5)}
+  .psmauth .radio{border-color:rgba(255,255,255,.16);color:#fff}
+  .psmauth .radio:has(input:checked){background:rgba(91,141,255,.14);border-color:var(--blue)}
+  /* The sign-up form is long, so on a phone the brand hero has to give way —
+     otherwise you tap an invitation and the first screenful is marketing
+     while the form you came for sits below the fold. Sign-in is short enough
+     to keep its rocket; this screen trades it for the form. */
+  .psmauth:has(.signup-card) .rocketstage{min-height:96px;margin:10px 0 2px}
+  .psmauth:has(.signup-card) .ship{width:52px}
+  .psmauth:has(.signup-card) .rocketstage .moon{width:22px;height:22px;right:12%}
+  .psmauth:has(.signup-card) .brand h1,
+  .psmauth:has(.signup-card) .brand .sub{display:none}
 }
 @media (prefers-reduced-motion:reduce){.psmauth *{animation:none!important}}
 `;

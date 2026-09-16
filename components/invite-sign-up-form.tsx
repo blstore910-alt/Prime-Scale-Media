@@ -1,36 +1,63 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import PasswordStrength from "@/components/ui/password-strength";
-import { UserInvitation } from "@/lib/types/invite";
-import { cn } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { scorePassword } from "@/lib/password-strength";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
+import { UserInvitation } from "@/lib/types/invite";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import * as z from "zod";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Controller } from "react-hook-form";
+
+// Marks from the approved mockup (onboarding-auth.html), matching the
+// sign-in screen this form now sits one click away from.
+function Rocket() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    </svg>
+  );
+}
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-10 5L2 7" />
+    </svg>
+  );
+}
+function UserIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <rect width="18" height="11" x="3" y="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+function EyeIcon({ off }: { off: boolean }) {
+  return off ? (
+    <svg viewBox="0 0 24 24">
+      <path d="M10.7 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a10.9 10.9 0 0 0 5.4-1.4" />
+      <path d="M14.1 14.1a3 3 0 1 1-4.2-4.2M2 2l20 20" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
 
 const inviteSignUpSchema = z
   .object({
@@ -68,15 +95,22 @@ const inviteSignUpSchema = z
 
 type InviteSignUpData = z.infer<typeof inviteSignUpSchema>;
 
-type InviteSignUpFormProps = {
-  invite: UserInvitation;
-  className?: string;
-};
+const HEARD_FROM = [
+  ["google", "Google"],
+  ["tiktok", "TikTok"],
+  ["linkedin", "LinkedIn"],
+  ["facebook", "Facebook"],
+  ["twitter", "Twitter"],
+  ["friend", "Friend/Colleague"],
+  ["other", "Other"],
+] as const;
 
 export default function InviteSignUpForm({
   invite,
-  className,
-}: InviteSignUpFormProps) {
+}: {
+  invite: UserInvitation;
+  className?: string;
+}) {
   const router = useRouter();
   const [viewPass, setViewPass] = useState({ pass: false, repeatPass: false });
   const {
@@ -98,6 +132,9 @@ export default function InviteSignUpForm({
     resolver: zodResolver(inviteSignUpSchema),
   });
 
+  const password = watch("password") ?? "";
+  const strength = scorePassword(password);
+
   const onSubmit = async (values: InviteSignUpData) => {
     const payload = {
       email: invite.email,
@@ -117,9 +154,7 @@ export default function InviteSignUpForm({
     try {
       const res = await fetch("/api/accept-invite/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -151,226 +186,192 @@ export default function InviteSignUpForm({
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)}>
-      <Card>
-        <CardHeader>
-          <Image
-            src="/images/psm-logo.svg"
-            alt="Logo"
-            height={150}
-            width={150}
-            className="mx-auto h-44 w-auto object-cover"
-          />
-          <CardTitle className="text-xl">
-            Sign up to Join {invite.tenant_name}
-          </CardTitle>
-          <CardDescription>
-            You are signing up as an <b>{invite.role}</b>. Complete the details
-            below to create your account for this organization.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="flex flex-col gap-6">
-              <div className="flex gap-6">
-                {/* First Name */}
-                <div className="grid gap-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    placeholder="John"
-                    {...register("firstName")}
-                  />
+    <section className="card login-card signup-card">
+      <div className="lmk">
+        <span className="mk">
+          <Rocket />
+        </span>
+      </div>
+      <h2>Create your account</h2>
+      <p className="lede">
+        You were invited to join {invite.tenant_name} as an{" "}
+        <b>{invite.role}</b>.
+      </p>
 
-                  {errors.firstName && (
-                    <p className="text-sm text-red-500">
-                      {errors.firstName.message}
-                    </p>
-                  )}
-                </div>
+      {/* The address the account is created for. It is not editable — it is
+          what the invitation was sent to — but it must be VISIBLE, because
+          this is the moment someone commits a password to it. */}
+      <div className="whoami">
+        <MailIcon />
+        <span className="t">
+          <small>Signing up as</small>
+          <b title={invite.email}>{invite.email}</b>
+        </span>
+      </div>
 
-                {/* Last Name */}
-                <div className="grid gap-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    placeholder="Doe"
-                    {...register("lastName")}
-                  />
-                  {errors.lastName && (
-                    <p className="text-sm text-red-500">
-                      {errors.lastName.message}
-                    </p>
-                  )}
-                </div>
-              </div>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="row2">
+          <div className="field">
+            <label htmlFor="firstName">First name</label>
+            <div className="inp">
+              <UserIcon />
+              <input id="firstName" placeholder="John" {...register("firstName")} />
+            </div>
+            {errors.firstName && (
+              <p className="err">{errors.firstName.message}</p>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="lastName">Last name</label>
+            <div className="inp">
+              <UserIcon />
+              <input id="lastName" placeholder="Doe" {...register("lastName")} />
+            </div>
+            {errors.lastName && <p className="err">{errors.lastName.message}</p>}
+          </div>
+        </div>
 
-              {/* Password */}
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={viewPass.pass ? "text" : "password"}
-                    {...register("password")}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-transparent"
-                    onClick={() =>
-                      setViewPass({ ...viewPass, pass: !viewPass.pass })
-                    }
-                  >
-                    {viewPass.pass ? <EyeOff /> : <Eye />}
-                  </Button>
-                </div>
-                <PasswordStrength password={watch("password") ?? ""} />
-                {errors.password && (
-                  <p className="text-sm text-red-500">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
+        <div className="field">
+          <label htmlFor="password">Password</label>
+          <div className="inp haseye">
+            <LockIcon />
+            <input
+              id="password"
+              type={viewPass.pass ? "text" : "password"}
+              placeholder="At least 12 characters"
+              {...register("password")}
+            />
+            <button
+              type="button"
+              className="eye"
+              onClick={() => setViewPass({ ...viewPass, pass: !viewPass.pass })}
+              aria-label={viewPass.pass ? "Hide password" : "Show password"}
+            >
+              <EyeIcon off={viewPass.pass} />
+            </button>
+          </div>
+          {/* Empty means empty: with no password typed the score is 0, every
+              segment stays unfilled and the labels below stay blank. */}
+          <div className="pwbar" data-score={password ? strength.score : 0}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <i key={i} className={password && i < strength.score ? "on" : ""} />
+            ))}
+          </div>
+          <div className="pwmeta" aria-live="polite">
+            <b>{password ? strength.label : ""}</b>
+            <span>{password ? strength.reasons[0] ?? "" : ""}</span>
+          </div>
+          {errors.password && <p className="err">{errors.password.message}</p>}
+        </div>
 
-              {/* Repeat Password */}
-              <div className="grid gap-2">
-                <Label htmlFor="repeatPassword">Repeat Password</Label>
-                <div className="relative">
-                  <Input
-                    id="repeatPassword"
-                    type={viewPass.repeatPass ? "text" : "password"}
-                    {...register("repeatPassword")}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-transparent"
-                    onClick={() =>
-                      setViewPass({
-                        ...viewPass,
-                        repeatPass: !viewPass.repeatPass,
-                      })
-                    }
-                  >
-                    {viewPass.repeatPass ? <EyeOff /> : <Eye />}
-                  </Button>
-                </div>
-                {errors.repeatPassword && (
-                  <p className="text-sm text-red-500">
-                    {errors.repeatPassword.message}
-                  </p>
-                )}
-              </div>
+        <div className="field">
+          <label htmlFor="repeatPassword">Repeat password</label>
+          <div className="inp haseye">
+            <LockIcon />
+            <input
+              id="repeatPassword"
+              type={viewPass.repeatPass ? "text" : "password"}
+              placeholder="Type it again"
+              {...register("repeatPassword")}
+            />
+            <button
+              type="button"
+              className="eye"
+              onClick={() =>
+                setViewPass({ ...viewPass, repeatPass: !viewPass.repeatPass })
+              }
+              aria-label={
+                viewPass.repeatPass ? "Hide password" : "Show password"
+              }
+            >
+              <EyeIcon off={viewPass.repeatPass} />
+            </button>
+          </div>
+          {errors.repeatPassword && (
+            <p className="err">{errors.repeatPassword.message}</p>
+          )}
+        </div>
 
-              {!invite.affiliate_id && (
-                <div className="space-y-4">
-                  <Label>Are you referred by someone?</Label>
-                  <Controller
-                    control={control}
-                    name="referral_status"
-                    render={({ field }) => (
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-2"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="referred" id="r-referred" />
-                          <Label htmlFor="r-referred" className="font-normal">
-                            Yes, I was referred by someone
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="not_referred" id="r-not" />
-                          <Label htmlFor="r-not" className="font-normal">
-                            No, I&apos;m not referred
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    )}
-                  />
-                  {errors.referral_status && (
-                    <p className="text-sm text-red-500">
-                      {errors.referral_status.message}
-                    </p>
-                  )}
-
-                  {watch("referral_status") === "referred" && (
-                    <div className="grid gap-2 animate-in fade-in slide-in-from-top-2">
-                      <Label htmlFor="referred_by">
-                        Referral Email or Name
-                      </Label>
-                      <Input
-                        id="referred_by"
-                        placeholder="Enter email or company name"
-                        {...register("referred_by")}
-                      />
-                      {errors.referred_by && (
-                        <p className="text-sm text-red-500">
-                          {errors.referred_by.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {watch("referral_status") === "not_referred" && (
-                    <div className="grid gap-2 animate-in fade-in slide-in-from-top-2">
-                      <Label htmlFor="heard_from">
-                        How did you hear about us?
-                      </Label>
-                      <Controller
-                        control={control}
-                        name="heard_from"
-                        render={({ field }) => (
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <SelectTrigger id="heard_from">
-                              <SelectValue placeholder="Select an option" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="google">Google</SelectItem>
-                              <SelectItem value="tiktok">TikTok</SelectItem>
-                              <SelectItem value="linkedin">LinkedIn</SelectItem>
-                              <SelectItem value="facebook">Facebook</SelectItem>
-                              <SelectItem value="twitter">Twitter</SelectItem>
-                              <SelectItem value="friend">
-                                Friend/Colleague
-                              </SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.heard_from && (
-                        <p className="text-sm text-red-500">
-                          {errors.heard_from.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
+        {/* Only asked when the invitation doesn't already carry a referrer —
+            if it does, the answer is already known and asking again invites a
+            contradiction. */}
+        {!invite.affiliate_id && (
+          <div className="field">
+            <label>Were you referred by someone?</label>
+            <Controller
+              control={control}
+              name="referral_status"
+              render={({ field }) => (
+                <div className="radios" role="radiogroup">
+                  <label className="radio">
+                    <input
+                      type="radio"
+                      name="referral_status"
+                      value="referred"
+                      checked={field.value === "referred"}
+                      onChange={() => field.onChange("referred")}
+                    />
+                    <span>Yes, someone referred me</span>
+                  </label>
+                  <label className="radio">
+                    <input
+                      type="radio"
+                      name="referral_status"
+                      value="not_referred"
+                      checked={field.value === "not_referred"}
+                      onChange={() => field.onChange("not_referred")}
+                    />
+                    <span>No, I found you another way</span>
+                  </label>
                 </div>
               )}
+            />
+            {errors.referral_status && (
+              <p className="err">{errors.referral_status.message}</p>
+            )}
 
-              {/* disabled, not just a spinner. This is the button that
-                  CREATES the account — profile, advertiser, wallet and
-                  subscription — and it is the first thing a new customer
-                  ever presses, often on a phone on a bad connection, which
-                  is exactly when people press twice. react-hook-form has no
-                  re-entrancy lock of its own: without this, the second click
-                  runs the whole signup again. */}
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className=" animate-spin" />}
-                {isSubmitting ? "Creating your account…" : "Join PSM"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            {watch("referral_status") === "referred" && (
+              <div className="field" style={{ marginTop: 12 }}>
+                <label htmlFor="referred_by">Their email or company name</label>
+                <input
+                  id="referred_by"
+                  placeholder="name@company.com"
+                  {...register("referred_by")}
+                />
+                {errors.referred_by && (
+                  <p className="err">{errors.referred_by.message}</p>
+                )}
+              </div>
+            )}
+
+            {watch("referral_status") === "not_referred" && (
+              <div className="field" style={{ marginTop: 12 }}>
+                <label htmlFor="heard_from">How did you hear about us?</label>
+                <select id="heard_from" {...register("heard_from")}>
+                  <option value="">Select an option</option>
+                  {HEARD_FROM.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                {errors.heard_from && (
+                  <p className="err">{errors.heard_from.message}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Disabled, not just a spinner. This is the button that CREATES the
+            account — profile, advertiser, wallet and subscription — and it is
+            the first thing a new customer ever presses, often on a phone on a
+            bad connection, which is exactly when people press twice.
+            react-hook-form has no re-entrancy lock of its own. */}
+        <button className="btn" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Creating your account…" : "Join Prime Scale Media"}
+        </button>
+      </form>
+    </section>
   );
 }
