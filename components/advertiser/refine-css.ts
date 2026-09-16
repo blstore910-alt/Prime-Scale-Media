@@ -216,6 +216,14 @@ ${s} .sidebar,${s} .mcard{will-change:transform}
   ${s} .sidebar{transition:none}
 }
 
+/* The green dot on the avatar is gone. It sat half off a 30px tile with a
+   2px ring, so at phone size it was three or four pixels of colour that read
+   as a smudge rather than a status — and it was not reporting a status
+   anyway: it was on for everyone, always. A signal that never varies is
+   decoration, and this one was decoration that looked like a defect. */
+${s} .tool.ava-btn .avatar::after,
+${s} .who-btn .avatar::after{display:none}
+
 /* ── Card headings ──────────────────────────────────────────────────────
    An icon sitting loose against a title at whatever size it happened to be
    drawn is the difference between a heading and two things that are near

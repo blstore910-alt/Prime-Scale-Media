@@ -180,6 +180,7 @@ export default function AdvertiserApp() {
     currency: string | null;
     status: string | null;
     next_payment_date: string | null;
+    included_ad_accounts: number | null;
   } | null>({
     queryKey: ["adv-subscription", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
@@ -187,7 +188,7 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("amount, currency, status, next_payment_date")
+        .select("amount, currency, status, next_payment_date, included_ad_accounts")
         .eq("advertiser_id", advertiserId)
         .eq("tenant_id", tenantId)
         .order("start_date", { ascending: false })
@@ -326,12 +327,17 @@ export default function AdvertiserApp() {
   const eurText = walletError ? "—" : eur(eurBal);
   const usdText = walletError ? "—" : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
-  // An ad account is funded from the wallet, so requesting one before any
-  // money has landed produces work nobody can finish: the desk cannot open
-  // it, and the customer waits for something that was never going to happen.
-  // Having an account already means the gate has been passed once.
-  const canRequestAccount =
-    eurBal > 0 || usdBal > 0 || (accounts ?? []).length > 0;
+  // Company details are what an invoice is built from, so nothing that costs
+  // money or creates work can start without them. Browsing can: the app no
+  // longer redirects a new customer straight into the form (see
+  // app/(app)/layout.tsx) — it lets them look around and asks here, at the
+  // point where the details are actually needed, which is also the only
+  // place it can explain why.
+  const companyComplete = Boolean(
+    (company?.name as string)?.trim() &&
+      (company?.country as string)?.trim() &&
+      (company?.vat_no as string)?.trim(),
+  );
   const pendingTopups = (activity ?? []).filter(
     (t) =>
       t.status !== "completed" &&
@@ -388,6 +394,20 @@ export default function AdvertiserApp() {
       ?.currency ?? "EUR") === "USD"
       ? "$"
       : "€";
+
+  // What actually gates a new ad account is the PLAN, not the wallet.
+  // A plan comes with included accounts, so an advertiser whose plan is
+  // running asks for one and it is covered; once the included ones are used
+  // up they can still ask and pay for the extra. What they cannot do is
+  // start before the plan itself is paid for — nothing is included yet, and
+  // there is no subscription to bill the extra against.
+  const planActive =
+    !!subscription && subscription.status === "active" && !dueSubInvoice;
+  const includedTotal = Number(subscription?.included_ad_accounts ?? 0) || 0;
+  const includedLeft = Math.max(0, includedTotal - (accounts ?? []).length);
+  // Already having an account means this gate was passed once before.
+  const canRequestAccount =
+    companyComplete && (planActive || (accounts ?? []).length > 0);
 
   const go = (v: View) => {
     setView(v);
@@ -743,6 +763,22 @@ export default function AdvertiserApp() {
               accountsCount={(accounts ?? []).length}
               onNavigate={(v) => go(v as View)}
             />
+            {!companyComplete && (
+              /* The app no longer blocks the door with this form, so it has
+                 to say plainly why the buttons are quiet — otherwise "you can
+                 look but nothing works" is just a broken app. */
+              <div className="duerow">
+                <span className="ai">
+                  <Ic name="i-building" />
+                </span>
+                <span className="dtx">
+                  Add your company details to top up or request an account
+                </span>
+                <button className="dlink" onClick={() => go("settings")}>
+                  Add <Ic name="i-arrow" />
+                </button>
+              </div>
+            )}
             <BalanceHero
               firstName={firstName}
               eurText={eurText}
@@ -751,7 +787,7 @@ export default function AdvertiserApp() {
               onExchange={() => setExchangeOpen(true)}
               onOpenWallet={() => go("wallet")}
               onOpenAccounts={() => go("accounts")}
-              disabled={!wallet}
+              disabled={!wallet || !companyComplete}
             />
             {subscription?.amount && subscription.next_payment_date && (
               /* One quiet row, not a filled banner with a solid blue button
@@ -1160,11 +1196,6 @@ export default function AdvertiserApp() {
                 <h1>Ad accounts</h1>
                 <p>Top up, monitor and request withdrawals.</p>
               </div>
-              {/* An ad account costs money to open and is funded from the
-                  wallet, so there is nothing to act on until a payment has
-                  actually landed. Asking first and finding out afterwards is
-                  the worse order — for the customer, who waits, and for the
-                  desk, which has to chase. */}
               {canRequestAccount ? (
                 <RequestAdAccountDialog>
                   <button className="btn grad">
@@ -1175,7 +1206,7 @@ export default function AdvertiserApp() {
                 <button
                   className="btn grad"
                   disabled
-                  title="Top up your wallet first — we open the account once your payment has landed"
+                  title="Your plan has to be active first — that is what your included ad accounts come from"
                 >
                   <Ic name="i-plus" /> Request ad account
                 </button>
@@ -1195,14 +1226,16 @@ export default function AdvertiserApp() {
                 <h3>
                   {canRequestAccount
                     ? "No ad accounts yet"
-                    : "Top up your wallet first"}
+                    : "Activate your plan first"}
                 </h3>
                 <p>
                   {canRequestAccount
-                    ? "Request one and we set it up for you on our verified Business Manager. You fund it from your wallet and spend from there."
+                    ? includedTotal > 0
+                      ? `Your plan includes ${includedTotal} ad account${includedTotal === 1 ? "" : "s"} — ${includedLeft} still to use. Request one and we set it up for you on our verified Business Manager.`
+                      : "Request one and we set it up for you on our verified Business Manager. You fund it from your wallet and spend from there."
                     : pendingTopups.length > 0
-                      ? "Your transfer is with us and being verified. As soon as it is credited you can request your first ad account."
-                      : "Ad accounts are funded from your wallet, so we open your first one once a payment has landed. It usually takes one bank transfer to get going."}
+                      ? "Your transfer is with us and being verified. Once your plan is paid, the ad accounts it includes are yours to request."
+                      : "Your ad accounts come with your plan, so the first step is paying for it. After that the included accounts are yours to request, and extras are billed as you go."}
                 </p>
                 {canRequestAccount ? (
                   <RequestAdAccountDialog>
@@ -1211,8 +1244,8 @@ export default function AdvertiserApp() {
                     </button>
                   </RequestAdAccountDialog>
                 ) : (
-                  <button className="btn" onClick={() => go("wallet")}>
-                    <Ic name="i-wallet" /> Top up wallet
+                  <button className="btn" onClick={() => go("billing")}>
+                    <Ic name="i-shield" /> Go to billing
                   </button>
                 )}
               </div>

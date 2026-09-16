@@ -97,9 +97,20 @@ export default async function AppLayout({
       const isVatComplete = !!company?.vat_no || company?.is_not_vat === true;
 
 
-      if (!isCompanyComplete || !isVatComplete || !isBillingComplete) {
-        redirect("/complete-profile");
-      }
+      // NOT a redirect any more. Someone who has just signed up should be
+      // able to look around — see what a wallet is, what an ad account is,
+      // what they are paying for — before being asked for a VAT number and a
+      // billing address. Being met by a long form the second you arrive is
+      // how a new customer decides to finish it later, or not at all.
+      //
+      // The requirement itself stands: nothing that costs money or creates
+      // work can be done until the details are there, because an invoice
+      // cannot be raised without them. That gate lives at each action and on
+      // the dashboard's own checklist, where it can say WHY. Browsing costs
+      // nothing, so browsing is allowed.
+      void isCompanyComplete;
+      void isVatComplete;
+      void isBillingComplete;
     }
   }
 

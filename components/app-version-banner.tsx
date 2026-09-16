@@ -1,7 +1,6 @@
 "use client";
 
 import { useAppVersion } from "@/hooks/use-app-version";
-import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 
@@ -35,18 +34,28 @@ export default function AppVersionBanner() {
           Reload when you&apos;re done with what you&apos;re doing.
         </p>
       </div>
-      <Button size="sm" onClick={reload}>
-        <RefreshCw className="h-3 w-3 mr-1" />
+      {/* Explicit colours, not a variant. This is the one button in the app
+          that people meet while running a STALE bundle — that is the whole
+          reason the banner is on screen — so it must not depend on a utility
+          or a CSS variable that a past or future stylesheet might define
+          differently. It was invisible for exactly that reason once already:
+          white text on a fill that had been overridden away. */}
+      <button
+        type="button"
+        onClick={reload}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3a6fff] px-3 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_-10px_rgba(58,111,255,.9)] transition hover:bg-[#2f5ae6] active:translate-y-px"
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
         Reload
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
+      </button>
+      <button
+        type="button"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-lg leading-none text-muted-foreground transition hover:bg-black/5 hover:text-foreground"
       >
         ×
-      </Button>
+      </button>
     </div>
   );
 }
