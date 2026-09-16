@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { maintenanceGuard } from "./_shared";
+import { maintenanceGuard, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -132,11 +132,17 @@ export async function saveOwnCompanyOnboarding(input: {
     .eq("company_id", companyId)
     .maybeSingle();
   if (existingBilling?.id) {
-    const { error: bError } = await supabase
+    // .select() and check: an UPDATE that matches nothing is not an error
+    // in PostgREST, so without this a customer saving their billing address
+    // was told it saved when RLS had refused the write.
+    const { data: bRows, error: bError } = await supabase
       .from("billings")
       .update(billingClean)
-      .eq("id", existingBilling.id);
+      .eq("id", existingBilling.id)
+      .select("id");
     if (bError) return { ok: false, error: bError.message };
+    const bWrote = wroteSomething(bRows);
+    if (!bWrote.ok) return bWrote;
   } else {
     const { error: bError } = await supabase.from("billings").insert(billingClean);
     if (bError) return { ok: false, error: bError.message };
@@ -192,12 +198,15 @@ export async function updateOwnProfileAndCompany(input: {
       if (col in input.profile) cleaned[col] = input.profile[col];
     }
     if (Object.keys(cleaned).length > 0) {
-      const { error } = await supabase
+      const { data: rows, error } = await supabase
         .from("user_profiles")
         .update(cleaned)
         .eq("id", profileRow.id)
-        .eq("user_id", userData.user.id);
+        .eq("user_id", userData.user.id)
+        .select("id");
       if (error) return { ok: false, error: error.message };
+      const wrote = wroteSomething(rows);
+      if (!wrote.ok) return wrote;
     }
   }
 
@@ -227,13 +236,16 @@ export async function updateOwnProfileAndCompany(input: {
         .is("advertiser_id", null)
         .maybeSingle();
       if (existing?.id) {
-        const { error } = await supabase
+        const { data: rows, error } = await supabase
           .from("companies")
           .update(cleaned)
           .eq("id", existing.id)
           .eq("tenant_id", profileRow.tenant_id)
-          .is("advertiser_id", null);
+          .is("advertiser_id", null)
+          .select("id");
         if (error) return { ok: false, error: error.message };
+        const wrote = wroteSomething(rows);
+        if (!wrote.ok) return wrote;
       } else {
         const { error } = await supabase.from("companies").insert(cleaned);
         if (error) return { ok: false, error: error.message };
@@ -256,12 +268,15 @@ export async function updateOwnProfileAndCompany(input: {
         .eq("advertiser_id", adv.id)
         .maybeSingle();
       if (existing?.id) {
-        const { error } = await supabase
+        const { data: rows, error } = await supabase
           .from("companies")
           .update(cleaned)
           .eq("id", existing.id)
-          .eq("advertiser_id", adv.id);
+          .eq("advertiser_id", adv.id)
+          .select("id");
         if (error) return { ok: false, error: error.message };
+        const wrote = wroteSomething(rows);
+        if (!wrote.ok) return wrote;
       } else {
         const { error } = await supabase.from("companies").insert(cleaned);
         if (error) return { ok: false, error: error.message };

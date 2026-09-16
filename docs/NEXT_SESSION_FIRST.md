@@ -6,7 +6,7 @@ it.
 
 ---
 
-## 1. The silent-write sweep (29 sites) — START HERE
+## 1. The silent-write sweep (25 sites left) — START HERE
 
 **Why this is first:** it is the bug class that cost the most time to find,
 because it does not look like a bug. The screen says it worked.
@@ -44,7 +44,10 @@ if (!wrote.ok) return wrote;
 
 `wroteSomething()` already exists in `actions/_shared.ts`.
 
-**Already done** (do not redo): `updateUserProfile` and `setSubscriptionStatus`.
+**Already done** (do not redo): `updateUserProfile`, `setSubscriptionStatus`, and
+all four in `company-actions.ts` — those are customer-facing, so a saved
+company or billing address that silently did not save is the customer's
+problem, not only the desk's.
 
 ### Remaining
 
@@ -64,10 +67,6 @@ if (!wrote.ok) return wrote;
 | `actions/admin-actions.ts:566` | `updateAdvertiser()` | `advertisers` | single row |
 | `actions/admin-actions.ts:646` | `setAdvertiserCommission()` | `advertisers` | single row |
 | `actions/bank-account-actions.ts:167` | `upsertBankAccount()` | `bank_accounts` | single row |
-| `actions/company-actions.ts:136` | `saveOwnCompanyOnboarding()` | `billings` | customer-facing |
-| `actions/company-actions.ts:196` | `updateOwnProfileAndCompany()` | `user_profiles` | customer-facing |
-| `actions/company-actions.ts:231` | `updateOwnProfileAndCompany()` | `companies` | customer-facing |
-| `actions/company-actions.ts:260` | `updateOwnProfileAndCompany()` | `companies` | customer-facing |
 | `actions/exchange-rate-actions.ts:152` | `upsertExchangeRate()` | `exchange_rates` | money |
 | `actions/exchange-rate-actions.ts:182` | `upsertExchangeRate()` | `exchange_rates` | money |
 | `actions/gdpr-actions.ts:200` | `requestOwnErasure()` | `user_profiles` | legal obligation |
@@ -137,8 +136,6 @@ editor (one statement at a time — the editor only shows the last result).
 - `subscription_waiver` perk rolls the period forward, but the same cron run
   still auto-debits the invoice already issued for that period
   (`supabase/migrations/20260901400000_advertiser_perks.sql:426`).
-- The affiliate payout modal cannot be closed with Escape and does not trap or
-  restore focus (`components/affiliate/aff-app.tsx:1296`).
 - Never answered: is the **−€270,85 DST reserve** normal or new?
 - Deferred: an `advertiser_topup_totals` view. The admin advertiser list
   embeds every advertiser's whole `wallet_topups` collection to sum it in the
