@@ -264,8 +264,13 @@ export default function AccountsTable() {
     try {
       const { data, error } = await supabase
         .from("ad_accounts")
+        // The CSV declares its own field list above and uses exactly two of
+        // these embedded values. Pulling three whole rows per account to
+        // print two of their columns dragged the admin's private `note`, the
+        // commission terms and the entire tenant record into a file that
+        // then leaves the building by email. Ask for what the export prints.
         .select(
-          "*, advertiser:advertisers(*, profile:user_profiles(*)), tenant:tenants(*)",
+          "*, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
         );
       if (error) throw error;
       const parser = new Parser(opts);

@@ -95,7 +95,20 @@ bank_rls as (
      and policyname in ('bank_accounts_admin_write', 'bank_ledger_admin_all')
 ),
 
--- 7. Money jobs waiting while the gate is shut.
+-- 7. What top_ups_view exposes.
+--    components/topups/use-topups.ts does `from("top_ups_view").select("*")`
+--    and that table is read on /inactive, which a DEACTIVATED ADVERTISER
+--    sees. A view is a stored column list, so what a wildcard returns there
+--    is whatever the view was defined with — not something the app code can
+--    tell us. Check it by hand: any cost, margin, supplier or internal-note
+--    column here reaches a customer.
+top_ups_view_columns as (
+  select string_agg(column_name, ', ' order by ordinal_position) as cols
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'top_ups_view'
+),
+
+-- 8. Money jobs waiting while the gate is shut.
 --    Not a fault — but arming SUPPLIER1_AUTOPUSH releases ALL of these at
 --    once, within 60 seconds. Know the number before you open the gate.
 held_money_jobs as (
@@ -114,10 +127,12 @@ select
   stuck_jobs.bad     as jobs_stuck_processing_must_be_0,
   bank_rls.bad       as permissive_bank_policies_must_be_0,
   held_money_jobs.n  as money_jobs_waiting_on_the_gate,
+  top_ups_view_columns.cols as top_ups_view_columns_check_by_eye,
   case
     when rates.bad + supplier_leak.bad + staff_leak.bad + refunds.bad
        + stuck_jobs.bad + bank_rls.bad = 0
     then 'ALL CLEAR'
     else 'SOMETHING IS WRONG — read the columns above'
   end as verdict
-  from rates, supplier_leak, staff_leak, refunds, stuck_jobs, bank_rls, held_money_jobs;
+  from rates, supplier_leak, staff_leak, refunds, stuck_jobs, bank_rls,
+       held_money_jobs, top_ups_view_columns;

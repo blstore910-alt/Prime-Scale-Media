@@ -72,7 +72,18 @@ export function AccountDetailsSheet({
       const supabase = createClient();
       const { data, error } = await supabase
         .from("ad_accounts")
-        .select("*, advertiser:advertisers(*, profile:user_profiles(*))")
+        // Named columns, not two wildcards. An ADVERTISER opens this sheet
+        // in their own app (components/advertiser/adv-app.tsx), so whatever
+        // the query returns lands in their browser — and advertisers(*)
+        // carried `note`, the admin's private free-text remark about that
+        // customer, written from the /users sheet and rendered nowhere on
+        // their side. It was in the JSON and only in the JSON.
+        //
+        // The sheet reads exactly three profile fields and one advertiser
+        // field; this is that list. See lib/types/advertiser-columns.ts.
+        .select(
+          "*, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email, is_active))",
+        )
         .eq("id", accountId)
         .single();
       if (error) throw error;
