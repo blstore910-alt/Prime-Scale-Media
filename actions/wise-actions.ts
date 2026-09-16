@@ -1,8 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
-import { maintenanceGuard } from "./_shared";
+import { resolveAdminContext } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -14,12 +13,19 @@ type ActionResult<T = null> =
 export async function confirmWiseSuggestion(
   transferId: string,
 ): Promise<ActionResult> {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return mm;
+  // resolveAdminContext, not maintenanceGuard alone. These actions used to
+  // go straight to the RPC and lean on its own `role = 'admin'` check — and
+  // NO money RPC in the schema tests is_active or status alongside the role.
+  // So a deactivated admin kept every power they had, which is precisely the
+  // thing deactivating them is meant to remove. This guard checks the role,
+  // the tenant AND that the account is still active, and it carries the
+  // maintenance freeze with it.
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
   if (typeof transferId !== "string" || !transferId) {
     return { ok: false, error: "Invalid input" };
   }
-  const supabase = await createClient();
+  const { supabase } = auth.ctx;
   const { error } = await supabase.rpc("wise_confirm_suggestion", {
     p_transfer_id: transferId,
   });

@@ -1,8 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
-import { maintenanceGuard } from "./_shared";
+import { resolveAdminContext } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -15,8 +14,15 @@ export async function requestWalletAdjustment(input: {
   currency: "USD" | "EUR";
   reason?: string;
 }): Promise<ActionResult<{ id: string }>> {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return mm;
+  // resolveAdminContext, not maintenanceGuard alone. These actions used to
+  // go straight to the RPC and lean on its own `role = 'admin'` check — and
+  // NO money RPC in the schema tests is_active or status alongside the role.
+  // So a deactivated admin kept every power they had, which is precisely the
+  // thing deactivating them is meant to remove. This guard checks the role,
+  // the tenant AND that the account is still active, and it carries the
+  // maintenance freeze with it.
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const delta = Number(input?.delta);
   if (!Number.isFinite(delta) || delta === 0) {
@@ -29,7 +35,7 @@ export async function requestWalletAdjustment(input: {
     return { ok: false, error: "Pick an advertiser." };
   }
 
-  const supabase = await createClient();
+  const { supabase } = auth.ctx;
   const { data, error } = await supabase.rpc("wallet_adjustment_request", {
     p_advertiser_id: input.advertiser_id,
     p_delta: delta,
@@ -44,12 +50,19 @@ export async function requestWalletAdjustment(input: {
 export async function approveWalletAdjustment(
   adjustmentId: string,
 ): Promise<ActionResult> {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return mm;
+  // resolveAdminContext, not maintenanceGuard alone. These actions used to
+  // go straight to the RPC and lean on its own `role = 'admin'` check — and
+  // NO money RPC in the schema tests is_active or status alongside the role.
+  // So a deactivated admin kept every power they had, which is precisely the
+  // thing deactivating them is meant to remove. This guard checks the role,
+  // the tenant AND that the account is still active, and it carries the
+  // maintenance freeze with it.
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
   if (typeof adjustmentId !== "string" || !adjustmentId) {
     return { ok: false, error: "Invalid input" };
   }
-  const supabase = await createClient();
+  const { supabase } = auth.ctx;
   const { error } = await supabase.rpc("wallet_adjustment_approve", {
     p_adjustment_id: adjustmentId,
   });
@@ -61,12 +74,19 @@ export async function rejectWalletAdjustment(
   adjustmentId: string,
   reason?: string,
 ): Promise<ActionResult> {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return mm;
+  // resolveAdminContext, not maintenanceGuard alone. These actions used to
+  // go straight to the RPC and lean on its own `role = 'admin'` check — and
+  // NO money RPC in the schema tests is_active or status alongside the role.
+  // So a deactivated admin kept every power they had, which is precisely the
+  // thing deactivating them is meant to remove. This guard checks the role,
+  // the tenant AND that the account is still active, and it carries the
+  // maintenance freeze with it.
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
   if (typeof adjustmentId !== "string" || !adjustmentId) {
     return { ok: false, error: "Invalid input" };
   }
-  const supabase = await createClient();
+  const { supabase } = auth.ctx;
   const { error } = await supabase.rpc("wallet_adjustment_reject", {
     p_adjustment_id: adjustmentId,
     p_reason: reason ?? null,
