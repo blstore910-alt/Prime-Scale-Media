@@ -82,3 +82,42 @@ export async function apiRequireAdmin() {
     user: null,
   };
 }
+
+/**
+ * Owner only — an admin whose user IS the tenant's owner.
+ *
+ * Some figures are the operator's own business rather than the desk's:
+ * profit, margin, what we pay affiliates. Those surfaces are already
+ * owner-gated in the UI — /reconciliation calls requireSuperAdmin, and the
+ * profit hero renders only on the super-admin branch of the dashboard — but
+ * the API routes behind them only ever checked "is an admin". A nav link
+ * that is not rendered is not a permission: any admin could read the
+ * numbers by asking for them.
+ *
+ * Built on apiRequireAdmin, so it inherits the active-account check too.
+ */
+export async function apiRequireOwner() {
+  const base = await apiRequireAdmin();
+  if (base.error) return base;
+
+  const supabase = await createClient();
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", base.profile!.tenant_id)
+    .maybeSingle();
+
+  const ownerId = (tenant as { owner_id: string | null } | null)?.owner_id;
+  const isOwner =
+    !!ownerId &&
+    (ownerId === base.user!.id || ownerId === base.profile!.user_id);
+
+  if (!isOwner) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      profile: null,
+      user: null,
+    };
+  }
+  return base;
+}

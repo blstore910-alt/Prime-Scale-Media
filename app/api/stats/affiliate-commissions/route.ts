@@ -1,4 +1,4 @@
-import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
+import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -198,7 +198,8 @@ function buildSeries(
 }
 
 export async function GET(request: NextRequest) {
-  const { profile, error: authError } = await apiRequireAdmin();
+  // Owner only: these are OUR profit and margin figures, not the desk's.
+  const { profile, error: authError } = await apiRequireOwner();
   if (authError) return authError;
 
   const supabase = await createClient();
