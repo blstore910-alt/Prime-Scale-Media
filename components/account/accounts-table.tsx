@@ -802,6 +802,25 @@ function PsmAdminAccountRow({
                   setEditing({ fee: false });
                 }
               }}
+              // Clicking away is the third way out of an editor, after Save
+              // and Escape, and it was the one that left the cell showing an
+              // empty box with the real fee nowhere on screen until the next
+              // refetch.
+              //
+              // The relatedTarget check is load-bearing, not defensive:
+              // blur fires BEFORE the click that caused it, so clicking Save
+              // would otherwise reset the value and unmount the button
+              // before its own handler ever ran — the editor would look
+              // tidy and never save anything. Focus moving to something
+              // inside this same row (Save, Cancel) is not leaving.
+              onBlur={(e) => {
+                const to = e.relatedTarget as HTMLElement | null;
+                if (to && to.closest("tr") === e.currentTarget.closest("tr")) {
+                  return;
+                }
+                setFee(initialFee);
+                setEditing({ fee: false });
+              }}
               aria-label="Fee percentage"
             />
             <span className="pct">%</span>
