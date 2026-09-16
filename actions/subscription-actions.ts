@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import dayjs from "dayjs";
-import { checkVersion, maintenanceGuard } from "./_shared";
+import { checkVersion, maintenanceGuard, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -158,12 +158,15 @@ export async function setSubscriptionStatus(
     };
   }
 
-  const { error } = await supabase
+  const { data: rows, error } = await supabase
     .from("subscriptions")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", subscriptionId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: null };
 }
 

@@ -161,7 +161,22 @@ const AUTH_CSS = `
    billows, then it lifts off slow and accelerates straight up and off the
    screen. No loop. ~1.9s (client navigates ~1.5s, once it's cleared).
    Frozen under prefers-reduced-motion. ── */
-.psmauth[data-launching]{overflow:hidden}
+.psmauth[data-launching]{overflow:hidden;position:relative}
+/* The rocket clears the screen at ~1.9s, but the destination is still
+   loading — sign-in hard-navigates so the middleware re-runs with the fresh
+   cookie, and that page takes its own time. What was left on screen for
+   those seconds was a moon and a starfield with nothing happening, which
+   reads as a hang rather than as progress.
+   A line fades in just before the rocket leaves and stays until the new
+   document paints. Pure CSS: no timer to get out of step with the
+   navigation, and it simply disappears with the page. */
+.psmauth[data-launching]::after{
+  content:"Taking you to your dashboard…";
+  position:absolute;left:0;right:0;bottom:14%;z-index:2;
+  text-align:center;font-family:var(--bd);font-size:.9rem;font-weight:600;
+  color:rgba(255,255,255,.62);letter-spacing:.01em;
+  opacity:0;animation:psmland .5s ease 1.45s forwards}
+@keyframes psmland{to{opacity:1}}
 .psmauth[data-launching] .brand{overflow:visible}
 .psmauth[data-launching] .logo,
 .psmauth[data-launching] .brand h1,

@@ -90,6 +90,31 @@ export async function resolveAdminContext(): Promise<
 }
 
 /**
+ * An UPDATE that matches NOTHING is not an error.
+ *
+ * PostgREST returns no error and no rows, so `const { error } = await
+ * supabase.from(t).update(...)` reports success for a write that never
+ * happened — which is exactly what RLS refusing the write looks like, and
+ * what a row deleted or moved by someone else looks like. The screen then
+ * shows a success toast, refetches, and displays the old value; the only
+ * clue is that nothing ever changes.
+ *
+ * Every update that means something should `.select("id")` and pass the rows
+ * through here. Thirty call sites in actions/ were written without it.
+ */
+export function wroteSomething<T>(
+  rows: T[] | null | undefined,
+): { ok: true } | { ok: false; error: string; code: "forbidden" } {
+  if (rows && rows.length > 0) return { ok: true };
+  return {
+    ok: false,
+    error:
+      "That change was not saved — the row could not be written. Reload and try again.",
+    code: "forbidden",
+  };
+}
+
+/**
  * The same guard for an action a CUSTOMER performs on their own data.
  *
  * resolveAdminContext() exists for admin actions and refuses anyone who is

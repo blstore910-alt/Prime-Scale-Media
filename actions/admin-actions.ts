@@ -242,13 +242,29 @@ export async function updateUserProfile(
 
   cleaned.updated_at = new Date().toISOString();
 
-  const { error: updateError } = await supabase
+  // .select() and count the rows, because an UPDATE that matches NOTHING is
+  // not an error in PostgREST: it returns no error and no rows, and this
+  // action was reporting that as success. Deactivating a user therefore
+  // showed "User has been deactivated successfully", refetched, and came
+  // back active — so the button said "Deactivate" again, every time, and the
+  // only clue was that nothing ever changed. RLS refusing the write looks
+  // exactly like this.
+  const { data: updated, error: updateError } = await supabase
     .from("user_profiles")
     .update(cleaned)
     .eq("id", userId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
 
   if (updateError) return { ok: false, error: updateError.message };
+  if (!updated || updated.length === 0) {
+    return {
+      ok: false,
+      error:
+        "That change was not saved — the row could not be written. Reload and try again.",
+      code: "forbidden",
+    };
+  }
 
   return { ok: true, data: null };
 }
