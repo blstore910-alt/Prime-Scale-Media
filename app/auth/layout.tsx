@@ -260,18 +260,22 @@ const AUTH_CSS = `
 /* Radios. Native inputs, so the shared full-width input rule above has
    to be undone for them explicitly — otherwise each dot stretches the row. */
 .psmauth .radios{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.psmauth .radio{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;cursor:pointer;transition:.13s;text-align:left}
-.psmauth .radio:hover{border-color:var(--primary)}
-.psmauth .radio:has(input:checked){border-color:var(--primary);background:var(--primary-tint)}
+/* label.radio, not .radio: these sit inside a .field, and ".psmauth .field
+   label{display:block}" above is one element-selector more specific than a
+   bare ".psmauth .radio" — so display:block won and every dot stacked on top
+   of its own text. */
+.psmauth .radios label.radio{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;cursor:pointer;transition:.13s;text-align:left;font-weight:500}
+.psmauth .radios label.radio:hover{border-color:var(--primary)}
+.psmauth .radios label.radio:has(input:checked){border-color:var(--primary);background:var(--primary-tint)}
 /* Drawn rather than native. A native radio paints itself a solid white disc
    on this dark surface and ignores accent-color until it is checked, so the
    two choices looked identical whichever one you had picked. */
-.psmauth .radio input[type=radio]{appearance:none;-webkit-appearance:none;width:18px;height:18px;flex:0 0 auto;margin:0;padding:0;border:2px solid var(--line-2);border-radius:50%;background:var(--panel);cursor:pointer;display:grid;place-items:center;transition:.13s}
-.psmauth .radio input[type=radio]::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary);transform:scale(0);transition:transform .13s}
-.psmauth .radio input[type=radio]:checked{border-color:var(--primary)}
-.psmauth .radio input[type=radio]:checked::after{transform:scale(1)}
-.psmauth .radio input[type=radio]:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.psmauth .radio span{font-size:.88rem;font-weight:600}
+.psmauth .radios input[type=radio]{appearance:none;-webkit-appearance:none;width:18px;height:18px;flex:0 0 auto;margin:0;padding:0;border:2px solid var(--line-2);border-radius:50%;background:var(--panel);cursor:pointer;display:grid;place-items:center;transition:.13s}
+.psmauth .radios input[type=radio]::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary);transform:scale(0);transition:transform .13s}
+.psmauth .radios input[type=radio]:checked{border-color:var(--primary)}
+.psmauth .radios input[type=radio]:checked::after{transform:scale(1)}
+.psmauth .radios input[type=radio]:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.psmauth .radios label.radio span{font-size:.88rem;font-weight:600}
 .psmauth .btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.95rem;border-radius:12px;padding:13px 16px;background:var(--brand);color:#fff;box-shadow:0 14px 30px -14px rgba(124,92,255,.75);transition:.14s;margin-top:6px}
 .psmauth .btn:hover{transform:translateY(-1px);filter:brightness(1.03)}
 .psmauth .btn:disabled{opacity:.65;cursor:default;transform:none;filter:none}
@@ -358,11 +362,11 @@ const AUTH_CSS = `
   .psmauth .eye:hover{color:#fff;background:rgba(255,255,255,.1)}
   .psmauth .pwbar i{background:rgba(255,255,255,.14)}
   .psmauth .pwmeta span{color:rgba(255,255,255,.5)}
-  .psmauth .radio{border-color:rgba(255,255,255,.16);color:#fff}
-  .psmauth .radio:has(input:checked){background:rgba(91,141,255,.14);border-color:var(--blue)}
-  .psmauth .radio input[type=radio]{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.3)}
-  .psmauth .radio input[type=radio]::after{background:var(--blue)}
-  .psmauth .radio input[type=radio]:checked{border-color:var(--blue)}
+  .psmauth .radios label.radio{border-color:rgba(255,255,255,.16);color:#fff}
+  .psmauth .radios label.radio:has(input:checked){background:rgba(91,141,255,.14);border-color:var(--blue)}
+  .psmauth .radios input[type=radio]{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.3)}
+  .psmauth .radios input[type=radio]::after{background:var(--blue)}
+  .psmauth .radios input[type=radio]:checked{border-color:var(--blue)}
   /* The sign-up form is long, so on a phone the brand hero has to give way —
      otherwise you tap an invitation and the first screenful is marketing
      while the form you came for sits below the fold. Sign-in is short enough
