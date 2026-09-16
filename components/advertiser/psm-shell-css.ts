@@ -783,4 +783,45 @@ export const PSM_APP_CSS = `
   .psmapp select,
   .psmapp textarea{font-size:16px}
 }
+
+/* ── Thumb-sized hit areas, without thumb-sized buttons ───────────────
+   Measured on a phone: most controls are 36px and the period segments 34,
+   against the ~44px a thumb hits reliably. Growing them visually would undo
+   the density the whole redesign is for — a list exists to show records,
+   not chrome.
+
+   So the HIT AREA grows and the button does not, via an overlay pinned to
+   the control. Deliberately VERTICAL only: these controls sit in rows with
+   4px gaps, so a 44px-wide overlay would reach 4px into its neighbour, and
+   on overlap the later element in the DOM wins — which means the button
+   next to the one you aimed at fires. A wrong action is worse than a missed
+   one. Above and below there is nothing to collide with, so that height is
+   free.
+
+   pointer:coarse only — on a mouse the visible edge IS the target, and an
+   invisible overlay there would just make hover states fire early. */
+@media (pointer:coarse){
+  .psmapp .tool,
+  .psmapp .seg2 button,
+  .psmapp .actrow .btn,
+  .psmapp .fbtn,
+  .psmapp .btn.sm{position:relative}
+  .psmapp .tool::after,
+  .psmapp .seg2 button::after,
+  .psmapp .actrow .btn::after,
+  .psmapp .fbtn::after,
+  .psmapp .btn.sm::after{
+    content:"";position:absolute;left:0;right:0;top:50%;
+    transform:translateY(-50%);
+    height:44px;
+  }
+}
+
+/* The CSV button collapses to its icon on a phone and measured 33px wide —
+   narrow enough to miss even with a generous hit area, and unlike the ones
+   above it has no neighbour to the left, so it can simply be wider. */
+@media (max-width:430px){
+  .psmapp .phead-actions .btn{min-height:40px}
+  .psmapp .phead-actions .btn.ghost{min-width:42px;justify-content:center}
+}
 `;
