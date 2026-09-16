@@ -2,6 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  isUrlLike,
+  normaliseUrl,
+  URL_FIELD_MESSAGE,
+} from "@/lib/url-field";
+import {
   Control,
   Resolver,
   useForm,
@@ -38,7 +43,12 @@ const validations = z
     start_date: z.string().min(1, "Start date is required"),
     timezone: z.string().min(1, "Timezone is required"),
     notes: z.string().optional(),
-    website_url: z.string().url("Invalid URL").optional().or(z.literal("")),
+    website_url: z
+      .string()
+      .transform(normaliseUrl)
+      .refine(isUrlLike, URL_FIELD_MESSAGE)
+      .optional()
+      .or(z.literal("")),
 
     google_email: z.string().optional(),
     tiktok_business_center_id: z.string().optional(),
@@ -110,7 +120,7 @@ const validations = z
           path: ["personal_facebook_profile_link"],
         });
       } else if (
-        !z.string().url().safeParse(data.personal_facebook_profile_link).success
+        !isUrlLike(data.personal_facebook_profile_link)
       ) {
         ctx.addIssue({
           code: "custom",

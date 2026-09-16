@@ -2,6 +2,11 @@
 
 import React from "react";
 import {
+  isUrlLike,
+  normaliseUrl,
+  URL_FIELD_MESSAGE,
+} from "@/lib/url-field";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -30,7 +35,12 @@ const validationSchema = z.object({
     .optional()
     .or(z.literal("")),
   phone: z.string().optional(),
-  website_url: z.string().url("Invalid URL").optional().or(z.literal("")),
+  website_url: z
+    .string()
+    .transform(normaliseUrl)
+    .refine(isUrlLike, URL_FIELD_MESSAGE)
+    .optional()
+    .or(z.literal("")),
   vat_no: z.string().optional(),
   registration_no: z.string().optional(),
 

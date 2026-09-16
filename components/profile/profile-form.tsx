@@ -1,6 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  isUrlLike,
+  normaliseUrl,
+  URL_FIELD_MESSAGE,
+} from "@/lib/url-field";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -31,7 +36,12 @@ const profileFormSchema = z.object({
   // Company
   name: z.string().min(1, "Company name is required"),
   phone: z.string().min(1, "Phone number is required"),
-  website_url: z.string().url().optional().or(z.literal("")),
+  website_url: z
+    .string()
+    .transform(normaliseUrl)
+    .refine(isUrlLike, URL_FIELD_MESSAGE)
+    .optional()
+    .or(z.literal("")),
   vat_no: z.string().optional(),
   registration_no: z.string().optional(),
   official_email: z.string().email(),

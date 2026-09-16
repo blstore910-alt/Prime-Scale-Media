@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isUrlLike } from "@/lib/url-field";
 import {
   Resolver,
   useForm,
@@ -145,7 +146,7 @@ const validations = z
           path: ["personal_facebook_profile_link"],
         });
       } else if (
-        !z.string().url().safeParse(data.personal_facebook_profile_link).success
+        !isUrlLike(data.personal_facebook_profile_link)
       ) {
         ctx.addIssue({
           code: "custom",
