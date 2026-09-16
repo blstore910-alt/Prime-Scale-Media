@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { toast } from "sonner";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { firstName } from "@/lib/display-name";
 import { Input } from "@/components/ui/input";
@@ -687,9 +688,20 @@ function PsmAdminAccountRow({
   const [editing, setEditing] = useState({ fee: false });
   const [isDirty, setIsDirty] = useState(false);
 
+  // Compare NUMERICALLY. The input gives a string, the row gives a number,
+  // so after a successful save "12" !== 12 kept isDirty true — the row stayed
+  // in Save/Cancel mode forever and its Edit and View buttons never came
+  // back. An empty box is not "changed to nothing", it is nothing yet.
   useEffect(() => {
-    setIsDirty(fee !== initialFee);
+    const typed = String(fee).trim();
+    setIsDirty(typed !== "" && Number(typed) !== Number(initialFee));
   }, [fee, initialFee]);
+
+  // When the row refetches after a save, adopt the value the server now
+  // holds. Without this the local string lingers and fights the fresh row.
+  useEffect(() => {
+    setFee(initialFee);
+  }, [initialFee]);
 
   const handleFeeEdit = (e: React.MouseEvent<HTMLTableCellElement>) => {
     e.stopPropagation();
@@ -699,12 +711,22 @@ function PsmAdminAccountRow({
 
   const updateFee = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    // An empty box used to write 0. `+""` is 0, so clearing the field and
+    // pressing the tick — which is what someone does when they mean to
+    // abandon the edit — silently set the account's fee to 0%, and that fee
+    // is our own margin. A blank is not a zero; if you want 0% you type it.
+    const typed = String(fee).trim();
+    const parsed = Number(typed);
+    if (typed === "" || !Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+      toast.error("Enter a fee between 0 and 100.");
+      return;
+    }
     setIsDirty(false);
     setEditing({ fee: false });
     updateAccount({
       id: account.id,
       payload: {
-        fee: +fee,
+        fee: Number(String(fee).trim()),
       },
     });
   };
