@@ -43,6 +43,10 @@ export default function WithdrawDialog({
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<"USD" | "EUR">(defaultCurrency);
   const [reason, setReason] = useState("");
+  // Second step, in the same dialog rather than a dialog on top of a dialog:
+  // stacked modals are awkward on a phone and easy to dismiss by accident,
+  // which is the opposite of what a confirmation is for.
+  const [confirming, setConfirming] = useState(false);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -55,30 +59,88 @@ export default function WithdrawDialog({
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
-      toast.success("Withdrawal requested — an admin will review it.");
+      toast.success("Request sent — an admin will review it.");
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
       setAmount("");
       setReason("");
+      setConfirming(false);
       onOpenChange(false);
     },
-    onError: (e: Error) =>
-      toast.error("Couldn't request withdrawal", { description: e.message }),
+    onError: (e: Error) => {
+      // Back to the form, not stuck on the confirmation: whatever was wrong,
+      // the next thing they need is the fields.
+      setConfirming(false);
+      toast.error("Couldn't send the request", { description: e.message });
+    },
   });
 
   const numeric = Number(amount);
   const valid = Number.isFinite(numeric) && numeric > 0;
+  const formatted = valid
+    ? new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency,
+      }).format(numeric)
+    : "";
+
+  // Closing the dialog always returns it to step one, so reopening never
+  // lands on a confirmation for figures that are no longer on screen.
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setConfirming(false);
+    onOpenChange(next);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Withdraw from ad account</DialogTitle>
+          <DialogTitle>
+            {confirming
+              ? "Send this request?"
+              : "Request a withdrawal"}
+          </DialogTitle>
           <DialogDescription>
-            Pull balance from {adAccountName ?? "this ad account"} back to your
-            wallet. An admin reviews the request before the balance returns.
+            {confirming
+              ? "Check the details below. Nothing moves until an admin approves it."
+              : `Ask for balance on ${adAccountName ?? "this ad account"} to be returned to your wallet. This is a request — an admin reviews it first.`}
           </DialogDescription>
         </DialogHeader>
 
+        {confirming ? (
+          <div className="space-y-4">
+            <dl className="rounded-lg border divide-y text-sm">
+              <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+                <dt className="text-muted-foreground">Ad account</dt>
+                <dd className="font-semibold text-right truncate">
+                  {adAccountName ?? "This ad account"}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+                <dt className="text-muted-foreground">Amount</dt>
+                <dd className="font-semibold tabular-nums">{formatted}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+                <dt className="text-muted-foreground">Returns to</dt>
+                <dd className="font-semibold">Your wallet</dd>
+              </div>
+              {reason.trim() && (
+                <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
+                  <dt className="text-muted-foreground">Note</dt>
+                  <dd className="text-right">{reason.trim()}</dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-xs text-amber-900 dark:text-amber-100 space-y-1.5">
+              <p className="font-semibold">Only send this if you are sure.</p>
+              <p>
+                Anything still running on this ad account is left without that
+                budget once the balance is pulled back. To undo it you would
+                have to top the account up again.
+              </p>
+            </div>
+          </div>
+        ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2 space-y-2">
@@ -126,18 +188,32 @@ export default function WithdrawDialog({
             wallet.
           </p>
         </div>
+        )}
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            Cancel
-          </Button>
-          <Button onClick={() => mutate()} disabled={!valid || isPending}>
-            {isPending ? "Requesting…" : "Request withdrawal"}
-          </Button>
+          {confirming ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setConfirming(false)}
+                disabled={isPending}
+              >
+                Back
+              </Button>
+              <Button onClick={() => mutate()} disabled={isPending}>
+                {isPending ? "Sending…" : "Yes, send the request"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setConfirming(true)} disabled={!valid}>
+                Review request
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

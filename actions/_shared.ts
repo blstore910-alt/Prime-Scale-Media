@@ -90,6 +90,57 @@ export async function resolveAdminContext(): Promise<
 }
 
 /**
+ * The same guard for an action a CUSTOMER performs on their own data.
+ *
+ * resolveAdminContext() exists for admin actions and refuses anyone who is
+ * not an admin. Reaching for it on a customer action is an easy mistake to
+ * make — the comment above it is about deactivated admins keeping powers,
+ * which reads like it belongs on anything that touches money — and it is a
+ * silent one, because the action still compiles, still type-checks, and
+ * fails only for the people it is FOR. That is exactly what happened to
+ * requestAdAccountWithdrawal: hardened on 2026-09-15, and from that moment
+ * no customer could withdraw from an ad account at all.
+ *
+ * So: same maintenance freeze, same deactivated-account refusal, no role
+ * requirement. Ownership is still enforced — by the RPC or by RLS, which is
+ * where it belongs for customer data.
+ */
+export async function resolveUserContext(): Promise<
+  { ok: true; ctx: AdminContext } | { ok: false; error: string }
+> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false, error: mm.error };
+
+  const { createClient } = await import("@/lib/supabase/server");
+  const { cookies } = await import("next/headers");
+
+  const supabase = await createClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return { ok: false, error: "Unauthorized" };
+  }
+
+  const cookieStore = await cookies();
+  const existingProfile = cookieStore.get("profile_id")?.value;
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("id, role, tenant_id, user_id, full_name, email, is_active, status")
+    .eq("user_id", userData.user.id);
+  if (!profiles?.length) return { ok: false, error: "Forbidden" };
+
+  const chosen = existingProfile
+    ? profiles.find((p) => p.id === existingProfile) ?? profiles[0]
+    : profiles[0];
+
+  if (!chosen.tenant_id) return { ok: false, error: "Forbidden" };
+  if (chosen.is_active === false || (chosen.status ?? "active") === "inactive") {
+    return { ok: false, error: "Account is inactive" };
+  }
+
+  return { ok: true, ctx: { supabase, profile: chosen as AdminProfile } };
+}
+
+/**
  * Read-only maintenance mode. When `MAINTENANCE_MODE=true` is set in
  * the server env, every server action calling `assertNotMaintenance()`
  * refuses with a clear error so an incident-response operator can

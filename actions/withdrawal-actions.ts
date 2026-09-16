@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
-import { resolveAdminContext } from "./_shared";
+import { resolveAdminContext, resolveUserContext } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -36,14 +36,15 @@ export async function requestAdAccountWithdrawal(input: {
   currency: "USD" | "EUR";
   reason?: string;
 }): Promise<ActionResult<{ id: string }>> {
-  // resolveAdminContext, not maintenanceGuard alone. These actions used to
-  // go straight to the RPC and lean on its own `role = 'admin'` check — and
-  // NO money RPC in the schema tests is_active or status alongside the role.
-  // So a deactivated admin kept every power they had, which is precisely the
-  // thing deactivating them is meant to remove. This guard checks the role,
-  // the tenant AND that the account is still active, and it carries the
-  // maintenance freeze with it.
-  const auth = await resolveAdminContext();
+  // resolveUserContext, NOT resolveAdminContext. This is the advertiser's own
+  // action — it is what the "Withdraw to wallet" form on their ad account
+  // calls. It was hardened with the admin guard by mistake, which meant every
+  // customer withdrawal request was refused with "Forbidden" from the moment
+  // that shipped; the only people it let through were admins, who do not use
+  // this form. The freeze and the deactivated-account refusal are the parts
+  // that were actually wanted, and resolveUserContext carries both. Ownership
+  // of the ad account is validated by the RPC below, as it always was.
+  const auth = await resolveUserContext();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { supabase } = auth.ctx;
