@@ -435,16 +435,27 @@ function AdvertiserRow({
               </div>
             )}
           </div>
-        ) : (
+        ) : advertiser ? (
           <button
             className="btn ghost sm"
-            disabled={!advertiser}
-            onClick={stop(() => {
-              if (advertiser) onCreateSubscription(advertiser.id);
-            })}
+            onClick={stop(() => onCreateSubscription(advertiser.id))}
           >
             <Plus /> Subscription
           </button>
+        ) : (
+          /* No advertisers row behind this profile. The button used to just
+             sit here disabled, looking almost exactly like the working ones,
+             so pressing it did nothing and said nothing — which is what
+             "the subscription button doesn't work" turned out to be.
+             It is also not a small thing to report quietly: without that row
+             there is no wallet, no ad account and no subscription possible,
+             so the account cannot be used at all. Say so. */
+          <span
+            className="badge due"
+            title="This profile has no advertiser record, so it has no wallet, no ad accounts and cannot hold a subscription. It needs fixing before anything can be billed."
+          >
+            No advertiser record
+          </span>
         )}
       </td>
       <td data-label="Wallet Topups" className="r mono">
