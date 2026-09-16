@@ -11,6 +11,7 @@ import { getURL } from "@/lib/utils";
 import { Parser } from "json2csv";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
@@ -89,6 +90,9 @@ export default function AffiliateApp() {
   const [navOpen, setNavOpen] = useState(false);
   const [showEurUsd, setShowEurUsd] = useState<"EUR" | "USD">("EUR");
   const [payOpen, setPayOpen] = useState(false);
+  const payCardRef = useModalA11y<HTMLDivElement>(payOpen, () =>
+    setPayOpen(false),
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1301,7 +1305,18 @@ export default function AffiliateApp() {
       {payOpen && (
         <div className="modal">
           <div className="mback" onClick={() => setPayOpen(false)} />
-          <div className="mcard">
+          {/* Escape closes it, Tab stays inside it, and focus goes back to
+              the button that opened it. Without those three a dialog is a
+              box drawn on top of a page that is still fully usable behind
+              it. */}
+          <div
+            className="mcard"
+            ref={payCardRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Request payout"
+            tabIndex={-1}
+          >
             <div className="mhead">
               <h2>Request payout</h2>
               <button
