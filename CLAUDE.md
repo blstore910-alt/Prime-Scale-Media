@@ -91,6 +91,9 @@ locally on prerender. `npx tsc --noEmit`, `npx next lint`, and
 
 ## Docs to know
 
+- `docs/NEXT_SESSION_FIRST.md` — **read this at the start of a new
+  session.** Scoped, ready-to-execute work parked behind something more
+  urgent; currently the 29-site silent-write sweep.
 - `docs/SECURITY_HARDENING_SUMMARY.md` — commit-by-commit rundown of
   the 2026-08 sweep and what's still needed for go-live.
 - `docs/TEST_PLAN.md` — manual test suite.
