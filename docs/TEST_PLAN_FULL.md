@@ -425,36 +425,27 @@ A truncation there does not hide data, it misstates it.
 
 Run these after a testing session. They check invariants no screen shows.
 
-```sql
--- 1. Exactly one active exchange-rate row per tenant.
-select tenant_id, count(*) from public.exchange_rates
- where is_active group by tenant_id having count(*) <> 1;
+**`supabase/checks/invariants.sql`** is the whole set as ONE query returning
+one row — paste it into the Supabase SQL editor and read the `verdict`
+column. It is written as a single statement on purpose: the editor only shows
+the last statement's result, so a file of separate queries silently hides all
+but the final one.
 
--- 2. No supplier provenance on a customer-readable row.
-select count(*) as must_be_0 from public.ad_accounts
- where metadata ?| array['source','supplier_external_id','allocated_from_pool_id'];
+Every column ending in `_must_be_0` has to be 0. The last column,
+`money_jobs_waiting_on_the_gate`, is not a fault — it is the number that
+would be released the moment `SUPPLIER1_AUTOPUSH` is armed, so check it
+BEFORE opening the gate (see 3b).
 
--- 3. No staff PII on customer-readable top-ups.
-select count(*) as must_be_0 from public.top_ups
- where author ? 'email' or author ? 'name';
+What it covers:
 
--- 4. Subscription refunds never exceed what was collected.
-select subscription_id, sum(delta) as refunded
-  from public.wallet_adjustments
- where reference like 'subscription_change_refund:%'
- group by subscription_id;
--- compare each against the period invoice total.
-
--- 5. No job stuck in processing.
-select count(*) from public.integration_jobs
- where status = 'processing' and updated_at < now() - interval '15 minutes';
-
--- 6. Owner-only RLS is actually attached.
-select tablename, policyname, cmd from pg_policies
- where schemaname='public'
-   and tablename in ('bank_accounts','bank_ledger_entries')
- order by 1,2;
-```
+| # | invariant | why it matters |
+|---|---|---|
+| 1 | exactly one active exchange-rate row per tenant | every reader uses `maybeSingle()`, which ERRORS on a second row — the app then cannot convert currency at all |
+| 2 | no supplier provenance on `ad_accounts` | advertisers read their own rows with `select("*")`, so anything there reaches their browser |
+| 3 | no staff name/email on `top_ups` or `topup_logs` | both are readable by the advertiser who owns them |
+| 4 | no period refunded more than it collected | the up-then-down subscription cycle used to pay out repeatedly |
+| 5 | no job stuck in `processing` | a stuck `push_topup` is money taken and a supplier never told |
+| 6 | no permissive bank policies left | a server action is not a boundary when the table under it is open |
 
 ---
 
