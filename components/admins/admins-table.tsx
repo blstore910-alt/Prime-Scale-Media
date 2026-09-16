@@ -154,7 +154,14 @@ export default function AdminsTable() {
                       <td data-label="Name" style={{ fontWeight: 700 }}>
                         {admin.full_name ?? "-"}
                       </td>
-                      <td data-label="Email">{admin.email ?? "-"}</td>
+                      {/* An email column has to show the email, so this one
+                          ellipsizes rather than being dropped — but it must
+                          not cut off mid-address the way it did. */}
+                      <td data-label="Email">
+                        <div className="oneline" title={admin.email ?? undefined}>
+                          {admin.email ?? "-"}
+                        </div>
+                      </td>
                       <td data-label="Status">
                         <span
                           className={`badge ${isActive ? "ok" : "due"}`}

@@ -217,17 +217,14 @@ export default function ActivityLogsTable() {
                   const authorEmail = log.author?.email || "--";
                   return (
                     <tr key={log.id}>
+                      {/* Name only. The email measured 154px of text in a
+                          141px cell and simply cut off mid-address — and an
+                          email does not identify a colleague better than
+                          their name does. It is in the detail sheet, which
+                          is where you go when the name is not enough. */}
                       <td data-label="Author">
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 700 }}>{authorName}</div>
-                          <div
-                            style={{
-                              color: "var(--faint)",
-                              fontSize: ".8rem",
-                            }}
-                          >
-                            {authorEmail}
-                          </div>
+                        <div className="oneline" title={authorEmail}>
+                          {authorName}
                         </div>
                       </td>
                       <td data-label="Action">

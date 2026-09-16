@@ -151,12 +151,20 @@ export default function InvitesTable() {
                         {invite.sender?.full_name || "N/A"}
                       </div>
                       <div
+                        className="oneline"
                         style={{ color: "var(--faint)", fontSize: ".8rem" }}
+                        title={invite.sender?.email || undefined}
                       >
                         {invite.sender?.email || "No email"}
                       </div>
                     </td>
-                    <td data-label="Recipient Email" style={{ fontWeight: 600 }}>{invite.email || "—"}</td>
+                    {/* The recipient IS the invite's identity, so it stays
+                        — with an ellipsis rather than a hard cut. */}
+                    <td data-label="Recipient Email" style={{ fontWeight: 600 }}>
+                      <div className="oneline" title={invite.email || undefined}>
+                        {invite.email || "—"}
+                      </div>
+                    </td>
                     <td data-label="Status">
                       <span className={`badge ${badge.cls}`}>
                         {badge.label}
