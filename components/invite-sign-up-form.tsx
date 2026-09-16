@@ -200,11 +200,18 @@ export default function InviteSignUpForm({
 
       {/* The address the account is created for. It is not editable — it is
           what the invitation was sent to — but it must be VISIBLE, because
-          this is the moment someone commits a password to it. */}
+          this is the moment someone commits a password to it.
+
+          It carries the role and organisation too: the lede above is hidden at
+          phone width to keep this long form on one screen, and "which company
+          am I joining, and as what" is not a detail to drop on the screen
+          where someone creates the account. */}
       <div className="whoami">
         <MailIcon />
         <span className="t">
-          <small>Signing up as</small>
+          <small>
+            Joining {invite.tenant_name} as {invite.role}
+          </small>
           <b title={invite.email}>{invite.email}</b>
         </span>
       </div>

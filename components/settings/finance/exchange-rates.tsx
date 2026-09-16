@@ -135,15 +135,16 @@ function ExchangeRatesForm({
         return;
       }
 
-      setValue("HKD", String(formatRate(1 / usdRates.hkd)), {
-        shouldDirty: true,
-      });
-      setValue("GBP", String(formatRate(1 / usdRates.gbp)), {
-        shouldDirty: true,
-      });
-      setValue("EUR", String(formatRate(1 / usdRates.eur)), {
-        shouldDirty: true,
-      });
+      // NOT 1/rate. Every rate in this system means "1 USD = N <currency>":
+      // that is what calculateTopupAmount divides by, what the wallet RPCs
+      // assume, and what ensureInitialExchangeRates writes (it stores
+      // usdRates.usd.eur straight through, with no reciprocal). The provider
+      // already answers in that direction for base USD, so inverting it here
+      // stored 1.1628 where 0.86 was meant — and a €1000 top-up was then
+      // credited $860 instead of $1162.79, out of the customer's pocket.
+      setValue("HKD", String(formatRate(usdRates.hkd)), { shouldDirty: true });
+      setValue("GBP", String(formatRate(usdRates.gbp)), { shouldDirty: true });
+      setValue("EUR", String(formatRate(usdRates.eur)), { shouldDirty: true });
       toast.success("Latest rates applied");
     } catch (error) {
       console.error(safeErrorMessage(error));

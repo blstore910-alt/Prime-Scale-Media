@@ -872,8 +872,12 @@ function PsmAdminAccountRow({
              rather than scan a list. */
           <div className="actrow">
             {isAdmin && (
+              // titled, because .alab is display:none below 420px and then the
+              // icon is all that is left — a button with no accessible name.
               <button
                 className="btn ghost sm"
+                title="Edit"
+                aria-label="Edit"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(account);
@@ -884,6 +888,8 @@ function PsmAdminAccountRow({
             )}
             <button
               className="btn ghost sm"
+              title="View"
+              aria-label="View"
               onClick={(e) => {
                 e.stopPropagation();
                 onRowClick(account.id);

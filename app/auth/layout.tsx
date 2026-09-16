@@ -263,7 +263,14 @@ const AUTH_CSS = `
 .psmauth .radio{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-2);border-radius:11px;cursor:pointer;transition:.13s;text-align:left}
 .psmauth .radio:hover{border-color:var(--primary)}
 .psmauth .radio:has(input:checked){border-color:var(--primary);background:var(--primary-tint)}
-.psmauth .radio input[type=radio]{width:17px;height:17px;flex:0 0 auto;margin:0;padding:0;accent-color:var(--primary);cursor:pointer}
+/* Drawn rather than native. A native radio paints itself a solid white disc
+   on this dark surface and ignores accent-color until it is checked, so the
+   two choices looked identical whichever one you had picked. */
+.psmauth .radio input[type=radio]{appearance:none;-webkit-appearance:none;width:18px;height:18px;flex:0 0 auto;margin:0;padding:0;border:2px solid var(--line-2);border-radius:50%;background:var(--panel);cursor:pointer;display:grid;place-items:center;transition:.13s}
+.psmauth .radio input[type=radio]::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary);transform:scale(0);transition:transform .13s}
+.psmauth .radio input[type=radio]:checked{border-color:var(--primary)}
+.psmauth .radio input[type=radio]:checked::after{transform:scale(1)}
+.psmauth .radio input[type=radio]:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .psmauth .radio span{font-size:.88rem;font-weight:600}
 .psmauth .btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.95rem;border-radius:12px;padding:13px 16px;background:var(--brand);color:#fff;box-shadow:0 14px 30px -14px rgba(124,92,255,.75);transition:.14s;margin-top:6px}
 .psmauth .btn:hover{transform:translateY(-1px);filter:brightness(1.03)}
@@ -353,6 +360,9 @@ const AUTH_CSS = `
   .psmauth .pwmeta span{color:rgba(255,255,255,.5)}
   .psmauth .radio{border-color:rgba(255,255,255,.16);color:#fff}
   .psmauth .radio:has(input:checked){background:rgba(91,141,255,.14);border-color:var(--blue)}
+  .psmauth .radio input[type=radio]{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.3)}
+  .psmauth .radio input[type=radio]::after{background:var(--blue)}
+  .psmauth .radio input[type=radio]:checked{border-color:var(--blue)}
   /* The sign-up form is long, so on a phone the brand hero has to give way —
      otherwise you tap an invitation and the first screenful is marketing
      while the form you came for sits below the fold. Sign-in is short enough

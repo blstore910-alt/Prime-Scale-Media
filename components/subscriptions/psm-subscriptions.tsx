@@ -267,6 +267,8 @@ export default function PsmSubscriptions() {
                           {s.status === "inactive" && (
                             <button
                               className="btn sm"
+                              title="Activate"
+                              aria-label="Activate"
                               onClick={() =>
                                 updateStatus(
                                   s.id,
@@ -287,8 +289,13 @@ export default function PsmSubscriptions() {
 
                           {s.status === "active" && (
                             <>
+                              {/* titled: .alab is display:none below 420px and
+                                  then only the icon is left, so without this
+                                  the button has no accessible name at all. */}
                               <button
                                 className="btn ghost sm"
+                                title="Pause"
+                                aria-label="Pause"
                                 onClick={() =>
                                   updateStatus(
                                     s.id,
@@ -307,6 +314,8 @@ export default function PsmSubscriptions() {
                               </button>
                               <button
                                 className="btn ghost sm"
+                                title="Disable"
+                                aria-label="Disable"
                                 onClick={() =>
                                   updateStatus(
                                     s.id,
