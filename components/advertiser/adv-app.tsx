@@ -560,19 +560,24 @@ export default function AdvertiserApp() {
 
       <div className="main">
         <div className="topbar">
-          <button
-            className="iconbtn ham"
-            aria-label="Menu"
-            onClick={() => setNavOpen(true)}
-          >
-            <Ic name="i-menu" />
-          </button>
-          <div className="tb-brand">
-            <span className="mark">
-              <Ic name="i-rocket" />
+          {/* Same treatment the super-admin bar already had: the left cluster
+              is a .toolbar too, so the bar reads as two matched groups rather
+              than a loose button beside a loose tile beside a pill. */}
+          <div className="toolbar tb-left">
+            <button
+              className="tool ic-btn ham"
+              aria-label="Menu"
+              onClick={() => setNavOpen(true)}
+            >
+              <Ic name="i-menu" />
+            </button>
+            <span className="tb-brand">
+              <span className="mark">
+                <Ic name="i-rocket" />
+              </span>
             </span>
-            <span className="tb-title">{TITLES[view]}</span>
           </div>
+          <span className="tb-title">{TITLES[view]}</span>
           <div className="tb-spacer" />
           <div className="toolbar">
             <button
@@ -651,8 +656,12 @@ export default function AdvertiserApp() {
                 </div>
               )}
             </div>
+            {/* Redundant on a phone: the avatar menu right next to it already
+                carries Sign out, and two ways to do the same thing in a
+                five-control bar is what made it feel cluttered. Kept on
+                desktop, where there is room. */}
             <button
-              className="tool ic-btn"
+              className="tool ic-btn so-btn"
               onClick={() => setSignOutOpen(true)}
               aria-label="Sign out"
               title="Sign out"

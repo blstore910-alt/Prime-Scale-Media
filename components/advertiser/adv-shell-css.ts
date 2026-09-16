@@ -197,13 +197,62 @@ export const ADV_CSS = `
      (.btn is white-space:nowrap) can't shrink, so on a narrow screen the text
      absorbed all of it. Below 560px the text takes its own full-width line and
      the CTA drops beneath it instead. */
-  .onbrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .onbrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:12px 13px;border:1px solid var(--line);border-radius:13px;background:var(--panel-2)}
   .onbrow .otx{flex:1 1 150px;min-width:0}
   .onbrow .ocat{margin-left:auto}
   @media(max-width:560px){
     .onbrow .otx{flex:1 1 100%;order:3}
     .onbrow .ocat{order:4;margin-left:0;width:100%;justify-content:center;text-align:center}
   }
+  /* ── Get-started card ───────────────────────────────────────────────
+     Quieter than it was. This is the first card on the dashboard, and it
+     was also the loudest thing on it: a bright "1/4" pill reporting the
+     least urgent information on the page, and four full blocks that only
+     ever grew, so the steps still to do were pushed down by the ones
+     already handled. */
+  .onb{padding:0;overflow:hidden}
+  .onb-head{display:flex;align-items:center;gap:12px;width:100%;
+    border:0;background:none;cursor:pointer;text-align:left;
+    font-family:inherit;color:inherit;padding:16px 18px}
+  .onb-head:hover{background:var(--panel-2)}
+  .onb-head-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .onb-head-s{color:var(--faint);font-size:.8rem;font-weight:600}
+  /* A thin bar instead of a pill. It sits between the title and the chevron
+     and takes whatever room is left, down to nothing on a narrow phone —
+     it is an at-a-glance sense of progress, not a number to read. */
+  .onb-meter{flex:1 1 40px;min-width:0;max-width:160px;height:5px;border-radius:99px;
+    background:var(--line);overflow:hidden;margin-left:auto}
+  .onb-meter i{display:block;height:100%;border-radius:99px;background:var(--win);transition:width .3s ease}
+  .onb-chev{display:grid;place-items:center;width:28px;height:28px;flex:0 0 auto;
+    color:var(--faint);transition:transform .18s ease}
+  .onb-chev.up{transform:rotate(180deg)}
+  .onb-list{display:flex;flex-direction:column;gap:8px;padding:0 18px 18px}
+  .onb-tick{width:26px;height:26px;border-radius:9px;flex:0 0 auto;
+    border:2px solid var(--line-2);background:var(--panel);color:#fff;
+    display:grid;place-items:center;cursor:pointer;padding:0;transition:.13s}
+  .onb-tick:disabled{cursor:default}
+  .onb-tick.on{border-color:var(--win);background:var(--win)}
+  .onb-tick svg{width:15px;height:15px}
+  .onb-ic{width:32px;height:32px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
+    background:var(--primary-tint);color:var(--primary-600)}
+  .onb-ic svg{width:17px;height:17px}
+  .onb-t{font-weight:700}
+  .onb-d{color:var(--faint);font-size:.82rem}
+  /* A finished step folds to one line: tick, icon, title. No description, no
+     "Done" badge, no green fill — it is a record of what is behind you, and
+     it should take up about as much room as that deserves. */
+  .onbrow.is-done{padding:7px 13px;background:transparent;border-color:transparent;flex-wrap:nowrap}
+  .onbrow.is-done .onb-ic{width:26px;height:26px;border-radius:8px;background:transparent;color:var(--faint)}
+  .onbrow.is-done .onb-ic svg{width:15px;height:15px}
+  .onbrow.is-done .onb-t{font-weight:600;color:var(--muted);font-size:.88rem;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .onb-done{display:flex;align-items:center;gap:12px;
+    background:var(--win-soft);border:1px solid rgba(16,185,129,.22)}
+  .onb-done-ic{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+    background:#fff;color:var(--win)}
+  .onb-done-t{font-family:var(--hd);font-weight:800}
+  .onb-done-s{color:var(--muted);font-size:.85rem}
   .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
   .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.86rem;color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer}
   .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}
@@ -352,4 +401,66 @@ export const ADV_CSS = `
   .advapp select,
   .advapp textarea{font-size:16px}
 }
+
+/* ── Top bar, brought up to the super-admin bar's treatment ──────────────
+   The admin shell had a full refinement round that this one never got, and
+   it showed: four different control sizes in one bar, a loose hamburger and
+   a loose brand tile beside a grouped pill, a chevron making the avatar the
+   one odd width, and a standalone sign-out duplicating the avatar menu's.
+   Same rules here so a customer's bar is as considered as ours. */
+.advapp .tb-left{display:none}
+.advapp .topbar{padding-left:14px;padding-right:14px}
+@media (max-width:900px){
+  .advapp .tb-left{display:inline-flex}
+  /* More room LEFT and RIGHT than above and below. Even padding measures the
+     same on four sides but does not look it: a filled tile reads as touching
+     an edge it is merely close to. */
+  .advapp .toolbar{padding:4px 8px;border-radius:14px;gap:5px}
+
+  /* ONE square for every control: 36x36, 10px radius, icon dead centre.
+     place-items:center is load-bearing — .tool is an inline-flex with
+     gap:8px and no justify-content, so in a zero-padding 36px box the line
+     starts at the left edge and every icon sits 8px left of centre. */
+  .advapp .toolbar .tool{height:36px;padding:0 9px;border-radius:10px}
+  .advapp .toolbar .ic-btn,
+  .advapp .tb-left .ham{display:grid;place-items:center;width:36px;height:36px;padding:0;gap:0}
+  /* Optical sizing, not box sizing. Lucide draws each glyph to a different
+     fraction of its 24-unit viewBox, so at a uniform 18px the actual INK
+     came out hamburger 10.5px, bell 16.5, rocket 16.1, logout 15.0 — the
+     hamburger 57% smaller than its neighbours, which is why it looked like
+     it was floating. Each is scaled so the ink lands near 16px. */
+  .advapp .toolbar .ic-btn svg,
+  .advapp .tb-left .ham svg{display:block}
+  .advapp .topbar .ham svg{width:25px;height:25px}
+  .advapp .topbar button.ic-btn:not(.ham) svg{width:19px;height:19px}
+
+  /* The brand tile is a control-sized square too, so the left cluster keeps
+     the same rhythm as the right instead of a 30px tile beside a 36px one. */
+  .advapp .tb-left .tb-brand{display:inline-flex;align-items:center}
+  .advapp .tb-left .mark{display:grid;place-items:center;width:36px;height:36px;border-radius:10px}
+  .advapp .tb-left .mark svg{width:18px;height:18px;display:block}
+
+  /* The avatar kept its chevron and came out 58px — the one odd size, sitting
+     in the middle of the right-hand cluster, which is exactly where a broken
+     rhythm shows most. On a phone a tappable avatar tile is already
+     understood to open a menu. */
+  .advapp .toolbar .ava-btn{display:grid;place-items:center;width:36px;height:36px;padding:0;gap:0}
+  .advapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:8px;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
+  .advapp .toolbar .ava-btn svg{display:none}
+  /* Duplicates the one inside that menu. */
+  .advapp .topbar .so-btn{display:none}
+  /* These render to 0x0 here — hidden by their own rule above — so take them
+     out of the flex line entirely rather than leaving zero-size nodes
+     between real controls. */
+  .advapp .topbar .tool.st,
+  .advapp .topbar .tool.wal{display:none}
+
+  .advapp .topbar{gap:8px;padding:8px 12px}
+}
+/* Quiet tiles, not boxed ones: an outlined box per icon made the bar busy.
+   The group already reads as a group. */
+.advapp .tool.ic-btn,
+.advapp .tool.ava-btn{background:transparent;border:1px solid transparent}
+.advapp .tool.ic-btn:hover,
+.advapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
 `;
