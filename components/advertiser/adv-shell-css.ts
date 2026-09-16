@@ -155,16 +155,43 @@ export const ADV_CSS = `
   .stat .v{font-family:var(--hd);font-weight:800;font-size:1.4rem;letter-spacing:-.02em;margin-top:auto;padding-top:10px}
   .stat .k{min-height:2.4em}
 
-  .wallet{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;box-shadow:0 22px 46px -24px rgba(58,111,255,.7)}
-  .wallet.eur{background:linear-gradient(135deg,var(--primary),#5b8dff 60%,#7aa2ff)}
-  .wallet.usd{background:linear-gradient(135deg,#0e93a6,#14b8a6 60%,#3ad1c0)}
-  .wallet .wsh{position:absolute;top:-45%;right:-12%;width:60%;height:170%;background:radial-gradient(circle,rgba(255,255,255,.26),transparent 60%)}
+  /* Same night sky as the dashboard hero, lit in the currency's own colour,
+     rather than a flat slab of saturated blue next to a flat slab of
+     saturated teal. Two bright rectangles read as a chart legend; one dark
+     surface with a coloured light in it reads as the same product the rest of
+     the app is. */
+  .wallet{position:relative;overflow:hidden;border-radius:20px;padding:22px;color:#fff;isolation:isolate;
+    box-shadow:0 1px 0 rgba(255,255,255,.1) inset,0 28px 56px -32px rgba(20,30,80,.8)}
+  .wallet.eur{background:
+    radial-gradient(130% 90% at 12% 0%,rgba(91,141,255,.5),transparent 60%),
+    radial-gradient(110% 90% at 100% 100%,rgba(58,111,255,.34),transparent 56%),
+    linear-gradient(160deg,#04050E,#0b1130 55%,#141c44)}
+  .wallet.usd{background:
+    radial-gradient(130% 90% at 12% 0%,rgba(20,184,166,.45),transparent 60%),
+    radial-gradient(110% 90% at 100% 100%,rgba(139,92,246,.3),transparent 56%),
+    linear-gradient(160deg,#04050E,#07161f 55%,#0e2a33)}
+  .wallet .wsh{position:absolute;top:-45%;right:-12%;width:60%;height:170%;
+    background:radial-gradient(circle,rgba(255,255,255,.14),transparent 62%);pointer-events:none}
   .wallet .wl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;position:relative}
   .wallet .wv{font-family:var(--hd);font-weight:800;font-size:2.5rem;letter-spacing:-.02em;margin:6px 0 2px;position:relative}
-  .wallet .wavail{position:relative;margin:2px 0 2px;font-size:.82rem;font-weight:700;color:#fff}.wallet .wavail span{color:rgba(255,255,255,.72);font-weight:500}
-  .wallet .wa{display:flex;gap:9px;margin-top:14px;position:relative;flex-wrap:wrap}
-  .wbtn{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.86rem;border-radius:10px;padding:9px 13px;background:rgba(255,255,255,.92);color:var(--ink)}
-  .wbtn.gh{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3)}.wbtn svg{width:15px;height:15px}
+  .wallet .wl{opacity:1;color:rgba(255,255,255,.6)}
+  .wallet .wv{font-variant-numeric:tabular-nums}
+  .wallet .wavail{position:relative;margin:2px 0 2px;font-size:.8rem;font-weight:600;color:rgba(255,255,255,.6)}
+  .wallet .wavail b{color:#fff;font-weight:800}
+  .wallet .wa{display:flex;gap:9px;margin-top:16px;position:relative;flex-wrap:wrap}
+  .wbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1 1 auto;border:0;cursor:pointer;
+    font-family:var(--bd);font-weight:700;font-size:.86rem;border-radius:11px;padding:10px 14px;color:#fff;
+    background:linear-gradient(118deg,#4f83ff,#6d63ff 52%,#9a6bff);
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 14px 28px -14px rgba(96,86,255,.85);transition:.14s}
+  .wbtn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  .wbtn:active{transform:translateY(1px)}
+  .wbtn:disabled{opacity:.5;cursor:default;transform:none;filter:none}
+  .wallet.usd .wbtn{background:linear-gradient(118deg,#12a99b,#14b8a6 52%,#3ad1c0);
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset,0 14px 28px -14px rgba(20,184,166,.8)}
+  .wbtn.gh{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);box-shadow:none}
+  .wbtn.gh:hover{background:rgba(255,255,255,.16)}
+  .wallet.usd .wbtn.gh{background:rgba(255,255,255,.1)}
+  .wbtn svg{width:15px;height:15px}
 
   .tbl{width:100%;border-collapse:collapse;font-size:.9rem}
   .tbl th{text-align:left;font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 14px 12px}

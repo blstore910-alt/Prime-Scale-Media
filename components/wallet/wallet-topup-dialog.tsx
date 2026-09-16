@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { banksForAccountTypes } from "@/lib/bank-routing";
+import { formatPaymentReference } from "@/lib/payment-reference";
 import {
   Select,
   SelectContent,
@@ -184,6 +185,8 @@ export default function WalletTopupDialog({
   const minTopupAmount = minTopup || 300;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
+  // Their own client code, for the payment reference below.
+  const clientCode = profile?.advertiser?.[0]?.tenant_client_code ?? null;
 
   // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the
   // advertiser pays in a currency other than their wallet currency. Rates
@@ -571,13 +574,19 @@ export default function WalletTopupDialog({
 
                 {bankGroup === "muxue" && <InstantTransferInstructions />}
 
-                <div className="rounded-lg border bg-muted/20 p-4">
+                {/* Client code first, then the reference — so a bank
+                    statement shows whose money it is before anything has been
+                    matched. lib/payment-reference.ts also teaches the Wise
+                    matcher this shape; without that the longest-digit-run
+                    rule would read a six-digit client code as the reference
+                    and send every prefixed payment to manual review. */}
+                <div className="rounded-xl border bg-muted/20 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Use the below reference no in your description / reference
-                    of bank transfer.
+                    Put this reference in the description of your transfer, so
+                    we can match your payment.
                   </p>
-                  <p className="text-center font-semibold font-mono text-xl">
-                    {referenceNo}
+                  <p className="mt-2 text-center font-mono text-xl font-bold tracking-wide">
+                    {formatPaymentReference(clientCode, referenceNo)}
                   </p>
                 </div>
 

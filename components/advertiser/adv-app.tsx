@@ -31,6 +31,7 @@ import useNotificationPreferences from "@/hooks/use-notification-preferences";
 import type { NotificationType } from "@/lib/types/notification";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
+import useIsAffiliate from "@/components/commissions/use-is-affiliate";
 
 dayjs.extend(relativeTime);
 
@@ -123,6 +124,9 @@ export default function AdvertiserApp() {
   const name = (profile?.full_name as string) ?? "there";
   const firstName = name.split(" ")[0];
   const ini = initials(name);
+  // Approved affiliate or not. An `active` referral_links row is the only
+  // thing that makes an advertiser one.
+  const { isAffiliate } = useIsAffiliate();
 
   const { data: wallet, isError: walletError } = useQuery<Wallet | null>({
     queryKey: ["wallet", advertiserId],
@@ -287,8 +291,15 @@ export default function AdvertiserApp() {
     }
   };
   const referralCode = profile?.advertiser?.[0]?.tenant_client_code;
+  // Being an affiliate is something an admin APPROVES — there is an
+  // `active` referral_links row or there is not. This link used to be derived
+  // from the client code alone, so every advertiser had a working referral
+  // link the day they signed up and nobody had agreed to it. It is not
+  // cosmetic either: app/auth/confirm attributes a signup by looking that
+  // code up, so an unapproved link still produced a tracked referral and,
+  // downstream, a commission.
   const referralLink =
-    profile?.tenant?.slug && referralCode
+    isAffiliate && profile?.tenant?.slug && referralCode
       ? (() => {
           const u = new URL(`${getURL().replace(/\/$/, "")}/auth/sign-up`);
           u.searchParams.set("t", profile.tenant.slug as string);
@@ -319,6 +330,28 @@ export default function AdvertiserApp() {
       t.status !== "completed" &&
       t.status !== "failed" &&
       t.status !== "rejected",
+  );
+  // What is on its way but not yet credited, per currency. The wallet cards
+  // used to print the balance twice — "€0" and then "€0 available" — which
+  // told a customer nothing the first line had not. Money sitting in a
+  // transfer we have not verified yet is the thing they actually want to see
+  // on that second line, because it explains a balance that looks too low.
+  const pendingByCurrency = (activity ?? []).reduce(
+    (acc, t) => {
+      if (
+        t.status === "completed" ||
+        t.status === "failed" ||
+        t.status === "rejected"
+      ) {
+        return acc;
+      }
+      const cur = String(t.currency ?? "").toUpperCase();
+      if (cur === "EUR" || cur === "USD") {
+        acc[cur] += Number(t.amount ?? 0) || 0;
+      }
+      return acc;
+    },
+    { EUR: 0, USD: 0 } as { EUR: number; USD: number },
   );
 
   // The subscription invoice the "Pay … from wallet" button should settle:
@@ -734,8 +767,16 @@ export default function AdvertiserApp() {
                   Monthly fee <b>{planMoney(subscription.amount)}</b> · due{" "}
                   {dayjs(subscription.next_payment_date).format("D MMM")}
                 </span>
-                <button className="dlink" onClick={() => go("billing")}>
-                  Pay now <Ic name="i-arrow" />
+                {/* "Pay", not "Pay now". The row must hold one line at phone
+                    width and the sentence beside it is the part carrying the
+                    information; next to an amber button on a fee notice,
+                    "Pay" is not ambiguous. */}
+                <button
+                  className="dlink"
+                  onClick={() => go("billing")}
+                  title="Pay this invoice from your wallet"
+                >
+                  Pay <Ic name="i-arrow" />
                 </button>
               </div>
             )}
@@ -970,19 +1011,17 @@ export default function AdvertiserApp() {
                 <h1>Wallet</h1>
                 <p>Fund your ad accounts and pay invoices from here.</p>
               </div>
-              <button
-                className="btn grad"
-                onClick={() => setTopupOpen(true)}
-                disabled={!wallet}
-              >
-                <Ic name="i-plus" /> Top up wallet
-              </button>
+              {/* The page-level "Top up wallet" is gone: each card already
+                  carries its own Top up, so this screen offered the same
+                  action three times and the one at the top could not even say
+                  which wallet it meant. */}
             </div>
             <div className="grid2">
               <WalletCard
                 cur="eur"
                 label="EUR wallet"
                 value={eurText}
+                pending={pendingByCurrency.EUR}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}
@@ -991,6 +1030,7 @@ export default function AdvertiserApp() {
                 cur="usd"
                 label="USD wallet"
                 value={usdText}
+                pending={pendingByCurrency.USD}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet}
@@ -1722,6 +1762,7 @@ function WalletCard({
   cur,
   label,
   value,
+  pending = 0,
   onTopup,
   onExchange,
   disabled,
@@ -1729,17 +1770,35 @@ function WalletCard({
   cur: "eur" | "usd";
   label: string;
   value: string;
+  /** Sent but not yet verified, in this currency. */
+  pending?: number;
   onTopup: () => void;
   onExchange: () => void;
   disabled?: boolean;
 }) {
+  const sym = cur === "usd" ? "$" : "€";
   return (
     <div className={`wallet ${cur}`}>
       <div className="wsh" />
       <div className="wl">{label}</div>
       <div className="wv">{value}</div>
+      {/* This line used to repeat the balance verbatim — "€0" and then "€0
+          available" — which told a customer nothing the line above had not.
+          What belongs here is the money they have sent that we have not
+          verified yet, because that is what explains a balance that looks
+          lower than they expect. */}
       <div className="wavail">
-        <b>{value}</b> available
+        {pending > 0 ? (
+          <>
+            <b>
+              {sym}
+              {Math.round(pending).toLocaleString("nl-NL")}
+            </b>{" "}
+            awaiting verification
+          </>
+        ) : (
+          "Available to spend"
+        )}
       </div>
       <div className="wa">
         <button className="wbtn" onClick={onTopup} disabled={disabled}>

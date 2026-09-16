@@ -50,16 +50,18 @@ function amountMatches(topupAmount: number | string, incomingCents: number): boo
   return Math.abs(topupCents - incomingCents) <= CENTS_EPSILON;
 }
 
-// Extract a PSM topup reference number from free-text the sender
-// typed. We ask customers to include the numeric reference_no; banks
-// may wrap it in other text ("PSM-TOPUP 1483181337", "ref 1483181337").
-// Pull the longest digit run and compare numerically.
-export function extractReferenceDigits(reference: string | null): string | null {
-  if (!reference) return null;
-  const runs = reference.match(/\d{4,}/g);
-  if (!runs || runs.length === 0) return null;
-  return runs.reduce((a, b) => (b.length >= a.length ? b : a));
-}
+// Extract a PSM topup reference from free-text the sender typed.
+//
+// This used to take the longest run of digits, which was right while the
+// reference was a bare number. Customers are now asked to write
+// `<client code>-<reference>` (so a statement shows whose money it is before
+// anything is matched), and under the old rule a six-digit client code was
+// LONGER than the reference and won — every prefixed payment would have been
+// matched against the wrong number and fallen through to manual review.
+// lib/payment-reference.ts understands both forms; it is shared with the
+// screen that prints the reference, so the two cannot drift.
+export { extractTopupReference as extractReferenceDigits } from "../payment-reference";
+import { extractTopupReference } from "../payment-reference";
 
 export function matchIncomingTransfer(
   transfer: IncomingTransfer,
@@ -83,7 +85,7 @@ export function matchIncomingTransfer(
   }
 
   // 1. reference match among the amount/currency candidates — strongest.
-  const refDigits = extractReferenceDigits(transfer.reference);
+  const refDigits = extractTopupReference(transfer.reference);
   if (refDigits) {
     const byRef = candidates.filter(
       (t) => t.reference_no != null && String(t.reference_no) === refDigits,
