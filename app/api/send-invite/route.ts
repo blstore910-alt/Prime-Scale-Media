@@ -176,7 +176,14 @@ export async function POST(request: NextRequest) {
     }
 
     const token = randomUUID();
-    const expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    // Seven days. Two was too short in practice: an invitation sent on a
+    // Friday afternoon was dead before the recipient came back to it, and
+    // someone who has to find their company's VAT number before finishing
+    // onboarding does not do that the same evening.
+    const INVITE_VALID_DAYS = 7;
+    const expires_at = new Date(
+      Date.now() + INVITE_VALID_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/accept?token=${token}`;
 
     // Plan fields — advertiser invites only, pre-filled from a preset in
