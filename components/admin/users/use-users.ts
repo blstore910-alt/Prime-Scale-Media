@@ -58,45 +58,36 @@ export default function useUsers({
         }
       }
 
-      // map sort key to column + direction
+      // Sort keys that the DATABASE can actually order by.
       //
-      // "code-asc"/"code-desc" order by the advertiser's CLIENT CODE, on the
-      // embedded advertisers row. They used to order by user_profiles.id — a
-      // UUID — which produces an order with no meaning to anybody: TA, PA,
-      // JR, HA, AA, JD. The options were labelled as sorting by client code,
-      // so the control was promising one thing and doing another, which is
-      // worse than not offering it.
-      const sortMap: Record<
-        string,
-        { column: string; ascending: boolean; foreignTable?: string }
-      > = {
+      // "Client code" is gone, and this is the second time it has been wrong:
+      // first it silently ordered by user_profiles.id (a UUID — TA, PA, JR,
+      // HA, AA, JD), then my fix passed foreignTable, which postgrest-js
+      // turns into `advertisers.order=` — a directive for ordering the
+      // EMBEDDED rows, not the parent. The parent query then went out with no
+      // ORDER BY at all, which is worse than the original bug: `.range()`
+      // paging an unordered result can repeat a row on page 2 and skip
+      // another entirely.
+      //
+      // PostgREST cannot order a parent by a column on a to-one embed, and
+      // tenant_client_code lives on advertisers. Offering the option while it
+      // cannot work is worse than not offering it — a control that lies about
+      // what it does is the thing being removed here. Searching by client
+      // code still works, which is what people actually reach for.
+      const sortMap: Record<string, { column: string; ascending: boolean }> = {
         newest: { column: "created_at", ascending: false },
         oldest: { column: "created_at", ascending: true },
         "a-z": { column: "full_name", ascending: true },
         "z-a": { column: "full_name", ascending: false },
-        "code-asc": {
-          column: "tenant_client_code",
-          ascending: true,
-          foreignTable: "advertisers",
-        },
-        "code-desc": {
-          column: "tenant_client_code",
-          ascending: false,
-          foreignTable: "advertisers",
-        },
       };
 
       const sortOption = sortMap[sort] ?? sortMap["newest"];
-      query = query.order(sortOption.column, {
-        ascending: sortOption.ascending,
-        ...(sortOption.foreignTable
-          ? { foreignTable: sortOption.foreignTable }
-          : {}),
-        // Advertisers without a code yet ("—" on screen) go last in both
-        // directions: an empty value is not the smallest value, it is a
-        // missing one, and floating it to the top buries the real codes.
-        nullsFirst: false,
-      });
+      query = query
+        .order(sortOption.column, { ascending: sortOption.ascending })
+        // A stable tiebreaker. Without one, rows sharing a created_at or a
+        // name have no defined order between pages, so paging can show the
+        // same advertiser twice and never show another.
+        .order("id", { ascending: true });
 
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;
