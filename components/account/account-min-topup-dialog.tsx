@@ -38,8 +38,16 @@ export default function AccountMinTopupDialog({
     setMinTopup(account?.min_topup ?? DEFAULT_MIN_TOPUP);
   }, [open, account]);
 
+  // A BLANK is not a zero. Number("") is 0, so clearing the box and pressing
+  // Save wrote min_topup = 0 and quietly removed the account's top-up floor —
+  // and clearing the box is exactly what someone does when they mean to
+  // abandon the edit. A comma lands here too: <input type="number"> reports an
+  // unparseable value as the empty string, so "1,5" arrived as "" and saved 0.
+  // If you want no minimum you type 0.
+  const isBlank = String(minTopup).trim() === "";
   const parsedMinTopup = useMemo(() => Number(minTopup), [minTopup]);
-  const isInvalid = Number.isNaN(parsedMinTopup) || parsedMinTopup < 0;
+  const isInvalid =
+    isBlank || !Number.isFinite(parsedMinTopup) || parsedMinTopup < 0;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -91,7 +99,9 @@ export default function AccountMinTopupDialog({
             />
             {isInvalid && (
               <p className="text-sm text-destructive">
-                Enter a valid amount of 0 or greater.
+                {isBlank
+                  ? "Enter an amount. For no minimum, type 0."
+                  : "Enter a valid amount of 0 or greater."}
               </p>
             )}
           </div>

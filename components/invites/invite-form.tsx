@@ -461,10 +461,19 @@ export default function InviteForm() {
                   />
                 </div>
 
+                {/* htmlFor/id on all three. These set the advertiser's monthly
+                    fee, how many ad accounts are included and the top-up fee
+                    percentage — three adjacent number boxes whose labels were
+                    only next to them, not bound to them. So nothing read them
+                    out, and tapping a label did not focus its field, which on
+                    a phone is how you hit a box this narrow. */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <Label className="text-xs">Monthly fee</Label>
+                    <Label htmlFor="invite-monthly-fee" className="text-xs">
+                      Monthly fee
+                    </Label>
                     <Input
+                      id="invite-monthly-fee"
                       type="number"
                       min="0"
                       step="1"
@@ -472,8 +481,11 @@ export default function InviteForm() {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Included accts</Label>
+                    <Label htmlFor="invite-included-accts" className="text-xs">
+                      Included accts
+                    </Label>
                     <Input
+                      id="invite-included-accts"
                       type="number"
                       min="0"
                       step="1"
@@ -481,8 +493,11 @@ export default function InviteForm() {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Topup fee %</Label>
+                    <Label htmlFor="invite-topup-fee" className="text-xs">
+                      Topup fee %
+                    </Label>
                     <Input
+                      id="invite-topup-fee"
                       type="number"
                       min="0"
                       max="100"

@@ -726,14 +726,20 @@ function PsmAdminAccountRow({
       toast.error("Enter a fee between 0 and 100.");
       return;
     }
+    // Leave edit mode straight away — the save nearly always succeeds and
+    // waiting on the round trip makes the cell feel stuck. But the cell then
+    // renders LOCAL state, so if the write is refused it would sit there
+    // showing a fee the account does not have. Put the old value back when
+    // that happens; the hook raises the toast that says why.
     setIsDirty(false);
     setEditing({ fee: false });
-    updateAccount({
-      id: account.id,
-      payload: {
-        fee: Number(String(fee).trim()),
+    updateAccount(
+      {
+        id: account.id,
+        payload: { fee: parsed },
       },
-    });
+      { onError: () => setFee(initialFee) },
+    );
   };
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
