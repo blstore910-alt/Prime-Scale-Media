@@ -228,10 +228,14 @@ export default function PsmWallets() {
                               fontSize: ".8rem",
                             }}
                           >
+                            {/* Client code, not code + email. An email is
+                                long enough to clip mid-word in a card cell
+                                — measured 165px of text in a 123px box with
+                                no ellipsis — and a list cell is for
+                                recognising someone, which a code does
+                                better than a mailbox name. The email is in
+                                the detail sheet, where it can be copied. */}
                             {wallet.advertiser?.tenant_client_code ?? "—"}
-                            {wallet.advertiser?.profile?.email
-                              ? ` · ${wallet.advertiser.profile.email}`
-                              : ""}
                           </div>
                         </div>
                       </div>

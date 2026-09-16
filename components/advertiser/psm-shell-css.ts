@@ -491,6 +491,17 @@ export const PSM_APP_CSS = `
      better left-aligned in a narrow stacked cell. */
   .psmapp .tbl.wide td.r{text-align:left}
   .psmapp .tbl.wide td.fullcell{grid-column:1 / -1}
+  /* In a CARD, actions start under their label like every other value.
+     .actrow right-aligns by default, which is correct in a desktop table
+     where Actions is the last column and the eye runs down the right edge —
+     but in a two-up card it put the label hard left and its buttons hard
+     right with a hole between them, so the cell read as two unrelated
+     things. Every other cell here is label-above-value, left-aligned; this
+     one was the exception, and that is what made the grid look unsettled. */
+  .psmapp .tbl.wide .actrow{justify-content:flex-start}
+  /* Same reason: a right-aligned money cell in a card sits under a
+     left-aligned label. .r is for table columns, not for cards. */
+  .psmapp .tbl.wide td.r > *{justify-self:start}
   .psmapp .tbl.wide td[colspan]{grid-column:1 / -1;text-align:center;padding:22px 2px;box-shadow:none}
 
   /* ── Card inside a card ───────────────────────────────────────────
