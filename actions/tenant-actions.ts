@@ -97,11 +97,45 @@ export async function createTenantForCurrentUser(input: {
     userData.user.email ||
     "Admin";
 
-  const { data: existingProfile } = await supabase
+  // Adopt an existing profile ONLY if it is genuinely unclaimed. The comment
+  // below says this is for a signup-trigger row with tenant_id = null, and
+  // that is the only case it is safe for — but it never checked, and updated
+  // whatever profile it found.
+  //
+  // Two consequences, both reachable by any signed-in user hitting
+  // /organization/new:
+  //
+  //   An established advertiser's profile was MOVED to the brand-new tenant
+  //   and its role rewritten to admin. Their wallet, ad accounts and invoices
+  //   stayed behind in the old tenant with nothing pointing at them.
+  //
+  //   The update also set status='active' and is_active=true, so a
+  //   DEACTIVATED admin could reactivate themselves here — straight past
+  //   every guard added today in the actions, the RLS predicates and all
+  //   eleven SECURITY DEFINER functions.
+  //
+  // Whether an existing customer should be able to create a tenant at all is
+  // a product decision. It is not one that should happen as a side effect of
+  // an UPDATE, so until it is decided deliberately, this refuses.
+  const { data: profiles } = await supabase
     .from("user_profiles")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
+    .select("id, tenant_id, role")
+    .eq("user_id", userId);
+
+  const claimed = (profiles ?? []).find(
+    (p: { tenant_id: string | null }) => p.tenant_id !== null,
+  );
+  if (claimed) {
+    return {
+      ok: false,
+      error:
+        "This account already belongs to an organisation. Ask an admin there to invite you, or sign up with a different email.",
+    };
+  }
+
+  const existingProfile = (profiles ?? []).find(
+    (p: { tenant_id: string | null }) => p.tenant_id === null,
+  );
 
   let profileError: { message: string } | null = null;
   if (existingProfile?.id) {
