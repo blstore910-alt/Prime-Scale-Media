@@ -21,7 +21,7 @@ export const PSM_APP_CSS = `
 .psmapp .psmview a{text-decoration:none;color:inherit}
 .psmapp .psmview h1,.psmapp .psmview h2{margin:0}
 .psmapp .psmview h2,.psmapp .phead h2{font-family:var(--hd);font-weight:800;font-size:1.12rem;letter-spacing:-.02em}
-.psmapp .pfi svg{width:19px;height:19px}
+.psmapp .pfi svg{width:15px;height:15px}
 .psmapp .cap{color:var(--muted);font-size:.9rem;margin:6px 0 16px}
 .psmapp .grad{background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
 .psmapp .mono{font-family:ui-monospace,Menlo,monospace}
@@ -251,7 +251,7 @@ export const PSM_APP_CSS = `
 .psmapp .acard .nm{font-weight:700}.psmapp .acard .sub{color:var(--faint);font-size:.78rem}
 .psmapp .acard .kv{display:flex;justify-content:space-between;font-size:.85rem}.psmapp .acard .kv span{color:var(--faint)}.psmapp .acard .kv b{font-weight:700}
 .psmapp .acard .acts{display:flex;gap:8px;margin-top:2px}
-.psmapp .pfi{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--primary-tint);color:var(--primary-600);flex:0 0 auto}
+.psmapp .pfi{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--primary-tint);color:var(--primary-600);flex:0 0 auto}
 .psmapp .muted{color:var(--muted)}
 
 .psmapp .scrim{display:none}
@@ -349,8 +349,15 @@ export const PSM_APP_CSS = `
   /* Sized to content, not stretched across the cell. Two buttons filling a
      full-width cell read as the main event of the card; they are not. A
      shared min-width keeps them identical without inflating them. */
-  .psmapp .actrow{display:flex;gap:7px;justify-content:flex-end}
-  .psmapp .actrow .btn{flex:0 0 auto;min-width:46px;justify-content:center;padding:7px 10px;white-space:nowrap}
+  /* Measured: a 46x36 button around a 14px glyph is 32px of padding, and the
+     ACTIONS row came out 17px taller than every other row in the card
+     because of it. Tightened to 34x30 — which does NOT make them harder to
+     hit, because the hit area is separately extended to 44px tall by the
+     pointer:coarse overlay further down. The visible button shrinks; the
+     target does not. */
+  .psmapp .actrow{display:flex;gap:6px;justify-content:flex-start}
+  .psmapp .actrow .btn{flex:0 0 auto;min-width:34px;justify-content:center;padding:6px 8px;white-space:nowrap}
+  .psmapp .actrow .btn svg{width:15px;height:15px}
   .psmapp .actrow .btn svg{flex:0 0 auto}
   .psmapp .actrow .alab{overflow:hidden;text-overflow:ellipsis}
   /* Below 420px three labels cannot fit without shrinking the tap target,
@@ -498,14 +505,10 @@ export const PSM_APP_CSS = `
      better left-aligned in a narrow stacked cell. */
   .psmapp .tbl.wide td.r{text-align:left}
   .psmapp .tbl.wide td.fullcell{grid-column:1 / -1}
-  /* In a CARD, actions start under their label like every other value.
-     .actrow right-aligns by default, which is correct in a desktop table
-     where Actions is the last column and the eye runs down the right edge —
-     but in a two-up card it put the label hard left and its buttons hard
-     right with a hole between them, so the cell read as two unrelated
-     things. Every other cell here is label-above-value, left-aligned; this
-     one was the exception, and that is what made the grid look unsettled. */
-  .psmapp .tbl.wide .actrow{justify-content:flex-start}
+  /* In a CARD, actions start under their label like every other value —
+     see the .actrow rule above, which already left-aligns on this
+     breakpoint. Kept here only for the desktop table, where .actrow
+     right-aligns because Actions is the last column. */
   /* Below 420px the row buttons are icons only (~46px each), so three of
      them fit inside ONE column of the two-up grid. Letting the actions cell
      stay full-width there left the card with two rows that each had an empty
