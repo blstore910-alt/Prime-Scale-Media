@@ -216,6 +216,31 @@ ${s} .sidebar,${s} .mcard{will-change:transform}
   ${s} .sidebar{transition:none}
 }
 
+/* ── Card headings ──────────────────────────────────────────────────────
+   An icon sitting loose against a title at whatever size it happened to be
+   drawn is the difference between a heading and two things that are near
+   each other. Every card heading that carries an icon gets the same tile,
+   the same 10px gap and the same baseline — done here rather than at each
+   call site, because there are dozens and they were each inline-styled. */
+${s} .card>h2{display:flex;align-items:center;gap:10px;font-size:1.06rem;min-width:0}
+${s} .card>h2>span{display:inline-flex;align-items:center;gap:10px;min-width:0}
+${s} .card>h2 svg{
+  box-sizing:content-box;width:17px;height:17px;padding:7px;flex:0 0 auto;
+  border-radius:10px;color:var(--primary-600);background:var(--primary-tint);
+  box-shadow:0 1px 0 #fff inset,0 0 0 1px rgba(58,111,255,.12)}
+
+/* ── Fields ─────────────────────────────────────────────────────────────
+   Labels that sit a little away from their input and inputs that look like
+   the page they are on. A field should read as one object. */
+${s} .field label{font-weight:700;font-size:.8rem;color:var(--muted);margin-bottom:6px;display:block}
+${s} .field input,${s} .field select,${s} .field textarea{
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:11px;
+  transition:border-color .13s,box-shadow .13s,background .13s}
+${s} .field input:hover,${s} .field select:hover{border-color:var(--line-2);background:#fff}
+${s} .field input:focus,${s} .field select:focus,${s} .field textarea:focus{
+  outline:0;background:#fff;border-color:var(--primary);
+  box-shadow:0 0 0 3px var(--primary-tint)}
+
 /* ── Empty states ───────────────────────────────────────────────────────
    "No ad accounts yet." in grey italics inside an otherwise blank card is
    the least helpful screen in any app: it states the obvious and offers
