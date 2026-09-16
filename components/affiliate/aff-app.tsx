@@ -415,8 +415,13 @@ export default function AffiliateApp() {
               {menuOpen && (
                 <div className="umenu" role="menu">
                   <div className="umenu-hd">
-                    <div className="nm">{name}</div>
-                    <div className="sub">{tier.name} partner</div>
+                    {/* The avatar comes with you into the menu, so the panel
+                        is visibly the tile it opened from. */}
+                    <span className="umenu-av">{ini}</span>
+                    <span className="umenu-who">
+                      <span className="nm">{name}</span>
+                      <span className="sub">{tier.name} partner</span>
+                    </span>
                   </div>
                   <button
                     className="umenu-item"

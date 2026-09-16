@@ -153,7 +153,15 @@ ${s} .umenu{
   box-shadow:0 2px 6px -2px rgba(20,30,80,.28),0 28px 56px -30px rgba(20,30,80,.6);
   animation:psmpop .16s cubic-bezier(.2,.8,.25,1);
 }
-${s} .umenu-hd{padding:9px 11px 10px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+${s} .umenu-hd{display:flex;align-items:center;gap:10px;padding:10px 11px 11px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+${s} .umenu-av{width:34px;height:34px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
+  font-family:var(--hd);font-weight:800;font-size:.8rem;letter-spacing:-.02em;color:#fff;background:var(--brand);
+  box-shadow:0 6px 14px -8px rgba(124,92,255,.8),inset 0 1px 0 rgba(255,255,255,.3)}
+${s} .umenu-who{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+${s} .umenu-who .nm,${s} .umenu-hd .nm{font-weight:800;font-family:var(--hd);letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+${s} .umenu-who .sub,${s} .umenu-hd .sub{color:var(--faint);font-size:.78rem;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 ${s} .umenu-item{transition:background .12s,color .12s,transform .12s}
 ${s} .umenu-item:hover{background:var(--primary-tint);color:var(--primary-600)}
 ${s} .umenu-item:hover svg{color:var(--primary-600)}

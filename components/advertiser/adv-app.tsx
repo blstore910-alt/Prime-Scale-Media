@@ -643,10 +643,16 @@ export default function AdvertiserApp() {
               {menuOpen && (
                 <div className="umenu" role="menu">
                   <div className="umenu-hd">
-                    <div className="nm">{name}</div>
-                    <div className="sub">
-                      {(profile?.tenant?.name as string) ?? "Advertiser"}
-                    </div>
+                    {/* The avatar comes with you into the menu. Without it
+                        the panel opens from a tile and then shows nothing
+                        that connects it to the tile it came from. */}
+                    <span className="umenu-av">{ini}</span>
+                    <span className="umenu-who">
+                      <span className="nm">{name}</span>
+                      <span className="sub">
+                        {(profile?.tenant?.name as string) ?? "Advertiser"}
+                      </span>
+                    </span>
                   </div>
                   <button
                     className="umenu-item"
@@ -720,9 +726,12 @@ export default function AdvertiserApp() {
                     €500" and then took $500. Subscriptions default to EUR
                     (the billing RPCs coalesce to it), so that is the
                     fallback, but a USD plan says so. */}
+                {/* A date, not "in a month". It is shorter, so the row holds
+                    one line at phone width, and it is the more useful of the
+                    two for something you have to pay. */}
                 <span className="dtx">
                   Monthly fee <b>{planMoney(subscription.amount)}</b> · due{" "}
-                  {dayjs(subscription.next_payment_date).fromNow()}
+                  {dayjs(subscription.next_payment_date).format("D MMM")}
                 </span>
                 <button className="dlink" onClick={() => go("billing")}>
                   Pay now <Ic name="i-arrow" />

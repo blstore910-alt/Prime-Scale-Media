@@ -314,12 +314,17 @@ export const ADV_CSS = `
   /* The due row: one line, no filled banner, no solid button. Nothing is
      wrong yet — the fee is simply due — and a notice that shouts competes
      with the balances right above it. */
-  .duerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    background:var(--warn-soft);border:1px solid #f2d9a3;border-radius:14px;padding:11px 13px}
+  /* One line. It wrapped because the text was allowed to, and a two-line
+     notice next to a one-line action looks like a mistake. The value is the
+     part that must survive, so the row never wraps and the text ellipsizes
+     instead — it is short enough that it should not have to. */
+  .duerow{display:flex;align-items:center;gap:9px;flex-wrap:nowrap;
+    background:var(--warn-soft);border:1px solid #f2d9a3;border-radius:14px;padding:10px 12px}
   .duerow .ai{width:28px;height:28px;border-radius:9px;background:#fff;display:grid;place-items:center;
     color:var(--warn);flex:0 0 auto}
   .duerow .ai svg{width:15px;height:15px}
-  .duerow .dtx{flex:1 1 140px;min-width:0;font-size:.84rem;color:#8a5a00;line-height:1.35}
+  .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.82rem;color:#8a5a00;line-height:1.3;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .duerow .dtx b{font-weight:800}
   .duerow .dlink{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;margin-left:auto;
     border:0;background:none;cursor:pointer;font-family:var(--bd);font-weight:800;font-size:.84rem;
