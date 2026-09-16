@@ -118,11 +118,22 @@ export async function GET() {
       .from("advertisers")
       .select("id, profile:user_profiles(status)")
       .eq("tenant_id", profile.tenant_id),
+    // Subscription revenue is what has actually been COLLECTED, so it reads
+    // paid subscription invoices — the same test the manual-invoice and
+    // commission queries below already apply.
+    //
+    // It used to read the subscriptions table filtered on status = 'active',
+    // which counted a plan's full monthly amount from the moment the
+    // subscription was created at signup. Total profit therefore jumped by
+    // the plan amount the instant an advertiser registered, before a single
+    // invoice had been paid — and it was a run-rate, one month's fee per
+    // active plan, not a total of anything.
     supabase
-      .from("subscriptions")
-      .select("amount, currency")
+      .from("invoices")
+      .select("total, currency")
       .eq("tenant_id", profile.tenant_id)
-      .eq("status", "active"),
+      .eq("type", "subscription")
+      .eq("status", "paid"),
     supabase
       .from("invoices")
       .select("total, currency")
@@ -172,7 +183,7 @@ export async function GET() {
   const topups = (topupsResult.data || []) as TopupRow[];
   const advertiserStatuses = (advertisersStatusesResult.data ||
     []) as AdvertiserStatusRow[];
-  const subscriptions = (subscriptionsResult.data || []) as CurrencyAmountRow[];
+  const subscriptions = (subscriptionsResult.data || []) as InvoiceRow[];
   const manualInvoices = (manualInvoicesResult.data || []) as InvoiceRow[];
   const referralCommissions = (referralCommissionsResult.data ||
     []) as CurrencyAmountRow[];
@@ -204,14 +215,9 @@ export async function GET() {
   );
 
   const feesProfit = totals.fees.eur + totals.fees.usd * usdToEurRate;
-  const subscriptionsProfit = subscriptions.reduce((sum, subscription) => {
+  const subscriptionsProfit = subscriptions.reduce((sum, invoice) => {
     return (
-      sum +
-      convertToEur(
-        toNumber(subscription.amount),
-        subscription.currency,
-        usdToEurRate,
-      )
+      sum + convertToEur(toNumber(invoice.total), invoice.currency, usdToEurRate)
     );
   }, 0);
   const manualInvoicesProfit = manualInvoices.reduce((sum, invoice) => {

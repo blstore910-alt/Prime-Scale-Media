@@ -13,6 +13,40 @@
 export function refineCss(scope: string): string {
   const s = scope;
   return `
+/* ── Palette ────────────────────────────────────────────────────────────
+   The shells did not LOOK grey by design — the ground is a cool blue —
+   but they read grey, because almost everything that is not a heading is
+   drawn in one of two desaturated slates: table headers, stat labels, all
+   secondary text, filter buttons, input surfaces. Grey neutrals on a
+   near-white ground is the definition of flat.
+
+   The neutrals move toward the brand's own hue rather than away from it.
+   The shift is small on purpose — these are read at small sizes and a
+   saturated grey becomes a colour, which is worse than a flat one. */
+${s}{
+  --muted:#535e78;
+  --faint:#818ead;
+  --line:#e3e8f4;
+  --line-2:#d3daec;
+  --panel-2:#f0f4fd;
+}
+/* A ground with a light source. One wash from the top, fixed, so the page
+   does not stripe when it scrolls. Cards then sit ON something. */
+${s}{
+  background-image:
+    radial-gradient(120% 55% at 50% 0%,rgba(91,141,255,.11),transparent 62%),
+    radial-gradient(90% 45% at 100% 8%,rgba(139,92,246,.07),transparent 58%);
+  background-attachment:fixed;
+  background-repeat:no-repeat;
+}
+/* Column headers and small caps pick up the brand hue instead of reading as
+   grey furniture. */
+${s} .tbl th{color:#6b7796}
+/* Filter and toolbar buttons get the same lit surface as the ghost button,
+   so a row of them stops looking like a row of grey boxes. */
+${s} .fbtn,${s} .seg2{background-image:linear-gradient(180deg,#fff,var(--panel-2))}
+${s} .fbtn:hover{border-color:var(--primary);color:var(--primary-600)}
+
 /* ── Buttons ────────────────────────────────────────────────────────────
    A flat fill with a drop shadow is the default every framework ships. The
    difference between that and something considered is a light source: a

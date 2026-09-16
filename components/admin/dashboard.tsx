@@ -7,7 +7,6 @@ import { useAppContext } from "@/context/app-provider";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 import {
   ArrowRight,
-  CheckCircle2,
   ChevronDown,
   Coins,
   Download,
@@ -230,17 +229,12 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-        ) : (
-          <div className="attn ok">
-            <span className="ai">
-              <CheckCircle2 />
-            </span>
-            <b>You&apos;re all caught up</b>
-            <span className="sub">
-              No wallet topups, ad-account topups, or account requests are waiting.
-            </span>
-          </div>
-        )}
+        ) : null}
+        {/* Nothing is rendered when the queues are empty. A banner saying so
+            is a whole row telling an admin that there is nothing to tell
+            them — and the queue cards immediately below already show zeros.
+            The two failure cases above still speak, because "we could not
+            read the counts" is genuinely worth a row. */}
       </div>
 
       <h2>Queues</h2>
