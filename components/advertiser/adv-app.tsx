@@ -881,7 +881,9 @@ export default function AdvertiserApp() {
             </div>
             <div className="card">
               <div className="phead" style={{ alignItems: "center" }}>
-                <h2>Your ad accounts</h2>
+                <h2>
+                  <Ic name="i-ad" /> Your ad accounts
+                </h2>
                 <button className="btn ghost sm" onClick={() => go("accounts")}>
                   View all <Ic name="i-arrow" />
                 </button>
@@ -910,11 +912,13 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Affiliate program</h1>
-                <p>Refer advertisers and earn commission on what they pay PSM.</p>
+                <p>Earn on the advertisers you bring in.</p>
               </div>
             </div>
             <div className="card">
-              <h2>Your referral link</h2>
+              <h2>
+                  <Ic name="i-gift" /> Your referral link
+                </h2>
               <p className="cap" style={{ margin: "6px 0 12px" }}>
                 Anyone who signs up through your link is tracked as your
                 referral.
@@ -992,7 +996,9 @@ export default function AdvertiserApp() {
             </div>
             <div className="card" style={{ padding: "16px 8px 8px" }}>
               <div style={{ padding: "0 14px 8px" }}>
-                <h2>Your referrals</h2>
+                <h2>
+                  <Ic name="i-user" /> Your referrals
+                </h2>
               </div>
               <div className="tblwrap">
                 <table className="tbl wide">
@@ -1055,7 +1061,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Wallet</h1>
-                <p>Fund your ad accounts and pay invoices from here.</p>
+                <p>Your money, before it goes anywhere.</p>
               </div>
               {/* The page-level "Top up wallet" is gone: each card already
                   carries its own Top up, so this screen offered the same
@@ -1116,7 +1122,9 @@ export default function AdvertiserApp() {
             )}
             <div className="card" style={{ padding: "16px 8px 8px" }}>
               <div style={{ padding: "0 14px 8px" }}>
-                <h2>Wallet activity</h2>
+                <h2>
+                  <Ic name="i-wallet" /> Wallet activity
+                </h2>
               </div>
               <div className="tblwrap">
                 <table className="tbl wide">
@@ -1197,7 +1205,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Ad accounts</h1>
-                <p>Top up, monitor and request withdrawals.</p>
+                <p>Where your budget lives.</p>
               </div>
               {canRequestAccount ? (
                 <RequestAdAccountDialog>
@@ -1339,7 +1347,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Billing</h1>
-                <p>Your subscription and invoices.</p>
+                <p>Your plan and what you owe.</p>
               </div>
             </div>
             <div className="grid2">
@@ -1379,7 +1387,9 @@ export default function AdvertiserApp() {
                 </div>
               </div>
               <div className="card">
-                <h2>This month</h2>
+                <h2>
+                  <Ic name="i-clock" /> This month
+                </h2>
                 <p className="cap">
                   Pay your monthly fee from your wallet, or let it auto-debit on
                   the due date.
@@ -1447,7 +1457,9 @@ export default function AdvertiserApp() {
             </div>
             <div className="card" style={{ padding: "16px 8px 8px" }}>
               <div style={{ padding: "0 14px 8px" }}>
-                <h2>Invoices</h2>
+                <h2>
+                  <Ic name="i-receipt" /> Invoices
+                </h2>
               </div>
               <div className="tblwrap">
                 <table className="tbl wide">
@@ -1648,7 +1660,9 @@ export default function AdvertiserApp() {
                 </div>
               </div>
               <div className="card">
-                <h2>Notification preferences</h2>
+                <h2>
+                  <Ic name="i-bell" /> Notification preferences
+                </h2>
                 <p className="cap">Choose what pings you.</p>
                 <Toggle
                   label="Top-up verified"
@@ -1698,7 +1712,9 @@ export default function AdvertiserApp() {
             </div>
             <div className="grid2">
               <div className="card">
-                <h2>How it works</h2>
+                <h2>
+                  <Ic name="i-help" /> How it works
+                </h2>
                 <div className="faq" style={{ marginTop: 14 }}>
                   <div>
                     <div className="q">How do I fund an ad account?</div>
@@ -1724,7 +1740,9 @@ export default function AdvertiserApp() {
                 </div>
               </div>
               <div className="card">
-                <h2>Talk to us</h2>
+                <h2>
+                  <Ic name="i-mail" /> Talk to us
+                </h2>
                 <p className="cap">Your account manager is one tap away.</p>
                 <button
                   className="btn block grad"
