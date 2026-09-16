@@ -1,3 +1,4 @@
+import { refineCss } from "../advertiser/refine-css";
 // AUTO-GENERATED verbatim from affiliate-jackpot-light.html mockup.
 // Scoped under .affapp (loaded only in the affiliate layout). Font
 // family names swapped for the app's next/font CSS variables.
@@ -441,4 +442,4 @@ export const AFF_CSS = `
   .affapp select,
   .affapp textarea{font-size:16px}
 }
-`;
+`  + refineCss(".affapp");

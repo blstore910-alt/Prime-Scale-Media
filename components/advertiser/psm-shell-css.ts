@@ -1,3 +1,4 @@
+import { refineCss } from "./refine-css";
 // Scoped port of the approved advertiser mockup (advertiser-app.html).
 // Every selector is prefixed with .psmapp so it only affects the ported
 // advertiser area and never leaks into the rest of the app.
@@ -868,4 +869,4 @@ export const PSM_APP_CSS = `
   .psmapp .phead-actions .btn{min-height:40px}
   .psmapp .phead-actions .btn.ghost{min-width:42px;justify-content:center}
 }
-`;
+`  + refineCss(".psmapp");

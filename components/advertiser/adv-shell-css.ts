@@ -1,3 +1,4 @@
+import { refineCss } from "./refine-css";
 // AUTO-GENERATED verbatim from advertiser-app.html mockup (scoped .advapp).
 export const ADV_CSS = `
   .advapp{--ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
@@ -552,4 +553,4 @@ export const ADV_CSS = `
 .advapp .tool.ava-btn{background:transparent;border:1px solid transparent}
 .advapp .tool.ic-btn:hover,
 .advapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
-`;
+`  + refineCss(".advapp");
