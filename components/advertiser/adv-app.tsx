@@ -167,7 +167,7 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: subscription } = useQuery<{
+  const { data: subscription, isError: subError } = useQuery<{
     amount: number | null;
     currency: string | null;
     status: string | null;
@@ -215,7 +215,7 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: invoices } = useQuery<InvoiceWithRelations[]>({
+  const { data: invoices, isError: invError } = useQuery<InvoiceWithRelations[]>({
     queryKey: ["adv-invoices", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
@@ -1192,10 +1192,16 @@ export default function AdvertiserApp() {
                 <div className="ring" />
                 <span className="pill">
                   <Ic name="i-shield" />{" "}
+                  {/* A failed read is not "no plan". Telling a paying
+                      customer they have no subscription because a query
+                      dropped is the worst kind of wrong: it is their own
+                      screen, so there is nowhere else for them to check. */}
                   {subscription?.status
                     ? subscription.status[0].toUpperCase() +
                       subscription.status.slice(1)
-                    : "No plan"}
+                    : subError
+                      ? "Couldn't load"
+                      : "No plan"}
                 </span>
                 <div className="plan">
                   {subscription?.amount
@@ -1257,13 +1263,21 @@ export default function AdvertiserApp() {
                       disabled={!dueSubInvoice}
                       onClick={() => {
                         if (dueSubInvoice) payInvoice(dueSubInvoice.id);
-                        else toast.message("No unpaid subscription invoice to pay.");
+                        else if (invError) {
+                          toast.error(
+                            "We couldn't load your invoices — reload before paying.",
+                          );
+                        } else {
+                          toast.message("No unpaid subscription invoice to pay.");
+                        }
                       }}
                     >
                       <Ic name="i-check" />{" "}
                       {dueSubInvoice
                         ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
-                        : "No subscription invoice due"}
+                        : invError
+                          ? "Couldn't load your invoices"
+                          : "No subscription invoice due"}
                     </button>
                   </>
                 ) : (

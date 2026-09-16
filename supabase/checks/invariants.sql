@@ -33,7 +33,9 @@ rates as (
 supplier_leak as (
   select count(*) as bad
     from public.ad_accounts
-   where metadata ?| array['source', 'supplier_external_id', 'allocated_from_pool_id']
+   -- ::jsonb because the ?| operator exists only for jsonb, and these
+   -- columns are plain json on the live database.
+   where metadata::jsonb ?| array['source', 'supplier_external_id', 'allocated_from_pool_id']
 ),
 
 -- 3. No staff PII on customer-readable rows.
@@ -42,10 +44,12 @@ supplier_leak as (
 staff_leak as (
   select
     (select count(*) from public.top_ups
-      where author ? 'email' or author ? 'name')
+      where author is not null
+        and (author::jsonb ? 'email' or author::jsonb ? 'name'))
     +
     (select count(*) from public.topup_logs
-      where author ? 'email' or author ? 'name') as bad
+      where author is not null
+        and (author::jsonb ? 'email' or author::jsonb ? 'name')) as bad
 ),
 
 -- 4. Never refunded more for a period than was collected for it.
