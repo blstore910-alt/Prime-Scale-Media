@@ -499,6 +499,18 @@ export const PSM_APP_CSS = `
      things. Every other cell here is label-above-value, left-aligned; this
      one was the exception, and that is what made the grid look unsettled. */
   .psmapp .tbl.wide .actrow{justify-content:flex-start}
+  /* Below 420px the row buttons are icons only (~46px each), so three of
+     them fit inside ONE column of the two-up grid. Letting the actions cell
+     stay full-width there left the card with two rows that each had an empty
+     right half — STATUS alone, then ACTIONS alone — which is both taller and
+     more ragged than it needs to be. Paired up, the card loses a row and the
+     grid has no holes.
+
+     Above 420px the labels come back and three of them will not fit a
+     column, so there it keeps the full width it needs. */
+  @media (max-width:420px){
+    .psmapp .tbl.wide td.fullcell:has(.actrow){grid-column:auto}
+  }
   /* Same reason: a right-aligned money cell in a card sits under a
      left-aligned label. .r is for table columns, not for cards. */
   .psmapp .tbl.wide td.r > *{justify-self:start}
