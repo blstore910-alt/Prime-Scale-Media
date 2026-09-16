@@ -11,7 +11,7 @@ import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/she
 import useUpdateAdvertiser from "@/components/advertiser/use-update-advertiser";
 import { dmSans, jakarta } from "@/lib/fonts";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
-import { AlertCircle, Loader2, X } from "lucide-react";
+import { AlertCircle, Loader2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import useUpdateUserProfile from "./use-update-user";
 import UserAccounts from "./user-accounts";
@@ -42,6 +42,20 @@ const SHEET_CSS = `
 .udsheet .uds-id{min-width:0;flex:1}
 .udsheet .uds-nm{font-family:var(--hd);font-weight:800;font-size:1.1rem;line-height:1.2;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The name is a button that turns into its own input. A pencil that only
+   shows on hover would be invisible on a phone, and a separate edit row for
+   one field is more chrome than the field is worth. */
+.udsheet .uds-nm-btn{display:flex;align-items:center;gap:7px;width:100%;border:0;background:none;padding:0;
+  cursor:pointer;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;text-align:left;
+  border-radius:8px}
+.udsheet .uds-nm-btn svg{width:14px;height:14px;flex:0 0 auto;color:var(--faint);opacity:.5;transition:.12s}
+.udsheet .uds-nm-btn:hover{color:var(--primary-600)}
+.udsheet .uds-nm-btn:hover svg{opacity:1;color:var(--primary-600)}
+@media (hover:none){.udsheet .uds-nm-btn svg{opacity:.85}}
+.udsheet .uds-nm-in{width:100%;font-family:var(--hd);font-weight:800;font-size:1.1rem;line-height:1.2;
+  border:1px solid var(--primary);border-radius:9px;padding:3px 8px;margin:-4px 0;background:var(--panel);
+  color:var(--ink);box-shadow:0 0 0 3px var(--primary-tint)}
+.udsheet .uds-nm-in:focus{outline:0}
 .udsheet .uds-sub{color:var(--faint);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
 .udsheet .uds-x{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
@@ -143,6 +157,8 @@ export default function UserDetailsSheet({
   const { updateUserProfile, isPending } = useUpdateUserProfile();
   const queryClient = useQueryClient();
 
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const [note, setNote] = useState<string>("");
   const initialNotes = advertiser?.note || "";
 
@@ -151,6 +167,28 @@ export default function UserDetailsSheet({
       setNote(advertiser.note);
     }
   }, [advertiser?.note]);
+
+  const saveName = () => {
+    const next = nameDraft.trim();
+    setEditingName(false);
+    // A blank name is not a rename — it would leave every invoice and list
+    // row showing nothing. Unchanged is not a write either.
+    if (!profileId || !next || next === (data?.full_name ?? "")) {
+      setNameDraft(data?.full_name ?? "");
+      return;
+    }
+    updateUserProfile(
+      { userId: profileId, data: { full_name: next } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["user", profileId] });
+          queryClient.invalidateQueries({ queryKey: ["users"] });
+          toast.success("Name updated");
+        },
+        onError: () => setNameDraft(data?.full_name ?? ""),
+      },
+    );
+  };
 
   const updateAccountStatus = (value: string) => {
     if (!profileId) return;
@@ -185,7 +223,40 @@ export default function UserDetailsSheet({
         <div className="uds-head">
           <span className="uds-av">{initials(data?.full_name)}</span>
           <div className="uds-id">
-            <div className="uds-nm">{data?.full_name || "User Details"}</div>
+            {/* Editable in place. Names are typed by customers at signup and
+                arrive wrong often enough to matter — a company in the
+                first-name box, a typo, a name that has since changed — and
+                this one goes on their invoices. Without this the desk either
+                lives with it or edits the database by hand. */}
+            {editingName ? (
+              <input
+                className="uds-nm-in"
+                autoFocus
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveName();
+                  if (e.key === "Escape") {
+                    setNameDraft(data?.full_name ?? "");
+                    setEditingName(false);
+                  }
+                }}
+                onBlur={saveName}
+                aria-label="Full name"
+              />
+            ) : (
+              <button
+                className="uds-nm uds-nm-btn"
+                onClick={() => {
+                  setNameDraft(data?.full_name ?? "");
+                  setEditingName(true);
+                }}
+                title="Rename"
+              >
+                {data?.full_name || "User Details"}
+                <Pencil aria-hidden />
+              </button>
+            )}
             {/* The email is off the list rows now, so this is where you
                 come to get it — which makes it worth being able to take
                 rather than select by hand on a phone. */}

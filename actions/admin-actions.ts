@@ -161,6 +161,13 @@ export async function toggleAdminStatus(
 const USER_PROFILE_ALLOWED_COLUMNS = [
   "is_active",
   "status",
+  // Names are typed by customers at signup and arrive wrong often enough to
+  // matter: a company name in the first-name box, a typo, a legal name that
+  // has since changed. It appears on invoices, so leaving it uneditable
+  // means the desk either lives with it or edits the database by hand. The
+  // action is already admin-only, refuses admin targets, and every change is
+  // recorded by the _audit_row_change trigger on user_profiles.
+  "full_name",
 ] as const;
 type UserProfileUpdatable = Partial<
   Record<(typeof USER_PROFILE_ALLOWED_COLUMNS)[number], unknown>

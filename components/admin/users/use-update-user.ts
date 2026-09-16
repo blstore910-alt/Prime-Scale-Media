@@ -9,6 +9,7 @@ type UpdateUserPayload = {
   data: Partial<{
     is_active: boolean;
     status: string;
+    full_name: string;
   }>;
 };
 
