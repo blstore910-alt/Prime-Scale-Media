@@ -318,9 +318,16 @@ export async function GET(request: NextRequest) {
     []) as CommissionRow[];
 
   const rows: ProfitContributionRow[] = [
+    // fee_amount is USD by construction, whatever top_ups.currency says.
+    // calculateTopupAmount (lib/utils-pure.ts) converts the paid amount to
+    // USD first and takes the fee off THAT, and both the single and bulk
+    // top-up forms store the result. Labelling it with the top-up's payment
+    // currency counted a dollar figure as euros on every EUR top-up, which
+    // inflated euro fee revenue on the one screen the operator uses to see
+    // what the business earned.
     ...fees.map((row) => ({
       created_at: row.created_at,
-      currency: row.currency,
+      currency: "USD",
       amount: row.fee_amount,
       direction: 1 as const,
     })),

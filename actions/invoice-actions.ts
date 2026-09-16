@@ -152,23 +152,33 @@ export async function setInvoicePaidStatus(
   // due date — so the advertiser would be charged twice for one period.
   // Block that transition; a genuine reversal must go through a refund.
   //
-  // The test is subscription_id, not type. The guard used to read
-  // `type === "subscription"`, but the cron's collect loop
-  // (20260901380000_subscription_billing.sql:164-172) selects on
-  //   i.subscription_id is not null and i.status = 'unpaid' and due_date <= now()
-  // with NO filter on type — so a `subscription_adjustment` invoice, which
-  // carries a subscription_id, went straight past this guard and was
-  // collected a second time. Match the condition the cron actually uses, so
-  // a new invoice type can never quietly reopen this.
-  if (
-    invoice.status === "paid" &&
-    status === "unpaid" &&
-    invoice.subscription_id
-  ) {
+  // The test is now "was it paid", full stop — not the type, and not
+  // subscription_id.
+  //
+  // It started as `type === "subscription"`, which missed
+  // subscription_adjustment. Narrowing to subscription_id caught that, and
+  // still missed every invoice that has no subscription at all: an
+  // ad_account_fee raised from the request review, or anything created from
+  // the /invoices dialog, since createInvoiceAsAdmin cannot set
+  // subscription_id — it is not in INVOICE_INSERT_ALLOWED. Those are paid
+  // with invoice_pay_from_wallet too, so reopening one let the advertiser
+  // press "Pay now" again and be debited twice.
+  //
+  // Nothing in the schema records HOW an invoice was paid, so "paid from the
+  // wallet" cannot be told apart from "an admin ticked it by mistake". Given
+  // that, refusing every paid→unpaid is the only answer that cannot cost a
+  // customer money.
+  //
+  // It does cost something, and the cost is worth stating: correcting an
+  // invoice that was marked paid in error now needs a credit note rather
+  // than a toggle. Making that toggle safe means recording the payment
+  // method on the invoice and allowing a reopen only for manually-marked
+  // ones — a deliberate change, not a gap to leave standing.
+  if (invoice.status === "paid" && status === "unpaid") {
     return {
       ok: false,
       error:
-        "A paid subscription invoice can't be marked unpaid — the wallet isn't re-credited and the billing run would collect it again. Issue a refund instead.",
+        "A paid invoice can't be marked unpaid — the wallet is never re-credited, so it could be collected a second time. Issue a refund or a credit note instead.",
       code: "invalid",
     };
   }
