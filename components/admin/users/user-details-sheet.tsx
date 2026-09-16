@@ -56,7 +56,9 @@ const SHEET_CSS = `
   border:1px solid var(--primary);border-radius:9px;padding:3px 8px;margin:-4px 0;background:var(--panel);
   color:var(--ink);box-shadow:0 0 0 3px var(--primary-tint)}
 .udsheet .uds-nm-in:focus{outline:0}
-.udsheet .uds-sub{color:var(--faint);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.udsheet .uds-sub{display:flex;align-items:center;gap:6px;min-width:0;
+  color:var(--faint);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.udsheet .uds-dot{color:var(--line-2);flex:0 0 auto}
 .udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
 .udsheet .uds-x{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
   color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
@@ -75,6 +77,31 @@ const SHEET_CSS = `
 .udsheet .uds-cgrid .full{grid-column:1 / -1}
 .udsheet .uds-f .l{display:block;font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
 .udsheet .uds-f .d{font-weight:600;word-break:break-word}
+/* Copyable's own styles live under .psmapp, and this sheet renders in a
+   Radix portal OUTSIDE that shell — so the component arrived here with no
+   styling at all. Its icon dropped onto a line of its own under the value,
+   at whatever size an unstyled svg takes, which is why a column of details
+   read as a column of big loose buttons. Re-declared here, same as the
+   shell tokens above are. */
+.udsheet .copyable{display:inline-flex;align-items:baseline;gap:6px;max-width:100%;min-width:0;
+  border:0;background:none;padding:0;margin:0;cursor:pointer;text-align:left;
+  font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;
+  border-radius:7px;transition:color .12s}
+.udsheet .copyable .cv{min-width:0;overflow-wrap:anywhere}
+.udsheet .copyable .ci{width:13px;height:13px;flex:0 0 auto;align-self:center;
+  color:var(--faint);opacity:.45;transition:opacity .12s,color .12s}
+.udsheet .copyable:hover{color:var(--primary-600)}
+.udsheet .copyable:hover .ci{opacity:1;color:var(--primary-600)}
+.udsheet .copyable:focus-visible{outline:0;box-shadow:0 0 0 3px var(--primary-tint)}
+.udsheet .copyable.done{color:var(--win)}
+.udsheet .copyable.done .ci{color:var(--win);opacity:1}
+.udsheet .copyable .cfail{font-size:.68rem;color:var(--danger);font-weight:700}
+@media (hover:none){.udsheet .copyable .ci{opacity:.8}}
+/* Two columns at 400px gave every value about 150px, so a company name and
+   an email both wrapped to three lines. One column reads in half the height. */
+@media (max-width:520px){
+  .udsheet .uds-cgrid{grid-template-columns:1fr}
+}
 .udsheet .uds-select{font-family:var(--bd);font-weight:700;font-size:.86rem;text-transform:capitalize;
   border:1px solid var(--line-2);border-radius:11px;padding:9px 34px 9px 13px;background:var(--panel);color:var(--ink);
   cursor:pointer;-webkit-appearance:none;appearance:none;
@@ -260,8 +287,18 @@ export default function UserDetailsSheet({
             {/* The email is off the list rows now, so this is where you
                 come to get it — which makes it worth being able to take
                 rather than select by hand on a phone. */}
+            {/* A separator between them. They ran together as
+                "PSM0005xifape4500@jobscai.com" — two identifiers printed as
+                one string, which is unreadable and worse than either alone. */}
             <div className="uds-sub">
-              {clientCode && <span className="uds-cd">{clientCode}</span>}
+              {clientCode && (
+                <>
+                  <span className="uds-cd">{clientCode}</span>
+                  <span className="uds-dot" aria-hidden>
+                    ·
+                  </span>
+                </>
+              )}
               {data?.email ? (
                 <Copyable value={data.email} label="email" />
               ) : (
