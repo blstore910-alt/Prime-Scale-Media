@@ -4,7 +4,7 @@ import { getExchangeRate } from "@/lib/get-exchange-rates";
 import { createClient } from "@/lib/supabase/server";
 import { formatRate } from "@/lib/utils";
 import { cookies } from "next/headers";
-import { maintenanceGuard } from "./_shared";
+import { maintenanceGuard, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -178,10 +178,22 @@ export async function upsertExchangeRate(
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = existing?.id
-    ? await supabase.from("exchange_rates").update(row).eq("id", existing.id)
-    : await supabase.from("exchange_rates").insert(row);
-
-  if (error) return { ok: false, error: error.message };
+  // Count the rows on the UPDATE branch. A rate that reports saved and did
+  // not is the worst of the three: the previous row was already stood down
+  // just above, so the tenant would be left with no active rate at all while
+  // the screen says the new one is in force.
+  if (existing?.id) {
+    const { data: rows, error } = await supabase
+      .from("exchange_rates")
+      .update(row)
+      .eq("id", existing.id)
+      .select("id");
+    if (error) return { ok: false, error: error.message };
+    const wrote = wroteSomething(rows);
+    if (!wrote.ok) return wrote;
+  } else {
+    const { error } = await supabase.from("exchange_rates").insert(row);
+    if (error) return { ok: false, error: error.message };
+  }
   return { ok: true, data: null };
 }

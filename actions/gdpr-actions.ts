@@ -2,7 +2,7 @@
 
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard } from "./_shared";
+import { maintenanceGuard, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -196,15 +196,23 @@ export async function requestOwnErasure(): Promise<ActionResult> {
     return { ok: false, error: "Unauthorized" };
   }
 
-  const { error } = await supabase
+  // Count the rows. This is a legal request: telling someone their erasure
+  // was registered when nothing was written leaves them believing a right
+  // was exercised that was not, and the clock they think is running is not.
+  // A profile can have several rows across tenants, so "at least one" is the
+  // test rather than exactly one.
+  const { data: rows, error } = await supabase
     .from("user_profiles")
     .update({
       status: "pending_erasure",
       is_active: false,
       updated_at: new Date().toISOString(),
     })
-    .eq("user_id", userData.user.id);
+    .eq("user_id", userData.user.id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: null };
 }
 

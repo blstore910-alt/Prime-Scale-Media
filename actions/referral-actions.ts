@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { checkVersion, maintenanceGuard } from "./_shared";
+import { checkVersion, maintenanceGuard, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -89,12 +89,18 @@ export async function setCommissionStatus(
     };
   }
 
-  const { error } = await supabase
+  // Count the rows. Marking a commission paid when nothing was written means
+  // an affiliate is recorded as settled and is not, which surfaces as a
+  // dispute rather than as an error.
+  const { data: rows, error } = await supabase
     .from("referral_commissions")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", commissionId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: null };
 }
 
@@ -213,11 +219,17 @@ export async function setReferralLinkStatus(
     };
   }
 
-  const { error } = await supabase
+  // Count the rows. This is the switch that makes someone an affiliate at
+  // all — the advertiser app reads exactly this status — so a silent no-op
+  // here is an approval that was never granted and nobody knows it.
+  const { data: linkRows, error } = await supabase
     .from("referral_links")
     .update({ status })
     .eq("id", referralLinkId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  const wroteLink = wroteSomething(linkRows);
+  if (!wroteLink.ok) return wroteLink;
   return { ok: true, data: null };
 }

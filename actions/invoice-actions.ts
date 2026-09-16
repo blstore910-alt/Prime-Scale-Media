@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, type ActionResult } from "./_shared";
+import { maintenanceGuard, type ActionResult, wroteSomething } from "./_shared";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -183,15 +183,22 @@ export async function setInvoicePaidStatus(
     };
   }
 
-  const { error: updateError } = await supabase
+  // Count the rows. An UPDATE that matches nothing returns no error and no
+  // rows in PostgREST, so marking an invoice paid could report success while
+  // the invoice stayed open — and an invoice that looks settled but is not
+  // is the difference between chasing a customer and not chasing them.
+  const { data: updated, error: updateError } = await supabase
     .from("invoices")
     .update({
       status,
       paid_at: status === "paid" ? new Date().toISOString() : null,
     })
     .eq("id", invoiceId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (updateError) return { ok: false, error: updateError.message };
+  const wrote = wroteSomething(updated);
+  if (!wrote.ok) return wrote;
 
   return { ok: true, data: null };
 }

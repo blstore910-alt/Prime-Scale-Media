@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, versionMatches, type ActionResult } from "./_shared";
+import { maintenanceGuard, versionMatches, type ActionResult, wroteSomething } from "./_shared";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
@@ -473,12 +473,18 @@ export async function updateTopupAsAdmin(
   // what is reconstructable from audit_events, which is admin-only.
   cleaned.author = { id: profile.id };
 
-  const { error: updateError } = await supabase
+  // Count the rows — see wroteSomething(). An edit to a top-up that silently
+  // did not save would be written to the log below as though it had, so the
+  // log would disagree with the row it describes.
+  const { data: updatedTopup, error: updateError } = await supabase
     .from("top_ups")
     .update(cleaned)
     .eq("id", topupId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (updateError) return { ok: false, error: updateError.message };
+  const wroteTopup = wroteSomething(updatedTopup);
+  if (!wroteTopup.ok) return wroteTopup;
 
   await writeTopupLog(
     supabase,

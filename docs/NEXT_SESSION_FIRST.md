@@ -6,7 +6,7 @@ it.
 
 ---
 
-## 1. The silent-write sweep (25 sites left) — START HERE
+## 1. The silent-write sweep (18 sites left) — START HERE
 
 **Why this is first:** it is the bug class that cost the most time to find,
 because it does not look like a bug. The screen says it worked.
@@ -67,21 +67,15 @@ problem, not only the desk's.
 | `actions/admin-actions.ts:566` | `updateAdvertiser()` | `advertisers` | single row |
 | `actions/admin-actions.ts:646` | `setAdvertiserCommission()` | `advertisers` | single row |
 | `actions/bank-account-actions.ts:167` | `upsertBankAccount()` | `bank_accounts` | single row |
-| `actions/exchange-rate-actions.ts:152` | `upsertExchangeRate()` | `exchange_rates` | money |
-| `actions/exchange-rate-actions.ts:182` | `upsertExchangeRate()` | `exchange_rates` | money |
-| `actions/gdpr-actions.ts:200` | `requestOwnErasure()` | `user_profiles` | legal obligation |
 | `actions/invite-actions.ts:91` | `cancelInvitation()` | `invitations` | single row |
-| `actions/invoice-actions.ts:187` | `setInvoicePaidStatus()` | `invoices` | money |
-| `actions/referral-actions.ts:93` | `setCommissionStatus()` | `referral_commissions` | money |
-| `actions/referral-actions.ts:217` | `setReferralLinkStatus()` | `referral_links` | single row |
 | `actions/supplier-pool-actions.ts:328` | `assignSupplierAdAccount()` | `supplier_ad_accounts` | single row |
 | `actions/supplier-pool-actions.ts:344` | `assignSupplierAdAccount()` | `supplier_ad_accounts` | single row |
 | `actions/tenant-actions.ts:149` | `createTenantForCurrentUser()` | `user_profiles` | single row |
-| `actions/topup-actions.ts:477` | `updateTopupAsAdmin()` | `top_ups` | money |
 
-**Do the money and legal ones first** — `invoice-actions`, `referral-actions`,
-`exchange-rate-actions`, `topup-actions`, `gdpr-actions`. A top-up edit or an
-invoice marked paid that silently did not save is worse than a stale label.
+**The money and legal ones are done** — `invoice-actions`, `referral-actions`,
+`exchange-rate-actions`, `topup-actions` and `gdpr-actions` all count their
+rows now. What is left is admin CRUD: a stale label rather than a wrong
+number, which is why it is second.
 
 **Judge each one, do not run a regex over the file.** A few updates in this
 repo are legitimately allowed to match nothing — bulk deactivations filtered
