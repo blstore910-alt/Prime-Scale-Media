@@ -1250,7 +1250,7 @@ export default function AdvertiserApp() {
                 <p className="cap" style={{ margin: 0 }}>
                   {isRequestsLoading
                     ? "Loading your requests…"
-                    : "No requests yet. Use Request ad account to start one — we set it up on our verified Business Manager, live in 3–12 hours."}
+                    : "No requests yet. Use Request ad account to start one — we set it up on our verified Business Manager."}
                 </p>
               </div>
             )}
@@ -1293,8 +1293,11 @@ export default function AdvertiserApp() {
                 <div
                   style={{ opacity: 0.82, fontSize: ".78rem", marginTop: 16 }}
                 >
-                  Plan changes apply from your next billing cycle. Need it
-                  sooner? Your PSM admin can switch it manually.
+                  {/* No "ask an admin to do it by hand". Every plan change
+                      settles against the invoice it affects, so pointing a
+                      customer at a manual override invites exactly the
+                      off-ledger change this product is built to avoid. */}
+                  Plan changes take effect from your next billing cycle.
                 </div>
               </div>
               <div className="card">
@@ -1629,7 +1632,7 @@ export default function AdvertiserApp() {
                   <div>
                     <div className="q">How fast do accounts go live?</div>
                     <div className="a">
-                      Typically 3–12 hours after you request one, on our verified
+                      Set up on our verified
                       Business Manager.
                     </div>
                   </div>

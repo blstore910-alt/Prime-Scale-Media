@@ -15,8 +15,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // NO bg-gradient-to-b here. `bg-brand-strong` is a background-IMAGE
+        // (app/globals.css sets it to the brand gradient), so a Tailwind
+        // gradient utility replaces it rather than layering over it — which
+        // turned this button white, with white text on it, everywhere it is
+        // used. The top highlight comes from the inset shadow instead, which
+        // composites over whatever the background happens to be.
         default:
-          "bg-brand-strong text-white bg-gradient-to-b from-white/[.17] to-transparent to-[58%] shadow-[inset_0_1px_0_rgba(255,255,255,.22),0_10px_22px_-14px_rgba(58,111,255,.85),0_2px_5px_-3px_rgba(20,30,80,.35)] hover:-translate-y-px hover:brightness-[1.04] active:brightness-[.98]",
+          "bg-brand-strong text-white shadow-[inset_0_1px_0_rgba(255,255,255,.28),0_10px_22px_-14px_rgba(58,111,255,.85),0_2px_5px_-3px_rgba(20,30,80,.35)] hover:-translate-y-px hover:brightness-[1.06] active:brightness-[.98]",
         destructive:
           "bg-destructive text-destructive-foreground bg-gradient-to-b from-white/[.18] to-transparent to-[58%] shadow-[inset_0_1px_0_rgba(255,255,255,.2),0_10px_22px_-14px_rgba(229,72,77,.9)] hover:-translate-y-px hover:brightness-[1.04]",
         outline:

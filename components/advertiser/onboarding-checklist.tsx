@@ -128,7 +128,9 @@ export default function OnboardingChecklist({
     {
       id: "account",
       title: "Request your first ad account",
-      desc: "We set it up on our verified Business Manager, live in 3–12 hours.",
+      // No hours quoted. A number on screen is a promise, and this one is
+      // not ours to make — it depends on the platform, not on us.
+      desc: "We set it up for you on our verified Business Manager.",
       icon: "i-ad",
       cta: "Request",
       view: "accounts",

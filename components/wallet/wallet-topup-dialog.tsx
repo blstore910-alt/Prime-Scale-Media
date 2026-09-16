@@ -41,8 +41,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   FileImage,
-  RotateCcw,
-  X,
 } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
@@ -254,6 +252,26 @@ export default function WalletTopupDialog({
     enabled: open && step !== STEPS.SUCCESS,
   });
 
+  // Restore silently. There used to be a blue "Resume where you left off
+  // (16-9-2026, 22:41:23)" bar with a Resume button, which is a question
+  // nobody wants asked: the answer is always yes, and a timestamp to the
+  // second is not information anyone is deciding on. The protection is what
+  // matters (CLAUDE.md: never lose typing), so what was typed simply comes
+  // back and the draft is consumed.
+  useEffect(() => {
+    if (!open || !draft.hasDraft || !draft.restoredDraft) return;
+    const v = draft.restoredDraft.values;
+    setCurrency(v.currency);
+    setBankGroup(normalizeBankGroup(v.bankGroup));
+    if (v.transferCurrency) setTransferCurrency(v.transferCurrency);
+    setPaymentSlipUrl(v.paymentSlipUrl);
+    setPaymentSlipPreview(v.paymentSlipUrl ? "image" : null);
+    setValue("amount", v.amount || 0);
+    setStep(v.step || STEPS.SELECTION);
+    draft.dismissDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, draft.hasDraft, draft.restoredDraft]);
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (!open) {
@@ -423,45 +441,6 @@ export default function WalletTopupDialog({
               : "Request Wallet Topup"}
           </DialogTitle>
         </DialogHeader>
-
-        {draft.hasDraft &&
-          draft.restoredDraft &&
-          step !== STEPS.SUCCESS && (
-          <div className="rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
-            <div className="flex-1 text-xs">
-              Resume where you left off (
-              {new Date(draft.restoredDraft.savedAt).toLocaleString()})
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const v = draft.restoredDraft!.values;
-                setCurrency(v.currency);
-                setBankGroup(normalizeBankGroup(v.bankGroup));
-                if (v.transferCurrency) setTransferCurrency(v.transferCurrency);
-                setPaymentSlipUrl(v.paymentSlipUrl);
-                setPaymentSlipPreview(v.paymentSlipUrl ? "image" : null);
-                setValue("amount", v.amount || 0);
-                setStep(v.step || STEPS.SELECTION);
-                draft.dismissDraft();
-              }}
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Resume
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => void draft.clear()}
-              aria-label="Discard draft"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
         <ScrollArea className="max-h-[70dvh] pr-2">
           <div className="px-1 py-2">
             {/* STEP 1: SELECTION */}

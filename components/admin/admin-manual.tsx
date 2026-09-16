@@ -89,7 +89,7 @@ const SECTIONS: Section[] = [
     icon: FileText,
     path: "Customers › Account Requests",
     intro:
-      "Advertisers request new ad accounts here. Approving sets the account up on our Business Manager (typically live in 3–12h). The sidebar badge shows how many are waiting.",
+      "Advertisers request new ad accounts here. Approving sets the account up on our Business Manager. The sidebar badge shows how many are waiting.",
     steps: [
       "Open Customers › Account Requests. Sort by newest / oldest and use the status filter (Pending, Payment pending, In progress, Completed, Rejected, Cancelled).",
       "Click Review on a request to open the decision dialog, or Details for a read-only sheet.",
