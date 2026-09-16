@@ -211,6 +211,21 @@ export default function AdminShell({
     return () => document.removeEventListener("keydown", onKey);
   }, [signOutOpen]);
 
+
+  // Escape closes the navigation drawer too. It was the one overlay in the
+  // shell that ignored it: the account menu and the sign-out dialog both
+  // listen, so the key worked everywhere EXCEPT the drawer that covers most
+  // of the screen. Nothing signals "this is dismissible" more reliably than
+  // Escape actually dismissing it.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const close = () => setOpen(false);
   const title = TITLES[pathname] ?? "Dashboard";
 

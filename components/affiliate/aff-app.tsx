@@ -182,6 +182,17 @@ export default function AffiliateApp() {
   };
 
   // Close the account menu on outside-click / Escape.
+  // Escape closes the navigation drawer, like every other overlay in the
+  // shell. It was the one that ignored it, and it covers most of the screen.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNavOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {

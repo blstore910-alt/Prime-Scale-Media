@@ -78,8 +78,14 @@ const DASH_CSS = `
 .psm-dash .qcard:has(.qbadge:not(.zero)){border-color:#cfe0ff;background:linear-gradient(180deg,#fff,var(--primary-tint))}
 .psm-dash .qcard:has(.qbadge:not(.zero))::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary)}
 .psm-dash .qcard:has(.qbadge.unknown)::before{background:var(--faint)}
-.psm-dash .qcard:has(.qbadge.zero) .ql{color:var(--muted);font-weight:600}
-.psm-dash .qcard:has(.qbadge.zero) .qi{opacity:.55}
+/* A queue with nothing in it AND a queue that carries no count at all are
+   both just links — neither is telling you to do anything. They were styled
+   differently, so the cards saying the least ended up the loudest on the
+   screen. Same quiet treatment for both. */
+.psm-dash .qcard:has(.qbadge.zero) .ql,
+.psm-dash .qcard:not(:has(.qbadge)) .ql{color:var(--muted);font-weight:600}
+.psm-dash .qcard:has(.qbadge.zero) .qi,
+.psm-dash .qcard:not(:has(.qbadge)) .qi{opacity:.55}
 .psm-dash .qcard .qi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
 .psm-dash .qcard .qi svg{width:17px;height:17px}
 .psm-dash .qcard .ql{flex:1;min-width:0;font-family:var(--hd);font-weight:700;font-size:.92rem;line-height:1.25;color:var(--ink)}

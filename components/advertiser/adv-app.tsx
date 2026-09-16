@@ -157,6 +157,17 @@ export default function AdvertiserApp() {
       queryClient.invalidateQueries({ queryKey: ["wallet", advertiserId] });
     },
   });
+  // Escape closes the navigation drawer, like every other overlay in the
+  // shell. It was the one that ignored it, and it covers most of the screen.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNavOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
   useEffect(() => {
     if (advertiserId && tenantId && wallet === null) createWallet();
   }, [advertiserId, tenantId, wallet, createWallet]);
