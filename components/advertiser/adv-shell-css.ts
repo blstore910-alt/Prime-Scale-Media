@@ -444,16 +444,35 @@ export const ADV_CSS = `
     .tbl.wide{min-width:0}
     .tbl.wide thead{display:none}
     .tbl.wide,.tbl.wide tbody,.tbl.wide tr{display:block;width:100%}
-    .tbl.wide tr{border:1px solid var(--line);border-radius:14px;margin:0 0 12px;padding:4px 12px;background:var(--panel);box-shadow:var(--shadow)}
+    .tbl.wide tr{border:1px solid var(--line);border-radius:16px;margin:0 0 10px;padding:13px 14px;background:var(--panel);
+      box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px -1px rgba(20,30,80,.16),0 14px 30px -26px rgba(20,30,80,.45)}
     .tbl.wide tr:last-child{margin-bottom:0}
     .tbl.wide tr:hover td{background:transparent}
-    .tbl.wide td{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 16px;padding:10px 2px;border-top:1px solid var(--line);text-align:right;min-width:0}
-    .tbl.wide tr td:first-child{border-top:0}
+    /* No hairline between every field. A five-field card had four rules
+       through it, which is more furniture than content; spacing separates
+       them perfectly well and the card keeps one line above its action. */
+    .tbl.wide td{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:3px 16px;padding:5px 0;border:0;text-align:right;min-width:0}
     .tbl.wide td::before{content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
     .tbl.wide td>*{grid-column:2;min-width:0}
     .tbl.wide td>span{justify-self:end}
+    /* The first cell is the card's TITLE, not another labelled field. Every
+       one of these lists leads with the thing the row IS — an invoice number,
+       an account name, a client code — and printing "INVOICE  117" as a
+       label/value pair buries it among the details. */
+    .tbl.wide tr td:first-child{display:block;text-align:left;font-family:var(--hd);font-weight:800;
+      font-size:1.02rem;letter-spacing:-.01em;padding:0 0 9px;overflow-wrap:anywhere}
+    .tbl.wide tr td:first-child::before{display:none}
+    /* A trailing action cell carries no label and gets the full width, with
+       one rule above it. A small button floating at the right edge of a card
+       is hard to hit and reads as an afterthought. */
+    .tbl.wide tr td:last-child:empty{display:none}
+    .tbl.wide tr td:last-child:not(:first-child){padding:11px 0 0;margin-top:6px;border-top:1px solid var(--line)}
+    .tbl.wide tr td:last-child:not(:first-child)::before{display:none}
+    .tbl.wide tr td:last-child:not(:first-child)>*{grid-column:1 / -1}
+    .tbl.wide tr td:last-child .btn{width:100%;justify-content:center}
     .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
     .tbl.wide td[colspan]::before{display:none}
+    .tbl.wide td[colspan]{border-top:0;margin-top:0}
   }
 
 

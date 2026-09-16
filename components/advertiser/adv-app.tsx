@@ -32,6 +32,7 @@ import type { NotificationType } from "@/lib/types/notification";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
+import { formatPaymentReference } from "@/lib/payment-reference";
 
 dayjs.extend(relativeTime);
 
@@ -1392,8 +1393,11 @@ export default function AdvertiserApp() {
                             : "€";
                         return (
                           <tr key={inv.id}>
+                            {/* Client code first, same shape as the bank
+                                reference, so an invoice and the payment that
+                                settles it carry the same prefix. */}
                             <td data-label="Invoice" style={{ fontWeight: 600 }}>
-                              {inv.number}
+                              {formatPaymentReference(referralCode, inv.number)}
                             </td>
                             <td data-label="Date">
                               {dayjs(inv.created_at).format("D MMM YYYY")}
