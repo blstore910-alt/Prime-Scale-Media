@@ -63,8 +63,13 @@ export const PSM_APP_CSS = `
 .psmapp .tool.wal small{font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
 .psmapp .tool.wal b{font-family:var(--hd);font-weight:800;font-size:.95rem;color:var(--primary-600)}
 .psmapp .tool.st{background:var(--win-soft);border:1px solid rgba(16,185,129,.24);color:#0e8f66;font-weight:700;font-size:.82rem}.psmapp .tool.st svg{color:var(--win)}
-.psmapp .tool.ic-btn,.psmapp .tool.ava-btn{background:var(--panel);border:1px solid var(--line)}
-.psmapp .tool.ic-btn:hover,.psmapp .tool.ava-btn:hover{background:var(--panel-2)}
+/* No surface of their own. The toolbar pill is already a panel — giving each
+   control a white fill AND a border on top of it drew white boxes on white
+   with outlines between them, which is what made the bar look like a row of
+   loose tiles instead of one object. The pill is the container; the icons
+   live in it. A hover fill still shows which one you are on. */
+.psmapp .tool.ic-btn,.psmapp .tool.ava-btn{background:transparent;border:1px solid transparent}
+.psmapp .tool.ic-btn:hover,.psmapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
 .psmapp .tool.ic-btn{padding:7px 11px}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
 .psmapp .tool.ava-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.8rem;color:#fff;background:var(--brand);position:relative}
@@ -87,8 +92,14 @@ export const PSM_APP_CSS = `
    Letting the action group shrink — and its buttons ellipsize — keeps the
    header on ONE row instead of wrapping the buttons underneath, which is the
    92px header this replaced. */
-.psmapp .phead-actions .pacts{flex:0 1 auto;min-width:0;display:flex;gap:8px;align-items:center}
-.psmapp .phead-actions .pacts .btn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The ACTIONS keep their size and the TITLE gives way, not the other way
+   round. Measured at 400px: "Create New" needed 123px, was given 79, and its
+   label ran 16px past the right edge of the screen — because .pacts was
+   allowed to shrink and the button clipped rather than pushing back. A
+   heading can lose a few characters and still be read; a primary button that
+   says "Create Ne" cannot. */
+.psmapp .phead-actions .pacts{flex:0 0 auto;display:flex;gap:8px;align-items:center}
+.psmapp .phead-actions .pacts .btn{white-space:nowrap}
 
 /* Row actions: equal-width buttons on ONE line. Buttons of different widths
    wrapping onto a second row was the single most repeated ugliness in the
@@ -736,7 +747,7 @@ export const PSM_APP_CSS = `
     display:grid;place-items:center;
     width:36px;height:36px;padding:0;gap:0;
   }
-  .psmapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:8px;font-size:.76rem}
+  .psmapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:8px;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
   .psmapp .toolbar .ava-btn svg{display:none}
   /* The standalone sign-out duplicates the one inside that menu. */
   .psmapp .topbar .so-btn{display:none}
