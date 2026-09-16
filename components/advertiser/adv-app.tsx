@@ -180,7 +180,6 @@ export default function AdvertiserApp() {
     currency: string | null;
     status: string | null;
     next_payment_date: string | null;
-    included_ad_accounts: number | null;
   } | null>({
     queryKey: ["adv-subscription", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
@@ -188,7 +187,7 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("amount, currency, status, next_payment_date, included_ad_accounts")
+        .select("amount, currency, status, next_payment_date")
         .eq("advertiser_id", advertiserId)
         .eq("tenant_id", tenantId)
         .order("start_date", { ascending: false })
@@ -403,8 +402,12 @@ export default function AdvertiserApp() {
   // there is no subscription to bill the extra against.
   const planActive =
     !!subscription && subscription.status === "active" && !dueSubInvoice;
-  const includedTotal = Number(subscription?.included_ad_accounts ?? 0) || 0;
-  const includedLeft = Math.max(0, includedTotal - (accounts ?? []).length);
+  // How many accounts the plan includes is NOT on `subscriptions` — asking
+  // for it there took the whole subscription query down with
+  // "column subscriptions.included_ad_accounts does not exist", which also
+  // blanked the plan tile and the fee notice that read from it. It lives on
+  // `plans`, and this screen does not load plans, so the count is simply not
+  // claimed here rather than guessed at.
   // Already having an account means this gate was passed once before.
   const canRequestAccount =
     companyComplete && (planActive || (accounts ?? []).length > 0);
@@ -1230,9 +1233,7 @@ export default function AdvertiserApp() {
                 </h3>
                 <p>
                   {canRequestAccount
-                    ? includedTotal > 0
-                      ? `Your plan includes ${includedTotal} ad account${includedTotal === 1 ? "" : "s"} — ${includedLeft} still to use. Request one and we set it up for you on our verified Business Manager.`
-                      : "Request one and we set it up for you on our verified Business Manager. You fund it from your wallet and spend from there."
+                    ? "Request one and we set it up for you on our verified Business Manager. Your plan covers the accounts it includes; anything beyond that is billed as you go."
                     : pendingTopups.length > 0
                       ? "Your transfer is with us and being verified. Once your plan is paid, the ad accounts it includes are yours to request."
                       : "Your ad accounts come with your plan, so the first step is paying for it. After that the included accounts are yours to request, and extras are billed as you go."}
