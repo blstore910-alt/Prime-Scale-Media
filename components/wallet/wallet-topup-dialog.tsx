@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { banksForAccountTypes } from "@/lib/bank-routing";
 import {
   Select,
   SelectContent,
@@ -108,9 +109,8 @@ function normalizeBankGroup(value: unknown): BankGroup {
   return value === "others" ? "muxue" : "turlit";
 }
 
-// Beneficiary bank options shown in the selection step. Each lists the
-// ad-account families that route to that bank so the advertiser picks the
-// right destination for the accounts they fund.
+// Beneficiary bank options. Each lists the ad-account families that route to
+// that bank.
 const BANK_GROUP_OPTIONS: { value: BankGroup; title: string; sub: string }[] = [
   {
     value: "turlit",
@@ -129,23 +129,44 @@ const BANK_GROUP_OPTIONS: { value: BankGroup; title: string; sub: string }[] = [
   },
 ];
 
+
 export default function WalletTopupDialog({
   open,
   onOpenChange,
   walletId,
   referenceNo,
   minTopup,
+  accountTypeSlugs = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletId: string | null;
   referenceNo: number | null;
   minTopup: number | null;
+  /** Type slugs of the advertiser's own ad accounts, to route the transfer. */
+  accountTypeSlugs?: string[];
 }) {
   const [step, setStep] = useState(STEPS.SELECTION);
   const [currency, setCurrency] = useState<CurrencyCode>("EUR");
   // Which beneficiary bank the transfer routes to.
   const [bankGroup, setBankGroup] = useState<BankGroup>("turlit");
+  // The beneficiaries this advertiser could legitimately be paying. Empty
+  // means "cannot tell from their accounts" — a new customer with none yet —
+  // and the default stands.
+  const bankChoices = banksForAccountTypes(accountTypeSlugs);
+  const soleBank = bankChoices.length === 1 ? bankChoices[0] : null;
+  // One possible destination: set it rather than ask. Also corrects a
+  // restored draft that names a bank this advertiser has no accounts at.
+  useEffect(() => {
+    if (soleBank && bankGroup !== soleBank) setBankGroup(soleBank);
+    else if (
+      bankChoices.length > 1 &&
+      !bankChoices.includes(bankGroup)
+    ) {
+      setBankGroup(bankChoices[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soleBank, bankChoices.join(","), bankGroup]);
   // The currency the advertiser will physically transfer in (picks the bank
   // account shown). Defaults to the wallet currency.
   const [transferCurrency, setTransferCurrency] =
@@ -463,35 +484,46 @@ export default function WalletTopupDialog({
                   </p>
                 </div>
 
-                <div className="space-y-3">
-                  <Label>Which accounts are you funding?</Label>
-                  <RadioGroup
-                    value={bankGroup}
-                    onValueChange={(val: BankGroup) => setBankGroup(val)}
-                    className="grid gap-3"
-                  >
-                    {BANK_GROUP_OPTIONS.map((opt) => (
-                      <div key={opt.value}>
-                        <RadioGroupItem
-                          value={opt.value}
-                          id={`bankgroup-${opt.value}`}
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor={`bankgroup-${opt.value}`}
-                          className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <span className="font-semibold text-base">
-                            {opt.title}
-                          </span>
-                          <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
-                            {opt.sub}
-                          </span>
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
+                {/* Only asked when there is genuinely something to choose.
+                    Every customer used to be shown all three beneficiary
+                    companies and asked to route their own payment — including
+                    a brand-new advertiser with no ad accounts at all, for whom
+                    there was nothing to decide and no reason to see the
+                    others. The destination follows from the accounts they
+                    hold, so it is worked out rather than asked. */}
+                {bankChoices.length > 1 ? (
+                  <div className="space-y-3">
+                    <Label>Which accounts are you funding?</Label>
+                    <RadioGroup
+                      value={bankGroup}
+                      onValueChange={(val: BankGroup) => setBankGroup(val)}
+                      className="grid gap-3"
+                    >
+                      {BANK_GROUP_OPTIONS.filter((o) =>
+                        bankChoices.includes(o.value),
+                      ).map((opt) => (
+                        <div key={opt.value}>
+                          <RadioGroupItem
+                            value={opt.value}
+                            id={`bankgroup-${opt.value}`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`bankgroup-${opt.value}`}
+                            className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <span className="font-semibold text-base">
+                              {opt.title}
+                            </span>
+                            <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
+                              {opt.sub}
+                            </span>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                ) : null}
 
                 <div className="space-y-3">
                   <Label>Transfer currency</Label>

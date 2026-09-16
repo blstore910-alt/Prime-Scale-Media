@@ -1618,6 +1618,10 @@ export default function AdvertiserApp() {
         walletId={wallet?.id ?? null}
         referenceNo={wallet?.reference_no ?? null}
         minTopup={wallet?.min_topup as number}
+        // Their own accounts decide where the transfer goes, so the dialog
+        // can work it out instead of showing every customer all three
+        // beneficiary companies and asking them to route their own payment.
+        accountTypeSlugs={(accounts ?? []).map((a) => a.platform)}
       />
       <WalletExchangeDialog
         open={exchangeOpen}
