@@ -227,7 +227,11 @@ const AUTH_CSS = `
 .psmauth .btn:disabled{opacity:.65;cursor:default;transform:none;filter:none}
 .psmauth .btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line-2);box-shadow:none}
 .psmauth .btn.ghost:hover{border-color:var(--primary);color:var(--primary-600)}
-.psmauth a.lnk{color:var(--primary-600);text-decoration:none;font-weight:600}
+/* A link people tap needs a target, not just a word. "Forgot password?"
+   measured 21px tall — half of what a thumb reliably hits — so it gets
+   vertical padding and a negative margin, which grows the hit area without
+   moving anything on the page. */
+.psmauth a.lnk{color:var(--primary-600);text-decoration:none;font-weight:600;display:inline-block;padding:11px 4px;margin:-11px -4px}
 .psmauth a.lnk:hover{text-decoration:underline}
 .psmauth .meta{margin-top:18px;text-align:center;color:var(--muted);font-size:.88rem}
 .psmauth .err{color:var(--danger);font-size:.85rem;font-weight:600;margin:6px 0 0;text-align:left}
@@ -267,7 +271,12 @@ const AUTH_CSS = `
      far less of the screen and the rocket/brand up top gets the room. */
   .psmauth .side{background:transparent;min-height:auto;justify-content:flex-start;padding:4px clamp(18px,6vw,30px) 26px}
   .psmauth .field{margin-bottom:8px}
-  .psmauth input,.psmauth select{padding:9px 12px;font-size:.88rem;border-radius:10px}
+  /* 16px, not .88rem. Any input below 16px makes iOS Safari ZOOM THE PAGE
+     when it gains focus — and the first thing anyone does on a phone here is
+     tap the email field, so the whole sign-in screen jumps and has to be
+     pinched back. The padding stays tight, so the field is barely taller
+     than it was; it is the type size that matters, not the box. */
+  .psmauth input,.psmauth select{padding:9px 12px;font-size:16px;border-radius:10px}
   .psmauth .inp input{padding-left:36px}
   .psmauth .inp>svg{width:15px;height:15px;left:12px}
   .psmauth .card{margin:0 auto;max-width:400px}

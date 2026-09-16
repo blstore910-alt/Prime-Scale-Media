@@ -766,4 +766,21 @@ export const PSM_APP_CSS = `
 .psmapp .badge.info{border-color:rgba(58,111,255,.22)}
 
 @media (prefers-reduced-motion:reduce){.psmapp *{animation:none!important;transition:none!important}}
+
+/* ── The iOS zoom trap ────────────────────────────────────────────────
+   Mobile Safari ZOOMS THE PAGE whenever a focused input is styled below
+   16px. It is not a preference and there is no way to opt out short of
+   disabling pinch-zoom entirely, which breaks accessibility. So every
+   field in this shell is 16px on a phone — padding still controls how
+   tall the control looks, and 16px vs 15px is barely visible, but the
+   difference between the page holding still and lurching sideways when
+   someone taps a field is not subtle at all.
+
+   One rule per shell rather than per field, so the next input added
+   cannot reintroduce it. */
+@media (max-width:640px){
+  .psmapp input,
+  .psmapp select,
+  .psmapp textarea{font-size:16px}
+}
 `;
