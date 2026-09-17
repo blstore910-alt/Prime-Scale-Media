@@ -255,6 +255,63 @@ export default function WiseReviewPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
   }, [isLoading, allRows.length]);
 
+  // WHOSE money the match says this is. A "Confirm & complete" button
+  // credits a specific customer's wallet, and the row it sat on named the
+  // amount, the time and a status — nothing about the person. The admin had
+  // to take the machine's word for it, which is the one thing a
+  // confirmation step exists to avoid.
+  const suggestedIds = Array.from(
+    new Set(
+      (data ?? [])
+        .map((r) => r.suggested_topup_id)
+        .filter((v): v is string => !!v),
+    ),
+  ).sort();
+  const { data: matchedTo } = useQuery<
+    Record<string, { code: string; name: string; reference: string }>
+  >({
+    queryKey: ["wise-matched-topups", suggestedIds],
+    enabled: suggestedIds.length > 0,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallet_topups")
+        .select(
+          "id, reference_no, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
+        )
+        .in("id", suggestedIds);
+      if (error) throw error;
+      const out: Record<
+        string,
+        { code: string; name: string; reference: string }
+      > = {};
+      for (const row of data ?? []) {
+        const r = row as {
+          id: string;
+          reference_no: string | number | null;
+          advertiser?:
+            | {
+                tenant_client_code?: string | null;
+                profile?: { full_name?: string | null } | null;
+              }
+            | Array<{
+                tenant_client_code?: string | null;
+                profile?: { full_name?: string | null } | null;
+              }>
+            | null;
+        };
+        const a = Array.isArray(r.advertiser) ? r.advertiser[0] : r.advertiser;
+        const prof = Array.isArray(a?.profile) ? a?.profile[0] : a?.profile;
+        out[r.id] = {
+          code: (a?.tenant_client_code ?? "").trim(),
+          name: (prof?.full_name ?? "").trim(),
+          reference: String(r.reference_no ?? ""),
+        };
+      }
+      return out;
+    },
+  });
+
   // Archived rows are out of the way, not gone. The toggle brings them
   // back with every field intact.
   const [showArchived, setShowArchived] = useState(false);
@@ -459,6 +516,34 @@ export default function WiseReviewPanel() {
                         >
                           {badge.label}
                         </span>
+                        {/* WHOSE wallet Confirm would credit. */}
+                        {r.suggested_topup_id && matchedTo?.[r.suggested_topup_id] ? (
+                          <div style={{ marginTop: 5 }}>
+                            <div
+                              style={{
+                                fontFamily: "var(--hd)",
+                                fontWeight: 800,
+                                fontSize: ".82rem",
+                                letterSpacing: "-.01em",
+                              }}
+                            >
+                              {matchedTo[r.suggested_topup_id].code || "No code"}
+                            </div>
+                            <div
+                              className="muted"
+                              style={{ fontSize: ".75rem", ...clip, maxWidth: 170 }}
+                              title={matchedTo[r.suggested_topup_id].name}
+                            >
+                              {matchedTo[r.suggested_topup_id].name || "—"}
+                            </div>
+                            <div
+                              className="mono"
+                              style={{ fontSize: ".7rem", color: "var(--faint)" }}
+                            >
+                              ref {matchedTo[r.suggested_topup_id].reference || "—"}
+                            </div>
+                          </div>
+                        ) : null}
                       </td>
                       <td data-label="Note" style={{ verticalAlign: "top" }}>
                         <div

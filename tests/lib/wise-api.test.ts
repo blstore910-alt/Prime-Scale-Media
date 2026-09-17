@@ -145,3 +145,60 @@ it("the statement parser keeps the description it read", () => {
   assert.match(d!.description ?? "", /JOHN DOE/);
 });
 });
+
+describe("more than one credit of the same amount", () => {
+  const line = (date: string, ref: string) => ({
+    type: "CREDIT",
+    amount: { value: 5, currency: "EUR" },
+    date,
+    details: { paymentReference: ref },
+  });
+
+  it("picks the one nearest the moment the webhook reported", () => {
+    // This used to give up, and on a real account that is the NORMAL case:
+    // dozens of 0.01 test payments mean almost every enrichment returned
+    // null, which is why 231 deposits arrived with no reference at all.
+    const d = parseStatementForMatch(
+      {
+        transactions: [
+          line("2026-09-17T10:00:00Z", "1111111111"),
+          line("2026-09-17T19:01:30Z", "2222222222"),
+          line("2026-09-16T08:00:00Z", "3333333333"),
+        ],
+      },
+      500,
+      "2026-09-17T19:01:32Z",
+    );
+    assert.ok(d);
+    assert.equal(d!.reference, "2222222222");
+  });
+
+  it("still refuses when two are within a minute of each other", () => {
+    // Genuinely indistinguishable. Guessing here would attach one payer's
+    // reference to another payer's money.
+    const d = parseStatementForMatch(
+      {
+        transactions: [
+          line("2026-09-17T19:01:30Z", "2222222222"),
+          line("2026-09-17T19:01:50Z", "4444444444"),
+        ],
+      },
+      500,
+      "2026-09-17T19:01:32Z",
+    );
+    assert.equal(d, null);
+  });
+
+  it("refuses when the webhook gave no time to compare against", () => {
+    const d = parseStatementForMatch(
+      {
+        transactions: [
+          line("2026-09-17T10:00:00Z", "1111111111"),
+          line("2026-09-17T19:01:30Z", "2222222222"),
+        ],
+      },
+      500,
+    );
+    assert.equal(d, null);
+  });
+});

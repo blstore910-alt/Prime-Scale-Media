@@ -47,6 +47,10 @@ type Statement = { transactions?: StatementTxn[] };
 export function parseStatementForMatch(
   statement: Statement,
   amountCents: number,
+  // The instant the webhook says the credit happened. Used to pick between
+  // several credits of the same amount in the window; optional so the old
+  // two-argument call still behaves.
+  occurredAt?: string | null,
 ): WiseTxnDetail | null {
   const txns = statement.transactions ?? [];
   const credits = txns.filter((t) => {
@@ -54,11 +58,35 @@ export function parseStatementForMatch(
     const cents = Math.round(Number(t.amount?.value ?? NaN) * 100);
     return Number.isFinite(cents) && Math.abs(cents - amountCents) <= 1;
   });
-  if (credits.length !== 1) {
-    // 0 or >1 amount matches in the window — can't safely pick one.
-    return null;
+  if (credits.length === 0) return null;
+
+  // MORE THAN ONE credit of this amount in the window used to mean "give
+  // up", and on a real account that is the normal case rather than the
+  // exception: this one has dozens of 0.01 test payments, so almost every
+  // enrichment returned null and 231 deposits arrived with no reference and
+  // no sender — which is also why nothing could be matched automatically.
+  //
+  // The webhook already tells us WHEN the credit happened, to the second.
+  // The statement lines carry their own date. So the tie is broken by time,
+  // not by giving up — and only when one line is clearly nearest: if two
+  // credits of the same amount are within a minute of each other we are
+  // genuinely unable to tell them apart, and guessing there would attach
+  // one payer's reference to another payer's money.
+  let chosen = credits[0];
+  if (credits.length > 1) {
+    const target = occurredAt ? Date.parse(occurredAt) : NaN;
+    if (!Number.isFinite(target)) return null;
+    const scored = credits
+      .map((t) => ({ t, at: t.date ? Date.parse(t.date) : NaN }))
+      .filter((x) => Number.isFinite(x.at))
+      .map((x) => ({ ...x, d: Math.abs(x.at - target) }))
+      .sort((a, b) => a.d - b.d);
+    if (scored.length === 0) return null;
+    if (scored.length > 1 && scored[1].d - scored[0].d < 60_000) return null;
+    chosen = scored[0].t;
   }
-  const d = credits[0].details ?? {};
+
+  const d = chosen.details ?? {};
   const description = d.description ?? null;
   // The reference, in order of how much we trust it. The last resort is the
   // DESCRIPTION: Wise writes "… with reference XYZ" in prose, and for SEPA
@@ -69,7 +97,7 @@ export function parseStatementForMatch(
   const reference =
     d.paymentReference ??
     d.reference ??
-    credits[0].referenceNumber ??
+    chosen.referenceNumber ??
     referenceFromDescription(description);
   const senderName = d.senderName ?? d.sender?.name ?? null;
   const rawIban =
@@ -155,7 +183,7 @@ export async function fetchWiseTxnDetail(args: {
     });
     if (!res.ok) return null;
     const json = (await res.json()) as Statement;
-    return parseStatementForMatch(json, args.amountCents);
+    return parseStatementForMatch(json, args.amountCents, args.occurredAt);
   } catch {
     return null;
   }
