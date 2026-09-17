@@ -1,39 +1,24 @@
-import MySubscriptionView from "@/components/subscriptions/my-subscription-view";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
+// /my-subscription is a REDIRECT, and only that.
+//
+// It used to render MySubscriptionView below two redirects that between them
+// covered every role — advertisers to the single-page app where billing is a
+// view, everyone else to /subscriptions. Nothing could reach the component,
+// which is the same shape /wallet had. See docs/ROUTE_MAP.md: an importer is
+// not a route.
+//
+// The route stays because old links point at it.
 export default async function Page() {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select(
-      // Explicit columns, NOT advertisers(*) — see
-      // lib/types/advertiser-columns.ts.
-      "*, advertiser:advertisers(id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at)",
-    )
+    .select("role")
     .eq("user_id", user?.user?.id)
     .single();
 
-  if (!profile) {
-    redirect("/onboard");
-  }
-
-  // Advertisers live in the single-page app; billing is a view there.
-  if (profile.role === "advertiser") {
-    redirect("/dashboard");
-  }
-  if (profile.role !== "advertiser") {
-    redirect("/subscriptions");
-  }
-
-  return (
-    <div className="flex flex-1 flex-col">
-      <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-          <MySubscriptionView />
-        </div>
-      </div>
-    </div>
-  );
+  if (!profile) redirect("/onboard");
+  redirect(profile.role === "advertiser" ? "/dashboard" : "/subscriptions");
 }

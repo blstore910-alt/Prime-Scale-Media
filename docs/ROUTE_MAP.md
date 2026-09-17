@@ -14,7 +14,8 @@ ports landed; some did not.
 
 Deleted so far for being unreachable: `invoices/psm-invoices-view`,
 `advertiser/psm-shell`, `advertiser/dashboard-view`,
-`advertiser/wallet-section`, `wallet/wallet-view`. Each looked maintained.
+`advertiser/wallet-section`, `wallet/wallet-view`,
+`subscriptions/my-subscription-view`. Each looked maintained.
 Two had received fixes that therefore never reached a user, and the last one
 sat under two redirects that between them covered every role — so the page
 imported it, which is why a grep for importers said it was alive.
@@ -51,7 +52,7 @@ component before trusting that a fix in it matters.
 | `/settings/integrations` | `settings/finance/integration-status` |
 | `/settings/general` | `settings/general` |
 | `/my-referrals` | `affiliate/aff-app` |
-| `/my-subscription` | `subscriptions/my-subscription-view` |
+| `/my-subscription` | redirect only — advertisers to `/dashboard`, everyone else to `/subscriptions` |
 | `/wallet` | redirect only — advertisers to `/dashboard`, everyone else to `/wallets` |
 | `/profile` | `profile/profile-form` + `profile/privacy-controls` + `profile/my-activity` |
 | `/notifications` | `notifications/*` |
