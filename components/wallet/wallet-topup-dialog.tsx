@@ -647,9 +647,13 @@ export default function WalletTopupDialog({
 
                 <div className="space-y-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="amount">
-                      Amount to credit ({currency} wallet)
-                    </Label>
+                    {/* Ask what they DID, not what we will do. By this step
+                        the transfer has already been made — the previous
+                        button says "I have made the transfer" — so the
+                        question is how much went out, and the consequence
+                        goes underneath. "Amount to credit" reads like a
+                        request for something we have not agreed to. */}
+                    <Label htmlFor="amount">How much did you transfer?</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                         {currency === "USD" ? "$" : "€"}
@@ -664,6 +668,11 @@ export default function WalletTopupDialog({
                         {...register("amount", { valueAsNumber: true })}
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      This is what we will credit to your {currency} wallet
+                      once we see it arrive. Enter the exact amount you sent —
+                      it is what we match your payment against.
+                    </p>
                     {errors.amount && (
                       <p className="text-sm text-destructive">
                         {errors.amount.message}
@@ -723,11 +732,24 @@ export default function WalletTopupDialog({
                           Preview
                         </div>
                         {paymentSlipPreview === "image" && previewSrc ? (
+                          /* Checkerboard, not white. A slip photographed
+                             against paper, or a screenshot with a
+                             transparent background, is white on white — the
+                             preview then looks broken when it is working
+                             perfectly, and the one thing this preview exists
+                             to answer is "did the right file attach?". */
                           // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions in a preview modal
                           <img
                             src={previewSrc}
                             alt="Payment slip preview"
-                            className="w-full max-h-56 object-contain rounded-md bg-background"
+                            className="w-full max-h-56 object-contain rounded-md"
+                            style={{
+                              backgroundColor: "#eef1f7",
+                              backgroundImage:
+                                "linear-gradient(45deg,#dfe4ee 25%,transparent 25%,transparent 75%,#dfe4ee 75%),linear-gradient(45deg,#dfe4ee 25%,transparent 25%,transparent 75%,#dfe4ee 75%)",
+                              backgroundSize: "16px 16px",
+                              backgroundPosition: "0 0, 8px 8px",
+                            }}
                           />
                         ) : (
                           <p className="text-sm text-muted-foreground">
