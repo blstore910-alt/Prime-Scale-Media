@@ -363,17 +363,26 @@ export const ADV_CSS = `
                0 14px 28px -24px rgba(20,30,80,.4);overflow:hidden}
   .duerow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
     background:linear-gradient(180deg,#f5b544,var(--warn))}
+  /* The icon carries the amber. One small tile is enough to mark a row as a
+     note; a tile AND a button in the same colour was the colour shouting. */
   .duerow .ai{width:30px;height:30px;border-radius:9px;background:var(--warn-soft);display:grid;
     place-items:center;color:#a9740b;flex:0 0 auto}
   .duerow .ai svg{width:16px;height:16px}
   .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--muted);line-height:1.3;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .duerow .dtx b{font-weight:800;color:var(--ink)}
+  /* Brand, not amber. The marker down the left edge already says "note", so
+     the button does not have to say it again — and an orange pill was the
+     most saturated thing on a screen whose whole identity is blue and
+     purple, which reads as a foreign object rather than as the thing to
+     press. Tinted rather than filled: nothing here is urgent, the fee is
+     simply due. */
   .duerow .dlink{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
-    border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.82rem;
-    color:#fff;background:linear-gradient(180deg,#f0a92c,#e08a00);padding:7px 11px;border-radius:9px;
-    box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 8px 16px -10px rgba(224,138,0,.9);transition:.13s}
-  .duerow .dlink:hover{filter:brightness(1.05);transform:translateY(-1px)}
+    cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.82rem;
+    color:var(--primary-600);background:var(--primary-tint);border:1px solid #cfe0ff;
+    padding:7px 11px;border-radius:9px;box-shadow:0 1px 0 #fff inset;transition:.13s}
+  .duerow .dlink:hover{background:#fff;border-color:var(--primary);
+    box-shadow:0 1px 0 #fff inset,0 6px 14px -10px rgba(58,111,255,.7)}
   .duerow .dlink:active{transform:translateY(1px)}
   .duerow .dlink svg{width:14px;height:14px;transition:transform .14s}
   .duerow .dlink:hover svg{transform:translateX(2px)}
