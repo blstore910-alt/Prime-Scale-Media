@@ -247,6 +247,39 @@ export default function AdvertiserApp() {
     },
   });
 
+  // Exchanges belong in the wallet's history. A customer can move EUR into
+  // USD from the dashboard, and until now the record of having done it was
+  // shown NOWHERE — the only component that rendered wallet_exchanges was on
+  // no route. Money left one balance and arrived in another with nothing to
+  // point at afterwards.
+  const { data: exchanges, isError: exchangesError } = useQuery<
+    {
+      id: string;
+      created_at: string;
+      from_currency: string;
+      to_currency: string;
+      from_amount: number | string | null;
+      to_amount: number | string | null;
+      exchange_rate: number | string | null;
+    }[]
+  >({
+    queryKey: ["adv-wallet-exchanges", wallet?.id],
+    enabled: !!wallet?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallet_exchanges")
+        .select(
+          "id, created_at, from_currency, to_currency, from_amount, to_amount, exchange_rate",
+        )
+        .eq("wallet_id", wallet!.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const { data: invoices, isError: invError } = useQuery<InvoiceWithRelations[]>({
     queryKey: ["adv-invoices", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
@@ -382,6 +415,21 @@ export default function AdvertiserApp() {
       str2(billing.country) &&
       str2(billing.zipcode),
   );
+  // ONE history, in time order. A top-up and an exchange are both "something
+  // that happened to my wallet", and two separate tables would make a
+  // customer check the date on each to work out what happened first.
+  type WalletEvent =
+    | { kind: "topup"; id: string; at: string; row: NonNullable<typeof activity>[number] }
+    | { kind: "exchange"; id: string; at: string; row: NonNullable<typeof exchanges>[number] };
+  const walletEvents: WalletEvent[] = [
+    ...(activity ?? []).map(
+      (t) => ({ kind: "topup", id: t.id, at: t.created_at, row: t }) as WalletEvent,
+    ),
+    ...(exchanges ?? []).map(
+      (x) => ({ kind: "exchange", id: x.id, at: x.created_at, row: x }) as WalletEvent,
+    ),
+  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+
   const pendingTopups = (activity ?? []).filter(
     (t) =>
       t.status !== "completed" &&
@@ -1197,8 +1245,49 @@ export default function AdvertiserApp() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(activity ?? []).length ? (
-                      (activity ?? []).map((t) => (
+                    {walletEvents.length ? (
+                      walletEvents.map((ev) => {
+                        if (ev.kind === "exchange") {
+                          const x = ev.row;
+                          const sym = (c: string) => (c === "USD" ? "$" : "€");
+                          return (
+                            <tr key={`x-${x.id}`}>
+                              <td
+                                data-label="Date"
+                                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              >
+                                {dayjs(x.created_at).format("D MMM")}
+                              </td>
+                              <td data-label="Reference" className="mono">
+                                —
+                              </td>
+                              <td
+                                data-label="Description"
+                                style={{ color: "var(--txt-2)" }}
+                              >
+                                Exchanged {sym(x.from_currency)}
+                                {money2(x.from_amount)} to{" "}
+                                {x.to_currency}
+                                {x.exchange_rate
+                                  ? ` at ${money2(x.exchange_rate)}`
+                                  : ""}
+                              </td>
+                              <td
+                                data-label="Amount"
+                                className="r mono"
+                                style={{ fontWeight: 700 }}
+                              >
+                                {sym(x.to_currency)}
+                                {money2(x.to_amount)}
+                              </td>
+                              <td data-label="Status" className="r">
+                                <span className="badge ok">Exchanged</span>
+                              </td>
+                            </tr>
+                          );
+                        }
+                        const t = ev.row;
+                        return (
                         <tr key={t.id}>
                           <td
                             data-label="Date"
@@ -1238,7 +1327,8 @@ export default function AdvertiserApp() {
                             </span>
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     ) : (
                       <tr>
                         <td
@@ -1249,7 +1339,7 @@ export default function AdvertiserApp() {
                             color: "var(--faint)",
                           }}
                         >
-                          {activityError
+                          {activityError || exchangesError
                             ? "We couldn't load your wallet activity — this is not an empty list. Reload to try again."
                             : "No wallet activity yet."}
                         </td>

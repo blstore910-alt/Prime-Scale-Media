@@ -134,6 +134,13 @@ export default function WalletExchangeDialog({
       queryClient.invalidateQueries({
         queryKey: ["wallet-exchanges", walletId],
       });
+      // The advertiser's own history keys on a different name, and without
+      // this the exchange the customer just made does not appear in it until
+      // the staleTime runs out — money visibly leaves one balance and the
+      // record of where it went arrives a minute later.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-wallet-exchanges", walletId],
+      });
       onOpenChange(false);
       reset();
     },
