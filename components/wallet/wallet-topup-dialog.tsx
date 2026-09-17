@@ -40,6 +40,8 @@ import {
   Loader2,
   CheckCircle2,
   ArrowLeft,
+  Check,
+  Copy,
   FileImage,
 } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
@@ -180,11 +182,28 @@ export default function WalletTopupDialog({
   // a PRIVATE bucket, so the stored path can't be used as an <img src> (it
   // 404s). Preview the just-selected File instead; revoke on change/unmount.
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-  const minTopupAmount = minTopup || 300;
+  // ?? not ||. The caller derives this now, and 0 is a real answer meaning
+  // "no minimum yet" — `|| 300` read that as unset and put the floor back,
+  // which is the exact bug the derivation was written to remove.
+  const minTopupAmount = minTopup ?? 300;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
   // Their own client code, for the payment reference below.
   const clientCode = profile?.advertiser?.[0]?.tenant_client_code ?? null;
+  const [refCopied, setRefCopied] = useState(false);
+  const copyReference = async () => {
+    const ref = formatPaymentReference(clientCode, referenceNo);
+    if (!ref) return;
+    try {
+      await navigator.clipboard.writeText(ref);
+      setRefCopied(true);
+      setTimeout(() => setRefCopied(false), 1800);
+    } catch {
+      // Blocked clipboard (insecure context, denied permission). Say so
+      // rather than showing a tick for something that did not happen.
+      toast.error("Couldn't copy — select the reference and copy it by hand.");
+    }
+  };
 
   // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the
   // advertiser pays in a currency other than their wallet currency. Rates
@@ -559,13 +578,31 @@ export default function WalletTopupDialog({
                     matcher this shape; without that the longest-digit-run
                     rule would read a six-digit client code as the reference
                     and send every prefixed payment to manual review. */}
+                {/* Copyable. This is a number someone has to retype into a
+                    banking app, character for character, and getting it wrong
+                    is what sends their payment to manual review. Selecting it
+                    by hand on a phone means a long-press and two drag
+                    handles, usually catching the sentence above it too. */}
                 <div className="rounded-xl border bg-muted/20 p-4">
                   <p className="text-sm text-muted-foreground">
                     Put this reference in the description of your transfer, so
                     we can match your payment.
                   </p>
-                  <p className="mt-2 text-center font-mono text-xl font-bold tracking-wide">
+                  <button
+                    type="button"
+                    onClick={copyReference}
+                    className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    aria-label={`Copy reference ${formatPaymentReference(clientCode, referenceNo)}`}
+                  >
                     {formatPaymentReference(clientCode, referenceNo)}
+                    {refCopied ? (
+                      <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    {refCopied ? "Copied" : "Tap to copy"}
                   </p>
                 </div>
 
