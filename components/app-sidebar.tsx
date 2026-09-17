@@ -268,6 +268,7 @@ function AdminSidebarContent({
     if (url === "/wallet-topups") return pending.walletTopups;
     if (url === "/top-ups") return pending.topUps;
     if (url === "/ad-account-requests") return pending.adAccountRequests;
+    if (url === "/withdrawals") return pending.withdrawals;
     return undefined;
   };
 

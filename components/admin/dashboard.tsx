@@ -138,7 +138,8 @@ export default function AdminDashboard() {
   const needsAction =
     (pending.walletTopups ?? 0) +
     (pending.topUps ?? 0) +
-    (pending.adAccountRequests ?? 0);
+    (pending.adAccountRequests ?? 0) +
+    (pending.withdrawals ?? 0);
 
   // Jump the "needs action" CTA to the most urgent non-empty queue.
   const primaryQueue =
@@ -148,7 +149,9 @@ export default function AdminDashboard() {
         ? "/ad-account-requests"
         : (pending.topUps ?? 0) > 0
           ? "/top-ups"
-          : null;
+          : (pending.withdrawals ?? 0) > 0
+            ? "/withdrawals"
+            : null;
 
   const queues: Queue[] = [
     {
@@ -172,7 +175,17 @@ export default function AdminDashboard() {
       count: pending.topUps,
       label: "Ad-account topups to verify",
     },
-    { href: "/withdrawals", icon: Download, ci: "g", label: "Withdrawal requests" },
+    // Money going OUT is the one queue a customer is actively waiting on,
+    // and it was the only unmetered card in a section headed "what needs
+    // your action right now". Its count spans all three tables the
+    // /withdrawals screen shows.
+    {
+      href: "/withdrawals",
+      icon: Download,
+      ci: "g",
+      count: pending.withdrawals,
+      label: "Withdrawal requests",
+    },
     { href: "/invoices", icon: Receipt, ci: "g", label: "Invoices" },
     { href: "/subscriptions", icon: RefreshCw, ci: "b", label: "Subscriptions" },
     { href: "/wallets", icon: Wallet, ci: "t", label: "Wallets" },
@@ -220,7 +233,7 @@ export default function AdminDashboard() {
               <div className="sub">
                 {n(pending.walletTopups)} wallet topups · {n(pending.topUps)}{" "}
                 ad-account topups · {n(pending.adAccountRequests)} account
-                requests
+                requests · {n(pending.withdrawals)} withdrawals
               </div>
             </div>
             {primaryQueue && (

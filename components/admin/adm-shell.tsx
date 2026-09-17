@@ -129,7 +129,12 @@ export default function AdminShell({
           icon: Upload,
           badge: pending.walletTopups,
         },
-        { title: "Withdrawals", href: "/withdrawals", icon: Download },
+        {
+          title: "Withdrawals",
+          href: "/withdrawals",
+          icon: Download,
+          badge: pending.withdrawals,
+        },
         {
           title: "Ad-account Topups",
           href: "/top-ups",

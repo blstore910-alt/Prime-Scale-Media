@@ -9,6 +9,14 @@ export type PendingCounts = {
   walletTopups: number | null;
   topUps: number | null;
   adAccountRequests: number | null;
+  /**
+   * Pending across all three tables the /withdrawals page shows: ad-account
+   * withdrawals, wallet refunds and wallet adjustments. They share one screen
+   * and one queue card, so they share one count. null if ANY of the three
+   * could not be read — a partial sum of a money-out queue is worse than
+   * saying we don't know.
+   */
+  withdrawals: number | null;
   /** True when at least one count could not be read. Never true while the
    *  first request is still in flight — unknown-yet is not unknown. */
   isError: boolean;
@@ -29,13 +37,28 @@ export function usePendingCounts(): PendingCounts {
     walletTopups: number | null;
     topUps: number | null;
     adAccountRequests: number | null;
+    withdrawals: number | null;
   }>({
     queryKey: ["pending-counts", tenantId],
     enabled: !!tenantId && profile?.role === "admin",
     refetchInterval: 60_000,
     queryFn: async () => {
       const supabase = createClient();
-      const [walletTopups, topUps, adAccountRequests] = await Promise.all([
+      const pendingIn = (table: string) =>
+        supabase
+          .from(table)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("status", "pending");
+
+      const [
+        walletTopups,
+        topUps,
+        adAccountRequests,
+        adAccountWithdrawals,
+        walletRefunds,
+        walletAdjustments,
+      ] = await Promise.all([
         supabase
           .from("wallet_topups")
           .select("id", { count: "exact", head: true })
@@ -51,6 +74,10 @@ export function usePendingCounts(): PendingCounts {
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
           .eq("status", "pending"),
+        // The three tables behind the single /withdrawals screen.
+        pendingIn("ad_account_withdrawals"),
+        pendingIn("wallet_refunds"),
+        pendingIn("wallet_adjustments"),
       ]);
 
       // A swallowed error here is the worst kind: `count ?? 0` turned an
@@ -65,10 +92,20 @@ export function usePendingCounts(): PendingCounts {
       const one = (r: { count: number | null; error: unknown }) =>
         r.error ? null : r.count ?? 0;
 
+      // One unreadable table makes the whole withdrawals figure unknown.
+      // Showing "2" when a third table was denied means an admin reads a
+      // complete queue off an incomplete answer, and somebody's payout sits
+      // there unseen.
+      const parts = [adAccountWithdrawals, walletRefunds, walletAdjustments].map(one);
+      const withdrawals = parts.some((p) => p === null)
+        ? null
+        : parts.reduce((a: number, b) => a + (b as number), 0);
+
       return {
         walletTopups: one(walletTopups),
         topUps: one(topUps),
         adAccountRequests: one(adAccountRequests),
+        withdrawals,
       };
     },
   });
@@ -77,6 +114,7 @@ export function usePendingCounts(): PendingCounts {
     walletTopups: null,
     topUps: null,
     adAccountRequests: null,
+    withdrawals: null,
   };
 
   return {
@@ -90,7 +128,8 @@ export function usePendingCounts(): PendingCounts {
       (isError ||
         counts.walletTopups === null ||
         counts.topUps === null ||
-        counts.adAccountRequests === null),
+        counts.adAccountRequests === null ||
+        counts.withdrawals === null),
     isLoading,
   };
 }
