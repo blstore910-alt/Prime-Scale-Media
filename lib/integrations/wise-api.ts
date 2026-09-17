@@ -365,6 +365,8 @@ export type WiseProbe = {
   signError?: string | null;
   /** What balances each profile holds, so a mismatch is visible. */
   balancesSeen?: string[];
+  /** Every statement attempt, so one profile's answer cannot hide another's. */
+  attempts?: string[];
   transactions: number | null;
   bodySnippet: string | null;
   error: string | null;
@@ -454,6 +456,14 @@ export async function probeWiseStatement(args: {
       const { res, sca, signed, signError } = await wiseFetch(url, token);
       if (signError) out.signError = signError;
       out.statementStatus = res.status;
+      // Record EVERY attempt. This was overwritten per profile, so a
+      // meaningful answer from the first profile was replaced by the
+      // last one's — and the body we displayed named a profile we had
+      // already ruled out.
+      out.attempts = [
+        ...(out.attempts ?? []),
+        `profile ${pid}: HTTP ${res.status}`,
+      ];
       // Wise signals a Strict Customer Authentication challenge with an
       // x-2fa-approval header. wiseFetch answers it when a private key is
       // configured; without one, no amount of retrying helps.
@@ -525,17 +535,49 @@ export async function findProfileForBalance(
   const seen: string[] = [];
   if (!token || !balanceId) return { profileId: null, seen };
 
+  // v4, not v1. Wise moved the balances list, and /v1/profiles/{id}/
+  // balances answers 404 — which reads exactly like "this profile has no
+  // balances" and is really "this endpoint does not exist". The older
+  // borderless-accounts shape is tried after it, because an account that
+  // predates multi-balance still answers there.
+  const paths = (pid: string | number) => [
+    `${wiseApiBase()}/v4/profiles/${encodeURIComponent(String(pid))}/balances?types=STANDARD`,
+    `${wiseApiBase()}/v3/profiles/${encodeURIComponent(String(pid))}/borderless-accounts`,
+  ];
+
   for (const pid of await fetchWiseProfileIds()) {
     try {
-      const { res } = await wiseFetch(
-        `${wiseApiBase()}/v1/profiles/${encodeURIComponent(String(pid))}/balances?types=STANDARD`,
-        token,
-      );
-      if (!res.ok) {
-        seen.push(`profile ${pid}: HTTP ${res.status}`);
+      let res: Response | null = null;
+      const statuses: number[] = [];
+      for (const url of paths(pid)) {
+        const attempt = await wiseFetch(url, token);
+        statuses.push(attempt.res.status);
+        if (attempt.res.ok) {
+          res = attempt.res;
+          break;
+        }
+      }
+      if (!res) {
+        seen.push(`profile ${pid}: HTTP ${statuses.join("/")}`);
         continue;
       }
-      const json = (await res.json()) as Array<{
+      // v4 returns the balances directly; the v3 borderless shape wraps
+      // them one level down, so flatten whichever came back.
+      const raw = (await res.json()) as unknown;
+      const json = (
+        Array.isArray(raw)
+          ? raw.flatMap((entry) => {
+              const e = entry as {
+                id?: string | number;
+                currency?: string;
+                balances?: Array<{ id?: string | number; currency?: string }>;
+              };
+              return Array.isArray(e.balances) && e.balances.length > 0
+                ? e.balances
+                : [e];
+            })
+          : []
+      ) as Array<{
         id?: string | number;
         currency?: string;
       }>;

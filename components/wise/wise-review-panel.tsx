@@ -382,6 +382,12 @@ Wise said: ${p.bodySnippet}` : ""
 
 Balances Wise shows: ${p.balancesSeen.join(" | ")}`
                 : ""
+            }${
+              p.attempts.length
+                ? `
+
+Statement tried: ${p.attempts.join(" | ")}`
+                : ""
             }`,
             duration: 30000,
           });
