@@ -357,6 +357,12 @@ export const PSM_APP_CSS = `
      every admin list. A .fullcell in last position is always the button
      row — a rich cell anywhere else keeps its label. */
   .psmapp .tbl.wide tr td:last-child.fullcell::before{display:none}
+  /* Same for a last cell that was never marked .fullcell but plainly IS the
+     action row — it holds a control. /invoices printed "ACTIONS" over Mark
+     Paid and Download for exactly that reason. :has() is already used
+     elsewhere in this sheet, so the support is assumed deliberately. */
+  .psmapp .tbl.wide tr td:last-child:has(button)::before,
+  .psmapp .tbl.wide tr td:last-child:has(a.btn)::before{display:none}
   .psmapp .tbl.wide td>*{grid-column:2;min-width:0}
   /* Inline value chips (status badges, short notes) keep their natural size
      and sit at the right instead of stretching the whole value column. */
