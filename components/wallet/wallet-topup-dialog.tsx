@@ -191,6 +191,9 @@ export default function WalletTopupDialog({
   // Their own client code, for the payment reference below.
   const clientCode = profile?.advertiser?.[0]?.tenant_client_code ?? null;
   const [refCopied, setRefCopied] = useState(false);
+  // The name of the file they picked, so the control can say what is attached
+  // instead of leaving that to the browser's own "Geen bestand gekozen".
+  const [slipName, setSlipName] = useState<string | null>(null);
   const copyReference = async () => {
     const ref = formatPaymentReference(clientCode, referenceNo);
     if (!ref) return;
@@ -303,6 +306,7 @@ export default function WalletTopupDialog({
         setPaymentSlipPreview(null);
         setPreviewSrc(null);
         setPaymentSlipError(null);
+        setSlipName(null);
         setIsUploadingSlip(false);
 
         reset();
@@ -359,6 +363,7 @@ export default function WalletTopupDialog({
 
     setPaymentSlipError(null);
     setPaymentSlipUrl(null);
+    setSlipName(file.name);
     setPaymentSlipPreview(isImage ? "image" : "unavailable");
     setPreviewSrc(isImage ? URL.createObjectURL(file) : null);
     setIsUploadingSlip(true);
@@ -706,14 +711,42 @@ export default function WalletTopupDialog({
                 {/* Slip required for every topup now */}
                 {(
                   <div className="space-y-3">
-                    <Label htmlFor="payment_slip">Payment Slip</Label>
+                    <Label htmlFor="payment_slip">Payment slip</Label>
+                    {/* A browser's own file control renders as the operating
+                        system's grey button plus "Geen bestand gekozen" in
+                        whatever language the browser happens to be in — the
+                        one control on this screen that looks like it came
+                        from somewhere else. The input stays (it does the
+                        work, and it stays reachable by keyboard); the label
+                        in front of it is what people see and press. */}
                     <Input
                       id="payment_slip"
                       type="file"
                       accept="image/*,application/pdf"
                       onChange={handlePaymentSlipChange}
                       disabled={isUploadingSlip}
+                      className="sr-only"
                     />
+                    <label
+                      htmlFor="payment_slip"
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border border-dashed px-3.5 py-3 text-sm transition ${
+                        isUploadingSlip
+                          ? "pointer-events-none opacity-60"
+                          : "hover:border-ring hover:bg-accent/40"
+                      }`}
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                        <FileImage className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-medium">
+                          {slipName ? "Replace file" : "Choose a file"}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {slipName ?? "A screenshot or PDF of the transfer"}
+                        </span>
+                      </span>
+                    </label>
                     {isUploadingSlip && (
                       <p className="text-xs text-muted-foreground flex items-center gap-2">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -727,9 +760,11 @@ export default function WalletTopupDialog({
                     )}
                     {paymentSlipUrl && (
                       <div className="rounded-md border bg-muted/20 p-3">
-                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
-                          <FileImage className="h-4 w-4" />
-                          Preview
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          <FileImage className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {slipName ?? "Preview"}
+                          </span>
                         </div>
                         {paymentSlipPreview === "image" && previewSrc ? (
                           /* Checkerboard, not white. A slip photographed
@@ -754,8 +789,8 @@ export default function WalletTopupDialog({
                         ) : (
                           <p className="text-sm text-muted-foreground">
                             {paymentSlipPreview === "image"
-                              ? "Uploaded — preview shows only for the file you just selected."
-                              : "Preview not available for this file type."}
+                              ? "Attached. A preview only shows for the file you just picked."
+                              : "No preview for this file type."}
                           </p>
                         )}
                       </div>

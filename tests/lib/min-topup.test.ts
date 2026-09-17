@@ -37,7 +37,12 @@ describe("effectiveMinTopup", () => {
     // never gone away.
     assert.equal(effectiveMinTopup({ walletMin: 0, planActive: true }), 0);
     assert.equal(effectiveMinTopup({ walletMin: 50, planActive: true }), 50);
-    assert.equal(effectiveMinTopup({ walletMin: 1000, planActive: false }), 1000);
+    // …but NOT before the plan is active. Wallets are created with
+    // min_topup = 300 by column default, which is indistinguishable from an
+    // admin having typed it — so the stored value gets no say on the one
+    // payment that must not have a floor.
+    assert.equal(effectiveMinTopup({ walletMin: 1000, planActive: false }), 0);
+    assert.equal(effectiveMinTopup({ walletMin: 300, planActive: false }), 0);
     assert.equal(
       effectiveMinTopup({ walletMin: "75", planActive: true, community: "NSA" }),
       75,

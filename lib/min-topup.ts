@@ -35,16 +35,21 @@ export function effectiveMinTopup(input: {
   /** The advertiser's community name, e.g. "NSA". */
   community?: string | null;
 }): number {
-  // An override that was actually set wins, 0 included. `|| 300` treated a
-  // deliberate zero as "unset", which is the same class of bug as a blank
-  // input saving as zero elsewhere in this app — here it did the reverse and
-  // silently reimposed a floor an admin had removed.
+  // Before the plan is active there is NO minimum, and the stored value does
+  // not get a say. This is deliberate and it is the whole point: wallets are
+  // created with min_topup = 300 as a column default, which is
+  // indistinguishable from an admin having typed 300 — so honouring "the
+  // stored value wins" here put the €300 floor straight back on the one
+  // payment that must not have a floor. A default is not a decision.
+  if (!input.planActive) return 0;
+
+  // Once the plan IS running, a stored value is a decision about this
+  // customer and wins — 0 included. `|| 300` treated a deliberate zero as
+  // unset and silently reimposed a floor an admin had removed.
   if (input.walletMin !== null && input.walletMin !== undefined) {
     const n = Number(input.walletMin);
     if (Number.isFinite(n) && n >= 0) return n;
   }
-
-  if (!input.planActive) return 0;
 
   const key = (input.community ?? "").trim().toLowerCase();
   if (key && key in COMMUNITY_MIN_TOPUP) return COMMUNITY_MIN_TOPUP[key];
