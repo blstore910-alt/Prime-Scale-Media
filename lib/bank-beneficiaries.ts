@@ -1,0 +1,346 @@
+/**
+ * The beneficiary bank details customers are asked to pay into.
+ *
+ * DATA ONLY, in plain TypeScript with no JSX — the same reason
+ * lib/bank-routing.ts keeps the BankGroup union to itself. Anything that has
+ * to be reasoned about, tested under node --test, or read by a server file
+ * cannot live inside a client component: the type stripper cannot parse JSX,
+ * so importing it drags a whole React tree into a unit test and the test
+ * simply cannot run.
+ *
+ * It used to live in components/wallet/bank-transfer-instructions.tsx, which
+ * still renders it and re-exports it, so every existing import keeps working.
+ *
+ * These are real account numbers. A change here moves customer money.
+ */
+
+export type WalletCurrency = "USD" | "EUR";
+// Currency the advertiser may physically transfer in (picks the bank
+// account shown). A superset of WalletCurrency for banks that hold more.
+export type TransferCurrency = "USD" | "EUR" | "GBP" | "HKD";
+// Which beneficiary bank the transfer goes to.
+export type BankGroup = "turlit" | "zanel" | "muxue";
+
+// Kept for backwards-compat with older imports.
+export type CurrencyCode = WalletCurrency;
+
+type BankItem = { label: string; value: string; copyable?: boolean };
+type BankSection = { title: string; items: BankItem[] };
+type BankDetail = {
+  account_name: string;
+  description: string;
+  sections: BankSection[];
+};
+
+type BankGroupConfig = {
+  // Beneficiary account holder, shown in the summary.
+  beneficiary: string;
+  // Human label for which ad-account families route here.
+  routes: string;
+  // Per transfer-currency bank details.
+  accounts: Partial<Record<TransferCurrency, BankDetail>>;
+};
+
+export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
+  turlit: {
+    beneficiary: "TURLIT LLC",
+    routes: "Meta-EU-PSM · Google · TikTok · Taboola · Snapchat",
+    accounts: {
+      USD: {
+        account_name: "TURLIT LLC — USD (Wise US)",
+        description:
+          "Send USD by wire or ACH (US banks) — or by international transfer (non-US) — to TURLIT LLC’s Wise US checking account.",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              { label: "Beneficiary Name", value: "TURLIT LLC", copyable: true },
+              { label: "Account Type", value: "Checking" },
+              { label: "Account Number", value: "218065661196", copyable: true },
+              {
+                label: "Beneficiary / Bank Address (as shown by Wise)",
+                value:
+                  "Wise US Inc\n108 W 13th St\nWilmington, DE 19801\nUnited States",
+                copyable: true,
+              },
+            ],
+          },
+          {
+            title: "US transfers (Wire + ACH)",
+            items: [
+              {
+                label: "Routing Number (ABA)",
+                value:
+                  "101019628\n(Use this routing number for both Wire and ACH from US banks.)",
+                copyable: true,
+              },
+            ],
+          },
+          {
+            title: "International transfers (non-US)",
+            items: [
+              {
+                label: "SWIFT / BIC",
+                value: "TRWIUS35XXX\n(Use this when sending from outside the US.)",
+                copyable: true,
+              },
+            ],
+          },
+        ],
+      },
+      EUR: {
+        account_name: "TURLIT LLC — EUR (Wise BE)",
+        description:
+          "Send EUR to TURLIT LLC’s Wise (Belgium) account via SEPA (preferred) or SWIFT.",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              { label: "Account Holder", value: "TURLIT LLC", copyable: true },
+              { label: "IBAN", value: "BE86967511906550", copyable: true },
+            ],
+          },
+          {
+            title: "Bank details",
+            items: [
+              { label: "Bank Name", value: "Wise", copyable: true },
+              { label: "SWIFT / BIC", value: "TRWIBEB1XXX", copyable: true },
+              {
+                label: "Bank Address",
+                value: "Rue du Trône 100, 3rd floor\nBrussels, 1050\nBelgium",
+                copyable: true,
+              },
+            ],
+          },
+          {
+            title: "Transfer type",
+            items: [
+              { label: "SEPA", value: "Preferred (EUR within the SEPA zone)" },
+              { label: "SWIFT", value: "Use if SEPA isn’t available" },
+            ],
+          },
+        ],
+      },
+      GBP: {
+        account_name: "TURLIT LLC — GBP (Wise UK)",
+        description:
+          "Send GBP to TURLIT LLC’s Wise (UK) account. Use the sort code + account number for UK (domestic) transfers, or the IBAN / SWIFT internationally.",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              { label: "Account Holder", value: "TURLIT LLC", copyable: true },
+              { label: "Account Number", value: "45402484", copyable: true },
+              {
+                label: "Sort Code",
+                value: "60-84-64\n(UK domestic transfers only.)",
+                copyable: true,
+              },
+              { label: "IBAN", value: "GB69TRWI60846445402484", copyable: true },
+            ],
+          },
+          {
+            title: "International transfers",
+            items: [
+              { label: "SWIFT / BIC", value: "TRWIGB2LXXX", copyable: true },
+            ],
+          },
+          {
+            title: "Bank details",
+            items: [
+              {
+                label: "Bank Name & Address",
+                value:
+                  "Wise Payments Limited\nWorship Square, 65 Clifton Street\nLondon, EC2A 4JE\nUnited Kingdom",
+                copyable: true,
+              },
+            ],
+          },
+        ],
+      },
+      HKD: {
+        account_name: "TURLIT LLC — HKD (Wise HK / DBS)",
+        description:
+          "Send HKD to TURLIT LLC’s Wise (Hong Kong) account, held with DBS Bank (Hong Kong).",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              { label: "Account Holder", value: "TURLIT LLC", copyable: true },
+              { label: "Account Number", value: "79680167588", copyable: true },
+            ],
+          },
+          {
+            title: "Bank details",
+            items: [
+              {
+                label: "Bank Name & Code",
+                value: "DBS Bank (Hong Kong) Limited (016)",
+                copyable: true,
+              },
+              { label: "Branch Code", value: "478", copyable: true },
+              { label: "SWIFT / BIC", value: "DHBKHKHH", copyable: true },
+            ],
+          },
+        ],
+      },
+    },
+  },
+
+  zanel: {
+    beneficiary: "ZANEL ENTERPRISE",
+    routes: "Meta-EU-PSM-GH",
+    accounts: {
+      USD: {
+        account_name: "ZANEL ENTERPRISE — USD (Slash / Column N.A.)",
+        description:
+          "Send a domestic or international wire, ACH, or FedNow transfer in USD to ZANEL ENTERPRISE’s Slash account (held with Column N.A.).",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              {
+                label: "Beneficiary Name",
+                value: "ZANEL ENTERPRISE",
+                copyable: true,
+              },
+              { label: "Account Number", value: "940045169143500", copyable: true },
+              { label: "IBAN", value: "940045169143500", copyable: true },
+              { label: "Account Type", value: "Checking" },
+              {
+                label: "Beneficiary Address",
+                value: "30 N Gould St\nSheridan, WY 82801-6317\nUnited States",
+                copyable: true,
+              },
+            ],
+          },
+          {
+            title: "US transfers (Wire · ACH · FedNow)",
+            items: [
+              {
+                label: "Routing Number (ABA)",
+                value: "121145307",
+                copyable: true,
+              },
+            ],
+          },
+          {
+            title: "International transfers (SWIFT)",
+            items: [
+              {
+                label: "SWIFT / BIC",
+                value:
+                  "CLNOUS66XXX\n(Remove the trailing XXX if an 8-character code is required.)",
+                copyable: true,
+              },
+            ],
+          },
+          {
+            title: "Bank details",
+            items: [
+              {
+                label: "Bank Name",
+                value: "Column N.A., Member FDIC",
+                copyable: true,
+              },
+              {
+                label: "Bank Address",
+                value:
+                  "1 Letterman Drive, Suite A4-700\nSan Francisco, CA 94129\nUnited States",
+                copyable: true,
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+
+  muxue: {
+    beneficiary: "MUXUE TRADE LIMITED",
+    routes: "Meta-HK-Premium · Meta-HK-Business",
+    accounts: {
+      USD: {
+        account_name: "MUXUE TRADE LIMITED — USD (J.P. Morgan Chase)",
+        description:
+          "Send USD to MUXUE TRADE LIMITED via US ACH / Wire, or internationally via SWIFT.",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              {
+                label: "Account Holder",
+                value: "MUXUE TRADE LIMITED",
+                copyable: true,
+              },
+              { label: "Account Number", value: "20000013041715", copyable: true },
+              { label: "Account Type", value: "Checking" },
+            ],
+          },
+          {
+            title: "US transfers (ACH + Wire)",
+            items: [
+              { label: "Routing Number (ACH)", value: "028000024", copyable: true },
+              { label: "Routing Number (Wire)", value: "021000021", copyable: true },
+            ],
+          },
+          {
+            title: "International transfers (SWIFT)",
+            items: [{ label: "SWIFT / BIC", value: "CHASUS33", copyable: true }],
+          },
+          {
+            title: "Bank details",
+            items: [
+              {
+                label: "Bank Name",
+                value: "JP MORGAN CHASE BANK, N.A.",
+                copyable: true,
+              },
+              {
+                label: "Bank Address",
+                value: "4 New York Plaza, Floor 15\nNew York\nUnited States",
+                copyable: true,
+              },
+            ],
+          },
+        ],
+      },
+      EUR: {
+        account_name: "MUXUE TRADE LIMITED — EUR (J.P. Morgan Luxembourg)",
+        description:
+          "Send EUR to MUXUE TRADE LIMITED via SWIFT to J.P. Morgan Bank Luxembourg S.A. (Dublin Branch).",
+        sections: [
+          {
+            title: "Beneficiary details",
+            items: [
+              {
+                label: "Account Holder",
+                value: "MUXUE TRADE LIMITED",
+                copyable: true,
+              },
+              { label: "IBAN", value: "IE67CHAS93090301159013", copyable: true },
+            ],
+          },
+          {
+            title: "Bank details",
+            items: [
+              {
+                label: "Bank Name",
+                value: "J.P. MORGAN BANK LUXEMBOURG S.A., DUBLIN BRANCH",
+                copyable: true,
+              },
+              { label: "SWIFT / BIC", value: "CHASIE4L", copyable: true },
+              { label: "Bank Region", value: "IE" },
+              {
+                label: "Bank Address",
+                value:
+                  "200 Capital Dock, 79 Sir John Rogerson’s Quay\nDublin 2, D02 RK57\nIreland",
+                copyable: true,
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+};

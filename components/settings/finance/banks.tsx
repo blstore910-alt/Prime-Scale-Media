@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BANK_BY_TYPE_SLUG } from "@/lib/bank-routing";
+import { bankInstructions } from "@/lib/bank-beneficiaries";
+import { builtInBankDraft, builtInCurrencies } from "@/lib/bank-builtin";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -234,6 +237,20 @@ function BankDestinationForm({
   );
 }
 
+// Where this type's money ACTUALLY goes today. The table below is not wired
+// to the top-up screen yet, so every row read "no destinations set" while
+// real transfers were routing perfectly well through the built-in
+// beneficiaries — the page looked empty on a tenant that has been taking
+// payments for weeks. Saying which built-in is in force is the difference
+// between "nothing is configured" and "nothing is OVERRIDDEN".
+function liveDestination(slug?: string | null): string | null {
+  const group = BANK_BY_TYPE_SLUG[(slug ?? "").trim().toLowerCase()];
+  if (!group) return null;
+  const cfg = bankInstructions[group];
+  const currencies = Object.keys(cfg.accounts).join(" / ");
+  return currencies ? `${cfg.beneficiary} (${currencies})` : cfg.beneficiary;
+}
+
 export default function BanksCard() {
   const queryClient = useQueryClient();
 
@@ -294,6 +311,69 @@ export default function BanksCard() {
       toast.error("Failed to save bank", { description: err.message }),
   });
 
+  // ── Fill from what is already in force ──────────────────────────────
+  // The table was empty on a tenant that has been taking payments for weeks,
+  // because the destinations live in the built-in beneficiary block and this
+  // page only ever read the database. Retyping an IBAN is how a digit gets
+  // transposed, so the rows are written FROM the built-ins rather than by
+  // hand. It never touches a row that already exists — an admin's edit is a
+  // decision, and this is only here to stop the page starting from nothing.
+  const fillable = useMemo(() => {
+    const out: { typeId: string; typeLabel: string; currency: string }[] = [];
+    for (const t of typesQuery.data ?? []) {
+      const group = BANK_BY_TYPE_SLUG[(t.slug ?? "").trim().toLowerCase()];
+      if (!group) continue;
+      for (const currency of builtInCurrencies(group)) {
+        if (!(BANK_ACCOUNT_CURRENCIES as string[]).includes(currency)) continue;
+        if (bankByKey.has(`${t.id}|${currency}`)) continue;
+        out.push({ typeId: t.id, typeLabel: t.label, currency });
+      }
+    }
+    return out;
+  }, [typesQuery.data, bankByKey]);
+
+  const [fillOpen, setFillOpen] = useState(false);
+  const { mutate: runFill, isPending: filling } = useMutation({
+    mutationFn: async () => {
+      let written = 0;
+      // Sequential on purpose. Each one is a separate guarded write, and a
+      // failure half way should leave the rows before it saved and say how
+      // far it got, rather than a pile of parallel errors nobody can read.
+      for (const f of fillable) {
+        const group = BANK_BY_TYPE_SLUG[
+          ((typesQuery.data ?? []).find((t) => t.id === f.typeId)?.slug ?? "")
+            .trim()
+            .toLowerCase()
+        ];
+        if (!group) continue;
+        const draft = builtInBankDraft(group, f.currency);
+        if (!draft) continue;
+        const res = await upsertBankAccount({
+          ad_account_type_id: f.typeId,
+          currency: f.currency as BankAccount["currency"],
+          ...draft,
+          is_active: true,
+        });
+        if (!res.ok) {
+          throw new Error(
+            `${written} written, then ${f.typeLabel} ${f.currency} failed: ${res.error}`,
+          );
+        }
+        written += 1;
+      }
+      return written;
+    },
+    onSuccess: (written) => {
+      toast.success(
+        `${written} destination${written === 1 ? "" : "s"} filled from the built-in details`,
+      );
+      setFillOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
+    },
+    onError: (err: Error) =>
+      toast.error("Fill stopped", { description: err.message }),
+  });
+
   const isLoading = typesQuery.isLoading || banksQuery.isLoading;
   const isError = typesQuery.isError || banksQuery.isError;
   const errorMessage =
@@ -317,6 +397,44 @@ export default function BanksCard() {
           Use this to prepare the destinations; ask an engineer to switch the
           top-up flow over to them. Changes still ask for a double-confirm.
         </CardDescription>
+        {fillable.length > 0 && (
+          <div className="mt-3 rounded-lg border bg-card p-3 text-sm">
+            <p className="m-0">
+              <strong>{fillable.length}</strong> destination
+              {fillable.length === 1 ? " is" : "s are"} in force through the
+              built-in beneficiaries but not recorded here yet.
+            </p>
+            {fillOpen ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">
+                  Writes real account numbers, copied from the built-in
+                  details. Existing rows are left alone.
+                </span>
+                <Button size="sm" onClick={() => runFill()} disabled={filling}>
+                  {filling && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  Yes, fill {fillable.length}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setFillOpen(false)}
+                  disabled={filling}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => setFillOpen(true)}
+              >
+                Fill from the built-in details
+              </Button>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -378,7 +496,9 @@ export default function BanksCard() {
                         }
                       >
                         {set.length === 0
-                          ? "no destinations set"
+                          ? liveDestination(type.slug)
+                            ? `built-in → ${liveDestination(type.slug)}`
+                            : "no destination"
                           : set.join(" · ")}
                       </span>
                     </div>
