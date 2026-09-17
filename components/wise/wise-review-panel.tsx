@@ -356,7 +356,14 @@ export default function WiseReviewPanel() {
             p.statementStatus !== null
               ? `statement HTTP ${p.statementStatus}`
               : null,
-            p.scaRequired ? "SCA required" : null,
+            p.scaRequired ? "SCA asked" : null,
+            p.scaRequired
+              ? p.signingKeyConfigured
+                ? p.signed
+                  ? "signed"
+                  : "key unusable"
+                : "no signing key"
+              : null,
             p.transactions !== null ? `${p.transactions} in window` : null,
           ].filter(Boolean);
           toast.message("Wise could not tell us more", {

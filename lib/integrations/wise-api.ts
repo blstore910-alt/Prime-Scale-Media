@@ -136,6 +136,70 @@ function wiseApiBase(): string {
   return process.env.WISE_API_URL ?? "https://api.wise.com";
 }
 
+/**
+ * Every request to Wise, with the SCA challenge answered.
+ *
+ * Wise puts Strict Customer Authentication in front of statement reads on
+ * some business accounts. It does not simply refuse: it answers with an
+ * `x-2fa-approval` header carrying a one-time token, and the request
+ * succeeds when you send it back signed with the private half of a key
+ * pair whose public half is registered on the Wise account. A plain
+ * Authorization header alone can never get through — which is exactly what
+ * this deployment was hitting, and why 231 deposits have no reference.
+ *
+ * So: try once, and if Wise asks for SCA and we have a key, sign the token
+ * and try again. Without a key it returns the challenge response as-is, so
+ * the caller can say "register a key" rather than "Wise returned nothing".
+ *
+ * The signature is RSA-SHA256 over the raw token, base64 — Wise's own
+ * scheme. The key never leaves this function.
+ */
+async function wiseFetch(
+  url: string,
+  token: string,
+): Promise<{ res: Response; sca: boolean; signed: boolean }> {
+  const first = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    // Never cache a financial fetch.
+    cache: "no-store",
+  });
+  const challenge = first.headers.get("x-2fa-approval");
+  if (first.ok || !challenge) {
+    return { res: first, sca: !!challenge, signed: false };
+  }
+
+  // A PEM in an environment variable usually arrives with literal
+  // backslash-n rather than real newlines; both forms have to work or the
+  // key silently fails to parse on one host and not the other.
+  const rawKey = process.env.WISE_API_PRIVATE_KEY;
+  if (!rawKey) return { res: first, sca: true, signed: false };
+  const pem = rawKey.includes("\\n") ? rawKey.replace(/\\n/g, "\n") : rawKey;
+
+  let signature: string;
+  try {
+    const { createSign } = await import("node:crypto");
+    const signer = createSign("RSA-SHA256");
+    signer.update(challenge);
+    signer.end();
+    signature = signer.sign(pem, "base64");
+  } catch {
+    // A malformed key is a configuration fault, not a Wise fault. Hand the
+    // challenge response back so the caller reports it as such.
+    return { res: first, sca: true, signed: false };
+  }
+
+  const second = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "x-2fa-approval": challenge,
+      "X-Signature": signature,
+    },
+    cache: "no-store",
+  });
+  return { res: second, sca: true, signed: true };
+}
+
+
 // Fetch the balance statement for a small window around occurredAt and
 // return the matching credit's detail. Returns null on any problem
 // (unconfigured, network, no unambiguous match).
@@ -176,11 +240,7 @@ export async function fetchWiseTxnDetail(args: {
     `&intervalEnd=${encodeURIComponent(end)}&type=COMPACT`;
 
   try {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      // Never cache a financial fetch.
-      cache: "no-store",
-    });
+    const { res } = await wiseFetch(url, token);
     if (!res.ok) return null;
     const json = (await res.json()) as Statement;
     return parseStatementForMatch(json, args.amountCents, args.occurredAt);
@@ -205,10 +265,7 @@ export async function fetchWiseProfileIds(): Promise<Array<string | number>> {
   const token = process.env.WISE_API_TOKEN;
   if (!token) return [];
   try {
-    const res = await fetch(`${wiseApiBase()}/v1/profiles`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    const { res } = await wiseFetch(`${wiseApiBase()}/v1/profiles`, token);
     if (!res.ok) return [];
     const json = (await res.json()) as Array<{ id?: string | number }>;
     return (Array.isArray(json) ? json : [])
@@ -262,6 +319,10 @@ export type WiseProbe = {
   statementStatus: number | null;
   /** Wise asks for SCA on statement endpoints for some accounts. */
   scaRequired: boolean;
+  /** Is a private key configured to answer that challenge with? */
+  signingKeyConfigured: boolean;
+  /** Did we actually sign and retry? */
+  signed: boolean;
   transactions: number | null;
   bodySnippet: string | null;
   error: string | null;
@@ -278,6 +339,8 @@ export async function probeWiseStatement(args: {
     profileIds: [],
     statementStatus: null,
     scaRequired: false,
+    signingKeyConfigured: !!process.env.WISE_API_PRIVATE_KEY,
+    signed: false,
     transactions: null,
     bodySnippet: null,
     error: null,
@@ -289,10 +352,7 @@ export async function probeWiseStatement(args: {
   }
 
   try {
-    const pres = await fetch(`${wiseApiBase()}/v1/profiles`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    const { res: pres } = await wiseFetch(`${wiseApiBase()}/v1/profiles`, token);
     out.profilesStatus = pres.status;
     if (pres.ok) {
       const json = (await pres.json()) as Array<{ id?: string | number }>;
@@ -329,15 +389,13 @@ export async function probeWiseStatement(args: {
       `&intervalStart=${encodeURIComponent(start)}` +
       `&intervalEnd=${encodeURIComponent(end)}&type=COMPACT`;
     try {
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
+      const { res, sca, signed } = await wiseFetch(url, token);
       out.statementStatus = res.status;
-      // Wise signals a Strict Customer Authentication challenge with this
-      // header on read endpoints for some business accounts. Without it
-      // the request 403s for ever and no amount of retrying helps.
-      if (res.headers.get("x-2fa-approval")) out.scaRequired = true;
+      // Wise signals a Strict Customer Authentication challenge with an
+      // x-2fa-approval header. wiseFetch answers it when a private key is
+      // configured; without one, no amount of retrying helps.
+      if (sca) out.scaRequired = true;
+      if (signed) out.signed = true;
       const text = await res.text();
       out.bodySnippet = text.slice(0, 300);
       if (res.ok) {
@@ -357,9 +415,18 @@ export async function probeWiseStatement(args: {
     }
   }
 
-  if (out.scaRequired) {
+  if (out.scaRequired && !out.signingKeyConfigured) {
     out.error =
-      "Wise wants Strict Customer Authentication for statement reads on this account (x-2fa-approval). A plain read token cannot pass it, so references can only come from the webhook payload or be matched by hand.";
+      "Wise wants Strict Customer Authentication for statement reads on this account. That IS passable: register a public key on the Wise account (Settings, API tokens, Manage public keys) and put the matching private key in WISE_API_PRIVATE_KEY. Until then, references can only come from the webhook payload or be matched by hand.";
+  } else if (out.scaRequired && out.signed && out.statementStatus === 403) {
+    out.error =
+      "We signed Wise's SCA challenge and it still refused (403) — the registered public key does not match WISE_API_PRIVATE_KEY, or the token is scoped to a different profile.";
+  } else if (out.scaRequired && !out.signed) {
+    out.error =
+      "Wise asked for SCA and the private key in WISE_API_PRIVATE_KEY could not be used to sign it — check that it is a PEM private key, newlines included.";
+  } else if (out.statementStatus === 422) {
+    out.error =
+      "Wise refused the statement parameters (422). The interval is capped (a year at most) and the currency has to be the balance's own currency, so one of those does not match this balance.";
   } else if (out.statementStatus === 403) {
     out.error =
       "Wise refused the statement (403) — the token may be read-scoped to a different profile, or the account requires SCA.";

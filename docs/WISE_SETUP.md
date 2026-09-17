@@ -91,3 +91,47 @@ the status line shows "Manual confirm" while it holds.
 `testWiseConnection()` on `/settings/integrations` exercises that adapter and
 therefore says nothing about whether real money is arriving. The webhook is
 the live path. `wiseIngestStatus()` reports on the webhook.
+
+## Strict Customer Authentication (SCA) — why references were empty
+
+Wise puts SCA in front of **statement reads** on this account. Probed on
+2026-09-17: `profiles HTTP 200 (2)`, `statement HTTP 422`, and an
+`x-2fa-approval` header on the response. A plain `Authorization: Bearer`
+request can never get past that, which is why 231 deposits arrived with no
+reference, no sender and no description — the webhook payload is thin and
+the statement lookup that was meant to fill the gap was being refused.
+
+It is passable, and the app already does its half.
+
+1. **Make a key pair** (any machine, once):
+
+   ```bash
+   openssl genrsa -out wise-private.pem 2048
+   openssl rsa -in wise-private.pem -pubout -out wise-public.pem
+   ```
+
+2. **Register the public half with Wise**: log in, Settings → API tokens →
+   *Manage public keys* → upload `wise-public.pem`. It attaches to the
+   account, not to one token.
+
+3. **Put the private half in Vercel** as `WISE_API_PRIVATE_KEY` — the whole
+   PEM including the `-----BEGIN PRIVATE KEY-----` lines. Vercel accepts a
+   multi-line value; if your paste collapses the newlines into `
+`, that
+   is handled too. Redeploy.
+
+4. Press **Fetch details from Wise** on /wallet-topups. The app sends the
+   request, Wise answers with a challenge, the app signs the challenge with
+   the private key and repeats the request. The toast reports which of
+   those steps worked: `SCA asked · signed`, `no signing key`, or `key
+   unusable`.
+
+**Keep the private key private.** It is the second factor for reads on a
+real bank account. It lives only in Vercel's environment; nothing logs it,
+and the probe never returns it.
+
+**If you would rather not**: nothing breaks. Deposits still arrive, the
+match still works whenever a payer includes the reference in a way the
+webhook payload carries, and everything else is matched by hand — which is
+the safest path anyway, since an amount alone is never accepted as proof of
+whose money it is.
