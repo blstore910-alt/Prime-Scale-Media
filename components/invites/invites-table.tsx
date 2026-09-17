@@ -226,7 +226,12 @@ export default function InvitesTable() {
                         >
                           {isPending ? "…" : "Cancel"}
                         </button>
-                      ) : null}
+                      ) : (
+                        /* An accepted or cancelled invite has no action, and
+                           an empty cell under an "ACTION" label is a label
+                           for nothing. Say there is nothing. */
+                        <span className="muted">—</span>
+                      )}
                     </td>
                   </tr>
                 );
