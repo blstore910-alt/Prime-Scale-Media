@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { createClient } from "@/lib/supabase/client";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
@@ -49,6 +50,61 @@ import {
 } from "@/actions/adjustment-actions";
 import type { AdAccountWithdrawal } from "@/lib/types/withdrawal";
 import { formatCurrency } from "@/lib/utils";
+
+/**
+ * One confirmation for the approve/reject pairs on this screen.
+ *
+ * Approve used to be a window.confirm() and Reject had NOTHING — despite
+ * being the irreversible half: the RPCs refuse any status other than
+ * 'pending', so a rejected request is dead and the customer has to file it
+ * again. Reject also sat immediately to the left of Approve.
+ *
+ * window.confirm was not much better: after a few dialogs from one page
+ * both Chrome and Firefox offer "prevent this page from creating
+ * additional dialogs", and once that is ticked confirm() silently returns
+ * false — the button appears dead — which is exactly the box a busy
+ * operator ticks while working through a queue of twenty. It also cannot
+ * show the amount, the currency and the customer as structured facts,
+ * which is the whole point of asking.
+ */
+type ActionAsk = {
+  title: string;
+  lead: string;
+  cta: string;
+  danger?: boolean;
+  facts: Array<[string, string]>;
+  run: () => void;
+};
+
+function ActionAskModal({
+  ask,
+  close,
+  busy,
+}: {
+  ask: ActionAsk | null;
+  close: () => void;
+  busy: boolean;
+}) {
+  return (
+    <ConfirmModal
+      open={!!ask}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+      title={ask?.title ?? ""}
+      lead={ask?.lead}
+      cta={ask?.cta ?? "Confirm"}
+      tone={ask?.danger ? "danger" : "default"}
+      busy={busy}
+      busyLabel="Working…"
+      onConfirm={() => ask?.run()}
+    >
+      {(ask?.facts ?? []).map(([k, v]) => (
+        <ConfirmFact key={k} label={k} value={v} strong={k === "Amount"} />
+      ))}
+    </ConfirmModal>
+  );
+}
 
 // Admin Withdrawals, ported to the PSM mockup look. Three sections behind a
 // segmented control (Withdrawals / Refunds / Adjustments). Every
@@ -168,6 +224,8 @@ const badgeFor = (
 /* ------------------------------------------------------------------ */
 
 function WithdrawalsSection() {
+  // Approve and Reject both ask first. See ActionAskModal above.
+  const [ask, setAsk] = useState<ActionAsk | null>(null);
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
   const queryClient = useQueryClient();
@@ -364,21 +422,57 @@ function WithdrawalsSection() {
                                 <button
                                   className="btn ghost sm"
                                   disabled={actingId === w.id}
-                                  onClick={() => reject.mutate(w.id)}
+                                  onClick={() =>
+                                    setAsk({
+                                      title: "Reject this withdrawal?",
+                                      lead: "There is no way back: the request is closed for good and the customer has to file a new one.",
+                                      cta: "Yes, reject it",
+                                      danger: true,
+                                      facts: [
+                                        [
+                                          "Customer",
+                                          w.advertiser?.tenant_client_code ?? "—",
+                                        ],
+                                        ["Ad account", w.ad_account?.name ?? "—"],
+                                        [
+                                          "Amount",
+                                          formatCurrency(
+                                            Number(w.amount),
+                                            w.currency,
+                                          ),
+                                        ],
+                                      ],
+                                      run: () => reject.mutate(w.id),
+                                    })
+                                  }
                                 >
                                   Reject
                                 </button>
                                 <button
                                   className="btn sm"
                                   disabled={actingId === w.id}
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        "Approve this withdrawal? It credits the advertiser's wallet immediately and can't be undone here.",
-                                      )
-                                    )
-                                      approve.mutate(w.id);
-                                  }}
+                                  onClick={() =>
+                                    setAsk({
+                                      title: "Approve this withdrawal?",
+                                      lead: "It credits the customer's wallet straight away, and it cannot be undone from this screen.",
+                                      cta: "Yes, approve it",
+                                      facts: [
+                                        [
+                                          "Customer",
+                                          w.advertiser?.tenant_client_code ?? "—",
+                                        ],
+                                        ["Ad account", w.ad_account?.name ?? "—"],
+                                        [
+                                          "Amount",
+                                          formatCurrency(
+                                            Number(w.amount),
+                                            w.currency,
+                                          ),
+                                        ],
+                                      ],
+                                      run: () => approve.mutate(w.id),
+                                    })
+                                  }
                                 >
                                   {actingId === w.id ? "…" : "Approve"}
                                 </button>
@@ -403,6 +497,12 @@ function WithdrawalsSection() {
           </table>
         </div>
       </div>
+
+      <ActionAskModal
+        ask={ask}
+        close={() => setAsk(null)}
+        busy={!!actingId}
+      />
     </div>
   );
 }
@@ -427,6 +527,8 @@ type RefundRow = {
 };
 
 function RefundsSection() {
+  // Approve and Reject both ask first. See ActionAskModal above.
+  const [ask, setAsk] = useState<ActionAsk | null>(null);
   const { profile, isSuperAdmin } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
   const queryClient = useQueryClient();
@@ -671,21 +773,37 @@ function RefundsSection() {
                               <button
                                 className="btn ghost sm"
                                 disabled={actingId === r.id}
-                                onClick={() => reject.mutate(r.id)}
+                                onClick={() =>
+                                  setAsk({
+                                    title: "Reject this refund request?",
+                                    lead: "There is no way back: the request is closed for good and the customer has to file a new one.",
+                                    cta: "Yes, reject it",
+                                    danger: true,
+                                    facts: [
+                                      ["Customer", r.advertiser?.tenant_client_code ?? "—"],
+                                      ["Amount", formatCurrency(Number(r.amount), r.currency)],
+                                    ],
+                                    run: () => reject.mutate(r.id),
+                                  })
+                                }
                               >
                                 Reject
                               </button>
                               <button
                                 className="btn sm"
                                 disabled={actingId === r.id}
-                                onClick={() => {
-                                  if (
-                                    window.confirm(
-                                      "Approve this refund? It debits the advertiser's wallet immediately and can't be undone here.",
-                                    )
-                                  )
-                                    approve.mutate(r.id);
-                                }}
+                                onClick={() =>
+                                  setAsk({
+                                    title: "Approve this refund?",
+                                    lead: "It debits the customer's wallet straight away, and it cannot be undone from this screen.",
+                                    cta: "Yes, approve it",
+                                    facts: [
+                                      ["Customer", r.advertiser?.tenant_client_code ?? "—"],
+                                      ["Amount", formatCurrency(Number(r.amount), r.currency)],
+                                    ],
+                                    run: () => approve.mutate(r.id),
+                                  })
+                                }
                               >
                                 {actingId === r.id ? "…" : "Approve"}
                               </button>
@@ -728,6 +846,12 @@ function RefundsSection() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         tenantId={tenantId}
+      />
+
+      <ActionAskModal
+        ask={ask}
+        close={() => setAsk(null)}
+        busy={!!actingId}
       />
     </div>
   );
@@ -964,6 +1088,8 @@ type AdjRow = {
 };
 
 function AdjustmentsSection() {
+  // Approve and Reject both ask first. See ActionAskModal above.
+  const [ask, setAsk] = useState<ActionAsk | null>(null);
   const { profile, isSuperAdmin } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
   const queryClient = useQueryClient();
@@ -1180,21 +1306,43 @@ function AdjustmentsSection() {
                                 <button
                                   className="btn ghost sm"
                                   disabled={actingId === r.id}
-                                  onClick={() => reject.mutate(r.id)}
+                                  onClick={() =>
+                                    setAsk({
+                                      title: "Reject this adjustment?",
+                                      lead: "There is no way back: the adjustment is closed for good and has to be raised again from scratch.",
+                                      cta: "Yes, reject it",
+                                      danger: true,
+                                      facts: [
+                                        ["Customer", r.advertiser?.tenant_client_code ?? "—"],
+                                        [
+                                          "Change",
+                                          `${Number(r.delta) > 0 ? "+" : ""}${formatCurrency(Number(r.delta), r.currency)}`,
+                                        ],
+                                      ],
+                                      run: () => reject.mutate(r.id),
+                                    })
+                                  }
                                 >
                                   Reject
                                 </button>
                                 <button
                                   className="btn sm"
                                   disabled={actingId === r.id}
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        "Approve this adjustment? It changes the advertiser's wallet balance immediately and can't be undone here.",
-                                      )
-                                    )
-                                      approve.mutate(r.id);
-                                  }}
+                                  onClick={() =>
+                                    setAsk({
+                                      title: "Approve this adjustment?",
+                                      lead: "It moves the customer's balance straight away, and it cannot be undone from this screen.",
+                                      cta: "Yes, approve it",
+                                      facts: [
+                                        ["Customer", r.advertiser?.tenant_client_code ?? "—"],
+                                        [
+                                          "Change",
+                                          `${Number(r.delta) > 0 ? "+" : ""}${formatCurrency(Number(r.delta), r.currency)}`,
+                                        ],
+                                      ],
+                                      run: () => approve.mutate(r.id),
+                                    })
+                                  }
                                 >
                                   {actingId === r.id ? "…" : "Approve"}
                                 </button>
@@ -1236,6 +1384,12 @@ function AdjustmentsSection() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         tenantId={tenantId}
+      />
+
+      <ActionAskModal
+        ask={ask}
+        close={() => setAsk(null)}
+        busy={!!actingId}
       />
     </div>
   );
