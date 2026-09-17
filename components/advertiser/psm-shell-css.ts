@@ -877,7 +877,12 @@ export const PSM_APP_CSS = `
 .psmapp .badge.due{border-color:rgba(229,72,77,.22)}
 .psmapp .badge.info{border-color:rgba(58,111,255,.22)}
 
-@media (prefers-reduced-motion:reduce){.psmapp *{animation:none!important;transition:none!important}}
+/* NOT scoped to .psmapp. Radix renders dialogs, sheets and dropdowns into a
+   portal at the end of <body>, OUTSIDE this shell — so a scoped rule left
+   every one of them animating for someone who asked the operating system
+   for less motion, which is most of what an admin actually opens. The
+   advertiser and affiliate shells already use the unscoped form. */
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ── The iOS zoom trap ────────────────────────────────────────────────
    Mobile Safari ZOOMS THE PAGE whenever a focused input is styled below
