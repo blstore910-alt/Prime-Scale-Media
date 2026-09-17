@@ -239,3 +239,135 @@ export function parseExternalId(externalId: string): {
   if (!balanceId || !occurredAt) return null;
   return { balanceId, occurredAt, amount };
 }
+
+/**
+ * Ask Wise once, and report exactly what it said.
+ *
+ * Every other call in this file swallows failures and returns null,
+ * deliberately — a webhook must not fall over because a statement lookup
+ * 404s. The cost of that is a screen that can only say "Wise returned
+ * nothing", which is indistinguishable from an expired token, a balance
+ * the token cannot see, a statement window outside the plan's retention,
+ * and the SCA challenge Wise puts in front of statement endpoints for some
+ * business accounts.
+ *
+ * So this one reports. It is read-only, it makes ONE request, and it never
+ * returns a token or a header value — only the status, whether the shape
+ * looks like a statement, and a short snippet of the body.
+ */
+export type WiseProbe = {
+  tokenConfigured: boolean;
+  profilesStatus: number | null;
+  profileIds: Array<string | number>;
+  statementStatus: number | null;
+  /** Wise asks for SCA on statement endpoints for some accounts. */
+  scaRequired: boolean;
+  transactions: number | null;
+  bodySnippet: string | null;
+  error: string | null;
+};
+
+export async function probeWiseStatement(args: {
+  balanceId: string;
+  currency: string;
+  occurredAt: string;
+}): Promise<WiseProbe> {
+  const out: WiseProbe = {
+    tokenConfigured: !!process.env.WISE_API_TOKEN,
+    profilesStatus: null,
+    profileIds: [],
+    statementStatus: null,
+    scaRequired: false,
+    transactions: null,
+    bodySnippet: null,
+    error: null,
+  };
+  const token = process.env.WISE_API_TOKEN;
+  if (!token) {
+    out.error = "WISE_API_TOKEN is not set on this deployment.";
+    return out;
+  }
+
+  try {
+    const pres = await fetch(`${wiseApiBase()}/v1/profiles`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    out.profilesStatus = pres.status;
+    if (pres.ok) {
+      const json = (await pres.json()) as Array<{ id?: string | number }>;
+      out.profileIds = (Array.isArray(json) ? json : [])
+        .map((p) => p?.id)
+        .filter((v): v is string | number => v !== undefined && v !== null);
+    }
+  } catch (e) {
+    out.error = e instanceof Error ? e.message : "profiles request failed";
+    return out;
+  }
+
+  if (out.profileIds.length === 0) {
+    out.error =
+      out.profilesStatus === 401
+        ? "The token was rejected (401). It is expired, revoked, or for a different Wise account."
+        : `Wise listed no profiles (HTTP ${out.profilesStatus}).`;
+    return out;
+  }
+
+  const t = Date.parse(args.occurredAt);
+  if (!Number.isFinite(t)) {
+    out.error = "That deposit has no usable timestamp in its key.";
+    return out;
+  }
+  const start = new Date(t - 36 * 3600_000).toISOString();
+  const end = new Date(t + 36 * 3600_000).toISOString();
+
+  for (const pid of out.profileIds) {
+    const url =
+      `${wiseApiBase()}/v1/profiles/${encodeURIComponent(String(pid))}` +
+      `/balance-statements/${encodeURIComponent(args.balanceId)}/statement.json` +
+      `?currency=${encodeURIComponent(args.currency)}` +
+      `&intervalStart=${encodeURIComponent(start)}` +
+      `&intervalEnd=${encodeURIComponent(end)}&type=COMPACT`;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      out.statementStatus = res.status;
+      // Wise signals a Strict Customer Authentication challenge with this
+      // header on read endpoints for some business accounts. Without it
+      // the request 403s for ever and no amount of retrying helps.
+      if (res.headers.get("x-2fa-approval")) out.scaRequired = true;
+      const text = await res.text();
+      out.bodySnippet = text.slice(0, 300);
+      if (res.ok) {
+        try {
+          const json = JSON.parse(text) as { transactions?: unknown[] };
+          out.transactions = Array.isArray(json.transactions)
+            ? json.transactions.length
+            : 0;
+        } catch {
+          out.transactions = null;
+        }
+        out.error = null;
+        return out;
+      }
+    } catch (e) {
+      out.error = e instanceof Error ? e.message : "statement request failed";
+    }
+  }
+
+  if (out.scaRequired) {
+    out.error =
+      "Wise wants Strict Customer Authentication for statement reads on this account (x-2fa-approval). A plain read token cannot pass it, so references can only come from the webhook payload or be matched by hand.";
+  } else if (out.statementStatus === 403) {
+    out.error =
+      "Wise refused the statement (403) — the token may be read-scoped to a different profile, or the account requires SCA.";
+  } else if (out.statementStatus === 404) {
+    out.error =
+      "Wise has no such balance for these profiles (404) — the balance id in this deposit's key does not belong to the account the token can see.";
+  } else if (out.statementStatus && out.statementStatus >= 400) {
+    out.error = `Wise refused the statement (HTTP ${out.statementStatus}).`;
+  }
+  return out;
+}

@@ -11,6 +11,7 @@ import {
   fetchWiseProfileIds,
   fetchWiseTxnDetail,
   parseExternalId,
+  probeWiseStatement,
 } from "@/lib/integrations/wise-api";
 
 type ActionResult<T = null> =
@@ -532,5 +533,115 @@ export async function refreshWiseDepositDetails(
   return {
     ok: true,
     data: { looked: rows.length, filled, withReference, reason },
+  };
+}
+
+/**
+ * What did Wise actually say?
+ *
+ * "Wise returned nothing" covers four completely different situations — an
+ * expired token, a balance the token cannot see, a window outside the
+ * plan's statement retention, and the SCA challenge Wise puts in front of
+ * statement reads for some business accounts — and they need opposite
+ * responses. Guessing between them wastes a day.
+ *
+ * Read-only, one request, admin-gated, and it never returns a token or a
+ * header value.
+ */
+export async function probeWiseDepositLookup(
+  transferId?: string,
+): Promise<
+  ActionResult<{
+    externalId: string | null;
+    tokenConfigured: boolean;
+    profilesStatus: number | null;
+    profileCount: number;
+    statementStatus: number | null;
+    scaRequired: boolean;
+    transactions: number | null;
+    bodySnippet: string | null;
+    reason: string | null;
+  }>
+> {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+
+  // The newest deposit that still has no reference — or the one asked for.
+  let q = supabase
+    .from("wise_incoming_transfers")
+    .select("id, external_id, currency, tenant_id")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  q = transferId ? q.eq("id", transferId) : q.is("reference", null);
+  const { data: rows, error } = await q;
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  const dep = (rows ?? [])[0] as
+    | { id: string; external_id: string; currency: string; tenant_id: string | null }
+    | undefined;
+  if (!dep) {
+    return {
+      ok: true,
+      data: {
+        externalId: null,
+        tokenConfigured: !!process.env.WISE_API_TOKEN,
+        profilesStatus: null,
+        profileCount: 0,
+        statementStatus: null,
+        scaRequired: false,
+        transactions: null,
+        bodySnippet: null,
+        reason: "There is no deposit without a reference to test with.",
+      },
+    };
+  }
+  if (dep.tenant_id !== null && dep.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const key = parseExternalId(dep.external_id);
+  if (!key || !key.balanceId || key.balanceId === "0") {
+    return {
+      ok: true,
+      data: {
+        externalId: dep.external_id,
+        tokenConfigured: !!process.env.WISE_API_TOKEN,
+        profilesStatus: null,
+        profileCount: 0,
+        statementStatus: null,
+        scaRequired: false,
+        transactions: null,
+        bodySnippet: null,
+        reason:
+          "This deposit's webhook payload carried no balance id (its key starts with 0:), so there is no statement to look up. Nothing is wrong with the token.",
+      },
+    };
+  }
+
+  const probe = await probeWiseStatement({
+    balanceId: key.balanceId,
+    currency: String(dep.currency ?? ""),
+    occurredAt: key.occurredAt,
+  });
+
+  return {
+    ok: true,
+    data: {
+      externalId: dep.external_id,
+      tokenConfigured: probe.tokenConfigured,
+      profilesStatus: probe.profilesStatus,
+      profileCount: probe.profileIds.length,
+      statementStatus: probe.statementStatus,
+      scaRequired: probe.scaRequired,
+      transactions: probe.transactions,
+      bodySnippet: probe.bodySnippet,
+      reason:
+        probe.error ??
+        (probe.transactions === 0
+          ? "Wise answered, and its statement for that window is empty — so the credit is outside the window or on another balance."
+          : probe.transactions !== null
+            ? `Wise answered with ${probe.transactions} transaction(s) in that window, but none matched this amount closely enough to be sure.`
+            : null),
+    },
   };
 }

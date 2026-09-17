@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   confirmWiseSuggestion,
+  probeWiseDepositLookup,
   refreshWiseDepositDetails,
   rematchWiseDeposits,
   setWiseDepositArchived,
@@ -333,8 +334,35 @@ export default function WiseReviewPanel() {
           },
         );
       } else {
-        toast.message("Nothing new from Wise", {
-          description: d.reason ?? "These deposits already have what Wise has.",
+        // Do not stop at "nothing". Ask Wise what it actually said, so the
+        // next sentence names the cause instead of listing the
+        // possibilities: an expired token, a balance this token cannot
+        // see, a window outside the plan's retention, or the SCA challenge
+        // Wise puts in front of statement reads for some business
+        // accounts. Those need opposite responses.
+        void probeWiseDepositLookup().then((probe) => {
+          if (!probe.ok) {
+            toast.message("Nothing new from Wise", {
+              description: d.reason ?? undefined,
+            });
+            return;
+          }
+          const p = probe.data;
+          const bits = [
+            p.tokenConfigured ? "token set" : "NO token",
+            p.profilesStatus !== null
+              ? `profiles HTTP ${p.profilesStatus} (${p.profileCount})`
+              : null,
+            p.statementStatus !== null
+              ? `statement HTTP ${p.statementStatus}`
+              : null,
+            p.scaRequired ? "SCA required" : null,
+            p.transactions !== null ? `${p.transactions} in window` : null,
+          ].filter(Boolean);
+          toast.message("Wise could not tell us more", {
+            description: `${p.reason ?? d.reason ?? ""} — ${bits.join(" · ")}`,
+            duration: 14000,
+          });
         });
       }
       queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });

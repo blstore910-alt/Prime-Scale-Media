@@ -102,7 +102,17 @@ export default function AdAccountRequestReviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-[360px] overflow-y-auto pr-1">
+        {/* flex-1 min-h-0, NOT min-h-[360px].
+            This was a flex child that refused to shrink below 360px, in an
+            overflow-hidden dialog, above a footer with no shrink-0. On a
+            phone the footer holds a sentence plus Reject, Create Invoice
+            and Create Ad Account, stacked full-width by DialogFooter — about
+            180px. Header 90 + body 360 + footer 180 + padding is past 90dvh
+            on a 390px screen, and because the parent is overflow-hidden the
+            excess is CUT OFF rather than scrollable: Reject was gone, with
+            no gesture that could reach it. The loading and not-found states
+            keep their own min-height, which is what that 360 was for. */}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {isLoading && (
             <div className="flex min-h-[360px] items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -219,7 +229,7 @@ export default function AdAccountRequestReviewDialog({
         </div>
 
         {data && (
-          <DialogFooter className="gap-2 sm:gap-2 sm:space-x-0">
+          <DialogFooter className="shrink-0 gap-2 sm:gap-2 sm:space-x-0">
             {!hasAdvertiser && (showCreateInvoice || showCreateAdAccount) && (
               <p className="mr-auto self-center text-xs text-muted-foreground">
                 Create actions are unavailable until an advertiser is attached.

@@ -276,7 +276,13 @@ export default function AccountTopupForm({
 
   return (
     <form onSubmit={handleSubmit((values) => setConfirming(values))}>
-      <ScrollArea className="max-h-[90vh] sm:max-h-[80vh] md:max-h-[70vh] pr-2">
+      {/* dvh, and smaller. 90vh is measured against the viewport with the
+          browser toolbar HIDDEN, so this inner scroller could be taller
+          than the max-h-[92dvh] sheet containing it — two nested scrollers,
+          and on iOS the outer one steals the fling that would reveal the
+          submit button at the bottom of this one. The wallet top-up dialog
+          already uses 70dvh; this is the same. */}
+      <ScrollArea className="max-h-[62dvh] sm:max-h-[66dvh] pr-2">
         <div className="px-1 space-y-4">
           <SelectField
             label="Ad Account"
@@ -384,23 +390,27 @@ export default function AccountTopupForm({
             />
           )}
 
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={
-                isPending ||
-                !hasWallet ||
-                !selectedAccount ||
-                !selectedAccountCurrency
-              }
-            >
-              {isPending && <Loader2 className="animate-spin" />}
-              Top up this account
-            </Button>
-          </div>
         </div>
       </ScrollArea>
+
+      {/* OUTSIDE the scroller. It used to sit at the bottom of a nested
+          scroll area, so reaching it meant scrolling the inner one to its
+          end — on iOS, past an outer sheet that steals the fling. The
+          button that spends the money is always on screen now. */}
+      <div className="mt-4 flex justify-end border-t pt-3">
+        <Button
+          type="submit"
+          disabled={
+            isPending ||
+            !hasWallet ||
+            !selectedAccount ||
+            !selectedAccountCurrency
+          }
+        >
+          {isPending && <Loader2 className="animate-spin" />}
+          Top up this account
+        </Button>
+      </div>
 
       <ConfirmModal
         open={!!confirming}
