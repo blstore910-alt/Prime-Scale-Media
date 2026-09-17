@@ -94,6 +94,8 @@ locally on prerender. `npx tsc --noEmit`, `npx next lint`, and
 - `docs/ROUTE_MAP.md` — **which file actually renders each screen.**
   Check it before editing a view: several ported `psm-*` components are
   on no route at all, and fixes have landed in them twice.
+- `docs/WISE_SETUP.md` — the deposit feed is OFF on production: no
+  webhook secret, no read token. Three env vars and a URL.
 - `docs/UNREACHABLE.md` — components nothing imports, and the one
   FEATURE (precharge) that lost its UI in a port. Four fixes have
   already landed in files no route renders.
