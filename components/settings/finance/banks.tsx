@@ -352,19 +352,36 @@ export default function BanksCard() {
                   open={set.length > 0}
                   className="group rounded-lg border bg-card"
                 >
-                  <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-3 text-sm hover:bg-accent/40">
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                    <span className="font-semibold">{type.label}</span>
-                    {!type.is_active && (
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                        inactive type
+                  {/* One row on a wide screen, two on a phone. Everything
+                      used to sit on a single flex line with the status hint
+                      pinned right and shrink-0, so the NAME was the only
+                      thing that could give way: "Meta-HK-Business-Green"
+                      broke across three lines inside a 75px column while a
+                      "no destinations set" hint sat comfortably beside it.
+                      The name is the thing you are looking for, so it gets
+                      the width and the hint drops below. */}
+                  <summary className="flex cursor-pointer list-none items-start gap-2 px-3.5 py-3 text-sm hover:bg-accent/40 sm:items-center">
+                    <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 sm:mt-0" />
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
+                      <span className="font-semibold">{type.label}</span>
+                      {!type.is_active && (
+                        <span className="shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          inactive
+                        </span>
+                      )}
+                      <span
+                        className={
+                          "text-xs sm:ml-auto sm:text-right " +
+                          (set.length === 0
+                            ? "text-muted-foreground"
+                            : "font-medium text-foreground")
+                        }
+                      >
+                        {set.length === 0
+                          ? "no destinations set"
+                          : set.join(" · ")}
                       </span>
-                    )}
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                      {set.length === 0
-                        ? "no destinations set"
-                        : set.join(" · ")}
-                    </span>
+                    </div>
                   </summary>
                   <div className="grid gap-3 border-t p-3.5">
                     {BANK_ACCOUNT_CURRENCIES.map((currency) => (
