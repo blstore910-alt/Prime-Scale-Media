@@ -519,6 +519,14 @@ export const ADV_CSS = `
     .tbl.wide tr td:last-child:not(:first-child)::before{display:none}
     .tbl.wide tr td:last-child:not(:first-child)>*{grid-column:1 / -1}
     .tbl.wide tr td:last-child .btn{width:100%;justify-content:center}
+    /* TWO buttons in an action cell. The rule above makes a lone button
+       full width, which is right — but it also hit both buttons of a pair,
+       so each took 100% of the cell and the card's content came out twice
+       as wide as the card. Measured: a 305px cell with 610px of content, so
+       the whole invoice table scrolled sideways. They share the row
+       instead. */
+    .tbl.wide tr td:last-child .actrow{display:flex;gap:8px;align-items:center}
+    .tbl.wide tr td:last-child .actrow .btn{flex:1 1 0;width:auto;min-width:0}
     .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
     .tbl.wide td[colspan]::before{display:none}
     .tbl.wide td[colspan]{border-top:0;margin-top:0}
