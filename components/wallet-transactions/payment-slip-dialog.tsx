@@ -26,6 +26,10 @@ export default function PaymentSlipDialog({
   // Resolve it to a short-lived signed URL when the dialog opens.
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
+  // An <img> that fails renders as an empty bordered box — which is exactly
+  // what a white-on-transparent slip looks like too. Without this you
+  // cannot tell "it loaded and you cannot see it" from "it did not load".
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +38,7 @@ export default function PaymentSlipDialog({
       return;
     }
     setResolving(true);
+    setImgFailed(false);
     getSignedPaymentSlipUrl(paymentSlipUrl)
       .then((res) => {
         if (cancelled) return;
@@ -104,7 +109,23 @@ export default function PaymentSlipDialog({
           <DialogTitle>Payment Slip</DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-md border bg-muted/20 p-3">
+        {/* A CHECKERBOARD, not a white panel. Customers upload slips as
+            PNGs straight from their banking app, and a transparent or
+            white-on-transparent image on a white background is invisible —
+            the admin sees an empty frame and concludes the preview is
+            broken. Against a checkerboard you can see both the image and
+            its transparency. */}
+        <div
+          className="rounded-md border p-3"
+          style={{
+            backgroundColor: "#eceff6",
+            backgroundImage:
+              "linear-gradient(45deg,#dfe4ef 25%,transparent 25%,transparent 75%,#dfe4ef 75%)," +
+              "linear-gradient(45deg,#dfe4ef 25%,transparent 25%,transparent 75%,#dfe4ef 75%)",
+            backgroundSize: "18px 18px",
+            backgroundPosition: "0 0, 9px 9px",
+          }}
+        >
           {!paymentSlipUrl ? (
             <p className="text-sm text-muted-foreground">
               No payment slip uploaded.
@@ -119,12 +140,22 @@ export default function PaymentSlipDialog({
               don&apos;t have access.
             </p>
           ) : isImage ? (
-            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions inside a modal; next/image would need width/height guess
-            <img
-              src={resolvedUrl}
-              alt="Payment slip"
-              className="w-full max-h-[60vh] object-contain rounded-md bg-background"
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions inside a modal; next/image would need width/height guess */}
+              <img
+                src={resolvedUrl}
+                alt="Payment slip"
+                onError={() => setImgFailed(true)}
+                className="w-full max-h-[60dvh] object-contain rounded-md"
+                style={{ display: imgFailed ? "none" : undefined }}
+              />
+              {imgFailed && (
+                <p className="text-sm text-destructive">
+                  This file did not load as an image. Download it to open it
+                  in something else.
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">
               Preview not available for this file type.

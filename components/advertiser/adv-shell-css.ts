@@ -525,7 +525,45 @@ export const ADV_CSS = `
        as wide as the card. Measured: a 305px cell with 610px of content, so
        the whole invoice table scrolled sideways. They share the row
        instead. */
-    .tbl.wide tr td:last-child .actrow{display:flex;gap:8px;align-items:center}
+    /* A payment we are verifying. Not a list row: a thing in progress.
+     One fact per line, the state on its own line, and a bar that keeps
+     moving — because the honest answer to "has my money arrived" is
+     "we are looking", and a static amber pill does not say that.
+     The bar is decorative and indeterminate ON PURPOSE. A percentage
+     would be a lie: nothing here knows how far along a bank transfer is. */
+  .ptup{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
+    padding:13px 14px;border-radius:15px;border:1px solid #f3e3c2;
+    background:linear-gradient(180deg,#fffdf8,#fff8ea);margin-top:12px}
+  .ptup+.ptup{margin-top:10px}
+  .ptup .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+    background:#fdf0d5;color:#b07d10;flex:0 0 auto;
+    animation:ptup-ring 3s ease-out infinite}
+  .ptup .ico svg{width:18px;height:18px}
+  .ptup .l1{font-family:var(--hd);font-weight:800;letter-spacing:-.01em;
+    font-variant-numeric:tabular-nums}
+  .ptup .l2{color:var(--faint);font-size:.82rem;margin-top:1px;
+    font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .ptup .l3{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .ptup .l3t{color:var(--txt-2);font-size:.8rem}
+  .ptup .bar{grid-column:1 / -1;height:4px;border-radius:99px;background:#f4e6c8;
+    overflow:hidden;margin-top:11px}
+  .ptup .bar i{display:block;height:100%;width:34%;border-radius:99px;
+    background:linear-gradient(90deg,#f0b429,#ffdd8a);
+    animation:ptup-run 2s cubic-bezier(.45,.05,.55,.95) infinite}
+  @keyframes ptup-run{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
+  @keyframes ptup-ring{
+    0%{box-shadow:0 0 0 0 rgba(240,180,41,.5)}
+    70%{box-shadow:0 0 0 10px rgba(240,180,41,0)}
+    100%{box-shadow:0 0 0 0 rgba(240,180,41,0)}
+  }
+  /* No motion, no lie: the bar becomes a full quiet track rather than a
+     stalled sliver that looks stuck. */
+  @media (prefers-reduced-motion:reduce){
+    .ptup .bar i{width:100%;animation:none;opacity:.5}
+    .ptup .ico{animation:none}
+  }
+
+  .tbl.wide tr td:last-child .actrow{display:flex;gap:8px;align-items:center}
     .tbl.wide tr td:last-child .actrow .btn{flex:1 1 0;width:auto;min-width:0}
     .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
     .tbl.wide td[colspan]::before{display:none}

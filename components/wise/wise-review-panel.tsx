@@ -5,8 +5,11 @@ import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useState, type CSSProperties } from "react";
-import { confirmWiseSuggestion } from "@/actions/wise-actions";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  confirmWiseSuggestion,
+  rematchWiseDeposits,
+} from "@/actions/wise-actions";
 import { wiseIngestStatus } from "@/actions/integration-actions";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -168,6 +171,53 @@ export default function WiseReviewPanel() {
   });
 
   const allRows = data ?? [];
+  // ── Ask the matcher again ─────────────────────────────────────────
+  // The webhook matches a deposit ONCE, when it lands, against whatever
+  // was pending at that second. Customers transfer first and file the
+  // claim afterwards, so "no pending topup with matching amount" is very
+  // often a stale answer rather than a wrong one — and nothing ever
+  // re-asked. This does, on every visit, and it only ever writes a
+  // SUGGESTION: the money still moves on your Confirm.
+  const rematch = useMutation({
+    mutationFn: async () => {
+      const res = await rematchWiseDeposits();
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      if (d.suggested > 0) {
+        toast.success(
+          d.suggested === 1
+            ? "1 deposit now matches a pending top-up"
+            : `${d.suggested} deposits now match a pending top-up`,
+          { description: "Confirm each one to credit the wallet." },
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't re-check the deposits", {
+        description: e.message,
+      }),
+  });
+
+  // Once per mount, and only when there is something to re-check. Quiet on
+  // purpose: a toast for "nothing changed" on every page view is noise.
+  const sweptRef = useRef(false);
+  useEffect(() => {
+    if (sweptRef.current || isLoading) return;
+    const open = allRows.some(
+      (r) =>
+        r.status === "unmatched" ||
+        r.status === "ambiguous" ||
+        r.status === "received",
+    );
+    if (!open) return;
+    sweptRef.current = true;
+    rematch.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
+  }, [isLoading, allRows.length]);
+
   const suggestedCount = allRows.filter((r) => r.status === "suggested").length;
 
   // Rendering all 100 made this page 28,000px tall on a phone — 35 screens of
@@ -196,6 +246,15 @@ export default function WiseReviewPanel() {
           {suggestedCount > 0 && (
             <span className="badge pend">{suggestedCount} to confirm</span>
           )}
+          <button
+            className="btn ghost sm"
+            style={{ marginLeft: "auto" }}
+            disabled={rematch.isPending}
+            onClick={() => rematch.mutate()}
+            title="Match the unmatched deposits against the top-ups that are pending right now"
+          >
+            {rematch.isPending ? "Re-checking…" : "Re-check matches"}
+          </button>
         </h2>
         <p className="muted" style={{ margin: "6px 0 0", fontSize: ".92rem" }}>
           Incoming bank payments detected via Wise. During the safe-start phase

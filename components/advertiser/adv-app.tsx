@@ -1401,33 +1401,39 @@ export default function AdvertiserApp() {
             {pendingTopups.length > 0 && (
               <div className="card">
                 <h2>Pending top-up{pendingTopups.length > 1 ? "s" : ""}</h2>
+                {/* This was one flex row: amount, then "Ref … · awaiting
+                    verification" as a single sentence, then a badge pushed
+                    to the right with margin-left:auto. On a phone the
+                    sentence wrapped mid-phrase — "awaiting" on one line and
+                    "verification" on the next — while the badge squeezed
+                    the text it was sitting next to. It read as broken
+                    layout rather than as a payment in progress.
+
+                    Now it is what it actually is: a card for something that
+                    is HAPPENING. One fact per line, the state on its own
+                    line, and a bar that keeps moving while we are looking
+                    at it. See .ptup in adv-shell-css.ts. */}
                 {pendingTopups.map((t) => (
-                  /* waiting: this row is the one thing on the page that is
-                     actually in motion — see refine-css.ts. */
-                  <div className="list-row waiting" key={t.id}>
-                    <span
-                      className="ico"
-                      style={{
-                        background: "var(--warn-soft)",
-                        color: "var(--warn)",
-                      }}
-                    >
+                  <div className="ptup" key={t.id}>
+                    <span className="ico">
                       <Ic name="i-clock" />
                     </span>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="l1">
                         {t.currency === "USD" ? "$" : "€"}
                         {money2(t.amount)} · bank transfer
                       </div>
-                      <div
-                        style={{ color: "var(--faint)", fontSize: ".82rem" }}
-                      >
-                        Ref {t.reference_no ?? "—"} · awaiting verification
+                      <div className="l2">Ref {t.reference_no ?? "—"}</div>
+                      <div className="l3">
+                        <span className="badge pend">Verifying</span>
+                        <span className="l3t">
+                          We credit it as soon as we see it land.
+                        </span>
                       </div>
                     </div>
-                    <span className="badge pend" style={{ marginLeft: "auto" }}>
-                      Verifying
-                    </span>
+                    <div className="bar">
+                      <i />
+                    </div>
                   </div>
                 ))}
               </div>

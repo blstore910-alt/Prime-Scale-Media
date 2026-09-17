@@ -3,6 +3,10 @@
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createAdminClient } from "@/lib/supabase/server";
 import { resolveAdminContext, wroteSomething } from "./_shared";
+import {
+  matchIncomingTransfer,
+  type PendingTopup,
+} from "@/lib/integrations/wise-match";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -146,4 +150,151 @@ export async function matchWiseToTopup(
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
   return { ok: true, data: null };
+}
+
+/**
+ * Look at the unmatched deposits again, now that the pending top-ups have
+ * changed.
+ *
+ * WHY THIS HAS TO EXIST. The webhook matches a deposit ONCE, at the moment
+ * it arrives, against the top-ups that are pending right then. That is the
+ * wrong moment more often than it sounds:
+ *
+ *   - the customer transferred the money BEFORE filing their claim (which
+ *     is what people do — they pay first and tell you after), so at arrival
+ *     there was nothing to match and the deposit was filed "no pending
+ *     topup with matching amount" for ever;
+ *   - the claim was refused on submit and re-sent minutes later;
+ *   - two same-amount claims were open at arrival and one has since been
+ *     verified, so what was ambiguous is now unambiguous.
+ *
+ * Nothing re-read those deposits, so the queue kept a permanent snapshot of
+ * a question nobody asked again.
+ *
+ * This re-asks it. It SUGGESTS and never credits: the same safe-start rule
+ * the webhook obeys, so the money still only moves when an admin presses
+ * Confirm. It is therefore safe to run on every visit to the panel.
+ *
+ * It uses the same pure matcher as the webhook, so a deposit cannot be
+ * matched here by a rule the automatic path would have refused.
+ */
+export async function rematchWiseDeposits(): Promise<
+  ActionResult<{ checked: number; suggested: number }>
+> {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+
+  // Only deposits that are still an open question. 'matched' and
+  // 'suggested' already point at a top-up; 'confirmed' and 'completed' have
+  // moved money and must never be touched again.
+  const { data: deposits, error: dErr } = await supabase
+    .from("wise_incoming_transfers")
+    .select(
+      "id, amount_cents, currency, reference, sender_iban, status, tenant_id, created_at",
+    )
+    .in("status", ["unmatched", "ambiguous", "received"])
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (dErr) return { ok: false, error: safeErrorMessage(dErr) };
+  if (!deposits || deposits.length === 0) {
+    return { ok: true, data: { checked: 0, suggested: 0 } };
+  }
+
+  const { data: pending, error: pErr } = await supabase
+    .from("wallet_topups")
+    .select("id, reference_no, amount, currency, status, advertiser_id")
+    .eq("status", "pending")
+    .eq("tenant_id", profile.tenant_id);
+  if (pErr) return { ok: false, error: safeErrorMessage(pErr) };
+  if (!pending || pending.length === 0) {
+    return { ok: true, data: { checked: deposits.length, suggested: 0 } };
+  }
+
+  // Sender IBAN → advertiser ids, the same signal the webhook uses.
+  const ibans = Array.from(
+    new Set(
+      deposits
+        .map((d) => (d as { sender_iban?: string | null }).sender_iban)
+        .filter((v): v is string => !!v)
+        .map((v) => v.replace(/\s/g, "").toUpperCase()),
+    ),
+  );
+  const advertisersByIban = new Map<string, string[]>();
+  if (ibans.length > 0) {
+    const { data: senderRows } = await supabase
+      .from("advertiser_bank_senders")
+      .select("advertiser_id, sender_iban")
+      .in("sender_iban", ibans);
+    for (const row of senderRows ?? []) {
+      const r = row as { advertiser_id: string; sender_iban: string };
+      const key = r.sender_iban.replace(/\s/g, "").toUpperCase();
+      const list = advertisersByIban.get(key) ?? [];
+      list.push(r.advertiser_id);
+      advertisersByIban.set(key, list);
+    }
+  }
+
+  // The service-role client, for the same reason matchWiseToTopup uses it:
+  // wise_incoming_transfers carries a SELECT policy and nothing else, so a
+  // write under the caller's client matches zero rows. Every check that
+  // would normally be RLS's job is done here by hand — admin of this
+  // tenant, the top-up is theirs and pending, the deposit is theirs or
+  // unassigned, amounts equal to the cent (inside the matcher).
+  const admin = await createAdminClient();
+
+  // One top-up cannot settle two deposits. Without this, three €5 deposits
+  // and one €5 claim would all be pointed at the same claim and an admin
+  // would be offered the same money three times.
+  const claimed = new Set<string>();
+  let suggested = 0;
+
+  for (const row of deposits) {
+    const d = row as {
+      id: string;
+      amount_cents: number;
+      currency: string;
+      reference: string | null;
+      sender_iban: string | null;
+      tenant_id: string | null;
+    };
+    if (d.tenant_id !== null && d.tenant_id !== profile.tenant_id) continue;
+
+    const iban = d.sender_iban
+      ? d.sender_iban.replace(/\s/g, "").toUpperCase()
+      : null;
+    const candidates = (pending as PendingTopup[]).filter(
+      (t) => !claimed.has(t.id),
+    );
+    if (candidates.length === 0) break;
+
+    const match = matchIncomingTransfer(
+      {
+        amount_cents: Math.round(Number(d.amount_cents ?? 0)),
+        currency: String(d.currency ?? ""),
+        reference: d.reference,
+        sender_iban: iban,
+      },
+      candidates,
+      iban ? (advertisersByIban.get(iban) ?? []) : [],
+    );
+    if (!match.matched) continue;
+
+    const { data: linked, error: linkErr } = await admin
+      .from("wise_incoming_transfers")
+      .update({
+        suggested_topup_id: match.topupId,
+        status: "suggested",
+        note: `re-checked: matched via ${match.via}`,
+      })
+      .eq("id", d.id)
+      .select("id");
+    if (linkErr) return { ok: false, error: safeErrorMessage(linkErr) };
+    if (!wroteSomething(linked).ok) continue;
+
+    claimed.add(match.topupId);
+    suggested += 1;
+  }
+
+  return { ok: true, data: { checked: deposits.length, suggested } };
 }

@@ -303,12 +303,15 @@ ${s} .tbl .cust{max-width:190px}
    missed all of this: the icon fell back to an inline image at its natural
    size and the title wrapped onto the line UNDER it. "Your ad accounts" was
    drawn below its own monitor glyph. */
-${s} .card>h2,
-${s} .card .phead>h2{display:flex;align-items:center;gap:10px;font-size:1.06rem;min-width:0}
-${s} .card>h2>span,
-${s} .card .phead>h2>span{display:inline-flex;align-items:center;gap:10px;min-width:0}
-${s} .card>h2 svg,
-${s} .card .phead>h2 svg{
+/* ANY h2 inside a card, at any depth. This was .card>h2, then
+   .card>h2 plus .card .phead>h2, and each time another heading turned up
+   that sat one div deeper — "Wallet activity" lives inside a padding
+   wrapper — and rendered its icon as a loose inline image with the title
+   on the line UNDERNEATH it. A card heading is a card heading wherever it
+   is nested; an h2 with no icon is unaffected by the svg rules. */
+${s} .card h2{display:flex;align-items:center;gap:10px;font-size:1.06rem;min-width:0}
+${s} .card h2>span{display:inline-flex;align-items:center;gap:10px;min-width:0}
+${s} .card h2 svg{
   box-sizing:content-box;width:17px;height:17px;padding:7px;flex:0 0 auto;
   border-radius:10px;color:var(--primary-600);background:var(--primary-tint);
   box-shadow:0 1px 0 #fff inset,0 0 0 1px rgba(58,111,255,.12)}
@@ -395,16 +398,23 @@ ${s} .custbtn{
 ${s} .custbtn:hover .cust-code{color:var(--primary-600)}
 ${s} .custbtn:focus-visible{outline:0;box-shadow:0 0 0 3px var(--primary-tint)}
 
-/* ── The verify queue on a phone ─────────────────────────────
-   Five actions of equal weight wrapped onto two ragged lines, and the one
-   that matters — Verify — sat second, the same size as Slip. On a narrow
-   screen it takes the full width at the top and the rest pair off under it
-   in a tidy two-up. */
-@media (max-width:520px){
-  ${s} .tupacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  ${s} .tupacts .btn{width:100%;justify-content:center}
-  ${s} .tupacts .tupmain{grid-column:1 / -1;order:-1}
-}
+/* ── The verify queue's five actions ────────────────────────
+   AT EVERY WIDTH, not behind a phone breakpoint. These cards sit in a
+   repeat(auto-fill,minmax(280px,1fr)) grid, so the card is about 300px wide
+   on a 27-inch monitor exactly as it is on a phone — the viewport tells you
+   nothing about it.
+
+   That is also what broke it: the row was given the shared .actrow, which is
+   flex with justify-content:flex-end and no wrapping. Five buttons do not
+   fit in 300px, and a flex-end row whose content overflows spills out of its
+   START edge — so Verify hung outside the left edge of the card and Details
+   was clipped away entirely, on a desktop.
+
+   A two-up grid cannot overflow. Verify spans both columns at the top,
+   because it is the action this screen exists for; the rest pair off. */
+${s} .tupacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+${s} .tupacts .btn{width:100%;justify-content:center;min-width:0}
+${s} .tupacts .tupmain{grid-column:1 / -1;order:-1}
 
 ${s} .badge{box-shadow:0 0 0 1px rgba(20,30,80,.05) inset;letter-spacing:.01em}
 `;
