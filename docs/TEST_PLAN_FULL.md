@@ -461,3 +461,25 @@ What it covers:
 
 Anything that fails becomes a fix, and the fix gets its own line in this
 plan so the next pass re-checks it.
+
+---
+
+## 6. Results — part 2, tag A
+
+Live, on production, as super-admin, in a 400x690 viewport. A FAIL here is
+already fixed unless it says otherwise; the commit is named so the next pass
+can re-check it rather than take my word.
+
+| # | verdict | note |
+|---|---|---|
+| D1 | PASS | Title, one-line subtitle and New invite share one row. |
+| D2 | **FAIL → fixed** | Withdrawal requests had no count at all, in a section headed "what needs your action right now" — the one queue where a customer waits on money leaving. Counted now across all three tables the screen shows; null (a dash) if any of them cannot be read. `8a2f2c7` |
+| D5 | PASS | One `/api/stats/batch`. `components/dashboard/{fees,profit}-stats-card.tsx` still fetch single endpoints but nothing imports them — dead code, no request. |
+| H1 | PASS | Withdrawals / Refunds / Adjustments each load and each shows its own empty state. |
+| U1 | PASS (adapted) | Header one row. The list leads with the client code as the card title and the name beneath, so the "first name only" rule no longer applies — the name is the subtitle, not the identifier. |
+| U3 | **FAIL → fixed** | The sort & filter sheet opened ~1100px below the fold on EVERY admin list: `.psmapp .content` kept a filled identity transform from its entry animation, which made it the containing block for the `position:fixed` panel. The scrim (a sibling, untransformed) appeared, the panel did not. `c063c7a` |
+| — | **FAIL → fixed** | The filter trigger and the CSV button are icon-only on a phone and the hidden text label was their only accessible name. `c063c7a` |
+| — | **FAIL → fixed** | Every record card printed ADVERTISER above its own title and ACTIONS above its buttons; ~34px per card, on every list. `a5a115b` |
+| — | **FAIL → fixed** | Profit counted USD top-up fees as euros (~16% overstated) and dropped paid `subscription_adjustment` invoices entirely. `e713118` |
+
+Not yet run: U2/U4–U10, A*, P*, R*, W*, T*, L*, I*, S*, M*, O*.
