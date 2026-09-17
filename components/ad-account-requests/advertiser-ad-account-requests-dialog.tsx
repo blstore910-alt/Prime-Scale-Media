@@ -156,7 +156,11 @@ export default function AdvertiserAdAccountRequestsDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden">
+      {/* A flex column in dvh, and the list flexes inside it. It was
+          overflow-hidden with the scroll area sized `h-11/12` — a fraction
+          of a parent that has no resolved height, so the list was clipped
+          rather than scrolled and the last requests were unreachable. */}
+      <DialogContent className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>My Ad Account Requests</DialogTitle>
           <DialogDescription>
@@ -164,8 +168,8 @@ export default function AdvertiserAdAccountRequestsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-11/12">
-          <div className="overflow-y-auto pr-1 space-y-3">
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="space-y-3 pr-1">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, idx) => (
                 <div
