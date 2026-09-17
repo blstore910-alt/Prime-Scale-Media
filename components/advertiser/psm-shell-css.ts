@@ -233,7 +233,7 @@ export const PSM_APP_CSS = `
 .psmapp .tbl tr:hover td{background:var(--panel-2)}
 .psmapp .tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .psmapp .tbl.wide{min-width:640px}
-.psmapp .fbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px;margin-bottom:14px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:15px;box-shadow:0 10px 26px -20px rgba(20,30,80,.5)}
+.psmapp .fbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:15px;box-shadow:0 10px 26px -20px rgba(20,30,80,.5)}
 .psmapp .fbar .fsr{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;flex:1;min-width:150px;max-width:300px;color:var(--faint);transition:border-color .14s,box-shadow .14s}
 .psmapp .fbar .fsr:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint);color:var(--primary-600)}
 .psmapp .fbar .fsr svg{width:16px;height:16px;flex:0 0 auto}
@@ -312,7 +312,13 @@ export const PSM_APP_CSS = `
   .psmapp .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
   .psmapp .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
   .psmapp .bb svg{width:22px;height:22px}.psmapp .bb.on{color:var(--primary-600)}.psmapp .bb.on .bbic{background:var(--primary-tint)}
-  .psmapp .content{padding:20px 16px 92px}
+  .psmapp .content{padding:16px 16px 92px}
+  /* The views set gap:16 inline on their flex column. On a phone that is a
+     line of nothing between every block, and with the filter bar's own
+     margin on top of it there was 26px between the bar and the first card.
+     The margin is gone (the gap already separates them) and the gap itself
+     comes down. !important because the inline style would otherwise win. */
+  .psmapp .psmview{gap:11px!important}
 }
 
 /* Phone: wide tables collapse into stacked cards. The header row is hidden
@@ -472,7 +478,7 @@ export const PSM_APP_CSS = `
   /* Filters: search on its own line, then everything else shares ONE row.
      Three stacked full-width controls was 158px of chrome above a list —
      and a column of identical pills reads as a form, not as a toolbar. */
-  .psmapp .fbar{gap:7px;padding:7px;margin-bottom:10px;border-radius:14px}
+  .psmapp .fbar{gap:7px;padding:7px;border-radius:14px}
   .psmapp .fbar .fsr{flex:1 1 100%;max-width:none;padding:9px 12px}
   /* When the bar carries the bundled control there are only two things in
      it, so they share one row instead of spending two. */
