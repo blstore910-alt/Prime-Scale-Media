@@ -41,6 +41,32 @@ export async function grantPerk(
     return { ok: false, error: "Unknown perk kind", code: "invalid" };
   }
 
+  // The dialog already refuses a blank or out-of-range discount, but the
+  // dialog is not the boundary — this action is, and the RPC under it takes
+  // p_amount as a bare numeric with no check at all. A NULL amount inserts a
+  // perk that reads as a live discount and is worth nothing; a 500 inserts
+  // one that subtracts 500 percentage points from a 2% fee. Both report
+  // "Perk granted."
+  const isDiscount =
+    input.kind === "subscription_discount" || input.kind === "topup_discount";
+  if (isDiscount) {
+    const amount = Number(input.amount);
+    if (input.amount == null || !Number.isFinite(amount) || amount <= 0) {
+      return {
+        ok: false,
+        error: "A discount needs a percentage above 0.",
+        code: "invalid",
+      };
+    }
+    if (amount > 100) {
+      return {
+        ok: false,
+        error: "A discount cannot exceed 100%.",
+        code: "invalid",
+      };
+    }
+  }
+
   const { supabase } = auth.ctx;
   const { data, error } = await supabase.rpc("grant_advertiser_perk", {
     p_advertiser_id: input.advertiser_id,

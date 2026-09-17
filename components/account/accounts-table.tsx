@@ -83,7 +83,11 @@ export default function AccountsTable() {
   const [perPage] = useState<number>(initialPerPage);
 
   // client-side controls
-  const [search, setSearch] = useState("");
+  // Seeded from the URL so another screen can hand this one a subject:
+  // the advertiser list links here with the client code, which is exactly
+  // what the search below matches on. Local state afterwards — the admin
+  // can clear or retype it like any other search.
+  const [search, setSearch] = useState(searchParams?.get("q") ?? "");
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   // Filtering on a fee ceiling was a filter nobody reaches for; SORTING by

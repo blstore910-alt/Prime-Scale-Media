@@ -170,7 +170,8 @@ export const PSM_APP_CSS = `
    small icon instead of a full-size one crammed into less padding. */
 .psmapp .btn{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.875rem;line-height:1.2;border-radius:10px;padding:10px 15px;background:var(--primary);color:#fff;white-space:nowrap;box-shadow:0 10px 22px -12px rgba(58,111,255,.7);transition:.12s}
 .psmapp .btn:hover{transform:translateY(-1px);background:var(--primary-600)}.psmapp .btn svg{width:16px;height:16px}
-.psmapp .btn:disabled{opacity:.6;cursor:default;transform:none}
+.psmapp .btn:disabled,
+.psmapp .btn.disabled{opacity:.6;cursor:default;transform:none;pointer-events:none}
 .psmapp .btn.sm{padding:7px 11px;font-size:.8rem;gap:6px;border-radius:9px;box-shadow:0 6px 14px -10px rgba(58,111,255,.6)}
 .psmapp .btn.sm svg{width:14px;height:14px}
 .psmapp .btn.ghost.sm{box-shadow:none}

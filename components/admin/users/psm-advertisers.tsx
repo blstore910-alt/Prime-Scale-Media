@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import CreateSubscriptionDialog from "@/components/subscriptions/create-subscription-dialog";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { COMMISSION_TYPE_LABELS } from "@/lib/constants";
@@ -10,6 +11,7 @@ import { Parser } from "json2csv";
 import {
   Eye,
   FileDown,
+  Monitor,
   HandCoins,
   Loader2,
   Plus,
@@ -62,6 +64,15 @@ export default function PsmAdvertisers() {
   const [page, setPage] = useState(1);
   const perPage = 20;
   const [downloadingCSV, setDownloadingCSV] = useState(false);
+
+  // One definition of "the list is narrowed", used by both the empty state
+  // and the Reset control, so they can never disagree about it.
+  const narrowed = !!search.trim() || active !== "all";
+  const resetFilters = () => {
+    setSort("newest");
+    setActive("all");
+    setSearch("");
+  };
 
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -190,11 +201,7 @@ export default function PsmAdvertisers() {
             },
           ]}
           searchActive={!!search.trim()}
-          onReset={() => {
-            setSort("newest");
-            setActive("all");
-            setSearch("");
-          }}
+          onReset={resetFilters}
         />
         <button
           className="fexp"
@@ -276,10 +283,27 @@ export default function PsmAdvertisers() {
             </div>
           </div>
         </>
+      ) : narrowed ? (
+        /* "You have none" and "your filters match none" are different facts
+           and have to read differently — otherwise a filter left on from
+           five minutes ago looks exactly like an empty database, and the
+           way out of it is not on screen. */
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            No advertisers match the current search or filters.
+          </p>
+          <button
+            className="btn ghost sm"
+            style={{ marginTop: 12 }}
+            onClick={resetFilters}
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            No advertisers found.
+            No advertisers yet.
           </p>
         </div>
       )}
@@ -382,6 +406,8 @@ function AdvertiserRow({
     fn();
   };
 
+  const clientCode = advertiser?.tenant_client_code ?? "";
+
   return (
     <tr style={{ cursor: "pointer" }} onClick={onView}>
       {/* .fullcell: on a phone this stacks under its label at full width
@@ -480,16 +506,42 @@ function AdvertiserRow({
           {profile.status ?? "—"}
         </span>
       </td>
-      {/* .actrow keeps all three on ONE row at every width by letting them
-          shrink together — a 2+1 wrap reads as an accident, and the odd one
+      {/* .actrow keeps all four on ONE row at every width by letting them
+          shrink together — a 3+1 wrap reads as an accident, and the odd one
           out looks like it belongs to the row below. Under 420px the labels
-          give way to the icons, which is the only honest way to fit three
+          give way to the icons, which is the only honest way to fit four
           controls in 340px without shrinking the tap target. */}
       <td data-label="Actions" className="r fullcell">
         <div className="actrow">
           <button className="btn ghost sm" onClick={stop(onView)} title="Details">
             <Eye /> <span className="alab">Details</span>
           </button>
+          {/* Straight to this advertiser's ad accounts, pre-filtered by the
+              client code — the same string the accounts search matches on.
+              It was two screens and a retyped code away, and "show me
+              everything this customer runs" is the question the desk asks
+              most. Disabled without a code, because the filter would then
+              land on the whole table and look like their accounts. */}
+          <Link
+            className={`btn ghost sm${clientCode ? "" : " disabled"}`}
+            href={
+              clientCode
+                ? `/accounts?q=${encodeURIComponent(clientCode)}`
+                : "/accounts"
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!clientCode) e.preventDefault();
+            }}
+            aria-disabled={!clientCode}
+            title={
+              clientCode
+                ? "Ad accounts"
+                : "No client code yet — nothing to filter by"
+            }
+          >
+            <Monitor /> <span className="alab">Accounts</span>
+          </Link>
           <button
             className="btn ghost sm"
             onClick={stop(() => onCommissionSetup(advertiser))}
