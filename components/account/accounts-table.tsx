@@ -53,6 +53,7 @@ import UpdateAccountDialog from "./update-account-dialog";
 import AccountMinTopupDialog from "./account-min-topup-dialog";
 import useUpdateAccount from "./use-update-account";
 import { useAccountSpend } from "@/hooks/use-account-spend";
+import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
 import { adAccountStatusView } from "@/lib/ad-account-status";
 
 // Admin Ad Accounts monolith, ported to the mockup look (.psmapp shell,
@@ -138,6 +139,7 @@ export default function AccountsTable() {
           advertiser:advertisers(
             tenant_client_code,
             profile:user_profiles(
+              id,
               full_name,
               email
             )
@@ -161,6 +163,13 @@ export default function AccountsTable() {
   // accounts on different sides of the 30-day line because it took a
   // moment to render.
   const nowMs = Date.now();
+
+  // Clicking the ADVERTISER on a row opens that advertiser's own record —
+  // the same sheet the Advertisers screen uses, with the PSM number, the
+  // copyable email and the full company block. It was only reachable from
+  // one screen, so from here you got the ACCOUNT's details and a thin
+  // "Advertiser Information" section at the bottom of it.
+  const [advProfileId, setAdvProfileId] = useState<string | null>(null);
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const { data: advertiserAccounts, isLoading: isAdvertiserAccountsLoading } =
@@ -644,6 +653,7 @@ export default function AccountsTable() {
                     spend={spendByAccount[acc.id]}
                     spendUnknown={spendError}
                     nowMs={nowMs}
+                    onOpenAdvertiser={setAdvProfileId}
                   />
                 ))}
               </tbody>
@@ -689,6 +699,14 @@ export default function AccountsTable() {
       />
 
       {dialogs}
+
+      {/* The advertiser behind a row, in the same sheet the Advertisers
+          screen uses. */}
+      <UserDetailsSheet
+        open={!!advProfileId}
+        profileId={advProfileId}
+        onOpenChange={() => setAdvProfileId(null)}
+      />
     </div>
   );
 }
@@ -703,6 +721,7 @@ function PsmAdminAccountRow({
   spend,
   spendUnknown = false,
   nowMs,
+  onOpenAdvertiser,
 }: {
   account: AdAccount;
   onRowClick: (id: string) => void;
@@ -710,6 +729,7 @@ function PsmAdminAccountRow({
   spend?: { usd: number; count: number; lastAt: string | null };
   spendUnknown?: boolean;
   nowMs: number;
+  onOpenAdvertiser: (profileId: string) => void;
 }) {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
@@ -801,9 +821,29 @@ function PsmAdminAccountRow({
           glance, and a full name pushed the two-up card wider than the
           column it sits in. The full name is in the detail sheet. */}
       <td data-label="Advertiser" className="clip">
-        <span title={account.advertiser?.profile?.full_name ?? undefined}>
-          {firstName(account.advertiser?.profile?.full_name) || "—"}
-        </span>
+        {/* The advertiser, not just their name: this opens their record.
+            Stops the click reaching the row, which opens the ACCOUNT. */}
+        {(account.advertiser?.profile as { id?: string } | undefined)?.id ? (
+          <button
+            className="custbtn"
+            title={`Open ${account.advertiser?.profile?.full_name ?? "this advertiser"}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const pid = (
+                account.advertiser?.profile as { id?: string } | undefined
+              )?.id;
+              if (pid) onOpenAdvertiser(pid);
+            }}
+          >
+            <span style={{ textDecoration: "underline dotted" }}>
+              {firstName(account.advertiser?.profile?.full_name) || "—"}
+            </span>
+          </button>
+        ) : (
+          <span title={account.advertiser?.profile?.full_name ?? undefined}>
+            {firstName(account.advertiser?.profile?.full_name) || "—"}
+          </span>
+        )}
       </td>
       <td data-label="Platform">
         <span
