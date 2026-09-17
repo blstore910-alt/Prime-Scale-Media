@@ -1717,13 +1717,6 @@ export default function AdvertiserApp() {
                         </span>
                       )}
                     </div>
-                    {unpaidSubInvoices.length > 1 && (
-                      <p className="cap" style={{ margin: "8px 0 0" }}>
-                        You have {unpaidSubInvoices.length} unpaid subscription
-                        invoices. This is the most recent one — the others are
-                        in the list below.
-                      </p>
-                    )}
                     <button
                       className="btn block grad"
                       style={{ marginTop: 14 }}
@@ -1811,7 +1804,14 @@ export default function AdvertiserApp() {
                                 id, so there is nothing to gate here. */}
                             <td data-label="" className="r fullcell">
                               <div className="actrow">
-                                {!paid && (
+                                {/* Pay now belongs to the MONTHLY invoice
+                                    only. An adjustment or a manual invoice
+                                    is not something a customer settles from
+                                    here, and offering the button on all of
+                                    them made a billing screen look like a
+                                    list of debts. Download stays on every
+                                    row. */}
+                                {!paid && inv.type === "subscription" && (
                                   <button
                                     className="btn ghost sm"
                                     disabled={payingId === inv.id}
