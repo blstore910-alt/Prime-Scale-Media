@@ -177,7 +177,11 @@ export default function AdvertiserApp() {
     if (advertiserId && tenantId && wallet === null) createWallet();
   }, [advertiserId, tenantId, wallet, createWallet]);
 
-  const { data: accounts } = useQuery<AdAccount[]>({
+  // isError matters here as much as the data. Without it a failed read is
+  // indistinguishable from an empty one, and the screen tells a customer
+  // with ten live ad accounts that they have none and should request their
+  // first — which is both alarming and wrong.
+  const { data: accounts, isError: accountsError } = useQuery<AdAccount[]>({
     queryKey: ["adv-accounts", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -941,6 +945,11 @@ export default function AdvertiserApp() {
                       <AccountCard key={a.id} a={a} />
                     ))}
                   </div>
+                ) : accountsError ? (
+                  <p className="cap" style={{ margin: 0 }}>
+                    We couldn&apos;t load your ad accounts just now — this is
+                    not an empty list. Reload to try again.
+                  </p>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>
                     No ad accounts yet — request your first one.
@@ -1281,18 +1290,31 @@ export default function AdvertiserApp() {
                   <Ic name="i-ad" />
                 </span>
                 <h3>
-                  {canRequestAccount
-                    ? "No ad accounts yet"
-                    : "Activate your plan first"}
+                  {accountsError
+                    ? "Couldn't load your ad accounts"
+                    : canRequestAccount
+                      ? "No ad accounts yet"
+                      : "Activate your plan first"}
                 </h3>
                 <p>
-                  {canRequestAccount
+                  {accountsError
+                    ? "This is not an empty list — the request failed. Reload to try again."
+                    : canRequestAccount
                     ? "Request one and we set it up for you on our verified Business Manager. Your plan covers the accounts it includes; anything beyond that is billed as you go."
                     : pendingTopups.length > 0
                       ? "Your transfer is with us and being verified. Once your plan is paid, the ad accounts it includes are yours to request."
                       : "Your ad accounts come with your plan, so the first step is paying for it. After that the included accounts are yours to request, and extras are billed as you go."}
                 </p>
-                {canRequestAccount ? (
+                {accountsError ? (
+                  /* Neither "request one" nor "go to billing" is the right
+                     next step when the list simply failed to load. */
+                  <button
+                    className="btn"
+                    onClick={() => window.location.reload()}
+                  >
+                    <Ic name="i-refresh" /> Reload
+                  </button>
+                ) : canRequestAccount ? (
                   <RequestAdAccountDialog>
                     <button className="btn">
                       <Ic name="i-plus" /> Request ad account
