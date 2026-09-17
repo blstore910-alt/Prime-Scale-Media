@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -88,6 +89,7 @@ export default function FeeDefaultsCard() {
   }, [data]);
 
   const [rows, setRows] = useState<EditableRow[]>(initialRows);
+  const [ask, setAsk] = useState(false);
   useEffect(() => setRows(initialRows), [initialRows]);
 
   const { mutate, isPending } = useMutation({
@@ -184,14 +186,47 @@ export default function FeeDefaultsCard() {
         )}
       </CardContent>
       <CardFooter className="justify-end">
-        <Button
-          disabled={!anyDirty || isPending}
-          onClick={() => mutate()}
-        >
+        <Button disabled={!anyDirty || isPending} onClick={() => setAsk(true)}>
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save fees
         </Button>
       </CardFooter>
+
+      {/* A diff, and a confirmation. These percentages are what every future
+          top-up is charged — our own margin — and the Save button is gated
+          only on a row being dirty, which a scroll wheel over a focused
+          number input does silently. The Banks card next door already
+          double-confirms with a changed-field list; the card that sets the
+          margin did not. */}
+      <ConfirmModal
+        open={ask}
+        onOpenChange={setAsk}
+        title="Change the top-up fees?"
+        lead="This is what every new top-up is charged from now on. Existing top-ups keep the fee they were charged."
+        cta="Yes, save these fees"
+        busy={isPending}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          setAsk(false);
+          mutate();
+        }}
+      >
+        {rows
+          .filter((r) => r.dirty && r.fee_pct_str !== "")
+          .map((r) => {
+            const before = initialRows.find(
+              (i) => i.platform === r.platform && i.currency === r.currency,
+            )?.fee_pct_str;
+            return (
+              <ConfirmFact
+                key={`${r.platform}-${r.currency}`}
+                label={`${PLATFORM_LABELS[r.platform]} · ${r.currency}`}
+                value={`${before || "—"}% → ${r.fee_pct_str}%`}
+                strong
+              />
+            );
+          })}
+      </ConfirmModal>
     </Card>
   );
 }

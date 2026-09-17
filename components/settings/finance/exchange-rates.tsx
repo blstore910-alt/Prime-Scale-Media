@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { safeErrorMessage } from "@/lib/pure-error";
 import InputField from "@/components/form/input-field";
 import { Button } from "@/components/ui/button";
@@ -123,9 +124,22 @@ function ExchangeRatesForm({
     },
   });
 
-  const onSubmit = (values: FormValues) => {
-    mutate(values);
-  };
+  // ── Ask, with the old and the new side by side ──────────────────────
+  // This row prices EVERY conversion in the app: calculateTopupAmount
+  // divides by it, the wallet RPCs assume it, every "in the other
+  // currency" figure comes from it. And the only thing gating the Save
+  // button is formState.isDirty — which a scroll wheel over a focused
+  // number input sets silently, by one step. This file already carries a
+  // note about that having happened.
+  //
+  // It is worse on the way out than on the way in: upsertExchangeRate
+  // stands the current active row DOWN before writing the new one, so a
+  // save that is then refused leaves the tenant with NO active rate.
+  //
+  // So the confirmation is a DIFF, not a warning. A wrong digit is obvious
+  // beside the number it replaces and invisible on its own.
+  const [pendingRates, setPendingRates] = useState<FormValues | null>(null);
+  const onSubmit = (values: FormValues) => setPendingRates(values);
 
   const handleSetLatest = async () => {
     try {
@@ -242,6 +256,39 @@ function ExchangeRatesForm({
           </div>
         </div>
       </CardFooter>
+
+      <ConfirmModal
+        open={!!pendingRates}
+        onOpenChange={(next) => {
+          if (!next) setPendingRates(null);
+        }}
+        title="Change the exchange rates?"
+        lead="These price every conversion in the app — top-ups, wallet exchanges, and every figure shown in the other currency. Check each number against the one it replaces."
+        cta="Yes, save these rates"
+        busy={isPending}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          const v = pendingRates;
+          setPendingRates(null);
+          if (v) mutate(v);
+        }}
+      >
+        {(["EUR", "GBP", "HKD"] as const).map((cur) => {
+          const before = defaultValues[cur];
+          const after = pendingRates?.[cur];
+          const changed = String(before) !== String(after);
+          return (
+            <ConfirmFact
+              key={cur}
+              label={`1 USD in ${cur}`}
+              value={
+                changed ? `${before || "—"} → ${after}` : `${after} (unchanged)`
+              }
+              strong={changed}
+            />
+          );
+        })}
+      </ConfirmModal>
     </form>
   );
 }

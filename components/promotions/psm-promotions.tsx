@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { grantPerk, revokePerk } from "@/actions/perk-actions";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
@@ -170,6 +171,16 @@ export default function PsmPromotions() {
         description: e instanceof Error ? e.message : undefined,
       }),
   });
+
+  // A revoked perk is not editable back — it can only be re-granted by
+  // typing its original terms in again from memory. And for a
+  // subscription_waiver or a fee discount, revoking means the customer
+  // starts paying full price from their next invoice with no notice.
+  const [revoking, setRevoking] = useState<{
+    id: string;
+    kind?: string | null;
+    advertiser_id?: string | null;
+  } | null>(null);
 
   const revoke = useMutation({
     mutationFn: async (id: string) => {
@@ -476,7 +487,7 @@ export default function PsmPromotions() {
                       {p.active && (
                         <button
                           className="btn ghost sm"
-                          onClick={() => revoke.mutate(p.id)}
+                          onClick={() => setRevoking(p)}
                           disabled={revoke.isPending}
                           title="Revoke this perk"
                         >
@@ -497,6 +508,25 @@ export default function PsmPromotions() {
           </p>
         </div>
       )}
+      <ConfirmModal
+        open={!!revoking}
+        onOpenChange={(next) => {
+          if (!next) setRevoking(null);
+        }}
+        title="Revoke this perk?"
+        lead="It stops applying immediately, and it cannot be edited back — re-granting means entering the original terms again. For a waiver or a discount the customer starts paying full price on their next invoice, with no notice from us."
+        cta="Yes, revoke it"
+        tone="danger"
+        busy={revoke.isPending}
+        busyLabel="Revoking…"
+        onConfirm={() => {
+          const r = revoking;
+          setRevoking(null);
+          if (r) revoke.mutate(r.id);
+        }}
+      >
+        <ConfirmFact label="Perk" value={revoking?.kind ?? "—"} />
+      </ConfirmModal>
     </div>
   );
 }

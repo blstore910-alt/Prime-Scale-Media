@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Badge } from "@/components/ui/badge";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
@@ -132,6 +133,15 @@ export default function InvitesTable() {
     },
   });
 
+  // Cancelling kills the recipient's existing link — there is no un-cancel,
+  // only sending a fresh invite. And `isPending` is one table-wide flag, so
+  // during the write every row's Cancel greys out and the operator cannot
+  // see which one they hit.
+  const [cancelling, setCancelling] = useState<{
+    id: string;
+    email?: string | null;
+  } | null>(null);
+
   const handleCancelInvite = (inviteId: string) => {
     updateInvite({ inviteId });
   };
@@ -222,7 +232,7 @@ export default function InvitesTable() {
                         <button
                           className="btn ghost sm"
                           disabled={isPending}
-                          onClick={() => handleCancelInvite(invite.id)}
+                          onClick={() => setCancelling(invite)}
                         >
                           {isPending ? "…" : "Cancel"}
                         </button>
@@ -249,6 +259,26 @@ export default function InvitesTable() {
           onPageChange={(p) => setPage(p)}
         />
       )}
+
+      <ConfirmModal
+        open={!!cancelling}
+        onOpenChange={(next) => {
+          if (!next) setCancelling(null);
+        }}
+        title="Cancel this invitation?"
+        lead="The link you sent them stops working. There is no un-cancel — you would have to send a new invite."
+        cta="Yes, cancel it"
+        tone="danger"
+        busy={isPending}
+        busyLabel="Cancelling…"
+        onConfirm={() => {
+          const c = cancelling;
+          setCancelling(null);
+          if (c) handleCancelInvite(c.id);
+        }}
+      >
+        <ConfirmFact label="Invited" value={cancelling?.email ?? "—"} />
+      </ConfirmModal>
     </>
   );
 }
