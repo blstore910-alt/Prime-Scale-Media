@@ -32,9 +32,15 @@ export default function RequestAdAccountDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Request Ad Account</DialogTitle>
+          <DialogTitle>Request an ad account</DialogTitle>
           <DialogDescription>
-            Submit a request for a new ad account.
+            {/* "Submit a request for a new ad account" told the customer
+                nothing they could not read off the button. What they need to
+                know before filling this in is that a person picks it up —
+                and no promised turnaround, because one that is missed is
+                worse than none. */}
+            We set it up on our verified Business Manager. You&apos;ll see it
+            here as soon as it is ready.
           </DialogDescription>
         </DialogHeader>
         <AdAccountRequestForm setOpen={setOpen} />

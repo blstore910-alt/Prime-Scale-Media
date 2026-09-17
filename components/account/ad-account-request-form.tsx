@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { isUrlLike } from "@/lib/url-field";
 import { Resolver, useForm, Control, Controller } from "react-hook-form";
 import * as z from "zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import InputField from "../form/input-field";
 import SelectField from "../form/select-field";
 import TextareaField from "../form/textarea-field";
@@ -368,9 +368,21 @@ export default function AdAccountRequestForm({
     }
   }, [selectedPlatform, selectedCurrency, setValue]);
 
+  // A request is not a purchase and it is not instant: a person picks it up,
+  // sets the account up on our Business Manager, and — when the plan's
+  // included accounts are used up — the wallet is charged. So the last tap
+  // says what is about to happen and asks once. It is a step inside this
+  // dialog rather than a second dialog, because a dialog on top of a dialog
+  // in a portal is where focus handling goes wrong.
+  const [confirming, setConfirming] = useState<FormValues | null>(null);
+
   const onSubmit = (values: FormValues) => {
     if (!profile) {
       toast.error("User profile not found");
+      return;
+    }
+    if (!confirming) {
+      setConfirming(values);
       return;
     }
 
@@ -640,15 +652,43 @@ export default function AdAccountRequestForm({
           />
         </div>
       </form>
-      <DialogFooter className="mt-4">
-        <Button
-          type="submit"
-          form="ad-account-request-form"
-          disabled={isPending || !feeEnough}
-        >
-          <span>{isPending ? "Submitting..." : "Submit Request"}</span>
-        </Button>
-      </DialogFooter>
+      {confirming ? (
+        <div className="mt-4 rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
+          <div className="font-semibold">This sends a request.</div>
+          <p className="mt-1 text-muted-foreground">
+            {isFree
+              ? "It uses one of the ad accounts your plan includes. Someone here picks it up and sets the account up on our Business Manager — so only send it if you actually want this account."
+              : `${feeSymbol}${feeAmount} is taken from your wallet when you send it, and someone here sets the account up on our Business Manager. Only send it if you actually want this account.`}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              form="ad-account-request-form"
+              disabled={isPending || !feeEnough}
+            >
+              <span>{isPending ? "Sending…" : "Yes, send the request"}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isPending}
+              onClick={() => setConfirming(null)}
+            >
+              Go back
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <DialogFooter className="mt-4">
+          <Button
+            type="submit"
+            form="ad-account-request-form"
+            disabled={isPending || !feeEnough}
+          >
+            <span>Submit Request</span>
+          </Button>
+        </DialogFooter>
+      )}
     </>
   );
 }
