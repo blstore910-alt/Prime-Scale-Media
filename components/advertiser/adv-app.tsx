@@ -281,20 +281,24 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: invoices, isError: invError } = useQuery<InvoiceWithRelations[]>({
+  const { data: invoices, isError: invError } = useQuery<
+    (InvoiceWithRelations & { due_date?: string | null })[]
+  >({
     queryKey: ["adv-invoices", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("invoices")
-        .select("id, number, total, status, paid_at, created_at, items, type")
+        .select("id, number, total, status, paid_at, created_at, due_date, items, type")
         .eq("tenant_id", tenantId)
         .eq("advertiser_id", advertiserId)
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) throw error;
-      return (data ?? []) as InvoiceWithRelations[];
+      return (data ?? []) as unknown as (InvoiceWithRelations & {
+        due_date?: string | null;
+      })[];
     },
   });
 
@@ -487,6 +491,16 @@ export default function AdvertiserApp() {
       ?.currency ?? "EUR") === "USD"
       ? "$"
       : "€";
+
+  // What the customer actually owes right now, and by when. Falls back to
+  // the plan's own figures only when there is no unpaid invoice to read —
+  // and says so rather than borrowing next_payment_date.
+  const dueBillDate =
+    dueSubInvoice?.due_date ?? (dueSubInvoice ? null : subscription?.next_payment_date ?? null);
+  const dueBillAmount = dueSubInvoice
+    ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
+    : planMoney2(subscription?.amount);
+
 
   // What actually gates a new ad account is the PLAN, not the wallet.
   // A plan comes with included accounts, so an advertiser whose plan is
@@ -1627,24 +1641,37 @@ export default function AdvertiserApp() {
                       >
                         <Ic name="i-receipt" />
                       </span>
+                      {/* The DUE DATE OF THE INVOICE, not next_payment_date.
+                          Those are different facts and the screen was
+                          printing the wrong one: next_payment_date is when
+                          the NEXT invoice is raised (a month out, and the
+                          "Renews …" line above already says it), while the
+                          money is wanted by the unpaid invoice's own due
+                          date — seven days after it was issued. So a
+                          customer read "Due 16 Oct" while auto-debit and
+                          dunning were working to 23 Sep, three weeks
+                          earlier. The amount comes off the invoice too, for
+                          the same reason: an adjustment can make it differ
+                          from the plan's monthly figure. */}
                       <div>
                         <div style={{ fontWeight: 700 }}>Monthly fee</div>
                         <div
                           style={{ color: "var(--faint)", fontSize: ".82rem" }}
                         >
-                          Due{" "}
-                          {dayjs(subscription.next_payment_date).format(
-                            "D MMM YYYY",
-                          )}{" "}
-                          · {planMoney2(subscription.amount)}
+                          {dueBillDate
+                            ? `Due ${dayjs(dueBillDate).format("D MMM YYYY")}`
+                            : "Due date not set"}{" "}
+                          · {dueBillAmount}
                         </div>
                       </div>
-                      <span
-                        className="badge due"
-                        style={{ marginLeft: "auto" }}
-                      >
-                        {dayjs(subscription.next_payment_date).fromNow()}
-                      </span>
+                      {dueBillDate && (
+                        <span
+                          className="badge due"
+                          style={{ marginLeft: "auto" }}
+                        >
+                          {dayjs(dueBillDate).fromNow()}
+                        </span>
+                      )}
                     </div>
                     <button
                       className="btn block grad"
