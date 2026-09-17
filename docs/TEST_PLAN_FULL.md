@@ -473,13 +473,44 @@ can re-check it rather than take my word.
 | # | verdict | note |
 |---|---|---|
 | D1 | PASS | Title, one-line subtitle and New invite share one row. |
-| D2 | **FAIL → fixed** | Withdrawal requests had no count at all, in a section headed "what needs your action right now" — the one queue where a customer waits on money leaving. Counted now across all three tables the screen shows; null (a dash) if any of them cannot be read. `8a2f2c7` |
-| D5 | PASS | One `/api/stats/batch`. `components/dashboard/{fees,profit}-stats-card.tsx` still fetch single endpoints but nothing imports them — dead code, no request. |
-| H1 | PASS | Withdrawals / Refunds / Adjustments each load and each shows its own empty state. |
-| U1 | PASS (adapted) | Header one row. The list leads with the client code as the card title and the name beneath, so the "first name only" rule no longer applies — the name is the subtitle, not the identifier. |
-| U3 | **FAIL → fixed** | The sort & filter sheet opened ~1100px below the fold on EVERY admin list: `.psmapp .content` kept a filled identity transform from its entry animation, which made it the containing block for the `position:fixed` panel. The scrim (a sibling, untransformed) appeared, the panel did not. `c063c7a` |
-| — | **FAIL → fixed** | The filter trigger and the CSV button are icon-only on a phone and the hidden text label was their only accessible name. `c063c7a` |
-| — | **FAIL → fixed** | Every record card printed ADVERTISER above its own title and ACTIONS above its buttons; ~34px per card, on every list. `a5a115b` |
-| — | **FAIL → fixed** | Profit counted USD top-up fees as euros (~16% overstated) and dropped paid `subscription_adjustment` invoices entirely. `e713118` |
+| D2 | **FAIL → fixed** | Withdrawal requests had no count at all, in a section headed "what needs your action right now" — the one queue where a customer waits on money leaving. Counted across all three tables the screen shows; a dash if any of them cannot be read. `8a2f2c7` |
+| D5 | PASS | One `/api/stats/batch`. |
+| D6 | PASS | Period change refetches together. The strip now WRAPS — six options needed 440px in a 233px scroller, so four were off screen. |
+| U1 | PASS (adapted) | Header one row. The list leads with the client code as the card title, so "first name only" no longer applies — the name is the subtitle. |
+| U2 | PASS | Sorts change the order; numeric sorts sort numerically. |
+| U3 | **FAIL → fixed** | The sort & filter sheet opened ~1100px below the fold on EVERY admin list: `.psmapp .content` kept a filled identity transform from its entry animation, making it the containing block for the `position:fixed` panel. `c063c7a` |
+| U4 | PASS | Reset clears the badge and returns the full list. |
+| U5 | PASS | Paging resets to 1 when a filter changes. |
+| U6 | PASS | Sheet opens; company details and email click-to-copy. |
+| U9 | **FAIL → fixed** | Deactivate/Activate wrote nothing: live had no admin UPDATE policy on `user_profiles`, only a self-update one. The action correctly refused to call it success. Fixed in the database — `20260917120000`. |
+| A1 | PASS | Two-up record cards. |
+| A2 | PASS | Fee sorts numerically. |
+| A6 | PASS | Two row actions, one line. Plus a third: a link straight to that customer's accounts. |
+| A10 | PASS | "Topup Amount (USD)" is labelled USD and shows `$`. |
+| A11 | PASS | A failed history read says so — not "No Topups yet". |
+| H1 | PASS | Withdrawals / Refunds / Adjustments each load with their own empty state. Precharge is back as a fourth tab — it had lost its UI in the port. |
+| I3 | PASS | The PDF route constrains the query to the caller's own advertiser ids; anyone else's id is a 404. |
+| I4 | PASS | Every paid → unpaid is refused, with the reason. |
+| I5 | PASS | Same for `subscription_adjustment` — the test is "was it paid", not the type. |
+| M1 | PASS | Blank discount refused — and now in the ACTION too, not only the dialog. |
+| M2 | PASS | Over 100% refused, same place. |
+| O5 | PASS | All six settings tabs load. Three of their grids stopped scrolling sideways; the tab strip wraps. |
+| O8 | PARTIAL | Deactivating an admin now writes (see U9) and the action refuses a self-target. The lock-out itself is tag C. |
 
-Not yet run: U2/U4–U10, A*, P*, R*, W*, T*, L*, I*, S*, M*, O*.
+### Found while checking, not on the plan
+
+| what | note |
+|---|---|
+| Total profit | Counted USD top-up fees as euros (~16% over) **and** dropped paid `subscription_adjustment` invoices. Now €0.00 on an unpaid tenant, which is the correct answer. `e713118` |
+| Bank routing | Matched NONE of the eight live ad-account types — the slug table was written against the seed spelling, live uses the other one. Auto-routing had never fired. |
+| `bg-muted` | The shells redefined Tailwind's `--muted` as a text colour, so 88 usages across 57 files were dark-on-dark. |
+| Dollars under a euro sign | Three screens, including the advertiser's own top-up card. One showed the same number twice, once with € and once with $. |
+| Two number formats | 44 en-US vs 8 nl-NL; the pool read `$12.500,00`. |
+| Exchange-rate inputs | `step="0.01"` on six-decimal rates — the spinner rounded a live rate to two places, a 0.27% error on every conversion. |
+| Six dead views | Fixes had landed in four of them. `docs/ROUTE_MAP.md`, `docs/UNREACHABLE.md`. |
+| Silent writes | The remaining 18 sites now count their rows. |
+| Bulk top-ups | Ignored plans and perks entirely — a granted fee waiver was charged anyway. |
+| Reconciliation | Said "All balanced ✓" in green with nothing to compare, and stayed green for "3 to investigate". |
+| Customer empty states | The advertiser app read a failed accounts / activity / invoices load as "you have none". |
+
+Not yet run: U7, U8, U10, A3–A5, A7–A9, P*, R*, W*, T*, L*, S*, O1–O4, O6, O7.
