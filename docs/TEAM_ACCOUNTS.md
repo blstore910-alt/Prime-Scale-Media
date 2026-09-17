@@ -107,9 +107,16 @@ accounts sees those two.
 
 ## Order of work
 
-1. Tables + the helper + the backfill, with the old `user_id` test left in
-   place alongside (`or a.user_id = auth.uid()`), so nothing breaks while the
-   policies are migrated one at a time.
+1. **WRITTEN, not applied:**
+   `supabase/migrations/20260917180000_team_accounts_phase1.sql`. Two tables,
+   two helpers, RLS on the new tables, and an idempotent backfill making
+   today's single user the `owner` of their advertiser / affiliate. It
+   touches NO existing policy, so applying it changes nothing about how the
+   app behaves — that is why it is a separate phase and why it can go in
+   before the rest is decided. Rollback is four `drop` statements, listed in
+   the file. The closing SELECT is the gate: every advertiser and affiliate
+   with a user must have an owner row, or something has a null `tenant_id`
+   and phase 2 would lock that person out.
 2. Rewrite each advertiser policy to the helper. **One table per migration**,
    each verified against live before the next.
 3. Invitations: reuse `invitations`, adding `advertiser_id` and `member_role`
