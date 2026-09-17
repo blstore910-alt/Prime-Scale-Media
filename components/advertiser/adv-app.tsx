@@ -33,6 +33,7 @@ import { AccountDetailsSheet } from "@/components/account/account-details-sheet"
 import OnboardingChecklist from "./onboarding-checklist";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
 import { formatPaymentReference } from "@/lib/payment-reference";
+import { effectiveMinTopup } from "@/lib/min-topup";
 
 dayjs.extend(relativeTime);
 
@@ -129,7 +130,11 @@ export default function AdvertiserApp() {
   // thing that makes an advertiser one.
   const { isAffiliate } = useIsAffiliate();
 
-  const { data: wallet, isError: walletError } = useQuery<Wallet | null>({
+  const {
+    data: wallet,
+    isError: walletError,
+    isPending: walletLoading,
+  } = useQuery<Wallet | null>({
     queryKey: ["wallet", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -802,6 +807,7 @@ export default function AdvertiserApp() {
               onOpenWallet={() => go("wallet")}
               onOpenAccounts={() => go("accounts")}
               disabled={!wallet || !companyComplete}
+              loading={walletLoading}
             />
             {subscription?.amount && subscription.next_payment_date && (
               /* One quiet row, not a filled banner with a solid blue button
@@ -1791,7 +1797,16 @@ export default function AdvertiserApp() {
         onOpenChange={setTopupOpen}
         walletId={wallet?.id ?? null}
         referenceNo={wallet?.reference_no ?? null}
-        minTopup={wallet?.min_topup as number}
+        // Not a constant. Before the plan is paid there is NO minimum — that
+        // first payment is how the plan gets paid at all, and demanding €300
+        // of someone who has put in nothing yet is the wrong way round. Once
+        // it is running the floor applies. (Community is not loaded on this
+        // screen yet, so NSA's 250 does not apply here — the helper handles
+        // it as soon as it is passed.)
+        minTopup={effectiveMinTopup({
+          walletMin: wallet?.min_topup as number | null | undefined,
+          planActive,
+        })}
         // Their own accounts decide where the transfer goes, so the dialog
         // can work it out instead of showing every customer all three
         // beneficiary companies and asking them to route their own payment.

@@ -24,6 +24,7 @@ export default function BalanceHero({
   onOpenWallet,
   onOpenAccounts,
   disabled,
+  loading,
 }: {
   firstName: string;
   eurText: string;
@@ -33,6 +34,8 @@ export default function BalanceHero({
   onOpenWallet: () => void;
   onOpenAccounts: () => void;
   disabled?: boolean;
+  /** The wallet has not been read yet. */
+  loading?: boolean;
 }) {
   return (
     <section className="hero">
@@ -56,7 +59,12 @@ export default function BalanceHero({
             <i style={{ background: "#5B8DFF" }} />
             EUR wallet
           </span>
-          <span className="v">{eurText}</span>
+          {/* A balance that has not been read yet is not zero. Printing "€0"
+              and replacing it a moment later with the real figure is both a
+              flicker and, for a second, a lie. */}
+          <span className={`v${loading ? " skel" : ""}`}>
+            {loading ? "" : eurText}
+          </span>
         </button>
         <button
           type="button"
@@ -68,7 +76,9 @@ export default function BalanceHero({
             <i style={{ background: "#8B5CF6" }} />
             USD wallet
           </span>
-          <span className="v">{usdText}</span>
+          <span className={`v${loading ? " skel" : ""}`}>
+            {loading ? "" : usdText}
+          </span>
         </button>
       </div>
 

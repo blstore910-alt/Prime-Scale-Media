@@ -163,8 +163,14 @@ export default function OnboardingChecklist({
     persist({ manual: next });
   };
 
-  // Nothing until the persisted state is loaded (also keeps SSR output empty).
-  if (!hydrated) return null;
+  // Until the persisted state is read this cannot know whether it is
+  // collapsed, dismissed, or which steps were ticked by hand — so it cannot
+  // render the right thing. It used to render NOTHING, which meant the card
+  // appeared a frame later and shoved the whole dashboard down. A block of
+  // the same height holds the place instead, so the page arrives assembled.
+  if (!hydrated) {
+    return <div className="card onb-skel" aria-hidden="true" />;
+  }
 
   if (allDone) {
     if (dismissed) return null;

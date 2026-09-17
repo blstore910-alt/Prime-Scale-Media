@@ -144,8 +144,19 @@ export const ADV_CSS = `
   .hero-btn.gh{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);box-shadow:none}
   .hero-btn.gh:hover{background:rgba(255,255,255,.16)}
   .hero-btn svg{width:16px;height:16px}
+  /* A block the size of the number that is coming, not the number zero.
+     The dashboard used to render €0 / $0 the instant it mounted and swap in
+     the real balances a moment later — which is a flicker, and for that
+     moment it is also untrue. Reserving the space means nothing below it
+     moves when the figures land. */
+  .hero-w .v.skel{
+    display:block;min-height:1.15em;width:60%;border-radius:7px;
+    background:linear-gradient(90deg,rgba(255,255,255,.08),rgba(255,255,255,.18),rgba(255,255,255,.08));
+    background-size:200% 100%;animation:advskel 1.15s ease-in-out infinite}
+  @keyframes advskel{0%{background-position:200% 0}100%{background-position:-200% 0}}
   @media (prefers-reduced-motion:reduce){
     .hero-ribbon,.hero-stars{animation:none}
+    .hero-w .v.skel{animation:none}
   }
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column}
@@ -377,6 +388,12 @@ export const ADV_CSS = `
   .onbrow.is-done .onb-ic svg{width:15px;height:15px}
   .onbrow.is-done .onb-t{font-weight:600;color:var(--muted);font-size:.88rem;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  /* Same height as the collapsed card it is standing in for, so the page
+     does not jump when the real one takes its place. */
+  .onb-skel{min-height:74px;padding:0;
+    background:linear-gradient(90deg,var(--panel),var(--panel-2),var(--panel));
+    background-size:200% 100%;animation:advskel 1.15s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.onb-skel{animation:none}}
   .onb-done{display:flex;align-items:center;gap:12px;
     background:var(--win-soft);border:1px solid rgba(16,185,129,.22)}
   .onb-done-ic{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
