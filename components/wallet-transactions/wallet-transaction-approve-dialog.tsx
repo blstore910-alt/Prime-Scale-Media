@@ -1,18 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
-import { CheckCircle2, Loader2 } from "lucide-react";
-import { useRef } from "react";
 
 interface WalletTransactionApproveDialogProps {
   open: boolean;
@@ -22,6 +12,24 @@ interface WalletTransactionApproveDialogProps {
   isPending: boolean;
 }
 
+/**
+ * Crediting a customer's wallet, asked the way every other money action in
+ * the app is asked.
+ *
+ * This was its own hand-rolled dialog and it showed: "Confirm Transaction
+ * Approval" over "You are about to approve the following wallet
+ * transaction. Please review the details carefully before confirming" —
+ * two sentences that say nothing the title had not — then the facts, then
+ * a paragraph of shouting orange, then the app's only green button. Four
+ * different registers in one 400px box, and the one line that actually
+ * mattered (if the amount on the slip differs, reject it) was buried in
+ * the orange.
+ *
+ * Now it is the shared ConfirmModal: same shape, same tone and same
+ * button as Pay now, Precharge, Approve withdrawal and the rest, so a
+ * desk learns one confirmation instead of six. The warning is the lead
+ * sentence, because it is the point. The facts are facts.
+ */
 export default function WalletTransactionApproveDialog({
   open,
   onOpenChange,
@@ -29,120 +37,40 @@ export default function WalletTransactionApproveDialog({
   onConfirm,
   isPending,
 }: WalletTransactionApproveDialogProps) {
-  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const requestedAmount = Number(topup.amount ?? 0);
-
-  const advertiserCode = topup.advertiser?.tenant_client_code ?? "-";
-  const advertiserName = topup.advertiser?.profile?.full_name ?? "Unknown";
+  const symbol =
+    CURRENCY_SYMBOLS[topup.currency as keyof typeof CURRENCY_SYMBOLS] ?? "";
+  const advertiserCode = topup.advertiser?.tenant_client_code ?? "—";
+  const advertiserName = topup.advertiser?.profile?.full_name ?? "";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-[500px]"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          cancelButtonRef.current?.focus();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            Confirm Transaction Approval
-          </DialogTitle>
-          <DialogDescription asChild>
-            <div className="space-y-4 pt-2">
-              <p>
-                You are about to approve the following wallet transaction.
-                Please review the details carefully before confirming.
-              </p>
-
-              <div className="rounded-lg bg-muted p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <span className="text-sm text-muted-foreground">
-                    Reference No:
-                  </span>
-                  <span className="font-mono font-semibold text-sm">
-                    {topup.reference_no ?? "-"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-start gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Requested amount:
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-mono font-bold text-lg">
-                      {
-                        CURRENCY_SYMBOLS[
-                          topup.currency as keyof typeof CURRENCY_SYMBOLS
-                        ]
-                      }
-                    </span>
-                    <span className="font-mono font-bold text-lg">
-                      {requestedAmount.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-start">
-                  <span className="text-sm text-muted-foreground">
-                    Advertiser:
-                  </span>
-                  <div className="text-right">
-                    <p className="font-medium text-sm">{advertiserCode}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {advertiserName}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-start">
-                  <span className="text-sm text-muted-foreground">
-                    Created Date:
-                  </span>
-                  <span className="text-sm">
-                    {new Date(topup.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-sm text-amber-600 dark:text-amber-500">
-                ⚠️ This action will mark the transaction as completed and credit
-                the advertiser&apos;s wallet with the requested amount above.
-                If the actual transfer amount differs, reject the request and
-                ask the advertiser to resubmit.
-              </p>
-            </div>
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            ref={cancelButtonRef}
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={() => onConfirm()}
-            disabled={isPending || requestedAmount <= 0}
-            className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Approving...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Confirm Approval
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Credit this wallet?"
+      lead="Check the amount against the slip first. This credits exactly the figure below — if the bank shows something else, reject it and ask them to send it again."
+      cta={`Yes, credit ${symbol}${requestedAmount.toFixed(2)}`}
+      busy={isPending}
+      busyLabel="Crediting…"
+      disabled={requestedAmount <= 0}
+      onConfirm={onConfirm}
+    >
+      <ConfirmFact
+        label="Customer"
+        value={
+          advertiserName ? `${advertiserCode} · ${advertiserName}` : advertiserCode
+        }
+      />
+      <ConfirmFact
+        label="Amount"
+        value={`${symbol}${requestedAmount.toFixed(2)}`}
+        strong
+      />
+      <ConfirmFact label="Reference" value={topup.reference_no ?? "—"} />
+      <ConfirmFact
+        label="Filed"
+        value={new Date(topup.created_at).toLocaleDateString()}
+      />
+    </ConfirmModal>
   );
 }

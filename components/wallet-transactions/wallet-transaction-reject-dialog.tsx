@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -39,7 +40,16 @@ export default function WalletTransactionRejectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Reject Payment</DialogTitle>
+          {/* A question, and what it does — the same register as every
+              other money confirmation in the app. "Reject Payment" as a
+              statement left the reason field looking optional, and the
+              customer has to file a fresh claim afterwards, which is
+              worth knowing before you press it. */}
+          <DialogTitle>Reject this payment?</DialogTitle>
+          <DialogDescription>
+            The request is closed for good and the customer has to file a
+            new one. Your reason is shown to them, so write it for them.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid gap-2">
@@ -52,7 +62,8 @@ export default function WalletTransactionRejectDialog({
               rows={4}
             />
             <p className="text-xs text-muted-foreground">
-              This will be visible in the transaction details.
+              e.g. &ldquo;the bank shows €4.50, not €5.00 — please send it
+              again for the full amount&rdquo;.
             </p>
           </div>
         </div>
@@ -65,10 +76,11 @@ export default function WalletTransactionRejectDialog({
             Cancel
           </Button>
           <Button
+            variant="destructive"
             onClick={handleSubmit}
             disabled={!trimmedReason || isSubmitting}
           >
-            Reject payment
+            {isSubmitting ? "Rejecting…" : "Yes, reject it"}
           </Button>
         </DialogFooter>
       </DialogContent>
