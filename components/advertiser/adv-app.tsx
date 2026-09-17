@@ -217,7 +217,11 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: activity } = useQuery<
+  // Same reason as the accounts query above: without isError a failed read
+  // renders as "No wallet activity yet" to someone whose money moved this
+  // morning. It also feeds pendingTopups, so a failure silently makes a
+  // pending transfer disappear from the dashboard.
+  const { data: activity, isError: activityError } = useQuery<
     {
       id: string;
       created_at: string;
@@ -1245,7 +1249,9 @@ export default function AdvertiserApp() {
                             color: "var(--faint)",
                           }}
                         >
-                          No wallet activity yet.
+                          {activityError
+                            ? "We couldn't load your wallet activity — this is not an empty list. Reload to try again."
+                            : "No wallet activity yet."}
                         </td>
                       </tr>
                     )}
@@ -1598,7 +1604,9 @@ export default function AdvertiserApp() {
                             color: "var(--faint)",
                           }}
                         >
-                          No invoices yet.
+                          {invError
+                            ? "We couldn't load your invoices — this is not an empty list. Reload to try again."
+                            : "No invoices yet."}
                         </td>
                       </tr>
                     )}
