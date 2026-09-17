@@ -493,8 +493,26 @@ export default function AdvertiserApp() {
   // up they can still ask and pay for the extra. What they cannot do is
   // start before the plan itself is paid for — nothing is included yet, and
   // there is no subscription to bill the extra against.
+  // ── "Active" means PAID FOR ──────────────────────────────────────────
+  // create_subscription_from_invite inserts the subscription with
+  // status='active' at SIGNUP, before a cent has moved and before any
+  // invoice exists. So "status === active && no unpaid invoice" was true
+  // from the moment someone accepted an invitation — which is why the plan
+  // tile said Active next to a Pay now button on a brand-new account, and,
+  // worse, why effectiveMinTopup saw planActive=true and imposed the 300
+  // floor on the very first top-up. That floor is exactly what the rule
+  // exists to prevent: the first payment is how the plan gets paid at all.
+  //
+  // Evidence of payment is a PAID subscription invoice. No invoice yet is
+  // not "active", it is "nothing has happened yet".
+  const planPaid = (invoices ?? []).some(
+    (i) => i.type === "subscription" && i.status === "paid",
+  );
   const planActive =
-    !!subscription && subscription.status === "active" && !dueSubInvoice;
+    !!subscription &&
+    subscription.status === "active" &&
+    !dueSubInvoice &&
+    planPaid;
   // How many accounts the plan includes is NOT on `subscriptions` — asking
   // for it there took the whole subscription query down with
   // "column subscriptions.included_ad_accounts does not exist", which also
@@ -1417,11 +1435,15 @@ export default function AdvertiserApp() {
                     ? "Couldn't load your ad accounts"
                     : canRequestAccount
                       ? "No ad accounts yet"
-                      : "Activate your plan first"}
+                      : invError
+                        ? "We couldn't check your plan"
+                        : "Activate your plan first"}
                 </h3>
                 <p>
                   {accountsError
                     ? "This is not an empty list — the request failed. Reload to try again."
+                    : !canRequestAccount && invError
+                      ? "Your invoices didn't load, so we can't tell whether the plan is paid. Reload to try again."
                     : canRequestAccount
                     ? "Request one and we set it up for you on our verified Business Manager. Your plan covers the accounts it includes; anything beyond that is billed as you go."
                     : pendingTopups.length > 0
