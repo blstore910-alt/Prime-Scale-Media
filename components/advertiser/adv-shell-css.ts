@@ -305,7 +305,7 @@ export const ADV_CSS = `
     transition:transform .14s,box-shadow .14s,border-color .14s}
   .onbrow:hover{transform:translateY(-1px);border-color:var(--line-2);
     box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 14px 26px -18px rgba(20,30,80,.55)}
-  /* flex-basis 0, not auto. With `auto` the title's own width is its basis,
+  /* flex-basis 0, not auto. With auto, the title's own width is its basis,
      so "Request your first ad account" was wider than the space left beside
      a tick and an icon and wrapped to a line of its own — leaving two small
      squares sitting alone above it, which is exactly the layout this was
