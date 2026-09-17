@@ -120,9 +120,11 @@ export default function ReadonlyTopupsTable() {
         </div>
       </div>
 
-      <div className="rounded-md border overflow-x-auto relative bg-white/50 backdrop-blur-sm">
-        <Table>
-          <TableHeader className="bg-background">
+      {/* Ten columns do not fit a phone. Below sm each top-up is a card with
+          its cells labelled; from sm up it is the same table. */}
+      <div className="relative rounded-md border bg-white/50 backdrop-blur-sm sm:overflow-x-auto">
+        <Table className="[&_td]:block [&_td]:before:mr-2 [&_td]:before:font-medium [&_td]:before:text-muted-foreground [&_td]:before:content-[attr(data-label)] [&_tr]:block [&_tr]:border-b [&_tr]:p-3 sm:[&_td]:table-cell sm:[&_td]:before:content-none sm:[&_tr]:table-row sm:[&_tr]:p-0">
+          <TableHeader className="hidden bg-background sm:table-header-group">
             <TableRow>
               <TableHead className="w-20">#</TableHead>
               <TableHead>Account Name</TableHead>
@@ -132,7 +134,6 @@ export default function ReadonlyTopupsTable() {
               <TableHead>$ Top up</TableHead>
               <TableHead>EU Values</TableHead>
               <TableHead>Fee</TableHead>
-              <TableHead>Source</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Date</TableHead>
             </TableRow>
@@ -151,7 +152,7 @@ export default function ReadonlyTopupsTable() {
             ) : isError ? (
               <TableRow>
                 <TableCell
-                  colSpan={11}
+                  colSpan={10}
                   className="text-center text-destructive py-8"
                 >
                   <div role="alert" aria-live="assertive">
@@ -169,7 +170,7 @@ export default function ReadonlyTopupsTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={11}
+                  colSpan={10}
                   className="text-center py-12 text-muted-foreground"
                 >
                   No topup records found.

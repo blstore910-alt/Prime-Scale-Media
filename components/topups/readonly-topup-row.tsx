@@ -23,26 +23,26 @@ export default function ReadonlyTopupRow({
       )}
       key={topup.id}
     >
-      <TableCell>{String(topup.number).padStart(6, "0")}</TableCell>
-      <TableCell className="font-medium">
+      <TableCell data-label="#:">{String(topup.number).padStart(6, "0")}</TableCell>
+      <TableCell className="font-medium" data-label="Account:">
         {topup.account_name || "---"}
       </TableCell>
-      <TableCell>
+      <TableCell data-label="Type:">
         {TOPUP_TYPES.find((t) => t.value === topup.type)?.label}
       </TableCell>
-      <TableCell>
+      <TableCell data-label="Received:">
         {CURRENCY_SYMBOLS[topup.currency]}&nbsp;
         {topup.amount_received}
       </TableCell>
-      <TableCell>
+      <TableCell data-label="USD value:">
         {CURRENCY_SYMBOLS["USD"]}&nbsp;
         {topup.amount_usd}
       </TableCell>
-      <TableCell>
+      <TableCell data-label="$ Top up:">
         {CURRENCY_SYMBOLS[topup.topup_currency || "USD"]}&nbsp;
         {topup.topup_amount}
       </TableCell>
-      <TableCell>
+      <TableCell data-label="EU values:">
         {topup.platform === "eu-meta-premium" ? (
           <span className="font-bold">
             €{topup.eur_value}
@@ -55,9 +55,8 @@ export default function ReadonlyTopupRow({
           "N/A"
         )}
       </TableCell>
-      <TableCell>{topup.fee}%</TableCell>
-      <TableCell className="uppercase">{topup.source}</TableCell>
-      <TableCell className="capitalize">
+      <TableCell data-label="Fee:">{topup.fee}%</TableCell>
+      <TableCell className="capitalize" data-label="Status:">
         <Badge variant={"outline"} className="gap-1.5 px-2">
           {topup.status === "completed" ? (
             <CheckCircle2 size={14} className="text-emerald-500" />
@@ -67,7 +66,7 @@ export default function ReadonlyTopupRow({
           {topup.status}
         </Badge>
       </TableCell>
-      <TableCell className="text-muted-foreground whitespace-nowrap">
+      <TableCell className="text-muted-foreground whitespace-nowrap" data-label="Date:">
         {dayjs(topup.created_at).format(DATE_FORMAT)}
       </TableCell>
     </TableRow>

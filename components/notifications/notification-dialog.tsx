@@ -69,7 +69,6 @@ export default function NotificationDialog({
     topup?.number !== undefined && topup?.number !== null
       ? String(topup.number).padStart(6, "0")
       : String(payload.topup_number || "-");
-  const source = String(topup?.source || payload.source || "-");
   const topupCurrency = String(
     topup?.topup_currency || payload.topup_currency || topup?.currency || "-",
   );
@@ -125,10 +124,13 @@ export default function NotificationDialog({
                 <span className="text-muted-foreground">Top-up ID</span>
                 <span className="font-mono text-xs">{topupNumber}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Source</span>
-                <span className="font-medium capitalize">{source}</span>
-              </div>
+              {/* SOURCE removed. top_ups.source is provenance — how the
+                  top-up got into the system — and this dialog is shown to
+                  ADVERTISERS on /notifications. A customer has no use for it
+                  and nothing stops that column carrying a supplier
+                  identifier, which must never be visible to a customer under
+                  any name. The field is still on the row for admins, who
+                  read it on their own screens. */}
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Currency</span>
                 <span className="font-medium">{topupCurrency}</span>
