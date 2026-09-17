@@ -700,6 +700,8 @@ export async function setAdvertiserCommission(
   }
   if (Object.keys(cleaned).length === 0) {
     return { ok: false, error: "No commission fields provided", code: "invalid" };
+  }
+
   // ── Bound the percentage ────────────────────────────────────────────
   // Nothing bounded this anywhere. The input has max="100" — an HTML
   // attribute, not a validation — the schema column is a bare numeric with
@@ -709,6 +711,10 @@ export async function setAdvertiserCommission(
   // EUR 50,000 commission row, accrued silently and discovered at payout.
   // lib/commission.ts states the 0-100 convention and is imported by
   // nothing; this is where it has to hold.
+  //
+  // This check sat INSIDE the block above, after its return — so it was
+  // unreachable, and the affiliate twin forty lines up had it right. A
+  // guard in the wrong scope is worse than no guard: it reads as done.
   if ("commission_pct" in cleaned && cleaned.commission_pct !== null) {
     const pct = Number(cleaned.commission_pct);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
@@ -718,7 +724,6 @@ export async function setAdvertiserCommission(
         code: "invalid",
       };
     }
-  }
   }
 
   const { data: target } = await supabase

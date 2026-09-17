@@ -97,7 +97,17 @@ function ActionAskModal({
       tone={ask?.danger ? "danger" : "default"}
       busy={busy}
       busyLabel="Working…"
-      onConfirm={() => ask?.run()}
+      // Close FIRST, then act. Left open, the operator working a queue saw
+      // the same dialog after every approval, blocking the page with its
+      // button re-enabled — and a second press re-fired the mutation on a
+      // row that was already approved, producing a red "Approve failed"
+      // toast for an action that had succeeded. psm-subscriptions.tsx does
+      // it in this order; this copy did not.
+      onConfirm={() => {
+        const a = ask;
+        close();
+        a?.run();
+      }}
     >
       {(ask?.facts ?? []).map(([k, v]) => (
         <ConfirmFact key={k} label={k} value={v} strong={k === "Amount"} />

@@ -451,7 +451,11 @@ export default function InvoicesTable() {
           label="Amount"
           value={
             confirmPaid
-              ? `${CURRENCY_SYMBOLS[(confirmPaid.items?.[0]?.currency ?? "EUR") as keyof typeof CURRENCY_SYMBOLS] ?? "€"}${formatAmount(confirmPaid.total)}`
+              ? // invoices.currency first, like the row above it and like
+                // the RPC that takes the money. Reading items[0] here asked
+                // an admin to confirm €2,000 for a $2,000 invoice whose
+                // items array was empty.
+                `${CURRENCY_SYMBOLS[((confirmPaid.currency ?? confirmPaid.items?.[0]?.currency ?? "EUR") as string).toUpperCase() as keyof typeof CURRENCY_SYMBOLS] ?? "€"}${formatAmount(confirmPaid.total)}`
               : ""
           }
           strong

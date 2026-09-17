@@ -531,11 +531,22 @@ export default function AdvertiserApp() {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   const dueSubInvoice = unpaidSubInvoices[0];
-  const dueSubSymbol =
-    ((dueSubInvoice?.items as Array<{ currency?: string }> | undefined)?.[0]
-      ?.currency ?? "EUR") === "USD"
-      ? "$"
-      : "€";
+  // invoices.currency first, items[0] only as a fallback — the same order
+  // the paying RPC uses. The modal was fixed for this and the CARD and the
+  // amount column were not, so one invoice could read €120 on the button
+  // and $120 in the confirmation it opened.
+  const invCurrency = (inv: {
+    currency?: string | null;
+    items?: unknown;
+  } | null | undefined): "USD" | "EUR" =>
+    ((inv?.currency as string | null | undefined) ??
+      (inv?.items as Array<{ currency?: string }> | undefined)?.[0]?.currency ??
+      "EUR")
+      .toString()
+      .toUpperCase() === "USD"
+      ? "USD"
+      : "EUR";
+  const dueSubSymbol = invCurrency(dueSubInvoice) === "USD" ? "$" : "€";
 
   // Hand the customer their own invoice. Same route the admin list uses;
   // it constrains the query to the caller's own advertiser ids, so someone
@@ -1922,13 +1933,7 @@ export default function AdvertiserApp() {
                           customer: true,
                         });
                         const invSym =
-                          ((
-                            inv.items as
-                              | Array<{ currency?: string }>
-                              | undefined
-                          )?.[0]?.currency ?? "EUR") === "USD"
-                            ? "$"
-                            : "€";
+                          invCurrency(inv) === "USD" ? "$" : "€";
                         return (
                           <tr key={inv.id}>
                             {/* Client code first, same shape as the bank
@@ -1976,7 +1981,27 @@ export default function AdvertiserApp() {
                                     them made a billing screen look like a
                                     list of debts. Download stays on every
                                     row. */}
-                                {!paid && inv.id === dueSubInvoice?.id && (
+                                {/* Pay now on the ONE due monthly invoice —
+                                    and on a one-off charge, which is a real
+                                    bill with no other way to settle it.
+                                    Narrowing this to the subscription alone
+                                    left an ad-account fee invoice (raised by
+                                    the desk, request parked at
+                                    payment_pending) showing "Due" with only
+                                    a Download button: the customer had
+                                    nothing to press and the desk waited for
+                                    a payment that could not be made. The
+                                    auto-debit cron only takes invoices that
+                                    carry a subscription_id, so it never
+                                    collects these either.
+                                    NOT on a subscription_adjustment: that is
+                                    settled with its parent invoice, and
+                                    offering it separately is what made the
+                                    page read as a list of debts. */}
+                                {!paid &&
+                                  (inv.id === dueSubInvoice?.id ||
+                                    inv.type === "ad_account_fee" ||
+                                    inv.type === "manual_invoice") && (
                                   <button
                                     className="btn ghost sm"
                                     disabled={payingId === inv.id}

@@ -36,7 +36,7 @@ export async function confirmWiseSuggestion(
   if (typeof transferId !== "string" || !transferId) {
     return { ok: false, error: "Invalid input" };
   }
-  const { supabase } = auth.ctx;
+  const { supabase, profile } = auth.ctx;
 
   // The same reference, amount and day must never be credited twice — see
   // alreadyCredited below.
@@ -55,6 +55,7 @@ export async function confirmWiseSuggestion(
         amount_cents: number;
         created_at: string;
       },
+      profile.tenant_id,
     );
     if (twin) {
       return {
@@ -107,6 +108,11 @@ async function alreadyCredited(
     amount_cents: number;
     created_at: string;
   },
+  // The caller's tenant. Without it this service-role read searched EVERY
+  // tenant, so a deposit in somebody else's account with the same
+  // reference, amount and date would block a legitimate credit here — and
+  // the refusal text would confirm that another tenant's deposit exists.
+  tenantId: string,
 ): Promise<{ id: string; created_at: string } | null> {
   // With no reference there is nothing to compare — amount and date alone
   // are exactly the coincidence we refuse to treat as identity elsewhere.
@@ -121,6 +127,7 @@ async function alreadyCredited(
     .eq("amount_cents", dep.amount_cents)
     .in("status", ["confirmed", "completed", "matched"])
     .neq("id", dep.id)
+    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
     .gte("created_at", `${day}T00:00:00Z`)
     .lte("created_at", `${day}T23:59:59.999Z`)
     .limit(1);
@@ -245,6 +252,7 @@ export async function matchWiseToTopup(
         amount_cents: number;
         created_at: string;
       },
+      profile.tenant_id,
     );
     if (twin) {
       return {
@@ -377,6 +385,16 @@ export async function rematchWiseDeposits(): Promise<
   // status 'suggested' — a deposit that has already been confirmed or
   // completed has MOVED MONEY and is never touched again — and only where
   // the note itself says the match came from the amount.
+  // TENANT FILTER. This is a service-role write, so RLS is not going to
+  // catch a missing one: without it, one admin pressing Re-check reset
+  // EVERY tenant's amount-matched suggestions and overwrote their notes —
+  // other operators' bank reconciliation, destroyed from another account.
+  // Every other query in this file carries the filter; this was the one
+  // that did not.
+  //
+  // `or` because a deposit whose tenant we could not determine at ingest
+  // has tenant_id null, and those are ours to tidy as much as anyone's —
+  // the same rule matchWiseToTopup applies when it accepts null or mine.
   const { data: withdrawn } = await admin
     .from("wise_incoming_transfers")
     .update({
@@ -386,6 +404,7 @@ export async function rematchWiseDeposits(): Promise<
     })
     .eq("status", "suggested")
     .ilike("note", "%via amount%")
+    .or(`tenant_id.eq.${profile.tenant_id},tenant_id.is.null`)
     .select("id");
   const undone = (withdrawn ?? []).length;
 

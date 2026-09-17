@@ -43,6 +43,12 @@ export const createTopup = async (
   const feeApplicableTypes = ["top-up", "first-top-up"];
   const isEuMetaPremium = account?.platform === "eu-meta-premium";
   const feePercent = fee / 100;
+  // The PREVIEW only. The server recomputes all of this from the
+  // advertiser's plan, their perks and the account's platform — including
+  // the Meta-EU-Premium two points, which used to live only here — so
+  // whatever this produces is what the admin is shown, not what is stored.
+  // Keeping the same arithmetic means the two agree; the server is the one
+  // that decides.
   const { amountUSD, topupAmount, feeAmount } = calculateTopupAmount(
     values.amount_received,
     exchangeRates,

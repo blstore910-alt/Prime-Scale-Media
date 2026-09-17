@@ -134,6 +134,10 @@ export default function AffiliateApp() {
   const refs = useAffiliateStats(rangeFromTo(refsRange));
   const refsReferred = refs.rows.length;
   const refsActive = refs.rows.filter((r) => Number(r.topup_count) > 0).length;
+  // The referral TABLE reports its own failure; the summary tiles above it
+  // did not, so a failed read printed a commission of 0 directly above a
+  // sentence saying the read failed.
+  const refsUnavailable = refs.isError || refs.isLoading;
 
   // Tier progression counts BOTH currencies — a USD-paid affiliate was
   // otherwise stuck at Starter with €0. (Combined figure mirrors the sibling
@@ -142,6 +146,15 @@ export default function AffiliateApp() {
   // below are 0 because there is nothing to add up — not because nothing was
   // earned — so every screen that states a figure has to say so instead.
   const statsUnavailable = all.isError || all.isLoading;
+  // The MONTH figures come from a second, separate query, and nothing
+  // consulted its state — so the topbar pill, the stat card and the
+  // earnings summary all printed "this month €0" identically whether the
+  // affiliate earned nothing, the read had not landed, or it failed.
+  const monthUnavailable = month.isError || month.isLoading;
+  // A figure we cannot vouch for is a dash. An affiliate who has earned
+  // money must never be shown a zero because a read failed — and must
+  // never be DEMOTED by one either, which is what the tier track did.
+  const dash = "—";
 
   const lifetimeCombined = lifetimeEur + lifetimeUsd;
   const tierIndex = useMemo(() => {
@@ -392,7 +405,7 @@ export default function AffiliateApp() {
               <Ic name="i-trend" />
               <span className="e">
                 <small>This month</small>
-                <b>{eur(monthEur)}</b>
+                <b>{monthUnavailable ? dash : eur(monthEur)}</b>
               </span>
             </button>
             <span className="tdiv" />
@@ -530,12 +543,18 @@ export default function AffiliateApp() {
                   <Ic name="i-trophy" /> Lifetime
                 </div>
                 <div className="v gold">
-                  {eur(lifetimeEur)}
-                  {lifetimeUsd > 0 && (
-                    <span style={{ fontSize: ".6em", opacity: 0.8 }}>
-                      {" "}
-                      · {usd(lifetimeUsd)}
-                    </span>
+                  {statsUnavailable ? (
+                    dash
+                  ) : (
+                    <>
+                      {eur(lifetimeEur)}
+                      {lifetimeUsd > 0 && (
+                        <span style={{ fontSize: ".6em", opacity: 0.8 }}>
+                          {" "}
+                          · {usd(lifetimeUsd)}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -544,12 +563,18 @@ export default function AffiliateApp() {
                   <Ic name="i-trend" /> This month
                 </div>
                 <div className="v win">
-                  {eur(monthEur)}
-                  {monthUsd > 0 && (
-                    <span style={{ fontSize: ".6em", opacity: 0.8 }}>
-                      {" "}
-                      · {usd(monthUsd)}
-                    </span>
+                  {monthUnavailable ? (
+                    dash
+                  ) : (
+                    <>
+                      {eur(monthEur)}
+                      {monthUsd > 0 && (
+                        <span style={{ fontSize: ".6em", opacity: 0.8 }}>
+                          {" "}
+                          · {usd(monthUsd)}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -557,13 +582,17 @@ export default function AffiliateApp() {
                 <div className="k">
                   <Ic name="i-users" /> Referred
                 </div>
-                <div className="v blue">{referredCount}</div>
+                <div className="v blue">
+                  {statsUnavailable ? dash : referredCount}
+                </div>
               </div>
               <div className="stat" onClick={() => go("refs")}>
                 <div className="k">
                   <Ic name="i-trend" /> Spend driven
                 </div>
-                <div className="v gold">{eur(all.totals.spend_eur)}</div>
+                <div className="v gold">
+                  {statsUnavailable ? dash : eur(all.totals.spend_eur)}
+                </div>
               </div>
             </div>
             <div className="invite">
@@ -638,7 +667,9 @@ export default function AffiliateApp() {
                   </span>{" "}
                   Referrals
                 </div>
-                <div className="n">{refsReferred}</div>
+                <div className="n">
+                  {refsUnavailable ? dash : refsReferred}
+                </div>
               </div>
               <div className="c">
                 <div className="l">
@@ -648,7 +679,7 @@ export default function AffiliateApp() {
                   Active
                 </div>
                 <div className="n">
-                  {refsActive}{" "}
+                  {refsUnavailable ? dash : refsActive}{" "}
                   <span
                     style={{
                       fontWeight: 500,
@@ -667,7 +698,9 @@ export default function AffiliateApp() {
                   </span>{" "}
                   Top-up volume
                 </div>
-                <div className="n">{eur(refs.totals.spend_eur)}</div>
+                <div className="n">
+                  {refsUnavailable ? dash : eur(refs.totals.spend_eur)}
+                </div>
               </div>
               <div className="c">
                 <div className="l">
@@ -722,7 +755,7 @@ export default function AffiliateApp() {
                       </div>
                     </div>
                     <span className="amt" style={{ color: "var(--ink)" }}>
-                      {eur(all.totals.spend_eur)}
+                      {statsUnavailable ? dash : eur(all.totals.spend_eur)}
                     </span>
                   </div>
                 </div>
@@ -730,8 +763,16 @@ export default function AffiliateApp() {
               <div className="card">
                 <div className="prog-head">
                   <h2>Your tier</h2>
+                  {/* Not a tier number we cannot vouch for. On a failed
+                      read lifetimeCombined is 0, which puts the medal back
+                      to Starter, resets the track to 0% and tells the
+                      affiliate how much MORE they need to reach a tier they
+                      may already be past. The hero above was fixed for this
+                      exact demotion; the tier card was not. */}
                   <span className="ratepill">
-                    Tier {tierIndex + 1} / {TIERS.length}
+                    {statsUnavailable
+                      ? "Checking…"
+                      : `Tier ${tierIndex + 1} / ${TIERS.length}`}
                   </span>
                 </div>
                 <div className="tierhero">
@@ -739,8 +780,14 @@ export default function AffiliateApp() {
                     <Ic name="i-medal" />
                   </div>
                   <div className="thinfo">
-                    <div className="thname">{tier.name}</div>
-                    <div className="thsub">You&apos;re a {tier.name} partner</div>
+                    <div className="thname">
+                      {statsUnavailable ? "Your tier" : tier.name}
+                    </div>
+                    <div className="thsub">
+                      {statsUnavailable
+                        ? "We couldn't read your earnings just now — this is not a reset."
+                        : `You're a ${tier.name} partner`}
+                    </div>
                   </div>
                 </div>
                 <div className="track">

@@ -233,11 +233,36 @@ export async function createTopupAsAdmin(
   // can't be understated by the payload. No plan + no perk → untouched.
   if (typeof input.type === "string" && FEE_APPLICABLE_TYPES.includes(input.type)) {
     const fallbackPct = Number(input.fee) || 0;
-    const { pct } = await resolveEffectiveFeePct(
+    const { pct: resolvedPct } = await resolveEffectiveFeePct(
       supabase,
       input.advertiser_id,
       fallbackPct,
     );
+
+    // ── The premium platform's two points, applied HERE ────────────────
+    // Meta-EU-Premium carries a 2-point discount on the top-up fee, and
+    // until now it existed only in the browser: topup-form.tsx computed
+    // the AMOUNTS at (fee − 2) while sending `fee` at the full rate. That
+    // worked only because the server left the payload alone when the
+    // advertiser had no plan and no perk. Recomputing unconditionally —
+    // which is what makes fee_amount reliable — overwrote the discounted
+    // figures with full-fee ones, so the account was credited $23.26 less
+    // than the admin had just been shown on a €1,000 top-up.
+    //
+    // A discount the server does not know about is not a discount. It is
+    // resolved from the ACCOUNT, server-side, where the amounts are.
+    let platformPct = resolvedPct;
+    if (typeof input.account_id === "string" && input.account_id) {
+      const { data: acct } = await supabase
+        .from("ad_accounts")
+        .select("platform")
+        .eq("id", input.account_id)
+        .maybeSingle();
+      if ((acct as { platform?: string } | null)?.platform === "eu-meta-premium") {
+        platformPct = Math.max(resolvedPct - 2, 0);
+      }
+    }
+    const pct = platformPct;
     // ALWAYS recompute, not only when a plan or perk applies.
     //
     // `if (applied)` meant that for an advertiser with no plan and no perk

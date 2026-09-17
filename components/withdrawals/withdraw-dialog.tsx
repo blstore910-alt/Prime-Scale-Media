@@ -34,8 +34,15 @@ export default function WithdrawDialog({
 }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
-  // No setter: the account decides this, not the person filling the form.
-  const [currency] = useState<"USD" | "EUR">(defaultCurrency);
+  // NOT state. The account decides this, and holding it in state froze it
+  // at whatever the first render saw: the details sheet renders this dialog
+  // as soon as its query has data, and react-query serves a previously
+  // visited account from cache synchronously — so opening account A (USD),
+  // then B (EUR), then A again reused the same instance and kept "EUR".
+  // The dialog then said "Comes back as EUR" while the server, which now
+  // reads the currency off the account, refused the mismatch. The customer
+  // could not withdraw at all, and the error contradicted the screen.
+  const currency = defaultCurrency;
   const [reason, setReason] = useState("");
   // Second step, in the same dialog rather than a dialog on top of a dialog:
   // stacked modals are awkward on a phone and easy to dismiss by accident,

@@ -66,11 +66,22 @@ export default function ChangeSubscriptionAmountDialog({
   }
 
   const currentAmount = Number(subscription?.amount ?? 0);
-  const nextAmount = Number(amount);
+  // AN EMPTY FIELD IS NOT ZERO. Number("") is 0, and 0 is finite and not
+  // negative — so clearing the box and pressing Save set the customer's
+  // monthly plan to zero and re-issued the period's invoice at zero. That
+  // is the same mistake the inline fee editor made (see accounts-table.tsx:
+  // "A blank is not a zero; if you want 0% you type it"), on a bigger
+  // number.
+  const typed = amount.trim();
+  const nextAmount = typed === "" ? NaN : Number(typed);
   const delta = Number.isFinite(nextAmount) ? nextAmount - currentAmount : 0;
 
   const handleSubmit = async () => {
     if (!subscription) return;
+    if (typed === "") {
+      toast.error("Enter the new monthly amount.");
+      return;
+    }
     if (!Number.isFinite(nextAmount) || nextAmount < 0) {
       toast.error("Enter a valid amount.");
       return;
@@ -212,7 +223,13 @@ export default function ChangeSubscriptionAmountDialog({
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          {/* Disabled on an empty box too: a button that submits and then
+              toasts an error is a worse way to say "type something" than a
+              button that is plainly not ready. */}
+          <Button
+            onClick={handleSubmit}
+            disabled={isPending || typed === ""}
+          >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save change
           </Button>
