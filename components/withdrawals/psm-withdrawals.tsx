@@ -281,7 +281,7 @@ function WithdrawalsSection() {
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>
         <div className="tblwrap">
-          <table className="tbl wide dense">
+          <table className="tbl wide">
             <thead>
               <tr>
                 <th style={{ paddingLeft: 14 }}>Ref</th>
@@ -559,7 +559,7 @@ function RefundsSection() {
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>
         <div className="tblwrap">
-          <table className="tbl wide dense">
+          <table className="tbl wide">
             <thead>
               <tr>
                 <th style={{ paddingLeft: 14 }}>Ref</th>
@@ -1096,7 +1096,7 @@ function AdjustmentsSection() {
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>
         <div className="tblwrap">
-          <table className="tbl wide dense">
+          <table className="tbl wide">
             <thead>
               <tr>
                 <th style={{ paddingLeft: 14 }}>Ref</th>

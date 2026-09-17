@@ -207,7 +207,7 @@ export default function PsmInvoicesView() {
 
       <div className="card" style={{ padding: "16px 8px 8px" }}>
         <div className="tblwrap">
-          <table className="tbl wide dense">
+          <table className="tbl wide">
             <thead>
               <tr>
                 <th style={{ paddingLeft: 14 }}>Invoice #</th>

@@ -604,7 +604,7 @@ export default function AccountsTable() {
       ) : paginatedAccounts.length ? (
         <div className="card" style={{ padding: 0 }}>
           <div className="tblwrap">
-            <table className="tbl wide dense">
+            <table className="tbl wide">
               <thead>
                 <tr>
                   <th>Client Code</th>
