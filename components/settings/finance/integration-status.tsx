@@ -183,9 +183,12 @@ function FeeReconRow() {
               No allocated supplier accounts to check yet.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-xs">
-                <thead className="text-muted-foreground">
+            /* Below sm each account is a card: the head row is hidden and
+               every cell carries its own label, so nothing has to be dragged
+               sideways to be read. From sm up it is the same table. */
+            <div className="sm:overflow-x-auto">
+              <table className="w-full text-left text-xs sm:min-w-[520px] [&_td]:block [&_td]:before:mr-2 [&_td]:before:font-medium [&_td]:before:text-muted-foreground [&_td]:before:content-[attr(data-label)] [&_tr]:block [&_tr]:rounded-lg [&_tr]:border [&_tr]:p-2.5 sm:[&_td]:table-cell sm:[&_td]:before:content-none sm:[&_tr]:table-row sm:[&_tr]:rounded-none sm:[&_tr]:border-0 sm:[&_tr]:border-t sm:[&_tr]:p-0">
+                <thead className="hidden text-muted-foreground sm:table-header-group">
                   <tr>
                     <th className="py-1 pr-2">Account</th>
                     <th className="py-1 pr-2 text-right">On record</th>
@@ -197,16 +200,25 @@ function FeeReconRow() {
                 <tbody>
                   {res.rows.map((r) => (
                     <tr key={r.externalId} className="border-t">
-                      <td className="py-1.5 pr-2">
+                      <td className="py-1.5 pr-2 font-medium" data-label="Account">
                         {r.name ?? r.externalId}
                       </td>
-                      <td className="py-1.5 pr-2 text-right tabular-nums">
+                      <td
+                        className="py-1.5 pr-2 tabular-nums sm:text-right"
+                        data-label="On record:"
+                      >
                         {pct(r.recordedPct)}
                       </td>
-                      <td className="py-1.5 pr-2 text-right tabular-nums">
+                      <td
+                        className="py-1.5 pr-2 tabular-nums sm:text-right"
+                        data-label="Actually charged:"
+                      >
                         {pct(r.actualPct)}
                       </td>
-                      <td className="py-1.5 pr-2 text-right tabular-nums">
+                      <td
+                        className="py-1.5 pr-2 tabular-nums sm:text-right"
+                        data-label="Top-ups:"
+                      >
                         {r.topupsChecked}
                         {r.topupsWithoutFee > 0 && (
                           <span
@@ -218,7 +230,7 @@ function FeeReconRow() {
                           </span>
                         )}
                       </td>
-                      <td className="py-1.5">
+                      <td className="py-1.5" data-label="Verdict:">
                         {r.error ? (
                           <span className="text-destructive">{r.error}</span>
                         ) : r.mismatch ? (

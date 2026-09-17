@@ -135,13 +135,16 @@ export default function PlansCard() {
   const anyDirty = rows.some((r) => r.dirty);
   const sym = (c: PlanCurrency) => (c === "USD" ? "$" : "€");
 
-  // min-w keeps the 1fr name column from collapsing. The four fixed tracks
-  // plus gaps already exceed a phone's width, so on mobile the name Input —
-  // the row's only identifier — resolved to 0px and was unreachable. The grid
-  // now has a floor and scrolls horizontally inside its own container instead
-  // of pushing the whole admin content column sideways.
+  // Six tracks plus gaps exceed a phone's width, and the horizontal scroller
+  // that used to hold them meant dragging the grid left and right to read it
+  // — with the column you were editing reliably off screen.
+  //
+  // Below sm each plan is a small card with its fields labelled; from sm up
+  // it is the same six-column grid, with the floor that stops the name
+  // column collapsing to 0px.
   const cols =
-    "grid grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_52px] gap-2 items-center min-w-[560px]";
+    "grid grid-cols-2 items-center gap-x-3 gap-y-2 rounded-lg border p-3 sm:grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_52px] sm:min-w-[560px] sm:gap-2 sm:rounded-none sm:border-0 sm:p-0";
+  const lab = "text-xs text-muted-foreground sm:hidden";
 
   return (
     <Card>
@@ -162,8 +165,8 @@ export default function PlansCard() {
         ) : isError ? (
           <p className="text-destructive">{(error as Error)?.message}</p>
         ) : (
-          <div className="grid gap-3 overflow-x-auto">
-            <div className={`${cols} text-xs text-muted-foreground border-b pb-1`}>
+          <div className="grid gap-3 sm:overflow-x-auto">
+            <div className="hidden sm:grid grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_52px] gap-2 items-center min-w-[560px] text-xs text-muted-foreground border-b pb-1">
               <span>Name</span>
               <span>Kind</span>
               <span className="text-right">Monthly</span>
@@ -173,10 +176,15 @@ export default function PlansCard() {
             </div>
             {rows.map((r, i) => (
               <div key={r.id} className={cols}>
-                <Input
-                  value={r.name}
-                  onChange={(e) => patch(i, { name: e.target.value })}
-                />
+                <label className="col-span-2 grid gap-1 sm:col-span-1">
+                  <span className={lab}>Name</span>
+                  <Input
+                    value={r.name}
+                    onChange={(e) => patch(i, { name: e.target.value })}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className={lab}>Kind</span>
                 <select
                   value={r.kind}
                   onChange={(e) => patch(i, { kind: e.target.value as PlanKind })}
@@ -188,37 +196,47 @@ export default function PlansCard() {
                     </option>
                   ))}
                 </select>
-                <div className="flex items-center justify-end gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    {sym(r.currency)}
-                  </span>
+                </label>
+                <label className="grid gap-1">
+                  <span className={lab}>Monthly</span>
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="text-xs text-muted-foreground">
+                      {sym(r.currency)}
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={r.monthly}
+                      className="text-right"
+                      onChange={(e) => patch(i, { monthly: e.target.value })}
+                    />
+                  </div>
+                </label>
+                <label className="grid gap-1">
+                  <span className={lab}>Included accounts</span>
                   <Input
                     type="number"
                     min="0"
                     step="1"
-                    value={r.monthly}
+                    value={r.included}
                     className="text-right"
-                    onChange={(e) => patch(i, { monthly: e.target.value })}
+                    onChange={(e) => patch(i, { included: e.target.value })}
                   />
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={r.included}
-                  className="text-right"
-                  onChange={(e) => patch(i, { included: e.target.value })}
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={r.pct}
-                  className="text-right"
-                  onChange={(e) => patch(i, { pct: e.target.value })}
-                />
-                <div className="flex justify-end pr-2">
+                </label>
+                <label className="grid gap-1">
+                  <span className={lab}>Topup fee %</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={r.pct}
+                    className="text-right"
+                    onChange={(e) => patch(i, { pct: e.target.value })}
+                  />
+                </label>
+                <label className="flex items-center gap-2 sm:justify-end sm:pr-2">
                   <input
                     type="checkbox"
                     checked={r.is_active}
@@ -226,14 +244,16 @@ export default function PlansCard() {
                     className="h-4 w-4"
                     onChange={(e) => patch(i, { is_active: e.target.checked })}
                   />
-                </div>
+                  <span className={lab}>Active</span>
+                </label>
               </div>
             ))}
 
-            <div className="mt-2 border-t pt-3 grid gap-2 overflow-x-auto">
+            <div className="mt-2 border-t pt-3 grid gap-2 sm:overflow-x-auto">
               <Label className="text-xs text-muted-foreground">Add a plan</Label>
-              <div className="grid grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_auto] gap-2 items-center min-w-[560px]">
+              <div className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_auto] sm:min-w-[560px] sm:gap-2">
                 <Input
+                  className="col-span-2 sm:col-span-1"
                   value={nName}
                   placeholder="e.g. VIP"
                   onChange={(e) => setNName(e.target.value)}
@@ -267,7 +287,7 @@ export default function PlansCard() {
                     type="number"
                     min="0"
                     value={nMonthly}
-                    placeholder="fee"
+                    placeholder="Monthly fee"
                     className="text-right"
                     onChange={(e) => setNMonthly(e.target.value)}
                   />
@@ -276,7 +296,7 @@ export default function PlansCard() {
                   type="number"
                   min="0"
                   value={nIncluded}
-                  placeholder="incl"
+                  placeholder="Included"
                   className="text-right"
                   onChange={(e) => setNIncluded(e.target.value)}
                 />
@@ -286,13 +306,14 @@ export default function PlansCard() {
                   max="100"
                   step="0.1"
                   value={nPct}
-                  placeholder="%"
+                  placeholder="Fee %"
                   className="text-right"
                   onChange={(e) => setNPct(e.target.value)}
                 />
                 <Button
                   type="button"
                   variant="outline"
+                  className="col-span-2 sm:col-span-1"
                   disabled={adding}
                   onClick={() => add()}
                 >
