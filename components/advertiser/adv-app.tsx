@@ -505,10 +505,37 @@ export default function AdvertiserApp() {
   const canRequestAccount =
     companyComplete && (planActive || (accounts ?? []).length > 0);
 
+  // ── Deep links ──────────────────────────────────────────────────────
+  // The views were pure state, so nothing outside this component could
+  // point at one: every push notification, every email and every "go to
+  // billing" link had to land on the dashboard and leave the customer to
+  // find the screen themselves. A reload also threw away whichever view
+  // they were on.
+  //
+  // window.location rather than useSearchParams: this is a client-only
+  // concern and useSearchParams drags a Suspense requirement into a page
+  // that does not otherwise need one.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const wanted = new URLSearchParams(window.location.search).get("view");
+    if (wanted && wanted in TITLES) setView(wanted as View);
+    // Mount only. Later changes come from go(), which writes the URL itself.
+  }, []);
+
   const go = (v: View) => {
     setView(v);
     setNavOpen(false);
-    if (typeof window !== "undefined") window.scrollTo(0, 0);
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+      // replaceState, not push: the in-app views are not browser history
+      // steps — Back should leave the app, not walk through the tabs the
+      // customer happened to open. This only makes a reload land where they
+      // were, and makes the current view linkable.
+      const url = new URL(window.location.href);
+      if (v === "dash") url.searchParams.delete("view");
+      else url.searchParams.set("view", v);
+      window.history.replaceState(null, "", url.toString());
+    }
   };
   // The bell is a peek, not a destination: press it, glance, press it again
   // and you are back where you were. Going "back" to the dashboard instead

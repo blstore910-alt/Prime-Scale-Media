@@ -91,11 +91,14 @@ function buildPushFromRecord(record: NotificationRecord) {
       };
     }
 
+    // /my-subscription is a redirect to the single-page app, which now
+    // accepts ?view= — so these land on BILLING instead of dropping the
+    // customer on the dashboard to find it themselves.
     case "subscription_invoice": {
       return {
         title: "New subscription invoice",
         body: "Your monthly subscription invoice is ready. Pay from your wallet.",
-        url: "/my-subscription",
+        url: "/dashboard?view=billing",
       };
     }
 
@@ -103,7 +106,7 @@ function buildPushFromRecord(record: NotificationRecord) {
       return {
         title: "Subscription past due",
         body: "We couldn't collect your subscription. Please top up your wallet.",
-        url: "/my-subscription",
+        url: "/dashboard?view=billing",
       };
     }
 
@@ -111,7 +114,36 @@ function buildPushFromRecord(record: NotificationRecord) {
       return {
         title: "Subscription updated",
         body: "Your subscription amount has been changed.",
-        url: "/my-subscription",
+        url: "/dashboard?view=billing",
+      };
+    }
+
+    // These two were falling through to "You have a new notification." —
+    // so the two alerts that matter most, the supplier running out of money
+    // and someone hammering a financial endpoint, arrived on a phone giving
+    // no reason to open the app.
+    case "supplier_low_balance": {
+      const bal = record.payload?.balance;
+      return {
+        title: "Supplier balance is low",
+        body:
+          bal != null
+            ? `The supplier's spendable balance is down to ${bal}. Top-ups may start failing.`
+            : "The supplier's spendable balance is below the safety threshold. Top-ups may start failing.",
+        url: "/settings/integrations",
+      };
+    }
+
+    case "rate_limit_abuse": {
+      const action = record.payload?.action;
+      return {
+        title: "Suspicious activity",
+        body: action
+          ? `Someone is hitting the rate limit on ${action}. Worth a look.`
+          : "Someone is hitting a rate limit on a sensitive action. Worth a look.",
+        // There is no /system-status route — the rate-limit view lives in
+        // the System section at the bottom of the admin dashboard.
+        url: "/dashboard",
       };
     }
 
