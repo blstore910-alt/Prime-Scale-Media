@@ -389,7 +389,14 @@ export async function testWiseConnection(): Promise<IntegrationPing> {
 export type WiseIngestStatus = {
   ok: boolean;
   error?: string;
-  /** The webhook URL exists and its token segment is checkable. */
+  /**
+   * At least ONE of the two webhook routes can accept a delivery:
+   *   /api/webhooks/wise/<WISE_WEBHOOK_SECRET>   shared-secret path
+   *   /api/webhooks/wise                         RSA, needs WISE_PUBLIC_KEY
+   * With neither set, every POST Wise makes is answered 401 and no deposit
+   * can ever arrive — which is a silent outage, because Wise retries for a
+   * while and then stops.
+   */
   webhookConfigured: boolean;
   /** References and sender names can be enriched from the statement API. */
   readTokenConfigured: boolean;
@@ -403,7 +410,8 @@ export type WiseIngestStatus = {
 
 export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
   const empty = {
-    webhookConfigured: !!process.env.WISE_WEBHOOK_SECRET,
+    webhookConfigured:
+      !!process.env.WISE_WEBHOOK_SECRET || !!process.env.WISE_PUBLIC_KEY,
     readTokenConfigured: !!process.env.WISE_API_TOKEN,
     autoSettle: ["true", "1", "yes"].includes(
       (process.env.WISE_AUTO_SETTLE ?? "").toLowerCase(),

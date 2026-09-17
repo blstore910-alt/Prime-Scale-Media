@@ -87,7 +87,10 @@ function WiseIngestBar() {
   const bits: { label: string; tone: "ok" | "pend" | "due" }[] = [
     data.webhookConfigured
       ? { label: "Webhook on", tone: "ok" }
-      : { label: "Webhook NOT configured", tone: "due" },
+      : {
+          label: "Webhook NOT configured — no deposit can arrive",
+          tone: "due",
+        },
     data.readTokenConfigured
       ? { label: "References readable", tone: "ok" }
       : { label: "No read token — references stay blank", tone: "pend" },
