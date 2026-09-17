@@ -34,6 +34,7 @@ import OnboardingChecklist from "./onboarding-checklist";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import { invoiceTypeLabel } from "@/lib/invoice-type";
+import { invoiceStatusView } from "@/lib/invoice-status";
 import { effectiveMinTopup } from "@/lib/min-topup";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 
@@ -1860,6 +1861,9 @@ export default function AdvertiserApp() {
                     {(invoices ?? []).length ? (
                       (invoices ?? []).map((inv) => {
                         const paid = inv.status === "paid";
+                        const invSt = invoiceStatusView(inv.status, {
+                          customer: true,
+                        });
                         const invSym =
                           ((
                             inv.items as
@@ -1890,9 +1894,14 @@ export default function AdvertiserApp() {
                               {invSym}
                               {money2(inv.total)}
                             </td>
+                            {/* A voided invoice is NOT due. This said
+                                "Due" for every status that was not 'paid',
+                                so the €200 we superseded kept asking the
+                                customer for €200 after it had been
+                                cancelled. */}
                             <td data-label="Status" className="r">
-                              <span className={`badge ${paid ? "ok" : "due"}`}>
-                                {paid ? "Paid" : "Due"}
+                              <span className={`badge ${invSt.tone}`}>
+                                {invSt.label}
                               </span>
                             </td>
                             {/* Download was admin-only. A customer could

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import { invoiceStatusView } from "@/lib/invoice-status";
 import { toast } from "sonner";
 import CreateInvoiceDialog from "./create-invoice-dialog";
 import useInvoices from "./use-invoices";
@@ -261,6 +262,10 @@ export default function InvoicesTable() {
                   : invoices.length
                     ? invoices.map((invoice) => {
                         const isPaid = invoice.status === "paid";
+                        const st = invoiceStatusView(invoice.status);
+                        // Nothing to mark paid on an invoice that is already
+                        // settled one way or another.
+                        const isVoid = st.settled && !isPaid;
                         const currencySymbol =
                           CURRENCY_SYMBOLS[
                             invoice.currency as keyof typeof CURRENCY_SYMBOLS
@@ -334,11 +339,15 @@ export default function InvoicesTable() {
                                 pushed this table past the edge of the
                                 window. The date belongs TO the "Paid"
                                 badge; it only exists when that badge does. */}
+                            {/* The REAL status, not paid-or-not. This
+                                drew every non-paid invoice as "Unpaid",
+                                so a VOIDED invoice — one that has been
+                                superseded and is owed by nobody — sat in
+                                the list looking exactly like a debt, with
+                                a Mark Paid button next to it. */}
                             <td data-label="Status" className="nw">
-                              <span
-                                className={`badge ${isPaid ? "ok" : "pend"}`}
-                              >
-                                {isPaid ? "Paid" : "Unpaid"}
+                              <span className={`badge ${st.tone}`}>
+                                {st.label}
                               </span>
                               {isPaid && invoice.paid_at && (
                                 <div
@@ -352,27 +361,21 @@ export default function InvoicesTable() {
                             <td className="r muted" data-label="Created On">
                               {dayjs(invoice.created_at).format(DATE_FORMAT)}
                             </td>
-                            <td className="r" data-label="Actions">
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: isAdmin
-                                    ? "1fr 1fr"
-                                    : "1fr",
-                                  gap: 8,
-                                }}
-                              >
-                                {isAdmin && (
+                            {/* Two buttons stretched to a 1fr 1fr grid,
+                                each width:100%, demanded ~210px of a cell
+                                that had none to give — which is what put
+                                the scrollbar under this table. The shared
+                                .actrow sizes them to their own labels, and
+                                Download is an icon with a title: it is the
+                                secondary action on the row and its glyph is
+                                unambiguous. */}
+                            <td className="r fullcell" data-label="Actions">
+                              <div className="actrow">
+                                {isAdmin && !isVoid && (
                                   <button
                                     className="btn ghost sm"
-                                    style={{
-                                      width: "100%",
-                                      justifyContent: "center",
-                                    }}
                                     disabled={isUpdatingStatus}
-                                    onClick={() =>
-                                      setConfirmPaid(invoice)
-                                    }
+                                    onClick={() => setConfirmPaid(invoice)}
                                   >
                                     {isUpdatingStatus ? (
                                       <Loader2 className="animate-spin" />
@@ -381,25 +384,21 @@ export default function InvoicesTable() {
                                     ) : (
                                       <CheckCircle />
                                     )}
-                                    {isPaid ? "Mark Unpaid" : "Mark Paid"}
+                                    {isPaid ? "Mark unpaid" : "Mark paid"}
                                   </button>
                                 )}
                                 <button
                                   className="btn ghost sm"
-                                  style={{
-                                    width: "100%",
-                                    justifyContent: "center",
-                                  }}
                                   disabled={isDownloading}
                                   onClick={() => handleDownload(invoice)}
                                   title="Download invoice"
+                                  aria-label="Download invoice"
                                 >
                                   {isDownloading ? (
                                     <Loader2 className="animate-spin" />
                                   ) : (
                                     <Download />
                                   )}
-                                  Download
                                 </button>
                               </div>
                             </td>
