@@ -72,7 +72,7 @@ export default function PsmVerifyAdTopups() {
       <div className="phead">
         <div>
           <h1>Ad-account Topups</h1>
-          <p>Wallet → ad account · verify pending with the effective fee.</p>
+          <p>Wallet → ad account.</p>
         </div>
       </div>
 

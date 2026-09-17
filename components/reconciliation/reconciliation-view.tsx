@@ -137,7 +137,7 @@ export default function ReconciliationView() {
         <div>
           <h1>Bank Balances &amp; Reconciliation</h1>
           <p>
-            What the banks received, against what wallets were credited.
+            Banks received, against wallets credited.
           </p>
         </div>
       </div>

@@ -131,7 +131,7 @@ export default function PsmWallets() {
       <div className="phead">
         <div>
           <h1>Wallets</h1>
-          <p>Review advertiser balances, activity, and wallet status.</p>
+          <p>Balances, activity and status.</p>
         </div>
       </div>
 
