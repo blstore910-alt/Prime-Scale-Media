@@ -560,6 +560,7 @@ export async function probeWiseDepositLookup(
     scaRequired: boolean;
     signingKeyConfigured: boolean;
     signed: boolean;
+    signError: string | null;
     transactions: number | null;
     bodySnippet: string | null;
     reason: string | null;
@@ -593,6 +594,7 @@ export async function probeWiseDepositLookup(
         scaRequired: false,
         signingKeyConfigured: !!process.env.WISE_API_PRIVATE_KEY,
         signed: false,
+        signError: null,
         transactions: null,
         bodySnippet: null,
         reason: "There is no deposit without a reference to test with.",
@@ -616,6 +618,7 @@ export async function probeWiseDepositLookup(
         scaRequired: false,
         signingKeyConfigured: !!process.env.WISE_API_PRIVATE_KEY,
         signed: false,
+        signError: null,
         transactions: null,
         bodySnippet: null,
         reason:
@@ -641,6 +644,7 @@ export async function probeWiseDepositLookup(
       scaRequired: probe.scaRequired,
       signingKeyConfigured: probe.signingKeyConfigured,
       signed: probe.signed,
+      signError: probe.signError ?? null,
       transactions: probe.transactions,
       bodySnippet: probe.bodySnippet,
       reason:

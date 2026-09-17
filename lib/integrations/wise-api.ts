@@ -11,6 +11,8 @@
 // token/mode isn't set, or the call fails, we return null and the
 // webhook falls back to whatever the payload carried.
 
+import { normalizePem } from "./pem";
+
 export type WiseTxnDetail = {
   reference: string | null;
   senderIban: string | null;
@@ -157,7 +159,12 @@ function wiseApiBase(): string {
 async function wiseFetch(
   url: string,
   token: string,
-): Promise<{ res: Response; sca: boolean; signed: boolean }> {
+): Promise<{
+  res: Response;
+  sca: boolean;
+  signed: boolean;
+  signError?: string | null;
+}> {
   const first = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
     // Never cache a financial fetch.
@@ -168,12 +175,24 @@ async function wiseFetch(
     return { res: first, sca: !!challenge, signed: false };
   }
 
-  // A PEM in an environment variable usually arrives with literal
-  // backslash-n rather than real newlines; both forms have to work or the
-  // key silently fails to parse on one host and not the other.
-  const rawKey = process.env.WISE_API_PRIVATE_KEY;
-  if (!rawKey) return { res: first, sca: true, signed: false };
-  const pem = rawKey.includes("\\n") ? rawKey.replace(/\\n/g, "\n") : rawKey;
+  // normalizePem, because a key moved through a hosting dashboard arrives
+  // with its newlines turned into spaces, or into literal backslash-n, or
+  // removed altogether — and Node's createSign accepts none of those while
+  // the key material itself is perfectly intact. The first real attempt at
+  // this was pasted WITHOUT the BEGIN/END lines, which is the one case that
+  // cannot be recovered: there is no key there to reformat.
+  // See lib/integrations/pem.ts.
+  const pem = normalizePem(process.env.WISE_API_PRIVATE_KEY);
+  if (!pem) {
+    return {
+      res: first,
+      sca: true,
+      signed: false,
+      signError: process.env.WISE_API_PRIVATE_KEY
+        ? "WISE_API_PRIVATE_KEY has no private key in it — the -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY----- lines have to be part of the value."
+        : null,
+    };
+  }
 
   let signature: string;
   try {
@@ -182,10 +201,16 @@ async function wiseFetch(
     signer.update(challenge);
     signer.end();
     signature = signer.sign(pem, "base64");
-  } catch {
-    // A malformed key is a configuration fault, not a Wise fault. Hand the
-    // challenge response back so the caller reports it as such.
-    return { res: first, sca: true, signed: false };
+  } catch (e) {
+    // A key that will not sign is a configuration fault, not a Wise fault.
+    // Report the crypto layer's own message — it names the cause and
+    // contains no key material.
+    return {
+      res: first,
+      sca: true,
+      signed: false,
+      signError: e instanceof Error ? e.message : "could not sign",
+    };
   }
 
   const second = await fetch(url, {
@@ -323,6 +348,8 @@ export type WiseProbe = {
   signingKeyConfigured: boolean;
   /** Did we actually sign and retry? */
   signed: boolean;
+  /** Why signing failed, in the crypto layer's words. No key material. */
+  signError?: string | null;
   transactions: number | null;
   bodySnippet: string | null;
   error: string | null;
@@ -389,7 +416,8 @@ export async function probeWiseStatement(args: {
       `&intervalStart=${encodeURIComponent(start)}` +
       `&intervalEnd=${encodeURIComponent(end)}&type=COMPACT`;
     try {
-      const { res, sca, signed } = await wiseFetch(url, token);
+      const { res, sca, signed, signError } = await wiseFetch(url, token);
+      if (signError) out.signError = signError;
       out.statementStatus = res.status;
       // Wise signals a Strict Customer Authentication challenge with an
       // x-2fa-approval header. wiseFetch answers it when a private key is
@@ -423,7 +451,8 @@ export async function probeWiseStatement(args: {
       "We signed Wise's SCA challenge and it still refused (403) — the registered public key does not match WISE_API_PRIVATE_KEY, or the token is scoped to a different profile.";
   } else if (out.scaRequired && !out.signed) {
     out.error =
-      "Wise asked for SCA and the private key in WISE_API_PRIVATE_KEY could not be used to sign it — check that it is a PEM private key, newlines included.";
+      "Wise asked for SCA and WISE_API_PRIVATE_KEY could not sign it" +
+      (out.signError ? ` — ${out.signError}` : ".");
   } else if (out.statementStatus === 422) {
     out.error =
       "Wise refused the statement parameters (422). The interval is capped (a year at most) and the currency has to be the balance's own currency, so one of those does not match this balance.";

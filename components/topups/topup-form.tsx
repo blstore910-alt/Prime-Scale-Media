@@ -7,7 +7,7 @@ import { CURRENCIES, TOPUP_TYPES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { ExchangeRate } from "@/lib/types/exchange-rates";
-import { calculateTopupAmount } from "@/lib/utils";
+import { calculateTopupAmount, eurFigures } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -67,10 +67,23 @@ export const createTopup = async (
     payment_slip: values.payment_slip,
     status: values.status,
     mark_paid: values.mark_paid,
+    // The euro columns, with an actual exchange rate in them. See
+    // eurFigures in lib/utils-pure.ts for what was wrong with the old
+    // arithmetic — no rate, and the two fees the wrong way round.
     ...(isEuMetaPremium && {
-      eur_value:
-        values.amount_received * (1 - Math.max(feePercent - 0.02, 0)),
-      eur_topup: values.amount_received * (1 - feePercent),
+      ...(() => {
+        const { eurValue, eurTopup } = eurFigures({
+          amountReceived: values.amount_received,
+          currency: values.currency,
+          amountUSD,
+          topupAmount,
+          eurRate: Number(exchangeRates?.[0]?.eur ?? 0),
+        });
+        return {
+          eur_value: Number(eurValue.toFixed(2)),
+          eur_topup: Number(eurTopup.toFixed(2)),
+        };
+      })(),
     }),
   });
   if (!result.ok) throw new Error(result.error);

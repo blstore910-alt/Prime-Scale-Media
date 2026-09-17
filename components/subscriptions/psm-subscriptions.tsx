@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { DATE_FORMAT } from "@/lib/constants";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
@@ -65,6 +66,44 @@ export default function PsmSubscriptions() {
     pendingSubscriptionId,
     isPending: isStatusUpdating,
   } = useUpdateSubscriptionStatus();
+
+  // ── Ask first ───────────────────────────────────────────────────────
+  // These are four icon-only buttons in one table row — the highest
+  // misclick surface in the app — and each of them writes the column
+  // subscription_billing_run() bills on. Activate starts a recurring
+  // monthly charge against a customer; Disable stops their plan and our
+  // revenue. Neither said a word before doing it.
+  const [ask, setAsk] = useState<{
+    title: string;
+    lead: string;
+    cta: string;
+    danger?: boolean;
+    facts: Array<[string, string]>;
+    run: () => void;
+  } | null>(null);
+
+  const askStatus = (
+    s2: { id: string; amount?: number | string | null; currency?: string | null;
+          advertiser?: { tenant_client_code?: string | null } | null },
+    nextStatus: SubscriptionStatus,
+    words: { title: string; lead: string; cta: string; danger?: boolean; done: string },
+  ) => {
+    const adv = Array.isArray(s2.advertiser) ? s2.advertiser[0] : s2.advertiser;
+    setAsk({
+      title: words.title,
+      lead: words.lead,
+      cta: words.cta,
+      danger: words.danger,
+      facts: [
+        ["Customer", adv?.tenant_client_code ?? "—"],
+        [
+          "Monthly",
+          `${String(s2.currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€"}${Number(s2.amount ?? 0).toFixed(2)}`,
+        ],
+      ],
+      run: () => updateStatus(s2.id, nextStatus, words.done),
+    });
+  };
 
   const updateStatus = (
     subscriptionId: string,
@@ -266,11 +305,12 @@ export default function PsmSubscriptions() {
                               title="Activate"
                               aria-label="Activate"
                               onClick={() =>
-                                updateStatus(
-                                  s.id,
-                                  "active",
-                                  "Subscription activated successfully.",
-                                )
+                                askStatus(s, "active", {
+                                  title: "Start billing this customer?",
+                                  lead: "It begins a recurring monthly charge, and the billing run raises the first invoice on its next pass.",
+                                  cta: "Yes, activate it",
+                                  done: "Subscription activated successfully.",
+                                })
                               }
                               disabled={pending}
                             >
@@ -293,12 +333,13 @@ export default function PsmSubscriptions() {
                                 title="Pause"
                                 aria-label="Pause"
                                 onClick={() =>
-                                  updateStatus(
-                                    s.id,
-                                    "paused",
-                                    "Subscription paused successfully.",
-                                  )
-                                }
+                                askStatus(s, "paused", {
+                                  title: "Pause this subscription?",
+                                  lead: "No new invoices are raised while it is paused. Anything already unpaid stays unpaid.",
+                                  cta: "Yes, pause it",
+                                  done: "Subscription paused successfully.",
+                                })
+                              }
                                 disabled={pending}
                               >
                                 {pending ? (
@@ -313,12 +354,14 @@ export default function PsmSubscriptions() {
                                 title="Disable"
                                 aria-label="Disable"
                                 onClick={() =>
-                                  updateStatus(
-                                    s.id,
-                                    "inactive",
-                                    "Subscription disabled successfully.",
-                                  )
-                                }
+                                askStatus(s, "inactive", {
+                                  title: "Stop this plan?",
+                                  lead: "Billing stops, and the customer keeps whatever is already invoiced. Reactivating starts it again from the next run — it does not backfill.",
+                                  cta: "Yes, stop it",
+                                  danger: true,
+                                  done: "Subscription disabled successfully.",
+                                })
+                              }
                                 disabled={pending}
                                 style={{
                                   color: "var(--danger)",
@@ -339,11 +382,12 @@ export default function PsmSubscriptions() {
                             <button
                               className="btn sm"
                               onClick={() =>
-                                updateStatus(
-                                  s.id,
-                                  "active",
-                                  "Subscription resumed successfully.",
-                                )
+                                askStatus(s, "active", {
+                                  title: "Start billing this customer?",
+                                  lead: "It begins a recurring monthly charge, and the billing run raises the first invoice on its next pass.",
+                                  cta: "Yes, activate it",
+                                  done: "Subscription activated successfully.",
+                                })
                               }
                               disabled={pending}
                             >
@@ -413,6 +457,28 @@ export default function PsmSubscriptions() {
           if (!value) setAmountEditSub(null);
         }}
       />
+
+      <ConfirmModal
+        open={!!ask}
+        onOpenChange={(next) => {
+          if (!next) setAsk(null);
+        }}
+        title={ask?.title ?? ""}
+        lead={ask?.lead}
+        cta={ask?.cta ?? "Confirm"}
+        tone={ask?.danger ? "danger" : "default"}
+        busy={isStatusUpdating}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          const a = ask;
+          setAsk(null);
+          a?.run();
+        }}
+      >
+        {(ask?.facts ?? []).map(([k, v]) => (
+          <ConfirmFact key={k} label={k} value={v} strong={k === "Monthly"} />
+        ))}
+      </ConfirmModal>
     </div>
   );
 }

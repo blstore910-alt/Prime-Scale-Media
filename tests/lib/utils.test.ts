@@ -4,6 +4,7 @@ import {
   generateSlug,
   getInitials,
   formatRate,
+  eurFigures,
   calculateTopupAmount,
   formatCurrency,
 } from "../../lib/utils-pure.ts";
@@ -100,4 +101,45 @@ test("calculateTopupAmount returns zeroes rather than guessing with no rate", ()
     amountUSD: 0,
     feeAmount: 0,
   });
+});
+
+test("eurFigures converts instead of guessing", () => {
+  // The old arithmetic was amount_received * (1 - feePercent) with NO rate
+  // at all, and the two fees swapped. On a $1,000 payment at 5% with the
+  // rate at 0.86 that put eur_value 12.8% above the truth.
+  const { eurValue, eurTopup } = eurFigures({
+    amountReceived: 1000,
+    currency: "USD",
+    amountUSD: 1000,
+    topupAmount: 950,
+    eurRate: 0.86,
+  });
+  assert.equal(Number(eurValue.toFixed(2)), 860);
+  assert.equal(Number(eurTopup.toFixed(2)), 817);
+});
+
+test("paid in euros, the euro figure is the amount itself", () => {
+  // Converting to USD and back would only add rounding.
+  const { eurValue, eurTopup } = eurFigures({
+    amountReceived: 1000,
+    currency: "EUR",
+    amountUSD: 1162.79,
+    topupAmount: 1104.65,
+    eurRate: 0.86,
+  });
+  assert.equal(eurValue, 1000);
+  assert.equal(Number(eurTopup.toFixed(2)), 950);
+});
+
+test("no rate gives zero, never an unconverted figure", () => {
+  // A missing rate must not silently publish dollars under a euro sign.
+  const { eurValue, eurTopup } = eurFigures({
+    amountReceived: 1000,
+    currency: "USD",
+    amountUSD: 1000,
+    topupAmount: 950,
+    eurRate: 0,
+  });
+  assert.equal(eurValue, 0);
+  assert.equal(eurTopup, 0);
 });

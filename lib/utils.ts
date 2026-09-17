@@ -7,6 +7,7 @@ export {
   getInitials,
   formatRate,
   calculateTopupAmount,
+  eurFigures,
   formatCurrency,
 } from "./utils-pure";
 

@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import Link from "next/link";
 import CreateSubscriptionDialog from "@/components/subscriptions/create-subscription-dialog";
 import PsmSortFilter from "@/components/psm/sort-filter";
@@ -397,6 +398,15 @@ function AdvertiserRow({
     [advertiser],
   );
 
+  // ── Deactivating is not just an access switch ───────────────────────
+  // updateUserProfile ALSO bulk-writes every one of this advertiser's
+  // subscriptions to 'inactive' (actions/admin-actions.ts) — and
+  // reactivating writes only the profile back, so nothing restores them.
+  // One click therefore removes access AND silently ends the recurring
+  // billing, and the Activate button that appears next does not undo it.
+  // The admins table already asks before its equivalent; this did not.
+  const [askDeactivate, setAskDeactivate] = useState(false);
+
   const toggleStatus = () => {
     updateUserProfile(
       {
@@ -413,6 +423,15 @@ function AdvertiserRow({
           ),
       },
     );
+  };
+
+  const askToggle = () => {
+    // Reactivating is harmless, so it does not ask.
+    if (!isActive) {
+      toggleStatus();
+      return;
+    }
+    setAskDeactivate(true);
   };
 
   const stop = (fn: () => void) => (e: MouseEvent) => {
@@ -604,7 +623,7 @@ function AdvertiserRow({
           <button
             className="btn ghost sm"
             disabled={isPending}
-            onClick={stop(toggleStatus)}
+            onClick={stop(askToggle)}
             title={isActive ? "Deactivate" : "Activate"}
           >
             {isPending ? (
@@ -616,6 +635,29 @@ function AdvertiserRow({
             )}
             <span className="alab">{isActive ? "Deactivate" : "Activate"}</span>
           </button>
+
+          {/* Inside the cell: a <tr> may not have a non-<tr> sibling, and
+              the dialog portals to the body regardless. */}
+      <ConfirmModal
+        open={askDeactivate}
+        onOpenChange={(next) => {
+          if (!next) setAskDeactivate(false);
+        }}
+        title="Deactivate this customer?"
+        lead="They lose access — and every subscription they have is stopped with them. Activating them again does NOT bring the subscriptions back; you would have to set those up by hand."
+        cta="Yes, deactivate"
+        tone="danger"
+        onConfirm={() => {
+          setAskDeactivate(false);
+          toggleStatus();
+        }}
+      >
+        <ConfirmFact
+          label="Customer"
+          value={profile.advertiser?.[0]?.tenant_client_code ?? profile.email ?? "—"}
+        />
+        <ConfirmFact label="Also stops" value="Their subscriptions" strong />
+      </ConfirmModal>
         </div>
       </td>
     </tr>

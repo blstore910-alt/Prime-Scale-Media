@@ -52,6 +52,44 @@ export const calculateTopupAmount = (
   return { topupAmount, amountUSD, feeAmount };
 };
 
+/**
+ * The same top-up, in euros.
+ *
+ * `eur_value` is what the customer PAID expressed in EUR; `eur_topup` is
+ * what LANDED on the account expressed in EUR. Both are display columns —
+ * every amount that matters is USD — but they are read on three screens,
+ * including a deactivated customer's own history.
+ *
+ * They were computed as `amount_received * (1 - feePercent)` with NO
+ * EXCHANGE RATE AT ALL, and with the two fees swapped: eur_value, the
+ * gross figure, had a fee subtracted, and eur_topup applied the FULL
+ * percentage while topup_amount had been computed with the discounted one.
+ * On a $1,000 payment that put eur_value 12.8% above the truth and
+ * eur_topup 13.9% above it — and the bulk path next door had it right all
+ * along, which is why this lives here now instead of in either caller.
+ *
+ * USD -> EUR MULTIPLIES by the rate (the rate is "1 USD = N EUR").
+ */
+export const eurFigures = (args: {
+  amountReceived: number;
+  currency: string;
+  amountUSD: number;
+  topupAmount: number;
+  eurRate: number;
+}): { eurValue: number; eurTopup: number } => {
+  const rate = Number(args.eurRate) || 0;
+  const paidInEur = String(args.currency ?? "").toUpperCase() === "EUR";
+  // Paid in euros? Then the euro figure is the amount itself — converting
+  // it to USD and back would only add rounding.
+  const eurValue = paidInEur
+    ? args.amountReceived
+    : rate > 0
+      ? args.amountUSD * rate
+      : 0;
+  const eurTopup = rate > 0 ? args.topupAmount * rate : 0;
+  return { eurValue, eurTopup };
+};
+
 export const formatCurrency = (
   value: number,
   currency: string = "USD",
