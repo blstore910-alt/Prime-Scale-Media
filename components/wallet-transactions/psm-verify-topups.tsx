@@ -13,6 +13,9 @@ import WalletTransactionApproveDialog from "./wallet-transaction-approve-dialog"
 import WalletTransactionDetailsSheet from "./wallet-transaction-details-sheet";
 import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
 import PaymentSlipDialog from "./payment-slip-dialog";
+import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
+import CustomerName from "@/components/psm/customer-name";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import { CommunityPill } from "@/components/community/community-pill";
 import TablePagination from "../ui/table-pagination";
@@ -55,6 +58,15 @@ export default function PsmVerifyTopups({
   const [prechargingId, setPrechargingId] = useState<string | null>(null);
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const [slipOpen, setSlipOpen] = useState(false);
+  // Who this money belongs to. The card used to end at the name; from a
+  // queue where you are about to credit somebody's wallet, their own record
+  // is one tap away and nobody should have to go and find it by hand.
+  const [advProfileId, setAdvProfileId] = useState<string | null>(null);
+  // Precharge moves real money into a wallet before the payment has
+  // cleared. It was the one action on this card that happened on the first
+  // click, with no way back.
+  const [prechargeAsk, setPrechargeAsk] =
+    useState<WalletTopupWithAdvertiser | null>(null);
   const queryClient = useQueryClient();
 
   const doPrecharge = async (t: WalletTopupWithAdvertiser) => {
@@ -206,26 +218,43 @@ export default function PsmVerifyTopups({
                     marginBottom: 10,
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {advName(t)}
-                      <CommunityPill name={communities[t.advertiser_id ?? ""]} />
-                    </div>
-                    <div
-                      className="mono"
-                      style={{ color: "var(--faint)", fontSize: ".8rem" }}
-                    >
-                      {t.reference_no ?? "—"}
-                    </div>
-                  </div>
+                  {/* PSM number first, name beneath — the same identity
+                      block every other admin list uses, and the one the
+                      desk actually works in. Tapping it opens that
+                      advertiser's record; tapping anywhere else on the card
+                      still opens this payment. */}
+                  <button
+                    className="custbtn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const pid = (
+                        t.advertiser as { profile?: { id?: string } } | undefined
+                      )?.profile?.id;
+                      if (pid) setAdvProfileId(pid);
+                      else
+                        toast.message(
+                          "No user record on this advertiser to open.",
+                        );
+                    }}
+                    title="Open this advertiser"
+                  >
+                    <CustomerName
+                      clientCode={
+                        (
+                          t.advertiser as
+                            | { tenant_client_code?: string }
+                            | undefined
+                        )?.tenant_client_code
+                      }
+                      name={advName(t)}
+                      full
+                      community={
+                        <CommunityPill
+                          name={communities[t.advertiser_id ?? ""]}
+                        />
+                      }
+                    />
+                  </button>
                   <span
                     className={`badge ${pend ? "pend" : t.status === "completed" ? "ok" : "due"}`}
                     style={{ marginLeft: "auto", textTransform: "capitalize" }}
@@ -242,6 +271,12 @@ export default function PsmVerifyTopups({
                 >
                   {money(t.amount, t.currency)}
                 </div>
+                {/* "Bank transfer" says how it arrived and not what it
+                    is for. Everything in this queue is a wallet top-up —
+                    that is what the screen is — so the line that earns its
+                    place says which wallet it lands in, and the reference
+                    gets a label instead of being a loose number under a
+                    name. */}
                 <div
                   style={{
                     color: "var(--faint)",
@@ -249,16 +284,24 @@ export default function PsmVerifyTopups({
                     marginTop: 2,
                   }}
                 >
-                  Bank transfer
+                  Wallet top-up · bank transfer into their{" "}
+                  {(t.currency ?? "EUR").toUpperCase()} wallet
                 </div>
                 <div
                   style={{
                     display: "flex",
-                    gap: 8,
-                    marginTop: 12,
-                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginTop: 8,
+                    fontSize: ".82rem",
                   }}
                 >
+                  <span style={{ color: "var(--faint)" }}>Reference</span>
+                  <span className="mono" style={{ fontWeight: 600 }}>
+                    {t.reference_no ?? "—"}
+                  </span>
+                </div>
+                <div className="actrow tupacts">
                   {/* The card's own onClick is a mouse convenience. This is
                       the keyboard route to the details sheet — the view an
                       admin reads (reference, slip, advertiser) before
@@ -276,7 +319,7 @@ export default function PsmVerifyTopups({
                   {pend && (
                       <>
                         <button
-                          className="btn sm"
+                          className="btn sm tupmain"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelected(t);
@@ -301,7 +344,7 @@ export default function PsmVerifyTopups({
                           title="Advance-credit the wallet now; settles on verify"
                           onClick={(e) => {
                             e.stopPropagation();
-                            doPrecharge(t);
+                            setPrechargeAsk(t);
                           }}
                         >
                           <Zap /> Precharge
@@ -384,6 +427,49 @@ export default function PsmVerifyTopups({
         onOpenChange={setSlipOpen}
         paymentSlipUrl={slipUrl}
       />
+
+      {/* The advertiser behind the payment, from the payment. */}
+      <UserDetailsSheet
+        open={!!advProfileId}
+        profileId={advProfileId}
+        onOpenChange={() => setAdvProfileId(null)}
+      />
+
+      <ConfirmModal
+        open={!!prechargeAsk}
+        onOpenChange={(next) => {
+          if (!next) setPrechargeAsk(null);
+        }}
+        title="Credit this wallet before the money has cleared?"
+        lead="The advertiser can spend it straight away. If the transfer never arrives, this is our money they are spending — it settles when you verify the payment."
+        cta="Yes, precharge it"
+        busy={prechargingId === prechargeAsk?.id}
+        busyLabel="Crediting…"
+        onConfirm={() => {
+          const t = prechargeAsk;
+          if (!t) return;
+          setPrechargeAsk(null);
+          void doPrecharge(t);
+        }}
+      >
+        <ConfirmFact
+          label="Advertiser"
+          value={prechargeAsk ? advName(prechargeAsk) : ""}
+        />
+        <ConfirmFact
+          label="Credited now"
+          value={
+            prechargeAsk
+              ? money(prechargeAsk.amount, prechargeAsk.currency)
+              : ""
+          }
+          strong
+        />
+        <ConfirmFact
+          label="Reference"
+          value={prechargeAsk?.reference_no ?? "—"}
+        />
+      </ConfirmModal>
     </div>
   );
 }

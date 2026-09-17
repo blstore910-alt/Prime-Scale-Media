@@ -50,7 +50,9 @@ export default function useWalletTransactions(
       let query = supabase
         .from("wallet_topups")
         .select(
-          "*, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name, email))",
+          // profile.id so a card can open the advertiser's own details sheet,
+          // which keys on user_profiles.id.
+          "*, advertiser:advertisers(tenant_client_code, profile:user_profiles(id, full_name, email))",
           { count: "exact" },
         )
         .eq("tenant_id", profile?.tenant_id)

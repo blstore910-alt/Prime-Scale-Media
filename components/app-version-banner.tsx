@@ -26,7 +26,15 @@ export default function AppVersionBanner() {
          bottom nav (which is fixed at bottom:0, ~76px tall) and swallowed
          its taps — you could not navigate until you dismissed it. Lifted
          clear of the bar and given the full width there. */
-      className="fixed bottom-4 right-4 z-[60] flex items-center gap-3 rounded-md border bg-card text-card-foreground shadow-lg px-4 py-3 text-sm max-w-sm max-sm:left-4 max-sm:right-4 max-sm:max-w-none max-sm:bottom-[calc(84px+env(safe-area-inset-bottom))]"
+      /* pointer-events-auto is LOAD-BEARING. Radix sets
+         `body { pointer-events: none }` for as long as a modal dialog is
+         open, and this banner lives outside that dialog — so while anyone
+         had a dialog open (which is exactly when a deploy interrupts them)
+         neither the Reload button nor the dismiss X could be clicked at
+         all. Nothing looked broken; the clicks simply went nowhere.
+         pointer-events is inherited, so restoring it on this element is
+         enough. */
+      className="pointer-events-auto fixed bottom-4 right-4 z-[60] flex items-center gap-3 rounded-md border bg-card text-card-foreground shadow-lg px-4 py-3 text-sm max-w-sm max-sm:left-4 max-sm:right-4 max-sm:max-w-none max-sm:bottom-[calc(84px+env(safe-area-inset-bottom))]"
     >
       <div className="flex-1">
         <p className="font-medium">New version available</p>
@@ -52,7 +60,7 @@ export default function AppVersionBanner() {
         type="button"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-lg leading-none text-muted-foreground transition hover:bg-black/5 hover:text-foreground"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xl leading-none text-muted-foreground transition hover:bg-black/5 hover:text-foreground active:scale-95"
       >
         ×
       </button>

@@ -344,6 +344,68 @@ ${s} .card.empty .btn{min-width:180px;justify-content:center}
 
 /* ── Badges ─────────────────────────────────────────────────────────────
    A hairline of the badge's own colour, so a pale pill still has an edge. */
+/* ── Waiting is a state, and it should look like one ─────────────
+   A pending payment is the only thing on these screens that is actually in
+   motion: somebody has sent money and is waiting to be told it arrived. It
+   was drawn as a flat amber pill, indistinguishable from a label. Now it
+   breathes.
+
+   Two effects, both tiny on purpose. This is a financial app: money that
+   bounces around is money you do not trust.
+     1. A pulsing dot on every pending pill, in the pill's own colour.
+     2. A slow sheen across a row that is waiting for us to act.
+
+   Both are animation-only, so the reduced-motion block further down stops
+   them dead without leaving a gap in the layout. */
+@keyframes psm-pulse{
+  0%,100%{opacity:.3;transform:scale(.78)}
+  50%{opacity:1;transform:scale(1.1)}
+}
+${s} .badge.pend::before{
+  content:"";width:6px;height:6px;border-radius:99px;background:currentColor;
+  flex:0 0 auto;animation:psm-pulse 1.7s ease-in-out infinite
+}
+@keyframes psm-sheen{
+  0%{transform:translateX(-130%)}
+  100%{transform:translateX(230%)}
+}
+${s} .waiting{position:relative;overflow:hidden}
+${s} .waiting::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(104deg,transparent 38%,rgba(255,255,255,.5) 50%,transparent 62%);
+  transform:translateX(-130%);animation:psm-sheen 3.2s ease-in-out infinite
+}
+/* The clock tile on a waiting row gets one soft ring, once per sheen. */
+@keyframes psm-ring{
+  0%{box-shadow:0 0 0 0 rgba(233,168,44,.45)}
+  70%{box-shadow:0 0 0 9px rgba(233,168,44,0)}
+  100%{box-shadow:0 0 0 0 rgba(233,168,44,0)}
+}
+${s} .waiting .ico{animation:psm-ring 3.2s ease-out infinite}
+
+/* ── A customer identity that is also a link ────────────────────
+   On a queue where you are about to credit somebody's wallet, their own
+   record should be one tap away. The identity block becomes the button, so
+   the thing you press is the thing you are pressing on. */
+${s} .custbtn{
+  display:block;min-width:0;border:0;background:none;padding:0;margin:0;
+  font:inherit;color:inherit;text-align:left;cursor:pointer;border-radius:9px;
+  transition:color .12s
+}
+${s} .custbtn:hover .cust-code{color:var(--primary-600)}
+${s} .custbtn:focus-visible{outline:0;box-shadow:0 0 0 3px var(--primary-tint)}
+
+/* ── The verify queue on a phone ─────────────────────────────
+   Five actions of equal weight wrapped onto two ragged lines, and the one
+   that matters — Verify — sat second, the same size as Slip. On a narrow
+   screen it takes the full width at the top and the rest pair off under it
+   in a tidy two-up. */
+@media (max-width:520px){
+  ${s} .tupacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  ${s} .tupacts .btn{width:100%;justify-content:center}
+  ${s} .tupacts .tupmain{grid-column:1 / -1;order:-1}
+}
+
 ${s} .badge{box-shadow:0 0 0 1px rgba(20,30,80,.05) inset;letter-spacing:.01em}
 `;
 }

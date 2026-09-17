@@ -1402,7 +1402,9 @@ export default function AdvertiserApp() {
               <div className="card">
                 <h2>Pending top-up{pendingTopups.length > 1 ? "s" : ""}</h2>
                 {pendingTopups.map((t) => (
-                  <div className="list-row" key={t.id}>
+                  /* waiting: this row is the one thing on the page that is
+                     actually in motion — see refine-css.ts. */
+                  <div className="list-row waiting" key={t.id}>
                     <span
                       className="ico"
                       style={{
