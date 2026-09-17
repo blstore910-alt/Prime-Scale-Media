@@ -118,8 +118,7 @@ export default function PsmVerifyTopups({
         <div>
           <h1>Wallet Topups</h1>
           <p>
-            Bank transfers awaiting verification — check against the bank
-            before crediting.
+            Check against the bank before you credit anything.
           </p>
         </div>
       </div>

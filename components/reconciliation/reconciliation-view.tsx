@@ -137,9 +137,7 @@ export default function ReconciliationView() {
         <div>
           <h1>Bank Balances &amp; Reconciliation</h1>
           <p>
-            Record the money actually received at each bank from the
-            statements, then check it against what was credited to customer
-            wallets. A gap means more was credited than received — investigate.
+            What the banks received, against what wallets were credited.
           </p>
         </div>
       </div>

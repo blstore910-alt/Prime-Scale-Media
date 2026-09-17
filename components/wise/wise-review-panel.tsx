@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, type CSSProperties } from "react";
 import { confirmWiseSuggestion } from "@/actions/wise-actions";
+import dayjs from "dayjs";
 
 type WiseRow = {
   id: string;
@@ -246,15 +247,32 @@ export default function WiseReviewPanel() {
                           >
                             {actingId === r.id ? "…" : "Confirm & complete"}
                           </button>
-                        ) : (
+                        ) : r.status === "confirmed" || r.status === "matched" ? (
                           <span
                             className="muted"
-                            style={{ fontSize: ".82rem", textTransform: "capitalize" }}
+                            style={{ fontSize: ".82rem" }}
                           >
-                            {r.status === "confirmed" || r.status === "matched"
-                              ? "done"
-                              : "—"}
+                            done
                           </span>
+                        ) : (
+                          /* An unmatched deposit used to show a dash — a row
+                             in a money queue that nobody could do anything
+                             about, which is how a queue quietly stops being
+                             worked. The matcher fails for ordinary reasons (a
+                             missing reference, a bank that stripped it, two
+                             top-ups for the same amount), and a person can
+                             see straight away what it belongs to. */
+                          <ManualMatch
+                            transferId={r.id}
+                            amountCents={r.amount_cents}
+                            currency={r.currency}
+                            busy={actingId === r.id}
+                            onDone={() => {
+                              queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+                              queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+                              queryClient.invalidateQueries({ queryKey: ["wallets"] });
+                            }}
+                          />
                         )}
                       </td>
                     </tr>
@@ -286,6 +304,150 @@ export default function WiseReviewPanel() {
               Show fewer
             </button>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Match a deposit to a pending top-up by hand.
+ *
+ * Only offers top-ups the confirm step will actually accept: same currency,
+ * same amount to the cent. A picker full of choices that will be refused is
+ * worse than no picker — it teaches you to expect an error. When there is
+ * nothing it could be, it says so, which is itself the useful answer: the
+ * money arrived and no customer has told us to expect it.
+ */
+function ManualMatch({
+  transferId,
+  amountCents,
+  currency,
+  busy,
+  onDone,
+}: {
+  transferId: string;
+  amountCents: number;
+  currency: string;
+  busy: boolean;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: candidates = [], isLoading } = useQuery({
+    queryKey: ["wise-match-candidates", transferId],
+    enabled: open,
+    queryFn: async () => {
+      const supabase = createClient();
+      const amount = Number(amountCents) / 100;
+      const { data, error } = await supabase
+        .from("wallet_topups")
+        .select(
+          "id, amount, currency, created_at, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
+        )
+        .eq("status", "pending")
+        .eq("currency", String(currency).toUpperCase())
+        // A cent either way, the same tolerance the automatic matcher uses.
+        .gte("amount", amount - 0.01)
+        .lte("amount", amount + 0.01)
+        .order("created_at", { ascending: true })
+        .limit(25);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        amount: number;
+        currency: string;
+        created_at: string;
+        advertiser?: {
+          tenant_client_code?: string | null;
+          profile?: { full_name?: string | null } | null;
+        } | null;
+      }>;
+    },
+  });
+
+  const submit = async () => {
+    if (!picked) return;
+    setSaving(true);
+    try {
+      const { matchWiseToTopup } = await import("@/actions/wise-actions");
+      const res = await matchWiseToTopup(transferId, picked);
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Matched — the top-up is credited");
+      setOpen(false);
+      setPicked("");
+      onDone();
+    } catch (e) {
+      toast.error("Couldn't match this deposit", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button className="btn ghost sm" onClick={() => setOpen(true)}>
+        Match…
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+      {isLoading ? (
+        <span className="muted" style={{ fontSize: ".82rem" }}>
+          Looking…
+        </span>
+      ) : candidates.length === 0 ? (
+        <span className="muted" style={{ fontSize: ".82rem", textAlign: "left" }}>
+          No pending top-up for this amount. Nobody is expecting it.
+        </span>
+      ) : (
+        <select
+          value={picked}
+          onChange={(e) => setPicked(e.target.value)}
+          aria-label="Top-up to match"
+        >
+          <option value="">Pick a top-up…</option>
+          {candidates.map((c) => {
+            const p = Array.isArray(c.advertiser)
+              ? c.advertiser[0]
+              : c.advertiser;
+            const prof = Array.isArray(p?.profile) ? p?.profile[0] : p?.profile;
+            const who =
+              [p?.tenant_client_code, prof?.full_name].filter(Boolean).join(" · ") ||
+              "Unknown advertiser";
+            return (
+              <option key={c.id} value={c.id}>
+                {who} — {dayjs(c.created_at).format("D MMM")}
+              </option>
+            );
+          })}
+        </select>
+      )}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button
+          className="btn ghost sm"
+          onClick={() => {
+            setOpen(false);
+            setPicked("");
+          }}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        {candidates.length > 0 && (
+          <button
+            className="btn sm"
+            onClick={submit}
+            disabled={!picked || saving || busy}
+          >
+            {saving ? "…" : "Match & credit"}
+          </button>
         )}
       </div>
     </div>

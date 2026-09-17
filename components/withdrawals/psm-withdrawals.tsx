@@ -101,8 +101,7 @@ export default function PsmWithdrawals() {
         <div>
           <h1>Withdrawals</h1>
           <p>
-            Ad-account withdrawals, wallet refunds and balance adjustments —
-            approvals move money, so verify before you act.
+            Approving here moves money. Verify first.
           </p>
         </div>
       </div>

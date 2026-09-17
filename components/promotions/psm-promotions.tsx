@@ -211,8 +211,7 @@ export default function PsmPromotions() {
         <div>
           <h1>Promotions</h1>
           <p>
-            Grant advertisers free ad-account requests, waive or discount their
-            subscription, and manage active perks.
+            Free requests, waivers and discounts.
           </p>
         </div>
       </div>
