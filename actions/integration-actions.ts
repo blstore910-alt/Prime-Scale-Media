@@ -369,3 +369,74 @@ export async function testWiseConnection(): Promise<IntegrationPing> {
       : null,
   };
 }
+
+// ─────────────────────────────────────────
+// Wise INGEST status — the path that is actually in use
+// ─────────────────────────────────────────
+// testWiseConnection() above exercises the POLLER adapter, which is not
+// wired. Real deposits arrive through the webhook
+// (/api/webhooks/wise/[token] -> processWiseWebhook), and the reference the
+// customer typed is fetched separately from the balance statement, because
+// the balances#credit payload usually does not carry it.
+//
+// So "is Wise on?" has three separate answers, and the screen was showing
+// none of them: every deposit in the list read "no reference" and there was
+// nothing to say whether that is because the read token is unset, or
+// because the senders genuinely left the field blank.
+//
+// Booleans only. A token's VALUE never leaves the server, not even
+// truncated — a prefix is enough to identify an account.
+export type WiseIngestStatus = {
+  ok: boolean;
+  error?: string;
+  /** The webhook URL exists and its token segment is checkable. */
+  webhookConfigured: boolean;
+  /** References and sender names can be enriched from the statement API. */
+  readTokenConfigured: boolean;
+  /** TRUE means deposits settle without an admin confirming. Safe-start = false. */
+  autoSettle: boolean;
+  total: number;
+  withReference: number;
+  /** When we last RECEIVED one — the signal for "is the feed alive". */
+  newestReceivedAt: string | null;
+};
+
+export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
+  const empty = {
+    webhookConfigured: !!process.env.WISE_WEBHOOK_SECRET,
+    readTokenConfigured: !!process.env.WISE_API_TOKEN,
+    autoSettle: ["true", "1", "yes"].includes(
+      (process.env.WISE_AUTO_SETTLE ?? "").toLowerCase(),
+    ),
+    total: 0,
+    withReference: 0,
+    newestReceivedAt: null,
+  };
+
+  const ctx = await resolveAdminContext();
+  if (!ctx.ok) return { ok: false, error: ctx.error, ...empty };
+  const { supabase } = ctx.ctx;
+
+  const [totalRes, refRes, newestRes] = await Promise.all([
+    supabase
+      .from("wise_incoming_transfers")
+      .select("id", { count: "exact", head: true }),
+    supabase
+      .from("wise_incoming_transfers")
+      .select("id", { count: "exact", head: true })
+      .not("reference", "is", null),
+    supabase
+      .from("wise_incoming_transfers")
+      .select("created_at")
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  return {
+    ok: true,
+    ...empty,
+    total: totalRes.count ?? 0,
+    withReference: refRes.count ?? 0,
+    newestReceivedAt: newestRes.data?.[0]?.created_at ?? null,
+  };
+}

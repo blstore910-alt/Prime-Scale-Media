@@ -7,7 +7,12 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, type CSSProperties } from "react";
 import { confirmWiseSuggestion } from "@/actions/wise-actions";
+import { wiseIngestStatus } from "@/actions/integration-actions";
 import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+// fromNow() is a plugin, not a built-in — without this it throws.
+dayjs.extend(relativeTime);
 
 type WiseRow = {
   id: string;
@@ -63,6 +68,56 @@ const clip: CSSProperties = {
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
 };
+
+// What the feed can and cannot do right now, in one line. Every deposit in
+// this list read "no reference" and there was nothing on the screen to say
+// whether the senders left the field blank or whether we simply cannot read
+// it — those need opposite responses, and guessing wrong wastes a day.
+function WiseIngestBar() {
+  const { data } = useQuery({
+    queryKey: ["wise-ingest-status"],
+    queryFn: () => wiseIngestStatus(),
+    staleTime: 60_000,
+  });
+  if (!data?.ok) return null;
+
+  const ago = data.newestReceivedAt
+    ? dayjs(data.newestReceivedAt).fromNow()
+    : null;
+  const bits: { label: string; tone: "ok" | "pend" | "due" }[] = [
+    data.webhookConfigured
+      ? { label: "Webhook on", tone: "ok" }
+      : { label: "Webhook NOT configured", tone: "due" },
+    data.readTokenConfigured
+      ? { label: "References readable", tone: "ok" }
+      : { label: "No read token — references stay blank", tone: "pend" },
+    data.autoSettle
+      ? { label: "AUTO-SETTLE ON", tone: "due" }
+      : { label: "Manual confirm", tone: "ok" },
+  ];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 6,
+        alignItems: "center",
+        marginTop: 10,
+      }}
+    >
+      {bits.map((b) => (
+        <span key={b.label} className={`badge ${b.tone}`}>
+          {b.label}
+        </span>
+      ))}
+      <span className="muted" style={{ fontSize: ".8rem" }}>
+        {data.total} deposits · {data.withReference} with a reference
+        {ago ? ` · last received ${ago}` : " · none received yet"}
+      </span>
+    </div>
+  );
+}
 
 export default function WiseReviewPanel() {
   const { profile } = useAppContext();
@@ -139,6 +194,7 @@ export default function WiseReviewPanel() {
           nothing completes on its own — confirm each suggested match and the
           matching topup is credited.
         </p>
+        <WiseIngestBar />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
