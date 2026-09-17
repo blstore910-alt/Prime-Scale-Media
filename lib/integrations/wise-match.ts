@@ -71,14 +71,24 @@ const CENTS_EPSILON = 1; // 1 cent tolerance for rounding
  * months ago that was never paid, or to one filed long afterwards, and
  * both of those are somebody else's money.
  *
- * The window is deliberately lopsided, because of how people actually
- * pay: the transfer usually happens BEFORE the claim is filed (you pay,
- * then you tell us), sometimes days before if it sat in a weekend. And a
- * claim filed well before the money arrives is normal too — a customer
- * fills the form, then gets round to the transfer.
+ * SYMMETRIC, and generous. The first version of this allowed a claim
+ * filed 60 days BEFORE the payment and only 14 days after — which is
+ * backwards: paying first and telling us afterwards is the ordinary case
+ * (you transfer, then you get round to the form, sometimes after a
+ * weekend), while a two-month-old unpaid claim is the risky one. It
+ * refused the normal order and permitted the suspicious one.
+ *
+ * Both directions are the same width now, wide enough for a real
+ * invoice-then-pay cycle and narrow enough that a payment can never
+ * settle a claim from another era. Note that when a REFERENCE matches,
+ * the reference is what identifies the claim — references are unique per
+ * claim and rotate after each one — so this window mainly protects the
+ * paths where there is no reference to go on.
  */
-export const CLAIM_BEFORE_DEPOSIT_DAYS = 60;
-export const CLAIM_AFTER_DEPOSIT_DAYS = 14;
+export const CLAIM_WINDOW_DAYS = 60;
+/** @deprecated kept so a call site reading either name still compiles. */
+export const CLAIM_BEFORE_DEPOSIT_DAYS = CLAIM_WINDOW_DAYS;
+export const CLAIM_AFTER_DEPOSIT_DAYS = CLAIM_WINDOW_DAYS;
 
 function datesAgree(
   claimCreatedAt: string | null | undefined,
@@ -91,11 +101,8 @@ function datesAgree(
   const claim = Date.parse(claimCreatedAt);
   const dep = Date.parse(depositAt);
   if (!Number.isFinite(claim) || !Number.isFinite(dep)) return true;
-  const diffDays = (claim - dep) / 86_400_000;
-  return (
-    diffDays <= CLAIM_AFTER_DEPOSIT_DAYS &&
-    diffDays >= -CLAIM_BEFORE_DEPOSIT_DAYS
-  );
+  const diffDays = Math.abs(claim - dep) / 86_400_000;
+  return diffDays <= CLAIM_WINDOW_DAYS;
 }
 
 function amountMatches(topupAmount: number | string, incomingCents: number): boolean {

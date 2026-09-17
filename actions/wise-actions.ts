@@ -306,7 +306,12 @@ export async function matchWiseToTopup(
  * matched here by a rule the automatic path would have refused.
  */
 export async function rematchWiseDeposits(): Promise<
-  ActionResult<{ checked: number; suggested: number; withdrawn: number }>
+  ActionResult<{
+    checked: number;
+    suggested: number;
+    withdrawn: number;
+    stale: number;
+  }>
 > {
   const auth = await resolveAdminContext();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -318,14 +323,24 @@ export async function rematchWiseDeposits(): Promise<
   const { data: deposits, error: dErr } = await supabase
     .from("wise_incoming_transfers")
     .select(
-      "id, external_id, amount_cents, currency, reference, sender_iban, status, tenant_id, created_at",
+      "id, external_id, amount_cents, currency, reference, sender_iban, status, suggested_topup_id, tenant_id, created_at",
     )
-    .in("status", ["unmatched", "ambiguous", "received"])
+    // 'suggested' is in the list too, so a suggestion whose top-up has
+    // since been completed elsewhere (verified from the top-ups queue
+    // instead of confirmed from here) is caught and cleared. Left alone,
+    // the panel kept a primary "Confirm & complete" button beside a
+    // customer's name that could only ever raise "Topup no longer
+    // pending" — a permanently armed dead button on the one screen the
+    // desk is meant to trust.
+    .in("status", ["unmatched", "ambiguous", "received", "suggested"])
     .order("created_at", { ascending: false })
     .limit(200);
   if (dErr) return { ok: false, error: safeErrorMessage(dErr) };
   if (!deposits || deposits.length === 0) {
-    return { ok: true, data: { checked: 0, suggested: 0, withdrawn: 0 } };
+    return {
+      ok: true,
+      data: { checked: 0, suggested: 0, withdrawn: 0, stale: 0 },
+    };
   }
 
   const { data: pending, error: pErr } = await supabase
@@ -337,7 +352,15 @@ export async function rematchWiseDeposits(): Promise<
     .eq("tenant_id", profile.tenant_id);
   if (pErr) return { ok: false, error: safeErrorMessage(pErr) };
   if (!pending || pending.length === 0) {
-    return { ok: true, data: { checked: deposits.length, suggested: 0, withdrawn: 0 } };
+    return {
+      ok: true,
+      data: {
+        checked: deposits.length,
+        suggested: 0,
+        withdrawn: 0,
+        stale: 0,
+      },
+    };
   }
 
   // Sender IBAN → advertiser ids, the same signal the webhook uses.
@@ -413,6 +436,36 @@ export async function rematchWiseDeposits(): Promise<
   // would be offered the same money three times.
   const claimed = new Set<string>();
   let suggested = 0;
+  let stale = 0;
+
+  // A suggestion pointing at a top-up that is no longer pending. Clear it
+  // before the matching pass, so the same deposit can be re-matched to
+  // something that IS pending in this very sweep.
+  const pendingIds = new Set(
+    (pending as Array<{ id: string }>).map((t) => t.id),
+  );
+  for (const row of deposits) {
+    const d = row as {
+      id: string;
+      status: string;
+      suggested_topup_id: string | null;
+      tenant_id: string | null;
+    };
+    if (d.status !== "suggested" || !d.suggested_topup_id) continue;
+    if (d.tenant_id !== null && d.tenant_id !== profile.tenant_id) continue;
+    if (pendingIds.has(d.suggested_topup_id)) continue;
+    const { data: cleared } = await admin
+      .from("wise_incoming_transfers")
+      .update({
+        status: "unmatched",
+        suggested_topup_id: null,
+        note: "the top-up this was matched to is no longer pending — it was completed another way",
+      })
+      .eq("id", d.id)
+      .eq("status", "suggested")
+      .select("id");
+    if ((cleared ?? []).length > 0) stale += 1;
+  }
 
   for (const row of deposits) {
     const d = row as {
@@ -422,9 +475,13 @@ export async function rematchWiseDeposits(): Promise<
       currency: string;
       reference: string | null;
       sender_iban: string | null;
+      status: string;
       tenant_id: string | null;
     };
     if (d.tenant_id !== null && d.tenant_id !== profile.tenant_id) continue;
+    // Still suggested after the pass above means its top-up IS pending —
+    // there is nothing to re-decide.
+    if (d.status === "suggested") continue;
 
     const iban = d.sender_iban
       ? d.sender_iban.replace(/\s/g, "").toUpperCase()
@@ -465,7 +522,15 @@ export async function rematchWiseDeposits(): Promise<
     suggested += 1;
   }
 
-  return { ok: true, data: { checked: deposits.length, suggested, withdrawn: undone } };
+  return {
+    ok: true,
+    data: {
+      checked: deposits.length,
+      suggested,
+      withdrawn: undone,
+      stale,
+    },
+  };
 }
 
 /**
@@ -630,17 +695,19 @@ export async function refreshWiseDepositDetails(
       continue;
     }
 
-    let detail = null as Awaited<ReturnType<typeof fetchWiseTxnDetail>>;
-    for (const pid of profileIds) {
-      detail = await fetchWiseTxnDetail({
-        profileId: pid,
-        balanceId: key.balanceId,
-        currency: String(r.currency ?? ""),
-        amountCents: Math.round(Number(r.amount_cents ?? 0)),
-        occurredAt: key.occurredAt,
-      });
-      if (detail) break;
-    }
+    // ONE call per deposit. fetchWiseTxnDetail resolves the owning profile
+    // itself (and caches that per balance), so looping over every profile
+    // out here was pure multiplication: 60 deposits × 2 profiles × the
+    // profile and balance lookups inside each call is thousands of serial
+    // requests in one action. The first profile id is passed only as a
+    // hint for the case where no profile claims the balance.
+    const detail = await fetchWiseTxnDetail({
+      profileId: profileIds[0],
+      balanceId: key.balanceId,
+      currency: String(r.currency ?? ""),
+      amountCents: Math.round(Number(r.amount_cents ?? 0)),
+      occurredAt: key.occurredAt,
+    });
     if (!detail) continue;
 
     const patch: Record<string, string> = {};

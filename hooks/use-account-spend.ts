@@ -33,15 +33,42 @@ export function useAccountSpend(tenantId: string | null | undefined): {
     enabled: !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("top_ups")
-        .select("account_id, topup_amount, status, created_at")
-        .eq("tenant_id", tenantId)
-        .eq("status", "completed");
-      if (error) throw error;
+
+      // PAGED. This was one unbounded select, and PostgREST caps a response
+      // at 1000 rows by default — so past that the Spend column silently
+      // understated every account, and `lastAt` (which drives the derived
+      // "Inactive — no top-up in the last 30 days" badge) could miss a
+      // top-up from yesterday because its row fell outside the slice. This
+      // project already lives above those caps: the Wise panel's own
+      // comment records 229 rows where 100 had been assumed.
+      //
+      // Ordered oldest-first so the pages are stable while we walk them,
+      // and capped at 20 pages — 20,000 top-ups — with the cap logged
+      // rather than silently swallowed.
+      const PAGE = 1000;
+      const MAX_PAGES = 20;
+      const rows: Array<Record<string, unknown>> = [];
+      for (let page = 0; page < MAX_PAGES; page += 1) {
+        const from = page * PAGE;
+        const { data, error } = await supabase
+          .from("top_ups")
+          .select("account_id, topup_amount, status, created_at")
+          .eq("tenant_id", tenantId)
+          .eq("status", "completed")
+          .order("created_at", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...((data ?? []) as Array<Record<string, unknown>>));
+        if ((data ?? []).length < PAGE) break;
+        if (page === MAX_PAGES - 1) {
+          console.warn(
+            `use-account-spend: stopped at ${MAX_PAGES * PAGE} top-ups; the Spend column is understated`,
+          );
+        }
+      }
 
       const out: Record<string, AccountSpend> = {};
-      for (const row of data ?? []) {
+      for (const row of rows) {
         const r = row as {
           account_id: string | null;
           topup_amount: number | string | null;

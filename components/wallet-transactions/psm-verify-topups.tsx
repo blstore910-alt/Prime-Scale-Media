@@ -446,10 +446,15 @@ export default function PsmVerifyTopups({
         busy={prechargingId === prechargeAsk?.id}
         busyLabel="Crediting…"
         onConfirm={() => {
+          // Do NOT close first here. Precharge moves real money and takes a
+          // round trip, so the dialog stays up with its busy label until
+          // the write resolves — closing first made `busy` unreachable
+          // (prechargingId is set after the modal is gone), so the only
+          // feedback for a money movement was a toast arriving seconds
+          // later. doPrecharge clears the dialog itself when it finishes.
           const t = prechargeAsk;
           if (!t) return;
-          setPrechargeAsk(null);
-          void doPrecharge(t);
+          void doPrecharge(t).finally(() => setPrechargeAsk(null));
         }}
       >
         <ConfirmFact

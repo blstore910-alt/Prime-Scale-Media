@@ -528,12 +528,31 @@ export async function probeWiseStatement(args: {
  * different and much more useful answer than "422": it means the balance
  * id in that deposit's key is not one this token can ever read.
  */
+/**
+ * Per-process cache. A "fetch details" pass walks up to 60 deposits and
+ * nearly all of them share one balance id — without this, each row paid
+ * for a profile list plus up to two balance lists plus a statement, times
+ * every profile, which on a real account is thousands of serial requests
+ * in one action: a function timeout or a rate limit, and the admin sees
+ * "couldn't reach Wise" with nothing filled in.
+ *
+ * Keyed by balance id, and it caches the MISS too, because "no profile
+ * holds this" is the expensive answer and the one most likely to repeat.
+ */
+const balanceOwnerCache = new Map<
+  string,
+  { profileId: string | number | null; seen: string[] }
+>();
+
 export async function findProfileForBalance(
   balanceId: string,
 ): Promise<{ profileId: string | number | null; seen: string[] }> {
   const token = process.env.WISE_API_TOKEN;
   const seen: string[] = [];
   if (!token || !balanceId) return { profileId: null, seen };
+
+  const cached = balanceOwnerCache.get(String(balanceId));
+  if (cached) return cached;
 
   // v4, not v1. Wise moved the balances list, and /v1/profiles/{id}/
   // balances answers 404 — which reads exactly like "this profile has no
@@ -589,11 +608,15 @@ export async function findProfileForBalance(
         `profile ${pid}: ${ids.map((b) => `${b.id}${b.cur ? `/${b.cur}` : ""}`).join(", ") || "none"}`,
       );
       if (ids.some((b) => b.id === String(balanceId))) {
-        return { profileId: pid, seen };
+        const hit = { profileId: pid, seen };
+        balanceOwnerCache.set(String(balanceId), hit);
+        return hit;
       }
     } catch {
       seen.push(`profile ${pid}: request failed`);
     }
   }
-  return { profileId: null, seen };
+  const miss = { profileId: null, seen };
+  balanceOwnerCache.set(String(balanceId), miss);
+  return miss;
 }

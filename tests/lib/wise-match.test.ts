@@ -204,7 +204,11 @@ describe("reference AND amount AND date", () => {
     if (!res.matched) assert.match(res.reason, /too far from this payment/);
   });
 
-  it("refuses a claim filed a month after the payment", () => {
+  it("allows a claim filed a month after the payment", () => {
+    // Paying first and getting round to the form later — including a lot
+    // later — is the ordinary case, not a suspicious one. The first
+    // version of the window refused this at 14 days while permitting a
+    // two-month-old unpaid claim, which was backwards.
     const res = matchIncomingTransfer(
       {
         amount_cents: 50000,
@@ -214,7 +218,22 @@ describe("reference AND amount AND date", () => {
       },
       [claim({ created_at: "2026-10-20T10:00:00Z" })],
     );
-    assert.equal(res.matched, false);
+    assert.equal(res.matched, true);
+  });
+
+  it("refuses a claim from another era, in either direction", () => {
+    for (const created of ["2025-09-17T10:00:00Z", "2027-09-17T10:00:00Z"]) {
+      const res = matchIncomingTransfer(
+        {
+          amount_cents: 50000,
+          currency: "USD",
+          reference: "1483181337",
+          occurred_at: "2026-09-17T19:00:00Z",
+        },
+        [claim({ created_at: created })],
+      );
+      assert.equal(res.matched, false, created);
+    }
   });
 
   it("allows the ordinary order: pay first, file the claim after", () => {
