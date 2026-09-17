@@ -77,7 +77,8 @@ screens that are still changing has to be run again.
 
 ### 4. Parked, each with a reason — ~10–14 h (mine)
 - 18 silent-write sites still unguarded (`docs/NEXT_SESSION_FIRST.md`)
-- 5 SQL checks written and never run (`supabase/checks/`)
+- ~~5 SQL checks written and never run~~ — run 2026-09-17, one FAIL
+  (invitations.expires_at not timestamptz) found and fixed on live
 - remaining wave-5 findings: dialog width overrides, bulk path skipping the
   plan/perk fee resolution
 - first invoice due 3 days after signup, 7 days after that (a DB function)

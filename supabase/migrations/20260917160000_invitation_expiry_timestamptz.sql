@@ -1,8 +1,14 @@
 -- =====================================================================
 -- invitations.expires_at must be a timestamptz
 -- =====================================================================
--- Found by supabase/checks/RUN-ME.sql on 2026-09-17: the column exists but
--- is NOT `timestamp with time zone`.
+-- APPLIED ON LIVE 2026-09-17. Verified afterwards:
+--     created_at   timestamp with time zone   NOT NULL   default now()
+--     expires_at   timestamp with time zone   NOT NULL
+-- Both are instants now, so an invite expires at the same moment wherever
+-- the code runs. Nothing else to do here; this file is the record.
+--
+-- Found by supabase/checks/RUN-ME.sql on the same day: the column existed
+-- but was NOT `timestamp with time zone`.
 --
 -- WHAT IS ACTUALLY WRONG, precisely — the check's own verdict overstated it
 -- and this is the correction:
@@ -29,9 +35,8 @@
 -- hours late, and which one depends on where the code happens to run. That
 -- is not a thing to leave to luck on a link that grants access to a tenant.
 --
--- ⚠️ APPLY ON SUPABASE MANUALLY. It rewrites the column, so it takes a brief
--- ACCESS EXCLUSIVE lock on `invitations` — a small table, and nothing else
--- writes to it during an invite.
+-- (It rewrote the column, which takes a brief ACCESS EXCLUSIVE lock on
+-- `invitations` — a small table, and nothing else writes to it mid-invite.)
 --
 -- The conversion picks itself: a `timestamp` is interpreted AS UTC, which is
 -- exactly what was written into it, and a `text` column is cast. Anything
