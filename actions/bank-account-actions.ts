@@ -230,11 +230,21 @@ export async function deleteBankAccount(
     };
   }
 
-  const { error } = await supabase
+  // .select("id") and a row count. A DELETE that matches nothing is
+  // { error: null } in PostgREST, so this reported the bank destination
+  // gone while it was still live — and a closed beneficiary account left
+  // in the destinations list is money wired into a dead account. The
+  // zero-row case is real: the read above uses the caller's SELECT policy
+  // while 20260915110000 narrowed WRITES to the tenant owner, so a
+  // non-owner admin who can see the row gets a silent no-op.
+  const { data: removed, error } = await supabase
     .from("bank_accounts")
     .delete()
     .eq("id", bankId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  const wrote = wroteSomething(removed);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: { id: bankId } };
 }

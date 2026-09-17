@@ -1,3 +1,4 @@
+import { isMaintenanceMode } from "@/actions/_shared";
 import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -10,6 +11,17 @@ const AcceptInviteSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // MAINTENANCE_MODE freezes writes app-wide during an incident. Every
+  // server action honours it; the API routes did not, so a declared freeze
+  // stopped the UI and left the endpoints behind it writing. Reads are
+  // deliberately unaffected — during an incident you want to look at data,
+  // you just do not want it changing under you.
+  if (isMaintenanceMode()) {
+    return NextResponse.json(
+      { error: "The app is in read-only maintenance mode. Try again shortly." },
+      { status: 503 },
+    );
+  }
   const supabase = await createClient();
 
   const allowed = await rateLimitCheck(

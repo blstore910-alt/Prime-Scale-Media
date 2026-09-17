@@ -1,3 +1,4 @@
+import { isMaintenanceMode } from "@/actions/_shared";
 import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -20,6 +21,17 @@ const SignupSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // MAINTENANCE_MODE freezes writes app-wide during an incident. Every
+  // server action honours it; the API routes did not, so a declared freeze
+  // stopped the UI and left the endpoints behind it writing. Reads are
+  // deliberately unaffected — during an incident you want to look at data,
+  // you just do not want it changing under you.
+  if (isMaintenanceMode()) {
+    return NextResponse.json(
+      { error: "The app is in read-only maintenance mode. Try again shortly." },
+      { status: 503 },
+    );
+  }
   const supabase = await createAdminClient();
 
   const allowed = await rateLimitCheck(
@@ -158,11 +170,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error: inviteUpdateError } = await supabase
+    // Compare-and-swap, and count the rows. This had a .select() whose
+    // rows were destructured away, so a zero-row update returned 200
+    // { success: true } with the invitation still 'pending' — and the
+    // status check above it is a SEPARATE read, with auth.admin.createUser
+    // in between, so two signups racing the same link both pass it.
+    //
+    // The sibling route (app/api/accept-invite/route.ts) was fixed for
+    // exactly this and carries the explanation; the signup variant got
+    // neither the CAS nor the row check. Email uniqueness in auth.users
+    // bounds the damage to a stuck-pending invitation that stays
+    // re-runnable, which is still a row on the admin's Invites screen that
+    // does not match reality.
+    const { data: consumedInvite, error: inviteUpdateError } = await supabase
       .from("invitations")
       .update({ status: "accepted" })
       .eq("id", validInvite.id)
-      .select();
+      .eq("status", "pending")
+      .select("id");
+
+    if (!inviteUpdateError && (consumedInvite ?? []).length !== 1) {
+      // Somebody else consumed it between the check and the write. The
+      // account may already exist from that first pass, so this is not an
+      // error to shout about — it is a replay, and it stops here.
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "That invitation has already been used. Try signing in instead.",
+        },
+        { status: 409 },
+      );
+    }
 
     if (inviteUpdateError) {
       console.error(

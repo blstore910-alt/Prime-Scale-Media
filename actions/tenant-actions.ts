@@ -186,7 +186,23 @@ export async function createTenantForCurrentUser(input: {
     // Roll back the tenant so the caller isn't left as owner without
     // a profile (would infinitely-redirect between /dashboard and
     // /onboard).
-    await supabase.from("tenants").delete().eq("id", tenant.id);
+    // COUNT THE ROWS. This discarded the result entirely — not even the
+    // error — and the caller then tells the user the operation was undone.
+    // A delete that matches nothing leaves an orphan tenants row with
+    // owner_id set and THE SLUG PERMANENTLY TAKEN, which is the exact
+    // outcome the statement ordering above exists to prevent. And a
+    // rollback runs on the same client whose write just failed, so
+    // whatever refused the first statement can refuse this one too.
+    const { data: rolledBack } = await supabase
+      .from("tenants")
+      .delete()
+      .eq("id", tenant.id)
+      .select("id");
+    if ((rolledBack ?? []).length === 0) {
+      console.error(
+        `tenant rollback matched no rows — orphan tenant ${tenant.id} still holds its slug`,
+      );
+    }
     return { ok: false, error: profileError.message };
   }
 

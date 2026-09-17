@@ -517,6 +517,26 @@ export async function setAffiliateCommission(
   if (Object.keys(cleaned).length === 0) {
     return { ok: false, error: "No commission fields provided", code: "invalid" };
   }
+  // ── Bound the percentage ────────────────────────────────────────────
+  // Nothing bounded this anywhere. The input has max="100" — an HTML
+  // attribute, not a validation — the schema column is a bare numeric with
+  // no CHECK, and the accrual trigger only guards <= 0:
+  //     v_amount := round(new.amount * v_link.commission_pct / 100.0, 2)
+  // So 1000 typed where 10.00 was meant turns a EUR 5,000 top-up into a
+  // EUR 50,000 commission row, accrued silently and discovered at payout.
+  // lib/commission.ts states the 0-100 convention and is imported by
+  // nothing; this is where it has to hold.
+  if ("commission_pct" in cleaned && cleaned.commission_pct !== null) {
+    const pct = Number(cleaned.commission_pct);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return {
+        ok: false,
+        error: "A commission percentage is between 0 and 100.",
+        code: "invalid",
+      };
+    }
+  }
+
 
   const { data: target } = await supabase
     .from("affiliates")
@@ -680,6 +700,25 @@ export async function setAdvertiserCommission(
   }
   if (Object.keys(cleaned).length === 0) {
     return { ok: false, error: "No commission fields provided", code: "invalid" };
+  // ── Bound the percentage ────────────────────────────────────────────
+  // Nothing bounded this anywhere. The input has max="100" — an HTML
+  // attribute, not a validation — the schema column is a bare numeric with
+  // no CHECK, and the accrual trigger only guards <= 0:
+  //     v_amount := round(new.amount * v_link.commission_pct / 100.0, 2)
+  // So 1000 typed where 10.00 was meant turns a EUR 5,000 top-up into a
+  // EUR 50,000 commission row, accrued silently and discovered at payout.
+  // lib/commission.ts states the 0-100 convention and is imported by
+  // nothing; this is where it has to hold.
+  if ("commission_pct" in cleaned && cleaned.commission_pct !== null) {
+    const pct = Number(cleaned.commission_pct);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return {
+        ok: false,
+        error: "A commission percentage is between 0 and 100.",
+        code: "invalid",
+      };
+    }
+  }
   }
 
   const { data: target } = await supabase

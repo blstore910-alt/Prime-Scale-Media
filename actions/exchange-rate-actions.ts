@@ -59,13 +59,30 @@ export async function ensureInitialExchangeRates(): Promise<
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
-  const { data: existing } = await supabase
+  // ── The guard has to survive the state it is guarding against ──────
+  // This was .maybeSingle(), whose ERROR was discarded — and maybeSingle
+  // ERRORS when two or more rows match. So the moment a tenant ended up
+  // with two active rates, `existing` came back null and this function
+  // inserted a THIRD, then a fourth on the next session. Self-amplifying,
+  // and it reported { created: true } every time.
+  //
+  // A limit(1) list cannot fail that way: any number of active rows is
+  // "there is already one" and this returns without writing.
+  const { data: existingRows, error: existingErr } = await supabase
     .from("exchange_rates")
     .select("id")
     .eq("tenant_id", profile.tenant_id)
     .eq("is_active", true)
-    .maybeSingle();
-  if (existing) return { ok: true, data: { created: false } };
+    .limit(1);
+  // A failed READ is not permission to write. This runs on every browser
+  // session via ensureTenantBootstrap, so erring the other way would mean
+  // a transient error minting a duplicate rate row.
+  if (existingErr) {
+    return { ok: false, error: existingErr.message };
+  }
+  if ((existingRows ?? []).length > 0) {
+    return { ok: true, data: { created: false } };
+  }
 
   let usdRates;
   try {
@@ -85,18 +102,28 @@ export async function ensureInitialExchangeRates(): Promise<
     return { ok: false, error: "Exchange rate response failed validation" };
   }
 
-  const { error } = await supabase.from("exchange_rates").upsert({
-    currency: "USD",
-    eur,
-    gbp,
-    hkd,
-    is_active: true,
-    tenant_id: profile.tenant_id,
-    updated_by: profile.user_id,
-    updated_at: new Date().toISOString(),
-  });
+  // insert, not upsert. The upsert had NO conflict target and no id in
+  // the payload, so it was a plain INSERT wearing the word "upsert" — the
+  // exact hazard upsertExchangeRate documents forty lines below ("saving
+  // rates a second time left two rows active, and from that moment
+  // maybeSingle() returned PGRST116 to every caller: the top-up
+  // calculator, the fee preview, the request form"). Calling it insert is
+  // honest about what it does; the guard above is what makes it safe.
+  const { data: created, error } = await supabase
+    .from("exchange_rates")
+    .insert({
+      currency: "USD",
+      eur,
+      gbp,
+      hkd,
+      is_active: true,
+      tenant_id: profile.tenant_id,
+      updated_by: profile.user_id,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id");
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { created: true } };
+  return { ok: true, data: { created: (created ?? []).length > 0 } };
 }
 
 // ─────────────────────────────────────────

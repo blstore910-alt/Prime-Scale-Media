@@ -89,7 +89,12 @@ export default function WalletTopupDetailsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
+      {/* w-full. Without it the base gives a right-side sheet w-3/4 — a
+          270px drawer with 90px of page showing beside it on a phone, and
+          sm:max-w-md does not apply until 640px. Every other reachable
+          sheet in the app passes it; this one is reached from the wallet
+          details sheet via the transactions table. */}
+      <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Topup Details</SheetTitle>
           {isSuperAdmin && topupId && (

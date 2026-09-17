@@ -1,3 +1,4 @@
+import { isMaintenanceMode } from "@/actions/_shared";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isSupplier1Live } from "@/lib/integrations/autopush";
@@ -271,6 +272,15 @@ async function checkRateLimitAbuse(
 export async function GET(req: NextRequest) {
   if (!isAuthorised(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // A GET by method, a write by nature: this worker pushes top-ups to the
+  // supplier and writes integration_jobs. MAINTENANCE_MODE has to stop it
+  // too, or a freeze declared during an incident leaves the one process
+  // that talks to an outside system still talking. The queue is durable,
+  // so a skipped run is picked up by the next one.
+  if (isMaintenanceMode()) {
+    return NextResponse.json({ ok: true, skipped: "maintenance" });
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

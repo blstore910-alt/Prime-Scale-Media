@@ -464,7 +464,21 @@ export async function createAdAccountFromRequest(
   // errored. Leaving the request open beside a created account is how the
   // next admin creates a second one for the same request.
   if (reqError || !reqRows || reqRows.length === 0) {
-    await supabase.from("ad_accounts").delete().eq("id", created.data.id);
+    // COUNT THE ROWS. If this matches nothing, the advertiser keeps a
+    // real, visible ad account while the admin is told it was rolled back
+    // — and the retry creates a second one. A rollback runs on the same
+    // client whose write just failed, which is precisely when it is least
+    // trustworthy.
+    const { data: rolledBack } = await supabase
+      .from("ad_accounts")
+      .delete()
+      .eq("id", created.data.id)
+      .select("id");
+    if ((rolledBack ?? []).length === 0) {
+      console.error(
+        `ad account rollback matched no rows — ${created.data.id} still exists and the customer can see it`,
+      );
+    }
     return {
       ok: false,
       error:

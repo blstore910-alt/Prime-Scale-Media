@@ -1,3 +1,4 @@
+import { isMaintenanceMode } from "@/actions/_shared";
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { firstName } from "@/lib/display-name";
 import { sendEmail } from "@/lib/email-sender";
@@ -32,6 +33,17 @@ function numOrNull(v: unknown, min: number, max: number): number | null {
 }
 
 export async function POST(request: NextRequest) {
+  // MAINTENANCE_MODE freezes writes app-wide during an incident. Every
+  // server action honours it; the API routes did not, so a declared freeze
+  // stopped the UI and left the endpoints behind it writing. Reads are
+  // deliberately unaffected — during an incident you want to look at data,
+  // you just do not want it changing under you.
+  if (isMaintenanceMode()) {
+    return NextResponse.json(
+      { error: "The app is in read-only maintenance mode. Try again shortly." },
+      { status: 503 },
+    );
+  }
   try {
     const supabase = await createClient();
     const { profile, error: authError } = await apiRequireAdmin();
