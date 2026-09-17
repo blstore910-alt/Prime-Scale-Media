@@ -21,18 +21,11 @@ const supabaseHost = "https://*.supabase.co";
 // scrolls the country dropdown. Enforcing the policy without this line
 // would break every flag in the app.
 const twemojiHost = "https://cdnjs.cloudflare.com";
-// "Apply Latest Rates" on /settings/finance fetches the reference rates
-// straight from the browser (lib/get-exchange-rates.ts via
-// components/settings/finance/exchange-rates.tsx). Enforcing the policy
-// without this line would break that button silently — the fetch rejects
-// and the handler's catch reports a generic failure.
-//
-// It would be better off behind the server action that already imports the
-// same helper: a rate that prices real money should not be pulled by an
-// admin's browser from an unauthenticated CDN, where a poisoned response is
-// a wrong rate on every conversion. Listed here so the button survives
-// enforcement; moving it server-side is the actual fix.
-const ratesHost = "https://cdn.jsdelivr.net";
+// NOT listed any more: the reference-rate fetch moved behind
+// latestReferenceRates() in actions/exchange-rate-actions.ts, so the
+// provider is contacted by the server and never by a browser. If a
+// jsdelivr violation reappears in the CSP report, something has fetched it
+// client-side again — that is the signal, not a missing entry here.
 const supabaseWs = "wss://*.supabase.co";
 const csp = [
   `default-src 'self'`,
@@ -40,7 +33,7 @@ const csp = [
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
   `font-src 'self' data: https://fonts.gstatic.com`,
   `img-src 'self' data: blob: ${supabaseHost} ${twemojiHost}`,
-  `connect-src 'self' ${supabaseHost} ${supabaseWs} ${ratesHost}`,
+  `connect-src 'self' ${supabaseHost} ${supabaseWs}`,
   `frame-ancestors 'none'`,
   `base-uri 'self'`,
   `form-action 'self'`,

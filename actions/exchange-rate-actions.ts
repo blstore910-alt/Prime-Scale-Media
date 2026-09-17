@@ -200,3 +200,39 @@ export async function upsertExchangeRate(
   }
   return { ok: true, data: null };
 }
+
+// ─────────────────────────────────────────
+// latestReferenceRates — the provider fetch, SERVER-SIDE
+// ─────────────────────────────────────────
+// "Apply Latest Rates" used to call lib/get-exchange-rates.ts straight from
+// the browser, so an admin's device fetched the numbers that price every
+// conversion in the app from an unauthenticated CDN. A poisoned or stale
+// response there becomes a wrong rate on every top-up, every profit figure
+// and every balance shown in the other currency — and it also violated the
+// app's own connect-src, which meant the button was one CSP flip away from
+// failing with a generic "provider unavailable".
+//
+// Same helper, same provider, fetched by us. Admin-gated because the result
+// is what the caller is about to write.
+export async function latestReferenceRates(): Promise<
+  ActionResult<Record<string, number>>
+> {
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+
+  try {
+    const data = await getExchangeRate("USD");
+    const usd = (data as { usd?: Record<string, number> } | undefined)?.usd;
+    if (!usd || typeof usd !== "object") {
+      return { ok: false, error: "The rate provider returned no USD rates." };
+    }
+    return { ok: true, data: usd };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Rate provider unavailable: ${
+        err instanceof Error ? err.message : "unknown"
+      }`,
+    };
+  }
+}

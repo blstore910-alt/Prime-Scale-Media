@@ -13,8 +13,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { getExchangeRate } from "@/lib/get-exchange-rates";
-import { upsertExchangeRate } from "@/actions/exchange-rate-actions";
+import {
+  latestReferenceRates,
+  upsertExchangeRate,
+} from "@/actions/exchange-rate-actions";
 import { formatRate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -128,12 +130,17 @@ function ExchangeRatesForm({
   const handleSetLatest = async () => {
     try {
       setIsApplying(true);
-      const freshRates = await getExchangeRate("USD");
-      const usdRates = freshRates?.usd;
-      if (!usdRates) {
-        toast.error("No latest exchange rate data available");
+      // Fetched by the SERVER, not by this browser. See
+      // latestReferenceRates() for why: these numbers price every
+      // conversion in the app, and pulling them from an unauthenticated CDN
+      // on the admin's own device is one poisoned response away from a wrong
+      // rate on every top-up.
+      const res = await latestReferenceRates();
+      if (!res.ok) {
+        toast.error(res.error);
         return;
       }
+      const usdRates = res.data;
 
       // NOT 1/rate. Every rate in this system means "1 USD = N <currency>":
       // that is what calculateTopupAmount divides by, what the wallet RPCs
