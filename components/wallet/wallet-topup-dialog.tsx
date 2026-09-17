@@ -151,10 +151,26 @@ export default function WalletTopupDialog({
   const [currency, setCurrency] = useState<CurrencyCode>("EUR");
   // Which beneficiary bank the transfer routes to.
   const [bankGroup, setBankGroup] = useState<BankGroup>("turlit");
-  // The beneficiaries this advertiser could legitimately be paying. Empty
-  // means "cannot tell from their accounts" — a new customer with none yet —
-  // and the default stands.
-  const bankChoices = banksForAccountTypes(accountTypeSlugs);
+  // TWO DIFFERENT SITUATIONS, and collapsing them sent money to the wrong
+  // company:
+  //
+  //   no ad accounts at all   → nothing to route yet, the default is
+  //                             harmless, don't ask.
+  //   accounts whose routing  → there IS something to decide, and we do not
+  //   was never stated          know the answer. Offer all three, as before.
+  //
+  // lib/bank-routing.ts deliberately refuses to guess for a type nobody has
+  // mapped (Meta-EU-Premium and Meta-HK-Business-Green are both real seeded
+  // types it omits). This caller used to turn that refusal into "hide the
+  // chooser and keep turlit" — so an advertiser whose accounts route to MUXUE
+  // was shown TURLIT's IBAN with no control to correct it, and nothing
+  // server-side would ever notice: the RPC takes amount, currency and slip,
+  // and never learns which beneficiary the customer was shown.
+  const routed = banksForAccountTypes(accountTypeSlugs);
+  const routingUnknown = accountTypeSlugs.length > 0 && routed.length === 0;
+  const bankChoices = routingUnknown
+    ? BANK_GROUP_OPTIONS.map((o) => o.value)
+    : routed;
   const soleBank = bankChoices.length === 1 ? bankChoices[0] : null;
   // One possible destination: set it rather than ask. Also corrects a
   // restored draft that names a bank this advertiser has no accounts at.
@@ -500,6 +516,13 @@ export default function WalletTopupDialog({
                 {bankChoices.length > 1 ? (
                   <div className="space-y-3">
                     <Label>Which accounts are you funding?</Label>
+                    {routingUnknown && (
+                      <p className="text-xs text-muted-foreground">
+                        We could not work this out from your ad accounts, so
+                        please pick the one you were given. If you are not
+                        sure, ask us before you send anything.
+                      </p>
+                    )}
                     <RadioGroup
                       value={bankGroup}
                       onValueChange={(val: BankGroup) => setBankGroup(val)}
