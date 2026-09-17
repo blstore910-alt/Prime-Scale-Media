@@ -413,7 +413,12 @@ export const PSM_APP_CSS = `
 
   /* Header: the title is a label, not a hero. The description is read once
      and then never again, so on a phone it gets exactly ONE line — a second
-     line of context costs a queue card you could have seen instead. */
+     line of context costs a queue card you could have seen instead.
+
+     BUDGET: about 30 characters. The clamp ellipsizes rather than wraps, so
+     a longer subtitle does not lose its second line, it loses the end of
+     its first one — "Create accounts, assign..." reads as a bug, not as
+     brevity. Write the short sentence; do not rely on the clamp. */
   .psmapp .phead{gap:10px}
   .psmapp .phead h1{font-size:1.3rem;line-height:1.2}
   .psmapp .phead p{font-size:.85rem;margin-top:2px;

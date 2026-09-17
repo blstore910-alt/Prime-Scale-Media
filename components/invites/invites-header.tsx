@@ -12,7 +12,7 @@ export default function InvitesHeader() {
     <div className="phead phead-actions">
       <div className="ptxt">
         <h1>Invites</h1>
-        <p>Invite advertisers and affiliates.</p>
+        <p>Advertisers and affiliates.</p>
       </div>
       {profile?.role === "admin" && (
         <div className="pacts">

@@ -503,7 +503,7 @@ export default function AccountsTable() {
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Ad Accounts</h1>
-          <p>Create accounts, assign advertisers and set fees.</p>
+          <p>Assign accounts and set fees.</p>
         </div>
         <div className="pacts">
           <button
@@ -650,7 +650,7 @@ export default function AccountsTable() {
             style={{ margin: "6px auto 16px", maxWidth: 380, fontSize: ".9rem" }}
           >
             {hasAnyAccounts
-              ? "Clear the search, platform, status or max-fee filter to see the rest."
+              ? "Clear the search, platform or status filter to see the rest."
               : "Allocate one from the Account Pool, or create it by hand if it isn't supplier-managed."}
           </p>
           {hasAnyAccounts ? (

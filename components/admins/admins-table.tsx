@@ -115,7 +115,7 @@ export default function AdminsTable() {
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Admins</h1>
-          <p>Manage admin access for this tenant.</p>
+          <p>Admin access for this tenant.</p>
         </div>
         <div className="pacts">
           <button className="btn" onClick={() => setCreateOpen(true)}>

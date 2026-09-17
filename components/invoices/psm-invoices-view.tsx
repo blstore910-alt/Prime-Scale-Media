@@ -145,7 +145,7 @@ export default function PsmInvoicesView() {
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Invoices</h1>
-          <p>View and download your invoices.</p>
+          <p>Issued, paid and overdue.</p>
         </div>
       </div>
 
