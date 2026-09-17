@@ -10,6 +10,7 @@ import SelectField from "../form/select-field";
 import TextareaField from "../form/textarea-field";
 import { DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { toast } from "sonner";
 import { TIMEZONES } from "@/lib/constants";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -652,43 +653,57 @@ export default function AdAccountRequestForm({
           />
         </div>
       </form>
-      {confirming ? (
-        <div className="mt-4 rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-          <div className="font-semibold">This sends a request.</div>
-          <p className="mt-1 text-muted-foreground">
-            {isFree
-              ? "It uses one of the ad accounts your plan includes. Someone here picks it up and sets the account up on our Business Manager — so only send it if you actually want this account."
-              : `${feeSymbol}${feeAmount} is taken from your wallet when you send it, and someone here sets the account up on our Business Manager. Only send it if you actually want this account.`}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              type="submit"
-              form="ad-account-request-form"
-              disabled={isPending || !feeEnough}
-            >
-              <span>{isPending ? "Sending…" : "Yes, send the request"}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={isPending}
-              onClick={() => setConfirming(null)}
-            >
-              Go back
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <DialogFooter className="mt-4">
-          <Button
-            type="submit"
-            form="ad-account-request-form"
-            disabled={isPending || !feeEnough}
-          >
-            <span>Submit Request</span>
-          </Button>
-        </DialogFooter>
-      )}
+      <DialogFooter className="mt-4">
+        <Button
+          type="submit"
+          form="ad-account-request-form"
+          disabled={isPending || !feeEnough}
+        >
+          <span>Send the request</span>
+        </Button>
+      </DialogFooter>
+
+      {/* This used to be a bordered panel pinned to the bottom of the form.
+          On a phone the form is several screens long, so the confirmation
+          appeared below the fold: the customer pressed Send, nothing visibly
+          happened, and they pressed it again. A modal cannot be scrolled
+          past. */}
+      <ConfirmModal
+        open={!!confirming}
+        onOpenChange={(next) => {
+          if (!next) setConfirming(null);
+        }}
+        title="Send this request?"
+        lead={
+          isFree
+            ? "Someone here picks it up and sets the account up on our Business Manager. Only send it if you actually want this account."
+            : "The fee leaves your wallet the moment you send this, and someone here sets the account up on our Business Manager."
+        }
+        cta="Yes, send it"
+        busy={isPending}
+        busyLabel="Sending…"
+        disabled={!feeEnough}
+        onConfirm={() => void handleSubmit(onSubmit)()}
+      >
+        <ConfirmFact label="Platform" value={PLATFORM_LABEL[confirming?.platform ?? "meta-ads"]} />
+        <ConfirmFact label="Currency" value={confirming?.currency ?? ""} />
+        <ConfirmFact
+          label="Cost"
+          value={
+            isFree
+              ? "Included in your plan"
+              : `${feeSymbol}${feeAmount} from your wallet`
+          }
+          strong
+        />
+      </ConfirmModal>
     </>
   );
 }
+
+// The slugs are what the database stores; these are what a person calls them.
+const PLATFORM_LABEL: Record<string, string> = {
+  "meta-ads": "Meta",
+  "tiktok-ads": "TikTok",
+  "google-ads": "Google",
+};

@@ -33,6 +33,7 @@ import { AccountDetailsSheet } from "@/components/account/account-details-sheet"
 import OnboardingChecklist from "./onboarding-checklist";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
 import { formatPaymentReference } from "@/lib/payment-reference";
+import { invoiceTypeLabel } from "@/lib/invoice-type";
 import { effectiveMinTopup } from "@/lib/min-topup";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 
@@ -325,13 +326,38 @@ export default function AdvertiserApp() {
       return (data ?? null) as Record<string, unknown> | null;
     },
   });
-  const [comp, setComp] = useState({ name: "", vat_no: "", country: "" });
+  // The WHOLE company, not three fields of it. This card showed name, VAT
+  // and country while the record carries ten — and those ten are what an
+  // invoice is built from and what the app checks before it lets anything be
+  // billed (app/(app)/layout.tsx tests name, official_email, phone, address,
+  // country, state, zipcode). So a customer could look at their own company
+  // details, see three lines, and have no way to correct the address their
+  // invoices were going to.
+  const [comp, setComp] = useState({
+    name: "",
+    official_email: "",
+    phone: "",
+    website_url: "",
+    vat_no: "",
+    registration_no: "",
+    address: "",
+    zipcode: "",
+    state: "",
+    country: "",
+  });
   const [savingComp, setSavingComp] = useState(false);
   useEffect(() => {
     if (company)
       setComp({
         name: (company.name as string) ?? "",
+        official_email: (company.official_email as string) ?? "",
+        phone: (company.phone as string) ?? "",
+        website_url: (company.website_url as string) ?? "",
         vat_no: (company.vat_no as string) ?? "",
+        registration_no: (company.registration_no as string) ?? "",
+        address: (company.address as string) ?? "",
+        zipcode: (company.zipcode as string) ?? "",
+        state: (company.state as string) ?? "",
         country: (company.country as string) ?? "",
       });
   }, [company]);
@@ -677,8 +703,11 @@ export default function AdvertiserApp() {
   }, [signOutOpen]);
 
   const [payingId, setPayingId] = useState<string | null>(null);
-  const payInvoice = async (id: string) => {
-    if (payingId) return;
+  // Returns whether the money actually moved, so the confirmation can stay
+  // on screen when it did not — closing the modal on a failure reads as
+  // "done" and the customer goes looking for a payment that never happened.
+  const payInvoice = async (id: string): Promise<boolean> => {
+    if (payingId) return false;
     setPayingId(id);
     try {
       const supabase = createClient();
@@ -689,14 +718,76 @@ export default function AdvertiserApp() {
       toast.success("Invoice paid from your wallet.");
       queryClient.invalidateQueries({ queryKey: ["adv-invoices"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      return true;
     } catch (e) {
       toast.error("Couldn't pay from wallet", {
         description: e instanceof Error ? e.message : undefined,
       });
+      return false;
     } finally {
       setPayingId(null);
     }
   };
+
+  // ── Are you sure? ────────────────────────────────────────────────────
+  // Everything on these screens that moves money asks first, in a modal you
+  // cannot scroll past or click around. Pay now used to take the money on
+  // the first press, with no way back — one mis-tap on a phone and the month
+  // was paid. The state is generic so the next money button gets the same
+  // treatment for free instead of another bespoke boolean.
+  const [ask, setAsk] = useState<{
+    title: string;
+    lead: string;
+    facts: [string, string][];
+    cta: string;
+    busyLabel: string;
+    run: () => Promise<boolean>;
+  } | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  const askToPay = (inv: {
+    id: string;
+    total: number | string | null;
+    type?: string | null;
+    due_date?: string | null;
+    items?: unknown;
+  }) => {
+    const sym =
+      ((inv.items as Array<{ currency?: string }> | undefined)?.[0]?.currency ??
+        "EUR") === "USD"
+        ? "$"
+        : "€";
+    const cur = sym === "$" ? "USD" : "EUR";
+    setAsk({
+      title: "Pay this from your wallet?",
+      lead: `We take it out of your ${cur} wallet straight away. There is no undo — if it turns out to be wrong, message us and we sort it out.`,
+      facts: [
+        ["What for", invoiceTypeLabel(inv.type)],
+        ["Amount", `${sym}${money2(inv.total)}`],
+        ["Out of", `Your ${cur} wallet`],
+        [
+          "Due",
+          inv.due_date
+            ? dayjs(inv.due_date).format("D MMM YYYY")
+            : "No date set",
+        ],
+      ],
+      cta: `Yes, pay ${sym}${money2(inv.total)}`,
+      busyLabel: "Paying…",
+      run: () => payInvoice(inv.id),
+    });
+  };
+
+  // Escape closes the money confirmation — but never while the write is in
+  // flight, when the dialog disappearing would look like a cancellation.
+  useEffect(() => {
+    if (!ask) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !asking) setAsk(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [ask, asking]);
 
   const NAV: { v: View; icon: string; label: string; aff?: boolean }[] = [
     { v: "dash", icon: "i-home", label: "Dashboard" },
@@ -1722,7 +1813,7 @@ export default function AdvertiserApp() {
                       style={{ marginTop: 14 }}
                       disabled={!dueSubInvoice}
                       onClick={() => {
-                        if (dueSubInvoice) payInvoice(dueSubInvoice.id);
+                        if (dueSubInvoice) askToPay(dueSubInvoice);
                         else if (invError) {
                           toast.error(
                             "We couldn't load your invoices, so we'd rather not take money yet. Give it a reload.",
@@ -1759,6 +1850,7 @@ export default function AdvertiserApp() {
                     <tr>
                       <th style={{ paddingLeft: 14 }}>Invoice</th>
                       <th>Date</th>
+                      <th>Type</th>
                       <th className="r">Amount</th>
                       <th className="r">Status</th>
                       <th className="r"></th>
@@ -1787,6 +1879,13 @@ export default function AdvertiserApp() {
                             <td data-label="Date">
                               {dayjs(inv.created_at).format("D MMM YYYY")}
                             </td>
+                            {/* WHAT the invoice is for. Without it the page
+                                was a list of amounts: a plan fee and a plan
+                                change, both "Due", both €-something, and
+                                nothing on the row to tell them apart. */}
+                            <td data-label="Type">
+                              {invoiceTypeLabel(inv.type)}
+                            </td>
                             <td data-label="Amount" className="r mono">
                               {invSym}
                               {money2(inv.total)}
@@ -1811,11 +1910,11 @@ export default function AdvertiserApp() {
                                     them made a billing screen look like a
                                     list of debts. Download stays on every
                                     row. */}
-                                {!paid && inv.type === "subscription" && (
+                                {!paid && inv.id === dueSubInvoice?.id && (
                                   <button
                                     className="btn ghost sm"
                                     disabled={payingId === inv.id}
-                                    onClick={() => payInvoice(inv.id)}
+                                    onClick={() => askToPay(inv)}
                                   >
                                     {payingId === inv.id
                                       ? "Paying…"
@@ -1840,7 +1939,7 @@ export default function AdvertiserApp() {
                     ) : (
                       <tr>
                         <td
-                          colSpan={5}
+                          colSpan={6}
                           style={{
                             textAlign: "center",
                             padding: 24,
@@ -1935,6 +2034,9 @@ export default function AdvertiserApp() {
                     <Ic name="i-building" /> Company
                   </span>
                 </h2>
+                <p className="cap" style={{ margin: "4px 0 0" }}>
+                  This is what your invoices are made from.
+                </p>
                 <div style={{ marginTop: 16 }}>
                   <div className="field">
                     <label>Company name</label>
@@ -1945,12 +2047,75 @@ export default function AdvertiserApp() {
                         setComp((c) => ({ ...c, name: e.target.value }))
                       }
                     />
+                    </div>
+                  <div className="frow">
+                    <div className="field">
+                      <label>Billing email</label>
+                      <input type="email"
+                        placeholder="billing@yourcompany.com"
+                        value={comp.official_email}
+                        onChange={(e) =>
+                          setComp((c) => ({ ...c, official_email: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Phone</label>
+                      <input
+                        placeholder="+31 6 1234 5678"
+                        value={comp.phone}
+                        onChange={(e) =>
+                          setComp((c) => ({ ...c, phone: e.target.value }))
+                        }
+                      />
+                    </div>
                   </div>
+                  <div className="field">
+                    <label>Address</label>
+                    <input
+                      placeholder="Street and number"
+                      value={comp.address}
+                      onChange={(e) =>
+                        setComp((c) => ({ ...c, address: e.target.value }))
+                      }
+                    />
+                    </div>
+                  <div className="frow">
+                    <div className="field">
+                      <label>Postcode</label>
+                      <input
+                        placeholder="1012 AB"
+                        value={comp.zipcode}
+                        onChange={(e) =>
+                          setComp((c) => ({ ...c, zipcode: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>City / region</label>
+                      <input
+                        placeholder="Amsterdam"
+                        value={comp.state}
+                        onChange={(e) =>
+                          setComp((c) => ({ ...c, state: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label>Country</label>
+                    <input
+                      placeholder="Netherlands"
+                      value={comp.country}
+                      onChange={(e) =>
+                        setComp((c) => ({ ...c, country: e.target.value }))
+                      }
+                    />
+                    </div>
                   <div className="frow">
                     <div className="field">
                       <label>VAT / Tax ID</label>
-                      <input
-                        className="mono"
+                      <input className="mono"
                         placeholder="NL0000.00.000.B00"
                         value={comp.vat_no}
                         onChange={(e) =>
@@ -1959,16 +2124,26 @@ export default function AdvertiserApp() {
                       />
                     </div>
                     <div className="field">
-                      <label>Country</label>
-                      <input
-                        placeholder="Netherlands"
-                        value={comp.country}
+                      <label>Registration no.</label>
+                      <input className="mono"
+                        placeholder="Chamber of Commerce"
+                        value={comp.registration_no}
                         onChange={(e) =>
-                          setComp((c) => ({ ...c, country: e.target.value }))
+                          setComp((c) => ({ ...c, registration_no: e.target.value }))
                         }
                       />
                     </div>
                   </div>
+                  <div className="field">
+                    <label>Website</label>
+                    <input
+                      placeholder="yourcompany.com"
+                      value={comp.website_url}
+                      onChange={(e) =>
+                        setComp((c) => ({ ...c, website_url: e.target.value }))
+                      }
+                    />
+                    </div>
                   <button
                     className="btn sm"
                     onClick={saveCompany}
@@ -2131,6 +2306,84 @@ export default function AdvertiserApp() {
         setOpen={() => setDetailsOpen(false)}
         accountId={detailsId}
       />
+
+      {/* The money confirmation. Same shape as the sign-out one, because a
+          customer should not have to learn two kinds of "are you sure". */}
+      {ask && (
+        <div className="modal">
+          <div
+            className="mback"
+            onClick={() => {
+              if (!asking) setAsk(null);
+            }}
+          />
+          <div className="mcard" style={{ width: "min(430px,100%)" }}>
+            <div className="mhead">
+              <h2>{ask.title}</h2>
+              <button
+                className="iconbtn"
+                onClick={() => setAsk(null)}
+                disabled={asking}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="cap">{ask.lead}</p>
+            <div
+              style={{
+                marginTop: 14,
+                border: "1px solid var(--line)",
+                borderRadius: 14,
+                padding: "6px 12px",
+              }}
+            >
+              {ask.facts.map(([k, v]) => (
+                <div
+                  key={k}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    padding: "7px 0",
+                    fontSize: ".88rem",
+                  }}
+                >
+                  <span style={{ color: "var(--faint)" }}>{k}</span>
+                  <span style={{ fontWeight: 600, textAlign: "right" }}>
+                    {v}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mfoot">
+              <button
+                className="btn ghost"
+                onClick={() => setAsk(null)}
+                disabled={asking}
+              >
+                Go back
+              </button>
+              <button
+                className="btn"
+                disabled={asking}
+                onClick={async () => {
+                  if (asking) return;
+                  setAsking(true);
+                  try {
+                    // Only clear it if the write actually landed.
+                    if (await ask.run()) setAsk(null);
+                  } finally {
+                    setAsking(false);
+                  }
+                }}
+              >
+                <Ic name="i-check" /> {asking ? ask.busyLabel : ask.cta}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {signOutOpen && (
         <div className="modal">

@@ -8,13 +8,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -149,7 +150,18 @@ export default function WalletExchangeDialog({
     },
   });
 
-  const onSubmit = (values: FormValues) => mutate(values);
+  // An exchange is not reversible at the rate you got, so it gets asked
+  // for twice. The first click only builds the confirmation; the money moves
+  // from the modal.
+  const [confirming, setConfirming] = useState<FormValues | null>(null);
+  const onSubmit = (values: FormValues) => setConfirming(values);
+
+  // If the customer edits the form behind the modal, or it closes, drop the
+  // pending confirmation — never let a confirmation outlive the figures it
+  // was built from.
+  useEffect(() => {
+    if (!open) setConfirming(null);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -244,6 +256,38 @@ export default function WalletExchangeDialog({
             </Button>
           </div>
         </form>
+
+        <ConfirmModal
+          open={!!confirming}
+          onOpenChange={(next) => {
+            if (!next) setConfirming(null);
+          }}
+          title="Exchange this money?"
+          lead={`You are converting ${fromCurrency} into ${toCurrency} at today's rate. Once it is done, converting it back costs the fee again.`}
+          cta="Yes, exchange it"
+          busy={isPending}
+          busyLabel="Exchanging…"
+          onConfirm={() => confirming && mutate(confirming)}
+        >
+          <ConfirmFact
+            label="Taken from your wallet"
+            value={`${fromAmount.toFixed(2)} ${fromCurrency}`}
+            strong
+          />
+          <ConfirmFact
+            label="Rate"
+            value={`1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`}
+          />
+          <ConfirmFact
+            label="Exchange fee (0.6%)"
+            value={`${feeAmount.toFixed(2)} ${toCurrency}`}
+          />
+          <ConfirmFact
+            label="Added to your wallet"
+            value={`${exchangeableAmount.toFixed(2)} ${toCurrency}`}
+            strong
+          />
+        </ConfirmModal>
       </DialogContent>
     </Dialog>
   );
