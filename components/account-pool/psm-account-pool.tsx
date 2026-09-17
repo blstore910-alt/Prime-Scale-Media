@@ -191,6 +191,29 @@ export default function PsmAccountPool() {
     bmId: "",
     feePercentage: "",
   });
+  // Allocating straight from the Add form. Kept in its own state rather than
+  // shared with the allocate dialog's, so picking an advertiser here and
+  // cancelling cannot leave the other dialog pre-filled with someone.
+  const [manualAdvId, setManualAdvId] = useState("");
+  const [manualClientFee, setManualClientFee] = useState("");
+  const { data: manualAdvPlan } = useQuery<{ topup_fee_pct: number } | null>({
+    queryKey: ["advertiser-plan", manualAdvId],
+    enabled: !!manualAdvId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertiser_plans")
+        .select("topup_fee_pct")
+        .eq("advertiser_id", manualAdvId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as { topup_fee_pct: number } | null;
+    },
+  });
+  const manualPlanFee =
+    manualAdvPlan && Number.isFinite(Number(manualAdvPlan.topup_fee_pct))
+      ? Number(manualAdvPlan.topup_fee_pct)
+      : null;
 
   const pool = useQuery({
     queryKey: ["supplier-ad-account-pool"],
@@ -281,11 +304,44 @@ export default function PsmAccountPool() {
             : Number(manual.feePercentage),
       });
       if (!res.ok) throw new Error(res.error);
-      return res.data;
+
+      // Straight to an advertiser when one was picked. Two writes, and the
+      // first one has already happened if the second fails — so the error
+      // says the account exists and is sitting in the pool, rather than
+      // leaving the admin to guess whether to retype the whole form.
+      if (manualAdvId) {
+        const fee =
+          manualClientFee.trim() === ""
+            ? manualPlanFee ?? undefined
+            : Number(manualClientFee);
+        const alloc = await assignSupplierAdAccount({
+          poolId: res.data.id,
+          advertiserId: manualAdvId,
+          fee,
+          supplierFeePct:
+            manual.feePercentage.trim() === ""
+              ? null
+              : Number(manual.feePercentage),
+        });
+        if (!alloc.ok) {
+          throw new Error(
+            `The account was added to the pool, but allocating it failed: ${alloc.error} Allocate it from the list.`,
+          );
+        }
+        return { ...res.data, allocated: true, warning: alloc.warning };
+      }
+      return { ...res.data, allocated: false, warning: undefined as string | undefined };
     },
-    onSuccess: () => {
-      toast.success("Added to the pool.");
+    onSuccess: (d) => {
+      if (d.allocated) {
+        if (d.warning) toast.warning(d.warning);
+        else toast.success("Added and allocated to the advertiser.");
+      } else {
+        toast.success("Added to the pool.");
+      }
       setAddOpen(false);
+      setManualAdvId("");
+      setManualClientFee("");
       setManual({
         name: "",
         externalId: "",
@@ -295,6 +351,12 @@ export default function PsmAccountPool() {
         feePercentage: "",
       });
       queryClient.invalidateQueries({ queryKey: ["supplier-ad-account-pool"] });
+      // Same three places the allocate path invalidates — an account that
+      // was allocated on creation has to appear on the Ad Accounts screen
+      // and in the top-up pickers too.
+      queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["adv-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
     },
     onError: (e: Error) =>
       toast.error("Could not add account", { description: e.message }),
@@ -720,6 +782,62 @@ export default function PsmAccountPool() {
             </div>
           </div>
 
+          {/* Allocate without a second trip through the list. Optional: an
+              account with nobody on it is still a perfectly good pool row,
+              which is what this dialog was for. */}
+          <label className="mlabel" htmlFor={`${uid}-m-adv`}>
+            Allocate to (optional)
+          </label>
+          <select
+            id={`${uid}-m-adv`}
+            value={manualAdvId}
+            onChange={(e) => setManualAdvId(e.target.value)}
+            disabled={advertisers.isLoading || advertisers.isError}
+          >
+            <option value="">
+              {advertisers.isLoading
+                ? "Loading advertisers…"
+                : advertisers.isError
+                  ? "Couldn't load advertisers"
+                  : "Leave in the pool"}
+            </option>
+            {(advertisers.data ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {advertiserLabel(a)}
+              </option>
+            ))}
+          </select>
+
+          {manualAdvId && (
+            <>
+              {/* Two different fees about two different parties, so they are
+                  never next to each other unlabelled: Fee % above is what WE
+                  PAY the supplier, this is what the ADVERTISER PAYS US. */}
+              <label className="mlabel" htmlFor={`${uid}-m-cfee`}>
+                Fee % to client
+              </label>
+              <input
+                id={`${uid}-m-cfee`}
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={manualClientFee}
+                onChange={(e) => setManualClientFee(e.target.value)}
+                placeholder={
+                  manualPlanFee != null
+                    ? `${manualPlanFee} (their plan)`
+                    : "e.g. 5"
+                }
+              />
+              <p className="mnote" style={{ marginTop: 6 }}>
+                {manualPlanFee != null
+                  ? `Blank uses ${manualPlanFee}% — the rate this advertiser's plan or community already agreed.`
+                  : "This advertiser has no plan rate on file, so enter the fee to charge on their top-ups."}
+              </p>
+            </>
+          )}
+
           <button
             className="btn block grad"
             style={{ marginTop: 14 }}
@@ -727,7 +845,7 @@ export default function PsmAccountPool() {
             onClick={() => addManual.mutate()}
           >
             {addManual.isPending && <Loader2 className="animate-spin" />}
-            Add to pool
+            {manualAdvId ? "Add and allocate" : "Add to pool"}
           </button>
           <p className="mnote">
             Leave Fee % blank only if you&apos;ll set it when allocating — an
