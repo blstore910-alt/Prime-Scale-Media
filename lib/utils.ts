@@ -26,27 +26,15 @@ export const getURL = () => {
   return url;
 };
 
-export async function enablePush() {
-  if (!("serviceWorker" in navigator)) throw new Error("No SW support");
-
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") return;
-
-  const reg = await navigator.serviceWorker.ready;
-
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    ),
-  });
-
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(sub),
-  });
-}
+// enablePush() used to live here: a SECOND implementation of push
+// subscription, dead, beside the live one in
+// components/push-notification-manager.tsx. Two ways to subscribe a device
+// is how a fix goes into the wrong one — the same trap as the two refund
+// panels and the six unreachable views (docs/UNREACHABLE.md). The manager
+// handles permission state, an existing subscription and the iOS
+// standalone-only case; this did none of that.
+//
+// urlBase64ToUint8Array below stays: the manager imports it.
 
 export function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
