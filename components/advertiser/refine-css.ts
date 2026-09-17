@@ -298,9 +298,17 @@ ${s} .tbl .cust{max-width:190px}
    each other. Every card heading that carries an icon gets the same tile,
    the same 10px gap and the same baseline — done here rather than at each
    call site, because there are dozens and they were each inline-styled. */
-${s} .card>h2{display:flex;align-items:center;gap:10px;font-size:1.06rem;min-width:0}
-${s} .card>h2>span{display:inline-flex;align-items:center;gap:10px;min-width:0}
-${s} .card>h2 svg{
+/* ALSO an h2 inside a .phead — which is most of them. The selector was
+   .card>h2 only, so every card whose heading sits in a title/action row
+   missed all of this: the icon fell back to an inline image at its natural
+   size and the title wrapped onto the line UNDER it. "Your ad accounts" was
+   drawn below its own monitor glyph. */
+${s} .card>h2,
+${s} .card .phead>h2{display:flex;align-items:center;gap:10px;font-size:1.06rem;min-width:0}
+${s} .card>h2>span,
+${s} .card .phead>h2>span{display:inline-flex;align-items:center;gap:10px;min-width:0}
+${s} .card>h2 svg,
+${s} .card .phead>h2 svg{
   box-sizing:content-box;width:17px;height:17px;padding:7px;flex:0 0 auto;
   border-radius:10px;color:var(--primary-600);background:var(--primary-tint);
   box-shadow:0 1px 0 #fff inset,0 0 0 1px rgba(58,111,255,.12)}
