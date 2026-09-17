@@ -40,7 +40,8 @@ const SHEET_CSS = `
 .udsheet .uds-av{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-family:var(--hd);
   font-weight:800;font-size:.95rem;color:#fff;background:var(--brand);flex:0 0 auto}
 .udsheet .uds-id{min-width:0;flex:1}
-.udsheet .uds-nm{font-family:var(--hd);font-weight:800;font-size:1.1rem;line-height:1.2;
+.udsheet .uds-nm{font-family:var(--hd);font-weight:800;font-size:1.15rem;line-height:1.2;
+  font-variant-numeric:tabular-nums;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* The name is a button that turns into its own input. A pencil that only
    shows on hover would be invisible on a phone, and a separate edit row for
@@ -52,7 +53,9 @@ const SHEET_CSS = `
 .udsheet .uds-nm-btn:hover{color:var(--primary-600)}
 .udsheet .uds-nm-btn:hover svg{opacity:1;color:var(--primary-600)}
 @media (hover:none){.udsheet .uds-nm-btn svg{opacity:.85}}
-.udsheet .uds-nm-in{width:100%;font-family:var(--hd);font-weight:800;font-size:1.1rem;line-height:1.2;
+.udsheet .uds-nm2{font-weight:700;font-size:.92rem;line-height:1.25;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.udsheet .uds-nm-in{width:100%;font-family:var(--bd);font-weight:700;font-size:.92rem;line-height:1.25;
   border:1px solid var(--primary);border-radius:9px;padding:3px 8px;margin:-4px 0;background:var(--panel);
   color:var(--ink);box-shadow:0 0 0 3px var(--primary-tint)}
 .udsheet .uds-nm-in:focus{outline:0}
@@ -255,6 +258,12 @@ export default function UserDetailsSheet({
                 first-name box, a typo, a name that has since changed — and
                 this one goes on their invoices. Without this the desk either
                 lives with it or edits the database by hand. */}
+            {/* Client code as the title here too, name under it. Same
+                reasoning as the lists: the code is what this customer is
+                called on an invoice, a bank statement and a payment
+                reference. The name is still the editable one — it is the
+                half that arrives wrong. */}
+            <div className="uds-nm">{clientCode || "No client code"}</div>
             {editingName ? (
               <input
                 className="uds-nm-in"
@@ -273,14 +282,14 @@ export default function UserDetailsSheet({
               />
             ) : (
               <button
-                className="uds-nm uds-nm-btn"
+                className="uds-nm2 uds-nm-btn"
                 onClick={() => {
                   setNameDraft(data?.full_name ?? "");
                   setEditingName(true);
                 }}
                 title="Rename"
               >
-                {data?.full_name || "User Details"}
+                {data?.full_name || "Unnamed"}
                 <Pencil aria-hidden />
               </button>
             )}
@@ -291,18 +300,10 @@ export default function UserDetailsSheet({
                 "PSM0005xifape4500@jobscai.com" — two identifiers printed as
                 one string, which is unreadable and worse than either alone. */}
             <div className="uds-sub">
-              {clientCode && (
-                <>
-                  <span className="uds-cd">{clientCode}</span>
-                  <span className="uds-dot" aria-hidden>
-                    ·
-                  </span>
-                </>
-              )}
               {data?.email ? (
                 <Copyable value={data.email} label="email" />
               ) : (
-                !clientCode && "—"
+                "—"
               )}
             </div>
           </div>
