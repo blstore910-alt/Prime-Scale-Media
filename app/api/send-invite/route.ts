@@ -1,4 +1,5 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
+import { firstName } from "@/lib/display-name";
 import { sendEmail } from "@/lib/email-sender";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
@@ -181,6 +182,9 @@ export async function POST(request: NextRequest) {
     // someone who has to find their company's VAT number before finishing
     // onboarding does not do that the same evening.
     const INVITE_VALID_DAYS = 7;
+    // A literal escape inside a template-literal array kept getting mangled
+    // by tooling; naming it once is clearer than fighting the escaping.
+    const NEWLINE = String.fromCharCode(10);
     const expires_at = new Date(
       Date.now() + INVITE_VALID_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString();
@@ -234,15 +238,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Who is inviting, by first name. "Sender Bart is genoeg hoeft geen
+    // email van mij" — a work email address in the greeting reads as a
+    // system notice; a name reads as a person asking.
+    const { data: senderProfile } = await supabase
+      .from("user_profiles")
+      .select("full_name")
+      .eq("id", profile.id)
+      .maybeSingle();
+    const senderName = firstName(senderProfile?.full_name) || "Your PSM contact";
+
+    // What they are being invited ONTO, when the invite carries a plan. The
+    // plan-at-invite feature exists so the terms are agreed before signup;
+    // stating them in the email is the whole point of agreeing them early.
+    const planLines: string[] = [];
+    if (isAdvertiser) {
+      if (monthly_fee != null) {
+        planLines.push(
+          `<strong>${Number(monthly_fee).toFixed(2)}</strong> per month`,
+        );
+      }
+      if (included_ad_accounts != null) {
+        planLines.push(
+          `<strong>${included_ad_accounts}</strong> ad account${
+            included_ad_accounts === 1 ? "" : "s"
+          } included`,
+        );
+      }
+      if (topup_fee_pct != null) {
+        planLines.push(`<strong>${topup_fee_pct}%</strong> top-up fee`);
+      }
+    }
+
+    const planBlock = planLines.length
+      ? `
+        <div style="margin:22px 0;padding:14px 16px;background:#f1f4fb;border:1px solid #e3e8f4;border-radius:12px;">
+          <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#818ead;font-weight:700;">Your plan</div>
+          <div style="margin-top:6px;font-size:15px;color:#12162a;line-height:1.7;">
+            ${planLines.join(" &middot; ")}
+          </div>
+        </div>`
+      : "";
+
+    // Inline styles and a table-free single column: every mail client
+    // strips <style> blocks, and a float-based layout collapses in Outlook.
     const html = `
-      <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-        <h2>You're invited to join PSM Dashboard</h2>
-        <p>Click the button below to accept the invitation and join the platform.</p>
-        <a target="_blank" href="${inviteLink}" 
-           style="display:inline-block;padding:12px 20px;background-color:#007bff;color:white;border-radius:6px;text-decoration:none;margin-top:16px;">
-           Accept Invitation
-        </a>
-        <p style="margin-top:20px;font-size:14px;color:#666;">If you didn’t expect this invite, you can safely ignore this email.</p>
+      <div style="margin:0;padding:24px 12px;background:#f4f6fc;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+        <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e6e9f2;border-radius:18px;overflow:hidden;">
+          <div style="padding:22px 26px;background:linear-gradient(135deg,#04050E,#0c1230);">
+            <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-.01em;">Prime Scale Media</div>
+            <div style="margin-top:2px;font-size:13px;color:#8b93a6;">Advertiser &amp; affiliate platform</div>
+          </div>
+
+          <div style="padding:26px;">
+            <h1 style="margin:0 0 10px;font-size:21px;line-height:1.3;color:#12162a;font-weight:800;">
+              ${senderName} invited you to ${tenant.name}
+            </h1>
+            <p style="margin:0;font-size:15px;line-height:1.6;color:#5c6577;">
+              Accept the invitation to set up your account. You will be asked
+              for your company details before anything is billed.
+            </p>
+
+            ${planBlock}
+
+            <a target="_blank" href="${inviteLink}"
+               style="display:inline-block;margin-top:4px;padding:13px 22px;background:#3a6fff;color:#ffffff;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">
+              Accept invitation
+            </a>
+
+            <p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#8b93a6;">
+              This link is valid for ${INVITE_VALID_DAYS} days. If you did not
+              expect this invitation you can ignore this email — nothing
+              happens until you accept it.
+            </p>
+          </div>
+        </div>
       </div>
     `;
 
@@ -258,8 +328,17 @@ export async function POST(request: NextRequest) {
       try {
         await sendEmail({
           to: email,
-          subject: `You're invited to join ${tenant.name} on PSM Dashboard`,
-          text: ``,
+          subject: `${senderName} invited you to ${tenant.name}`,
+          // A plain-text part, not an empty string. Spam filters score a
+          // multipart message with a blank text/plain lower, and some
+          // clients show that blank part instead of the HTML.
+          text: [
+            `${senderName} invited you to ${tenant.name} on Prime Scale Media.`,
+            ``,
+            `Accept: ${inviteLink}`,
+            ``,
+            `This link is valid for ${INVITE_VALID_DAYS} days. If you did not expect this invitation you can ignore this email.`,
+          ].join(NEWLINE),
           html,
         });
         emailSent = true;
