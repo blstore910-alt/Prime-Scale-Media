@@ -566,7 +566,7 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.r{text-align:left}
   .psmapp .tbl.wide td.fullcell{grid-column:1 / -1}
   /* The FIRST cell is the card's title and spans the row whether or not it
-     is marked .fullcell. This rule used to live in the `dense` block; when
+     is marked .fullcell. This rule used to live in the dense block; when
      that block went, every table whose first cell was plain lost it — on
      /audit the timestamp title ended up sharing its line with "TABLE
      user_profiles", which then ran off the right edge of the card. A title
