@@ -366,9 +366,18 @@ export default function WiseReviewPanel() {
               : null,
             p.transactions !== null ? `${p.transactions} in window` : null,
           ].filter(Boolean);
+          // Wise's OWN words, not just our summary of the status code. A
+          // 422 means it objected to a parameter, and it says which one in
+          // the body — which is the difference between guessing at the
+          // interval, the currency and the endpoint version, and reading
+          // the answer.
           toast.message("Wise could not tell us more", {
-            description: `${p.reason ?? d.reason ?? ""} — ${bits.join(" · ")}`,
-            duration: 14000,
+            description: `${p.reason ?? d.reason ?? ""} — ${bits.join(" · ")}${
+              p.bodySnippet ? `
+
+Wise said: ${p.bodySnippet}` : ""
+            }`,
+            duration: 30000,
           });
         });
       }
