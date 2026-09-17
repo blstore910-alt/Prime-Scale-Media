@@ -269,7 +269,7 @@ function AccountProbeRow() {
   };
 
   const money = (n: number) =>
-    n.toLocaleString("nl-NL", {
+    n.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });

@@ -117,7 +117,7 @@ function initials(name?: string | null) {
 }
 
 const fmtEur = (v: number | string | null | undefined) =>
-  new Intl.NumberFormat("nl-NL", {
+  new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

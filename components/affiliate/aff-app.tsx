@@ -40,9 +40,9 @@ const TIERS = [
 ];
 
 const eur = (n: number) =>
-  "€" + Math.round(Number(n) || 0).toLocaleString("nl-NL");
+  "€" + Math.round(Number(n) || 0).toLocaleString("en-US");
 const usd = (n: number) =>
-  "$" + Math.round(Number(n) || 0).toLocaleString("nl-NL");
+  "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
 
 function initials(name?: string | null) {
   if (!name) return "PS";
@@ -503,7 +503,7 @@ export default function AffiliateApp() {
                   <>
                     <h1 className="jackpot" onClick={() => go("pay")}>
                       <span className="cur">€</span>
-                      {Math.round(lifetimeEur).toLocaleString("nl-NL")}
+                      {Math.round(lifetimeEur).toLocaleString("en-US")}
                     </h1>
                     <div className="hero-tiles">
                       <div className="ht" onClick={() => go("refs")}>

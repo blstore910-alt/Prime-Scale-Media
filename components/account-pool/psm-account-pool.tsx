@@ -31,13 +31,32 @@ const PLATFORM_LABEL: Record<string, string> = {
   "google-ads": "Google",
 };
 
+// en-US, like every other money figure in the app. This formatted with
+// nl-NL, so a pool balance read "$12.500,00" while the same twelve and a
+// half thousand dollars read "$12,500.00" two screens away — and
+// "$12.500,00" can be read as twelve dollars fifty. One convention, or the
+// numbers are not comparable by eye.
+//
+// An unknown currency code prints as a code rather than being guessed into
+// a dollar sign; the old two-way test called everything that was not EUR a
+// dollar amount.
 function money(cents: number | null, currency: string | null) {
   if (cents == null) return "—";
-  const sym = (currency ?? "").toUpperCase() === "EUR" ? "€" : "$";
-  return `${sym}${(cents / 100).toLocaleString("nl-NL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const code = (currency ?? "USD").toUpperCase();
+  const amount = cents / 100;
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${code} ${amount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
 }
 
 function advertiserLabel(a: AdvertiserOption) {
@@ -539,10 +558,10 @@ export default function PsmAccountPool() {
                           </span>
                         )}
                       </td>
-                      <td data-label="Action" className="r">
-                        <div
-                          style={{ display: "flex", justifyContent: "flex-end" }}
-                        >
+                      {/* .fullcell: the button row spans the card and loses
+                          its "ACTION" label, like every other admin list. */}
+                      <td data-label="Action" className="r fullcell">
+                        <div className="actrow">
                           {r.advertiser_id ? (
                             <button
                               className="btn ghost sm"

@@ -60,9 +60,9 @@ const TITLES: Record<View, string> = {
 };
 
 const eur = (n: number | string | null | undefined) =>
-  "€" + Math.round(Number(n) || 0).toLocaleString("nl-NL");
+  "€" + Math.round(Number(n) || 0).toLocaleString("en-US");
 const usd = (n: number | string | null | undefined) =>
-  "$" + Math.round(Number(n) || 0).toLocaleString("nl-NL");
+  "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
 const money2 = (n: number | string | null | undefined) =>
   new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
@@ -1950,7 +1950,7 @@ function WalletCard({
           <>
             <b>
               {sym}
-              {Math.round(pending).toLocaleString("nl-NL")}
+              {Math.round(pending).toLocaleString("en-US")}
             </b>{" "}
             awaiting verification
           </>
