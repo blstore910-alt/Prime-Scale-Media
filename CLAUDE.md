@@ -91,6 +91,9 @@ locally on prerender. `npx tsc --noEmit`, `npx next lint`, and
 
 ## Docs to know
 
+- `docs/ROUTE_MAP.md` — **which file actually renders each screen.**
+  Check it before editing a view: several ported `psm-*` components are
+  on no route at all, and fixes have landed in them twice.
 - `docs/NEXT_SESSION_FIRST.md` — **read this at the start of a new
   session.** Scoped, ready-to-execute work parked behind something more
   urgent; currently the 29-site silent-write sweep.
