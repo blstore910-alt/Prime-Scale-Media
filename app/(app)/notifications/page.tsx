@@ -262,17 +262,22 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="py-10 px-6 sm:px-10 space-y-10">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 px-4 py-6 sm:space-y-10 sm:px-10 sm:py-10">
+      {/* THREE buttons and a two-line heading did not fit a phone: the
+          heading wrapped, the actions were squeezed, and "Mark all read"
+          came out as "Mar". The text column may shrink, the actions keep
+          their size and wrap to their own line, and below sm each button is
+          its icon with its words held in the title. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-2xl font-semibold tracking-tight">
             Notifications
           </h2>
           <p className="text-sm text-muted-foreground">
-            View your latest alerts and updates.
+            Your latest alerts and updates.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {isResolvingAction && (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           )}
@@ -280,10 +285,11 @@ export default function NotificationsPage() {
             variant="outline"
             size="sm"
             onClick={() => setPreferencesOpen(true)}
+            aria-label="Preferences"
             title="Choose which notifications ping your device"
           >
-            <Settings2 className="h-4 w-4 mr-2" />
-            Preferences
+            <Settings2 className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Preferences</span>
           </Button>
           {unreadCount > 0 && (
             <Button
@@ -291,13 +297,15 @@ export default function NotificationsPage() {
               size="sm"
               onClick={handleMarkAllAsRead}
               disabled={markAllAsRead.isPending}
+              aria-label="Mark all read"
+              title="Mark all read"
             >
               {markAllAsRead.isPending ? (
                 <Loader2 className="h-3 w-3 animate-spin mr-2" />
               ) : (
-                <CheckCheck className="h-4 w-4 mr-2" />
+                <CheckCheck className="h-4 w-4 sm:mr-2" />
               )}
-              Mark all read
+              <span className="hidden sm:inline">Mark all read</span>
             </Button>
           )}
           <Button
@@ -311,14 +319,15 @@ export default function NotificationsPage() {
               });
             }}
             disabled={deleteRead.isPending}
+            aria-label="Clean up"
             title="Delete notifications older than 30 days that you've already read"
           >
             {deleteRead.isPending ? (
               <Loader2 className="h-3 w-3 animate-spin mr-2" />
             ) : (
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-4 w-4 sm:mr-2" />
             )}
-            Clean up
+            <span className="hidden sm:inline">Clean up</span>
           </Button>
         </div>
       </div>
