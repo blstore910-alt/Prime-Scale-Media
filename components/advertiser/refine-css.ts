@@ -229,6 +229,18 @@ ${s} .sidebar,${s} .mcard{will-change:transform}
 ${s} .tool.ava-btn .avatar::after,
 ${s} .who-btn .avatar::after{display:none}
 
+/* ── Customer name ──────────────────────────────────────────────────────
+   Client code loud, name quiet. See components/psm/customer-name.tsx for
+   why that order and not the other one. */
+${s} .cust{display:flex;flex-direction:column;gap:1px;min-width:0}
+${s} .cust-code{display:flex;align-items:center;gap:7px;min-width:0;
+  font-family:var(--hd);font-weight:800;letter-spacing:-.01em;line-height:1.2;
+  font-variant-numeric:tabular-nums;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+${s} .cust-name{color:var(--faint);font-size:.8rem;font-weight:600;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+${s} .cust-none{color:var(--faint);font-weight:600}
+
 /* ── Card headings ──────────────────────────────────────────────────────
    An icon sitting loose against a title at whatever size it happened to be
    drawn is the difference between a heading and two things that are near

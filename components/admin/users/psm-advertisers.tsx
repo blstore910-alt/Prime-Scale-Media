@@ -24,6 +24,7 @@ import type { Profile } from "./user-table";
 import UserDetailsSheet from "./user-details-sheet";
 import useUpdateUserProfile from "./use-update-user";
 import useUsers from "./use-users";
+import CustomerName from "@/components/psm/customer-name";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 
 const chipStyle = {
@@ -322,7 +323,6 @@ function AdvertiserRow({
   const { updateUserProfile, isPending } = useUpdateUserProfile();
 
   const advertiser = profile.advertiser?.[0];
-  const clientCode = advertiser?.tenant_client_code ?? "—";
   const isActive = profile.status === "active";
 
   const subscriptions = advertiser?.subscriptions;
@@ -387,16 +387,18 @@ function AdvertiserRow({
           <span className={`ci ${tone}`} style={chipStyle}>
             {initials(profile.full_name)}
           </span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700 }}>{profile.full_name ?? "—"}</div>
-            {/* Client code only. The email pushed this to a second line on
-                every row and is one tap away in Details, where it can be
-                copied — a list is for finding someone, not for reading their
-                contact card. */}
-            <div className="mono" style={{ color: "var(--faint)", fontSize: ".8rem" }}>
-              {clientCode}
-            </div>
-          </div>
+          {/* Code first, name under it. The desk works in client codes —
+              they are on the invoice, they prefix every payment reference,
+              and they are unique where a name is not. Scanning a list for
+              PSM0002 while the codes are set as small grey subtitles means
+              reading the quiet line instead of the loud one.
+              The email is not here: it pushed this to a third line on every
+              row and is one tap away in Details, where it can be copied. */}
+          <CustomerName
+            clientCode={advertiser?.tenant_client_code}
+            name={profile.full_name}
+            full
+          />
         </div>
       </td>
       <td data-label="Plan">
