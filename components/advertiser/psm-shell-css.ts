@@ -361,6 +361,12 @@ export const PSM_APP_CSS = `
   /* Inline value chips (status badges, short notes) keep their natural size
      and sit at the right instead of stretching the whole value column. */
   .psmapp .tbl.wide td>span{justify-self:end}
+  /* A pill in a half-width card cell has ~140px. "Exchange Rates Updated"
+     needs 163 and was running past the edge of the card, because a badge is
+     nowrap everywhere else and that is right everywhere else. Inside a record
+     card it wraps instead: two lines of pill is fine, a pill hanging over the
+     border is not. */
+  .psmapp .tbl.wide td .badge{white-space:normal;text-align:left;line-height:1.25}
   .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
   .psmapp .tbl.wide td[colspan]::before{display:none}
   /* Rich cells — an avatar plus a name plus an email, or a row of action
@@ -559,6 +565,19 @@ export const PSM_APP_CSS = `
      better left-aligned in a narrow stacked cell. */
   .psmapp .tbl.wide td.r{text-align:left}
   .psmapp .tbl.wide td.fullcell{grid-column:1 / -1}
+  /* The FIRST cell is the card's title and spans the row whether or not it
+     is marked .fullcell. This rule used to live in the `dense` block; when
+     that block went, every table whose first cell was plain lost it — on
+     /audit the timestamp title ended up sharing its line with "TABLE
+     user_profiles", which then ran off the right edge of the card. A title
+     is not a column.
+
+     The LAST cell spans too: it is the action row, and three buttons do not
+     belong in half a card. (Below 420px a later rule pulls it back into one
+     column, where icon-only buttons fit and a full-width action row would
+     leave an empty right half.) */
+  .psmapp .tbl.wide tr td:first-child,
+  .psmapp .tbl.wide tr td:last-child{grid-column:1 / -1}
   /* In a CARD, actions start under their label like every other value —
      see the .actrow rule above, which already left-aligns on this
      breakpoint. Kept here only for the desktop table, where .actrow
