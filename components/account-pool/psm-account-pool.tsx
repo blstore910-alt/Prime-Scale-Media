@@ -343,7 +343,7 @@ export default function PsmAccountPool() {
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Ad Account Pool</h1>
-          <p>Unassigned accounts are free inventory.</p>
+          <p>Unallocated inventory.</p>
         </div>
         {/* .pactions lets the two buttons share one row on a phone instead of
             stacking into ~90px of header. The long half of each label is in a

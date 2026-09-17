@@ -174,7 +174,7 @@ export default function PsmSubscriptions() {
       ) : rows.length ? (
         <div className="card" style={{ padding: "16px 8px 8px" }}>
           <div className="tblwrap">
-            <table className="tbl wide">
+            <table className="tbl wide dense">
               <thead>
                 <tr>
                   <th>Advertiser</th>
