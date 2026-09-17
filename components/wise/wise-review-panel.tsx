@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   confirmWiseSuggestion,
   rematchWiseDeposits,
+  setWiseDepositArchived,
 } from "@/actions/wise-actions";
 import { wiseIngestStatus } from "@/actions/integration-actions";
 import dayjs from "dayjs";
@@ -25,6 +26,8 @@ type WiseRow = {
   reference: string | null;
   status: string;
   note: string | null;
+  archived_at: string | null;
+  description: string | null;
   suggested_topup_id: string | null;
   created_at: string;
   sender_name: string | null;
@@ -162,7 +165,7 @@ export default function WiseReviewPanel() {
       const { data, error } = await supabase
         .from("wise_incoming_transfers")
         .select(
-          "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban",
+          "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban, archived_at, description",
         )
         .order("created_at", { ascending: false })
         // 100 was less than the table holds — live has 229 — so the
@@ -252,6 +255,23 @@ export default function WiseReviewPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
   }, [isLoading, allRows.length]);
 
+  // Archived rows are out of the way, not gone. The toggle brings them
+  // back with every field intact.
+  const [showArchived, setShowArchived] = useState(false);
+  const archive = useMutation({
+    mutationFn: async (v: { id: string; archived: boolean }) => {
+      const res = await setWiseDepositArchived(v.id, v.archived);
+      if (!res.ok) throw new Error(res.error);
+      return v;
+    },
+    onSuccess: (v) => {
+      toast.success(v.archived ? "Put aside" : "Back in the queue");
+      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't move that deposit", { description: e.message }),
+  });
+
   const suggestedCount = allRows.filter((r) => r.status === "suggested").length;
 
   // Rendering all 100 made this page 28,000px tall on a phone — 35 screens of
@@ -261,8 +281,16 @@ export default function WiseReviewPanel() {
   // capped behind a count the admin can open.
   const REST_PREVIEW = 8;
   const [showAll, setShowAll] = useState(false);
-  const needsAction = allRows.filter((r) => r.status === "suggested");
-  const rest = allRows.filter((r) => r.status !== "suggested");
+  // The archived ones are a separate view, not a longer fold. The fold
+  // ("show N more with nothing to confirm") hides every quiet row
+  // INCLUDING the ones that still need a person, which is why the queue
+  // could not be worked down.
+  const archivedCount = allRows.filter((r) => !!r.archived_at).length;
+  const live = allRows.filter((r) =>
+    showArchived ? !!r.archived_at : !r.archived_at,
+  );
+  const needsAction = live.filter((r) => r.status === "suggested");
+  const rest = live.filter((r) => r.status !== "suggested");
   const restShown = showAll ? rest : rest.slice(0, REST_PREVIEW);
   const rows = [...needsAction, ...restShown];
   const hiddenCount = rest.length - restShown.length;
@@ -286,14 +314,27 @@ export default function WiseReviewPanel() {
               <span className="badge pend">{suggestedCount} to confirm</span>
             )}
           </h2>
-          <button
-            className="btn ghost sm"
-            disabled={rematch.isPending}
-            onClick={() => rematch.mutate()}
-            title="Match the deposits with no match against the top-ups that are pending right now"
-          >
-            {rematch.isPending ? "Re-checking…" : "Re-check matches"}
-          </button>
+          <div className="actrow">
+            {archivedCount > 0 && (
+              <button
+                className={`btn ${showArchived ? "" : "ghost"} sm`}
+                onClick={() => setShowArchived((v) => !v)}
+                title="Deposits somebody put aside. Nothing is deleted — every field is still here."
+              >
+                {showArchived
+                  ? "Back to the queue"
+                  : `Archived (${archivedCount})`}
+              </button>
+            )}
+            <button
+              className="btn ghost sm"
+              disabled={rematch.isPending}
+              onClick={() => rematch.mutate()}
+              title="Match the deposits with no match against the top-ups that are pending right now"
+            >
+              {rematch.isPending ? "Re-checking…" : "Re-check matches"}
+            </button>
+          </div>
         </div>
         <p className="muted" style={{ margin: "6px 0 0", fontSize: ".92rem" }}>
           Incoming bank payments detected via Wise. During the safe-start phase
@@ -332,7 +373,9 @@ export default function WiseReviewPanel() {
                     className="muted"
                     style={{ textAlign: "center", padding: "34px 0" }}
                   >
-                    No bank deposits detected yet.
+                    {showArchived
+                      ? "Nothing archived."
+                      : "No bank deposits detected yet."}
                   </td>
                 </tr>
               ) : (
@@ -370,17 +413,42 @@ export default function WiseReviewPanel() {
                         {r.sender_iban && (
                           <div
                             className="mono"
-                            style={{ fontSize: ".75rem", color: "var(--txt-2)" }}
+                            style={{
+                              fontSize: ".75rem",
+                              color: "var(--txt-2)",
+                              // An IBAN is one unbreakable 34-character
+                              // token; its three siblings in this cell were
+                              // clipped and this one was missed, so each
+                              // deposit card became a sideways-scrolling
+                              // strip on a phone.
+                              ...clip,
+                            }}
+                            title={r.sender_iban ?? undefined}
                           >
                             {r.sender_iban}
                           </div>
                         )}
+                        {/* What Wise itself says about this credit. This
+                            used to be the only line here besides the
+                            reference, and it showed OUR OWN idempotency key
+                            (balanceId:occurredAt:amount) as if it were
+                            sender information. The key is still available
+                            on hover, where an internal id belongs. */}
+                        {r.description ? (
+                          <div
+                            className="muted"
+                            style={{ fontSize: ".75rem", ...clip, maxWidth: 220 }}
+                            title={r.description}
+                          >
+                            {r.description}
+                          </div>
+                        ) : null}
                         <div
                           className="mono"
                           style={{ fontSize: ".7rem", color: "var(--faint)", ...clip }}
-                          title={r.external_id}
+                          title={`Wise id: ${r.external_id}`}
                         >
-                          Wise: {r.external_id}
+                          {r.external_id}
                         </div>
                       </td>
                       <td data-label="Result" style={{ verticalAlign: "top" }}>
@@ -438,6 +506,31 @@ export default function WiseReviewPanel() {
                             }}
                           />
                         )}
+                        {/* Put it aside. 231 deposits, most of them old
+                            test payments of 0.01 that will never match
+                            anything, and no way to clear one out of the way
+                            — so the one that mattered sat in a list of two
+                            hundred that did not. Archiving is reversible
+                            and loses nothing. */}
+                        <div style={{ marginTop: 8 }}>
+                          <button
+                            className="btn ghost sm"
+                            disabled={archive.isPending}
+                            onClick={() =>
+                              archive.mutate({
+                                id: r.id,
+                                archived: !r.archived_at,
+                              })
+                            }
+                            title={
+                              r.archived_at
+                                ? "Put it back in the queue"
+                                : "Move it to Archived — nothing is deleted"
+                            }
+                          >
+                            {r.archived_at ? "Unarchive" : "Archive"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -575,8 +668,18 @@ function ManualMatch({
           Looking…
         </span>
       ) : candidates.length === 0 ? (
-        <span className="muted" style={{ fontSize: ".82rem", textAlign: "left" }}>
-          No pending top-up for this amount. Nobody is expecting it.
+        <span
+          className="muted"
+          style={{
+            fontSize: ".82rem",
+            textAlign: "left",
+            // The cell is text-align:right and about 300px wide in card
+            // mode, so this sentence ran out of the card and took the
+            // Cancel button with it.
+            overflowWrap: "anywhere",
+          }}
+        >
+          Nothing pending matches this amount.
         </span>
       ) : (
         <select
@@ -601,7 +704,16 @@ function ManualMatch({
           })}
         </select>
       )}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          justifyContent: "flex-end",
+          // A flex-end row that overflows spills out of its START edge, so
+          // without wrapping the Cancel button left the card entirely.
+          flexWrap: "wrap",
+        }}
+      >
         <button
           className="btn ghost sm"
           onClick={() => {

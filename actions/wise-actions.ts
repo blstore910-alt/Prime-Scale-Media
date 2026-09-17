@@ -323,3 +323,57 @@ export async function rematchWiseDeposits(): Promise<
 
   return { ok: true, data: { checked: deposits.length, suggested, withdrawn: undone } };
 }
+
+/**
+ * Put a deposit aside, or bring it back.
+ *
+ * Housekeeping, not a money state. `archived_at` is a separate column from
+ * `status` on purpose: status records what happened to the MONEY, and
+ * folding "I have dealt with looking at this" into it would mean an
+ * archived deposit losing the record of whether it was ever credited.
+ *
+ * Nothing is deleted and nothing is hidden irreversibly — the panel's
+ * Archived view lists them with every field intact and unarchiving is this
+ * same call with `archived: false`.
+ *
+ * Deliberately allowed on ANY status, including completed ones: a credited
+ * deposit is exactly the kind you want out of the queue. The one thing it
+ * cannot do is change what a deposit is or what it did.
+ */
+export async function setWiseDepositArchived(
+  transferId: string,
+  archived: boolean,
+): Promise<ActionResult> {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (typeof transferId !== "string" || !transferId) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const { supabase, profile } = auth.ctx;
+
+  // Read it under the CALLER's client first, so RLS decides whether they
+  // may see it at all, and check the tenant by hand — the write below runs
+  // with the service role because wise_incoming_transfers has a SELECT
+  // policy and nothing else, so RLS will not catch a mistake there.
+  const { data: dep, error: rErr } = await supabase
+    .from("wise_incoming_transfers")
+    .select("id, tenant_id")
+    .eq("id", transferId)
+    .maybeSingle();
+  if (rErr) return { ok: false, error: safeErrorMessage(rErr) };
+  if (!dep) return { ok: false, error: "Deposit not found" };
+  if (dep.tenant_id !== null && dep.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const admin = await createAdminClient();
+  const { data: rows, error } = await admin
+    .from("wise_incoming_transfers")
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", transferId)
+    .select("id");
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
+  return { ok: true, data: null };
+}
