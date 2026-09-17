@@ -38,11 +38,12 @@ export default function SettingsNavbar() {
       aria-label="Section"
       className="sticky top-0 z-10 mx-auto mt-4 w-full max-w-3xl"
     >
-      <div className="relative overflow-hidden rounded-[14px] border bg-card p-1 shadow-sm">
-        {/* Wider than a phone, so it scrolls in place instead of pushing the
-            settings page sideways. The fade says it continues — a tab cut
-            dead at the edge reads as broken rather than as more to come. */}
-        <ul className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="rounded-[14px] border bg-card p-1 shadow-sm">
+        {/* Wraps rather than scrolls. Six short labels fit on two lines of a
+            phone, and two lines you can read beats one line you have to drag
+            — a horizontal scroller hides half its own options, and the tab
+            you want is reliably the hidden one. */}
+        <ul className="flex flex-wrap items-center gap-1">
           {links.map(({ href, label }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
@@ -63,10 +64,6 @@ export default function SettingsNavbar() {
             );
           })}
         </ul>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-1 right-1 w-7 rounded-r-[13px] bg-gradient-to-l from-card to-transparent"
-        />
       </div>
     </nav>
   );

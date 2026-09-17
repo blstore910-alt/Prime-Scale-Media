@@ -173,8 +173,14 @@ export default function AdAccountTypesCard() {
             <p className="text-destructive">{error?.message}</p>
           </div>
         ) : (
-          <div className="grid gap-3 overflow-x-auto">
-            <div className="grid grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] gap-2 min-w-[470px] text-xs text-muted-foreground pb-1 border-b">
+          /* No sideways scroll on a phone. A five-column grid with a 470px
+             floor meant every settings table had to be dragged left and
+             right to be read, one hand on the phone — and the column you
+             were editing was never the one on screen. Below sm each row
+             becomes a small card with its fields labelled; from sm up it is
+             the same table it always was. */
+          <div className="grid gap-3 sm:overflow-x-auto">
+            <div className="hidden sm:grid grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] gap-2 min-w-[470px] text-xs text-muted-foreground pb-1 border-b">
               <span>Type name</span>
               <span>Platform</span>
               <span className="text-right">Fee %</span>
@@ -184,13 +190,22 @@ export default function AdAccountTypesCard() {
             {rows.map((row, idx) => (
               <div
                 key={row.id}
-                className="grid grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] gap-2 min-w-[470px] items-center"
+                className="grid grid-cols-2 items-center gap-x-3 gap-y-2 rounded-lg border p-3 sm:grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] sm:min-w-[470px] sm:gap-2 sm:rounded-none sm:border-0 sm:p-0"
               >
-                <Input
-                  value={row.label}
-                  onChange={(e) => patchRow(idx, { label: e.target.value })}
-                  className={row.is_active ? "" : "opacity-60"}
-                />
+                <label className="col-span-2 grid gap-1 sm:col-span-1">
+                  <span className="text-xs text-muted-foreground sm:hidden">
+                    Type name
+                  </span>
+                  <Input
+                    value={row.label}
+                    onChange={(e) => patchRow(idx, { label: e.target.value })}
+                    className={row.is_active ? "" : "opacity-60"}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground sm:hidden">
+                    Platform
+                  </span>
                 <select
                   value={row.platform_group}
                   onChange={(e) =>
@@ -206,17 +221,23 @@ export default function AdAccountTypesCard() {
                     </option>
                   ))}
                 </select>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={row.fee_str}
-                  placeholder="5"
-                  className="text-right"
-                  onChange={(e) => patchRow(idx, { fee_str: e.target.value })}
-                />
-                <div className="flex justify-end pr-2">
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground sm:hidden">
+                    Fee %
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={row.fee_str}
+                    placeholder="5"
+                    className="text-right"
+                    onChange={(e) => patchRow(idx, { fee_str: e.target.value })}
+                  />
+                </label>
+                <label className="flex items-center gap-2 sm:justify-end sm:pr-2">
                   <input
                     type="checkbox"
                     checked={row.api_topup_enabled}
@@ -226,8 +247,11 @@ export default function AdAccountTypesCard() {
                     }
                     className="h-4 w-4"
                   />
-                </div>
-                <div className="flex justify-end pr-2">
+                  <span className="text-xs text-muted-foreground sm:hidden">
+                    API auto-topup
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 sm:justify-end sm:pr-2">
                   <input
                     type="checkbox"
                     checked={row.is_active}
@@ -237,7 +261,10 @@ export default function AdAccountTypesCard() {
                     }
                     className="h-4 w-4"
                   />
-                </div>
+                  <span className="text-xs text-muted-foreground sm:hidden">
+                    Active
+                  </span>
+                </label>
               </div>
             ))}
 
@@ -246,8 +273,9 @@ export default function AdAccountTypesCard() {
               <Label className="text-xs text-muted-foreground">
                 Add a type
               </Label>
-              <div className="grid grid-cols-[1fr_100px_78px_52px_auto] gap-2 items-center">
+              <div className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-[1fr_100px_78px_52px_auto] sm:gap-2">
                 <Input
+                  className="col-span-2 sm:col-span-1"
                   value={newLabel}
                   placeholder="e.g. Meta-EU-Advantage"
                   onChange={(e) => setNewLabel(e.target.value)}
@@ -275,7 +303,10 @@ export default function AdAccountTypesCard() {
                   className="text-right"
                   onChange={(e) => setNewFee(e.target.value)}
                 />
-                <div className="flex justify-end pr-2" title="Auto-topup via supplier API (Supplier 1)">
+                <label
+                  className="flex items-center gap-2 sm:justify-end sm:pr-2"
+                  title="Auto-topup via supplier API (Supplier 1)"
+                >
                   <input
                     type="checkbox"
                     checked={newApi}
@@ -283,10 +314,14 @@ export default function AdAccountTypesCard() {
                     onChange={(e) => setNewApi(e.target.checked)}
                     className="h-4 w-4"
                   />
-                </div>
+                  <span className="text-xs text-muted-foreground sm:hidden">
+                    API auto-topup
+                  </span>
+                </label>
                 <Button
                   type="button"
                   variant="outline"
+                  className="col-span-2 sm:col-span-1"
                   disabled={adding}
                   onClick={() => addType()}
                 >
