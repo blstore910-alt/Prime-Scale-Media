@@ -536,7 +536,7 @@ export default function AccountsTable() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search client, account or advertiser…"
+            placeholder="Search accounts…"
           />
         </label>
         {/* Everything that shapes the list — sort and both filters — lives

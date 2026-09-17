@@ -272,7 +272,7 @@ export default function CreateSubscriptionDialog({
                   id="subscription-plan-select"
                   className="h-9 w-full"
                 >
-                  <SelectValue placeholder="Pick a plan to pre-fill the amount…" />
+                  <SelectValue placeholder="Pick a plan…" />
                 </SelectTrigger>
                 <SelectContent position="item-aligned">
                   {plans.map((p) => (

@@ -141,7 +141,7 @@ export default function PsmWallets() {
           <input
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search client, advertiser, or wallet ID"
+            placeholder="Search wallets…"
           />
         </label>
         {/* Sorting lives behind the same one control every other list uses,

@@ -146,7 +146,7 @@ export default function AuditEventsTable() {
         <div>
           <h1>Audit log</h1>
           <p>
-            Every insert / update / delete on the audited tables. Append-only.
+            Append-only. Every audited write.
           </p>
         </div>
       </div>
@@ -160,7 +160,7 @@ export default function AuditEventsTable() {
             onKeyDown={(e) => {
               if (e.key === "Enter") applyRowId();
             }}
-            placeholder="Filter by row id (paste a uuid) and press Enter"
+            placeholder="Paste a row id, press Enter"
             style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
           />
         </label>

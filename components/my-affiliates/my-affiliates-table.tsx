@@ -215,7 +215,7 @@ export default function MyAffiliatesTable() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search advertiser email or name..."
+            placeholder="Search advertisers…"
             className="pl-8"
             disabled={isAffiliateLoading || !isAffiliate}
           />

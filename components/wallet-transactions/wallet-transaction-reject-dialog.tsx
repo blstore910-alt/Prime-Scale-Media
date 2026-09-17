@@ -48,7 +48,7 @@ export default function WalletTransactionRejectDialog({
               id="rejection-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Add a short reason for rejecting this payment..."
+              placeholder="Why is this being rejected?"
               rows={4}
             />
             <p className="text-xs text-muted-foreground">

@@ -193,7 +193,7 @@ export default function CommissionsTable() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search client code, name, or email…"
+            placeholder="Search commissions…"
           />
         </label>
         <CommissionsFilters

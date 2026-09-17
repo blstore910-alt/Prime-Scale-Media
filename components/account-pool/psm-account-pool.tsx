@@ -461,7 +461,7 @@ export default function PsmAccountPool() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, supplier ID, BM ID…"
+            placeholder="Search the pool…"
           />
         </label>
         <PsmSortFilter

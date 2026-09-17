@@ -82,7 +82,7 @@ export default function PsmVerifyAdTopups() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search advertiser, code, number…"
+            placeholder="Search top-ups…"
           />
         </label>
         <PsmSortFilter
