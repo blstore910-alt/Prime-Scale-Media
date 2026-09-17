@@ -124,9 +124,13 @@ export default function PrechargePanel() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+      {/* Below sm each advance is a card: the head row is hidden, every cell
+          carries its own label from data-label, and nothing has to be dragged
+          sideways. Six columns of money do not fit 400px and the user has
+          asked for no horizontal scrolling anywhere. */}
+      <div className="rounded-lg border sm:overflow-x-auto">
+        <Table className="[&_td]:block [&_td]:before:mr-2 [&_td]:before:font-medium [&_td]:before:text-muted-foreground [&_td]:before:content-[attr(data-label)] [&_tr]:block [&_tr]:border-b [&_tr]:p-3 sm:[&_td]:table-cell sm:[&_td]:before:content-none sm:[&_tr]:table-row sm:[&_tr]:p-0">
+          <TableHeader className="hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10 sm:bg-background">
             <TableRow>
               <TableHead>Ref</TableHead>
               <TableHead>Advertiser</TableHead>
@@ -155,21 +159,29 @@ export default function PrechargePanel() {
             ) : (
               list.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">
+                  <TableCell className="font-mono text-xs" data-label="Ref:">
                     {r.reference ?? "—"}
                   </TableCell>
+                  {/* Code first, name beneath — the same identity block every
+                      other admin list uses. */}
                   <TableCell>
-                    <div className="text-sm font-medium">
-                      {r.advertiser?.profile?.full_name ?? "—"}
+                    <div className="text-sm font-semibold">
+                      {r.advertiser?.tenant_client_code ?? "—"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {r.advertiser?.tenant_client_code ?? ""}
+                      {r.advertiser?.profile?.full_name ?? ""}
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono tabular-nums">
+                  <TableCell
+                    className="font-mono tabular-nums"
+                    data-label="Advanced:"
+                  >
                     {formatCurrency(Number(r.amount), r.currency)}
                   </TableCell>
-                  <TableCell className="font-mono font-semibold tabular-nums">
+                  <TableCell
+                    className="font-mono font-semibold tabular-nums"
+                    data-label="Outstanding:"
+                  >
                     {formatCurrency(Number(r.outstanding), r.currency)}
                   </TableCell>
                   <TableCell>
@@ -183,7 +195,7 @@ export default function PrechargePanel() {
                       {r.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="sm:text-right">
                     {r.status === "outstanding" ? (
                       <Button
                         size="sm"
