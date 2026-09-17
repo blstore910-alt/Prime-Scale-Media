@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { invoiceNumber } from "@/lib/payment-reference";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -188,7 +189,7 @@ export default function MySubscriptionView() {
 
       const anchor = document.createElement("a");
       anchor.href = fileUrl;
-      anchor.download = `invoice-${invoice.number}.pdf`;
+      anchor.download = `invoice-${invoiceNumber(invoice)}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

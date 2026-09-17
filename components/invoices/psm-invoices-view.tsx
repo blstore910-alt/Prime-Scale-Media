@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
+import { invoiceNumber } from "@/lib/payment-reference";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
 import dayjs from "dayjs";
@@ -89,7 +90,7 @@ export default function PsmInvoicesView() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `invoice-${invoice.number}.pdf`;
+      a.download = `invoice-${invoiceNumber(invoice)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -247,7 +248,7 @@ export default function PsmInvoicesView() {
                   return (
                     <tr key={inv.id}>
                       <td data-label="Invoice #" style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
-                        {inv.number}
+                        {invoiceNumber(inv)}
                       </td>
                       <td
                         data-label="Type"

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { invoiceNumber } from "@/lib/payment-reference";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
@@ -59,7 +60,7 @@ export default function InvoiceCard({
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Invoice #</span>
-              <span className="font-mono font-medium">{invoice.number}</span>
+              <span className="font-mono font-medium">{invoiceNumber(invoice)}</span>
             </div>
             {isAdmin && (
               <>

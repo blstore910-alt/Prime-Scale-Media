@@ -64,3 +64,28 @@ export function extractTopupReference(reference: string | null): string | null {
   if (!runs || runs.length === 0) return null;
   return runs.reduce((a, b) => (b.length >= a.length ? b : a));
 }
+
+/**
+ * An invoice's number as everyone should see it: client-code prefixed, the
+ * same shape as the payment reference that settles it.
+ *
+ * It matters that this is ONE function. The advertiser's own list was
+ * prefixing while every admin screen and the PDF filename printed the bare
+ * sequence, so the same invoice had two identities depending on who was
+ * looking — and those two people phone each other about it.
+ *
+ * Takes the embed in either shape, because PostgREST returns a to-one join
+ * as an object in some queries and a single-element array in others.
+ */
+export function invoiceNumber(invoice: {
+  number?: string | number | null;
+  advertiser?:
+    | { tenant_client_code?: string | null }
+    | Array<{ tenant_client_code?: string | null }>
+    | null;
+}): string {
+  const adv = Array.isArray(invoice.advertiser)
+    ? invoice.advertiser[0]
+    : invoice.advertiser;
+  return formatPaymentReference(adv?.tenant_client_code, invoice.number);
+}

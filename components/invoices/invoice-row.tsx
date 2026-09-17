@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { invoiceNumber } from "@/lib/payment-reference";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useAppContext } from "@/context/app-provider";
@@ -54,7 +55,7 @@ export default function InvoiceRow({
 
   return (
     <TableRow>
-      <TableCell className="font-mono">{invoice.number}</TableCell>
+      <TableCell className="font-mono">{invoiceNumber(invoice)}</TableCell>
       {isAdmin && (
         <>
           <TableCell>

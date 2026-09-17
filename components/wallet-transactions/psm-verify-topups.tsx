@@ -168,7 +168,11 @@ export default function PsmVerifyTopups({
           ]}
           searchActive={!!search.trim()}
           onReset={() => {
-            setStatus("pending");
+            // The screen's own default, not a repeat of the literal. Reset
+            // that does not return you to where the screen opens is a small
+            // lie, and the two would drift the moment a caller passed
+            // something else.
+            setStatus(defaultStatus);
             setCurrency("all");
             setSearch("");
           }}

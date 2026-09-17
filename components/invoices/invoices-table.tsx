@@ -1,6 +1,7 @@
 "use client";
 
 import { setInvoicePaidStatus } from "@/actions/invoice-actions";
+import { invoiceNumber } from "@/lib/payment-reference";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
 import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
@@ -134,7 +135,7 @@ export default function InvoicesTable() {
 
       const anchor = document.createElement("a");
       anchor.href = fileUrl;
-      anchor.download = `invoice-${invoice.number}.pdf`;
+      anchor.download = `invoice-${invoiceNumber(invoice)}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
