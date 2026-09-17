@@ -311,7 +311,12 @@ export const ADV_CSS = `
      squares sitting alone above it, which is exactly the layout this was
      meant to fix. At basis 0 it takes what is left and wraps INSIDE its
      column, beside the icon. */
-  .onbrow .onb-t{flex:1 1 0;min-width:0}
+  /* One line, always. The titles are written to fit beside a tick and an
+     icon at phone width; the ellipsis is a safety net for a longer one added
+     later, not something that should ever fire. Two-line titles beside a
+     one-line icon is what made this list look ragged. */
+  .onbrow .onb-t{flex:1 1 0;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .onbrow .onb-d{flex:1 1 100%;margin:0;padding-left:44px}
   .onbrow .ocat{flex:1 1 100%;margin:2px 0 0;justify-content:center}
   @media(min-width:561px){

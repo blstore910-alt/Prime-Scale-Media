@@ -109,7 +109,7 @@ export default function OnboardingChecklist({
   const steps: Step[] = [
     {
       id: "company",
-      title: "Complete your company details",
+      title: "Add your company details",
       desc: "Add your legal name, VAT ID and country so we can invoice you.",
       icon: "i-building",
       cta: "Add details",
@@ -127,7 +127,7 @@ export default function OnboardingChecklist({
     },
     {
       id: "account",
-      title: "Request your first ad account",
+      title: "Request an ad account",
       // No hours quoted. A number on screen is a promise, and this one is
       // not ours to make — it depends on the platform, not on us.
       desc: "We set it up for you on our verified Business Manager.",
@@ -138,7 +138,7 @@ export default function OnboardingChecklist({
     },
     {
       id: "affiliate",
-      title: "Explore the affiliate program",
+      title: "Earn as an affiliate",
       desc: "Refer other advertisers and earn commission on what they pay.",
       icon: "i-gift",
       cta: "Learn more",
