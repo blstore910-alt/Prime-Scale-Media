@@ -1,6 +1,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { Notification } from "@/lib/types/notification";
+import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function useNotifications() {
@@ -54,21 +55,36 @@ export default function useNotifications() {
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {
       if (!userId) throw new Error("Not authenticated");
-      const { error } = await supabase
+      // .select() and count: an UPDATE matching no rows is not an error in
+      // PostgREST, so without this a click that RLS refused (or a row
+      // someone else already removed) reported success, the list refetched,
+      // and the notification came back unread with nothing to explain it.
+      const { data: rows, error } = await supabase
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })
         .eq("id", id)
-        .eq("recipient_user_id", userId);
+        .eq("recipient_user_id", userId)
+        .select("id");
       if (error) throw error;
+      if (!rows || rows.length === 0) {
+        throw new Error("That notification could not be updated. Reload and try again.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
+    // Without this the thrown guard above is swallowed and the click still
+    // looks like it worked.
+    onError: (err: Error) =>
+      toast.error("Couldn't mark it read", { description: err.message }),
   });
 
   const markAllAsRead = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Not authenticated");
+      // No row count here ON PURPOSE: "mark whatever is unread as read"
+      // legitimately matches nothing when everything already is, and a
+      // guard would turn the ordinary case into an error.
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })
@@ -90,6 +106,8 @@ export default function useNotifications() {
       const cutoff = new Date(
         Date.now() - 30 * 86_400_000,
       ).toISOString();
+      // Also deliberately uncounted: most of the time there is nothing
+      // older than 30 days to clear.
       const { error } = await supabase
         .from("notifications")
         .delete()
