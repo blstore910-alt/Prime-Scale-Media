@@ -27,7 +27,6 @@ import useUpdateSubscriptionStatus from "./use-update-subscription-status";
 const PER_PAGE = 20;
 
 const advName = (s: Subscription) => s.advertiser?.profile?.full_name || "—";
-const clientCode = (s: Subscription) => s.advertiser?.tenant_client_code || "—";
 const initial = (s: Subscription) =>
   (s.advertiser?.profile?.full_name || "?").trim().charAt(0).toUpperCase() ||
   "?";
