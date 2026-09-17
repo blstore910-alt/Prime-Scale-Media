@@ -305,7 +305,13 @@ export const ADV_CSS = `
     transition:transform .14s,box-shadow .14s,border-color .14s}
   .onbrow:hover{transform:translateY(-1px);border-color:var(--line-2);
     box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 14px 26px -18px rgba(20,30,80,.55)}
-  .onbrow .onb-t{flex:1 1 auto;min-width:0}
+  /* flex-basis 0, not auto. With `auto` the title's own width is its basis,
+     so "Request your first ad account" was wider than the space left beside
+     a tick and an icon and wrapped to a line of its own — leaving two small
+     squares sitting alone above it, which is exactly the layout this was
+     meant to fix. At basis 0 it takes what is left and wraps INSIDE its
+     column, beside the icon. */
+  .onbrow .onb-t{flex:1 1 0;min-width:0}
   .onbrow .onb-d{flex:1 1 100%;margin:0;padding-left:44px}
   .onbrow .ocat{flex:1 1 100%;margin:2px 0 0;justify-content:center}
   @media(min-width:561px){
@@ -315,6 +321,10 @@ export const ADV_CSS = `
        the description tucks under both. */
     .onbrow .onb-t{flex:1 1 150px}
   }
+  /* The done row is the same shape, one size down — tick, icon, title, all
+     on one line. It reads as the finished version of the row above it
+     rather than as a different kind of thing. */
+  .onbrow.is-done .onb-t{flex:1 1 0}
   /* ── Get-started card ───────────────────────────────────────────────
      Quieter than it was. This is the first card on the dashboard, and it
      was also the loudest thing on it: a bright "1/4" pill reporting the
