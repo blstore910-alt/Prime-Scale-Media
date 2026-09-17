@@ -153,7 +153,7 @@ export default function ActivityLogsTable() {
       <div className="phead">
         <div>
           <h1>Activity Logs</h1>
-          <p>Monitor system activity and review audit events.</p>
+          <p>System activity and audit events.</p>
         </div>
       </div>
 

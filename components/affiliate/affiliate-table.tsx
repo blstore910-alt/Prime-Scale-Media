@@ -188,7 +188,7 @@ export default function AffiliatesTable() {
       <div className="phead">
         <div>
           <h1>Referral Links</h1>
-          <p>Approve or reject affiliate links and review their commissions.</p>
+          <p>Approve links, review commissions.</p>
         </div>
       </div>
 

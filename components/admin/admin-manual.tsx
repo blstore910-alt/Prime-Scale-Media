@@ -285,7 +285,7 @@ export default function AdminManual() {
       <div className="phead">
         <div>
           <h1>Admin handbook</h1>
-          <p>The money queues, customer records, and where each control lives.</p>
+          <p>Where each control lives.</p>
         </div>
       </div>
 

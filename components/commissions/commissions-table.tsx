@@ -183,7 +183,7 @@ export default function CommissionsTable() {
       <div className="phead">
         <div>
           <h1>Commissions</h1>
-          <p>View all commission earnings from affiliate referrals.</p>
+          <p>Earnings from referrals.</p>
         </div>
       </div>
 
