@@ -91,8 +91,7 @@ export async function GET() {
     activeAdAccountsResult,
     advertisersTotalResult,
     advertisersStatusesResult,
-    subscriptionsResult,
-    manualInvoicesResult,
+    invoiceRevenueResult,
     referralCommissionsResult,
     exchangeRateResult,
   ] = await Promise.all([
@@ -118,9 +117,8 @@ export async function GET() {
       .from("advertisers")
       .select("id, profile:user_profiles(status)")
       .eq("tenant_id", profile.tenant_id),
-    // Subscription revenue is what has actually been COLLECTED, so it reads
-    // paid subscription invoices — the same test the manual-invoice and
-    // commission queries below already apply.
+    // Invoice revenue is what has actually been COLLECTED, so it reads PAID
+    // invoices only.
     //
     // It used to read the subscriptions table filtered on status = 'active',
     // which counted a plan's full monthly amount from the moment the
@@ -128,17 +126,18 @@ export async function GET() {
     // the plan amount the instant an advertiser registered, before a single
     // invoice had been paid — and it was a run-rate, one month's fee per
     // active plan, not a total of anything.
+    //
+    // All three revenue types are counted. `subscription_adjustment` was
+    // being dropped: when a plan moves up, the RPC raises an adjustment
+    // invoice for the difference rather than re-issuing the subscription
+    // invoice, so every upgrade a customer paid for was missing from profit.
+    // (A downgrade refunds through `wallet_adjustments`, not a negative
+    // invoice, so there is nothing to subtract here.)
     supabase
       .from("invoices")
       .select("total, currency")
       .eq("tenant_id", profile.tenant_id)
-      .eq("type", "subscription")
-      .eq("status", "paid"),
-    supabase
-      .from("invoices")
-      .select("total, currency")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("type", "manual_invoice")
+      .in("type", ["subscription", "subscription_adjustment", "manual_invoice"])
       .eq("status", "paid"),
     supabase
       .from("referral_commissions")
@@ -159,8 +158,7 @@ export async function GET() {
     activeAdAccountsResult.error,
     advertisersTotalResult.error,
     advertisersStatusesResult.error,
-    subscriptionsResult.error,
-    manualInvoicesResult.error,
+    invoiceRevenueResult.error,
     referralCommissionsResult.error,
     exchangeRateResult.error,
   ].filter(Boolean);
@@ -183,44 +181,51 @@ export async function GET() {
   const topups = (topupsResult.data || []) as TopupRow[];
   const advertiserStatuses = (advertisersStatusesResult.data ||
     []) as AdvertiserStatusRow[];
-  const subscriptions = (subscriptionsResult.data || []) as InvoiceRow[];
-  const manualInvoices = (manualInvoicesResult.data || []) as InvoiceRow[];
+  const invoiceRevenue = (invoiceRevenueResult.data || []) as InvoiceRow[];
   const referralCommissions = (referralCommissionsResult.data ||
     []) as CurrencyAmountRow[];
 
+  // ── The one thing to understand about `top_ups` ──────────────────────
+  // `topup_amount` and `fee_amount` are ALWAYS USD. calculateTopupAmount()
+  // (and the matching server RPC) divide the received amount by the rate
+  // first, then take the fee off the USD figure — an ad account is funded in
+  // dollars whatever the customer paid in. The `currency` column says what
+  // the CUSTOMER PAID IN, not what these two columns are denominated in.
+  //
+  // This used to add `fee_amount` straight into a EUR bucket and then into
+  // profit unconverted, so every euro-paying customer's fee was counted at
+  // its dollar figure: ~16% more profit than we earned, growing with every
+  // EUR top-up. The split by payment currency is worth keeping — it says who
+  // pays us how — but the EUR side has to be converted to be true.
   const totals = topups.reduce(
     (acc, topup) => {
       const currency = normalizeCurrency(topup.currency);
+      if (!currency) return acc;
+
       const topupAmount = toNumber(topup.topup_amount);
       const feeAmount = toNumber(topup.fee_amount);
 
-      if (currency) {
-        acc.topups[currency] += topupAmount;
-      }
-
-      if (currency) {
-        acc.fees[currency] += feeAmount;
-      }
-
-      if (currency && feeAmount > 0) {
-        acc.fees.count += 1;
-      }
+      acc.topupsUsd[currency] += topupAmount;
+      acc.feesUsd[currency] += feeAmount;
+      if (feeAmount > 0) acc.feeCount += 1;
 
       return acc;
     },
     {
-      topups: { count: topups.length, usd: 0, eur: 0 },
-      fees: { count: 0, usd: 0, eur: 0 },
+      topupsUsd: { usd: 0, eur: 0 },
+      feesUsd: { usd: 0, eur: 0 },
+      feeCount: 0,
     },
   );
 
-  const feesProfit = totals.fees.eur + totals.fees.usd * usdToEurRate;
-  const subscriptionsProfit = subscriptions.reduce((sum, invoice) => {
-    return (
-      sum + convertToEur(toNumber(invoice.total), invoice.currency, usdToEurRate)
-    );
-  }, 0);
-  const manualInvoicesProfit = manualInvoices.reduce((sum, invoice) => {
+  // Displayed under a € sign, so it is converted; the dollar bucket is
+  // already in dollars.
+  const topupsEurPaid = totals.topupsUsd.eur * usdToEurRate;
+  const feesEurPaid = totals.feesUsd.eur * usdToEurRate;
+
+  // Every fee is a USD fee, so profit in EUR is the whole lot converted.
+  const feesProfit = (totals.feesUsd.usd + totals.feesUsd.eur) * usdToEurRate;
+  const invoicesProfit = invoiceRevenue.reduce((sum, invoice) => {
     return (
       sum + convertToEur(toNumber(invoice.total), invoice.currency, usdToEurRate)
     );
@@ -238,11 +243,7 @@ export async function GET() {
     },
     0,
   );
-  const totalProfit =
-    feesProfit +
-    subscriptionsProfit +
-    manualInvoicesProfit -
-    referralCommissionsCost;
+  const totalProfit = feesProfit + invoicesProfit - referralCommissionsCost;
 
   const activeAdvertisersCount = advertiserStatuses.reduce((count, advertiser) => {
     return advertiser.profile?.status === "active" ? count + 1 : count;
@@ -250,14 +251,14 @@ export async function GET() {
 
   return NextResponse.json({
     total_topups: {
-      count: totals.topups.count,
-      usd_amount: Number(totals.topups.usd.toFixed(2)),
-      eur_amount: Number(totals.topups.eur.toFixed(2)),
+      count: topups.length,
+      usd_amount: Number(totals.topupsUsd.usd.toFixed(2)),
+      eur_amount: Number(topupsEurPaid.toFixed(2)),
     },
     total_fees: {
-      count: totals.fees.count,
-      usd_amount: Number(totals.fees.usd.toFixed(2)),
-      eur_amount: Number(totals.fees.eur.toFixed(2)),
+      count: totals.feeCount,
+      usd_amount: Number(totals.feesUsd.usd.toFixed(2)),
+      eur_amount: Number(feesEurPaid.toFixed(2)),
     },
     revenue_profit: {
       total_profit: Number(totalProfit.toFixed(2)),
