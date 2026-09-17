@@ -107,13 +107,18 @@ export default function WalletTransactionDetailsSheet({
   const approvedByEmail = topup?.approved_by_profile?.email ?? "-";
   const hasApprovedBy =
     Boolean(topup?.approved_by_profile) || Boolean(topup?.approved_by);
-  const isTabletScreen = useIsTablet() ?? true;
+  // ?? false, not ?? true. The hook is undefined until the media query has
+  // been read, and defaulting to TABLET meant the first paint on a phone
+  // was a right-side sheet — which the base gives w-3/4, a 270px drawer —
+  // and then snapped to a bottom sheet. Phone-shaped is the safe guess
+  // here: it is the narrower layout, so it never overflows.
+  const isTabletScreen = useIsTablet() ?? false;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={isTabletScreen ? "right" : "bottom"}
-        className={`sm:max-w-md overflow-y-auto ${isTabletScreen ? "h-full" : "max-h-[85vh]"}`}
+        className={`sm:max-w-md overflow-y-auto ${isTabletScreen ? "h-full" : "max-h-[85dvh]"}`}
       >
         <SheetHeader className="sticky top-0 z-10 bg-background border-b">
           <div className="flex items-baseline justify-between gap-3">

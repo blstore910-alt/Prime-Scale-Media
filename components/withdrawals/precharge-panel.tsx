@@ -180,8 +180,12 @@ export default function PrechargePanel() {
                     {r.reference ?? "—"}
                   </TableCell>
                   {/* Code first, name beneath — the same identity block every
-                      other admin list uses. */}
-                  <TableCell>
+                      other admin list uses. data-label like its five
+                      siblings: without it this rendered as a bare client
+                      code between two money columns in card mode, on the
+                      screen where you decide whether somebody still owes
+                      an advance. */}
+                  <TableCell data-label="Advertiser:">
                     <div className="text-sm font-semibold">
                       {r.advertiser?.tenant_client_code ?? "—"}
                     </div>
@@ -201,7 +205,7 @@ export default function PrechargePanel() {
                   >
                     {formatCurrency(Number(r.outstanding), r.currency)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Status:">
                     <Badge
                       className={`border-transparent capitalize ${
                         r.status === "outstanding"
@@ -212,7 +216,7 @@ export default function PrechargePanel() {
                       {r.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="sm:text-right">
+                  <TableCell className="sm:text-right" data-label="">
                     {r.status === "outstanding" ? (
                       <Button
                         size="sm"

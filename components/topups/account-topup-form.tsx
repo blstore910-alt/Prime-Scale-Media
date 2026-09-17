@@ -352,7 +352,10 @@ export default function AccountTopupForm({
               max={hasWallet ? selectedBalance : undefined}
               className="pl-7"
               disabled={!hasWallet}
-              step={0.1}
+              // 0.01, not 0.1. A step of a tenth makes the browser refuse any exact
+                // cent amount — 100.25 fails the step check and the form will not
+                // submit, with no message that says why.
+                step={0.01}
               description={amountDescription}
             />
           </div>

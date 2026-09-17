@@ -500,7 +500,15 @@ export const ADV_CSS = `
     /* No hairline between every field. A five-field card had four rules
        through it, which is more furniture than content; spacing separates
        them perfectly well and the card keeps one line above its action. */
-    .tbl.wide td{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:3px 16px;padding:5px 0;border:0;text-align:right;min-width:0}
+    /* minmax on the label column, and anywhere-break on the value. The
+       admin shell caps its label column for exactly this reason and this
+       one did not, so a long unbreakable token in the value — a reference
+       number, an IBAN — had an uncapped 1fr to grow into and pushed the
+       table past its wrapper into a sideways scroll. Only the FIRST cell
+       had overflow-wrap; the rest are values, which is where the long
+       tokens actually live. */
+    .tbl.wide td{display:grid;grid-template-columns:minmax(88px,auto) 1fr;align-items:baseline;gap:3px 16px;padding:5px 0;border:0;text-align:right;min-width:0}
+    .tbl.wide td>*{overflow-wrap:anywhere}
     .tbl.wide td::before{content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
     .tbl.wide td>*{grid-column:2;min-width:0}
     .tbl.wide td>span{justify-self:end}
@@ -625,6 +633,38 @@ export const ADV_CSS = `
     .bb{gap:3px;font-size:.62rem;letter-spacing:.01em;padding:5px 2px;border-radius:12px;
       transition:color .16s ease,transform .12s ease}
     .bb:active{transform:scale(.94)}
+  }
+
+    /* ── A thumb needs 44px, and these are 26 to 37 ──────────────────────
+     The admin shell grew its hit areas for exactly this reason and the two
+     shells REAL CUSTOMERS use never got the same treatment. Measured here:
+     the settings toggles are 26px tall, a modal close 34, the quick-amount
+     chips about 35, the segmented control about 37 — against the ~44px a
+     thumb hits reliably.
+
+     The hit area grows and the control does not, via an overlay pinned to
+     it, and VERTICAL ONLY: these sit in rows with small gaps, and a wider
+     overlay would reach into a neighbour — on overlap the later element in
+     the DOM wins, so the button beside the one you aimed at would fire. A
+     wrong action is worse than a missed one.
+
+     pointer:coarse only: with a mouse the visible edge IS the target. */
+  @media (pointer:coarse){
+    .sw,
+    .chip,
+    .seg2 button,
+    .mhead .iconbtn,
+    .actrow .btn,
+    .btn.sm{position:relative}
+    .sw::after,
+    .chip::after,
+    .seg2 button::after,
+    .mhead .iconbtn::after,
+    .actrow .btn::after,
+    .btn.sm::after{
+      content:"";position:absolute;left:0;right:0;top:50%;
+      transform:translateY(-50%);height:44px;
+    }
   }
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

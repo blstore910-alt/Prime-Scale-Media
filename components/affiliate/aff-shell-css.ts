@@ -424,6 +424,38 @@ export const AFF_CSS = `
     .bb:active{transform:scale(.94)}
   }
 
+    /* ── A thumb needs 44px, and these are 26 to 37 ──────────────────────
+     The admin shell grew its hit areas for exactly this reason and the two
+     shells REAL CUSTOMERS use never got the same treatment. Measured here:
+     the settings toggles are 26px tall, a modal close 34, the quick-amount
+     chips about 35, the segmented control about 37 — against the ~44px a
+     thumb hits reliably.
+
+     The hit area grows and the control does not, via an overlay pinned to
+     it, and VERTICAL ONLY: these sit in rows with small gaps, and a wider
+     overlay would reach into a neighbour — on overlap the later element in
+     the DOM wins, so the button beside the one you aimed at would fire. A
+     wrong action is worse than a missed one.
+
+     pointer:coarse only: with a mouse the visible edge IS the target. */
+  @media (pointer:coarse){
+    .sw,
+    .chip,
+    .seg2 button,
+    .mhead .iconbtn,
+    .actrow .btn,
+    .btn.sm{position:relative}
+    .sw::after,
+    .chip::after,
+    .seg2 button::after,
+    .mhead .iconbtn::after,
+    .actrow .btn::after,
+    .btn.sm::after{
+      content:"";position:absolute;left:0;right:0;top:50%;
+      transform:translateY(-50%);height:44px;
+    }
+  }
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ── The iOS zoom trap ────────────────────────────────────────────────

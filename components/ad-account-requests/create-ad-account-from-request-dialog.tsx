@@ -180,7 +180,10 @@ export default function CreateAdAccountFromRequestDialog({
           id="create-account-from-request-form"
           onSubmit={form.handleSubmit((values) => mutate(values))}
         >
-          <div className="max-h-[68vh] overflow-y-auto space-y-4 px-1 py-1">
+          {/* dvh and smaller: 68vh plus a header plus a footer is past the
+            92dvh sheet, which pushed the Create button below the fold
+            behind a nested scroller. */}
+        <div className="max-h-[55dvh] overflow-y-auto space-y-4 px-1 py-1">
             <InputField
               label="Account Name"
               name="name"

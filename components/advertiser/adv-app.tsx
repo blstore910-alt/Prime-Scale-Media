@@ -1526,7 +1526,10 @@ export default function AdvertiserApp() {
                                 {money2(x.from_amount)} to{" "}
                                 {x.to_currency}
                                 {x.exchange_rate
-                                  ? ` at ${money2(x.exchange_rate)}`
+                                  ? ` at ${// The rate, at the precision it is STORED at. money2 printed 0.8612
+                          // as "0.86", so the row did not reconcile: the amounts
+                          // beside it are exact and the rate they came from was not.
+                          Number(x.exchange_rate).toFixed(4)}`
                                   : ""}
                               </td>
                               <td

@@ -254,7 +254,13 @@ export default function InviteForm() {
         dispatch("close-invite-user");
       }}
     >
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      {/* No max-h/overflow of its own: the base DialogContent already sets
+          max-h-[92dvh] and overflow-y-auto, and an unprefixed 90vh here
+          fought it at equal specificity — whichever Tailwind emitted
+          last won, and if 90vh won the sheet was taller than the
+          visible viewport and "Send invite" started below the fold on
+          the longest form in the admin app. */}
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Invite a Member</DialogTitle>
           <DialogDescription>
