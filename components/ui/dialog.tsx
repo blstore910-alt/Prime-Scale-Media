@@ -51,6 +51,13 @@ const DialogContent = React.forwardRef<
         "inset-x-0 bottom-0 top-auto w-full max-h-[92dvh] rounded-t-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]",
         "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
         // From sm up it becomes the centred card again.
+        //
+        // NOTE FOR CALL SITES: the width here is `sm:max-w-lg`, so a call
+        // site that wants a wider dialog must ALSO use the sm: prefix.
+        // `className="max-w-2xl"` looks like it works and does not: below sm
+        // it caps a sheet that should be full width, and from sm up this
+        // prefixed class wins, so the dialog silently stays lg. Four call
+        // sites were written that way.
         "sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:max-h-[90dvh]",
         "sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:p-6 sm:pb-6",
         "sm:data-[state=open]:slide-in-from-bottom-4 sm:data-[state=closed]:slide-out-to-bottom-4",

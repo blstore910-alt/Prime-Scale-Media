@@ -333,7 +333,7 @@ export function DashboardStatsCards() {
       {isMobile ? (
         <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
           <DialogTrigger asChild>{rangeTrigger}</DialogTrigger>
-          <DialogContent className="max-w-[340px] rounded-lg p-0">
+          <DialogContent className="p-0 sm:max-w-[340px] sm:rounded-2xl">
             <DialogHeader className="px-4 pt-4">
               <DialogTitle>Select Date Range</DialogTitle>
             </DialogHeader>

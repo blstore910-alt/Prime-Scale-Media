@@ -37,7 +37,7 @@ export default function ExchangeRateLogs() {
           See Logs
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Exchange Rates Logs</DialogTitle>
           <DialogDescription>

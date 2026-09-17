@@ -53,7 +53,7 @@ export default function VerifyTopupDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Verify Top-up</DialogTitle>
           <DialogDescription>

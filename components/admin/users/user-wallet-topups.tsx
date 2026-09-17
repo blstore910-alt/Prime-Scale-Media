@@ -56,7 +56,7 @@ export default function UserWalletTopups({
                 View Details
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Wallet Topup Details</DialogTitle>
               </DialogHeader>
