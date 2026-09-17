@@ -157,6 +157,11 @@ function ExchangeRatesForm({
   return (
     <form id="exchange-rates-form" onSubmit={handleSubmit(onSubmit)}>
       <CardContent>
+        {/* step="any". These rates carry six decimals — 0.872361 — and
+            step="0.01" made every one of them fail the browser's own step
+            validation, so the field sat in an :invalid state and the spinner
+            arrows rounded a live exchange rate to two places. 0.87 instead
+            of 0.872361 is a 0.27% error on every conversion the app does. */}
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <Label htmlFor="gbp-field" className="shrink-0">
@@ -168,7 +173,7 @@ function ExchangeRatesForm({
               id="gbp-field"
               className="max-w-40 ml-auto text-right"
               type="number"
-              step="0.01"
+              step="any"
             />
           </div>
 
@@ -182,7 +187,7 @@ function ExchangeRatesForm({
               id="eur-field"
               className="max-w-40 ml-auto text-right"
               type="number"
-              step="0.01"
+              step="any"
             />
           </div>
 
@@ -196,7 +201,7 @@ function ExchangeRatesForm({
               id="hkd-field"
               className="max-w-40 ml-auto text-right"
               type="number"
-              step="0.01"
+              step="any"
             />
           </div>
         </div>
