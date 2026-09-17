@@ -405,10 +405,19 @@ export default function AccountsTable() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
+                        {/* The statuses that are actually STORED.
+                            "inactive" was offered and can never match — it
+                            is derived from the top-up history, nothing
+                            writes it — so the filter returned an empty list
+                            while the table visibly showed accounts badged
+                            Inactive. Meanwhile disabled and banned, the two
+                            an admin can actually set, could not be filtered
+                            for at all. */}
                         <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="active">active</SelectItem>
-                        <SelectItem value="paused">paused</SelectItem>
-                        <SelectItem value="inactive">inactive</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="disabled">Disabled</SelectItem>
+                        <SelectItem value="banned">Banned</SelectItem>
+                        <SelectItem value="paused">Paused</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -604,7 +613,11 @@ export default function AccountsTable() {
                 { value: "all", label: "All statuses" },
                 { value: "active", label: "Active" },
                 { value: "paused", label: "Paused" },
-                { value: "inactive", label: "Inactive" },
+                // Stored statuses only — "inactive" is derived from the
+                // top-up history and matches no row. See the note on the
+                // advertiser filter above.
+                { value: "disabled", label: "Disabled" },
+                { value: "banned", label: "Banned" },
               ],
             },
           ]}

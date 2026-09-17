@@ -15,7 +15,6 @@ import {
   Loader2,
   Plus,
   Search,
-  XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
@@ -371,7 +370,14 @@ export default function InvoicesTable() {
                                 unambiguous. */}
                             <td className="r fullcell" data-label="Actions">
                               <div className="actrow">
-                                {isAdmin && !isVoid && (
+                                {/* Not on a PAID invoice. setInvoicePaidStatus
+                                    refuses every paid→unpaid transition
+                                    unconditionally, so "Mark Unpaid" was a
+                                    control that produced a red toast 100% of
+                                    the time — there is no state in which it
+                                    can succeed. Correcting a wrongly-paid
+                                    invoice is an adjustment, not a toggle. */}
+                                {isAdmin && !isVoid && !isPaid && (
                                   <button
                                     className="btn ghost sm"
                                     disabled={isUpdatingStatus}
@@ -379,12 +385,10 @@ export default function InvoicesTable() {
                                   >
                                     {isUpdatingStatus ? (
                                       <Loader2 className="animate-spin" />
-                                    ) : isPaid ? (
-                                      <XCircle />
                                     ) : (
                                       <CheckCircle />
                                     )}
-                                    {isPaid ? "Mark unpaid" : "Mark paid"}
+                                    Mark paid
                                   </button>
                                 )}
                                 <button

@@ -103,8 +103,21 @@ export default function OnboardingChecklist({
     saveState(advertiserId, merged);
   };
 
+  // THE SAME TEST THE APP ACTUALLY GATES ON. This checked three fields of
+  // twelve, so a green tick sat directly above the red chip "Add your
+  // company details to top up or request an account" — and a company that
+  // ticked "not VAT registered" could never satisfy it at all, because it
+  // demanded a VAT number the app itself says is optional. See
+  // companyComplete in adv-app.tsx: the invoice is built from these.
   const companyDone =
-    !!str(company?.name) && !!str(company?.vat_no) && !!str(company?.country);
+    !!str(company?.name) &&
+    !!str(company?.official_email) &&
+    !!str(company?.phone) &&
+    !!str(company?.address) &&
+    !!str(company?.country) &&
+    !!str(company?.state) &&
+    !!str(company?.zipcode) &&
+    (!!str(company?.vat_no) || company?.is_not_vat === true);
 
   const steps: Step[] = [
     {
@@ -113,7 +126,12 @@ export default function OnboardingChecklist({
       desc: "Add your legal name, VAT ID and country so we can invoice you.",
       icon: "i-building",
       cta: "Add details",
-      view: "settings",
+      // NOT "settings". The settings card saves `companies` only —
+      // updateOwnProfileAndCompany never touches `billings`, which the
+      // gate also requires — so a customer filled it in, read "Company
+      // saved", and nothing unlocked. /complete-profile is the form that
+      // writes both.
+      view: "complete-profile",
       auto: companyDone,
     },
     {

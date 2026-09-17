@@ -90,12 +90,34 @@ function initials(name?: string | null) {
   );
 }
 
+// Every status an ad account can hold, and NOT an "anything else is fine"
+// fallback. That fallback is how `disabled` — the status an admin actually
+// picks to switch an account off, and the one the pool-release guard tells
+// them to use — came out GREEN and reading "disabled", with a live Top up
+// button beside it. A status we do not recognise is not a working account;
+// it is a status nobody has taught this screen, and the customer should
+// not be invited to put money on it.
+const ACCOUNT_LOCKED_STATUSES = [
+  "banned",
+  "paused",
+  "pending",
+  "disabled",
+  "suspended",
+  "rejected",
+  "closed",
+];
+
 const statusBadge = (st: string | null) => {
-  if (st === "active") return { cls: "ok", label: "Active" };
-  if (st === "paused") return { cls: "pend", label: "Paused" };
-  if (st === "pending") return { cls: "pend", label: "Setting up" };
-  if (st === "banned") return { cls: "due", label: "Banned" };
-  return { cls: "ok", label: st ?? "Active" };
+  const v = (st ?? "").trim().toLowerCase();
+  if (v === "active") return { cls: "ok", label: "Active" };
+  if (v === "paused") return { cls: "pend", label: "Paused" };
+  if (v === "pending") return { cls: "pend", label: "Setting up" };
+  if (v === "banned") return { cls: "due", label: "Banned" };
+  if (v === "disabled") return { cls: "due", label: "Switched off" };
+  if (v === "suspended") return { cls: "due", label: "Suspended" };
+  if (v === "inactive") return { cls: "muted", label: "Inactive" };
+  if (!v) return { cls: "ok", label: "Active" };
+  return { cls: "pend", label: v.charAt(0).toUpperCase() + v.slice(1) };
 };
 
 export default function AdvertiserApp() {
@@ -862,8 +884,12 @@ export default function AdvertiserApp() {
 
   const AccountCard = ({ a }: { a: AdAccount }) => {
     const b = statusBadge(a.status);
-    const locked =
-      a.status === "banned" || a.status === "paused" || a.status === "pending";
+    // Locked for money, not just for looks: a switched-off account must
+    // not offer a Top up button, and until now `disabled` was not in this
+    // list at all.
+    const locked = ACCOUNT_LOCKED_STATUSES.includes(
+      (a.status ?? "").trim().toLowerCase(),
+    );
     return (
       <div
         className={`acard${a.status === "banned" ? " banned" : ""}`}
@@ -891,13 +917,28 @@ export default function AdvertiserApp() {
         </div>
         {locked ? (
           <div className="acts">
+            {/* A sentence per state, and nothing falls through to
+                "setting up" — an account somebody switched off should not
+                tell the customer it is nearly ready. */}
             <div className={`lockmsg${a.status === "banned" ? " banned" : ""}`}>
-              <Ic name={a.status === "banned" ? "i-shield" : "i-clock"} />
+              <Ic
+                name={
+                  a.status === "banned" || a.status === "disabled"
+                    ? "i-shield"
+                    : "i-clock"
+                }
+              />
               {a.status === "banned"
-                ? "Locked by PSM — top-ups & withdrawals are disabled."
-                : a.status === "paused"
-                  ? "Paused by PSM — actions are temporarily disabled."
-                  : "Setting up — this account will be ready shortly."}
+                ? "Closed by the platform — top-ups and withdrawals are off."
+                : a.status === "disabled"
+                  ? "Switched off — top-ups are off. Message us if that's unexpected."
+                  : a.status === "suspended"
+                    ? "Suspended — top-ups are off while we look into it."
+                    : a.status === "paused"
+                      ? "Paused — actions are off for now."
+                      : a.status === "pending"
+                        ? "Setting up — this account will be ready shortly."
+                        : "This account isn't taking top-ups right now."}
             </div>
           </div>
         ) : (
@@ -1109,7 +1150,17 @@ export default function AdvertiserApp() {
               eurBalance={eurBal}
               usdBalance={usdBal}
               accountsCount={(accounts ?? []).length}
-              onNavigate={(v) => go(v as View)}
+              onNavigate={(v) => {
+                // The company step points at /complete-profile, which is a
+                // ROUTE rather than one of this app's views — it is the only
+                // form that writes both companies and billings, and the
+                // billing row is half of what the gate checks.
+                if (v === "complete-profile") {
+                  router.push("/complete-profile");
+                  return;
+                }
+                go(v as View);
+              }}
             />
             {!companyComplete && (
               /* The app no longer blocks the door with this form, so it has

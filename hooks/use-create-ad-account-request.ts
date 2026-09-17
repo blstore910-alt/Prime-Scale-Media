@@ -42,7 +42,12 @@ export const useCreateAdAccountRequest = () => {
     },
     onSuccess: () => {
       toast.success(
-        "Ad Account Request submitted — the fee was charged to your wallet.",
+        // Not "the fee was charged": the RPC sets the fee to 0 and debits
+        // nothing when the request is covered by the plan or a perk, and the
+        // form said "Included in your plan — no fee" one tap earlier. Two
+        // contradictory statements in five seconds is how a customer ends up
+        // checking their balance instead of trusting the screen.
+        "Request sent — we'll set the account up and it will appear here.",
       );
     },
     onError: (error) => {

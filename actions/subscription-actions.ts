@@ -144,13 +144,39 @@ export async function setSubscriptionStatus(
 
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("id, tenant_id")
+    .select("id, tenant_id, advertiser_id")
     .eq("id", subscriptionId)
     .maybeSingle();
   if (!sub) return { ok: false, error: "Subscription not found" };
   if (sub.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
   }
+
+  // ── One active subscription per advertiser, on ACTIVATION too ───────
+  // createSubscriptionAsAdmin refuses a second while another is active —
+  // but it inserts as 'inactive', and this function had no such check. So
+  // New → New → Activate → Activate leaves TWO active rows, and
+  // subscription_billing_run invoices both every month, while the
+  // customer's own screen reads `order by start_date desc limit 1` and
+  // shows only the newer plan. They are billed twice and can only see —
+  // and only pay — one of them.
+  if (status === "active" && sub.advertiser_id) {
+    const { data: others } = await supabase
+      .from("subscriptions")
+      .select("id")
+      .eq("advertiser_id", sub.advertiser_id)
+      .eq("status", "active")
+      .neq("id", subscriptionId)
+      .limit(1);
+    if ((others ?? []).length > 0) {
+      return {
+        ok: false,
+        error:
+          "This advertiser already has an active subscription. Stop that one first — two active plans bill them twice.",
+      };
+    }
+  }
+
   if (!(await checkVersion(supabase, "subscriptions", subscriptionId, ifUpdatedAt))) {
     return {
       ok: false,
