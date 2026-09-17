@@ -63,7 +63,7 @@ export default function AdminsTable() {
     enabled: !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
-      let query = supabase
+      const query = supabase
         .from("user_profiles")
         .select(
           "id, full_name, email, status, is_active, created_at, last_seen_at",
