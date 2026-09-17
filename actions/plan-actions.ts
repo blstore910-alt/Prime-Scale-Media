@@ -10,6 +10,7 @@ import {
   type ActionResult,
   resolveAdminContext,
   versionMatches,
+  wroteSomething,
 } from "./_shared";
 
 const KINDS: PlanKind[] = ["tier", "community"];
@@ -128,12 +129,18 @@ export async function upsertPlan(input: {
         code: "conflict",
       };
     }
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from("plans")
       .update(patch)
       .eq("id", input.id)
-      .eq("tenant_id", profile.tenant_id);
+      .eq("tenant_id", profile.tenant_id)
+      .select("id");
     if (error) return { ok: false, error: error.message };
+    // A plan carries the monthly fee, the included accounts and the topup
+    // fee an advertiser is invited on. A save that quietly wrote nothing
+    // means the next invite uses the old numbers.
+    const wrote = wroteSomething(rows);
+    if (!wrote.ok) return wrote;
     return { ok: true, data: { id: input.id } };
   }
 

@@ -324,7 +324,7 @@ export async function assignSupplierAdAccount(input: {
   if (createError || !created) {
     // Release the claim so the account goes back in the pool instead of being
     // stuck allocated-to-nothing.
-    await supabase
+    const { data: releasedRows } = await supabase
       .from("supplier_ad_accounts")
       .update({
         advertiser_id: null,
@@ -332,7 +332,18 @@ export async function assignSupplierAdAccount(input: {
         assigned_by: null,
       })
       .eq("id", pool.id)
-      .eq("tenant_id", profile.tenant_id);
+      .eq("tenant_id", profile.tenant_id)
+      .select("id");
+    // The release is what puts the account back in the pool. If it matched
+    // nothing the account is stuck allocated-to-nobody and will never be
+    // offered again — silent, and only findable by reading the table. Say so
+    // in the log next to the failure that caused it.
+    if (!releasedRows || releasedRows.length === 0) {
+      console.error(
+        "pool allocate rollback wrote no rows — account may be stuck claimed:",
+        pool.id,
+      );
+    }
     console.error("pool allocate insert failed:", safeErrorMessage(createError));
     return { ok: false, error: createError?.message ?? "Could not create ad account" };
   }
@@ -340,13 +351,20 @@ export async function assignSupplierAdAccount(input: {
   // Link the two. Best-effort: the allocation itself already holds, and
   // leaving ad_account_id unset only affects the auto-push lookup, which is
   // recoverable by re-allocating.
-  const { error: linkError } = await supabase
+  const { data: linkRows, error: linkError } = await supabase
     .from("supplier_ad_accounts")
     .update({ ad_account_id: created.id })
     .eq("id", pool.id)
-    .eq("tenant_id", profile.tenant_id);
-  if (linkError) {
-    console.error("pool link failed:", safeErrorMessage(linkError));
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
+  // Best-effort by design, but a write that matched NOTHING has exactly the
+  // same consequence as one that errored, and only the errored one was being
+  // logged.
+  if (linkError || !linkRows || linkRows.length === 0) {
+    console.error(
+      "pool link failed:",
+      linkError ? safeErrorMessage(linkError) : "no rows matched",
+    );
   }
 
   // What WE pay AND where the account came from both go in the admin-only

@@ -10,6 +10,7 @@ import {
   type ActionResult,
   resolveAdminContext,
   versionMatches,
+  wroteSomething,
 } from "./_shared";
 
 const GROUPS: AdAccountPlatformGroup[] = ["meta", "google", "tiktok"];
@@ -174,12 +175,18 @@ export async function upsertAdAccountType(input: {
     if (typeof input.is_active === "boolean") patch.is_active = input.is_active;
     if (typeof input.sort_order === "number") patch.sort_order = input.sort_order;
 
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from("ad_account_types")
       .update(patch)
       .eq("id", input.id)
-      .eq("tenant_id", profile.tenant_id);
+      .eq("tenant_id", profile.tenant_id)
+      .select("id");
     if (error) return { ok: false, error: error.message };
+    // An UPDATE that matches nothing is not an error in PostgREST, so this
+    // used to report a saved fee change that never happened — and the fee is
+    // what every future top-up on that type is charged at.
+    const wrote = wroteSomething(rows);
+    if (!wrote.ok) return wrote;
     return { ok: true, data: { id: input.id } };
   }
 

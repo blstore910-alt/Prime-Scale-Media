@@ -148,6 +148,9 @@ export async function upsertExchangeRate(
   // saving again. The other order could leave two active rows, which is the
   // state we are removing.
   if (makeActive) {
+    // No row count here ON PURPOSE: "stand down whatever is active" matches
+    // nothing on a tenant that has never had an active rate, which is the
+    // normal first-save case.
     const { error: standDownError } = await supabase
       .from("exchange_rates")
       .update({ is_active: false })

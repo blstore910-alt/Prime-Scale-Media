@@ -7,6 +7,7 @@ import {
   maintenanceGuard,
   versionMatches,
   type ActionResult,
+  wroteSomething,
 } from "./_shared";
 
 type CallerContext = {
@@ -132,7 +133,7 @@ export async function toggleAdminStatus(
 
   const nextStatus = target.status === "active" ? "inactive" : "active";
 
-  const { error: updateError } = await supabase
+  const { data: adminRows, error: updateError } = await supabase
     .from("user_profiles")
     .update({
       status: nextStatus,
@@ -140,10 +141,18 @@ export async function toggleAdminStatus(
       updated_at: new Date().toISOString(),
     })
     .eq("id", adminId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
 
   if (updateError) {
     return { ok: false, error: updateError.message };
+  }
+  // Deactivating an admin who stays active is the one failure this action
+  // must never report as success — the same bug updateUserProfile had, and
+  // here it leaves someone holding powers the owner thinks they removed.
+  {
+    const wrote = wroteSomething(adminRows);
+    if (!wrote.ok) return wrote;
   }
 
   return { ok: true, data: { status: nextStatus } };
@@ -238,6 +247,10 @@ export async function updateUserProfile(
     }
     const advertiserIds = (advertisers ?? []).map((a) => a.id);
     if (advertiserIds.length > 0) {
+      // No row count here ON PURPOSE. This is a bulk "make sure none of
+      // their subscriptions are still running", and an advertiser with no
+      // active subscription legitimately matches nothing. A guard would turn
+      // the ordinary case into an error.
       const { error: subError } = await supabase
         .from("subscriptions")
         .update({ status: "inactive" })
@@ -343,12 +356,20 @@ export async function updateAffiliate(
     };
   }
 
-  const { error } = await supabase
+  const { data: writtenRows, error } = await supabase
     .from("affiliates")
     .update(cleaned)
     .eq("id", affiliateId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // An UPDATE matching NO rows is not an error in PostgREST, so this
+  // used to report a change that never happened and the screen then
+  // re-rendered the old value.
+  {
+    const wrote = wroteSomething(writtenRows);
+    if (!wrote.ok) return wrote;
+  }
   return { ok: true, data: null };
 }
 
@@ -379,12 +400,20 @@ export async function approveAffiliate(
     };
   }
 
-  const { error } = await supabase
+  const { data: writtenRows, error } = await supabase
     .from("affiliates")
     .update({ status: "active" })
     .eq("id", affiliateId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // An UPDATE matching NO rows is not an error in PostgREST, so this
+  // used to report a change that never happened and the screen then
+  // re-rendered the old value.
+  {
+    const wrote = wroteSomething(writtenRows);
+    if (!wrote.ok) return wrote;
+  }
   return { ok: true, data: null };
 }
 
@@ -421,12 +450,20 @@ export async function rejectAffiliate(
     patch.note = reason.trim().slice(0, 500);
   }
 
-  const { error } = await supabase
+  const { data: writtenRows, error } = await supabase
     .from("affiliates")
     .update(patch)
     .eq("id", affiliateId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // An UPDATE matching NO rows is not an error in PostgREST, so this
+  // used to report a change that never happened and the screen then
+  // re-rendered the old value.
+  {
+    const wrote = wroteSomething(writtenRows);
+    if (!wrote.ok) return wrote;
+  }
   return { ok: true, data: null };
 }
 
@@ -498,12 +535,20 @@ export async function setAffiliateCommission(
     };
   }
 
-  const { error } = await supabase
+  const { data: writtenRows, error } = await supabase
     .from("affiliates")
     .update(cleaned)
     .eq("id", affiliateId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // An UPDATE matching NO rows is not an error in PostgREST, so this
+  // used to report a change that never happened and the screen then
+  // re-rendered the old value.
+  {
+    const wrote = wroteSomething(writtenRows);
+    if (!wrote.ok) return wrote;
+  }
   return { ok: true, data: null };
 }
 
@@ -569,13 +614,18 @@ export async function updateAdvertiser(
     };
   }
 
-  const { error: updateError } = await supabase
+  const { data: advRows, error: updateError } = await supabase
     .from("advertisers")
     .update(cleaned)
     .eq("id", advertiserId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
 
   if (updateError) return { ok: false, error: updateError.message };
+  {
+    const wrote = wroteSomething(advRows);
+    if (!wrote.ok) return wrote;
+  }
 
   return { ok: true, data: null };
 }
@@ -649,11 +699,19 @@ export async function setAdvertiserCommission(
     };
   }
 
-  const { error } = await supabase
+  const { data: writtenRows, error } = await supabase
     .from("advertisers")
     .update(cleaned)
     .eq("id", advertiserId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // An UPDATE matching NO rows is not an error in PostgREST, so this
+  // used to report a change that never happened and the screen then
+  // re-rendered the old value.
+  {
+    const wrote = wroteSomething(writtenRows);
+    if (!wrote.ok) return wrote;
+  }
   return { ok: true, data: null };
 }

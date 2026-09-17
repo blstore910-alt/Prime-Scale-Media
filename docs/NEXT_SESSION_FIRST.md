@@ -6,97 +6,36 @@ it.
 
 ---
 
-## 1. The silent-write sweep (18 sites left) — START HERE
+## 1. The silent-write sweep — DONE 2026-09-17
 
-**Why this is first:** it is the bug class that cost the most time to find,
-because it does not look like a bug. The screen says it worked.
+All 18 remaining sites now `.select("id")` and count the rows through
+`wroteSomething()` in `actions/_shared.ts`:
 
-An UPDATE that matches **no rows** is not an error in PostgREST. It returns
-`{ error: null, data: null }`. So this — the shape used in almost every
-action in this repo —
+  ad-account-actions      updateAdAccountAsAdmin, rejectAdAccountRequest,
+                          setAdAccountRequestStatus, createAdAccountFromRequest
+                          (the last one ROLLS BACK the created account when the
+                          request could not be marked completed — a zero-row
+                          write there left the request open beside a live
+                          account, which is how the next admin creates a second)
+  ad-account-type-actions upsertAdAccountType
+  admin-actions           toggleAdminStatus, updateAffiliate, approveAffiliate,
+                          rejectAffiliate, setAffiliateCommission,
+                          updateAdvertiser, setAdvertiserCommission
+  bank-account-actions    upsertBankAccount
+  company-actions         the companies update
+  invite-actions          cancelInvitation
+  plan-actions            upsertPlan
+  supplier-pool-actions   both writes now log when they match nothing
+  tenant-actions          createTenantForCurrentUser
 
-```ts
-const { error } = await supabase.from("t").update({ … }).eq("id", id);
-if (error) return { ok: false, error: error.message };
-return { ok: true, data: null };
-```
+Three are deliberately NOT guarded, and now say so in a comment where they
+are: the bulk subscription deactivation (`.in(...)` over an advertiser who
+may have none), the exchange-rate "stand down whatever is active" (nothing is
+active on a first save), and the pool release, which logs instead because it
+is already inside a failure path.
 
-reports **success for a write that never happened**. RLS refusing the write
-looks exactly like this. So does a row another admin moved or deleted, and so
-does an `id` that no longer matches. The UI then shows a success toast,
-invalidates its query, refetches, and renders the old value.
-
-That is how `updateUserProfile` shipped: deactivating an advertiser said
-"User has been deactivated successfully" and the menu item said "Deactivate
-User" again, every time. Found only because a human noticed the button never
-changed.
-
-**The fix**, per site:
-
-```ts
-const { data: rows, error } = await supabase
-  .from("t").update({ … }).eq("id", id)
-  .select("id");                       // ← ask for the rows back
-if (error) return { ok: false, error: error.message };
-const wrote = wroteSomething(rows);    // ← actions/_shared.ts
-if (!wrote.ok) return wrote;
-```
-
-`wroteSomething()` already exists in `actions/_shared.ts`.
-
-**Already done** (do not redo): `updateUserProfile`, `setSubscriptionStatus`, and
-all four in `company-actions.ts` — those are customer-facing, so a saved
-company or billing address that silently did not save is the customer's
-problem, not only the desk's.
-
-### Remaining
-
-| site | function | table | note |
-|---|---|---|---|
-| `actions/ad-account-actions.ts:277` | `updateAdAccountAsAdmin()` | `ad_accounts` | single row |
-| `actions/ad-account-actions.ts:338` | `rejectAdAccountRequest()` | `ad_account_requests` | single row |
-| `actions/ad-account-actions.ts:395` | `setAdAccountRequestStatus()` | `ad_account_requests` | single row |
-| `actions/ad-account-actions.ts:442` | `createAdAccountFromRequest()` | `ad_account_requests` | single row |
-| `actions/ad-account-type-actions.ts:178` | `upsertAdAccountType()` | `ad_account_types` | single row |
-| `actions/admin-actions.ts:136` | `toggleAdminStatus()` | `user_profiles` | single row |
-| `actions/admin-actions.ts:159` | `toggleAdminStatus()` | `user_profiles` | single row |
-| `actions/admin-actions.ts:340` | `updateAffiliate()` | `affiliates` | single row |
-| `actions/admin-actions.ts:376` | `approveAffiliate()` | `affiliates` | single row |
-| `actions/admin-actions.ts:418` | `rejectAffiliate()` | `affiliates` | single row |
-| `actions/admin-actions.ts:495` | `setAffiliateCommission()` | `affiliates` | single row |
-| `actions/admin-actions.ts:566` | `updateAdvertiser()` | `advertisers` | single row |
-| `actions/admin-actions.ts:646` | `setAdvertiserCommission()` | `advertisers` | single row |
-| `actions/bank-account-actions.ts:167` | `upsertBankAccount()` | `bank_accounts` | single row |
-| `actions/invite-actions.ts:91` | `cancelInvitation()` | `invitations` | single row |
-| `actions/supplier-pool-actions.ts:328` | `assignSupplierAdAccount()` | `supplier_ad_accounts` | single row |
-| `actions/supplier-pool-actions.ts:344` | `assignSupplierAdAccount()` | `supplier_ad_accounts` | single row |
-| `actions/tenant-actions.ts:149` | `createTenantForCurrentUser()` | `user_profiles` | single row |
-
-**The money and legal ones are done** — `invoice-actions`, `referral-actions`,
-`exchange-rate-actions`, `topup-actions` and `gdpr-actions` all count their
-rows now. What is left is admin CRUD: a stale label rather than a wrong
-number, which is why it is second.
-
-**Judge each one, do not run a regex over the file.** A few updates in this
-repo are legitimately allowed to match nothing — bulk deactivations filtered
-with `.in(...)`, and anything written as "set this if it isn't already". Those
-want a comment saying so, not a guard.
-
-**Re-run the detector afterwards:**
-
-```bash
-python - <<'PY'
-import io,os,re
-for root,_,files in os.walk("actions"):
-    for f in sorted(files):
-        if not f.endswith(".ts"): continue
-        p=os.path.join(root,f).replace("\\","/")
-        s=io.open(p,encoding="utf-8").read()
-        for m in re.finditer(r'\.from\("([a-z_]+)"\)\s*\n?\s*\.update\(', s):
-            if ".select(" in s[m.start():m.start()+430]: continue
-            print(f"{p}:{s[:m.start()].count(chr(10))+1}  {m.group(1)}")
-PY
-```
+Re-run the detector below after touching `actions/`; it reports 8 hits, all
+either comments or the three intentional ones above.
 
 ---
 

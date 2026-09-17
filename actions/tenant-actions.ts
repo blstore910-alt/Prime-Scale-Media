@@ -145,7 +145,7 @@ export async function createTenantForCurrentUser(input: {
 
   let profileError: { message: string } | null = null;
   if (existingProfile?.id) {
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from("user_profiles")
       .update({
         tenant_id: tenant.id,
@@ -155,8 +155,20 @@ export async function createTenantForCurrentUser(input: {
         status: "active",
         is_active: true,
       })
-      .eq("id", existingProfile.id);
-    profileError = error;
+      .eq("id", existingProfile.id)
+      .select("id");
+    // This is the write that makes the caller the owner of the tenant they
+    // just created. Matching no rows is not an error in PostgREST, so it
+    // would have left them with a tenant they cannot administer and no sign
+    // that anything went wrong.
+    profileError =
+      error ??
+      (!rows || rows.length === 0
+        ? {
+            message:
+              "Your profile could not be linked to the new organisation. Reload and try again.",
+          }
+        : null);
   } else {
     const { error } = await supabase.from("user_profiles").insert({
       user_id: userId,

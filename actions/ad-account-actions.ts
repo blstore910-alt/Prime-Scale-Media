@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { wroteSomething } from "./_shared";
 import { cookies } from "next/headers";
 import {
   checkVersion,
@@ -273,12 +274,18 @@ export async function updateAdAccountAsAdmin(
 
   if (Object.keys(cleaned).length > 0) {
     cleaned.updated_at = new Date().toISOString();
-    const { error: updateError } = await supabase
+    // .select() and count the rows: an UPDATE matching NOTHING is not an
+    // error in PostgREST, so without this an RLS refusal, a deleted row or a
+    // stale id all reported success and the screen re-rendered the old value.
+    const { data: rows, error: updateError } = await supabase
       .from("ad_accounts")
       .update(cleaned)
       .eq("id", accountId)
-      .eq("tenant_id", profile.tenant_id);
+      .eq("tenant_id", profile.tenant_id)
+      .select("id");
     if (updateError) return { ok: false, error: updateError.message };
+    const wrote = wroteSomething(rows);
+    if (!wrote.ok) return wrote;
   }
 
   const feeRes = await upsertSupplierFee(
@@ -334,15 +341,20 @@ export async function rejectAdAccountRequest(
   }
 
   const trimmedReason = typeof reason === "string" ? reason.trim() : "";
-  const { error } = await supabase
+  const { data: rows, error } = await supabase
     .from("ad_account_requests")
     .update({
       status: "rejected",
       rejection_reason: trimmedReason.length > 0 ? trimmedReason : null,
     })
     .eq("id", requestId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // A rejection that silently wrote nothing leaves the request sitting in
+  // the queue while the advertiser has been told it was refused.
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: null };
 }
 
@@ -391,12 +403,15 @@ export async function setAdAccountRequestStatus(
     };
   }
 
-  const { error } = await supabase
+  const { data: rows, error } = await supabase
     .from("ad_account_requests")
     .update({ status })
     .eq("id", requestId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: null };
 }
 
@@ -438,16 +453,24 @@ export async function createAdAccountFromRequest(
   });
   if (!created.ok) return created;
 
-  const { error: reqError } = await supabase
+  const { data: reqRows, error: reqError } = await supabase
     .from("ad_account_requests")
     .update({ status: "completed", rejection_reason: null })
     .eq("id", requestId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
 
-  if (reqError) {
-    // Roll back the ad_account so we don't have an orphan.
+  // The same rollback for a write that MATCHED NOTHING as for one that
+  // errored. Leaving the request open beside a created account is how the
+  // next admin creates a second one for the same request.
+  if (reqError || !reqRows || reqRows.length === 0) {
     await supabase.from("ad_accounts").delete().eq("id", created.data.id);
-    return { ok: false, error: reqError.message };
+    return {
+      ok: false,
+      error:
+        reqError?.message ??
+        "The account was not created: the request could not be marked completed, so it was rolled back. Reload and try again.",
+    };
   }
   return created;
 }

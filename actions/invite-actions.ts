@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard } from "./_shared";
+import { maintenanceGuard , wroteSomething} from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -87,11 +87,16 @@ export async function cancelInvitation(
     }
   }
 
-  const { error } = await supabase
+  const { data: rows, error } = await supabase
     .from("invitations")
     .update({ status })
     .eq("id", inviteId)
-    .eq("tenant_id", profile.tenant_id);
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // A cancellation that wrote nothing leaves a live invitation link in
+  // someone's inbox while the screen says it was revoked.
+  const wrote = wroteSomething(rows);
+  if (!wrote.ok) return wrote;
   return { ok: true, data: null };
 }

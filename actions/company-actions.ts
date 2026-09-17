@@ -108,12 +108,17 @@ export async function saveOwnCompanyOnboarding(input: {
 
   let companyId: string;
   if (existing?.id) {
-    const { error: updateError } = await supabase
+    const { data: rows, error: updateError } = await supabase
       .from("companies")
       .update(companyClean)
       .eq("id", existing.id)
-      .eq("advertiser_id", advertiser.id);
+      .eq("advertiser_id", advertiser.id)
+      .select("id");
     if (updateError) return { ok: false, error: updateError.message };
+    // Customer-facing: a company or billing address that reported saved and
+    // did not save is the customer's problem, and it ends up on an invoice.
+    const wrote = wroteSomething(rows);
+    if (!wrote.ok) return wrote;
     companyId = existing.id;
   } else {
     const { data: inserted, error: insertError } = await supabase

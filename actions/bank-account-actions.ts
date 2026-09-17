@@ -10,6 +10,7 @@ import {
   type AdminContext,
   resolveAdminContext,
   versionMatches,
+  wroteSomething,
 } from "./_shared";
 
 const SELECT_COLS =
@@ -163,12 +164,18 @@ export async function upsertBankAccount(input: {
         code: "conflict",
       };
     }
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from("bank_accounts")
       .update({ ...fields, updated_by: profile.user_id })
       .eq("id", existing.id)
-      .eq("tenant_id", profile.tenant_id);
+      .eq("tenant_id", profile.tenant_id)
+      .select("id");
     if (error) return { ok: false, error: error.message };
+    // These are the account numbers customers pay into. A save that reported
+    // success and wrote nothing would leave the desk believing a corrected
+    // IBAN had been stored.
+    const wrote = wroteSomething(rows);
+    if (!wrote.ok) return wrote;
     return { ok: true, data: { id: existing.id } };
   }
 
