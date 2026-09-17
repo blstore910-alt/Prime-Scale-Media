@@ -83,9 +83,21 @@ due_date_fns as (
     join pg_namespace n2 on n2.oid = p.pronamespace
    where n2.nspname = 'public'
      and p.prosrc ilike '%due_date%'
+),
+
+-- 6. What top_ups.source actually contains.
+--    It was being rendered to ADVERTISERS — a column in the read-only
+--    history a deactivated user sees, and a labelled row in the
+--    top-up-completed notification. Removed from both on 2026-09-17, but
+--    this says whether a supplier name was ever shown. Anything here that
+--    names a supplier means it WAS.
+source_values as (
+  select string_agg(distinct coalesce(source, '(null)'), ', ') as vals
+    from public.top_ups
 )
 
 select
+  (select vals from source_values)      as topup_source_values_read_by_eye,
   (select bad from zero_amounts)        as zero_amount_topups_must_be_0,
   (select bad from integration_rls)     as integration_tables_without_rls_must_be_0,
   case when (select n from invite_expiry_present) = 0
