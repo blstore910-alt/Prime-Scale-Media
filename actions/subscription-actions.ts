@@ -182,6 +182,9 @@ export async function changeSubscriptionAmount(
   newAmount: number,
   newCurrency?: "EUR" | "USD",
   ifUpdatedAt?: string,
+  // Paying cash back on a downgrade is a DECISION, not a default. The RPC
+  // defaults to false; this parameter is how an admin asks for it.
+  refund?: boolean,
 ): Promise<ActionResult<{ action: string }>> {
   if (typeof subscriptionId !== "string" || subscriptionId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -215,6 +218,7 @@ export async function changeSubscriptionAmount(
   }
 
   const { data, error } = await supabase.rpc("change_subscription_amount", {
+    p_refund: refund === true,
     p_subscription_id: subscriptionId,
     p_new_amount: amount,
     p_new_currency: newCurrency ?? null,

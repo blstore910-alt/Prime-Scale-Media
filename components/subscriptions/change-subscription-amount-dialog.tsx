@@ -29,8 +29,13 @@ import { Subscription } from "./types";
 const ACTION_MESSAGE: Record<string, string> = {
   reissued: "New invoice issued at the new amount; the old one was voided.",
   refunded: "The overpayment was refunded to the wallet.",
+  // The admin declined the payout. Say so, rather than reporting a plain
+  // success for a decision that left money where it was.
+  lowered_no_refund:
+    "Lowered. Nothing was paid back — the new price applies from here.",
   charged_difference: "An invoice for the difference was issued.",
   updated: "Subscription updated.",
+  adjustment_voided: "The uncollected adjustment was voided.",
 };
 
 export default function ChangeSubscriptionAmountDialog({
@@ -43,6 +48,8 @@ export default function ChangeSubscriptionAmountDialog({
   onOpenChange: (value: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  // Default false: see the pill below and 20260917200000.
+  const [refund, setRefund] = useState(false);
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<"EUR" | "USD">("EUR");
   const [isPending, setIsPending] = useState(false);
@@ -74,6 +81,8 @@ export default function ChangeSubscriptionAmountDialog({
         subscription.id,
         nextAmount,
         currency,
+        undefined,
+        refund,
       );
       if (!res.ok) {
         toast.error("Couldn't change the subscription", {
@@ -98,9 +107,10 @@ export default function ChangeSubscriptionAmountDialog({
         <DialogHeader>
           <DialogTitle>Change subscription amount</DialogTitle>
           <DialogDescription>
-            The current billing period is reconciled automatically: an unpaid
-            invoice is re-issued at the new amount; if it was already paid, the
-            difference is refunded to (or charged from) the wallet.
+            An unpaid invoice for the current period is re-issued at the new
+            amount. If it was already paid, a higher price raises an invoice
+            for the difference — and a lower price only pays anything back if
+            you ask it to below.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,13 +152,54 @@ export default function ChangeSubscriptionAmountDialog({
             </div>
           </div>
 
+          {/* Paying cash back is a DECISION. It used to happen on its own,
+              so an admin correcting a typo in a plan amount moved real money
+              and the only way to find out was to read the wallet afterwards.
+              Default: no. */}
           {Number.isFinite(nextAmount) &&
             currency === (subscription?.currency || "EUR") &&
-            delta !== 0 && (
+            delta < 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  If this period was already paid
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRefund(false)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      refund
+                        ? "text-muted-foreground hover:bg-accent/60"
+                        : "border-primary bg-primary/10 text-foreground"
+                    }`}
+                  >
+                    Keep it — no refund
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRefund(true)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      refund
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "text-muted-foreground hover:bg-accent/60"
+                    }`}
+                  >
+                    Refund {formatCurrency(-delta, currency)} to the wallet
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {refund
+                    ? `${formatCurrency(-delta, currency)} goes into their wallet now. Nothing is paid back twice — a repeat of this change pays out nothing further.`
+                    : "Nothing moves. The new price applies from here, and an uncollected adjustment for this period is still voided so they are not billed for it."}
+                </p>
+              </div>
+            )}
+
+          {Number.isFinite(nextAmount) &&
+            currency === (subscription?.currency || "EUR") &&
+            delta > 0 && (
               <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                {delta < 0
-                  ? `If the current period is already paid, ${formatCurrency(-delta, currency)} will be refunded to the wallet.`
-                  : `If the current period is already paid, an invoice for ${formatCurrency(delta, currency)} will be issued.`}
+                {`If the current period is already paid, an invoice for ${formatCurrency(delta, currency)} will be issued.`}
               </div>
             )}
         </div>
