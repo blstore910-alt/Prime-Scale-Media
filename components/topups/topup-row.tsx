@@ -109,19 +109,23 @@ export default function TopupRow({
       </TableCell>
 
       {/* Topup Amount */}
+      {/* topup_amount / topup_usd / fee_amount are USD, always:
+          calculateTopupAmount divides the received amount by the rate and
+          takes the fee off the dollar figure, and the bulk path stores
+          topup_usd with the SAME value as topup_amount. eur_topup is the
+          euro equivalent. Labelling the dollar figure with the payment
+          currency printed the identical number twice under two different
+          symbols — EUR 1,139.53 over $1,139.53. */}
       <TableCell>
         <div className="flex flex-col">
           <span className=" font-mono font-semibold">
-            {formatCurrency(
-              topup.topup_amount as number,
-              topup.currency === "USD" ? "USD" : "EUR",
-            )}
+            {formatCurrency(topup.topup_amount as number, "USD")}
           </span>
-          <span className="text-xs font-semibold text-muted-foreground font-mono">
-            {topup.currency === "USD"
-              ? formatCurrency(topup.eur_topup as number, "EUR")
-              : formatCurrency(topup.topup_usd as number, "USD")}
-          </span>
+          {topup.eur_topup != null && (
+            <span className="text-xs font-semibold text-muted-foreground font-mono">
+              {formatCurrency(topup.eur_topup as number, "EUR")}
+            </span>
+          )}
         </div>
       </TableCell>
 

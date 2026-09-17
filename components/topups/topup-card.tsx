@@ -104,9 +104,10 @@ export default function TopupCard({
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-muted-foreground">Fee Amount</span>
+              {/* fee_amount is USD, like topup_amount — the fee is taken
+                  off the converted dollar figure, not off what was paid. */}
               <span className="font-semibold">
-                {CURRENCY_SYMBOLS[topup.currency]} {topup.fee_amount} (
-                {topup.fee}%)
+                {CURRENCY_SYMBOLS["USD"]} {topup.fee_amount} ({topup.fee}%)
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -114,12 +115,8 @@ export default function TopupCard({
                 Topup Amount
               </span>
               <span className="font-semibold">
-                {CURRENCY_SYMBOLS[topup.currency]} {topup.topup_amount}
-                {topup.currency === "EUR" && topup.topup_usd ? (
-                  <span className="text-sm text-muted-foreground ml-1">
-                    ({CURRENCY_SYMBOLS["USD"]} {topup.topup_usd})
-                  </span>
-                ) : topup.currency === "USD" && topup.eur_topup ? (
+                {CURRENCY_SYMBOLS["USD"]} {topup.topup_amount}
+                {topup.eur_topup ? (
                   <span className="text-sm text-muted-foreground ml-1">
                     ({CURRENCY_SYMBOLS["EUR"]} {topup.eur_topup})
                   </span>

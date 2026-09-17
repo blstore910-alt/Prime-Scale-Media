@@ -10,12 +10,22 @@ import RejectTopupDialog from "./reject-topup-dialog";
 import { TopupDetailsSheet } from "./topup-details-sheet";
 import TablePagination from "../ui/table-pagination";
 
-const money = (v: number | string | null | undefined, cur: string | null) =>
-  (cur === "USD" ? "$" : "€") +
-  new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(v ?? 0));
+// A two-way map printed everything that was not USD as euros, and
+// calculateTopupAmount accepts GBP and HKD too — so a pound payment was
+// shown with a euro sign. An unknown code prints as a code; a wrong symbol
+// is worse than a plain one.
+const SYMBOL: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", HKD: "HK$" };
+const money = (v: number | string | null | undefined, cur: string | null) => {
+  const code = (cur || "").toUpperCase();
+  const sym = SYMBOL[code] ?? (code ? code + " " : "");
+  return (
+    sym +
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(v ?? 0))
+  );
+};
 
 const advName = (t: Topup) => {
   const a = t.advertiser as
@@ -141,17 +151,28 @@ export default function PsmVerifyAdTopups() {
                     gap: 8,
                   }}
                 >
+                  {/* THREE figures, TWO currencies. topup_amount and
+                      fee_amount are USD by construction — calculateTopupAmount
+                      divides the received amount by the rate and takes the fee
+                      off the dollar figure (lib/utils-pure.ts). Only
+                      amount_received is in the currency the customer paid in.
+                      Printing all of them with `cur` turned $1,139.53 into
+                      "EUR 1,139.53" on the exact screen where an admin checks
+                      the figures against a bank slip: ~16% out, in our favour,
+                      on a decision to release money. */}
                   <b
                     style={{
                       fontFamily: "var(--font-jakarta)",
                       fontWeight: 800,
                       fontSize: "1.35rem",
                     }}
+                    title="Credited to the ad account"
                   >
-                    {money(t.topup_amount ?? t.amount_received, cur)}
+                    {money(t.topup_amount, "USD")}
                   </b>
                   <span style={{ color: "var(--faint)", fontSize: ".82rem" }}>
-                    fee {money(t.fee_amount, cur)}
+                    paid {money(t.amount_received, cur)} · fee{" "}
+                    {money(t.fee_amount, "USD")}
                   </span>
                 </div>
                 <div

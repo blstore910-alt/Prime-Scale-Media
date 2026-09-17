@@ -93,11 +93,10 @@ export default function AdvertiserTopupCard({
               Topup
             </span>
             <span className="text-sm font-bold font-mono text-primary truncate">
-              {formatCurrency(
-                topup.topup_amount,
-                topup.topup_currency ||
-                  (topup.currency === "USD" ? "USD" : "EUR"),
-              )}
+              {/* USD by construction — see lib/utils-pure.ts. The old
+                  fallback showed a EUR-paying advertiser their dollar
+                  credit under a euro sign, ~16% more than they received. */}
+              {formatCurrency(topup.topup_amount, topup.topup_currency || "USD")}
             </span>
           </div>
         </div>

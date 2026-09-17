@@ -407,6 +407,7 @@ function AdvertiserRow({
   };
 
   const clientCode = advertiser?.tenant_client_code ?? "";
+  const isAffiliate = (profile.role ?? "").toLowerCase() === "affiliate";
 
   return (
     <tr style={{ cursor: "pointer" }} onClick={onView}>
@@ -476,19 +477,28 @@ function AdvertiserRow({
           >
             <Plus /> Subscription
           </button>
+        ) : isAffiliate ? (
+          /* An affiliate has no advertiser record because an affiliate does
+             not buy anything — that is the normal shape of the row, not a
+             fault, and a red badge on it read as an alarm for every affiliate
+             in the list. The PLAN column answers "which plan", so it says
+             which: none, and why. */
+          <span className="muted" style={{ fontSize: ".86rem" }}>
+            Affiliate — no plan
+          </span>
         ) : (
-          /* No advertisers row behind this profile. The button used to just
-             sit here disabled, looking almost exactly like the working ones,
-             so pressing it did nothing and said nothing — which is what
-             "the subscription button doesn't work" turned out to be.
-             It is also not a small thing to report quietly: without that row
-             there is no wallet, no ad account and no subscription possible,
-             so the account cannot be used at all. Say so. */
+          /* An ADVERTISER with no advertisers row is a different story: no
+             wallet, no ad accounts, no subscription possible. Still stated
+             plainly in the plan column rather than shouted, with the
+             consequence in the tooltip. The Subscription button used to sit
+             here disabled and silent, which is what "the subscription button
+             doesn't work" turned out to be. */
           <span
-            className="badge due"
+            className="muted"
+            style={{ fontSize: ".86rem" }}
             title="This profile has no advertiser record, so it has no wallet, no ad accounts and cannot hold a subscription. It needs fixing before anything can be billed."
           >
-            No advertiser record
+            No plan
           </span>
         )}
       </td>
