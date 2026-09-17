@@ -1,6 +1,6 @@
-import { describe, it } from "node:test";
+import { describe, it, test } from "node:test";
 import assert from "node:assert/strict";
-import { banksForAccountTypes } from "../../lib/bank-routing.ts";
+import { banksForAccountTypes, bankForTypeSlug } from "../../lib/bank-routing.ts";
 
 describe("banksForAccountTypes", () => {
   it("routes an EU-PSM advertiser to one bank, so nothing is asked", () => {
@@ -50,4 +50,48 @@ describe("banksForAccountTypes", () => {
       [],
     );
   });
+});
+
+// ── Slug spelling ────────────────────────────────────────────────────
+// The seed migration writes `hk-meta-premium`; a type created through the
+// settings UI is slugified from its label and comes out `meta-hk-premium`.
+// Both are the same type, and on the live tenant it was the second spelling
+// throughout — so nothing routed at all.
+test("a type slug matches whatever order its words are in", () => {
+  assert.equal(bankForTypeSlug("hk-meta-premium"), "turlit");
+  assert.equal(bankForTypeSlug("meta-hk-premium"), "turlit");
+  assert.equal(bankForTypeSlug("meta-hk-business"), "turlit");
+  assert.equal(bankForTypeSlug("meta-hk-business-green"), "turlit");
+  assert.equal(bankForTypeSlug("eu-meta-psm"), "turlit");
+  assert.equal(bankForTypeSlug("meta-eu-psm"), "turlit");
+});
+
+test("GH is its own destination in either spelling", () => {
+  assert.equal(bankForTypeSlug("eu-meta-psm-gh"), "zanel");
+  assert.equal(bankForTypeSlug("meta-eu-psm-gh"), "zanel");
+});
+
+test("GH is not confused with plain PSM", () => {
+  // Same words plus one. A sloppier match would collapse these and send GH
+  // money to the wrong company.
+  assert.notEqual(bankForTypeSlug("meta-eu-psm-gh"), bankForTypeSlug("meta-eu-psm"));
+});
+
+test("an unstated type stays unstated", () => {
+  // Meta-EU-Premium is a real seeded type that no bank option mentions.
+  assert.equal(bankForTypeSlug("meta-eu-premium"), null);
+  assert.equal(bankForTypeSlug("something-new"), null);
+  assert.equal(bankForTypeSlug(""), null);
+  assert.equal(bankForTypeSlug(null), null);
+});
+
+test("both spellings reach the same beneficiary through the list helper", () => {
+  assert.deepEqual(banksForAccountTypes(["meta-hk-premium"]), ["turlit"]);
+  assert.deepEqual(banksForAccountTypes(["meta-eu-psm-gh"]), ["zanel"]);
+  assert.deepEqual(
+    banksForAccountTypes(["meta-hk-premium", "meta-eu-psm-gh"]),
+    ["turlit", "zanel"],
+  );
+  // Unknown narrows nothing.
+  assert.deepEqual(banksForAccountTypes(["meta-eu-premium"]), []);
 });

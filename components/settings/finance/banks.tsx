@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BANK_BY_TYPE_SLUG } from "@/lib/bank-routing";
+import { bankForTypeSlug } from "@/lib/bank-routing";
 import { bankInstructions } from "@/lib/bank-beneficiaries";
 import { builtInBankDraft, builtInCurrencies } from "@/lib/bank-builtin";
 import { Switch } from "@/components/ui/switch";
@@ -244,7 +244,7 @@ function BankDestinationForm({
 // payments for weeks. Saying which built-in is in force is the difference
 // between "nothing is configured" and "nothing is OVERRIDDEN".
 function liveDestination(slug?: string | null): string | null {
-  const group = BANK_BY_TYPE_SLUG[(slug ?? "").trim().toLowerCase()];
+  const group = bankForTypeSlug(slug);
   if (!group) return null;
   const cfg = bankInstructions[group];
   const currencies = Object.keys(cfg.accounts).join(" / ");
@@ -321,7 +321,7 @@ export default function BanksCard() {
   const fillable = useMemo(() => {
     const out: { typeId: string; typeLabel: string; currency: string }[] = [];
     for (const t of typesQuery.data ?? []) {
-      const group = BANK_BY_TYPE_SLUG[(t.slug ?? "").trim().toLowerCase()];
+      const group = bankForTypeSlug(t.slug);
       if (!group) continue;
       for (const currency of builtInCurrencies(group)) {
         if (!(BANK_ACCOUNT_CURRENCIES as string[]).includes(currency)) continue;
@@ -340,11 +340,9 @@ export default function BanksCard() {
       // failure half way should leave the rows before it saved and say how
       // far it got, rather than a pile of parallel errors nobody can read.
       for (const f of fillable) {
-        const group = BANK_BY_TYPE_SLUG[
-          ((typesQuery.data ?? []).find((t) => t.id === f.typeId)?.slug ?? "")
-            .trim()
-            .toLowerCase()
-        ];
+        const group = bankForTypeSlug(
+          (typesQuery.data ?? []).find((t) => t.id === f.typeId)?.slug,
+        );
         if (!group) continue;
         const draft = builtInBankDraft(group, f.currency);
         if (!draft) continue;
