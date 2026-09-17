@@ -139,7 +139,12 @@ export default function WiseReviewPanel() {
           "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban",
         )
         .order("created_at", { ascending: false })
-        .limit(100);
+        // 100 was less than the table holds — live has 229 — so the
+        // "show N more" button below promised 92 more while 129 were not
+        // fetched at all and could not be reached from this screen by any
+        // means. The cap is now well above the real count; the PREVIEW cap
+        // (REST_PREVIEW) is what keeps the page short.
+        .limit(500);
       if (error) throw error;
       return (data ?? []) as WiseRow[];
     },
