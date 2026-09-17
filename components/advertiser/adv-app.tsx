@@ -1400,7 +1400,9 @@ export default function AdvertiserApp() {
             </div>
             {pendingTopups.length > 0 && (
               <div className="card">
-                <h2>Pending top-up{pendingTopups.length > 1 ? "s" : ""}</h2>
+                <h2>
+                  Pending wallet top-up{pendingTopups.length > 1 ? "s" : ""}
+                </h2>
                 {/* This was one flex row: amount, then "Ref … · awaiting
                     verification" as a single sentence, then a badge pushed
                     to the right with margin-left:auto. On a phone the
@@ -1421,9 +1423,11 @@ export default function AdvertiserApp() {
                     <div style={{ minWidth: 0 }}>
                       <div className="l1">
                         {t.currency === "USD" ? "$" : "€"}
-                        {money2(t.amount)} · bank transfer
+                        {money2(t.amount)} · wallet top-up
                       </div>
-                      <div className="l2">Ref {t.reference_no ?? "—"}</div>
+                      <div className="l2">
+                        Bank transfer · Ref {t.reference_no ?? "—"}
+                      </div>
                       <div className="l3">
                         <span className="badge pend">Verifying</span>
                         <span className="l3t">
