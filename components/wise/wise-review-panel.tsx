@@ -403,7 +403,12 @@ export default function WiseReviewPanel() {
               <span className="badge pend">{suggestedCount} to confirm</span>
             )}
           </h2>
-          <div className="actrow">
+          {/* wrap: .actrow is flex-end with no wrapping, and a flex-end
+              row that overflows spills out of its START edge — which is how
+              a button disappears behind the heading instead of moving to
+              the next line. Three of them fit on a laptop and not on a
+              narrow window. */}
+          <div className="actrow" style={{ flexWrap: "wrap" }}>
             {archivedCount > 0 && (
               <button
                 className={`btn ${showArchived ? "" : "ghost"} sm`}
