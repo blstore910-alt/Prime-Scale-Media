@@ -92,6 +92,11 @@ export async function processWiseWebhook(
     ((d.sender_account as { iban?: string } | undefined)?.iban ?? null);
   let senderName = d.sender_name != null ? String(d.sender_name) : null;
   let effectiveReference = reference;
+  // Wise's own human line for this credit, when we can get it. Stored so an
+  // unmatched deposit has something an admin can recognise it by; every
+  // deposit on this account reads "no reference", and the only other thing
+  // on the row is our own idempotency key.
+  let description = d.description != null ? String(d.description) : null;
 
   if ((!effectiveReference || !rawIban) && balanceId && occurredAt) {
     const profileId = String(
@@ -111,6 +116,7 @@ export async function processWiseWebhook(
       effectiveReference = effectiveReference ?? detail.reference;
       rawIban = rawIban ?? detail.senderIban;
       senderName = senderName ?? detail.senderName;
+      description = description ?? detail.description;
     }
   }
 
@@ -172,6 +178,24 @@ export async function processWiseWebhook(
   );
   if (settleErr) {
     return { status: 500, body: { error: "Settle failed" } };
+  }
+
+  // Keep the description. Deliberately NOT a parameter on
+  // wise_record_and_settle: that function is the money path and its
+  // signature is matched by an idempotency key, so widening it means a drop
+  // and recreate. This is one nullable column of context, written after the
+  // fact and best effort — if it fails, the deposit is still recorded and
+  // still matchable.
+  if (description) {
+    try {
+      await supabase
+        .from("wise_incoming_transfers")
+        .update({ description })
+        .eq("external_id", externalId)
+        .is("description", null);
+    } catch {
+      /* context only */
+    }
   }
 
   // Learn the sender → advertiser link on a CONFIDENT match (reference

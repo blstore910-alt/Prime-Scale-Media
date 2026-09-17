@@ -11,13 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { requestAdAccountWithdrawal } from "@/actions/withdrawal-actions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -41,7 +34,8 @@ export default function WithdrawDialog({
 }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<"USD" | "EUR">(defaultCurrency);
+  // No setter: the account decides this, not the person filling the form.
+  const [currency] = useState<"USD" | "EUR">(defaultCurrency);
   const [reason, setReason] = useState("");
   // Second step, in the same dialog rather than a dialog on top of a dialog:
   // stacked modals are awkward on a phone and easy to dismiss by accident,
@@ -156,20 +150,20 @@ export default function WithdrawDialog({
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
+            {/* NOT a choice. The currency is a property of the account
+                the money is sitting on, and offering it as a dropdown let a
+                customer ask for their USD balance back as euros — which the
+                approve path credited 1:1, handing them 16% for free. It is
+                shown so they know what they are getting back, and it comes
+                from the account. */}
             <div className="space-y-2">
-              <Label htmlFor="wd-cur">Currency</Label>
-              <Select
-                value={currency}
-                onValueChange={(v: "USD" | "EUR") => setCurrency(v)}
+              <Label htmlFor="wd-cur">Comes back as</Label>
+              <div
+                id="wd-cur"
+                className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium"
               >
-                <SelectTrigger id="wd-cur">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
+                {currency}
+              </div>
             </div>
           </div>
 

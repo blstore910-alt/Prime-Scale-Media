@@ -179,7 +179,7 @@ export async function matchWiseToTopup(
  * matched here by a rule the automatic path would have refused.
  */
 export async function rematchWiseDeposits(): Promise<
-  ActionResult<{ checked: number; suggested: number }>
+  ActionResult<{ checked: number; suggested: number; withdrawn: number }>
 > {
   const auth = await resolveAdminContext();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -198,7 +198,7 @@ export async function rematchWiseDeposits(): Promise<
     .limit(200);
   if (dErr) return { ok: false, error: safeErrorMessage(dErr) };
   if (!deposits || deposits.length === 0) {
-    return { ok: true, data: { checked: 0, suggested: 0 } };
+    return { ok: true, data: { checked: 0, suggested: 0, withdrawn: 0 } };
   }
 
   const { data: pending, error: pErr } = await supabase
@@ -208,7 +208,7 @@ export async function rematchWiseDeposits(): Promise<
     .eq("tenant_id", profile.tenant_id);
   if (pErr) return { ok: false, error: safeErrorMessage(pErr) };
   if (!pending || pending.length === 0) {
-    return { ok: true, data: { checked: deposits.length, suggested: 0 } };
+    return { ok: true, data: { checked: deposits.length, suggested: 0, withdrawn: 0 } };
   }
 
   // Sender IBAN → advertiser ids, the same signal the webhook uses.
@@ -242,6 +242,31 @@ export async function rematchWiseDeposits(): Promise<
   // tenant, the top-up is theirs and pending, the deposit is theirs or
   // unassigned, amounts equal to the cent (inside the matcher).
   const admin = await createAdminClient();
+
+
+  // ── Withdraw the suggestions the old rule made ─────────────────────
+  // Until today a deposit was matched when exactly one pending top-up
+  // happened to fit the amount, and that is not evidence of whose money it
+  // is — a hundred customers can wire the same figure. Those suggestions
+  // are still on the table with "matched via amount" on them, and a
+  // Confirm button beside them, which is precisely the click that would
+  // credit the wrong wallet.
+  //
+  // So they are put back to unmatched, with a note that says why. Scoped to
+  // status 'suggested' — a deposit that has already been confirmed or
+  // completed has MOVED MONEY and is never touched again — and only where
+  // the note itself says the match came from the amount.
+  const { data: withdrawn } = await admin
+    .from("wise_incoming_transfers")
+    .update({
+      status: "unmatched",
+      suggested_topup_id: null,
+      note: "amount-only match withdrawn — an amount is not proof of whose money it is; match it by hand or wait for a reference",
+    })
+    .eq("status", "suggested")
+    .ilike("note", "%via amount%")
+    .select("id");
+  const undone = (withdrawn ?? []).length;
 
   // One top-up cannot settle two deposits. Without this, three €5 deposits
   // and one €5 claim would all be pointed at the same claim and an admin
@@ -296,5 +321,5 @@ export async function rematchWiseDeposits(): Promise<
     suggested += 1;
   }
 
-  return { ok: true, data: { checked: deposits.length, suggested } };
+  return { ok: true, data: { checked: deposits.length, suggested, withdrawn: undone } };
 }

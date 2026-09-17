@@ -62,10 +62,54 @@ export async function requestAdAccountWithdrawal(input: {
     return { ok: false, error: "Pick an ad account." };
   }
 
+  // ── The ACCOUNT's currency, never the caller's ──────────────────────
+  // This was a free choice: the dialog offered USD and EUR in a dropdown,
+  // the action checked only that it was one of the two, and the RPC's
+  // approve branch credits the wallet 1:1 in whatever came through —
+  // `if v_wd.currency = 'USD' then usd_balance + amount elsif ... eur_balance
+  // + amount`. It never reads ad_accounts.currency.
+  //
+  // Money on an ad account is USD by construction. So a customer with
+  // $1,000 on a USD account could flip the dropdown to EUR, ask for 1000,
+  // and an approving admin credited €1,000 — worth $1,162.79 at 0.86. A
+  // 16.3% gain per round trip, repeatable, and invisible to the admin
+  // because the withdrawals screen shows the account NAME and the
+  // requested currency, not the account's own currency.
+  //
+  // The currency is not the customer's to choose. It is a property of the
+  // account the money is on, so it is read from there and the caller's
+  // value is only used to catch a mismatch and say so.
+  const { data: acct, error: acctErr } = await supabase
+    .from("ad_accounts")
+    .select("id, name, currency")
+    .eq("id", input.ad_account_id)
+    .maybeSingle();
+  if (acctErr) return { ok: false, error: safeErrorMessage(acctErr) };
+  if (!acct) return { ok: false, error: "That ad account was not found." };
+
+  // No currency recorded on the account is not an invitation to guess: ad
+  // account balances are USD throughout this app (top_ups.topup_amount and
+  // amount_usd are always USD), so that is the fallback, and it is the
+  // conservative one — it can never credit the more valuable balance by
+  // default.
+  const accountCurrency = (acct.currency ?? "USD").trim().toUpperCase();
+  if (accountCurrency !== "USD" && accountCurrency !== "EUR") {
+    return {
+      ok: false,
+      error: `This account is recorded in ${accountCurrency}, which we cannot pay back into a wallet. Message us and we will sort it out.`,
+    };
+  }
+  if (input.currency !== accountCurrency) {
+    return {
+      ok: false,
+      error: `Money on ${acct.name ?? "this account"} is held in ${accountCurrency}, so it comes back as ${accountCurrency}.`,
+    };
+  }
+
   const { data, error } = await supabase.rpc("ad_account_withdrawal_request", {
     p_ad_account_id: input.ad_account_id,
     p_amount: amount,
-    p_currency: input.currency,
+    p_currency: accountCurrency,
     p_reason: input.reason ?? null,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };

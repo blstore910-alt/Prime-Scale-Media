@@ -1,6 +1,9 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { parseStatementForMatch } from "../../lib/integrations/wise-api.ts";
+import {
+  parseStatementForMatch,
+  referenceFromDescription,
+} from "../../lib/integrations/wise-api.ts";
 
 describe("parseStatementForMatch", () => {
   it("pulls reference + sender from the single matching credit", () => {
@@ -89,4 +92,56 @@ describe("parseStatementForMatch", () => {
     assert.equal(parseStatementForMatch({}, 50000), null);
     assert.equal(parseStatementForMatch({ transactions: [] }, 50000), null);
   });
+});
+
+describe("the description Wise actually sends", () => {
+it("a reference Wise only wrote in prose is still found", () => {
+  // 231 deposits on this account, none with a reference — because Wise
+  // reports SEPA references in the description ("… with reference X") and
+  // leaves details.paymentReference null. The reference was sitting right
+  // there in words the whole time.
+  assert.equal(
+    referenceFromDescription(
+      "Received money from JOHN DOE with reference 0005-6164655424",
+    ),
+    "0005-6164655424",
+  );
+  assert.equal(
+    referenceFromDescription("Sent from Barclays. Reference: 6164655424"),
+    "6164655424",
+  );
+});
+
+it("prose with no reference does not invent one", () => {
+  // The description also carries the SENDER'S NAME and the amount, so a
+  // loose "longest run of digits" would return a fragment of an account
+  // number or a date and hand the matcher a confident wrong answer.
+  assert.equal(referenceFromDescription("Received money from JOHN DOE"), null);
+  assert.equal(
+    referenceFromDescription("Card transaction 12/09/2026 EUR 5.00"),
+    null,
+  );
+  assert.equal(referenceFromDescription(null), null);
+  assert.equal(referenceFromDescription(""), null);
+});
+
+it("the statement parser keeps the description it read", () => {
+  const d = parseStatementForMatch(
+    {
+      transactions: [
+        {
+          type: "CREDIT",
+          amount: { value: 5, currency: "EUR" },
+          details: {
+            description: "Received money from JOHN DOE with reference 0005-6164655424",
+          },
+        },
+      ],
+    },
+    500,
+  );
+  assert.ok(d);
+  assert.equal(d!.reference, "0005-6164655424");
+  assert.match(d!.description ?? "", /JOHN DOE/);
+});
 });

@@ -15,6 +15,14 @@ export type WiseTxnDetail = {
   reference: string | null;
   senderIban: string | null;
   senderName: string | null;
+  /**
+   * The human line Wise itself shows for this credit, e.g. "Received money
+   * from JOHN DOE with reference 0005-6164655424". Kept because for SEPA
+   * payments the payer's reference text frequently lands ONLY here, and
+   * because an admin staring at an unmatched deposit needs something to
+   * recognise it by other than the amount.
+   */
+  description: string | null;
 };
 
 type StatementTxn = {
@@ -24,6 +32,7 @@ type StatementTxn = {
   details?: {
     paymentReference?: string;
     reference?: string;
+    description?: string;
     senderName?: string;
     senderAccount?: string;
     sender?: { name?: string; bankAccount?: string; iban?: string };
@@ -50,15 +59,49 @@ export function parseStatementForMatch(
     return null;
   }
   const d = credits[0].details ?? {};
+  const description = d.description ?? null;
+  // The reference, in order of how much we trust it. The last resort is the
+  // DESCRIPTION: Wise writes "… with reference XYZ" in prose, and for SEPA
+  // credits that is very often the only place the payer's reference appears
+  // at all — paymentReference comes back null while the reference is
+  // sitting right there in words. 231 deposits on this account, none with a
+  // reference, is what that looks like from the outside.
   const reference =
-    d.paymentReference ?? d.reference ?? credits[0].referenceNumber ?? null;
+    d.paymentReference ??
+    d.reference ??
+    credits[0].referenceNumber ??
+    referenceFromDescription(description);
   const senderName = d.senderName ?? d.sender?.name ?? null;
   const rawIban =
     d.sender?.iban ?? d.sender?.bankAccount ?? d.senderAccount ?? null;
   const senderIban = rawIban
     ? rawIban.replace(/\s/g, "").toUpperCase()
     : null;
-  return { reference, senderIban, senderName };
+  return { reference, senderIban, senderName, description };
+}
+
+/**
+ * Pull a payment reference out of Wise's own prose.
+ *
+ * Only two shapes are accepted, and both are anchored, because this runs
+ * on a string that also contains the SENDER'S NAME and the amount — a
+ * loose "longest run of digits" would happily return a fragment of an
+ * account number or a date and hand the matcher a confident wrong answer.
+ *
+ *   "... with reference 0005-6164655424"   → 0005-6164655424
+ *   "... reference: 6164655424"            → 6164655424
+ *
+ * The returned string still goes through extractTopupReference in the
+ * matcher, which is what understands the client-code prefix.
+ */
+export function referenceFromDescription(
+  description: string | null | undefined,
+): string | null {
+  if (!description) return null;
+  const m = description.match(
+    /\breference[:\s]+([0-9]{4,}(?:-[0-9]{4,})?)\b/i,
+  );
+  return m ? m[1] : null;
 }
 
 function wiseApiBase(): string {

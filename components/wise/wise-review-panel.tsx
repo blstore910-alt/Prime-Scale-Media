@@ -208,6 +208,17 @@ export default function WiseReviewPanel() {
       return res.data;
     },
     onSuccess: (d) => {
+      if (d.withdrawn > 0) {
+        toast.message(
+          d.withdrawn === 1
+            ? "1 old match withdrawn"
+            : `${d.withdrawn} old matches withdrawn`,
+          {
+            description:
+              "They were matched on the amount alone, which is not proof of whose money it is. Match those by hand.",
+          },
+        );
+      }
       if (d.suggested > 0) {
         toast.success(
           d.suggested === 1
