@@ -38,6 +38,21 @@ supplier_leak as (
    where metadata::jsonb ?| array['source', 'supplier_external_id', 'allocated_from_pool_id']
 ),
 
+-- 2b. The supplier fee COLUMN is gone from the customer-readable row.
+--     20260914120000 put supplier_fee_pct on ad_accounts; 20260914140000
+--     moved it to the admin-only ad_account_costs table and dropped it,
+--     because an advertiser reads their own ad_accounts with select("*")
+--     and our cost per account was being shipped to their browser in the
+--     JSON. This checks the SECOND migration actually ran: a count of 1
+--     means the column is still there and the leak is live.
+supplier_fee_column as (
+  select count(*) as bad
+    from information_schema.columns
+   where table_schema = 'public'
+     and table_name = 'ad_accounts'
+     and column_name = 'supplier_fee_pct'
+),
+
 -- 3. No staff PII on customer-readable rows.
 --    top_ups and topup_logs are both readable by the advertiser who owns
 --    them. `author` carries the profile id and nothing else.
@@ -122,6 +137,7 @@ held_money_jobs as (
 select
   rates.bad          as tenants_with_wrong_active_rate_count_must_be_0,
   supplier_leak.bad  as ad_accounts_leaking_supplier_must_be_0,
+  supplier_fee_column.bad as supplier_fee_column_on_ad_accounts_must_be_0,
   staff_leak.bad     as rows_leaking_staff_pii_must_be_0,
   refunds.bad        as periods_over_refunded_must_be_0,
   stuck_jobs.bad     as jobs_stuck_processing_must_be_0,
@@ -129,10 +145,10 @@ select
   held_money_jobs.n  as money_jobs_waiting_on_the_gate,
   top_ups_view_columns.cols as top_ups_view_columns_check_by_eye,
   case
-    when rates.bad + supplier_leak.bad + staff_leak.bad + refunds.bad
-       + stuck_jobs.bad + bank_rls.bad = 0
+    when rates.bad + supplier_leak.bad + supplier_fee_column.bad
+       + staff_leak.bad + refunds.bad + stuck_jobs.bad + bank_rls.bad = 0
     then 'ALL CLEAR'
     else 'SOMETHING IS WRONG — read the columns above'
   end as verdict
-  from rates, supplier_leak, staff_leak, refunds, stuck_jobs, bank_rls,
-       held_money_jobs, top_ups_view_columns;
+  from rates, supplier_leak, supplier_fee_column, staff_leak, refunds,
+       stuck_jobs, bank_rls, held_money_jobs, top_ups_view_columns;
