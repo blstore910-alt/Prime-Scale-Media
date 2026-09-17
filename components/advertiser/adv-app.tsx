@@ -480,17 +480,60 @@ export default function AdvertiserApp() {
   const planMoney2 = (v: number | string | null | undefined) =>
     (planCur === "USD" ? "$" : "€") + money2(v);
 
-  const dueSubInvoice = (invoices ?? [])
-    .filter((i) => i.status !== "paid" && i.type === "subscription")
+  // Every unpaid subscription invoice, NEWEST first.
+  //
+  // This used to take the OLDEST and call it "this month". After a plan
+  // change that is the superseded one: lowering €200 to €5 issued a new €5
+  // invoice and left the €200 unpaid, so the card asked for €200 on a €5
+  // plan and the button next to it offered to pay it. Newest-first shows
+  // the current period, and the count below says plainly when more than one
+  // is open — being asked for two is a fact the customer needs, not
+  // something to hide behind a single number.
+  const unpaidSubInvoices = (invoices ?? [])
+    .filter((i) => i.status !== "paid" && i.status !== "void" && i.type === "subscription")
     .sort(
       (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    )[0];
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  const dueSubInvoice = unpaidSubInvoices[0];
   const dueSubSymbol =
     ((dueSubInvoice?.items as Array<{ currency?: string }> | undefined)?.[0]
       ?.currency ?? "EUR") === "USD"
       ? "$"
       : "€";
+
+  // Hand the customer their own invoice. Same route the admin list uses;
+  // it constrains the query to the caller's own advertiser ids, so someone
+  // else's id is a 404 rather than a document.
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const downloadInvoice = async (inv: { id: string; number?: number | string | null }) => {
+    if (downloadingId === inv.id) return;
+    setDownloadingId(inv.id);
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}/pdf`);
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error || "We couldn't prepare that invoice.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${formatPaymentReference(referralCode, inv.number)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "We couldn't prepare that invoice.",
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   // What the customer actually owes right now, and by when. Falls back to
   // the plan's own figures only when there is no unpaid invoice to read —
@@ -1674,6 +1717,13 @@ export default function AdvertiserApp() {
                         </span>
                       )}
                     </div>
+                    {unpaidSubInvoices.length > 1 && (
+                      <p className="cap" style={{ margin: "8px 0 0" }}>
+                        You have {unpaidSubInvoices.length} unpaid subscription
+                        invoices. This is the most recent one — the others are
+                        in the list below.
+                      </p>
+                    )}
                     <button
                       className="btn block grad"
                       style={{ marginTop: 14 }}
@@ -1753,18 +1803,36 @@ export default function AdvertiserApp() {
                                 {paid ? "Paid" : "Due"}
                               </span>
                             </td>
-                            <td data-label="" className="r">
-                              {!paid && (
+                            {/* Download was admin-only. A customer could
+                                see an invoice and not take it — and an
+                                invoice you cannot hand to your own
+                                bookkeeper is not much of an invoice. The
+                                PDF route already refuses anybody else's
+                                id, so there is nothing to gate here. */}
+                            <td data-label="" className="r fullcell">
+                              <div className="actrow">
+                                {!paid && (
+                                  <button
+                                    className="btn ghost sm"
+                                    disabled={payingId === inv.id}
+                                    onClick={() => payInvoice(inv.id)}
+                                  >
+                                    {payingId === inv.id
+                                      ? "Paying…"
+                                      : "Pay now"}
+                                  </button>
+                                )}
                                 <button
                                   className="btn ghost sm"
-                                  disabled={payingId === inv.id}
-                                  onClick={() => payInvoice(inv.id)}
+                                  disabled={downloadingId === inv.id}
+                                  onClick={() => downloadInvoice(inv)}
                                 >
-                                  {payingId === inv.id
-                                    ? "Paying…"
-                                    : "Pay now"}
+                                  <Ic name="i-download" />{" "}
+                                  {downloadingId === inv.id
+                                    ? "Preparing…"
+                                    : "Download"}
                                 </button>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         );
