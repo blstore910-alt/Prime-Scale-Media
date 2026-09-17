@@ -12,10 +12,15 @@ screen kept contradicting the PDF filename beside it.
 A file being named `psm-*` does NOT mean it is the live mockup view. Some
 ports landed; some did not.
 
-Deleted so far for being on no route at all: `invoices/psm-invoices-view`,
+Deleted so far for being unreachable: `invoices/psm-invoices-view`,
 `advertiser/psm-shell`, `advertiser/dashboard-view`,
-`advertiser/wallet-section`. Each of them looked maintained. Two of them had
-received fixes that therefore never reached a user.
+`advertiser/wallet-section`, `wallet/wallet-view`. Each looked maintained.
+Two had received fixes that therefore never reached a user, and the last one
+sat under two redirects that between them covered every role — so the page
+imported it, which is why a grep for importers said it was alive.
+
+**An importer is not a route.** Check that the page can actually render the
+component before trusting that a fix in it matters.
 
 | route | renders |
 |---|---|
@@ -47,7 +52,7 @@ received fixes that therefore never reached a user.
 | `/settings/general` | `settings/general` |
 | `/my-referrals` | `affiliate/aff-app` |
 | `/my-subscription` | `subscriptions/my-subscription-view` |
-| `/wallet` | `wallet/wallet-view` |
+| `/wallet` | redirect only — advertisers to `/dashboard`, everyone else to `/wallets` |
 | `/profile` | `profile/profile-form` + `profile/privacy-controls` + `profile/my-activity` |
 | `/notifications` | `notifications/*` |
 | `/complete-profile` | `company/company-onboarding-form` |
