@@ -315,11 +315,23 @@ export const PSM_APP_CSS = `
     display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 16px;
     padding:10px 2px;border-top:1px solid var(--line);text-align:right;min-width:0
   }
-  .psmapp .tbl.wide tr td:first-child{border-top:0}
   .psmapp .tbl.wide td::before{
     content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;
     font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700
   }
+  /* The first cell is the card's TITLE, not another labelled field. Every
+     one of these lists leads with the thing the row IS — a client code, an
+     account name, an invoice number — and printing "CLIENT CODE  PSM0002" as
+     a label/value pair buries the identifier among the details you only read
+     after you have found the row. A card should say what it is at the top,
+     in the size of a title. */
+  .psmapp .tbl.wide tr td:first-child:not(.fullcell){
+    display:block;text-align:left;border-top:0;padding:2px 0 10px;
+    font-family:var(--hd);font-weight:800;font-size:1.02rem;letter-spacing:-.01em;
+    font-variant-numeric:tabular-nums;overflow-wrap:anywhere
+  }
+  .psmapp .tbl.wide tr td:first-child:not(.fullcell)::before{display:none}
+  .psmapp .tbl.wide tr td:first-child.fullcell{border-top:0}
   .psmapp .tbl.wide td>*{grid-column:2;min-width:0}
   /* Inline value chips (status badges, short notes) keep their natural size
      and sit at the right instead of stretching the whole value column. */
