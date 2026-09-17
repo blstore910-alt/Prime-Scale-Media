@@ -12,6 +12,11 @@ screen kept contradicting the PDF filename beside it.
 A file being named `psm-*` does NOT mean it is the live mockup view. Some
 ports landed; some did not.
 
+Deleted so far for being on no route at all: `invoices/psm-invoices-view`,
+`advertiser/psm-shell`, `advertiser/dashboard-view`,
+`advertiser/wallet-section`. Each of them looked maintained. Two of them had
+received fixes that therefore never reached a user.
+
 | route | renders |
 |---|---|
 | `/dashboard` | `admin/dashboard` (admin) · `advertiser/dashboard` → `advertiser/adv-app` |

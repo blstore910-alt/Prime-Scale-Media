@@ -3,6 +3,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { Wallet } from "@/lib/types/wallet";
+import { effectiveMinTopup } from "@/lib/min-topup";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { Clock, Plus, Search } from "lucide-react";
@@ -44,6 +45,24 @@ export default function WalletView() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
+  // "Active" here means the plan has actually been PAID for, not that a row
+  // exists — a subscription is created at signup and is worth nothing until
+  // its invoice is settled.
+  const { data: planActive = false } = useQuery<boolean>({
+    queryKey: ["wallet-view-plan-active", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("subscriptions")
+        .select("status")
+        .eq("advertiser_id", advertiserId)
+        .eq("status", "active")
+        .limit(1);
+      if (error) throw error;
+      return (data ?? []).length > 0;
+    },
+  });
   const tenantId = profile?.tenant_id ?? null;
   const isAdvertiser = profile?.role === "advertiser";
 
@@ -322,12 +341,22 @@ export default function WalletView() {
         </div>
       </div>
 
+      {/* The MINIMUM is a rule, not a column. Passing wallets.min_topup
+          straight through put the €300 floor on the very first payment —
+          wallets are created with min_topup = 300 as a column DEFAULT, which
+          is indistinguishable from an admin having typed it, and the first
+          top-up is exactly the one that must not have a floor because it is
+          how the plan gets paid at all. effectiveMinTopup knows that; this
+          screen was bypassing it while the single-page app used it. */}
       <WalletTopupDialog
         open={topupOpen}
         onOpenChange={setTopupOpen}
         walletId={wallet?.id ?? null}
         referenceNo={wallet?.reference_no ?? null}
-        minTopup={wallet?.min_topup as number}
+        minTopup={effectiveMinTopup({
+          walletMin: wallet?.min_topup as number | null | undefined,
+          planActive,
+        })}
       />
       <WalletExchangeDialog
         open={exchangeOpen}
