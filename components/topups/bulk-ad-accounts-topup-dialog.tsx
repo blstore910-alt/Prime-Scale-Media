@@ -422,136 +422,133 @@ export default function BulkTopupAdAccountsDialog({
               </div>
             </ScrollArea>
           ) : (
-            <div className="flex-1 min-h-0 overflow-y-auto touch-pan-y">
-              <div className="pr-2">
-                <div className="overflow-x-auto touch-pan-x">
-                  <Table className="min-w-[760px]">
-                    <TableHeader className="bg-background">
-                      <TableRow>
-                        <TableCell className="w-24 sticky left-0 z-10 bg-background">
-                          Enable
-                        </TableCell>
-                        <TableCell>Ad Account</TableCell>
-                        <TableCell className="w-[180px]">Currency</TableCell>
-                        <TableCell className="w-[180px]">Amount</TableCell>
-                        <TableCell className="w-[180px]">Fee (%)</TableCell>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fields.map((field, index) => {
-                        const isEnabled = rows?.[index]?.enabled ?? true;
-                        const rowError = errors.rows?.[index];
-                        const minTopup = rows?.[index]?.min_topup ?? 0;
+            /* A CARD per ad account. This branch used to be a 760px-wide
+               table inside a horizontal scroller, which is backwards: the
+               DESKTOP branch above has no minimum width and needs no
+               scrolling, and the phone got the one that has to be dragged
+               left and right — while holding the phone and typing amounts
+               into it. The account name is the card's title with its switch,
+               and the three fields sit under it. */
+            <div className="flex-1 min-h-0 space-y-3 overflow-y-auto touch-pan-y pr-1">
+              {fields.map((field, index) => {
+                const isEnabled = rows?.[index]?.enabled ?? true;
+                const rowError = errors.rows?.[index];
+                const minTopup = rows?.[index]?.min_topup ?? 0;
 
-                        return (
-                          <TableRow key={field.id}>
-                            <TableCell className="sticky left-0 z-10 bg-background">
-                              <Controller
-                                control={control}
-                                name={`rows.${index}.enabled`}
-                                render={({ field: enabledField }) => (
-                                  <Switch
-                                    checked={enabledField.value}
-                                    onCheckedChange={enabledField.onChange}
-                                  />
-                                )}
-                              />
-                            </TableCell>
+                return (
+                  <div
+                    key={field.id}
+                    className={`rounded-lg border p-3 ${isEnabled ? "" : "opacity-60"}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Controller
+                        control={control}
+                        name={`rows.${index}.enabled`}
+                        render={({ field: enabledField }) => (
+                          <Switch
+                            checked={enabledField.value}
+                            onCheckedChange={enabledField.onChange}
+                            aria-label={`Include ${rows?.[index]?.account_name ?? "this account"}`}
+                          />
+                        )}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium">
+                          {rows?.[index]?.account_name}
+                        </div>
+                        {isAdvertiser && minTopup > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            Min topup: {minTopup}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                            <TableCell
-                              className={!isEnabled ? "opacity-60" : ""}
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <label className="grid gap-1">
+                        <span className="text-xs text-muted-foreground">
+                          Currency
+                        </span>
+                        <Controller
+                          control={control}
+                          name={`rows.${index}.currency`}
+                          render={({ field: currencyField }) => (
+                            <Select
+                              value={currencyField.value}
+                              onValueChange={currencyField.onChange}
+                              disabled={!isEnabled}
                             >
-                              <div className="text-sm font-medium">
-                                {rows?.[index]?.account_name}
-                              </div>
-                              {isAdvertiser && minTopup > 0 && (
-                                <div className="text-xs text-muted-foreground">
-                                  Min topup: {minTopup}
-                                </div>
-                              )}
-                            </TableCell>
-
-                            <TableCell>
-                              <Controller
-                                control={control}
-                                name={`rows.${index}.currency`}
-                                render={({ field: currencyField }) => (
-                                  <Select
-                                    value={currencyField.value}
-                                    onValueChange={currencyField.onChange}
-                                    disabled={!isEnabled}
+                              <SelectTrigger>
+                                <SelectValue placeholder="Currency" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CURRENCIES.filter(
+                                  (c) => c.value === "USD" || c.value === "EUR",
+                                ).map((currency) => (
+                                  <SelectItem
+                                    key={currency.value}
+                                    value={currency.value}
                                   >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select currency" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {CURRENCIES.filter(
-                                        (c) =>
-                                          c.value === "USD" ||
-                                          c.value === "EUR",
-                                      ).map((currency) => (
-                                        <SelectItem
-                                          key={currency.value}
-                                          value={currency.value}
-                                        >
-                                          {currency.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                              {rowError?.currency && (
-                                <FieldError errors={[rowError.currency]} />
-                              )}
-                            </TableCell>
+                                    {currency.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {rowError?.currency && (
+                          <FieldError errors={[rowError.currency]} />
+                        )}
+                      </label>
 
-                            <TableCell>
-                              <Controller
-                                control={control}
-                                name={`rows.${index}.amount`}
-                                render={({ field: amountField }) => (
-                                  <Input
-                                    {...amountField}
-                                    type="number"
-                                    step="0.01"
-                                    min={isAdvertiser ? minTopup : 0}
-                                    placeholder="0.00"
-                                    disabled={!isEnabled}
-                                  />
-                                )}
-                              />
-                              {rowError?.amount && (
-                                <FieldError errors={[rowError.amount]} />
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Controller
-                                control={control}
-                                name={`rows.${index}.fee`}
-                                render={({ field: feeField }) => (
-                                  <Input
-                                    {...feeField}
-                                    type="number"
-                                    step="0.1"
-                                    min={0}
-                                    max={100}
-                                    placeholder="0.0"
-                                    disabled={!isEnabled || !isAdmin}
-                                  />
-                                )}
-                              />
-                              {rowError?.fee && (
-                                <FieldError errors={[rowError.fee]} />
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                      <label className="grid gap-1">
+                        <span className="text-xs text-muted-foreground">
+                          Amount
+                        </span>
+                        <Controller
+                          control={control}
+                          name={`rows.${index}.amount`}
+                          render={({ field: amountField }) => (
+                            <Input
+                              {...amountField}
+                              type="number"
+                              step="0.01"
+                              min={isAdvertiser ? minTopup : 0}
+                              placeholder="0.00"
+                              disabled={!isEnabled}
+                            />
+                          )}
+                        />
+                        {rowError?.amount && (
+                          <FieldError errors={[rowError.amount]} />
+                        )}
+                      </label>
+
+                      <label className="col-span-2 grid gap-1">
+                        <span className="text-xs text-muted-foreground">
+                          Fee (%)
+                        </span>
+                        <Controller
+                          control={control}
+                          name={`rows.${index}.fee`}
+                          render={({ field: feeField }) => (
+                            <Input
+                              {...feeField}
+                              type="number"
+                              step="0.1"
+                              min={0}
+                              max={100}
+                              placeholder="0.0"
+                              disabled={!isEnabled || !isAdmin}
+                            />
+                          )}
+                        />
+                        {rowError?.fee && <FieldError errors={[rowError.fee]} />}
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
