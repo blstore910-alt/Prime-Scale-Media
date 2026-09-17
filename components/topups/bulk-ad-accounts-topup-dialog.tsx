@@ -285,7 +285,7 @@ export default function BulkTopupAdAccountsDialog({
           Bulk Topup
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Bulk Topup Ad Accounts</DialogTitle>
           <DialogDescription>

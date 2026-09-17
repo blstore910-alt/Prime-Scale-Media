@@ -94,7 +94,7 @@ export default function AdAccountRequestReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1rem)] flex-col overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Review Ad Account Request</DialogTitle>
           <DialogDescription>
