@@ -3,11 +3,12 @@
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Archive, ArchiveRestore, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   confirmWiseSuggestion,
+  refreshWiseDepositDetails,
   rematchWiseDeposits,
   setWiseDepositArchived,
 } from "@/actions/wise-actions";
@@ -312,6 +313,37 @@ export default function WiseReviewPanel() {
     },
   });
 
+  // Ask Wise what it knows about the ones we recorded blind. Context
+  // only — reference, sender, description — never a status or a match.
+  const refresh = useMutation({
+    mutationFn: async () => {
+      const res = await refreshWiseDepositDetails();
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      if (d.filled > 0) {
+        toast.success(
+          `Filled in ${d.filled} deposit${d.filled === 1 ? "" : "s"}`,
+          {
+            description:
+              d.withReference > 0
+                ? `${d.withReference} now carry the payer's reference — Re-check matches to use them.`
+                : "Sender and description only; no reference was on file.",
+          },
+        );
+      } else {
+        toast.message("Nothing new from Wise", {
+          description: d.reason ?? "These deposits already have what Wise has.",
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["wise-ingest-status"] });
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't reach Wise", { description: e.message }),
+  });
+
   // Archived rows are out of the way, not gone. The toggle brings them
   // back with every field intact.
   const [showArchived, setShowArchived] = useState(false);
@@ -383,6 +415,14 @@ export default function WiseReviewPanel() {
                   : `Archived (${archivedCount})`}
               </button>
             )}
+            <button
+              className="btn ghost sm"
+              disabled={refresh.isPending}
+              onClick={() => refresh.mutate()}
+              title="Ask Wise for the reference, sender and description of the deposits that arrived without them"
+            >
+              {refresh.isPending ? "Asking Wise…" : "Fetch details from Wise"}
+            </button>
             <button
               className="btn ghost sm"
               disabled={rematch.isPending}
@@ -554,7 +594,15 @@ export default function WiseReviewPanel() {
                           {r.note ?? "—"}
                         </div>
                       </td>
-                      <td data-label="Action" className="r" style={{ verticalAlign: "top" }}>
+                      <td
+                        data-label="Action"
+                        className="r fullcell"
+                        style={{ verticalAlign: "top" }}
+                      >
+                        {/* One row, both actions, same size — they were a
+                            button and then a button in its own div with a
+                            top margin, so they stacked and stepped. */}
+                        <div className="actrow" style={{ flexWrap: "wrap" }}>
                         {r.status === "suggested" && r.suggested_topup_id ? (
                           <button
                             className="btn sm"
@@ -597,24 +645,24 @@ export default function WiseReviewPanel() {
                             — so the one that mattered sat in a list of two
                             hundred that did not. Archiving is reversible
                             and loses nothing. */}
-                        <div style={{ marginTop: 8 }}>
-                          <button
-                            className="btn ghost sm"
-                            disabled={archive.isPending}
-                            onClick={() =>
-                              archive.mutate({
-                                id: r.id,
-                                archived: !r.archived_at,
-                              })
-                            }
-                            title={
-                              r.archived_at
-                                ? "Put it back in the queue"
-                                : "Move it to Archived — nothing is deleted"
-                            }
-                          >
-                            {r.archived_at ? "Unarchive" : "Archive"}
-                          </button>
+                        <button
+                          className="btn ghost sm"
+                          disabled={archive.isPending}
+                          onClick={() =>
+                            archive.mutate({
+                              id: r.id,
+                              archived: !r.archived_at,
+                            })
+                          }
+                          title={
+                            r.archived_at
+                              ? "Put it back in the queue"
+                              : "Move it to Archived — nothing is deleted"
+                          }
+                        >
+                          {r.archived_at ? <ArchiveRestore /> : <Archive />}
+                          {r.archived_at ? "Unarchive" : "Archive"}
+                        </button>
                         </div>
                       </td>
                     </tr>
@@ -740,8 +788,12 @@ function ManualMatch({
 
   if (!open) {
     return (
-      <button className="btn ghost sm" onClick={() => setOpen(true)}>
-        Match…
+      <button
+        className="btn ghost sm"
+        onClick={() => setOpen(true)}
+        title="Pick the top-up this payment settles"
+      >
+        <Link2 /> Match
       </button>
     );
   }

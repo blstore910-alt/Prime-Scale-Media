@@ -7,6 +7,11 @@ import {
   matchIncomingTransfer,
   type PendingTopup,
 } from "@/lib/integrations/wise-match";
+import {
+  fetchWiseProfileIds,
+  fetchWiseTxnDetail,
+  parseExternalId,
+} from "@/lib/integrations/wise-api";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -376,4 +381,156 @@ export async function setWiseDepositArchived(
   const wrote = wroteSomething(rows);
   if (!wrote.ok) return wrote;
   return { ok: true, data: null };
+}
+
+/**
+ * Go and ask Wise what it knows about deposits we recorded blind.
+ *
+ * The webhook enriches ONCE, at arrival, and only when it has both a
+ * balance id and a profile id in the payload — and the v2 balances#credit
+ * payload frequently carries neither the reference nor the profile. So a
+ * deposit that arrived before the read token was configured, or whose
+ * payload was thin, or whose statement window held several credits of the
+ * same amount (which used to make the parser give up), is stored with no
+ * reference, no sender and no description, for ever. 231 of them here.
+ *
+ * This asks again, from the row: the idempotency key still holds the
+ * balance id and the exact instant, and the profiles come from the token
+ * itself, so there is no new environment variable and nothing to keep in
+ * step.
+ *
+ * It writes only CONTEXT — reference, sender name, sender IBAN, description
+ * — and never a status, a match or a cent. Matching stays a separate,
+ * deliberate step (rematchWiseDeposits), which is what makes this safe to
+ * run over two hundred rows.
+ *
+ * It reports WHY it could not, per deposit, because "still nothing" with no
+ * reason is how a feature gets declared broken when it is unconfigured.
+ */
+export async function refreshWiseDepositDetails(
+  transferId?: string,
+): Promise<
+  ActionResult<{
+    looked: number;
+    filled: number;
+    withReference: number;
+    reason: string | null;
+  }>
+> {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+
+  if (!process.env.WISE_API_TOKEN) {
+    return {
+      ok: true,
+      data: {
+        looked: 0,
+        filled: 0,
+        withReference: 0,
+        reason:
+          "No Wise read token is set (WISE_API_TOKEN), so there is nothing to ask. The webhook can still record deposits; it just cannot look up what the payer wrote.",
+      },
+    };
+  }
+
+  const profileIds = await fetchWiseProfileIds();
+  if (profileIds.length === 0) {
+    return {
+      ok: true,
+      data: {
+        looked: 0,
+        filled: 0,
+        withReference: 0,
+        reason:
+          "The Wise token is set but it could not list any profiles — it is probably expired, or it is a token for a different account. Check WISE_API_TOKEN.",
+      },
+    };
+  }
+
+  let q = supabase
+    .from("wise_incoming_transfers")
+    .select("id, external_id, amount_cents, currency, reference, description, tenant_id")
+    .order("created_at", { ascending: false })
+    .limit(transferId ? 1 : 60);
+  if (transferId) {
+    q = q.eq("id", transferId);
+  } else {
+    // Only the ones that are actually missing something.
+    q = q.is("reference", null);
+  }
+  const { data: rows, error } = await q;
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  if (!rows || rows.length === 0) {
+    return {
+      ok: true,
+      data: { looked: 0, filled: 0, withReference: 0, reason: null },
+    };
+  }
+
+  const admin = await createAdminClient();
+  let filled = 0;
+  let withReference = 0;
+  let noKey = 0;
+
+  for (const row of rows) {
+    const r = row as {
+      id: string;
+      external_id: string;
+      amount_cents: number;
+      currency: string;
+      tenant_id: string | null;
+    };
+    if (r.tenant_id !== null && r.tenant_id !== profile.tenant_id) continue;
+
+    const key = parseExternalId(r.external_id);
+    if (!key || !key.balanceId || key.balanceId === "0") {
+      // A balance id of 0 is what a payload with no balance in it produces.
+      // Nothing to ask Wise about.
+      noKey += 1;
+      continue;
+    }
+
+    let detail = null as Awaited<ReturnType<typeof fetchWiseTxnDetail>>;
+    for (const pid of profileIds) {
+      detail = await fetchWiseTxnDetail({
+        profileId: pid,
+        balanceId: key.balanceId,
+        currency: String(r.currency ?? ""),
+        amountCents: Math.round(Number(r.amount_cents ?? 0)),
+        occurredAt: key.occurredAt,
+      });
+      if (detail) break;
+    }
+    if (!detail) continue;
+
+    const patch: Record<string, string> = {};
+    if (detail.reference) patch.reference = detail.reference;
+    if (detail.senderName) patch.sender_name = detail.senderName;
+    if (detail.senderIban) patch.sender_iban = detail.senderIban;
+    if (detail.description) patch.description = detail.description;
+    if (Object.keys(patch).length === 0) continue;
+
+    const { data: wrote } = await admin
+      .from("wise_incoming_transfers")
+      .update(patch)
+      .eq("id", r.id)
+      .select("id");
+    if ((wrote ?? []).length > 0) {
+      filled += 1;
+      if (detail.reference) withReference += 1;
+    }
+  }
+
+  const reason =
+    filled === 0 && noKey === rows.length
+      ? "None of these deposits carry a Wise balance id — their webhook payloads had no balance in them, so there is no statement to look up. Newer deposits will."
+      : filled === 0
+        ? "Wise returned nothing for these. Either the statements no longer cover that date, or several credits of the same amount sat within a minute of each other and we refuse to guess between them."
+        : null;
+
+  return {
+    ok: true,
+    data: { looked: rows.length, filled, withReference, reason },
+  };
 }

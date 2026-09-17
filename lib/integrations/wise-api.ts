@@ -188,3 +188,54 @@ export async function fetchWiseTxnDetail(args: {
     return null;
   }
 }
+
+/**
+ * The Wise profiles this token can read.
+ *
+ * The webhook takes the profile id out of the payload, which is fine while
+ * a payload has one. A REFETCH has no payload — it is working from a row we
+ * stored days ago — so it asks Wise instead. That also means the refetch
+ * needs no new environment variable: the read token already implies which
+ * profiles it may see.
+ *
+ * Returns [] on any problem, so a caller falls back to "we could not ask"
+ * rather than to a wrong id.
+ */
+export async function fetchWiseProfileIds(): Promise<Array<string | number>> {
+  const token = process.env.WISE_API_TOKEN;
+  if (!token) return [];
+  try {
+    const res = await fetch(`${wiseApiBase()}/v1/profiles`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as Array<{ id?: string | number }>;
+    return (Array.isArray(json) ? json : [])
+      .map((p) => p?.id)
+      .filter((v): v is string | number => v !== undefined && v !== null);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Take apart the idempotency key the webhook composed.
+ *
+ * It is `balanceId:occurredAt:amount`, and occurredAt is an ISO timestamp
+ * with colons of its own — so this is not a split on ":" but a first
+ * segment, a last segment, and everything between.
+ */
+export function parseExternalId(externalId: string): {
+  balanceId: string;
+  occurredAt: string;
+  amount: string;
+} | null {
+  const parts = String(externalId ?? "").split(":");
+  if (parts.length < 3) return null;
+  const balanceId = parts[0];
+  const amount = parts[parts.length - 1];
+  const occurredAt = parts.slice(1, -1).join(":");
+  if (!balanceId || !occurredAt) return null;
+  return { balanceId, occurredAt, amount };
+}
