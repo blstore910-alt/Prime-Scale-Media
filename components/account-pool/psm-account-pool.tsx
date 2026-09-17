@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -156,6 +157,12 @@ export default function PsmAccountPool() {
   const [filter, setFilter] = useState<SupplierAdAccountFilter>("unassigned");
   const [search, setSearch] = useState("");
   const [assigning, setAssigning] = useState<SupplierAdAccount | null>(null);
+  // window.confirm was doing this, and on a queue screen that is a trap:
+  // after a few dialogs the browser offers "prevent this page from
+  // creating additional dialogs", and once ticked confirm() silently
+  // returns false — the button looks dead. It also cannot show which
+  // account and which advertiser, which is the whole point of asking.
+  const [releasing, setReleasing] = useState<SupplierAdAccount | null>(null);
   const [advertiserId, setAdvertiserId] = useState("");
   // The fee THIS advertiser's plan or community says we charge. It is the
   // right default — an advertiser is on a plan or in a community, and that
@@ -634,14 +641,7 @@ export default function PsmAccountPool() {
                             <button
                               className="btn ghost sm"
                               disabled={release.isPending}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    "Return this ad account to the pool? The advertiser's own account row stays as-is — and if it's still active the release is refused, because it would silently stop that account's top-ups reaching the supplier.",
-                                  )
-                                )
-                                  release.mutate(r);
-                              }}
+                              onClick={() => setReleasing(r)}
                             >
                               <Undo2 /> Release
                             </button>
@@ -1028,6 +1028,28 @@ export default function PsmAccountPool() {
           </p>
         </Modal>
       )}
+      <ConfirmModal
+        open={!!releasing}
+        onOpenChange={(next) => {
+          if (!next) setReleasing(null);
+        }}
+        title="Return this account to the pool?"
+        lead="The advertiser's own account row stays exactly as it is. If it is still running the release is refused outright, because it would quietly stop that account's top-ups reaching the supplier."
+        cta="Yes, release it"
+        busy={release.isPending}
+        busyLabel="Releasing…"
+        onConfirm={() => {
+          const r = releasing;
+          setReleasing(null);
+          if (r) release.mutate(r);
+        }}
+      >
+        <ConfirmFact label="Account" value={releasing?.name ?? "—"} />
+        <ConfirmFact
+          label="Provider id"
+          value={releasing?.external_id ?? "—"}
+        />
+      </ConfirmModal>
     </div>
   );
 }

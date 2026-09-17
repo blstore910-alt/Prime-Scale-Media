@@ -1,5 +1,6 @@
 "use client";
 
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { toggleAdminStatus } from "@/actions/admin-actions";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -52,6 +53,10 @@ export default function AdminsTable() {
     password: string;
   } | null>(null);
   const [pendingAdminId, setPendingAdminId] = useState<string | null>(null);
+  // Not window.confirm: it cannot name the person, and a browser that has
+  // been told to suppress dialogs returns false silently, which reads as a
+  // dead button on a screen where the action is removing somebody's access.
+  const [askAdmin, setAskAdmin] = useState<AdminProfile | null>(null);
 
   const {
     data: admins = [],
@@ -204,21 +209,7 @@ export default function AdminsTable() {
                         <button
                           className={`btn sm${isActive ? " ghost" : ""}`}
                           disabled={pendingAdminId === admin.id}
-                          onClick={() => {
-                            const verb = isActive ? "Deactivate" : "Activate";
-                            if (
-                              !window.confirm(
-                                `${verb} ${admin.full_name ?? admin.email ?? "this admin"}? ${
-                                  isActive
-                                    ? "They lose access immediately."
-                                    : "They regain admin access."
-                                }`,
-                              )
-                            )
-                              return;
-                            setPendingAdminId(admin.id);
-                            toggleStatus(admin);
-                          }}
+                          onClick={() => setAskAdmin(admin)}
                         >
                           {pendingAdminId === admin.id ? (
                             <Loader2
@@ -261,6 +252,41 @@ export default function AdminsTable() {
         }}
         credentials={credentials}
       />
+      <ConfirmModal
+        open={!!askAdmin}
+        onOpenChange={(next) => {
+          if (!next) setAskAdmin(null);
+        }}
+        title={
+          askAdmin?.is_active === false
+            ? "Give this admin access back?"
+            : "Take away this admin's access?"
+        }
+        lead={
+          askAdmin?.is_active === false
+            ? "They can sign in and work the desk again straight away."
+            : "They lose access immediately, including to anything they had open."
+        }
+        cta={
+          askAdmin?.is_active === false ? "Yes, activate" : "Yes, deactivate"
+        }
+        tone={askAdmin?.is_active === false ? "default" : "danger"}
+        busy={!!pendingAdminId}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          const a = askAdmin;
+          setAskAdmin(null);
+          if (!a) return;
+          setPendingAdminId(a.id);
+          toggleStatus(a);
+        }}
+      >
+        <ConfirmFact
+          label="Admin"
+          value={askAdmin?.full_name ?? askAdmin?.email ?? "—"}
+        />
+        <ConfirmFact label="Email" value={askAdmin?.email ?? "—"} />
+      </ConfirmModal>
     </div>
   );
 }
