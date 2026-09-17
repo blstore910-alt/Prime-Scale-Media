@@ -336,6 +336,29 @@ export const PSM_APP_CSS = `
   /* Inline value chips (status badges, short notes) keep their natural size
      and sit at the right instead of stretching the whole value column. */
   .psmapp .tbl.wide td>span{justify-self:end}
+  /* ── Dense record cards ────────────────────────────────────────────
+     A card with nine fields is nine stacked rows, and at that length you
+     scroll past three accounts to compare two. Opt a table into the dense class and
+     the middle fields flow two-up: eight rows become four, the card halves
+     in height, and nothing is dropped. The title and the action still span
+     the full width, because one is what you are looking at and the other is
+     what you do about it. */
+  .psmapp .tbl.wide.dense tr{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;padding:4px 12px 10px}
+  .psmapp .tbl.wide.dense td{padding:7px 0;text-align:left;grid-template-columns:1fr;gap:2px}
+  .psmapp .tbl.wide.dense td::before{grid-row:auto;justify-self:start}
+  .psmapp .tbl.wide.dense td>*{grid-column:1;justify-self:start}
+  .psmapp .tbl.wide.dense td>span{justify-self:start}
+  .psmapp .tbl.wide.dense tr td:first-child,
+  .psmapp .tbl.wide.dense tr td:last-child,
+  .psmapp .tbl.wide.dense td.fullcell,
+  .psmapp .tbl.wide.dense td[colspan]{grid-column:1 / -1}
+  /* A numeric column loses its right alignment here — in a two-up grid the
+     value sits under its own label, so aligning it to the far edge of the
+     card puts it under the OTHER column's label. */
+  .psmapp .tbl.wide.dense td.r{text-align:left}
+  .psmapp .tbl.wide.dense tr td:last-child:not(:first-child){
+    border-top:1px solid var(--line);margin-top:8px;padding-top:10px}
+
   .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
   .psmapp .tbl.wide td[colspan]::before{display:none}
   /* Rich cells — an avatar plus a name plus an email, or a row of action

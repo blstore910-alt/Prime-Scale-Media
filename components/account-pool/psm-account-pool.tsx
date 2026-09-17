@@ -451,7 +451,7 @@ export default function PsmAccountPool() {
       ) : rows.length ? (
         <div className="card" style={{ padding: "16px 8px 8px" }}>
           <div className="tblwrap">
-            <table className="tbl wide">
+            <table className="tbl wide dense">
               <thead>
                 <tr>
                   <th style={{ paddingLeft: 14 }}>Account</th>
