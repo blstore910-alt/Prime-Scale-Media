@@ -2,6 +2,7 @@
 
 import { setInvoicePaidStatus } from "@/actions/invoice-actions";
 import { invoiceNumber } from "@/lib/payment-reference";
+import CustomerName from "@/components/psm/customer-name";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
 import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
@@ -194,7 +195,7 @@ export default function InvoicesTable() {
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Invoices</h1>
-          <p>View and download your invoices.</p>
+          <p>{isAdmin ? "Issued, paid and overdue." : "View and download your invoices."}</p>
         </div>
         {isAdmin && (
           <div className="pacts">
@@ -266,22 +267,29 @@ export default function InvoicesTable() {
                               style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               data-label="Invoice #"
                             >
-                              {invoice.number}
+                              {/* The SAME identity the PDF filename, the
+                                  advertiser's own list and the payment
+                                  reference use. This printed the bare
+                                  sequence while the download two lines up
+                                  already used invoiceNumber(), so one
+                                  invoice had two names depending on which
+                                  one you happened to read — and those two
+                                  people phone each other about it. */}
+                              {invoiceNumber(invoice)}
                             </td>
                             {isAdmin && (
                               <>
                                 <td data-label="Advertiser">
-                                  <div style={{ fontWeight: 600 }}>
-                                    {invoice.advertiser?.profile?.full_name ??
-                                      "—"}
-                                  </div>
-                                  <div
-                                    className="muted mono"
-                                    style={{ fontSize: ".78rem" }}
-                                  >
-                                    {invoice.advertiser?.tenant_client_code ??
-                                      "—"}
-                                  </div>
+                                  {/* Code first, name beneath. */}
+                                  <CustomerName
+                                    clientCode={
+                                      invoice.advertiser?.tenant_client_code
+                                    }
+                                    name={
+                                      invoice.advertiser?.profile?.full_name
+                                    }
+                                    full
+                                  />
                                 </td>
                                 <td
                                   style={{ fontWeight: 600 }}
