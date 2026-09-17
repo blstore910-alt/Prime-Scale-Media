@@ -2,6 +2,7 @@
 
 import { DATE_FORMAT } from "@/lib/constants";
 import PsmSortFilter from "@/components/psm/sort-filter";
+import CustomerName from "@/components/psm/customer-name";
 import { formatCurrency } from "@/lib/utils";
 import dayjs from "dayjs";
 import {
@@ -191,7 +192,7 @@ export default function PsmSubscriptions() {
                     isStatusUpdating && pendingSubscriptionId === s.id;
                   return (
                     <tr key={s.id}>
-                      <td data-label="Advertiser">
+                      <td data-label="Advertiser" className="fullcell">
                         <div
                           style={{
                             display: "flex",
@@ -213,18 +214,14 @@ export default function PsmSubscriptions() {
                           >
                             {initial(s)}
                           </span>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 700 }}>{advName(s)}</div>
-                            <div
-                              className="mono"
-                              style={{
-                                color: "var(--faint)",
-                                fontSize: ".8rem",
-                              }}
-                            >
-                              {clientCode(s)}
-                            </div>
-                          </div>
+                          {/* Code first, name beneath — the desk works in
+                              client codes, and this list was the other way
+                              round. */}
+                          <CustomerName
+                            clientCode={s.advertiser?.tenant_client_code}
+                            name={advName(s)}
+                            full
+                          />
                         </div>
                       </td>
                       <td data-label="Amount" className="r mono">

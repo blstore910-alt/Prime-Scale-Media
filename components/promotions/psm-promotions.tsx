@@ -2,6 +2,7 @@
 
 import { grantPerk, revokePerk } from "@/actions/perk-actions";
 import PsmSortFilter from "@/components/psm/sort-filter";
+import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -443,15 +444,12 @@ export default function PsmPromotions() {
                       </div>
                     </td>
                     <td data-label="Advertiser">
-                      <div style={{ fontWeight: 600 }}>
-                        {name(p.advertiser?.profile ?? null) ?? "-"}
-                      </div>
-                      <div
-                        className="mono"
-                        style={{ color: "var(--faint)", fontSize: ".78rem" }}
-                      >
-                        {p.advertiser?.tenant_client_code ?? "-"}
-                      </div>
+                      {/* Code first, name beneath. */}
+                      <CustomerName
+                        clientCode={p.advertiser?.tenant_client_code}
+                        name={name(p.advertiser?.profile ?? null)}
+                        full
+                      />
                     </td>
                     <td data-label="Detail">{perkDetail(p)}</td>
                     <td data-label="Expiry">

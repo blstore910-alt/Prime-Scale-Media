@@ -2,6 +2,7 @@
 
 import { DATE_FORMAT } from "@/lib/constants";
 import PsmSortFilter from "@/components/psm/sort-filter";
+import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
 import { WalletWithAdvertiser } from "@/lib/types/wallet";
 import dayjs from "dayjs";
@@ -187,7 +188,11 @@ export default function PsmWallets() {
               <tbody>
                 {paginatedWallets.map((wallet) => (
                   <tr key={wallet.id}>
-                    <td data-label="Advertiser">
+                    {/* .fullcell: avatar + code + name + pill is a rich
+                        identity block, not a value for the right-hand
+                        column — and as the first cell it is the card's
+                        title, so it carries no label. */}
+                    <td data-label="Advertiser" className="fullcell">
                       <div
                         style={{
                           display: "flex",
@@ -207,37 +212,23 @@ export default function PsmWallets() {
                         >
                           <Wallet />
                         </span>
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontWeight: 700,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {advName(wallet)}
+                        {/* Code as the title, name beneath — the same
+                            identity block every other admin list uses. It
+                            was the other way round here, so the one screen
+                            about a customer's money was also the one screen
+                            where you could not scan for their code.
+                            The email is in the detail sheet, where it can be
+                            copied; it clipped mid-word in this cell. */}
+                        <CustomerName
+                          clientCode={wallet.advertiser?.tenant_client_code}
+                          name={advName(wallet)}
+                          full
+                          community={
                             <CommunityPill
                               name={communities[wallet.advertiser_id ?? ""]}
                             />
-                          </div>
-                          <div
-                            style={{
-                              color: "var(--faint)",
-                              fontSize: ".8rem",
-                            }}
-                          >
-                            {/* Client code, not code + email. An email is
-                                long enough to clip mid-word in a card cell
-                                — measured 165px of text in a 123px box with
-                                no ellipsis — and a list cell is for
-                                recognising someone, which a code does
-                                better than a mailbox name. The email is in
-                                the detail sheet, where it can be copied. */}
-                            {wallet.advertiser?.tenant_client_code ?? "—"}
-                          </div>
-                        </div>
+                          }
+                        />
                       </div>
                     </td>
                     <td className="mono" data-label="Reference">
@@ -254,7 +245,7 @@ export default function PsmWallets() {
                         ? dayjs(wallet.created_at).format(DATE_FORMAT)
                         : "—"}
                     </td>
-                    <td className="r" data-label="Actions">
+                    <td className="r fullcell" data-label="Actions">
                       {/* One row, equal widths. The auto-fit grid with a
                           120px minimum meant every button took a full line
                           of its own on a phone — three buttons, three rows,

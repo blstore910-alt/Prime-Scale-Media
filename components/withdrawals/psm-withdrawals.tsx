@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import PsmSortFilter from "@/components/psm/sort-filter";
+import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -313,15 +314,12 @@ function WithdrawalsSection() {
                             {w.reference ?? "—"}
                           </td>
                           <td data-label="Advertiser">
-                            <div style={{ fontWeight: 600 }}>
-                              {w.advertiser?.profile?.full_name ?? "—"}
-                            </div>
-                            <div
-                              className="muted"
-                              style={{ fontSize: ".78rem" }}
-                            >
-                              {w.advertiser?.tenant_client_code ?? ""}
-                            </div>
+                            {/* Code first, name beneath. */}
+                            <CustomerName
+                              clientCode={w.advertiser?.tenant_client_code}
+                              name={w.advertiser?.profile?.full_name}
+                              full
+                            />
                           </td>
                           <td data-label="Ad account">
                             <div>{w.ad_account?.name ?? "—"}</div>
@@ -584,13 +582,13 @@ function RefundsSection() {
                           {r.reference ?? "—"}
                         </td>
                         <td data-label="Advertiser">
-                          <div style={{ fontWeight: 600 }}>
-                            {r.advertiser?.profile?.full_name ?? "—"}
-                          </div>
-                          <div className="muted" style={{ fontSize: ".78rem" }}>
-                            {r.advertiser?.tenant_client_code ?? ""}
-                          </div>
-                        </td>
+                            {/* Code first, name beneath. */}
+                            <CustomerName
+                              clientCode={r.advertiser?.tenant_client_code}
+                              name={r.advertiser?.profile?.full_name}
+                              full
+                            />
+                          </td>
                         <td
                           className="r mono"
                           style={{ fontWeight: 700 }}
@@ -1123,15 +1121,12 @@ function AdjustmentsSection() {
                             {r.reference ?? "—"}
                           </td>
                           <td data-label="Advertiser">
-                            <div style={{ fontWeight: 600 }}>
-                              {r.advertiser?.profile?.full_name ?? "—"}
-                            </div>
-                            <div
-                              className="muted"
-                              style={{ fontSize: ".78rem" }}
-                            >
-                              {r.advertiser?.tenant_client_code ?? ""}
-                            </div>
+                            {/* Code first, name beneath. */}
+                            <CustomerName
+                              clientCode={r.advertiser?.tenant_client_code}
+                              name={r.advertiser?.profile?.full_name}
+                              full
+                            />
                           </td>
                           <td
                             className="r mono"
