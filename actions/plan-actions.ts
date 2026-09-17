@@ -11,6 +11,7 @@ import {
   resolveAdminContext,
   versionMatches,
   wroteSomething,
+  resolveOwnerContext,
 } from "./_shared";
 
 const KINDS: PlanKind[] = ["tier", "community"];
@@ -80,7 +81,11 @@ export async function upsertPlan(input: {
   sort_order?: number;
   ifUpdatedAt?: string;
 }): Promise<ActionResult<{ id: string }>> {
-  const auth = await resolveAdminContext();
+  // OWNER, not admin. This was enforced only by the settings layout
+  // calling requireSuperAdmin — a page guard, which a server action never
+  // goes through. So an employee admin could invoke this directly and
+  // change a customer's monthly price and their included ad accounts. The UI said owner-only; nothing behind it agreed.
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

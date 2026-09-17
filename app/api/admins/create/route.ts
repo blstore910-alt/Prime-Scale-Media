@@ -49,7 +49,12 @@ export async function POST(request: NextRequest) {
 
   let profileQuery = supabase
     .from("user_profiles")
-    .select("id, tenant_id")
+    // is_active and status too. This authorised purely on
+    // `tenants.owner_id === user.id` and never read either flag, so a
+    // DEACTIVATED owner profile could still mint new admin accounts with
+    // the service role. apiRequireOwner inherits that check; this route
+    // hand-rolls its own and skipped it.
+    .select("id, tenant_id, is_active, status")
     .eq("user_id", userData.user.id);
 
   if (existingProfile) {
@@ -58,6 +63,14 @@ export async function POST(request: NextRequest) {
 
   const { data: profile, error: profileError } =
     await profileQuery.maybeSingle();
+
+  if (
+    profile &&
+    ((profile as { is_active?: boolean }).is_active === false ||
+      ((profile as { status?: string }).status ?? "active") === "inactive")
+  ) {
+    return NextResponse.json({ error: "Account inactive" }, { status: 403 });
+  }
 
   if (profileError || !profile?.tenant_id) {
     return NextResponse.json(

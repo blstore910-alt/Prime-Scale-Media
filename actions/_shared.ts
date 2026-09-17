@@ -166,6 +166,43 @@ export async function resolveUserContext(): Promise<
 }
 
 /**
+ * The tenant OWNER, not just an admin.
+ *
+ * Several capabilities are owner-only by design and were enforced ONLY by
+ * the settings layout calling requireSuperAdmin — a page guard, which a
+ * server action does not go through. So an employee admin could invoke
+ * upsertPlan, upsertExchangeRate, upsertFeeDefault or upsertAdAccountType
+ * directly and change what every customer is charged, the FX every
+ * conversion uses, and the monthly price. The UI said owner-only; nothing
+ * behind it agreed.
+ *
+ * This is the server-side half, mirroring apiRequireOwner for actions.
+ * Built on resolveAdminContext, so it inherits the maintenance freeze, the
+ * tenant resolution and the deactivated-account check.
+ */
+export async function resolveOwnerContext(): Promise<
+  { ok: true; ctx: AdminContext } | { ok: false; error: string }
+> {
+  const base = await resolveAdminContext();
+  if (!base.ok) return base;
+  const { supabase, profile } = base.ctx;
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", profile.tenant_id)
+    .maybeSingle();
+  const ownerId = (tenant as { owner_id?: string | null } | null)?.owner_id;
+  if (!ownerId || ownerId !== profile.user_id) {
+    return {
+      ok: false,
+      error: "Only the account owner can change this.",
+    };
+  }
+  return base;
+}
+
+/**
  * Read-only maintenance mode. When `MAINTENANCE_MODE=true` is set in
  * the server env, every server action calling `assertNotMaintenance()`
  * refuses with a clear error so an incident-response operator can

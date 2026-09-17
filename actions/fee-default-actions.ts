@@ -7,7 +7,9 @@ import {
   type FeeDefaultCurrency,
   type FeeDefaultPlatform,
 } from "@/lib/types/fee-default";
-import { type ActionResult, resolveAdminContext } from "./_shared";
+import { type ActionResult, resolveAdminContext,
+  resolveOwnerContext,
+} from "./_shared";
 
 // ─────────────────────────────────────────
 // listFeeDefaults
@@ -84,7 +86,11 @@ export async function upsertFeeDefault(input: {
   fee_pct: number;
   is_active?: boolean;
 }): Promise<ActionResult> {
-  const auth = await resolveAdminContext();
+  // OWNER, not admin. This was enforced only by the settings layout
+  // calling requireSuperAdmin — a page guard, which a server action never
+  // goes through. So an employee admin could invoke this directly and
+  // change what every future top-up is charged. The UI said owner-only; nothing behind it agreed.
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

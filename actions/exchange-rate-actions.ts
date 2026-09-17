@@ -4,7 +4,9 @@ import { getExchangeRate } from "@/lib/get-exchange-rates";
 import { createClient } from "@/lib/supabase/server";
 import { formatRate } from "@/lib/utils";
 import { cookies } from "next/headers";
-import { maintenanceGuard, wroteSomething } from "./_shared";
+import { maintenanceGuard, wroteSomething,
+  resolveOwnerContext,
+} from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -140,9 +142,13 @@ type UpsertRateInput = {
 export async function upsertExchangeRate(
   input: UpsertRateInput,
 ): Promise<ActionResult> {
-  const ctx = await requireAdminCtx();
-  if (!ctx.ok) return { ok: false, error: ctx.error };
-  const { supabase, profile } = ctx;
+  // OWNER, not admin. This was enforced only by the settings layout
+  // calling requireSuperAdmin — a page guard, which a server action never
+  // goes through. So an employee admin could invoke this directly and
+  // change the rate every conversion in the app divides by. The UI said owner-only; nothing behind it agreed.
+  const auth = await resolveOwnerContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
 
   const currency = String(input?.currency ?? "").toUpperCase();
   if (!["USD", "EUR", "GBP", "HKD"].includes(currency)) {
