@@ -51,17 +51,40 @@ const NEUTRAL: CSSProperties = {
   background: "var(--panel-2)",
   color: "var(--txt-2)",
 };
-function statusBadge(status: string): { cls: string; style?: CSSProperties } {
+/**
+ * What each deposit's state is CALLED on screen.
+ *
+ * The column holds six words and two of them mean the same thing to the
+ * person reading: 'suggested' is a match this feed found and is waiting for
+ * you to confirm, and 'matched' is the same thing from before the
+ * safe-start phase existed (and from an auto-settle run). Printing the raw
+ * column put both on the screen, so the same situation appeared under two
+ * names and you had to know the schema to tell that they were one.
+ *
+ * So: what state is it in, in words about MONEY.
+ *   Match found  — we think we know which top-up this is. Nothing credited.
+ *   Credited     — the top-up was completed and the wallet has the money.
+ *   Needs a look — several top-ups fit and we refuse to guess.
+ *   No match     — nothing pending fits it (yet: Re-check asks again).
+ */
+function statusView(status: string): {
+  label: string;
+  cls: string;
+  style?: CSSProperties;
+} {
   switch (status) {
-    case "matched":
     case "confirmed":
-      return { cls: "badge ok" };
+    case "completed":
+      return { label: "Credited", cls: "badge ok" };
+    case "matched":
     case "suggested":
-      return { cls: "badge pend" };
+      return { label: "Match found", cls: "badge pend" };
     case "ambiguous":
-      return { cls: "badge due" };
+      return { label: "Needs a look", cls: "badge due" };
+    case "unmatched":
+      return { label: "No match", cls: "badge", style: NEUTRAL };
     default:
-      return { cls: "badge", style: NEUTRAL };
+      return { label: "Received", cls: "badge", style: NEUTRAL };
   }
 }
 
@@ -239,23 +262,28 @@ export default function WiseReviewPanel() {
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <div>
-        <h2
-          style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
-        >
-          Bank deposits (Wise)
-          {suggestedCount > 0 && (
-            <span className="badge pend">{suggestedCount} to confirm</span>
-          )}
+        {/* Title and its action on ONE line, the way every other screen in
+            this app puts them. marginLeft:auto inside a wrapping h2 dropped
+            the button onto a line of its own, floating between the heading
+            and the sentence that explains it. */}
+        <div className="phead">
+          <h2
+            style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+          >
+            Bank deposits (Wise)
+            {suggestedCount > 0 && (
+              <span className="badge pend">{suggestedCount} to confirm</span>
+            )}
+          </h2>
           <button
             className="btn ghost sm"
-            style={{ marginLeft: "auto" }}
             disabled={rematch.isPending}
             onClick={() => rematch.mutate()}
-            title="Match the unmatched deposits against the top-ups that are pending right now"
+            title="Match the deposits with no match against the top-ups that are pending right now"
           >
             {rematch.isPending ? "Re-checking…" : "Re-check matches"}
           </button>
-        </h2>
+        </div>
         <p className="muted" style={{ margin: "6px 0 0", fontSize: ".92rem" }}>
           Incoming bank payments detected via Wise. During the safe-start phase
           nothing completes on its own — confirm each suggested match and the
@@ -298,7 +326,7 @@ export default function WiseReviewPanel() {
                 </tr>
               ) : (
                 rows.map((r) => {
-                  const badge = statusBadge(r.status);
+                  const badge = statusView(r.status);
                   return (
                     <tr key={r.id}>
                       <td data-label="Amount & date" style={{ verticalAlign: "top" }}>
@@ -347,9 +375,10 @@ export default function WiseReviewPanel() {
                       <td data-label="Result" style={{ verticalAlign: "top" }}>
                         <span
                           className={badge.cls}
-                          style={{ textTransform: "capitalize", ...badge.style }}
+                          style={badge.style}
+                          title={r.status}
                         >
-                          {r.status}
+                          {badge.label}
                         </span>
                       </td>
                       <td data-label="Note" style={{ verticalAlign: "top" }}>
