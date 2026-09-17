@@ -33,6 +33,12 @@ function fmt(v: number, c: LedgerCurrency) {
 // leak; every color/spacing token comes from the .psmapp shell variables.
 const RECON_CSS = `
 .psm-recon .recon-hero{position:relative;overflow:hidden;border-radius:16px;padding:22px;color:#fff;background:linear-gradient(135deg,#0e9e6e,var(--win) 60%,#3ad1a0);box-shadow:0 22px 46px -26px rgba(16,185,129,.7)}
+/* The hero was green whatever it said, so "3 to investigate" — the one
+   sentence on this screen that means money is missing — arrived on a
+   celebratory green gradient. It now carries the tone of what it says. */
+.psm-recon .recon-hero.warn{background:linear-gradient(135deg,#b45309,var(--warn) 60%,#f0b357);box-shadow:0 22px 46px -26px rgba(224,138,0,.7)}
+.psm-recon .recon-hero.idle{background:linear-gradient(135deg,#2b3350,#3f4a6b 60%,#55618a);box-shadow:0 22px 46px -26px rgba(20,30,80,.6)}
+.psm-recon .recon-hero.err{background:linear-gradient(135deg,#9b1c20,var(--danger) 60%,#f07076);box-shadow:0 22px 46px -26px rgba(229,72,77,.7)}
 .psm-recon .recon-hero .rh-l{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
 .psm-recon .recon-hero .rh-v{font-family:var(--hd);font-weight:800;font-size:1.9rem;margin:6px 0 2px}
 .psm-recon .recon-hero .rh-d{opacity:.9;font-size:.9rem}
@@ -118,13 +124,33 @@ export default function ReconciliationView() {
 
   const rows = reconQ.data?.rows ?? [];
   const mismatches = rows.filter((r) => Math.abs(r.gap) >= 0.01);
+  // Nothing recorded on EITHER side is not a reconciliation that passed —
+  // it is a reconciliation that had nothing to compare. This screen said
+  // "All balanced ✓" in a green hero on a tenant with no ledger entries at
+  // all, which is the same trick as "You're all caught up" over a failed
+  // read: confidence projected out of emptiness. An empty ledger beside a
+  // hundred real bank deposits is itself the thing to look at.
+  const anyMovement = rows.some(
+    (r) => Math.abs(r.credited) >= 0.01 || Math.abs(r.received) >= 0.01,
+  );
+  const heroTone = reconQ.isLoading
+    ? "idle"
+    : reconQ.isError
+      ? "err"
+      : !anyMovement
+        ? "idle"
+        : mismatches.length === 0
+          ? ""
+          : "warn";
   const heroStatus = reconQ.isLoading
     ? "Checking…"
     : reconQ.isError
       ? "Unable to load"
-      : mismatches.length === 0
-        ? "All balanced ✓"
-        : `${mismatches.length} to investigate`;
+      : !anyMovement
+        ? "Nothing to compare yet"
+        : mismatches.length === 0
+          ? "All balanced ✓"
+          : `${mismatches.length} to investigate`;
 
   return (
     <div
@@ -143,7 +169,7 @@ export default function ReconciliationView() {
       </div>
 
       {/* Status hero */}
-      <div className="recon-hero">
+      <div className={`recon-hero${heroTone ? ` ${heroTone}` : ""}`}>
         <div className="rh-l">Reconciliation status</div>
         <div className="rh-v">{heroStatus}</div>
         <div className="rh-d">
