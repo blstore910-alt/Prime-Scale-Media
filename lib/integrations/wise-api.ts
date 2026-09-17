@@ -240,14 +240,20 @@ export async function fetchWiseTxnDetail(args: {
     return null;
   }
 
-  // ±36h window around the credit — banks post with some delay.
+  // ±36h around the credit — banks post with some delay — but NEVER past
+  // now. A statement is a record of what happened; Wise refuses an
+  // interval that ends in the future with a 422, and since every deposit
+  // we look up is at most a few days old, +36h is in the future for all of
+  // them. That is why every enrichment on a fresh deposit failed while the
+  // token, the signature and the balance were all fine.
   let start: string;
   let end: string;
   try {
     const t = new Date(args.occurredAt).getTime();
     if (!Number.isFinite(t)) return null;
-    start = new Date(t - 36 * 3600_000).toISOString();
-    end = new Date(t + 36 * 3600_000).toISOString();
+    const endMs = Math.min(t + 36 * 3600_000, Date.now());
+    start = new Date(Math.min(t - 36 * 3600_000, endMs - 60_000)).toISOString();
+    end = new Date(endMs).toISOString();
   } catch {
     return null;
   }
@@ -405,8 +411,14 @@ export async function probeWiseStatement(args: {
     out.error = "That deposit has no usable timestamp in its key.";
     return out;
   }
-  const start = new Date(t - 36 * 3600_000).toISOString();
-  const end = new Date(t + 36 * 3600_000).toISOString();
+  // Same clamp as fetchWiseTxnDetail: an interval that ends in the future
+  // is a 422 from Wise, and +36h on a deposit that arrived today is
+  // always in the future.
+  const endMs = Math.min(t + 36 * 3600_000, Date.now());
+  const start = new Date(
+    Math.min(t - 36 * 3600_000, endMs - 60_000),
+  ).toISOString();
+  const end = new Date(endMs).toISOString();
 
   for (const pid of out.profileIds) {
     const url =
