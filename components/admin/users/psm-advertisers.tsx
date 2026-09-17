@@ -27,6 +27,8 @@ import UserDetailsSheet from "./user-details-sheet";
 import useUpdateUserProfile from "./use-update-user";
 import useUsers from "./use-users";
 import CustomerName from "@/components/psm/customer-name";
+import { useAppContext } from "@/context/app-provider";
+import { useAffiliateEarnings } from "@/hooks/use-affiliate-earnings";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 
 const chipStyle = {
@@ -67,6 +69,12 @@ export default function PsmAdvertisers() {
 
   // One definition of "the list is narrowed", used by both the empty state
   // and the Reset control, so they can never disagree about it.
+  // Affiliate earnings, keyed by email — the only identifier a standalone
+  // affiliate and an advertiser-as-affiliate both carry.
+  const { profile: me } = useAppContext();
+  const { byEmail: earningsByEmail, isError: earningsError } =
+    useAffiliateEarnings(me?.tenant_id);
+
   const narrowed = !!search.trim() || active !== "all";
   const resetFilters = () => {
     setSort("newest");
@@ -232,7 +240,7 @@ export default function PsmAdvertisers() {
                   <tr>
                     <th>Advertiser</th>
                     <th>Plan</th>
-                    <th className="r">Wallet Topups</th>
+                    <th className="r">Topups / earnings</th>
                     <th>Status</th>
                     <th className="r">Actions</th>
                   </tr>
@@ -246,6 +254,8 @@ export default function PsmAdvertisers() {
                       onView={() => openDetails(profile)}
                       onCreateSubscription={openCreateSubscription}
                       onCommissionSetup={openCommission}
+                      earningsByEmail={earningsByEmail}
+                      earningsError={earningsError}
                     />
                   ))}
                 </tbody>
@@ -343,12 +353,16 @@ function AdvertiserRow({
   onView,
   onCreateSubscription,
   onCommissionSetup,
+  earningsByEmail,
+  earningsError,
 }: {
   profile: Profile;
   tone: (typeof TONES)[number];
   onView: () => void;
   onCreateSubscription: (advertiserId: string) => void;
   onCommissionSetup: (advertiser: Advertiser | undefined) => void;
+  earningsByEmail: Record<string, { eur: number; usd: number; links: number }>;
+  earningsError: boolean;
 }) {
   const { updateUserProfile, isPending } = useUpdateUserProfile();
 
@@ -408,6 +422,12 @@ function AdvertiserRow({
 
   const clientCode = advertiser?.tenant_client_code ?? "";
   const isAffiliate = (profile.role ?? "").toLowerCase() === "affiliate";
+  const earnings =
+    earningsByEmail[(profile.email ?? "").trim().toLowerCase()] ?? {
+      eur: 0,
+      usd: 0,
+      links: 0,
+    };
 
   return (
     <tr style={{ cursor: "pointer" }} onClick={onView}>
@@ -502,12 +522,34 @@ function AdvertiserRow({
           </span>
         )}
       </td>
-      <td data-label="Wallet Topups" className="r mono">
-        <div>{formatCurrency(topupTotals.eur, "EUR")}</div>
-        <div style={{ color: "var(--faint)" }}>
-          {formatCurrency(topupTotals.usd, "USD")}
-        </div>
-      </td>
+      {/* An affiliate has no wallet and never tops one up — showing them
+          "WALLET TOPUPS €0.00" was a column of zeros that could never be
+          anything else. What they DO have is earnings, and that is the
+          number the desk wants next to their name. So the cell reports
+          whichever one the row actually has. */}
+      {isAffiliate ? (
+        <td data-label="Earnings" className="r mono">
+          {earningsError ? (
+            <span className="muted" title="Earnings could not be read">
+              —
+            </span>
+          ) : (
+            <>
+              <div>{formatCurrency(earnings.eur, "EUR")}</div>
+              <div style={{ color: "var(--faint)" }}>
+                {formatCurrency(earnings.usd, "USD")}
+              </div>
+            </>
+          )}
+        </td>
+      ) : (
+        <td data-label="Wallet Topups" className="r mono">
+          <div>{formatCurrency(topupTotals.eur, "EUR")}</div>
+          <div style={{ color: "var(--faint)" }}>
+            {formatCurrency(topupTotals.usd, "USD")}
+          </div>
+        </td>
+      )}
       <td data-label="Status">
         <span
           className={`badge ${isActive ? "ok" : "due"}`}
