@@ -104,7 +104,7 @@ export default function PsmWithdrawals() {
         <div>
           <h1>Withdrawals</h1>
           <p>
-            Approving here moves money. Verify first.
+            Approving moves money — verify.
           </p>
         </div>
       </div>

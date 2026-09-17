@@ -212,7 +212,7 @@ export default function PsmPromotions() {
         <div>
           <h1>Promotions</h1>
           <p>
-            Free requests, waivers and discounts.
+            Free requests and discounts.
           </p>
         </div>
       </div>

@@ -118,7 +118,7 @@ export default function PsmVerifyTopups({
         <div>
           <h1>Wallet Topups</h1>
           <p>
-            Check against the bank before you credit anything.
+            Check the bank before you credit.
           </p>
         </div>
       </div>
