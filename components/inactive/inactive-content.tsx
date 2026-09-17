@@ -5,11 +5,18 @@ import { AlertCircle, LogOut } from "lucide-react";
 import Link from "next/link";
 import ReadonlyTopupsTable from "@/components/topups/readonly-topups-table";
 import { AppProvider } from "@/context/app-provider";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { makeQueryClient } from "@/lib/make-query-client";
 import { UserProfile } from "@/lib/types/user";
 import { User } from "@supabase/supabase-js";
 
-const queryClient = new QueryClient();
+// The SHARED factory, like every other shell. A bare QueryClient here meant
+// this screen alone had no error floor: a failed read left `data` undefined,
+// the top-up history rendered empty, and a deactivated customer was told
+// they had never topped up — with no toast to say the request had failed.
+// It also had staleTime 0 and refetch-on-focus, so every tab switch reloaded
+// the whole page's data.
+const queryClient = makeQueryClient();
 
 export default function InactiveContent({
   user,
