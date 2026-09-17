@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/supabase/client";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
-import PrechargePanel from "./precharge-panel";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -31,7 +30,6 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
@@ -67,7 +65,7 @@ type AdvertiserOption = {
   profile: { full_name: string | null; email: string | null } | null;
 };
 
-type Tab = "withdrawals" | "refunds" | "adjustments" | "precharge";
+type Tab = "withdrawals" | "refunds" | "adjustments";
 
 const emptyRow = (colSpan: number, msg: string, danger = false) => (
   <tr>
@@ -125,26 +123,11 @@ export default function PsmWithdrawals() {
         >
           <SlidersHorizontal /> Adjustments
         </SegBtn>
-        {/* PRECHARGE lost its screen when this page was ported: the panel
-            was left behind in components/withdrawals/precharge-panel.tsx,
-            which no route imports, so an admin could no longer advance
-            wallet credit against a payment that has not cleared — a feature
-            that exists in the database and in actions/precharge-actions.ts
-            and had simply become unreachable. It belongs here: the other
-            three tabs are also "money moving before or outside the ordinary
-            flow". */}
-        <SegBtn
-          active={tab === "precharge"}
-          onClick={() => setTab("precharge")}
-        >
-          <Zap /> Precharge
-        </SegBtn>
       </div>
 
       {tab === "withdrawals" && <WithdrawalsSection />}
       {tab === "refunds" && <RefundsSection />}
       {tab === "adjustments" && <AdjustmentsSection />}
-      {tab === "precharge" && <PrechargePanel />}
     </div>
   );
 }

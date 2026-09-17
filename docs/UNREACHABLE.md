@@ -15,7 +15,7 @@ Regenerate the list with the script at the bottom.
 
 | file | why |
 |---|---|
-| `withdrawals/precharge-panel.tsx` | Precharge — an admin advancing wallet credit before a payment clears, settling on verify — was built and then lost when /withdrawals was ported. `psm-withdrawals.tsx` has no precharge section at all, so the feature currently has no UI on any screen. |
+| ~~`withdrawals/precharge-panel.tsx`~~ | **Wired 2026-09-17.** It lives on `/wallet-topups`, under the deposit panel — it advances wallet credit against a payment that has NOT cleared and settles when that payment is verified, so the admin doing it is already looking at that queue. It was briefly put on `/withdrawals` first, which was wrong: withdrawals is money leaving the system, this is money arriving early. |
 | `wallet/wallet-exchanges-table.tsx` | The wallet EXCHANGE history. Exchanges can be made (WalletExchangeDialog is live in the advertiser app) but the record of them is not shown anywhere. |
 | `settings/finance/fee-defaults.tsx` | Default fee settings. No route renders it; check against `/settings/ad-account-types`, which may have replaced it. |
 | `affiliate/affiliate-dashboard.tsx` | Possibly superseded by `affiliate/aff-app.tsx`. Confirm before deleting — the affiliate surface is the least-reviewed part of the app. |
