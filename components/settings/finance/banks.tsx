@@ -32,7 +32,7 @@ import {
   type BankAccountCurrency,
 } from "@/lib/types/bank-account";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -333,31 +333,54 @@ export default function BanksCard() {
             set its bank destinations here.
           </p>
         ) : (
-          <div className="grid gap-6">
-            {types.map((type) => (
-              <div key={type.id} className="grid gap-3">
-                <div className="flex items-center gap-2 border-b pb-1">
-                  <h3 className="text-sm font-semibold">{type.label}</h3>
-                  {!type.is_active && (
-                    <span className="text-[11px] rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                      inactive type
+          /* One <details> per ad-account type, closed by default. Every type
+             carries THREE full bank forms — label, beneficiary, IBAN, SWIFT,
+             bank name, routing, address — so eight types is twenty-four
+             forms, and the page was a mile of identical empty fields with no
+             way to find the one you came for. Closed, the row says which
+             currencies are set and which are not, which is the question you
+             actually arrive with. A type that already has a destination
+             opens on its own, because that is the one worth glancing at. */
+          <div className="grid gap-2">
+            {types.map((type) => {
+              const set = BANK_ACCOUNT_CURRENCIES.filter((c) =>
+                bankByKey.get(`${type.id}|${c}`),
+              );
+              return (
+                <details
+                  key={type.id}
+                  open={set.length > 0}
+                  className="group rounded-lg border bg-card"
+                >
+                  <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-3 text-sm hover:bg-accent/40">
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                    <span className="font-semibold">{type.label}</span>
+                    {!type.is_active && (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                        inactive type
+                      </span>
+                    )}
+                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                      {set.length === 0
+                        ? "no destinations set"
+                        : set.join(" · ")}
                     </span>
-                  )}
-                </div>
-                <div className="grid gap-3">
-                  {BANK_ACCOUNT_CURRENCIES.map((currency) => (
-                    <BankDestinationForm
-                      key={`${type.id}-${currency}`}
-                      type={type}
-                      currency={currency}
-                      existing={bankByKey.get(`${type.id}|${currency}`)}
-                      onRequestSave={setPending}
-                      busy={saving}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+                  </summary>
+                  <div className="grid gap-3 border-t p-3.5">
+                    {BANK_ACCOUNT_CURRENCIES.map((currency) => (
+                      <BankDestinationForm
+                        key={`${type.id}-${currency}`}
+                        type={type}
+                        currency={currency}
+                        existing={bankByKey.get(`${type.id}|${currency}`)}
+                        onRequestSave={setPending}
+                        busy={saving}
+                      />
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
           </div>
         )}
       </CardContent>

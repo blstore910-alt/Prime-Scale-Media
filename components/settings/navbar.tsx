@@ -20,13 +20,18 @@ export default function SettingsNavbar() {
   const { profile } = useAppContext();
   const links = profile?.role === "admin" ? adminLinks : commonLinks;
   return (
+    /* The strip spans the page, but its CONTENT lines up with the cards
+       below it. It used to be w-full with its own padding while every
+       settings page is max-w-3xl and centred, so the tabs and the rule under
+       them ran wider than the card they belong to — which reads as two
+       layouts stacked rather than one page. */
     <nav
       aria-label="Section"
-      className="w-full px-4 mt-4 sticky top-0 bg-background"
+      className="sticky top-0 z-10 mt-4 w-full bg-background/95 backdrop-blur"
     >
       {/* Own scroller: the tab strip is wider than a phone, and without this
           it pushed the whole settings page sideways instead of scrolling. */}
-      <ul className="flex items-center gap-1 border-b overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul className="mx-auto flex max-w-3xl items-center gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {links.map(({ href, label }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
