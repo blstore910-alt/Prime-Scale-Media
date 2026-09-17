@@ -126,7 +126,11 @@ export async function processWiseWebhook(
 
   const { data: pendingRows, error: pendingErr } = await supabase
     .from("wallet_topups")
-    .select("id, reference_no, amount, currency, status, advertiser_id")
+    // created_at: the matcher checks the DATE as well as the reference and
+    // the amount. See CLAIM_BEFORE_DEPOSIT_DAYS in wise-match.ts.
+    .select(
+      "id, reference_no, amount, currency, status, advertiser_id, created_at",
+    )
     .eq("status", "pending")
     .eq("currency", currency);
   if (pendingErr) {
@@ -152,6 +156,7 @@ export async function processWiseWebhook(
       currency,
       reference: effectiveReference,
       sender_iban: senderIban,
+      occurred_at: occurredAt || null,
     },
     (pendingRows ?? []) as PendingTopup[],
     knownAdvertiserIds,

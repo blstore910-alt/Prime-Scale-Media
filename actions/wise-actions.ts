@@ -37,11 +37,97 @@ export async function confirmWiseSuggestion(
     return { ok: false, error: "Invalid input" };
   }
   const { supabase } = auth.ctx;
+
+  // The same reference, amount and day must never be credited twice — see
+  // alreadyCredited below.
+  const { data: dep } = await supabase
+    .from("wise_incoming_transfers")
+    .select("id, reference, amount_cents, created_at")
+    .eq("id", transferId)
+    .maybeSingle();
+  if (dep) {
+    const admin = await createAdminClient();
+    const twin = await alreadyCredited(
+      admin,
+      dep as {
+        id: string;
+        reference: string | null;
+        amount_cents: number;
+        created_at: string;
+      },
+    );
+    if (twin) {
+      return {
+        ok: false,
+        error:
+          "A deposit with the same reference and amount was already credited on that day. If this is genuinely a second payment, it needs its own reference — credit it by hand after checking the bank.",
+      };
+    }
+  }
+
   const { error } = await supabase.rpc("wise_confirm_suggestion", {
     p_transfer_id: transferId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
   return { ok: true, data: null };
+}
+
+/**
+ * Has this exact payment already been credited?
+ *
+ * The owner's rule: the same reference, amount and date must never be
+ * credited twice — while ten payments from one person on one day, each
+ * with its own reference, all have to land.
+ *
+ * Three things already stand in the way of a double credit, and each of
+ * them has a gap this closes:
+ *
+ *   1. wise_incoming_transfers.external_id is unique, so a Wise
+ *      REDELIVERY of the same credit is deduped at ingest. But the
+ *      composite key is balance:second:amount, so two genuinely separate
+ *      payments of the same amount in the same second would collide — and
+ *      dropping a real payment is as bad as crediting one twice.
+ *   2. A top-up can only be completed while it is 'pending', so one CLAIM
+ *      cannot be settled twice.
+ *   3. The in-pass `claimed` set stops one sweep offering one claim to two
+ *      deposits.
+ *
+ * None of those stops an admin confirming two DIFFERENT deposit rows that
+ * represent the same payment — a redelivery that slipped through with a
+ * different key, or the same transfer imported twice. So before money
+ * moves: is there another deposit, already credited, with the same
+ * reference, the same amount, and the same calendar day? If so, say which
+ * one and refuse.
+ */
+async function alreadyCredited(
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
+  dep: {
+    id: string;
+    reference: string | null;
+    amount_cents: number;
+    created_at: string;
+  },
+): Promise<{ id: string; created_at: string } | null> {
+  // With no reference there is nothing to compare — amount and date alone
+  // are exactly the coincidence we refuse to treat as identity elsewhere.
+  const ref = (dep.reference ?? "").trim();
+  if (!ref) return null;
+
+  const day = dep.created_at.slice(0, 10);
+  const { data } = await supabase
+    .from("wise_incoming_transfers")
+    .select("id, created_at, reference, amount_cents, status")
+    .eq("reference", ref)
+    .eq("amount_cents", dep.amount_cents)
+    .in("status", ["confirmed", "completed", "matched"])
+    .neq("id", dep.id)
+    .gte("created_at", `${day}T00:00:00Z`)
+    .lte("created_at", `${day}T23:59:59.999Z`)
+    .limit(1);
+  const hit = (data ?? [])[0] as
+    | { id: string; created_at: string }
+    | undefined;
+  return hit ?? null;
 }
 
 /**
@@ -142,6 +228,33 @@ export async function matchWiseToTopup(
   // column on one row, and wise_confirm_suggestion re-checks the caller
   // before it moves any money.
   const admin = await createAdminClient();
+
+  // Same rule on the manual path: an admin picking by hand is exactly who
+  // would pair the same payment twice.
+  const { data: depRow } = await supabase
+    .from("wise_incoming_transfers")
+    .select("id, reference, amount_cents, created_at")
+    .eq("id", transferId)
+    .maybeSingle();
+  if (depRow) {
+    const twin = await alreadyCredited(
+      admin,
+      depRow as {
+        id: string;
+        reference: string | null;
+        amount_cents: number;
+        created_at: string;
+      },
+    );
+    if (twin) {
+      return {
+        ok: false,
+        error:
+          "A deposit with the same reference and amount was already credited on that day. A second real payment needs its own reference — check the bank before crediting this one.",
+      };
+    }
+  }
+
   const { data: linked, error: linkErr } = await admin
     .from("wise_incoming_transfers")
     .update({ suggested_topup_id: topupId, status: "suggested" })
@@ -197,7 +310,7 @@ export async function rematchWiseDeposits(): Promise<
   const { data: deposits, error: dErr } = await supabase
     .from("wise_incoming_transfers")
     .select(
-      "id, amount_cents, currency, reference, sender_iban, status, tenant_id, created_at",
+      "id, external_id, amount_cents, currency, reference, sender_iban, status, tenant_id, created_at",
     )
     .in("status", ["unmatched", "ambiguous", "received"])
     .order("created_at", { ascending: false })
@@ -209,7 +322,9 @@ export async function rematchWiseDeposits(): Promise<
 
   const { data: pending, error: pErr } = await supabase
     .from("wallet_topups")
-    .select("id, reference_no, amount, currency, status, advertiser_id")
+    .select(
+      "id, reference_no, amount, currency, status, advertiser_id, created_at",
+    )
     .eq("status", "pending")
     .eq("tenant_id", profile.tenant_id);
   if (pErr) return { ok: false, error: safeErrorMessage(pErr) };
@@ -283,6 +398,7 @@ export async function rematchWiseDeposits(): Promise<
   for (const row of deposits) {
     const d = row as {
       id: string;
+      external_id: string;
       amount_cents: number;
       currency: string;
       reference: string | null;
@@ -305,6 +421,9 @@ export async function rematchWiseDeposits(): Promise<
         currency: String(d.currency ?? ""),
         reference: d.reference,
         sender_iban: iban,
+        // When the money landed. The composite key keeps it, and for a
+        // deposit recorded earlier it is the only place we have it.
+        occurred_at: parseExternalId(d.external_id)?.occurredAt ?? null,
       },
       candidates,
       iban ? (advertisersByIban.get(iban) ?? []) : [],
@@ -561,6 +680,7 @@ export async function probeWiseDepositLookup(
     signingKeyConfigured: boolean;
     signed: boolean;
     signError: string | null;
+    balancesSeen: string[];
     transactions: number | null;
     bodySnippet: string | null;
     reason: string | null;
@@ -595,6 +715,7 @@ export async function probeWiseDepositLookup(
         signingKeyConfigured: !!process.env.WISE_API_PRIVATE_KEY,
         signed: false,
         signError: null,
+        balancesSeen: [],
         transactions: null,
         bodySnippet: null,
         reason: "There is no deposit without a reference to test with.",
@@ -619,6 +740,7 @@ export async function probeWiseDepositLookup(
         signingKeyConfigured: !!process.env.WISE_API_PRIVATE_KEY,
         signed: false,
         signError: null,
+        balancesSeen: [],
         transactions: null,
         bodySnippet: null,
         reason:
@@ -645,6 +767,7 @@ export async function probeWiseDepositLookup(
       signingKeyConfigured: probe.signingKeyConfigured,
       signed: probe.signed,
       signError: probe.signError ?? null,
+      balancesSeen: probe.balancesSeen ?? [],
       transactions: probe.transactions,
       bodySnippet: probe.bodySnippet,
       reason:

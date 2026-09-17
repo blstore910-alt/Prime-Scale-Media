@@ -236,9 +236,16 @@ export async function fetchWiseTxnDetail(args: {
   occurredAt: string; // ISO
 }): Promise<WiseTxnDetail | null> {
   const token = process.env.WISE_API_TOKEN;
-  if (!token || !args.profileId || !args.balanceId || !args.occurredAt) {
-    return null;
-  }
+  if (!token || !args.balanceId || !args.occurredAt) return null;
+
+  // The profile id from the payload is a hint, not a fact: a token can see
+  // several profiles and the statement endpoint answers
+  // "Balance X not found for profile Y" — a 422 — when they do not line
+  // up. Ask which profile actually holds this balance.
+  let profileId: string | number | null = args.profileId || null;
+  const owner = await findProfileForBalance(String(args.balanceId));
+  if (owner.profileId !== null) profileId = owner.profileId;
+  if (!profileId) return null;
 
   // ±36h around the credit — banks post with some delay — but NEVER past
   // now. A statement is a record of what happened; Wise refuses an
@@ -261,7 +268,7 @@ export async function fetchWiseTxnDetail(args: {
   // encodeURIComponent the path segments too — defense in depth even
   // though the host is fixed and these come from an authenticated
   // webhook payload.
-  const pid = encodeURIComponent(String(args.profileId));
+  const pid = encodeURIComponent(String(profileId));
   const bid = encodeURIComponent(String(args.balanceId));
   const url =
     `${wiseApiBase()}/v1/profiles/${pid}/balance-statements/` +
@@ -356,6 +363,8 @@ export type WiseProbe = {
   signed: boolean;
   /** Why signing failed, in the crypto layer's words. No key material. */
   signError?: string | null;
+  /** What balances each profile holds, so a mismatch is visible. */
+  balancesSeen?: string[];
   transactions: number | null;
   bodySnippet: string | null;
   error: string | null;
@@ -420,7 +429,21 @@ export async function probeWiseStatement(args: {
   ).toISOString();
   const end = new Date(endMs).toISOString();
 
-  for (const pid of out.profileIds) {
+  // Which profile holds this balance? Asking is the difference between a
+  // 422 and an answer.
+  const owner = await findProfileForBalance(args.balanceId);
+  out.balancesSeen = owner.seen;
+  const tryProfiles =
+    owner.profileId !== null ? [owner.profileId] : out.profileIds;
+  if (owner.profileId === null) {
+    out.error =
+      `No profile this token can see holds balance ${args.balanceId}. ` +
+      "That balance id came from the webhook payload, so either the token " +
+      "is for a different Wise account or the payload's resource id is not " +
+      "a balance id. Statement lookups cannot work for these deposits.";
+  }
+
+  for (const pid of tryProfiles) {
     const url =
       `${wiseApiBase()}/v1/profiles/${encodeURIComponent(String(pid))}` +
       `/balance-statements/${encodeURIComponent(args.balanceId)}/statement.json` +
@@ -478,4 +501,57 @@ export async function probeWiseStatement(args: {
     out.error = `Wise refused the statement (HTTP ${out.statementStatus}).`;
   }
   return out;
+}
+
+/**
+ * Which profile owns this balance?
+ *
+ * The webhook's composite key carries a balance id, and a token can see
+ * several profiles (personal and business). Trying each profile blind gets
+ * you `Balance 63309216 not found for profile 82348250` — which is Wise
+ * telling you, correctly, that you asked the wrong one. That was the whole
+ * of the 422 once the signature and the interval were right.
+ *
+ * So ask. /v1/profiles/{id}/balances lists what each profile actually
+ * holds, and the one containing this balance is the one to request the
+ * statement from. Returns null when NO profile holds it, which is a
+ * different and much more useful answer than "422": it means the balance
+ * id in that deposit's key is not one this token can ever read.
+ */
+export async function findProfileForBalance(
+  balanceId: string,
+): Promise<{ profileId: string | number | null; seen: string[] }> {
+  const token = process.env.WISE_API_TOKEN;
+  const seen: string[] = [];
+  if (!token || !balanceId) return { profileId: null, seen };
+
+  for (const pid of await fetchWiseProfileIds()) {
+    try {
+      const { res } = await wiseFetch(
+        `${wiseApiBase()}/v1/profiles/${encodeURIComponent(String(pid))}/balances?types=STANDARD`,
+        token,
+      );
+      if (!res.ok) {
+        seen.push(`profile ${pid}: HTTP ${res.status}`);
+        continue;
+      }
+      const json = (await res.json()) as Array<{
+        id?: string | number;
+        currency?: string;
+      }>;
+      const ids = (Array.isArray(json) ? json : []).map((b) => ({
+        id: String(b?.id ?? ""),
+        cur: String(b?.currency ?? ""),
+      }));
+      seen.push(
+        `profile ${pid}: ${ids.map((b) => `${b.id}${b.cur ? `/${b.cur}` : ""}`).join(", ") || "none"}`,
+      );
+      if (ids.some((b) => b.id === String(balanceId))) {
+        return { profileId: pid, seen };
+      }
+    } catch {
+      seen.push(`profile ${pid}: request failed`);
+    }
+  }
+  return { profileId: null, seen };
 }

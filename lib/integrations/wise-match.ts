@@ -35,6 +35,8 @@ export type PendingTopup = {
   // The advertiser this topup belongs to — needed to match against a
   // known sender IBAN.
   advertiser_id?: string | null;
+  /** When the customer filed the claim. Used for the date check below. */
+  created_at?: string | null;
 };
 
 export type IncomingTransfer = {
@@ -44,6 +46,8 @@ export type IncomingTransfer = {
   // Optional sender bank details (from the Wise transaction, when we
   // fetch them). Used to match by a known sender.
   sender_iban?: string | null;
+  /** When the money landed. Used for the date check below. */
+  occurred_at?: string | null;
 };
 
 export type MatchResult =
@@ -57,6 +61,42 @@ export function normalizeIban(iban: string | null | undefined): string | null {
 }
 
 const CENTS_EPSILON = 1; // 1 cent tolerance for rounding
+
+/**
+ * How far apart a claim and a payment may be and still be the same event.
+ *
+ * A match has to agree on THREE things — the reference, the amount, and
+ * the date — and until now the date was not looked at at all. Reference
+ * plus amount alone will happily marry a deposit to a claim from two
+ * months ago that was never paid, or to one filed long afterwards, and
+ * both of those are somebody else's money.
+ *
+ * The window is deliberately lopsided, because of how people actually
+ * pay: the transfer usually happens BEFORE the claim is filed (you pay,
+ * then you tell us), sometimes days before if it sat in a weekend. And a
+ * claim filed well before the money arrives is normal too — a customer
+ * fills the form, then gets round to the transfer.
+ */
+export const CLAIM_BEFORE_DEPOSIT_DAYS = 60;
+export const CLAIM_AFTER_DEPOSIT_DAYS = 14;
+
+function datesAgree(
+  claimCreatedAt: string | null | undefined,
+  depositAt: string | null | undefined,
+): boolean {
+  // No date on either side: the check cannot be applied. Do not use that
+  // as a reason to refuse — the reference is still the stronger signal,
+  // and older rows have no occurred_at to compare against.
+  if (!claimCreatedAt || !depositAt) return true;
+  const claim = Date.parse(claimCreatedAt);
+  const dep = Date.parse(depositAt);
+  if (!Number.isFinite(claim) || !Number.isFinite(dep)) return true;
+  const diffDays = (claim - dep) / 86_400_000;
+  return (
+    diffDays <= CLAIM_AFTER_DEPOSIT_DAYS &&
+    diffDays >= -CLAIM_BEFORE_DEPOSIT_DAYS
+  );
+}
 
 function amountMatches(topupAmount: number | string, incomingCents: number): boolean {
   const topupCents = Math.round(Number(topupAmount) * 100);
@@ -87,15 +127,29 @@ export function matchIncomingTransfer(
   knownSenderAdvertiserIds?: string[] | null,
 ): MatchResult {
   const cur = (transfer.currency || "").toUpperCase();
+  // Amount, currency AND date. All three, together — see datesAgree.
   const candidates = pending.filter(
     (t) =>
       (t.status ?? "pending") === "pending" &&
       (t.currency ?? "").toUpperCase() === cur &&
-      amountMatches(t.amount, transfer.amount_cents),
+      amountMatches(t.amount, transfer.amount_cents) &&
+      datesAgree(t.created_at, transfer.occurred_at),
   );
 
   if (candidates.length === 0) {
-    return { matched: false, reason: "no pending topup with matching amount/currency" };
+    const wrongDateOnly = pending.some(
+      (t) =>
+        (t.status ?? "pending") === "pending" &&
+        (t.currency ?? "").toUpperCase() === cur &&
+        amountMatches(t.amount, transfer.amount_cents) &&
+        !datesAgree(t.created_at, transfer.occurred_at),
+    );
+    return {
+      matched: false,
+      reason: wrongDateOnly
+        ? "a pending topup matches the amount but was filed too far from this payment's date — needs a human"
+        : "no pending topup with matching amount/currency",
+    };
   }
 
   // 1. reference match among the amount/currency candidates — strongest.

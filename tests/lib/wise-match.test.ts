@@ -161,3 +161,106 @@ describe("matchIncomingTransfer", () => {
     }
   });
 });
+
+describe("reference AND amount AND date", () => {
+  const claim = (over: Record<string, unknown> = {}) => ({
+    id: "t1",
+    reference_no: 1483181337,
+    amount: 500,
+    currency: "USD",
+    status: "pending",
+    created_at: "2026-09-17T10:00:00Z",
+    ...over,
+  });
+
+  it("matches when all three agree", () => {
+    const res = matchIncomingTransfer(
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        reference: "1483181337",
+        occurred_at: "2026-09-17T19:00:00Z",
+      },
+      [claim()],
+    );
+    assert.equal(res.matched, true);
+  });
+
+  it("refuses a claim filed two months before the payment", () => {
+    // Reference plus amount alone will marry a deposit to an old unpaid
+    // claim, and that is somebody else's money. Ten payments in one day
+    // are fine — they carry ten different references — but a payment can
+    // never settle a claim from another era.
+    const res = matchIncomingTransfer(
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        reference: "1483181337",
+        occurred_at: "2026-09-17T19:00:00Z",
+      },
+      [claim({ created_at: "2026-06-01T10:00:00Z" })],
+    );
+    assert.equal(res.matched, false);
+    if (!res.matched) assert.match(res.reason, /too far from this payment/);
+  });
+
+  it("refuses a claim filed a month after the payment", () => {
+    const res = matchIncomingTransfer(
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        reference: "1483181337",
+        occurred_at: "2026-09-17T19:00:00Z",
+      },
+      [claim({ created_at: "2026-10-20T10:00:00Z" })],
+    );
+    assert.equal(res.matched, false);
+  });
+
+  it("allows the ordinary order: pay first, file the claim after", () => {
+    // People transfer and then tell us, sometimes days later if it sat in
+    // a weekend.
+    const res = matchIncomingTransfer(
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        reference: "1483181337",
+        occurred_at: "2026-09-14T19:00:00Z",
+      },
+      [claim({ created_at: "2026-09-17T10:00:00Z" })],
+    );
+    assert.equal(res.matched, true);
+  });
+
+  it("ten payments in one day settle ten different claims", () => {
+    // One person, one day, ten transfers — each with its own reference,
+    // which is what the app hands out per claim. Every one of them has to
+    // land on its own claim.
+    const claims = Array.from({ length: 10 }, (_, i) =>
+      claim({ id: `t${i}`, reference_no: 1000000000 + i }),
+    );
+    for (let i = 0; i < 10; i++) {
+      const res = matchIncomingTransfer(
+        {
+          amount_cents: 50000,
+          currency: "USD",
+          reference: String(1000000000 + i),
+          occurred_at: "2026-09-17T19:00:00Z",
+        },
+        claims,
+      );
+      assert.equal(res.matched, true);
+      if (res.matched) assert.equal(res.topupId, `t${i}`);
+    }
+  });
+
+  it("no date on either side does not block a reference match", () => {
+    // Older rows have no occurred_at to compare against, and the
+    // reference is still the strongest signal we have.
+    const res = matchIncomingTransfer(
+      { amount_cents: 50000, currency: "USD", reference: "1483181337" },
+      [claim({ created_at: null })],
+    );
+    assert.equal(res.matched, true);
+  });
+});

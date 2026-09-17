@@ -376,6 +376,12 @@ export default function WiseReviewPanel() {
               p.bodySnippet ? `
 
 Wise said: ${p.bodySnippet}` : ""
+            }${
+              p.balancesSeen.length
+                ? `
+
+Balances Wise shows: ${p.balancesSeen.join(" | ")}`
+                : ""
             }`,
             duration: 30000,
           });
