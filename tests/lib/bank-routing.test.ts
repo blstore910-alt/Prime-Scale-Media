@@ -15,9 +15,19 @@ describe("banksForAccountTypes", () => {
   });
 
   it("returns every bank an advertiser genuinely spans, in display order", () => {
+    // GH is the only family that does not come to our own bank.
     assert.deepEqual(
-      banksForAccountTypes(["hk-meta-premium", "eu-meta-psm"]),
-      ["turlit", "muxue"],
+      banksForAccountTypes(["eu-meta-psm-gh", "eu-meta-psm"]),
+      ["turlit", "zanel"],
+    );
+  });
+
+  it("routes the Hong Kong families to our own bank, not to MUXUE", () => {
+    assert.deepEqual(banksForAccountTypes(["hk-meta-premium"]), ["turlit"]);
+    assert.deepEqual(banksForAccountTypes(["hk-meta-business"]), ["turlit"]);
+    assert.deepEqual(
+      banksForAccountTypes(["hk-meta-business-green"]),
+      ["turlit"],
     );
   });
 
@@ -26,14 +36,11 @@ describe("banksForAccountTypes", () => {
   });
 
   it("does not guess for a type whose routing has never been stated", () => {
-    // eu-meta-premium and hk-meta-business-green are real seeded types that
-    // no bank option mentions. Guessing would send real money to the wrong
-    // company, so they narrow nothing.
+    // eu-meta-premium is a real seeded type whose routing nobody has ever
+    // stated, and so is any type added on the admin screen tomorrow.
+    // Guessing would send real money to the wrong company.
     assert.deepEqual(banksForAccountTypes(["eu-meta-premium"]), []);
-    assert.deepEqual(
-      banksForAccountTypes(["hk-meta-business-green", "eu-meta-psm"]),
-      ["turlit"],
-    );
+    assert.deepEqual(banksForAccountTypes(["something-new"]), []);
   });
 
   it("ignores case and junk without throwing", () => {

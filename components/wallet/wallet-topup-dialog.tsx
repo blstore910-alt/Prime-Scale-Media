@@ -104,29 +104,30 @@ function convertWalletToTransfer(
 // Old drafts stored the 2-way "meta_eu" | "others" group. Map any stale value
 // onto the current 3-bank groups so a restored draft never lands invalid.
 function normalizeBankGroup(value: unknown): BankGroup {
-  if (value === "turlit" || value === "zanel" || value === "muxue") {
-    return value;
-  }
-  return value === "others" ? "muxue" : "turlit";
+  // "muxue" is no longer offered, so a draft naming it lands on turlit —
+  // which is where those accounts now send anyway.
+  if (value === "turlit" || value === "zanel") return value;
+  return "turlit";
 }
 
-// Beneficiary bank options. Each lists the ad-account families that route to
-// that bank.
+// Beneficiary bank options, in the order they are offered. Each lists the
+// ad-account families that route to it.
+//
+// MUXUE is gone. The Hong Kong families it used to take come to our own bank
+// now, so there is one destination for everything except GH. The BankGroup
+// union still carries "muxue" so historical top-ups and their stored bank
+// details keep rendering — it is simply never offered and nothing routes to
+// it. (Its Airwallex instant-transfer channel goes with it.)
 const BANK_GROUP_OPTIONS: { value: BankGroup; title: string; sub: string }[] = [
   {
     value: "turlit",
     title: "TURLIT LLC",
-    sub: "Meta-EU-PSM · Google · TikTok · Taboola · Snapchat",
+    sub: "Meta-EU-PSM · Meta-HK · Google · TikTok · Taboola · Snapchat",
   },
   {
     value: "zanel",
     title: "ZANEL ENTERPRISE",
     sub: "Meta-EU-PSM-GH · USD only",
-  },
-  {
-    value: "muxue",
-    title: "MUXUE TRADE LIMITED",
-    sub: "Meta-HK-Premium · Meta-HK-Business",
   },
 ];
 

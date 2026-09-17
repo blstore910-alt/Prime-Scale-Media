@@ -13,14 +13,21 @@
  */
 export type BankGroup = "turlit" | "zanel" | "muxue";
 
-/** Display order, and the order any choice is offered in. */
-export const BANK_GROUP_ORDER: BankGroup[] = ["turlit", "zanel", "muxue"];
+/**
+ * Display order, and the order any choice is offered in.
+ *
+ * MUXUE is NOT here. It is kept in the BankGroup union so historical rows and
+ * the stored bank details still render, but nothing routes to it any more and
+ * it is never offered to a customer — the HK families it used to take now go
+ * to TURLIT like everything else.
+ */
+export const BANK_GROUP_ORDER: BankGroup[] = ["turlit", "zanel"];
 
 /**
  * Deliberately NOT exhaustive. A slug that is not listed is one whose routing
- * the UI has never stated — eu-meta-premium and hk-meta-business-green are
- * both real seeded types that no bank option mentions. Guessing would send
- * real money to the wrong company, so an unknown type narrows nothing.
+ * nobody has stated — eu-meta-premium is a real seeded type that no bank
+ * option mentions. Guessing would send real money to the wrong company, so an
+ * unknown type narrows nothing and the caller asks instead of defaulting.
  */
 export const BANK_BY_TYPE_SLUG: Record<string, BankGroup> = {
   "eu-meta-psm": "turlit",
@@ -28,9 +35,12 @@ export const BANK_BY_TYPE_SLUG: Record<string, BankGroup> = {
   tiktok: "turlit",
   taboola: "turlit",
   snapchat: "turlit",
+  // The Hong Kong families used to go to MUXUE. They come to our own bank
+  // now, so there is one destination for everything except GH.
+  "hk-meta-premium": "turlit",
+  "hk-meta-business": "turlit",
+  "hk-meta-business-green": "turlit",
   "eu-meta-psm-gh": "zanel",
-  "hk-meta-premium": "muxue",
-  "hk-meta-business": "muxue",
 };
 
 /**
