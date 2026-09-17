@@ -23,18 +23,30 @@ journey walkthrough, once my side of it is ready.
 
 ## Today (2026-09-17)
 
-48 commits, 73 files. Not polish — these were found, not guessed:
+Not polish. These were found, not guessed:
 
 | what | why it mattered |
 |---|---|
-| Deactivate / Activate wrote nothing | RLS had no admin UPDATE policy on `user_profiles`; the action correctly refused to call it success. Fixed in the database. |
-| Total profit overstated | USD top-up fees counted as euros (~16%) **and** paid `subscription_adjustment` invoices dropped entirely. |
-| Bank routing matched nothing | The slug table was written against the seed spelling; every live type uses the other one. Auto-routing had never fired. |
-| Sort & filter unreachable | Opened ~1100px below the fold on every admin list — a filled entry animation made `.content` a containing block for `position:fixed`. |
-| `bg-muted` dark-on-dark | The shells redefined Tailwind's `--muted` as a text colour. 88 usages across 57 files. |
-| Invoice number fixed in dead code | `/invoices` renders a different file; the fix never reached a user. Two dead views deleted, `docs/ROUTE_MAP.md` written. |
-| USD shown with a euro sign | Three screens, including the advertiser's own top-up card. |
-| Two number formats | 44 en-US vs 8 nl-NL; the pool read `$12.500,00`. |
+| Deactivate / Activate wrote nothing | Live had no admin UPDATE policy on `user_profiles`, only a self-update one. Fixed in the database. |
+| Total profit overstated | USD top-up fees counted as euros (~16%) **and** paid `subscription_adjustment` invoices dropped. Reads €0.00 on an unpaid tenant now, which is correct. |
+| Bank routing matched nothing | The slug table was written against the seed spelling; all eight live types use the other one. Auto-routing had never fired for anybody. |
+| Bulk top-ups ignored plans and perks | A granted fee waiver was charged anyway, and a tampered payload could understate the fee on 200 rows at once. |
+| "Source" shown to customers | `top_ups.source` is provenance and was rendered to advertisers in two places. |
+| /wallet put a 300 floor on the first top-up | `min_topup` is 300 by column DEFAULT; the rule that exists for this was being bypassed. |
+| Sort & filter unreachable | Opened ~1100px below the fold on every admin list. |
+| `bg-muted` dark-on-dark | The shells redefined Tailwind's `--muted` as a text colour: 88 usages, 57 files. |
+| Exchange-rate inputs rounded a live rate | `step="0.01"` on six-decimal rates; the spinner snapped 0.872361 to 0.87, a 0.27% error on every conversion. |
+| Reference rates fetched by the browser | From an unauthenticated CDN, on the admin's own device. Now server-side. |
+| The CSP would have broken flags on enforcement | 223 report-only violations from the country dropdown. |
+| Six dead views, 12 dead components | Four fixes had landed in files no route renders. |
+| 18 silent writes | All now count their rows. |
+| Precharge had no UI | Built, then lost in a port. Back as a fourth tab on /withdrawals. |
+| Wallet exchanges shown nowhere | A customer could exchange EUR→USD and see no record of it. |
+| Customer lists read failure as emptiness | The advertiser app told someone with ten accounts they had none. |
+| Reconciliation claimed balance with no data | "All balanced ✓" in green, and still green for "3 to investigate". |
+| No confirmation on an ad-account request | Straight from Submit to a €50 wallet charge. |
+| Sideways scrolling | Three settings grids, the period strip, the tab bar, two admin tables, the bulk dialog. |
+| The backtick that broke the build four times | Now caught by a test that was itself verified by seeding the bug. |
 
 ## What is left
 
