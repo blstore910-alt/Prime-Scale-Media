@@ -266,6 +266,7 @@ export default function WiseReviewPanel() {
                             transferId={r.id}
                             amountCents={r.amount_cents}
                             currency={r.currency}
+                            tenantId={tenantId}
                             busy={actingId === r.id}
                             onDone={() => {
                               queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
@@ -323,12 +324,14 @@ function ManualMatch({
   transferId,
   amountCents,
   currency,
+  tenantId,
   busy,
   onDone,
 }: {
   transferId: string;
   amountCents: number;
   currency: string;
+  tenantId: string | null;
   busy: boolean;
   onDone: () => void;
 }) {
@@ -337,8 +340,8 @@ function ManualMatch({
   const [saving, setSaving] = useState(false);
 
   const { data: candidates = [], isLoading } = useQuery({
-    queryKey: ["wise-match-candidates", transferId],
-    enabled: open,
+    queryKey: ["wise-match-candidates", transferId, tenantId],
+    enabled: open && !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
       const amount = Number(amountCents) / 100;
@@ -347,8 +350,14 @@ function ManualMatch({
         .select(
           "id, amount, currency, created_at, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
         )
+        // Scoped to this tenant like every other admin query on this table.
+        // RLS should already do it, but a list that credits money is not the
+        // place to find out that it does not — and `ilike` rather than `eq`
+        // because currency is free text: a row stored as "eur" would have
+        // been invisible here and looked like "nobody is expecting this".
+        .eq("tenant_id", tenantId)
         .eq("status", "pending")
-        .eq("currency", String(currency).toUpperCase())
+        .ilike("currency", String(currency))
         // A cent either way, the same tolerance the automatic matcher uses.
         .gte("amount", amount - 0.01)
         .lte("amount", amount + 0.01)

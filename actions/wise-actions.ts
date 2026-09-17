@@ -1,6 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
+import { createAdminClient } from "@/lib/supabase/server";
 import { resolveAdminContext, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
@@ -67,11 +68,21 @@ export async function matchWiseToTopup(
 
   const { data: transfer, error: tErr } = await supabase
     .from("wise_incoming_transfers")
-    .select("id, amount_cents, currency, status")
+    .select("id, amount_cents, currency, status, tenant_id")
     .eq("id", transferId)
     .maybeSingle();
   if (tErr) return { ok: false, error: safeErrorMessage(tErr) };
   if (!transfer) return { ok: false, error: "Deposit not found" };
+  // A deposit is either unassigned (tenant_id null — the matcher could not
+  // tell whose it was) or already ours. Anything else belongs to another
+  // tenant, and the write below runs with the service role, so this check is
+  // the only thing standing in its way — RLS will not catch it for us.
+  if (
+    transfer.tenant_id !== null &&
+    transfer.tenant_id !== profile.tenant_id
+  ) {
+    return { ok: false, error: "Forbidden" };
+  }
   if (transfer.status === "completed" || transfer.status === "confirmed") {
     return { ok: false, error: "That deposit has already been credited." };
   }
@@ -107,7 +118,21 @@ export async function matchWiseToTopup(
     };
   }
 
-  const { data: linked, error: linkErr } = await supabase
+  // The service-role client, deliberately. wise_incoming_transfers carries a
+  // SELECT policy and nothing else — its migration says so outright: "No
+  // client writes — only the service-role webhook path writes". So this
+  // UPDATE matched zero rows under the caller's client and the whole feature
+  // was dead on arrival; it failed loudly rather than silently, thanks to the
+  // row check below, but it never worked.
+  //
+  // Every authorisation this needs has already been done above, by hand,
+  // because RLS is not doing it here: the caller is an active admin of this
+  // tenant, the top-up is theirs and pending, the deposit is theirs or
+  // unassigned, and the amounts agree to the cent. The write itself is one
+  // column on one row, and wise_confirm_suggestion re-checks the caller
+  // before it moves any money.
+  const admin = await createAdminClient();
+  const { data: linked, error: linkErr } = await admin
     .from("wise_incoming_transfers")
     .update({ suggested_topup_id: topupId, status: "suggested" })
     .eq("id", transferId)
