@@ -58,7 +58,7 @@ const stateRow = (colSpan: number, msg: string, danger = false) => (
       style={{
         textAlign: "center",
         padding: 28,
-        color: danger ? "var(--danger)" : "var(--muted)",
+        color: danger ? "var(--danger)" : "var(--txt-2)",
       }}
     >
       {msg}

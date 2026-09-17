@@ -43,9 +43,9 @@ function bucketKind(key: string): string {
 // body never scrolls sideways.
 const RATE_CSS = `
 .psm-rl .rlhead{margin-bottom:14px}
-.psm-rl .rlsub{color:var(--muted);font-size:.82rem;margin:5px 0 0;max-width:64ch}
+.psm-rl .rlsub{color:var(--txt-2);font-size:.82rem;margin:5px 0 0;max-width:64ch}
 .psm-rl .tblwrap{overflow-x:auto}
-.psm-rl .empty{height:96px;display:grid;place-items:center;color:var(--muted);font-size:.86rem}
+.psm-rl .empty{height:96px;display:grid;place-items:center;color:var(--txt-2);font-size:.86rem}
 .psm-rl .keycell{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;word-break:break-all;max-width:24rem}
 .psm-rl .win{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:var(--faint);white-space:nowrap}
 .psm-rl .est{font-size:.78rem;color:var(--faint)}

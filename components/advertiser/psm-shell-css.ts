@@ -4,7 +4,7 @@ import { refineCss } from "./refine-css";
 // advertiser area and never leaks into the rest of the app.
 export const PSM_APP_CSS = `
 .psmapp{
-  --ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
+  --ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--txt-2:#5c6577;--faint:#8b93a6;
   --line:#e6e9f2;--line-2:#d8ddec;--primary:#3a6fff;--primary-600:#2f5ae6;--primary-tint:#eaf1ff;
   --blue:#5B8DFF;--purple:#8B5CF6;--navy1:#04050E;--navy2:#0c1230;--navy3:#0f172a;
   --win:#10b981;--win-soft:#daf5ec;--warn:#e08a00;--warn-soft:#fdeecb;--danger:#e5484d;--danger-soft:#fdecec;
@@ -23,7 +23,7 @@ export const PSM_APP_CSS = `
 .psmapp .psmview h1,.psmapp .psmview h2{margin:0}
 .psmapp .psmview h2,.psmapp .phead h2{font-family:var(--hd);font-weight:800;font-size:1.12rem;letter-spacing:-.02em}
 .psmapp .pfi svg{width:15px;height:15px}
-.psmapp .cap{color:var(--muted);font-size:.9rem;margin:6px 0 16px}
+.psmapp .cap{color:var(--txt-2);font-size:.9rem;margin:6px 0 16px}
 .psmapp .grad{background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
 .psmapp .mono{font-family:ui-monospace,Menlo,monospace}
 
@@ -34,7 +34,7 @@ export const PSM_APP_CSS = `
 .psmapp .logo .name{font-family:var(--hd);font-weight:800;letter-spacing:-.025em;font-size:.98rem;line-height:1.1}
 .psmapp .logo .name small{display:block;font-weight:700;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-top:3px}
 .psmapp .navsec{font-size:.64rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px}
-.psmapp .navlink{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;font-weight:600;font-size:.92rem;color:var(--muted);cursor:pointer;transition:.14s;border:0;background:none;width:100%;text-align:left;font-family:var(--bd)}
+.psmapp .navlink{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;font-weight:600;font-size:.92rem;color:var(--txt-2);cursor:pointer;transition:.14s;border:0;background:none;width:100%;text-align:left;font-family:var(--bd)}
 .psmapp .navlink:hover{background:var(--panel-2);color:var(--ink)}
 .psmapp .navlink.on{background:var(--primary-tint);color:var(--primary-600)}
 .psmapp .navlink svg{width:19px;height:19px}
@@ -58,7 +58,7 @@ export const PSM_APP_CSS = `
 .psmapp .tb-spacer{flex:1}
 .psmapp .toolbar{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;padding:5px;box-shadow:0 10px 24px -16px rgba(20,30,80,.55),inset 0 1px 0 rgba(255,255,255,.6)}
 .psmapp .tool{display:inline-flex;align-items:center;gap:8px;border:0;background:none;font-family:var(--bd);font-weight:700;color:var(--ink);border-radius:12px;padding:7px 12px;height:42px;cursor:pointer;position:relative;transition:.13s}
-.psmapp .tool svg{width:18px;height:18px;color:var(--muted)}
+.psmapp .tool svg{width:18px;height:18px;color:var(--txt-2)}
 .psmapp .tool.wal{background:var(--primary-tint);border:1px solid #cfe0ff}.psmapp .tool.wal svg{color:var(--primary-600)}
 .psmapp .tool.wal .e{display:flex;flex-direction:column;line-height:1.05;text-align:left}
 .psmapp .tool.wal small{font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
@@ -76,7 +76,7 @@ export const PSM_APP_CSS = `
 .psmapp .tool.ava-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.8rem;color:#fff;background:var(--brand);position:relative}
 .psmapp .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
 .psmapp .tool.ava-btn svg{width:15px}
-.psmapp .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.psmapp .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer}
 .psmapp .ham{display:none}
 
 .psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto;min-width:0;overflow-x:auto;animation:psmcontentin .5s cubic-bezier(.2,.7,.3,1)}
@@ -91,7 +91,7 @@ export const PSM_APP_CSS = `
 @keyframes psmcontentin{from{opacity:0}to{opacity:1}}
 .psmapp .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .psmapp .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
-.psmapp .phead p{color:var(--muted);font-size:.92rem;margin:4px 0 0}
+.psmapp .phead p{color:var(--txt-2);font-size:.92rem;margin:4px 0 0}
 /* A page header whose actions share the title row rather than stacking
    under it. Measured: stacked, /accounts cost 99px of header against 48px
    on every other admin page. */
@@ -157,7 +157,7 @@ export const PSM_APP_CSS = `
 }
 .psmapp .feeedit input::-webkit-outer-spin-button,
 .psmapp .feeedit input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.psmapp .feeedit .pct{color:var(--muted);font-weight:600;font-size:.86rem}
+.psmapp .feeedit .pct{color:var(--txt-2);font-weight:600;font-size:.86rem}
 
 .psmapp .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
 /* Button scale. These were sized like page-level calls to action and then
@@ -241,7 +241,7 @@ export const PSM_APP_CSS = `
    narrowed list can never look like missing data. */
 .psmapp .fgroup{position:relative;margin-left:auto;display:inline-flex}
 .psmapp .fbtn{display:inline-flex;align-items:center;gap:8px;font-family:var(--bd);font-weight:700;font-size:.84rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 14px;background:var(--panel);color:var(--ink);cursor:pointer;transition:.14s}
-.psmapp .fbtn svg{width:16px;height:16px;color:var(--muted)}
+.psmapp .fbtn svg{width:16px;height:16px;color:var(--txt-2)}
 .psmapp .fbtn:hover{border-color:var(--primary);color:var(--primary-600)}
 .psmapp .fbtn:hover svg{color:var(--primary-600)}
 .psmapp .fbtn:focus-visible{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
@@ -273,7 +273,7 @@ export const PSM_APP_CSS = `
 .psmapp .acard .kv{display:flex;justify-content:space-between;font-size:.85rem}.psmapp .acard .kv span{color:var(--faint)}.psmapp .acard .kv b{font-weight:700}
 .psmapp .acard .acts{display:flex;gap:8px;margin-top:2px}
 .psmapp .pfi{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--primary-tint);color:var(--primary-600);flex:0 0 auto}
-.psmapp .muted{color:var(--muted)}
+.psmapp .muted{color:var(--txt-2)}
 
 .psmapp .scrim{display:none}
 .psmapp .bottombar{display:none}
@@ -596,7 +596,7 @@ export const PSM_APP_CSS = `
 .psmapp .umenu-hd .sub{font-size:.74rem;color:var(--faint);margin-top:2px}
 .psmapp .umenu-item{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;font-family:var(--bd);font-weight:600;font-size:.9rem;color:var(--ink);padding:10px 11px;border-radius:10px;cursor:pointer;transition:.12s}
 .psmapp .umenu-item:hover{background:var(--panel-2)}
-.psmapp .umenu-item svg{width:17px;height:17px;color:var(--muted)}
+.psmapp .umenu-item svg{width:17px;height:17px;color:var(--txt-2)}
 .psmapp .umenu-item.danger{color:var(--danger)}.psmapp .umenu-item.danger:hover{background:var(--danger-soft)}.psmapp .umenu-item.danger svg{color:var(--danger)}
 
 /* Confirmation modal (matches the app's dialog look) */

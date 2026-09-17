@@ -74,7 +74,7 @@ const emptyRow = (colSpan: number, msg: string, danger = false) => (
       style={{
         textAlign: "center",
         padding: 28,
-        color: danger ? "var(--danger)" : "var(--muted)",
+        color: danger ? "var(--danger)" : "var(--txt-2)",
       }}
     >
       {msg}
@@ -600,7 +600,7 @@ function RefundsSection() {
                           style={{
                             maxWidth: 240,
                             fontSize: ".8rem",
-                            color: "var(--muted)",
+                            color: "var(--txt-2)",
                           }}
                           data-label="Payout to"
                         >

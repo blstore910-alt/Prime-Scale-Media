@@ -1,7 +1,7 @@
 import { refineCss } from "./refine-css";
 // AUTO-GENERATED verbatim from advertiser-app.html mockup (scoped .advapp).
 export const ADV_CSS = `
-  .advapp{--ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
+  .advapp{--ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--txt-2:#5c6577;--faint:#8b93a6;
     --line:#e6e9f2;--line-2:#d8ddec;--primary:#3a6fff;--primary-600:#2f5ae6;--primary-tint:#eaf1ff;
     --blue:#5B8DFF;--purple:#8B5CF6;--navy1:#04050E;--navy2:#0c1230;--navy3:#0f172a;
     --win:#10b981;--win-soft:#daf5ec;--warn:#e08a00;--warn-soft:#fdeecb;--danger:#e5484d;--danger-soft:#fdecec;
@@ -14,7 +14,7 @@ export const ADV_CSS = `
   svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;flex:0 0 auto}
   .mono{font-family:ui-monospace,Menlo,monospace}
   h2{font-family:var(--hd);font-weight:800;font-size:1.12rem;letter-spacing:-.02em;margin:0}
-  .cap{color:var(--muted);font-size:.9rem;margin:6px 0 16px}
+  .cap{color:var(--txt-2);font-size:.9rem;margin:6px 0 16px}
   .grad{background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
 
   .app{display:flex;min-height:100vh}
@@ -25,7 +25,7 @@ export const ADV_CSS = `
   .logo .name{font-family:var(--hd);font-weight:800;letter-spacing:-.025em;font-size:.98rem;line-height:1.1}
   .logo .name small{display:block;font-weight:700;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-top:3px}
   .navsec{font-size:.64rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px}
-  .navlink{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;font-weight:600;font-size:.92rem;color:var(--muted);cursor:pointer;transition:.14s;border:0;background:none;width:100%;text-align:left;font-family:var(--bd)}
+  .navlink{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;font-weight:600;font-size:.92rem;color:var(--txt-2);cursor:pointer;transition:.14s;border:0;background:none;width:100%;text-align:left;font-family:var(--bd)}
   .navlink:hover{background:var(--panel-2);color:var(--ink)}.navlink.on{background:var(--primary-tint);color:var(--primary-600)}
   .navlink svg{width:19px;height:19px}.navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center}
   .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
@@ -44,7 +44,7 @@ export const ADV_CSS = `
   .tb-spacer{flex:1}
   .toolbar{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;padding:5px;box-shadow:0 10px 24px -16px rgba(20,30,80,.55),inset 0 1px 0 rgba(255,255,255,.6)}
   .tool{display:inline-flex;align-items:center;gap:8px;border:0;background:none;font-family:var(--bd);font-weight:700;color:var(--ink);border-radius:12px;padding:7px 12px;height:42px;cursor:pointer;position:relative;transition:.13s}
-  .tool svg{width:18px;height:18px;color:var(--muted)}
+  .tool svg{width:18px;height:18px;color:var(--txt-2)}
   .tool.wal{background:var(--primary-tint);border:1px solid #cfe0ff}.tool.wal svg{color:var(--primary-600)}
   .tool.wal .e{display:flex;flex-direction:column;line-height:1.05;text-align:left}
   .tool.wal small{font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
@@ -57,7 +57,7 @@ export const ADV_CSS = `
   .tool.ava-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.8rem;color:#fff;background:var(--brand);position:relative}
   .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
   .tool.ava-btn svg{width:15px}
-  .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:grid;place-items:center;cursor:pointer}
+  .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer}
   .ham{display:none}
 
   .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto}
@@ -65,7 +65,7 @@ export const ADV_CSS = `
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
   .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
-  .phead p{color:var(--muted);font-size:.92rem;margin:4px 0 0}
+  .phead p{color:var(--txt-2);font-size:.92rem;margin:4px 0 0}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
   .btn{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;border-radius:11px;padding:11px 16px;background:var(--primary);color:#fff;white-space:nowrap;box-shadow:0 12px 26px -12px rgba(58,111,255,.7);transition:.12s}
@@ -239,7 +239,7 @@ export const ADV_CSS = `
   .acard .acts{display:flex;gap:8px;margin-top:2px}
   .acard[data-acct]{cursor:pointer}.acard[data-acct]:hover{border-color:var(--primary)}
   .acard.banned{opacity:.94}.acard.banned:hover{border-color:#f3c9c9}
-  .lockmsg{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;color:var(--muted);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:9px 11px;width:100%}
+  .lockmsg{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;color:var(--txt-2);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:9px 11px;width:100%}
   .lockmsg svg{width:15px;height:15px;flex:0 0 auto;color:var(--faint)}
   .lockmsg.banned{color:#c0392b;background:var(--danger-soft);border-color:#f3c9c9}.lockmsg.banned svg{color:var(--danger)}
   .okic{width:66px;height:66px;border-radius:50%;margin:8px auto 6px;display:grid;place-items:center;background:var(--win-soft);color:var(--win);box-shadow:0 0 0 8px rgba(16,185,129,.12);animation:okpop .4s cubic-bezier(.2,.8,.2,1)}
@@ -262,7 +262,7 @@ export const ADV_CSS = `
   .sub-grid .b span{font-size:.66rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:.8}
   .sub-grid .b b{display:block;font-family:var(--hd);font-size:1.05rem;margin-top:3px}
 
-  .field{margin-bottom:14px}.field label{font-size:.8rem;font-weight:600;color:var(--muted);display:block;margin-bottom:6px}
+  .field{margin-bottom:14px}.field label{font-size:.8rem;font-weight:600;color:var(--txt-2);display:block;margin-bottom:6px}
   .field input,.field select{width:100%;font-family:var(--bd);font-size:.92rem;border:1px solid var(--line-2);border-radius:11px;padding:11px 13px;background:var(--panel-2);color:var(--ink)}
   .field input:focus,.field select:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
   .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -275,9 +275,9 @@ export const ADV_CSS = `
   .nrow.unread{border-color:var(--primary-tint);background:linear-gradient(90deg,var(--primary-tint),var(--panel) 60%)}
   .nic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}.nic svg{width:19px;height:19px}
   .nic.b{background:var(--primary-tint);color:var(--primary-600)}.nic.win{background:var(--win-soft);color:var(--win)}.nic.warn{background:var(--warn-soft);color:var(--warn)}
-  .nrow .t{font-weight:700}.nrow .d{color:var(--muted);font-size:.85rem}.nrow .tm{margin-left:auto;color:var(--faint);font-size:.78rem;white-space:nowrap}
+  .nrow .t{font-weight:700}.nrow .d{color:var(--txt-2);font-size:.85rem}.nrow .tm{margin-left:auto;color:var(--faint);font-size:.78rem;white-space:nowrap}
   .undot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:6px;flex:0 0 auto}
-  .faq .q{font-family:var(--hd);font-weight:700;font-size:.98rem;margin-bottom:4px}.faq .a{color:var(--muted);font-size:.9rem}.faq>div{margin-bottom:12px}
+  .faq .q{font-family:var(--hd);font-weight:700;font-size:.98rem;margin-bottom:4px}.faq .a{color:var(--txt-2);font-size:.9rem}.faq>div{margin-bottom:12px}
   .steps{display:flex;flex-direction:column;gap:12px}.step{display:flex;gap:11px;align-items:flex-start}
   .step .si{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;background:var(--primary-tint);color:var(--primary-600);font-family:var(--hd);font-weight:800}
   .bankbox{background:var(--panel-2);border:1px solid var(--line-2);border-radius:12px;padding:14px;font-size:.88rem}
@@ -389,7 +389,7 @@ export const ADV_CSS = `
   .duerow .ai{width:30px;height:30px;border-radius:9px;background:var(--warn-soft);display:grid;
     place-items:center;color:#a9740b;flex:0 0 auto}
   .duerow .ai svg{width:16px;height:16px}
-  .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--muted);line-height:1.3;
+  .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--txt-2);line-height:1.3;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .duerow .dtx b{font-weight:800;color:var(--ink)}
   /* Brand, not amber. The marker down the left edge already says "note", so
@@ -418,7 +418,7 @@ export const ADV_CSS = `
   .onbrow.is-done .onb-tick svg{width:13px;height:13px}
   .onbrow.is-done .onb-ic{width:24px;height:24px;border-radius:8px;background:transparent;color:var(--faint)}
   .onbrow.is-done .onb-ic svg{width:15px;height:15px}
-  .onbrow.is-done .onb-t{font-weight:600;color:var(--muted);font-size:.88rem;
+  .onbrow.is-done .onb-t{font-weight:600;color:var(--txt-2);font-size:.88rem;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   /* Same height as the collapsed card it is standing in for, so the page
      does not jump when the real one takes its place. */
@@ -431,9 +431,9 @@ export const ADV_CSS = `
   .onb-done-ic{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
     background:#fff;color:var(--win)}
   .onb-done-t{font-family:var(--hd);font-weight:800}
-  .onb-done-s{color:var(--muted);font-size:.85rem}
+  .onb-done-s{color:var(--txt-2);font-size:.85rem}
   .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
-  .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.86rem;color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer}
+  .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.86rem;color:var(--txt-2);padding:8px 16px;border-radius:8px;cursor:pointer}
   .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}
   .amtin{display:flex;align-items:center;gap:2px;border:1px solid var(--line-2);border-radius:12px;background:var(--panel-2);padding:6px 14px}
   .amtin span{font-family:var(--hd);font-weight:800;font-size:1.4rem;color:var(--faint)}
@@ -480,7 +480,7 @@ export const ADV_CSS = `
   .umenu-hd .sub{font-size:.74rem;color:var(--faint);margin-top:2px}
   .umenu-item{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;font-family:var(--bd);font-weight:600;font-size:.9rem;color:var(--ink);padding:10px 11px;border-radius:10px;cursor:pointer;transition:.12s}
   .umenu-item:hover{background:var(--panel-2)}
-  .umenu-item svg{width:17px;height:17px;color:var(--muted)}
+  .umenu-item svg{width:17px;height:17px;color:var(--txt-2)}
   .umenu-item.danger{color:var(--danger)}.umenu-item.danger:hover{background:var(--danger-soft)}.umenu-item.danger svg{color:var(--danger)}
   .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
   .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.btn.danger:hover{background:var(--danger)}

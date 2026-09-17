@@ -465,7 +465,7 @@ export default function PsmPromotions() {
                           className="badge"
                           style={{
                             background: "var(--panel-2)",
-                            color: "var(--muted)",
+                            color: "var(--txt-2)",
                           }}
                         >
                           Revoked

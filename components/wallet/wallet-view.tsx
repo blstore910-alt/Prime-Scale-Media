@@ -310,7 +310,7 @@ export default function WalletView() {
                     style={{
                       textAlign: "center",
                       padding: 28,
-                      color: "var(--muted)",
+                      color: "var(--txt-2)",
                     }}
                   >
                     No wallet activity yet.

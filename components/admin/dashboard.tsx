@@ -35,7 +35,7 @@ type Queue = {
 // Dashboard-only classes ported verbatim from the approved mockup, scoped
 // under .psm-dash so they can never leak to other pages. The shell already
 // defines the design tokens (--primary, --panel, --line, --win, --purple,
-// --navy*, --brand, --primary-tint, --muted, --faint, --shadow-sm …) on
+// --navy*, --brand, --primary-tint, --txt-2, --faint, --shadow-sm …) on
 // .psmapp — we reuse those and only fill the one tint the shell omits.
 // Motion is covered by the shell's global prefers-reduced-motion rule
 // (`.psmapp *{animation/transition:none}`), which our elements inherit.
@@ -57,7 +57,7 @@ const DASH_CSS = `
 .psm-dash .attn .ai{width:34px;height:34px;border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--primary-600);flex:0 0 auto}
 .psm-dash .attn .ai svg{width:18px;height:18px}
 .psm-dash .attn b{font-weight:800;font-family:var(--hd);font-size:1rem}
-.psm-dash .attn .sub{color:var(--muted);font-size:.84rem;margin-top:1px}
+.psm-dash .attn .sub{color:var(--txt-2);font-size:.84rem;margin-top:1px}
 .psm-dash .attn .cta{margin-left:auto;color:#fff}
 /* "All caught up" is a compact one-liner: small check icon INLINE with the
    headline and its sub-line, not a tall block with the icon floating above. */
@@ -83,7 +83,7 @@ const DASH_CSS = `
    differently, so the cards saying the least ended up the loudest on the
    screen. Same quiet treatment for both. */
 .psm-dash .qcard:has(.qbadge.zero) .ql,
-.psm-dash .qcard:not(:has(.qbadge)) .ql{color:var(--muted);font-weight:600}
+.psm-dash .qcard:not(:has(.qbadge)) .ql{color:var(--txt-2);font-weight:600}
 .psm-dash .qcard:has(.qbadge.zero) .qi,
 .psm-dash .qcard:not(:has(.qbadge)) .qi{opacity:.55}
 .psm-dash .qcard .qi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
@@ -92,7 +92,7 @@ const DASH_CSS = `
 .psm-dash .qcard .qbadge{flex:0 0 auto;min-width:24px;height:24px;padding:0 8px;border-radius:99px;display:grid;place-items:center;background:var(--primary);color:#fff;font-family:var(--hd);font-weight:800;font-size:.78rem;font-variant-numeric:tabular-nums;box-shadow:0 6px 14px -8px rgba(58,111,255,.9)}
 /* An unreadable count is not zero. It renders as a muted dash, never as a
    number, so "nothing to do" can only ever mean nothing to do. */
-.psm-dash .qcard .qbadge.zero{background:var(--panel-2);color:var(--muted);box-shadow:none;border:1px solid var(--line)}
+.psm-dash .qcard .qbadge.zero{background:var(--panel-2);color:var(--txt-2);box-shadow:none;border:1px solid var(--line)}
 .psm-dash .qcard .qbadge.unknown{background:var(--panel-2);color:var(--faint);box-shadow:none;border:1px solid var(--line-2)}
 .psm-dash .qcard .go{margin-left:auto;color:var(--faint);width:17px;height:17px;flex:0 0 auto}
 
@@ -100,7 +100,7 @@ const DASH_CSS = `
    A top hairline bounds the section; header carries title + honest subtitle. */
 .psm-dash .pa{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:15px}
 .psm-dash .pa-head{display:flex;flex-direction:column;gap:2px}
-.psm-dash .pa-head .pa-sub{color:var(--muted);font-size:.86rem;margin:0}
+.psm-dash .pa-head .pa-sub{color:var(--txt-2);font-size:.86rem;margin:0}
 
 /* colored icon tiles — the shell defines b/t/g/p; we re-state them so the
    dashboard block is self-contained (identical values, no conflict). */
@@ -115,7 +115,7 @@ const DASH_CSS = `
 .psm-dash .sysbox>summary{display:flex;align-items:center;gap:11px;padding:12px 15px;cursor:pointer;list-style:none;font-family:var(--hd);font-weight:800;font-size:1rem;color:var(--ink)}
 .psm-dash .sysbox>summary::-webkit-details-marker{display:none}
 .psm-dash .sysbox>summary:hover{background:var(--panel-2)}
-.psm-dash .sysbox .sys-ic{width:32px;height:32px;border-radius:9px;background:var(--panel-2);color:var(--muted);display:grid;place-items:center;flex:0 0 auto}
+.psm-dash .sysbox .sys-ic{width:32px;height:32px;border-radius:9px;background:var(--panel-2);color:var(--txt-2);display:grid;place-items:center;flex:0 0 auto}
 .psm-dash .sysbox .sys-ic svg{width:17px;height:17px}
 .psm-dash .sysbox .sys-hint{color:var(--faint);font-family:var(--bd);font-weight:600;font-size:.8rem}
 .psm-dash .sysbox .sys-chev{margin-left:auto;color:var(--faint);width:18px;height:18px;transition:transform .18s}

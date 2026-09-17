@@ -9,13 +9,13 @@ import WalletRecoveryDialog from "@/components/wallets/wallet-recovery-dialog";
 
 // Mockup-only classes (metric tiles + panel chrome), scoped under .psm-sys so
 // they never leak. The admin shell injects the design tokens on .psmapp; we
-// reuse those (--panel, --line, --primary-tint, --win, --warn, --muted,
+// reuse those (--panel, --line, --primary-tint, --win, --warn, --txt-2,
 // --faint, --shadow-sm/-shadow …) and only add the one tint the shell omits.
 // Rule bodies mirror the approved super-admin mockup's .metric / .ci tiles.
 const SYS_CSS = `
 .psm-sys{--purple-tint:#f3e8ff}
 .psm-sys .syshead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-.psm-sys .syssub{color:var(--muted);font-size:.82rem;margin:5px 0 0}
+.psm-sys .syssub{color:var(--txt-2);font-size:.82rem;margin:5px 0 0}
 .psm-sys .sysmeta{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:.78rem}
 .psm-sys .sysmeta .badge svg{width:13px;height:13px}
 .psm-sys .ver{font-family:ui-monospace,Menlo,monospace;color:var(--faint)}

@@ -1196,7 +1196,7 @@ export default function AdvertiserApp() {
                           <td data-label="Reference" className="mono">
                             {t.reference_no ?? "—"}
                           </td>
-                          <td data-label="Description" style={{ color: "var(--muted)" }}>
+                          <td data-label="Description" style={{ color: "var(--txt-2)" }}>
                             {t.description || "Wallet top-up"}
                           </td>
                           <td

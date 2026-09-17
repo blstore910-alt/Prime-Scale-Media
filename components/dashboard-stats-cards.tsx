@@ -77,7 +77,7 @@ const formatDateLabel = (date: Date) => dayjs(date).format(DATE_FORMAT);
 // Mockup-only classes (profit-hero + metric tiles + segmented period control),
 // scoped under .psm-stats so they never leak. The admin shell injects the
 // design tokens (--navy1/2/3, --brand, --primary, --panel, --line, --win,
-// --muted, --faint, --shadow-sm/-shadow, --primary-tint …) on .psmapp; we
+// --txt-2, --faint, --shadow-sm/-shadow, --primary-tint …) on .psmapp; we
 // reuse those and only add the one tint the shell omits. Rule bodies are
 // copied from the approved super-admin mockup. The ring's animation is
 // belt-and-suspenders disabled under reduced-motion (the shell already forces
@@ -106,7 +106,7 @@ const STATS_CSS = `
 .psm-stats .seg2{scroll-snap-type:x proximity}
 .psm-stats .seg2 button{scroll-snap-align:start}
 .psm-stats .seg2::-webkit-scrollbar{display:none}
-.psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.82rem;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.13s;white-space:nowrap}
+.psm-stats .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.82rem;color:var(--txt-2);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.13s;white-space:nowrap}
 .psm-stats .seg2 button:hover{color:var(--ink)}
 .psm-stats .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}
 .psm-stats .rangebtn{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;font-family:var(--bd);font-weight:700;font-size:.83rem;color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
@@ -114,7 +114,7 @@ const STATS_CSS = `
 .psm-stats .rangebtn.on{border-color:var(--primary);color:var(--primary-600);background:var(--primary-tint)}
 .psm-stats .rangebtn svg{width:15px;height:15px}
 /* Month step arrows — nudge the selected period back/forward one month. */
-.psm-stats .stepbtn{display:inline-grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line-2);border-radius:10px;background:var(--panel);color:var(--muted);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
+.psm-stats .stepbtn{display:inline-grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line-2);border-radius:10px;background:var(--panel);color:var(--txt-2);cursor:pointer;box-shadow:var(--shadow-sm);transition:.13s}
 .psm-stats .stepbtn:hover:not(:disabled){border-color:var(--primary);color:var(--primary-600)}
 .psm-stats .stepbtn:disabled{opacity:.4;cursor:default}
 .psm-stats .stepbtn svg{width:16px;height:16px}
@@ -140,7 +140,7 @@ const STATS_CSS = `
 .psm-stats .metric:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
 .psm-stats .metric .k{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:600;color:var(--faint)}
 .psm-stats .metric .v{font-family:var(--hd);font-weight:800;font-size:1.15rem;margin-top:7px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-.psm-stats .metric .v.err{font-family:var(--bd);font-weight:600;font-size:.92rem;color:var(--muted)}
+.psm-stats .metric .v.err{font-family:var(--bd);font-weight:600;font-size:.92rem;color:var(--txt-2)}
 .psm-stats .metric .sub{font-size:.71rem;color:var(--faint);margin-top:2px;min-height:1em}
 .psm-stats .ci{width:26px;height:26px;border-radius:8px;display:inline-grid;place-items:center;flex:0 0 auto}
 .psm-stats .ci svg{width:15px;height:15px}

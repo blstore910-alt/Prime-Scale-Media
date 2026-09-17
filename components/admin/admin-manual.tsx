@@ -250,7 +250,7 @@ const GOLDEN_RULES = [
 
 const MANUAL_CSS = `
 .psm-manual{display:flex;flex-direction:column;gap:18px}
-.psm-manual .lead{color:var(--muted);font-size:.95rem;max-width:72ch;margin:0}
+.psm-manual .lead{color:var(--txt-2);font-size:.95rem;max-width:72ch;margin:0}
 .psm-manual .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:4px}
 .psm-manual .toc a{display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--panel-2);color:var(--ink);font-weight:600;font-size:.88rem;transition:.14s}
 .psm-manual .toc a:hover{border-color:var(--primary);color:var(--primary-600);background:var(--primary-tint);transform:translateY(-1px)}
@@ -264,7 +264,7 @@ const MANUAL_CSS = `
 .psm-manual ol.steps>li{position:relative;padding-left:40px;font-size:.92rem;line-height:1.5}
 .psm-manual ol.steps>li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:-1px;width:27px;height:27px;border-radius:8px;background:var(--brand);color:#fff;font-family:var(--hd);font-weight:800;font-size:.82rem;display:grid;place-items:center;box-shadow:0 8px 18px -10px rgba(124,92,255,.7)}
 .psm-manual .notes{display:flex;flex-direction:column;gap:8px;margin-top:2px}
-.psm-manual .note{display:flex;align-items:flex-start;gap:10px;font-size:.86rem;line-height:1.45;color:var(--muted)}
+.psm-manual .note{display:flex;align-items:flex-start;gap:10px;font-size:.86rem;line-height:1.45;color:var(--txt-2)}
 .psm-manual .note .badge{flex:0 0 auto;margin-top:1px}
 .psm-manual .rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
 .psm-manual .rules>li{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line);font-size:.9rem;line-height:1.5}

@@ -98,7 +98,7 @@ function LaunchRocket() {
 
 const AUTH_CSS = `
 .psmauth{
-  --panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
+  --panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--txt-2:#5c6577;--faint:#8b93a6;
   --line:#e6e9f2;--line-2:#d8ddec;--primary:#3a6fff;--primary-600:#2f5ae6;--primary-tint:#eaf1ff;
   --blue:#5B8DFF;--purple:#8B5CF6;--win:#10b981;--warn:#e08a00;--danger:#e5484d;
   --hd:var(--font-jakarta),system-ui,sans-serif;--bd:var(--font-dmsans),system-ui,sans-serif;
@@ -226,7 +226,7 @@ const AUTH_CSS = `
 .psmauth .step{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--primary-600);display:flex;align-items:center;gap:8px}
 .psmauth .step::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--brand)}
 .psmauth h2{font-family:var(--hd);font-weight:800;font-size:1.7rem;letter-spacing:-.02em;margin:12px 0 6px;text-wrap:balance}
-.psmauth .lede{color:var(--muted);font-size:.95rem;margin:0 0 22px}
+.psmauth .lede{color:var(--txt-2);font-size:.95rem;margin:0 0 22px}
 .psmauth .field{margin-bottom:13px}
 .psmauth .field label{display:block;font-weight:600;font-size:.82rem;margin-bottom:6px}
 .psmauth .field label .opt{color:var(--faint);font-weight:500}
@@ -302,7 +302,7 @@ const AUTH_CSS = `
    moving anything on the page. */
 .psmauth a.lnk{color:var(--primary-600);text-decoration:none;font-weight:600;display:inline-block;padding:11px 4px;margin:-11px -4px}
 .psmauth a.lnk:hover{text-decoration:underline}
-.psmauth .meta{margin-top:18px;text-align:center;color:var(--muted);font-size:.88rem}
+.psmauth .meta{margin-top:18px;text-align:center;color:var(--txt-2);font-size:.88rem}
 .psmauth .err{color:var(--danger);font-size:.85rem;font-weight:600;margin:6px 0 0;text-align:left}
 .psmauth .note{background:#fff7e6;border:1px solid #f0d9a8;color:#8a5a00;border-radius:11px;padding:10px 12px;font-size:.82rem;margin-bottom:14px;text-align:left}
 /* mobile: one continuous dark screen — the rocket hero flows straight

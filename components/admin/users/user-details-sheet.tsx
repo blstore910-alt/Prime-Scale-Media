@@ -26,7 +26,7 @@ import UserWalletTopups from "./user-wallet-topups";
 // the font vars via the next/font `*.variable` classes on the wrapper) so
 // the drawer matches the mockup detail-drawer look.
 const SHEET_CSS = `
-.udsheet{--ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--muted:#5c6577;--faint:#8b93a6;
+.udsheet{--ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--txt-2:#5c6577;--faint:#8b93a6;
   --line:#e6e9f2;--line-2:#d8ddec;--primary:#3a6fff;--primary-600:#2f5ae6;--primary-tint:#eaf1ff;
   --win:#10b981;--win-soft:#daf5ec;--warn:#e08a00;--warn-soft:#fdeecb;--danger:#e5484d;--danger-soft:#fdecec;
   --brand:linear-gradient(135deg,#5B8DFF,#8B5CF6);
@@ -53,7 +53,7 @@ const SHEET_CSS = `
 .udsheet .uds-nm-btn:hover{color:var(--primary-600)}
 .udsheet .uds-nm-btn:hover svg{opacity:1;color:var(--primary-600)}
 @media (hover:none){.udsheet .uds-nm-btn svg{opacity:.85}}
-.udsheet .uds-nm2{font-weight:700;font-size:.92rem;line-height:1.25;color:var(--muted);
+.udsheet .uds-nm2{font-weight:700;font-size:.92rem;line-height:1.25;color:var(--txt-2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .udsheet .uds-nm-in{width:100%;font-family:var(--bd);font-weight:700;font-size:.92rem;line-height:1.25;
   border:1px solid var(--primary);border-radius:9px;padding:3px 8px;margin:-4px 0;background:var(--panel);
@@ -62,9 +62,9 @@ const SHEET_CSS = `
 .udsheet .uds-sub{display:flex;align-items:center;gap:6px;min-width:0;
   color:var(--faint);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .udsheet .uds-dot{color:var(--line-2);flex:0 0 auto}
-.udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
+.udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--txt-2)}
 .udsheet .uds-x{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
-  color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+  color:var(--txt-2);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
 .udsheet .uds-x:hover{background:var(--panel-2)}.udsheet .uds-x svg{width:18px;height:18px}
 .udsheet .uds-body{padding:18px;display:flex;flex-direction:column;gap:16px}
 .udsheet .uds-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm)}
@@ -122,7 +122,7 @@ const SHEET_CSS = `
 .udsheet .uds-btn:hover{transform:translateY(-1px);background:var(--primary-600)}
 .udsheet .uds-btn:disabled{opacity:.6;cursor:default;transform:none}
 .udsheet .uds-btn svg{width:16px;height:16px}
-.udsheet .uds-muted{color:var(--muted);font-size:.9rem}
+.udsheet .uds-muted{color:var(--txt-2);font-size:.9rem}
 .udsheet .uds-spin{animation:uds-spin .8s linear infinite}
 .udsheet .uds-err{display:flex;align-items:center;gap:11px;background:var(--danger-soft);border:1px solid #f3c0c2;
   border-radius:14px;padding:14px 16px;color:#8a2a2a}

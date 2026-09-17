@@ -24,7 +24,7 @@ export function refineCss(scope: string): string {
    The shift is small on purpose — these are read at small sizes and a
    saturated grey becomes a colour, which is worse than a flat one. */
 ${s}{
-  --muted:#535e78;
+  --txt-2:#535e78;
   --faint:#818ead;
   --line:#e3e8f4;
   --line-2:#d3daec;
@@ -277,7 +277,7 @@ ${s} .card>h2 svg{
 /* ── Fields ─────────────────────────────────────────────────────────────
    Labels that sit a little away from their input and inputs that look like
    the page they are on. A field should read as one object. */
-${s} .field label{font-weight:700;font-size:.8rem;color:var(--muted);margin-bottom:6px;display:block}
+${s} .field label{font-weight:700;font-size:.8rem;color:var(--txt-2);margin-bottom:6px;display:block}
 ${s} .field input,${s} .field select,${s} .field textarea{
   background:var(--panel-2);border:1px solid var(--line-2);border-radius:11px;
   transition:border-color .13s,box-shadow .13s,background .13s}
@@ -300,7 +300,7 @@ ${s} .card.empty .empty-ic{width:52px;height:52px;border-radius:16px;display:gri
   box-shadow:0 1px 0 #fff inset,0 10px 22px -14px rgba(58,111,255,.55),0 0 0 1px var(--line)}
 ${s} .card.empty .empty-ic svg{width:24px;height:24px}
 ${s} .card.empty h3{font-family:var(--hd);font-weight:800;font-size:1.05rem;letter-spacing:-.02em;margin:0}
-${s} .card.empty p{color:var(--muted);font-size:.88rem;margin:6px 0 16px;max-width:42ch;line-height:1.5}
+${s} .card.empty p{color:var(--txt-2);font-size:.88rem;margin:6px 0 16px;max-width:42ch;line-height:1.5}
 ${s} .card.empty .btn{min-width:180px;justify-content:center}
 
 /* ── Badges ─────────────────────────────────────────────────────────────

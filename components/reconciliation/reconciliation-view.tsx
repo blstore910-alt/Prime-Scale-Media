@@ -50,11 +50,11 @@ const RECON_CSS = `
 .psm-recon .dcard .dl{color:var(--faint);font-size:.78rem;font-weight:600}
 .psm-recon .dcard .dv{font-family:var(--hd);font-weight:800;font-size:1.15rem;margin-top:6px}
 .psm-recon .frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:12px}
-.psm-recon .field label{font-size:.8rem;font-weight:600;color:var(--muted);display:block;margin-bottom:6px}
+.psm-recon .field label{font-size:.8rem;font-weight:600;color:var(--txt-2);display:block;margin-bottom:6px}
 .psm-recon .field input,.psm-recon .field select{width:100%;font-family:var(--bd);font-size:.92rem;border:1px solid var(--line-2);border-radius:11px;padding:11px 13px;background:var(--panel-2);color:var(--ink)}
 .psm-recon .field input:focus,.psm-recon .field select:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
 .psm-recon .field select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:15px;padding-right:34px}
-.psm-recon .rspin{display:grid;place-items:center;padding:26px 0;color:var(--muted)}
+.psm-recon .rspin{display:grid;place-items:center;padding:26px 0;color:var(--txt-2)}
 `;
 
 export default function ReconciliationView() {

@@ -46,7 +46,7 @@ function shortDate(iso: string): string {
 // (unmatched/received) get the muted look inline from the shell tokens.
 const NEUTRAL: CSSProperties = {
   background: "var(--panel-2)",
-  color: "var(--muted)",
+  color: "var(--txt-2)",
 };
 function statusBadge(status: string): { cls: string; style?: CSSProperties } {
   switch (status) {
@@ -264,7 +264,7 @@ export default function WiseReviewPanel() {
                         {r.sender_iban && (
                           <div
                             className="mono"
-                            style={{ fontSize: ".75rem", color: "var(--muted)" }}
+                            style={{ fontSize: ".75rem", color: "var(--txt-2)" }}
                           >
                             {r.sender_iban}
                           </div>

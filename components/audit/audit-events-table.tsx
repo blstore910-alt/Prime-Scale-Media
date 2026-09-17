@@ -326,7 +326,7 @@ export default function AuditEventsTable() {
                       data-label="Actor"
                       className="mono"
                       style={{
-                        color: "var(--muted)",
+                        color: "var(--txt-2)",
                         maxWidth: "10rem",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
