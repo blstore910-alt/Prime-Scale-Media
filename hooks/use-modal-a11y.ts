@@ -20,6 +20,13 @@ export function useModalA11y<T extends HTMLElement>(
   const ref = useRef<T>(null);
   // What had focus before the dialog opened, so it can be given back.
   const restoreTo = useRef<HTMLElement | null>(null);
+  // onClose is nearly always an inline arrow at the call site, so it is a new
+  // function on every render. Depending on it directly re-ran this effect
+  // every time the parent rendered — and its first act is to focus the first
+  // control, so typing in the second field yanked the caret back to the
+  // first. Held in a ref, the effect depends only on `open`.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +51,7 @@ export function useModalA11y<T extends HTMLElement>(
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -71,7 +78,7 @@ export function useModalA11y<T extends HTMLElement>(
       // silently jump to the top when it closes.
       restoreTo.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return ref;
 }

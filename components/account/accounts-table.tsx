@@ -819,13 +819,28 @@ function PsmAdminAccountRow({
               // before its own handler ever ran — the editor would look
               // tidy and never save anything. Focus moving to something
               // inside this same row (Save, Cancel) is not leaving.
+              // …and relatedTarget is NULL on Safari and iOS when focus moves
+              // to a button — WebKit does not focus buttons on click. So the
+              // check above passed straight through there and discarded the
+              // edit on the one browser where it matters most, which is the
+              // opposite of what it was written to prevent. When we are not
+              // told where focus went, look at where it actually landed on
+              // the next tick instead of assuming it left.
               onBlur={(e) => {
+                const row = e.currentTarget.closest("tr");
                 const to = e.relatedTarget as HTMLElement | null;
-                if (to && to.closest("tr") === e.currentTarget.closest("tr")) {
+                if (to) {
+                  if (to.closest("tr") === row) return;
+                  setFee(initialFee);
+                  setEditing({ fee: false });
                   return;
                 }
-                setFee(initialFee);
-                setEditing({ fee: false });
+                setTimeout(() => {
+                  const active = document.activeElement as HTMLElement | null;
+                  if (active && row && row.contains(active)) return;
+                  setFee(initialFee);
+                  setEditing({ fee: false });
+                }, 0);
               }}
               aria-label="Fee percentage"
             />
