@@ -92,6 +92,11 @@ export default function PsmSortFilter({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="dialog"
+        /* The label span is hidden below the phone breakpoint, and with it
+           went the button's only accessible name — a screen reader read
+           "button" and the count badge beside it. */
+        aria-label={label}
+        title={label}
       >
         <SlidersHorizontal />
         <span>{label}</span>

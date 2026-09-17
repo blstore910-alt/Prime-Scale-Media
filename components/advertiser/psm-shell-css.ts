@@ -79,8 +79,16 @@ export const PSM_APP_CSS = `
 .psmapp .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:grid;place-items:center;cursor:pointer}
 .psmapp .ham{display:none}
 
-.psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto;min-width:0;overflow-x:auto;animation:psmcontentin .5s cubic-bezier(.2,.7,.3,1) both}
-@keyframes psmcontentin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.psmapp .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto;min-width:0;overflow-x:auto;animation:psmcontentin .5s cubic-bezier(.2,.7,.3,1)}
+/* OPACITY ONLY, and no fill-mode. A transform on this element — even the
+   identity transform an entry animation leaves behind when its
+   fill-mode keeps applying it — makes .content the containing block for every position:fixed
+   descendant. The sort & filter sheet is position:fixed;bottom:10px, so it
+   was laid out against a 2000px-tall column instead of the viewport and
+   opened 1100px BELOW the fold: on every admin list, on every phone, the
+   scrim appeared and the panel did not. A 10px rise is not worth a control
+   nobody can reach. */
+@keyframes psmcontentin{from{opacity:0}to{opacity:1}}
 .psmapp .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .psmapp .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
 .psmapp .phead p{color:var(--muted);font-size:.92rem;margin:4px 0 0}
@@ -620,7 +628,7 @@ export const PSM_APP_CSS = `
    180ms reads as "instant but not jarring"; the travel drops with it so
    the eye has less to follow. */
 .psmapp .content{animation-duration:.18s}
-@keyframes psmcontentin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes psmcontentin{from{opacity:0}to{opacity:1}}
 
 /* ── Alignment ───────────────────────────────────────────────────────
    Digits get tabular figures wherever money or counts appear, so columns

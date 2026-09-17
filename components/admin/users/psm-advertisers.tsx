@@ -196,7 +196,13 @@ export default function PsmAdvertisers() {
             setSearch("");
           }}
         />
-        <button className="fexp" onClick={handleDownload} disabled={downloadingCSV}>
+        <button
+          className="fexp"
+          onClick={handleDownload}
+          disabled={downloadingCSV}
+          aria-label="Download CSV"
+          title="Download CSV"
+        >
           {downloadingCSV ? <Loader2 className="animate-spin" /> : <FileDown />}
           <span>Download CSV</span>
         </button>
