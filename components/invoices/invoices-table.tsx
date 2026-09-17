@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { toast } from "sonner";
 import CreateInvoiceDialog from "./create-invoice-dialog";
 import useInvoices from "./use-invoices";
@@ -151,6 +152,14 @@ export default function InvoicesTable() {
     }
   };
 
+  // Marking an invoice paid is a statement about money that did or did not
+  // arrive, made with one click next to a Download button. It settles a debt
+  // in the books without anything moving, and the customer's own billing
+  // page changes with it — so it gets asked first, like the customer's own
+  // Pay now does.
+  const [confirmPaid, setConfirmPaid] =
+    useState<InvoiceWithRelations | null>(null);
+
   const handleTogglePaidStatus = (invoice: InvoiceWithRelations) => {
     const nextStatus = invoice.status === "paid" ? "unpaid" : "paid";
     setUpdatingInvoiceId(invoice.id);
@@ -175,6 +184,7 @@ export default function InvoicesTable() {
         },
         onSettled: () => {
           setUpdatingInvoiceId(null);
+          setConfirmPaid(null);
         },
       },
     );
@@ -361,7 +371,7 @@ export default function InvoicesTable() {
                                     }}
                                     disabled={isUpdatingStatus}
                                     onClick={() =>
-                                      handleTogglePaidStatus(invoice)
+                                      setConfirmPaid(invoice)
                                     }
                                   >
                                     {isUpdatingStatus ? (
@@ -409,6 +419,45 @@ export default function InvoicesTable() {
           />
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!confirmPaid}
+        onOpenChange={(next) => {
+          if (!next) setConfirmPaid(null);
+        }}
+        title={
+          confirmPaid?.status === "paid"
+            ? "Reopen this invoice?"
+            : "Mark this invoice as paid?"
+        }
+        lead={
+          confirmPaid?.status === "paid"
+            ? "It goes back to unpaid for the customer too, and dunning treats it as owed again."
+            : "This settles it in the books. No money moves — only do it when the payment has actually arrived."
+        }
+        cta={
+          confirmPaid?.status === "paid" ? "Yes, reopen it" : "Yes, mark it paid"
+        }
+        tone={confirmPaid?.status === "paid" ? "danger" : "default"}
+        busy={!!updatingInvoiceId}
+        busyLabel="Saving…"
+        onConfirm={() => confirmPaid && handleTogglePaidStatus(confirmPaid)}
+      >
+        <ConfirmFact label="Invoice" value={confirmPaid ? invoiceNumber(confirmPaid) : ""} />
+        <ConfirmFact
+          label="Customer"
+          value={confirmPaid?.advertiser?.tenant_client_code ?? "—"}
+        />
+        <ConfirmFact
+          label="Amount"
+          value={
+            confirmPaid
+              ? `${CURRENCY_SYMBOLS[(confirmPaid.items?.[0]?.currency ?? "EUR") as keyof typeof CURRENCY_SYMBOLS] ?? "€"}${formatAmount(confirmPaid.total)}`
+              : ""
+          }
+          strong
+        />
+      </ConfirmModal>
     </div>
   );
 }

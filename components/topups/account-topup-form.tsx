@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
 import { cn, formatCurrency } from "@/lib/utils";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, DollarSign, Euro, Loader2 } from "lucide-react";
@@ -269,8 +270,12 @@ export default function AccountTopupForm({
   }, [selectedAccountCurrency, usdBalance, eurBalance]);
 
 
+  // Money leaving a wallet for an ad account is not undone by an admin
+  // and cannot be undone at all by the customer, so it is asked twice.
+  const [confirming, setConfirming] = useState<FormValues | null>(null);
+
   return (
-    <form onSubmit={handleSubmit((values) => mutate(values))}>
+    <form onSubmit={handleSubmit((values) => setConfirming(values))}>
       <ScrollArea className="max-h-[90vh] sm:max-h-[80vh] md:max-h-[70vh] pr-2">
         <div className="px-1 space-y-4">
           <SelectField
@@ -391,11 +396,55 @@ export default function AccountTopupForm({
               }
             >
               {isPending && <Loader2 className="animate-spin" />}
-              Submit
+              Top up this account
             </Button>
           </div>
         </div>
       </ScrollArea>
+
+      <ConfirmModal
+        open={!!confirming}
+        onOpenChange={(next) => {
+          if (!next) setConfirming(null);
+        }}
+        title="Move this money to the ad account?"
+        lead="It leaves your wallet now. Money on an ad account can only come back through a withdrawal request, which we have to approve."
+        cta="Yes, top it up"
+        busy={isPending}
+        busyLabel="Sending…"
+        onConfirm={() => confirming && mutate(confirming)}
+      >
+        <ConfirmFact
+          label="Ad account"
+          value={selectedAccount?.name ?? "—"}
+        />
+        <ConfirmFact
+          label="Out of your wallet"
+          value={formatCurrency(parseAmount(amount), selectedCurrency)}
+          strong
+        />
+        {fee > 0 && (
+          <ConfirmFact
+            label={`Top-up fee (${fee}%)`}
+            value={formatCurrency(
+              (parseAmount(amount) * fee) / 100,
+              selectedCurrency,
+            )}
+          />
+        )}
+        <ConfirmFact
+          label="Lands on the account"
+          value={formatCurrency(
+            parseAmount(amount) - (parseAmount(amount) * fee) / 100,
+            selectedCurrency,
+          )}
+          strong
+        />
+        <ConfirmFact
+          label="Wallet afterwards"
+          value={formatCurrency(remainingBalance, selectedCurrency)}
+        />
+      </ConfirmModal>
     </form>
   );
 }
