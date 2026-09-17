@@ -32,11 +32,12 @@ export async function exportOwnData(): Promise<
     billings: unknown[];
     subscriptions: unknown[];
     referral_links: unknown[];
-    referral_commissions: unknown[];
     ad_account_requests: unknown[];
     ad_accounts: unknown[];
     notifications: unknown[];
     invitations: unknown[];
+    /** What is deliberately left out, and why. */
+    _not_included: string[];
   }>
 > {
   const supabase = await createClient();
@@ -54,7 +55,20 @@ export async function exportOwnData(): Promise<
     advertisers,
   ] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("user_id", userId),
-    supabase.from("advertisers").select("*").eq("user_id", userId),
+    // NOT advertisers(*). That row carries the commission terms we owe an
+    // affiliate for having referred this customer — commission_type,
+    // commission_pct, commission_onetime, commission_monthly,
+    // commission_currency — which is our arrangement with a third party.
+    // lib/types/advertiser-columns.ts says exactly this, and the session
+    // read was fixed for it; the GDPR export was not. It is the ONE
+    // surface where "we never render it" is no cover at all: the whole row
+    // IS the deliverable, downloaded as JSON by the customer themselves.
+    supabase
+      .from("advertisers")
+      .select(
+        "id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at",
+      )
+      .eq("user_id", userId),
   ]);
   if (profiles.error) return { ok: false, error: profiles.error.message };
   if (advertisers.error) return { ok: false, error: advertisers.error.message };
@@ -62,9 +76,47 @@ export async function exportOwnData(): Promise<
   const advertiserIds = (advertisers.data ?? []).map((a) => a.id as string);
   const profileIds = (profiles.data ?? []).map((p) => p.id as string);
 
+  // Per-table column lists, because `*` on an export is a standing promise
+  // to hand the customer every column anybody adds later. A table that is
+  // not in this map is not exported.
+  //
+  // What is deliberately NOT here:
+  //   * referral_commissions — the amount we pay somebody ELSE for having
+  //     referred this customer. It is not their personal data, it is our
+  //     cost, and it was in the download.
+  //   * top_ups.source / notes / author — internal fields; source can carry
+  //     a supplier identifier.
+  //   * ad_accounts.notes — admin free text about the customer's account.
+  const EXPORT_COLUMNS: Record<string, string> = {
+    wallets: "id, advertiser_id, currency, usd_balance, eur_balance, reference_no, min_topup, created_at, updated_at",
+    wallet_topups:
+      "id, advertiser_id, wallet_id, currency, amount, status, reference_no, payment_slip, created_at, updated_at",
+    top_ups:
+      "id, number, advertiser_id, account_id, currency, topup_currency, amount_received, topup_amount, amount_usd, fee, fee_amount, eur_value, eur_topup, rate, status, type, payment_slip, verified_at, created_at",
+    invoices:
+      "id, number, advertiser_id, company_id, subscription_id, type, currency, total, items, status, period_start, due_date, paid_at, created_at",
+    companies:
+      "id, advertiser_id, name, official_email, phone, website_url, vat_no, registration_no, address, country, state, zipcode, is_not_vat, created_at, updated_at",
+    billings: "id, company_id, created_at, updated_at",
+    subscriptions:
+      "id, advertiser_id, currency, amount, status, start_date, next_payment_date, created_at, updated_at",
+    referral_links:
+      "id, code, advertiser_user_id, affiliate_user_id, status, created_at, updated_at",
+    ad_account_requests:
+      "id, advertiser_id, platform, currency, timezone, website_url, notes, status, created_at, updated_at",
+    ad_accounts:
+      "id, advertiser_id, name, bm_id, platform, currency, fee, status, timezone, website_url, min_topup, start_date, created_at, updated_at",
+    notifications:
+      "id, recipient_user_id, type, payload, is_read, created_at",
+    invitations:
+      "id, email, role, status, created_at, expires_at",
+  };
+
   async function ownedBy(table: string, column: string, ids: string[]) {
     if (ids.length === 0) return [];
-    const { data, error } = await supabase.from(table).select("*").in(column, ids);
+    const cols = EXPORT_COLUMNS[table];
+    if (!cols) throw new Error(`${table}: no export column list`);
+    const { data, error } = await supabase.from(table).select(cols).in(column, ids);
     if (error) throw new Error(`${table}: ${error.message}`);
     return data ?? [];
   }
@@ -77,7 +129,6 @@ export async function exportOwnData(): Promise<
   let billings: unknown[] = [];
   let subscriptions: unknown[] = [];
   let referralLinks: unknown[] = [];
-  let referralCommissions: unknown[] = [];
   let adAccountRequests: unknown[] = [];
   let adAccounts: unknown[] = [];
   let notifications: unknown[] = [];
@@ -108,11 +159,9 @@ export async function exportOwnData(): Promise<
         ownedBy("referral_links", "affiliate_user_id", [userId]),
       ])
     ).flat();
-    referralCommissions = await ownedBy(
-      "referral_commissions",
-      "advertiser_id",
-      advertiserIds,
-    );
+    // referral_commissions is NOT exported at all. It records what we pay
+    // a third party for having referred this customer: our cost, not their
+    // personal data. GDPR gives them their data, not our margins.
     adAccountRequests = await ownedBy(
       "ad_account_requests",
       "advertiser_id",
@@ -132,7 +181,7 @@ export async function exportOwnData(): Promise<
     if (userData.user.email) {
       const { data } = await supabase
         .from("invitations")
-        .select("*")
+        .select(EXPORT_COLUMNS.invitations)
         .eq("email", userData.user.email.toLowerCase());
       invitations = data ?? [];
     }
@@ -167,11 +216,18 @@ export async function exportOwnData(): Promise<
       billings,
       subscriptions,
       referral_links: referralLinks,
-      referral_commissions: referralCommissions,
+      // No referral_commissions key at all, rather than an empty array: an
+      // empty array is a statement about THEIR data ("you have none") and
+      // that statement would be false — the commissions exist, they are
+      // just not theirs. The note below says so plainly instead.
       ad_account_requests: adAccountRequests,
       ad_accounts: adAccounts,
       notifications,
       invitations,
+      _not_included: [
+        "Commission we pay a third party for having referred you — that is our arrangement with them, not your personal data.",
+        "Internal notes and supplier references on your ad accounts and payments.",
+      ],
     },
   };
 }

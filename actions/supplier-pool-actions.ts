@@ -443,10 +443,21 @@ export async function releaseSupplierAdAccount(
       .select("id, name, status")
       .eq("id", pool.ad_account_id)
       .maybeSingle();
-    if (acct && (acct.status ?? "active") !== "inactive") {
+    // The statuses that actually mean "not running", not the single word
+    // 'inactive'. This asked for a value NOTHING WRITES ANY MORE: the ad
+    // account status model (lib/ad-account-status.ts) makes 'inactive' a
+    // DERIVED fact — no top-up in 30 days — and an admin chooses between
+    // Active, Disabled and Banned. So the guard could never pass: the admin
+    // went to the Ad Accounts screen, picked the only off-switch there is
+    // (Disabled), came back, and got the same refusal, with an error naming
+    // a remedy the UI cannot perform. A supplier account could not be
+    // released from a linked ad account at all.
+    const STOPPED = ["disabled", "banned", "paused", "suspended", "inactive"];
+    const acctStatus = (acct?.status ?? "active").trim().toLowerCase();
+    if (acct && !STOPPED.includes(acctStatus)) {
       return {
         ok: false,
-        error: `"${acct.name ?? "The linked ad account"}" is still active. Deactivate or reassign it on the Ad Accounts screen first — releasing now would stop its top-ups reaching the supplier.`,
+        error: `"${acct.name ?? "The linked ad account"}" is still running. Set it to Disabled or Banned on the Ad Accounts screen first — releasing now would stop its top-ups reaching the supplier.`,
         code: "conflict",
       };
     }

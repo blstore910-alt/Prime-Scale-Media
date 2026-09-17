@@ -1421,9 +1421,12 @@ export default function AdvertiserApp() {
                       <Ic name="i-clock" />
                     </span>
                     <div style={{ minWidth: 0 }}>
+                      {/* Just the amount. The card's own heading already
+                          says "Pending wallet top-up"; repeating it on the
+                          line under it said the same thing twice. */}
                       <div className="l1">
                         {t.currency === "USD" ? "$" : "€"}
-                        {money2(t.amount)} · wallet top-up
+                        {money2(t.amount)}
                       </div>
                       <div className="l2">
                         Bank transfer · Ref {t.reference_no ?? "—"}

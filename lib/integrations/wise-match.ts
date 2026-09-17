@@ -6,11 +6,25 @@
 //   1. reference_no matches the sender's typed reference (the PSM
 //      topup reference we asked them to use) AND amount + currency
 //      match → confident match.
-//   2. No reference match, but exactly ONE pending topup matches
-//      amount + currency → take it.
-//   3. Anything ambiguous (multiple amount matches, no reference) →
-//      no auto-match; leave for manual review. Auto-completing the
-//      wrong topup moves real money, so we refuse rather than guess.
+//   2. No reference, but the sender's IBAN is one we have already
+//      PROVEN belongs to an advertiser (learned only from a
+//      reference-confirmed payment) and exactly one of their pending
+//      topups fits the amount → match.
+//   3. Everything else → no auto-match. Manual review.
+//
+// AMOUNT ALONE IS NOT EVIDENCE. This used to match when exactly one
+// pending topup happened to fit the amount, and that is a different
+// statement from "this money belongs to that topup": ten customers can
+// wire EUR 5.00 on the same day, and if only one of them has filed a
+// claim, the FIRST such deposit to arrive gets credited to that one
+// person's wallet. The deposit is real, the claim is real, the amounts
+// agree — and the money went to the wrong customer. Nothing downstream
+// can catch it, because every figure checks out.
+//
+// So a coincidence of amount is now explicitly refused, and the admin
+// picks with their eyes (the manual picker still enforces amount and
+// currency to the cent). The owner's instruction, verbatim: "matches via
+// amount mag niet, er kunnen 10 mensen zelfde amount sturen".
 
 export type PendingTopup = {
   id: string;
@@ -33,7 +47,7 @@ export type IncomingTransfer = {
 };
 
 export type MatchResult =
-  | { matched: true; topupId: string; via: "reference" | "sender" | "amount" }
+  | { matched: true; topupId: string; via: "reference" | "sender" }
   | { matched: false; reason: string };
 
 export function normalizeIban(iban: string | null | undefined): string | null {
@@ -123,14 +137,15 @@ export function matchIncomingTransfer(
     }
   }
 
-  // 3. exactly one amount/currency match overall, no reference/sender.
-  if (candidates.length === 1) {
-    return { matched: true, topupId: candidates[0].id, via: "amount" };
-  }
-
-  // 4. ambiguous
+  // 3. No reference and no proven sender. The amount is the only thing
+  //     that agrees, and an amount is a coincidence, not an identity —
+  //     see the note at the top of this file. Refused on purpose, with a
+  //     reason that says what would settle it.
   return {
     matched: false,
-    reason: `${candidates.length} pending topups match the amount — needs manual review`,
+    reason:
+      candidates.length === 1
+        ? "one pending topup fits the amount, but nothing proves it is this payment — needs the reference or a manual match"
+        : `${candidates.length} pending topups match the amount — needs manual review`,
   };
 }

@@ -47,7 +47,15 @@ export default function NotificationDialog({
 
       const { data, error } = await supabase
         .from("top_ups")
-        .select("*")
+        // NOT "*". The render deliberately stopped showing `source`
+        // because nothing stops that column carrying a supplier
+        // identifier — but the column was still in the response body,
+        // and this dialog opens for any advertiser from a
+        // topup_completed notification. Not rendering is not the same
+        // as not sending.
+        .select(
+          "id, number, status, currency, topup_currency, topup_amount, fee_amount, amount_received, created_at",
+        )
         .eq("id", topupId)
         .maybeSingle();
 

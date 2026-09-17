@@ -41,13 +41,17 @@ describe("matchIncomingTransfer", () => {
     }
   });
 
-  it("matches the single amount+currency candidate with no reference", () => {
+  it("REFUSES a lone amount match — an amount is a coincidence", () => {
+    // Ten customers can wire EUR 5.00 on the same day. If one of them has
+    // filed a claim and another one's money lands first, matching on the
+    // amount credits the wrong customer's wallet — and every figure
+    // checks out afterwards, so nothing downstream can catch it.
     const res = matchIncomingTransfer(
       { amount_cents: 50000, currency: "USD", reference: null },
       [topup({ id: "solo" })],
     );
-    assert.equal(res.matched, true);
-    if (res.matched) assert.equal(res.via, "amount");
+    assert.equal(res.matched, false);
+    if (!res.matched) assert.match(res.reason, /nothing proves it is this payment/);
   });
 
   it("refuses when multiple topups share the amount and no reference", () => {
