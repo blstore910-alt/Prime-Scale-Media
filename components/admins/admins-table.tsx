@@ -72,9 +72,11 @@ export default function AdminsTable() {
         .eq("role", "admin")
         .order("created_at", { ascending: false });
 
-      if (profile?.id) {
-        query = query.neq("id", profile.id);
-      }
+      // The caller IS listed. Excluding yourself made the page say "No
+      // admins found" to the only admin there is — false, and it hid the one
+      // fact an owner needs from this screen: whether anyone else has the
+      // keys. The self row simply carries no deactivate control; you cannot
+      // lock yourself out, and the action refuses it anyway.
 
       const { data, error } = await query;
       if (error) throw error;
@@ -148,11 +150,20 @@ export default function AdminsTable() {
               <tbody>
                 {admins.map((admin) => {
                   const isActive = admin.status === "active";
+                  const isSelf = admin.id === profile?.id;
                   const lastSeen = formatLastSeen(admin.last_seen_at);
                   return (
                     <tr key={admin.id}>
                       <td data-label="Name" style={{ fontWeight: 700 }}>
                         {admin.full_name ?? "-"}
+                        {isSelf && (
+                          <span
+                            className="badge"
+                            style={{ marginLeft: 8, fontWeight: 700 }}
+                          >
+                            You
+                          </span>
+                        )}
                       </td>
                       {/* An email column has to show the email, so this one
                           ellipsizes rather than being dropped — but it must
@@ -184,7 +195,12 @@ export default function AdminsTable() {
                           {lastSeen.label}
                         </span>
                       </td>
-                      <td data-label="Action" className="r">
+                      <td data-label="Action" className="r fullcell">
+                        {isSelf ? (
+                          <span className="muted" style={{ fontSize: ".82rem" }}>
+                            You can&apos;t change your own access
+                          </span>
+                        ) : (
                         <button
                           className={`btn sm${isActive ? " ghost" : ""}`}
                           disabled={pendingAdminId === admin.id}
@@ -212,6 +228,7 @@ export default function AdminsTable() {
                           ) : null}
                           {isActive ? "Deactivate" : "Activate"}
                         </button>
+                        )}
                       </td>
                     </tr>
                   );
