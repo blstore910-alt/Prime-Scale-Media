@@ -32,7 +32,11 @@ export default function CreateAccountDialog({
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="w-[calc(100vw-1rem)] max-h-[92vh] overflow-hidden sm:max-w-lg">
+      {/* Same shape as the update dialog: a COLUMN in dvh, so the footer
+          always has somewhere to sit. With overflow-hidden and a field area
+          capped at 70vh, the Create button fell outside the sheet on a
+          phone and was clipped rather than scrolled. */}
+      <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] flex-col overflow-hidden sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Ad Account</DialogTitle>
           <DialogDescription>

@@ -395,7 +395,11 @@ export default function AccountForm({
 
   return (
     <>
-      <form id="account-form" onSubmit={handleSubmit(handleCreateAccount)}>
+      <form
+        id="account-form"
+        className="flex min-h-0 flex-1 flex-col"
+        onSubmit={handleSubmit(handleCreateAccount)}
+      >
         {draft.hasDraft && draft.restoredDraft && (
           <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
             <div className="flex-1 text-xs">
@@ -425,7 +429,7 @@ export default function AccountForm({
             </Button>
           </div>
         )}
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto overflow-x-hidden px-1">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-1">
           <SelectField
             label="Select Platform"
             name="platform"
@@ -517,7 +521,7 @@ export default function AccountForm({
           />
         </div>
       </form>
-      <DialogFooter className="mt-4">
+      <DialogFooter className="mt-4 shrink-0">
         {/* disabled, not just a spinner. The handler is sync, so RHF's
             isSubmitting is already false during the round trip, and
             react-query builds a fresh mutation per .mutate() call — so a

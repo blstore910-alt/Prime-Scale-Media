@@ -388,9 +388,13 @@ export default function UpdateAccountForm({
     <>
       <form
         id="update-account-form"
+        className="flex min-h-0 flex-1 flex-col"
         onSubmit={handleSubmit(handleUpdateAccount)}
       >
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto overflow-x-hidden px-1">
+        {/* Flexes instead of a fixed 70vh: the fields take whatever is left
+            after the header and the footer, so the footer is always on
+            screen however tall the sheet ends up. */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-1">
           <SelectField
             label="Select Platform"
             name="platform"
@@ -472,7 +476,7 @@ export default function UpdateAccountForm({
           />
         </div>
       </form>
-      <DialogFooter className="mt-4">
+      <DialogFooter className="mt-4 shrink-0">
         <Button type="submit" form="update-account-form" disabled={isPending}>
           {isPending && <Loader2 className="animate-spin" />}
           <span>{isPending ? "Saving…" : "Update Account"}</span>
