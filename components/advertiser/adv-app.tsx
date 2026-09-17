@@ -34,6 +34,7 @@ import OnboardingChecklist from "./onboarding-checklist";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import { effectiveMinTopup } from "@/lib/min-topup";
+import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 
 dayjs.extend(relativeTime);
 
@@ -505,6 +506,13 @@ export default function AdvertiserApp() {
   //
   // Evidence of payment is a PAID subscription invoice. No invoice yet is
   // not "active", it is "nothing has happened yet".
+  // The advertiser's community decides their floor once the plan is running
+  // — NSA is 250 where everyone else is 300. It was simply not loaded on
+  // this screen, so the helper could never apply the NSA rule and every NSA
+  // customer was held to 300.
+  const communities = useAdvertiserCommunities([advertiserId]);
+  const community = advertiserId ? communities[advertiserId] : undefined;
+
   const planPaid = (invoices ?? []).some(
     (i) => i.type === "subscription" && i.status === "paid",
   );
@@ -1998,12 +2006,12 @@ export default function AdvertiserApp() {
         // Not a constant. Before the plan is paid there is NO minimum — that
         // first payment is how the plan gets paid at all, and demanding €300
         // of someone who has put in nothing yet is the wrong way round. Once
-        // it is running the floor applies. (Community is not loaded on this
-        // screen yet, so NSA's 250 does not apply here — the helper handles
-        // it as soon as it is passed.)
+        // it is running the floor applies — 250 for NSA, 300 for everyone
+        // else, unless an admin set a value for this wallet.
         minTopup={effectiveMinTopup({
           walletMin: wallet?.min_topup as number | null | undefined,
           planActive,
+          community,
         })}
         // Their own accounts decide where the transfer goes, so the dialog
         // can work it out instead of showing every customer all three
