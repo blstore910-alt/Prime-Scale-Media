@@ -430,6 +430,19 @@ export const PSM_APP_CSS = `
      target does not. */
   .psmapp .actrow{display:flex;gap:6px;justify-content:flex-start}
   .psmapp .actrow .btn{flex:0 0 auto;min-width:34px;justify-content:center;padding:6px 8px;white-space:nowrap}
+  /* In CARD mode a row of actions is a GRID of equal cells, not a flex
+     row that wraps. Wrapping gave a stack of buttons each the width of
+     its own label — "Match" narrow, "Archive" wide, stepped down the
+     card — which reads as three unrelated controls rather than one set.
+     auto-fit at 118px puts two side by side on a normal card and one per
+     line on a very narrow one, and every button in the set is the same
+     size either way. */
+  .psmapp .tbl.wide td.fullcell .actrow{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px
+  }
+  .psmapp .tbl.wide td.fullcell .actrow .btn{
+    width:100%;min-width:0;justify-content:center;padding:8px 10px
+  }
   .psmapp .actrow .btn svg{width:15px;height:15px}
   .psmapp .actrow .btn svg{flex:0 0 auto}
   .psmapp .actrow .alab{overflow:hidden;text-overflow:ellipsis}
