@@ -173,7 +173,7 @@ export default function PsmAdvertisers() {
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Advertisers</h1>
-          <p>Plans, wallet topups and status.</p>
+          <p>Plans, money and status.</p>
         </div>
       </div>
 
