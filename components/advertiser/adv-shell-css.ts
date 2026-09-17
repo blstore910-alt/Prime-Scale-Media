@@ -317,8 +317,8 @@ export const ADV_CSS = `
      one-line icon is what made this list look ragged. */
   .onbrow .onb-t{flex:1 1 0;min-width:0;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .onbrow .onb-d{flex:1 1 100%;margin:0;padding-left:44px}
-  .onbrow .ocat{flex:1 1 100%;margin:2px 0 0;justify-content:center}
+  .onbrow .onb-d{flex:1 1 100%;margin:2px 0 0;padding-left:76px}
+  .onbrow .ocat{flex:1 1 100%;margin:10px 0 0;justify-content:center}
   @media(min-width:561px){
     .onbrow .onb-d{flex:1 1 100%}
     .onbrow .ocat{flex:0 0 auto;margin-left:auto;margin-top:0;width:auto}
@@ -353,13 +353,19 @@ export const ADV_CSS = `
     color:var(--faint);transition:transform .18s ease}
   .onb-chev.up{transform:rotate(180deg)}
   .onb-list{display:flex;flex-direction:column;gap:8px;padding:0 18px 18px}
-  .onb-tick{width:26px;height:26px;border-radius:9px;flex:0 0 auto;
+  /* 28px for BOTH squares on the row. A 26px tick beside a 32px icon is two
+     different objects sitting on one line; matched, they read as one
+     control-and-label pair. Everything else on the row is measured from
+     them: 28 + 10 + 28 + 10 = 76, which is where the title starts and
+     therefore where the description must start too. It was indented 44,
+     twenty pixels adrift of the text it belongs under. */
+  .onb-tick{width:28px;height:28px;border-radius:9px;flex:0 0 auto;
     border:2px solid var(--line-2);background:var(--panel);color:#fff;
     display:grid;place-items:center;cursor:pointer;padding:0;transition:.13s}
   .onb-tick:disabled{cursor:default}
   .onb-tick.on{border-color:var(--win);background:var(--win)}
   .onb-tick svg{width:15px;height:15px}
-  .onb-ic{width:32px;height:32px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
+  .onb-ic{width:28px;height:28px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;
     background:var(--primary-tint);color:var(--primary-600)}
   .onb-ic svg{width:17px;height:17px}
   .onb-t{font-weight:700;overflow-wrap:anywhere}
@@ -407,8 +413,10 @@ export const ADV_CSS = `
   /* A finished step folds to one line: tick, icon, title. No description, no
      "Done" badge, no green fill — it is a record of what is behind you, and
      it should take up about as much room as that deserves. */
-  .onbrow.is-done{padding:7px 13px;background:transparent;border-color:transparent;flex-wrap:nowrap}
-  .onbrow.is-done .onb-ic{width:26px;height:26px;border-radius:8px;background:transparent;color:var(--faint)}
+  .onbrow.is-done{padding:7px 14px;background:transparent;border-color:transparent;flex-wrap:nowrap;box-shadow:none}
+  .onbrow.is-done .onb-tick{width:24px;height:24px;border-radius:8px}
+  .onbrow.is-done .onb-tick svg{width:13px;height:13px}
+  .onbrow.is-done .onb-ic{width:24px;height:24px;border-radius:8px;background:transparent;color:var(--faint)}
   .onbrow.is-done .onb-ic svg{width:15px;height:15px}
   .onbrow.is-done .onb-t{font-weight:600;color:var(--muted);font-size:.88rem;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
