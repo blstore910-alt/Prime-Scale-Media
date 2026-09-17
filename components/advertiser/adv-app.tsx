@@ -1071,7 +1071,8 @@ export default function AdvertiserApp() {
                   </p>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>
-                    No ad accounts yet — request your first one.
+                    No ad accounts yet. Ask for your first one whenever
+                  you&apos;re ready.
                   </p>
                 )}
               </div>
@@ -1086,7 +1087,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Affiliate program</h1>
-                <p>Earn on the advertisers you bring in.</p>
+                <p>Earn from the people you bring in.</p>
               </div>
             </div>
             <div className="card">
@@ -1094,8 +1095,8 @@ export default function AdvertiserApp() {
                   <Ic name="i-gift" /> Your referral link
                 </h2>
               <p className="cap" style={{ margin: "6px 0 12px" }}>
-                Anyone who signs up through your link is tracked as your
-                referral.
+                Anyone who signs up through your link is yours, and stays
+                    yours.
               </p>
               {referralLink ? (
                 <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
@@ -1235,7 +1236,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Wallet</h1>
-                <p>Your money, before it goes anywhere.</p>
+                <p>Your money, ready when you are.</p>
               </div>
               {/* The page-level "Top up wallet" is gone: each card already
                   carries its own Top up, so this screen offered the same
@@ -1407,8 +1408,8 @@ export default function AdvertiserApp() {
                           }}
                         >
                           {activityError || exchangesError
-                            ? "We couldn't load your wallet activity — this is not an empty list. Reload to try again."
-                            : "No wallet activity yet."}
+                            ? "We couldn't load your wallet activity — this isn't an empty list. Give it a reload."
+                            : "Nothing has moved yet. Your top-ups and exchanges will show up here."}
                         </td>
                       </tr>
                     )}
@@ -1423,7 +1424,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Ad accounts</h1>
-                <p>Where your budget lives.</p>
+                <p>Where your budget does its work.</p>
               </div>
               {canRequestAccount ? (
                 <RequestAdAccountDialog>
@@ -1463,7 +1464,7 @@ export default function AdvertiserApp() {
                 </h3>
                 <p>
                   {accountsError
-                    ? "This is not an empty list — the request failed. Reload to try again."
+                    ? "This isn&apos;t an empty list — the request didn&apos;t come back. Give it a reload."
                     : !canRequestAccount && invError
                       ? "Your invoices didn't load, so we can't tell whether the plan is paid. Reload to try again."
                     : canRequestAccount
@@ -1501,7 +1502,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Requests</h1>
-                <p>Track your ad-account requests.</p>
+                <p>Everything you&apos;ve asked us for.</p>
               </div>
               <RequestAdAccountDialog>
                 <button className="btn grad">
@@ -1571,7 +1572,7 @@ export default function AdvertiserApp() {
                 <p className="cap" style={{ margin: 0 }}>
                   {isRequestsLoading
                     ? "Loading your requests…"
-                    : "No requests yet. Use Request ad account to start one — we set it up on our verified Business Manager."}
+                    : "Nothing here yet. When you ask for an ad account, we set it up on our verified Business Manager and it shows up here."}
                 </p>
               </div>
             )}
@@ -1582,7 +1583,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Billing</h1>
-                <p>Your plan and what you owe.</p>
+                <p>Your plan, and what&apos;s coming up.</p>
               </div>
             </div>
             <div className="grid2">
@@ -1626,8 +1627,8 @@ export default function AdvertiserApp() {
                   <Ic name="i-clock" /> This month
                 </h2>
                 <p className="cap">
-                  Pay your monthly fee from your wallet, or let it auto-debit on
-                  the due date.
+                  Pay it from your wallet whenever suits you — or leave it, and
+                  we&apos;ll take it from your wallet on the due date.
                 </p>
                 {subscription?.amount && subscription.next_payment_date ? (
                   <>
@@ -1681,7 +1682,7 @@ export default function AdvertiserApp() {
                         if (dueSubInvoice) payInvoice(dueSubInvoice.id);
                         else if (invError) {
                           toast.error(
-                            "We couldn't load your invoices — reload before paying.",
+                            "We couldn't load your invoices, so we'd rather not take money yet. Give it a reload.",
                           );
                         } else {
                           toast.message("No unpaid subscription invoice to pay.");
@@ -1698,7 +1699,7 @@ export default function AdvertiserApp() {
                   </>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>
-                    No subscription due right now.
+                    Nothing to pay right now.
                   </p>
                 )}
               </div>
@@ -1779,8 +1780,8 @@ export default function AdvertiserApp() {
                           }}
                         >
                           {invError
-                            ? "We couldn't load your invoices — this is not an empty list. Reload to try again."
-                            : "No invoices yet."}
+                            ? "We couldn't load your invoices — this isn't an empty list. Give it a reload."
+                            : "No invoices yet. The first one arrives with your plan."}
                         </td>
                       </tr>
                     )}
@@ -1913,7 +1914,7 @@ export default function AdvertiserApp() {
                 <h2>
                   <Ic name="i-bell" /> Notification preferences
                 </h2>
-                <p className="cap">Choose what pings you.</p>
+                <p className="cap">Pick what&apos;s worth a ping.</p>
                 <Toggle
                   label="Top-up verified"
                   desc="When a payment is credited"
@@ -1935,8 +1936,8 @@ export default function AdvertiserApp() {
                 </span>
               </h2>
               <p className="cap">
-                Refer other advertisers and earn commission. Apply and our team
-                reviews it.
+                Bring other advertisers in and earn a commission on what they
+                  spend. Apply here and we&apos;ll look at it.
               </p>
               <button
                 className="btn ghost sm"
@@ -1993,7 +1994,7 @@ export default function AdvertiserApp() {
                 <h2>
                   <Ic name="i-mail" /> Talk to us
                 </h2>
-                <p className="cap">Your account manager is one tap away.</p>
+                <p className="cap">We&apos;re one tap away.</p>
                 <button
                   className="btn block grad"
                   onClick={() => {
