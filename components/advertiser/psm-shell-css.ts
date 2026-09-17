@@ -2,6 +2,17 @@ import { refineCss } from "./refine-css";
 // Scoped port of the approved advertiser mockup (advertiser-app.html).
 // Every selector is prefixed with .psmapp so it only affects the ported
 // advertiser area and never leaks into the rest of the app.
+// ⚠️ TOKEN NAMES ARE SHARED WITH TAILWIND.
+// A shadcn component rendered inside this shell reads the SAME custom
+// properties: `bg-muted` compiles to background-color:var(--muted), `bg-card`
+// to var(--card), and so on (see app/globals.css). Redefining one of those
+// names here changes every shadcn component on the page.
+//
+// --muted used to be declared here as the secondary TEXT colour, so every
+// `bg-muted` inside the shell was a dark navy block with grey text on it. It
+// is now --txt-2. Before adding a token, check the name against the
+// @theme block in globals.css; if it is there, either keep the value in the
+// same ROLE (a surface stays a surface) or pick another name.
 export const PSM_APP_CSS = `
 .psmapp{
   --ground:#f4f6fc;--panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--txt-2:#5c6577;--faint:#8b93a6;
