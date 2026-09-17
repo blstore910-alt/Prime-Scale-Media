@@ -98,9 +98,21 @@ export default function PrechargePanel() {
   });
 
   const list = rows ?? [];
-  const outstandingTotal = list
+  // PER CURRENCY. This added them together: one $1,000 advance and one
+  // €500 advance printed "1500.00" with no symbol at all, captioned
+  // "outstanding advances across all customers" — a figure that is neither
+  // €1,360 nor $1,581.40, on the banner that tells you how much credit is
+  // out the door.
+  const outstandingByCurrency = list
     .filter((r) => r.status === "outstanding")
-    .reduce((acc, r) => acc + Number(r.outstanding), 0);
+    .reduce<Record<string, number>>((acc, r) => {
+      const cur = String(r.currency ?? "USD").toUpperCase();
+      acc[cur] = (acc[cur] ?? 0) + Number(r.outstanding);
+      return acc;
+    }, {});
+  const outstandingEntries = Object.entries(outstandingByCurrency).filter(
+    ([, v]) => v > 0,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,12 +127,17 @@ export default function PrechargePanel() {
         <Button onClick={() => setCreateOpen(true)}>New precharge</Button>
       </div>
 
-      {outstandingTotal > 0 && (
+      {outstandingEntries.length > 0 && (
         <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
           Outstanding advances across all customers:{" "}
-          <span className="font-semibold tabular-nums">
-            {outstandingTotal.toFixed(2)}
-          </span>
+          {outstandingEntries.map(([cur, total], i) => (
+            <span key={cur}>
+              {i > 0 ? " · " : ""}
+              <span className="font-semibold tabular-nums">
+                {formatCurrency(total, cur)}
+              </span>
+            </span>
+          ))}
         </div>
       )}
 

@@ -65,6 +65,8 @@ type InvoiceRecord = {
   status?: string | null;
   paid_at?: string | null;
   type?: string | null;
+  /** The invoice's own currency. This is what the payment RPC charges in. */
+  currency?: string | null;
   tenant_id: string;
   company_id: string | null;
   items: InvoiceItem[] | null;
@@ -227,7 +229,16 @@ function buildInvoiceHtml(
   logoDataUri: string | null,
 ): string {
   const items = Array.isArray(invoice.items) ? invoice.items : [];
-  const currencyCode = items[0]?.currency ?? "USD";
+  // invoices.currency FIRST, and EUR as the last resort — because that is
+  // what actually takes the money: invoice_pay_from_wallet charges
+  // `upper(coalesce(v_inv.currency,'EUR'))`. This read items[0].currency
+  // and fell back to "USD", so on an invoice with no items — a real shape,
+  // since invoices are hand-authored on this database — the PDF printed
+  // "$200.00 due" while the RPC debited €200 from the EUR wallet. The
+  // customer wires $200 (about €172) and is €28 short, or overpays by €33
+  // the other way round, on the one document they actually pay from.
+  const currencyCode =
+    invoice.currency ?? items[0]?.currency ?? "EUR";
   const currencySymbol = getCurrencySymbol(currencyCode);
 
   const computedSubTotal = items.reduce((sum, item) => {

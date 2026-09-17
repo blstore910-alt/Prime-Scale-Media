@@ -108,7 +108,10 @@ function buildSeries(
   rows: TopupRow[],
   periodStartIso: string,
   periodEndIso: string,
-  mode: BucketMode
+  mode: BucketMode,
+  // 1 USD in EUR. Needed INSIDE the loop, because the amount column is
+  // USD and the EUR bucket is drawn as euros.
+  usdToEurRate: number
 ) {
   const periodStart = dayjs(periodStartIso);
   const periodEnd = dayjs(periodEndIso);
@@ -183,7 +186,8 @@ function buildSeries(
       point.usd_amount += amount;
       point.usd_count += 1;
     } else {
-      point.eur_amount += amount;
+      // Converted: the column is USD, the bucket is drawn as EUR.
+      point.eur_amount += amount * usdToEurRate;
       point.eur_count += 1;
     }
   }
@@ -208,6 +212,26 @@ export async function GET(request: NextRequest) {
   const periodEnd = end.toISOString();
   const granularity = resolveBucketMode(start, end);
 
+// ── THE AMOUNT COLUMNS ON top_ups ARE ALWAYS USD ──────────────────────
+// topup_amount, amount_usd and fee_amount are dollars whatever
+// top_ups.currency says; `currency` is what the CUSTOMER PAID IN. So a
+// €1,000 top-up at 5% stores topup_amount = 1104.65 USD, and adding that
+// straight into a bucket rendered under a € sign overstates it by the
+// whole exchange rate — 16.3% at 0.86. This is the same bug that was
+// found and fixed in app/api/stats/route.ts; these two routes kept their
+// copy of it and never read a rate at all.
+//
+// Fall back to 1 so an unconfigured tenant renders its own figures
+// unconverted rather than a 500 — the same choice stats/route.ts makes.
+  const { data: rateRow } = await supabase
+    .from("exchange_rates")
+    .select("eur")
+    .eq("tenant_id", profile.tenant_id)
+    .eq("is_active", true)
+    .maybeSingle();
+  const rawRate = toNumber((rateRow as { eur?: unknown } | null)?.eur);
+  const usdToEurRate = rawRate > 0 ? rawRate : 1;
+
   const { data } = await supabase
     .from("top_ups")
     .select("created_at, currency, topup_amount")
@@ -217,7 +241,7 @@ export async function GET(request: NextRequest) {
     .eq("status", "completed");
 
   const rows = (data || []) as TopupRow[];
-  const series = buildSeries(rows, periodStart, periodEnd, granularity);
+  const series = buildSeries(rows, periodStart, periodEnd, granularity, usdToEurRate);
 
   const totals = rows.reduce(
     (acc, row) => {
@@ -229,7 +253,8 @@ export async function GET(request: NextRequest) {
       }
 
       acc.count += 1;
-      acc[currency].amount += amount;
+      acc[currency].amount +=
+        currency === "eur" ? amount * usdToEurRate : amount;
       acc[currency].count += 1;
       return acc;
     },

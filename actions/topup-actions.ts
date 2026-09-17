@@ -233,32 +233,50 @@ export async function createTopupAsAdmin(
   // can't be understated by the payload. No plan + no perk → untouched.
   if (typeof input.type === "string" && FEE_APPLICABLE_TYPES.includes(input.type)) {
     const fallbackPct = Number(input.fee) || 0;
-    const { applied, pct } = await resolveEffectiveFeePct(
+    const { pct } = await resolveEffectiveFeePct(
       supabase,
       input.advertiser_id,
       fallbackPct,
     );
-    if (applied) {
-      const { data: rate } = await supabase
-        .from("exchange_rates")
-        .select("eur")
-        .eq("tenant_id", profile.tenant_id)
-        .eq("is_active", true)
-        .maybeSingle();
-      const rates: MinimalRate[] = [{ eur: Number(rate?.eur) || 0 }];
-      const amountReceived = Number(input.amount_received) || 0;
-      const currency = String(input.currency || "USD");
-      const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
-        amountReceived,
-        rates,
-        currency,
-        pct,
-      );
-      cleaned.fee = pct;
-      cleaned.fee_amount = feeAmount.toFixed(2);
-      cleaned.topup_amount = topupAmount.toFixed(2);
-      cleaned.amount_usd = amountUSD.toFixed(2);
-    }
+    // ALWAYS recompute, not only when a plan or perk applies.
+    //
+    // `if (applied)` meant that for an advertiser with no plan and no perk
+    // the derived columns were left exactly as the payload sent them — and
+    // the admin "add a top-up for this user" dialog sends amount_usd,
+    // topup_amount and fee, but NOT fee_amount. There is no DB default and
+    // no trigger for it, so the column stayed null.
+    //
+    // fee_amount is the ONLY column the fee and profit reporting reads
+    // (app/api/stats/route.ts, stats/profit, stats/fees). So a €1,000
+    // top-up at 5% for a planless customer collected $58.14 of fee and
+    // reported €0 of fee revenue and €0 of profit — while the top-up ROW
+    // showed "€50" in its Fee column, because that cell computes
+    // amount_received × fee / 100 itself rather than reading the column.
+    // The money was collected and invisible, and the screen agreed with
+    // neither.
+    //
+    // Recomputing unconditionally is also the safer shape: the stored
+    // figures are then always the ones our own arithmetic produced from the
+    // amount and the effective percentage, never a caller's.
+    const { data: rate } = await supabase
+      .from("exchange_rates")
+      .select("eur")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const rates: MinimalRate[] = [{ eur: Number(rate?.eur) || 0 }];
+    const amountReceived = Number(input.amount_received) || 0;
+    const currency = String(input.currency || "USD");
+    const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
+      amountReceived,
+      rates,
+      currency,
+      pct,
+    );
+    cleaned.fee = pct;
+    cleaned.fee_amount = feeAmount.toFixed(2);
+    cleaned.topup_amount = topupAmount.toFixed(2);
+    cleaned.amount_usd = amountUSD.toFixed(2);
   }
 
   const { data: inserted, error: insertError } = await supabase

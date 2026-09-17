@@ -292,7 +292,15 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("invoices")
-        .select("id, number, total, status, paid_at, created_at, due_date, items, type")
+        // currency, because that is the column invoice_pay_from_wallet
+        // charges from — `upper(coalesce(v_inv.currency,'EUR'))`. The
+        // confirmation modal was naming the wallet from items[0].currency
+        // instead, so an invoice whose items array is empty or omits the
+        // key said "€120 from your EUR wallet" while the RPC took $120 off
+        // the USD one. There is no undo.
+        .select(
+          "id, number, total, status, paid_at, created_at, due_date, items, type, currency",
+        )
         .eq("tenant_id", tenantId)
         .eq("advertiser_id", advertiserId)
         .order("created_at", { ascending: false })
@@ -597,9 +605,33 @@ export default function AdvertiserApp() {
   const communities = useAdvertiserCommunities([advertiserId]);
   const community = advertiserId ? communities[advertiserId] : undefined;
 
-  const planPaid = (invoices ?? []).some(
-    (i) => i.type === "subscription" && i.status === "paid",
-  );
+  // NOT from the invoice list. That list is `.limit(30)` and holds every
+  // invoice type, so on an account with a year of history and a few ad
+  // accounts the last paid subscription invoice falls off the page — and
+  // then planPaid reads false, effectiveMinTopup returns 0, the dialog
+  // accepts €5, shows the IBAN, takes the payment slip, and the RPC (which
+  // scans ALL invoices) refuses with "Minimum top-up is 300 EUR" after the
+  // transfer has been made. That is the exact trap this morning's
+  // migration exists to close, re-armed by a pagination limit.
+  const { data: planPaidRow } = useQuery({
+    queryKey: ["adv-plan-paid", advertiserId, tenantId],
+    enabled: !!advertiserId && !!tenantId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("advertiser_id", advertiserId)
+        .eq("type", "subscription")
+        .eq("status", "paid")
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
+    },
+  });
+  const planPaid = !!planPaidRow;
   const planActive =
     !!subscription &&
     subscription.status === "active" &&
@@ -752,13 +784,20 @@ export default function AdvertiserApp() {
     type?: string | null;
     due_date?: string | null;
     items?: unknown;
+    currency?: string | null;
   }) => {
-    const sym =
-      ((inv.items as Array<{ currency?: string }> | undefined)?.[0]?.currency ??
-        "EUR") === "USD"
-        ? "$"
-        : "€";
-    const cur = sym === "$" ? "USD" : "EUR";
+    // The invoice's own currency first, items[0] only as a fallback, and
+    // EUR last — the same order and the same default as the RPC that takes
+    // the money.
+    const cur =
+      ((inv.currency as string | null | undefined) ??
+        (inv.items as Array<{ currency?: string }> | undefined)?.[0]?.currency ??
+        "EUR")
+        .toString()
+        .toUpperCase() === "USD"
+        ? "USD"
+        : "EUR";
+    const sym = cur === "USD" ? "$" : "€";
     setAsk({
       title: "Pay this from your wallet?",
       lead: `We take it out of your ${cur} wallet straight away. There is no undo — if it turns out to be wrong, message us and we sort it out.`,

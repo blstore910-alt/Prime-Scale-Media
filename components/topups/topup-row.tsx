@@ -133,10 +133,14 @@ export default function TopupRow({
       <TableCell>
         <div className="flex flex-col">
           <span className="font-bold font-mono ">
-            {formatCurrency(
-              (Number(topup.amount_received) * Number(topup.fee)) / 100,
-              topup.currency,
-            )}
+            {/* The STORED fee, and in USD, which is what it is.
+                This recomputed amount_received x fee / 100 in the
+                CUSTOMER'S currency, so it confidently showed "€50" for a
+                top-up whose fee_amount column was null and which therefore
+                reported €0 of fee revenue on the dashboard — two screens,
+                two answers, neither flagged. fee_amount is USD like every
+                other amount column on top_ups. */}
+            {formatCurrency(Number(topup.fee_amount) || 0, "USD")}
           </span>
           <span className="text-xs text-muted-foreground font-semibold">
             {topup.fee}%

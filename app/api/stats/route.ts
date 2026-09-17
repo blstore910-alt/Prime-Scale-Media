@@ -137,7 +137,16 @@ export async function GET() {
       .from("invoices")
       .select("total, currency")
       .eq("tenant_id", profile.tenant_id)
-      .in("type", ["subscription", "subscription_adjustment", "manual_invoice"])
+      // ad_account_fee too. Every extra ad account a customer asks for is
+    // invoiced with type 'ad_account_fee' (see use-create-ad-account-
+    // request-invoice.ts) and it appeared in NO revenue figure at all —
+    // twenty requests at €50 is €1,000 collected and reported as zero.
+    .in("type", [
+      "subscription",
+      "subscription_adjustment",
+      "manual_invoice",
+      "ad_account_fee",
+    ])
       .eq("status", "paid"),
     supabase
       .from("referral_commissions")

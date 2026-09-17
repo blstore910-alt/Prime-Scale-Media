@@ -48,7 +48,10 @@ export default function ReadonlyTopupRow({
             €{topup.eur_value}
             <br />
             <span className="text-muted-foreground text-xs">
-              ${topup.eur_topup}
+              {/* EUR. The column is eur_topup and the line above it is
+                  drawn with a euro sign; this one had a dollar, so the
+                  same figure appeared twice under two symbols. */}
+              €{topup.eur_topup}
             </span>
           </span>
         ) : (

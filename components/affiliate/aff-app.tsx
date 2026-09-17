@@ -1369,10 +1369,20 @@ export default function AffiliateApp() {
                 // Payouts are processed manually — actually deliver the
                 // request to the team (a prefilled email) instead of a
                 // toast that persists nothing and notifies nobody.
+                // Two decimals, NOT the rounding helper the hero uses.
+                // eur()/usd() are Math.round for display — fine on a big
+                // number, not fine in a sentence somebody pays from:
+                // €1,249.55 became "€1,250", which is 45 cents of invented
+                // money inside a payment instruction.
+                const exact = (n: number) =>
+                  (Number(n) || 0).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  });
                 const amount =
                   showEurUsd === "EUR"
-                    ? eur(all.totals.earnings_eur)
-                    : usd(all.totals.earnings_usd);
+                    ? `€${exact(all.totals.earnings_eur)}`
+                    : `$${exact(all.totals.earnings_usd)}`;
                 const subject = encodeURIComponent(
                   `Payout request — ${amount} (${showEurUsd})`,
                 );
