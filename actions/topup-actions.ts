@@ -363,6 +363,43 @@ export async function bulkCreateTopupsAsAdmin(
     }
   }
 
+  // Authoritative fee, per row — the SAME resolution the single-create path
+  // applies. This was missing here, so the bulk dialog stored whatever fee
+  // the client sent: a granted topup_fee_waiver was ignored and the customer
+  // charged anyway, a plan rate was ignored in favour of the ad account's
+  // own default, and a tampered payload could understate the fee on 200 rows
+  // at once — the exact thing the single path was hardened against.
+  //
+  // Resolved ONCE PER ADVERTISER rather than per row: a bulk run is usually
+  // many accounts belonging to a handful of advertisers, and the plan and
+  // perks are a property of the advertiser, not of the row.
+  const feeByAdvertiser = new Map<string, { applied: boolean; pct: number }>();
+  const needsFee = rows.some(
+    (r) => typeof r.type === "string" && FEE_APPLICABLE_TYPES.includes(r.type),
+  );
+  let bulkRates: MinimalRate[] = [];
+  if (needsFee) {
+    const { data: rate } = await supabase
+      .from("exchange_rates")
+      .select("eur")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true)
+      .maybeSingle();
+    bulkRates = [{ eur: Number(rate?.eur) || 0 }];
+
+    for (const row of rows) {
+      if (typeof row.type !== "string") continue;
+      if (!FEE_APPLICABLE_TYPES.includes(row.type)) continue;
+      const advId = row.advertiser_id;
+      if (typeof advId !== "string" || !advId) continue;
+      if (feeByAdvertiser.has(advId)) continue;
+      feeByAdvertiser.set(
+        advId,
+        await resolveEffectiveFeePct(supabase, advId, Number(row.fee) || 0),
+      );
+    }
+  }
+
   // Id only — see the note on the single-create path. This lands on
   // customer-readable top_ups rows.
   const author = { id: profile.id };
@@ -379,6 +416,26 @@ export async function bulkCreateTopupsAsAdmin(
     cleaned.status = requested;
     cleaned.tenant_id = profile.tenant_id;
     cleaned.author = author;
+
+    if (
+      typeof row.type === "string" &&
+      FEE_APPLICABLE_TYPES.includes(row.type) &&
+      typeof row.advertiser_id === "string"
+    ) {
+      const resolved = feeByAdvertiser.get(row.advertiser_id);
+      if (resolved?.applied) {
+        const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
+          Number(row.amount_received) || 0,
+          bulkRates,
+          String(row.currency || "USD"),
+          resolved.pct,
+        );
+        cleaned.fee = resolved.pct;
+        cleaned.fee_amount = feeAmount.toFixed(2);
+        cleaned.topup_amount = topupAmount.toFixed(2);
+        cleaned.amount_usd = amountUSD.toFixed(2);
+      }
+    }
     return cleaned;
   });
 
