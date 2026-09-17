@@ -42,8 +42,12 @@ integration_rls as (
 ),
 
 -- 3. Invitation expiry is a real timestamp.
---    If expires_at is not timestamptz, every comparison against now() is a
---    text comparison, and an expired invite link keeps working.
+--    The app compares it in JavaScript, not SQL, so a zone-less column does
+--    not make an expired link live forever — it makes the expiry land on the
+--    wrong hour, by whatever offset the machine running the code happens to
+--    have. On a UTC server it is right by luck. See
+--    supabase/migrations/20260917160000_invitation_expiry_timestamptz.sql,
+--    which corrects this comment's earlier, overstated version.
 invite_expiry as (
   select count(*) as bad
     from information_schema.columns
@@ -113,7 +117,7 @@ select
     when (select n from invite_expiry_present) = 0
       then 'FAIL: invitations has no expires_at column at all'
     when (select bad from invite_expiry) > 0
-      then 'FAIL: invitations.expires_at is not timestamptz — expired links still work'
+      then 'FAIL: invitations.expires_at is not timestamptz — the expiry moves by the running machine''s UTC offset. See 20260917160000.'
     when (select bad from orphan_advertisers) > 0
       then 'FAIL: an advertiser profile with no advertisers row — no wallet, no accounts, unusable'
     else 'PASS — and see functions_mentioning_due_date before changing the invoice term'
