@@ -272,7 +272,7 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("companies")
-        .select("name, vat_no, country")
+        .select("name, vat_no, country, is_not_vat, official_email, phone, address, state, zipcode, billings(address, state, country, zipcode)")
         .eq("advertiser_id", advertiserId)
         .maybeSingle();
       if (error) throw error;
@@ -348,10 +348,31 @@ export default function AdvertiserApp() {
   // app/(app)/layout.tsx) — it lets them look around and asks here, at the
   // point where the details are actually needed, which is also the only
   // place it can explain why.
+  // The SAME test /complete-profile applies, deliberately. Two definitions
+  // of "complete" would let someone pass this gate and still be sent back to
+  // the form — or worse, top up while no invoice can be raised for them,
+  // which is the entire reason the gate exists.
+  //
+  // is_not_vat counts: a VAT-exempt business ticks "My company isn't VAT
+  // registered" and has no number to give. Requiring one locked them out of
+  // topping up and requesting an account permanently, with no way to satisfy
+  // the condition.
+  const billing = (company?.billings as Array<Record<string, unknown>> | undefined)?.[0];
+  const str2 = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const companyComplete = Boolean(
-    (company?.name as string)?.trim() &&
-      (company?.country as string)?.trim() &&
-      (company?.vat_no as string)?.trim(),
+    str2(company?.name) &&
+      str2(company?.official_email) &&
+      str2(company?.phone) &&
+      str2(company?.address) &&
+      str2(company?.country) &&
+      str2(company?.state) &&
+      str2(company?.zipcode) &&
+      (str2(company?.vat_no) || company?.is_not_vat === true) &&
+      billing &&
+      str2(billing.address) &&
+      str2(billing.state) &&
+      str2(billing.country) &&
+      str2(billing.zipcode),
   );
   const pendingTopups = (activity ?? []).filter(
     (t) =>
@@ -793,7 +814,15 @@ export default function AdvertiserApp() {
                 <span className="dtx">
                   Add your company details to top up or request an account
                 </span>
-                <button className="dlink" onClick={() => go("settings")}>
+                {/* /complete-profile, not Settings. Settings holds three
+                    fields; the full form is the only place that collects the
+                    phone, official email, street address and billing address
+                    an invoice needs — and since the layout stopped redirecting
+                    there, this is the only way anyone reaches it. */}
+                <button
+                  className="dlink"
+                  onClick={() => router.push("/complete-profile")}
+                >
                   Add <Ic name="i-arrow" />
                 </button>
               </div>
