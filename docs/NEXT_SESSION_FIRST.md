@@ -81,3 +81,24 @@ editor (one statement at a time — the editor only shows the last result).
 Two consecutive waves with no surviving finding above medium. Not yet reached:
 every wave so far has found real faults in the same day's work, including in
 the fixes themselves.
+
+---
+
+## First subscription invoice due in 3 days — READY TO APPLY
+
+`supabase/migrations/20260917140000_first_invoice_due_in_3_days.sql`.
+
+A BEFORE INSERT trigger rather than an edit to the billing functions,
+because five separate inserts hard-code `now() + interval '7 days'` across
+four migrations and the live database carries hand-authored functions that
+appear in no migration at all. A trigger covers the paths we cannot see.
+
+The file ends in a read-only check: whether `invoices.due_date` exists and is
+a timestamp, how many functions set a due date, how many subscription
+invoices exist today, and whether the trigger is installed. Run the SELECT
+first; it is safe on its own.
+
+It deliberately does not retro-date an invoice that already exists, does not
+touch `subscription_adjustment`, and does not change `next_payment_date` —
+the plan still renews monthly.
+
