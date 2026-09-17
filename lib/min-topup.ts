@@ -18,6 +18,16 @@
  * deliberate decision about one customer and it should not be second-guessed
  * by a rule — including when it is 0, which is why "was it set" is tested
  * rather than whether it is truthy.
+ *
+ * ⚠️ THE SERVER SHARES THIS RULE. wallet_topup_advertiser_create enforces
+ * its own copy, in SQL, and for a while it did not: it read
+ * wallets.min_topup directly, and that column defaults to 300. So this file
+ * told a new customer there was no minimum, took their bank details, took
+ * their payment slip — and the RPC threw "Amount below minimum" on submit,
+ * after the transfer had already been made. If you change the rule here,
+ * change it in supabase/migrations/20260917230000_first_topup_has_no_minimum.sql
+ * too. A client-side rule the server does not share is not a rule, it is a
+ * trap.
  */
 
 export const DEFAULT_MIN_TOPUP = 300;
