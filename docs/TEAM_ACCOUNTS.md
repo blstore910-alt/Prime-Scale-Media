@@ -1,8 +1,8 @@
-# Team accounts — several people on one advertiser
+# Team accounts — several people on one advertiser, and on one affiliate
 
 Requested 2026-09-17: an advertiser should be able to put colleagues on
 their account, with fewer rights, and optionally scoped to some of their ad
-accounts. Same shape as the competitor screen the request came with:
+accounts. Extended the same day: **affiliates too.** Same shape as the competitor screen the request came with:
 Members / Invitations, a Role column, a Status column, an "Ad accounts"
 column reading "All accounts" or a subset, and an Invite member button.
 
@@ -26,6 +26,36 @@ ad_account_withdrawals, invoices, subscriptions, referral_links,
 referral_commissions, notifications, companies. Miss one and a colleague
 either cannot see their own company's data, or worse, the membership test is
 written loosely and one advertiser reads another's.
+
+## Affiliates need the same thing, and it is the same work
+
+An affiliate is the same shape of problem with a different table: every
+affiliate-facing policy resolves ownership through `referral_links` and
+`affiliates` against `auth.uid()`. So the design below is written twice, once
+per subject, and the membership helper takes the subject id whichever table
+it comes from:
+
+```sql
+create table subject_members (
+  id uuid primary key default gen_random_uuid(),
+  subject_kind text not null check (subject_kind in ('advertiser','affiliate')),
+  subject_id   uuid not null,
+  tenant_id    uuid not null references tenants(id),
+  user_id      uuid not null references auth.users(id),
+  role         text not null check (role in ('owner','manager','viewer')),
+  created_at   timestamptz not null default now(),
+  unique (subject_kind, subject_id, user_id)
+);
+```
+
+One table, one helper, two subjects — rather than two parallel sets of
+tables that drift. The roles differ in what they gate: for an affiliate
+there is no wallet and no withdrawal, so `manager` is "see referrals and
+earnings, cannot change payout details" and `viewer` is read-only.
+
+The per-ad-account scoping has no affiliate equivalent; an affiliate's
+equivalent narrowing would be per referral link, which nobody has asked for
+and should not be built on speculation.
 
 ## Shape
 
