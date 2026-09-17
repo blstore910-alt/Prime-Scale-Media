@@ -84,7 +84,23 @@ screens that are still changing has to be run again.
 - first invoice due 3 days after signup, 7 days after that (a DB function)
 - affiliate earnings wallet separate from the ad wallet (clawback risk)
 - wiring the Banks table to the advertiser top-up screen — **money routing,
-  wants its own session**
+  wants its own session.** The design is decided, so it does not need
+  re-deriving: the top-up dialog keeps the built-in block as the
+  PRESENTATION (its sections carry guidance a flat row cannot — "SEPA
+  preferred", "use this routing number for both wire and ACH") and only
+  OVERRIDES the fields a `bank_accounts` row provides for that
+  type + transfer currency: beneficiary, account/IBAN, BIC, bank name,
+  address, routing number. Any field the row leaves blank falls back to the
+  built-in, so a half-filled row can never produce a blank IBAN. The 19
+  seeded rows equal the built-ins, so the day it ships nothing changes —
+  which is the point: the change is only observable once somebody edits a
+  row, and that is exactly when it must be right.
+- the chosen bank is NOT recorded on `wallet_topups`. There is no
+  `bank_group` column, so a deposit landing at ZANEL against a top-up the
+  customer was told to send to TURLIT looks identical to a correct one, and
+  reconciliation cannot attribute a top-up to a bank. Adding it means a new
+  parameter on `wallet_topup_advertiser_create`, which is a live
+  SECURITY DEFINER RPC — do it with the routing work above, not separately.
 - `WISE_API_TOKEN` so deposit references can be read at all (yours: one env
   var in Vercel)
 
