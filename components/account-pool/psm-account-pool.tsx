@@ -536,7 +536,7 @@ export default function PsmAccountPool() {
           </p>
         </div>
       ) : rows.length ? (
-        <div className="card" style={{ padding: "16px 8px 8px" }}>
+        <div className="card" style={{ padding: 0 }}>
           <div className="tblwrap">
             <table className="tbl wide">
               <thead>
