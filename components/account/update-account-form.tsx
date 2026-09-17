@@ -23,9 +23,9 @@ import { TIMEZONES } from "@/lib/constants";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccount } from "@/lib/types/account";
+import { AD_ACCOUNT_STATUS_CHOICES } from "@/lib/ad-account-status";
 import InputField from "../form/input-field";
 import SelectField from "../form/select-field";
-import SwitchField from "../form/switch-field";
 import TextareaField from "../form/textarea-field";
 import { Button } from "../ui/button";
 import { DialogFooter } from "../ui/dialog";
@@ -38,7 +38,7 @@ const validations = z
     fee: z.coerce.number().min(0).max(100),
     advertiser_id: z.string().min(1, "Advertiser is required"),
     platform: z.string().min(1, "Platform is required"),
-    is_active: z.boolean(),
+    status: z.string().min(1),
     airtable: z.boolean(),
     start_date: z.string().min(1, "Start date is required"),
     timezone: z.string().min(1, "Timezone is required"),
@@ -247,7 +247,10 @@ function getInitialValues(account: AdAccount): FormValues {
     fee: account.fee ?? 0,
     advertiser_id: account.advertiser_id ?? "",
     platform: account.platform ?? "",
-    is_active: account.status === "active",
+    // The stored value, not a boolean. A switch could only ever say
+    // active/inactive, so "banned" and "disabled" had nowhere to live and
+    // every account that was off for any reason read the same.
+    status: (account.status ?? "active").trim().toLowerCase() || "active",
     airtable: account.airtable ?? false,
     start_date: account.start_date ?? new Date().toISOString(),
     timezone: normalizeTimezone(account.timezone),
@@ -317,7 +320,26 @@ export default function UpdateAccountForm({
   }, [initialValues, reset]);
 
   const selectedPlatform = watch("platform");
-  const isActive = watch("is_active");
+  const currentStatus = watch("status");
+  // Whatever the row holds stays offered, so saving an account the supplier
+  // sync marked 'paused' does not quietly flip it to active.
+  const statusOptions = [
+    ...AD_ACCOUNT_STATUS_CHOICES.map((c) => ({
+      label: c.label,
+      value: c.value,
+    })),
+    ...(AD_ACCOUNT_STATUS_CHOICES.some((c) => c.value === currentStatus)
+      ? []
+      : [
+          {
+            label: `${currentStatus.charAt(0).toUpperCase()}${currentStatus.slice(1)} (current)`,
+            value: currentStatus,
+          },
+        ]),
+  ];
+  const statusHint =
+    AD_ACCOUNT_STATUS_CHOICES.find((c) => c.value === currentStatus)?.hint ??
+    "This is the status the account already has.";
   const queryClient = useQueryClient();
   const { updateAccount, isPending } = useUpdateAccount();
 
@@ -360,7 +382,7 @@ export default function UpdateAccountForm({
           fee: values.fee,
           advertiser_id: values.advertiser_id,
           platform: values.platform,
-          status: values.is_active ? "active" : "inactive",
+          status: values.status,
           timezone: values.timezone,
           notes: values.notes || null,
           website_url: values.website_url || null,
@@ -436,13 +458,19 @@ export default function UpdateAccountForm({
             control={control}
           />
 
-          <SwitchField
+          {/* Inactive is NOT in this menu on purpose: it is worked out
+              from the account's own history (no top-up in 30 days), so
+              nothing has to remember to un-set it. See
+              lib/ad-account-status.ts. */}
+          <SelectField
             label="Account Status"
-            description={isActive ? "Active" : "Inactive"}
-            name="is_active"
+            name="status"
             id="update-account-status"
             control={control}
+            options={statusOptions}
+            placeholder="Select status"
           />
+          <p className="-mt-2 text-xs text-muted-foreground">{statusHint}</p>
 
           <SelectField
             label="Timezone"

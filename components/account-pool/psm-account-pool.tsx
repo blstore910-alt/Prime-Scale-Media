@@ -60,12 +60,18 @@ function money(cents: number | null, currency: string | null) {
 }
 
 function advertiserLabel(a: AdvertiserOption) {
-  return (
-    a.profile?.full_name ||
-    a.profile?.email ||
-    a.tenant_client_code ||
-    a.id.slice(0, 8)
-  );
+  // CODE FIRST. A dropdown that reads "john doe / Henk AD / Test Advertiser"
+  // is a list of names you have to recognise; the desk works in PSM numbers
+  // — they are on the invoice, they prefix every payment reference, and two
+  // customers can share a name while only one is PSM0002. Allocating an ad
+  // account to the wrong advertiser is a money event, so the identifier you
+  // can verify goes in front of the one you have to remember.
+  //
+  // Same order as components/psm/customer-name.tsx, for the same reason.
+  const code = (a.tenant_client_code ?? "").trim();
+  const name = (a.profile?.full_name || a.profile?.email || "").trim();
+  if (code && name) return `${code} — ${name}`;
+  return code || name || a.id.slice(0, 8);
 }
 
 // A real dialog, not a styled div. Both modals on this screen allocate ad

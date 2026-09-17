@@ -231,7 +231,7 @@ export default function PsmWallets() {
                         />
                       </div>
                     </td>
-                    <td className="mono" data-label="Reference">
+                    <td className="mono nw" data-label="Reference">
                       {wallet.reference_no ?? "—"}
                     </td>
                     <td className="r mono" data-label="EUR Balance">
@@ -240,7 +240,10 @@ export default function PsmWallets() {
                     <td className="r mono" data-label="USD Balance">
                       {formatAmount(wallet.usd_balance)}
                     </td>
-                    <td data-label="Created">
+                    {/* nw: this column was narrow enough that 16-09-2026
+                        broke after the second dash, so the row was two lines
+                        tall and the header above it looked misaligned. */}
+                    <td className="nw" data-label="Created">
                       {wallet.created_at
                         ? dayjs(wallet.created_at).format(DATE_FORMAT)
                         : "—"}

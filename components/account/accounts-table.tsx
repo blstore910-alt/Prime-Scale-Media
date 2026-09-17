@@ -52,6 +52,8 @@ import AdvertiserAdAccountRequestsDialog from "../ad-account-requests/advertiser
 import UpdateAccountDialog from "./update-account-dialog";
 import AccountMinTopupDialog from "./account-min-topup-dialog";
 import useUpdateAccount from "./use-update-account";
+import { useAccountSpend } from "@/hooks/use-account-spend";
+import { adAccountStatusView } from "@/lib/ad-account-status";
 
 // Admin Ad Accounts monolith, ported to the mockup look (.psmapp shell,
 // injected by AdminShell). Reuses the exact data hooks, search/platform/
@@ -149,6 +151,16 @@ export default function AccountsTable() {
   });
 
   const accounts = accountsData?.items ?? [];
+
+  // What is on each account, and when it last moved. One query for the
+  // whole page rather than one per row.
+  const { byAccount: spendByAccount, isError: spendError } = useAccountSpend(
+    profile?.tenant_id,
+  );
+  // Every row judged against the SAME instant, so a list cannot show two
+  // accounts on different sides of the 30-day line because it took a
+  // moment to render.
+  const nowMs = Date.now();
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const { data: advertiserAccounts, isLoading: isAdvertiserAccountsLoading } =
@@ -617,6 +629,7 @@ export default function AccountsTable() {
                   <th>Platform</th>
                   <th className="r">Fee</th>
                   <th>Currency</th>
+                  <th className="r nw">Spend</th>
                   <th>Status</th>
                   <th className="r">Actions</th>
                 </tr>
@@ -628,6 +641,9 @@ export default function AccountsTable() {
                     account={acc}
                     onRowClick={handleAccountClick}
                     onEdit={setAccountToEdit}
+                    spend={spendByAccount[acc.id]}
+                    spendUnknown={spendError}
+                    nowMs={nowMs}
                   />
                 ))}
               </tbody>
@@ -684,10 +700,16 @@ function PsmAdminAccountRow({
   account,
   onRowClick,
   onEdit,
+  spend,
+  spendUnknown = false,
+  nowMs,
 }: {
   account: AdAccount;
   onRowClick: (id: string) => void;
   onEdit: (account: AdAccount) => void;
+  spend?: { usd: number; count: number; lastAt: string | null };
+  spendUnknown?: boolean;
+  nowMs: number;
 }) {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
@@ -756,22 +778,32 @@ function PsmAdminAccountRow({
     PLATFORMS.find((p) => p.value === account.platform)?.label ??
     account.platform;
 
-  const statusCls =
-    account.status === "active"
-      ? "ok"
-      : account.status === "paused"
-        ? "pend"
-        : "due";
+  // Not a three-way if on the raw column any more. An account we switched
+  // off, one the platform banned and one nobody has touched since August
+  // were all drawn as the same red pill; see lib/ad-account-status.ts.
+  const statusView = adAccountStatusView(
+    account.status,
+    spend?.lastAt ?? null,
+    account.start_date ?? account.created_at ?? null,
+    nowMs,
+  );
+  const statusCls = statusView.tone;
 
   return (
     <tr onClick={handleRowClick} style={{ cursor: "pointer" }}>
       <td data-label="Client Code" className="mono">{account.advertiser?.tenant_client_code || "—"}</td>
-      <td data-label="Account Name" style={{ fontWeight: 600 }}>{account.name}</td>
+      <td data-label="Account Name" className="clip">
+        <span style={{ fontWeight: 600 }} title={account.name}>
+          {account.name}
+        </span>
+      </td>
       {/* First name only. A list cell is for recognising someone at a
           glance, and a full name pushed the two-up card wider than the
           column it sits in. The full name is in the detail sheet. */}
-      <td data-label="Advertiser">
-        {firstName(account.advertiser?.profile?.full_name) || "—"}
+      <td data-label="Advertiser" className="clip">
+        <span title={account.advertiser?.profile?.full_name ?? undefined}>
+          {firstName(account.advertiser?.profile?.full_name) || "—"}
+        </span>
       </td>
       <td data-label="Platform">
         <span
@@ -854,13 +886,36 @@ function PsmAdminAccountRow({
           `${fee}%`
         )}
       </td>
-      <td data-label="Currency">{account.currency || "N/A"}</td>
-      <td data-label="Status">
+      <td data-label="Currency" className="nw">
+        {account.currency || "N/A"}
+      </td>
+      {/* Total put ON this account, in USD — top_ups amounts are USD
+          whatever the customer paid in. A read failure shows a dash, never
+          a zero: "nothing was ever topped up" and "we could not ask" are
+          not the same sentence. */}
+      <td
+        data-label="Spend"
+        className="r mono nw"
+        title={
+          spendUnknown
+            ? "We couldn't load top-ups just now."
+            : spend
+              ? `${spend.count} completed top-up${spend.count === 1 ? "" : "s"}${
+                  spend.lastAt
+                    ? `, last on ${new Date(spend.lastAt).toLocaleDateString()}`
+                    : ""
+                }`
+              : "No completed top-ups on this account yet."
+        }
+      >
+        {spendUnknown ? "—" : `$${(spend?.usd ?? 0).toFixed(2)}`}
+      </td>
+      <td data-label="Status" className="nw">
         <span
           className={`badge ${statusCls}`}
-          style={{ textTransform: "capitalize" }}
+          title={statusView.why || undefined}
         >
-          {account.status}
+          {statusView.label}
         </span>
       </td>
       <td data-label="Actions" className="r">

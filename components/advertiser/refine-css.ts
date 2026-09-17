@@ -261,6 +261,37 @@ ${s} .cust-name{color:var(--faint);font-size:.8rem;font-weight:600;line-height:1
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 ${s} .cust-none{color:var(--faint);font-weight:600}
 
+/* ── One line per cell ──────────────────────────────────────────────────
+   A company called "Test Advertiser BV" was drawn on THREE lines, in a
+   column 60px wide, in a table that had a horizontal scrollbar at the same
+   time. Both halves of that come from the same thing: nothing capped how
+   much width a cell could ask for, so a long name either wrapped (no
+   nowrap) or pushed the table past the viewport (nowrap).
+
+   .clip caps it. The cap goes on the cell's CHILD, not the cell: in the
+   automatic table layout a td's own max-width is advisory — browsers still
+   size the column to its content — while a block child's max-width really
+   does clamp what the column asks for. Call sites put the full value in a
+   title so nothing is lost, only shortened.
+
+   .nw is for the values that must never break across two lines: a date,
+   a reference, an amount. .r already carries it; this is for the ones
+   that are not right-aligned. */
+${s} .tbl td.clip>*{display:block;max-width:190px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+${s} .tbl td.clip{max-width:190px}
+${s} .tbl td.nw,${s} .tbl th.nw{white-space:nowrap}
+/* The customer identity is two stacked lines by design, so it caps as a
+   block rather than per line. */
+${s} .tbl .cust{max-width:190px}
+/* In card mode a row IS the width of the card, so a 190px cap would clip
+   text that has room. Let it use the card. */
+@media (max-width:640px){
+  ${s} .tbl.wide td.clip,
+  ${s} .tbl.wide td.clip>*,
+  ${s} .tbl.wide .cust{max-width:100%}
+}
+
 /* ── Card headings ──────────────────────────────────────────────────────
    An icon sitting loose against a title at whatever size it happened to be
    drawn is the difference between a heading and two things that are near

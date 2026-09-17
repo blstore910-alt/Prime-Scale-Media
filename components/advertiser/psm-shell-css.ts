@@ -224,11 +224,17 @@ export const PSM_APP_CSS = `
 .psmapp .list-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.psmapp .list-row:first-child{border-top:0}
 .psmapp .list-row .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
 .psmapp .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;font-size:.72rem;font-weight:700;white-space:nowrap}
-.psmapp .badge.ok{background:var(--win-soft);color:#0e8f66}.psmapp .badge.pend{background:var(--warn-soft);color:#8a5a00}.psmapp .badge.due{background:var(--danger-soft);color:#c0392b}.psmapp .badge.info{background:var(--primary-tint);color:var(--primary-600)}
+.psmapp .badge.ok{background:var(--win-soft);color:#0e8f66}.psmapp .badge.pend{background:var(--warn-soft);color:#8a5a00}.psmapp .badge.due{background:var(--danger-soft);color:#c0392b}.psmapp .badge.info{background:var(--primary-tint);color:var(--primary-600)}.psmapp .badge.muted{background:var(--panel-2);color:var(--faint)}
 
 .psmapp .tblwrap{overflow-x:auto}
 .psmapp .tbl{width:100%;border-collapse:collapse;font-size:.9rem}
-.psmapp .tbl th{text-align:left;font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 14px 12px}
+/* The header row had NO padding above it, so the column titles sat hard
+   against whatever was over the table — the card's edge, or the filter bar
+   right on top of it — while every row below had 13px. It read as a title
+   row that had slipped out of position rather than as a header. Same 13px
+   above as a row, slightly less below so the titles group with the data
+   they name and not with the search box. */
+.psmapp .tbl th{text-align:left;font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:13px 14px 11px}
 .psmapp .tbl td{padding:13px 14px;border-top:1px solid var(--line)}
 .psmapp .tbl tr:hover td{background:var(--panel-2)}
 .psmapp .tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}

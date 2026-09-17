@@ -180,7 +180,7 @@ export default function InvoicesTable() {
     );
   };
 
-  const colCount = isAdmin ? 9 : 7;
+  const colCount = isAdmin ? 8 : 6;
 
   return (
     <div
@@ -235,8 +235,7 @@ export default function InvoicesTable() {
                 <th>Type</th>
                 <th className="r">Amount</th>
                 <th>Status</th>
-                <th className="r">Paid At</th>
-                <th className="r">Created On</th>
+                <th className="r nw">Created On</th>
                 <th className="r">Actions</th>
               </tr>
             </thead>
@@ -291,11 +290,16 @@ export default function InvoicesTable() {
                                     full
                                   />
                                 </td>
-                                <td
-                                  style={{ fontWeight: 600 }}
-                                  data-label="Company"
-                                >
-                                  {invoice.company?.name ?? "—"}
+                                {/* One line, capped, with the whole name
+                                    in the title. "Test Advertiser BV" was
+                                    drawn on three lines here. */}
+                                <td className="clip" data-label="Company">
+                                  <span
+                                    style={{ fontWeight: 600 }}
+                                    title={invoice.company?.name ?? undefined}
+                                  >
+                                    {invoice.company?.name ?? "—"}
+                                  </span>
                                 </td>
                               </>
                             )}
@@ -314,17 +318,26 @@ export default function InvoicesTable() {
                               {currencySymbol}
                               {formatAmount(invoice.total)}
                             </td>
-                            <td data-label="Status">
+                            {/* Paid At used to be its own column, which
+                                meant a whole column of em-dashes on any
+                                list of unpaid invoices — and it is what
+                                pushed this table past the edge of the
+                                window. The date belongs TO the "Paid"
+                                badge; it only exists when that badge does. */}
+                            <td data-label="Status" className="nw">
                               <span
                                 className={`badge ${isPaid ? "ok" : "pend"}`}
                               >
                                 {isPaid ? "Paid" : "Unpaid"}
                               </span>
-                            </td>
-                            <td className="r muted" data-label="Paid At">
-                              {invoice.paid_at
-                                ? dayjs(invoice.paid_at).format(DATE_FORMAT)
-                                : "—"}
+                              {isPaid && invoice.paid_at && (
+                                <div
+                                  className="muted"
+                                  style={{ fontSize: ".76rem", marginTop: 2 }}
+                                >
+                                  {dayjs(invoice.paid_at).format(DATE_FORMAT)}
+                                </div>
+                              )}
                             </td>
                             <td className="r muted" data-label="Created On">
                               {dayjs(invoice.created_at).format(DATE_FORMAT)}
