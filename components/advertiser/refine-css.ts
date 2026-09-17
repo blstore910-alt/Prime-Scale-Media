@@ -229,6 +229,26 @@ ${s} .sidebar,${s} .mcard{will-change:transform}
 ${s} .tool.ava-btn .avatar::after,
 ${s} .who-btn .avatar::after{display:none}
 
+/* ── A pair of fees ─────────────────────────────────────────────────────
+   What the customer pays US and what WE pay the supplier, side by side.
+   Stacked and identical, the only thing telling them apart was reading the
+   label — on the one screen where confusing them sets a margin backwards.
+   Money in takes the brand colour, money out takes amber, and side by side
+   they fit on one phone screen with the margin line under them. */
+${s} .feepair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+${s} .feefield{border:1px solid var(--line);border-radius:12px;padding:9px 10px 8px;min-width:0}
+${s} .feefield .mlabel{display:flex;flex-direction:column;gap:1px;margin:0 0 6px;
+  font-size:.72rem;font-weight:800;letter-spacing:.02em}
+${s} .feefield .mlabel span{font-size:.66rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;opacity:.75}
+${s} .feefield input{width:100%;font-variant-numeric:tabular-nums;font-weight:700}
+${s} .feefield .feehint{margin:5px 0 0;font-size:.68rem;line-height:1.3;color:var(--faint)}
+${s} .feefield.in{background:var(--primary-tint);border-color:#cfe0ff}
+${s} .feefield.in .mlabel{color:var(--primary-600)}
+${s} .feefield.out{background:var(--warn-soft);border-color:#f2d9a3}
+${s} .feefield.out .mlabel{color:#a9740b}
+${s} .feefield.out input:disabled{opacity:.6}
+
 /* ── Customer name ──────────────────────────────────────────────────────
    Client code loud, name quiet. See components/psm/customer-name.tsx for
    why that order and not the other one. */

@@ -132,6 +132,24 @@ export default function PsmAccountPool() {
   const [search, setSearch] = useState("");
   const [assigning, setAssigning] = useState<SupplierAdAccount | null>(null);
   const [advertiserId, setAdvertiserId] = useState("");
+  // The fee THIS advertiser's plan or community says we charge. It is the
+  // right default — an advertiser is on a plan or in a community, and that
+  // is where their rate was agreed — where the account's own supplier fee is
+  // just what WE pay, which is a different number about a different party.
+  const { data: advertiserPlan } = useQuery<{ topup_fee_pct: number } | null>({
+    queryKey: ["advertiser-plan", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertiser_plans")
+        .select("topup_fee_pct")
+        .eq("advertiser_id", advertiserId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as { topup_fee_pct: number } | null;
+    },
+  });
   const [feeInput, setFeeInput] = useState("");
   const [source, setSource] = useState<"all" | "supplier1" | "manual">("all");
   // The supplier's own status for the account: active, paused, or suspended
@@ -142,6 +160,10 @@ export default function PsmAccountPool() {
   const [nameInput, setNameInput] = useState("");
   const [supplierFeeInput, setSupplierFeeInput] = useState("");
   const uid = useId();
+  const planFee =
+    advertiserPlan && Number.isFinite(Number(advertiserPlan.topup_fee_pct))
+      ? Number(advertiserPlan.topup_fee_pct)
+      : null;
   const [manual, setManual] = useState({
     name: "",
     externalId: "",
@@ -770,42 +792,55 @@ export default function PsmAccountPool() {
             }
           />
 
-          <label className="mlabel" htmlFor={`${uid}-a-fee`}>
-            Fee %{" "}
-            {assigning.fee_percentage == null
-              ? "(required — this account has no supplier fee)"
-              : `(defaults to ${assigning.fee_percentage}%)`}
-          </label>
-          <input
-            id={`${uid}-a-fee`}
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={feeInput}
-            onChange={(e) => setFeeInput(e.target.value)}
-            placeholder="e.g. 2"
-          />
-
-          {/* What WE pay the supplier. Kept next to what we charge so the
-              margin is a decision made once, at allocation, instead of being
-              reconstructed later from two places. */}
-          <label className="mlabel" htmlFor={`${uid}-a-sfee`}>
-            Supplier top-up fee % — what we pay
-          </label>
-          <input
-            id={`${uid}-a-sfee`}
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={supplierFeeInput}
-            onChange={(e) => setSupplierFeeInput(e.target.value)}
-            placeholder={
-              isSuperAdmin ? "leave blank if unknown" : "super-admin only"
-            }
-            disabled={!isSuperAdmin}
-          />
+          {/* Two fees, two directions, side by side. They were stacked and
+              identical, so the only thing telling "what the customer pays us"
+              apart from "what we pay the supplier" was reading the label
+              carefully — on the one screen where confusing them sets a margin
+              the wrong way round. Money IN is the brand colour, money OUT is
+              amber, and the margin under them is the sum of the two. */}
+          <div className="feepair">
+            <div className="feefield in">
+              <label className="mlabel" htmlFor={`${uid}-a-fee`}>
+                Fee % <span>we charge</span>
+              </label>
+              <input
+                id={`${uid}-a-fee`}
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={feeInput}
+                onChange={(e) => setFeeInput(e.target.value)}
+                placeholder={planFee != null ? String(planFee) : "e.g. 2"}
+              />
+              <p className="feehint">
+                {planFee != null
+                  ? `Their plan rate: ${planFee}%`
+                  : assigning.fee_percentage == null
+                    ? "No plan rate — set one"
+                    : `Account default: ${assigning.fee_percentage}%`}
+              </p>
+            </div>
+            <div className="feefield out">
+              <label className="mlabel" htmlFor={`${uid}-a-sfee`}>
+                Fee % <span>we pay</span>
+              </label>
+              <input
+                id={`${uid}-a-sfee`}
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={supplierFeeInput}
+                onChange={(e) => setSupplierFeeInput(e.target.value)}
+                placeholder={isSuperAdmin ? "unknown" : "owner only"}
+                disabled={!isSuperAdmin}
+              />
+              <p className="feehint">
+                {isSuperAdmin ? "To the supplier" : "Owner only"}
+              </p>
+            </div>
+          </div>
           <p
             className="cap"
             style={{ margin: "8px 0 0" }}
