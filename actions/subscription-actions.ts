@@ -254,6 +254,33 @@ export async function changeSubscriptionAmount(
   if (sub.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
   }
+
+  // SUPER-ADMIN ONLY, and this is the second of three gates.
+  //
+  // Repricing a plan is not an edit, it is a decision about what somebody
+  // pays — and on a downgrade it can hand money back. The Amount button
+  // was already hidden from a plain admin, but a hidden button is not a
+  // boundary: the action is reachable by name, and both it and the RPC
+  // tested only for role 'admin'. An employee could reprice any customer.
+  //
+  // Super-admin here means what it means everywhere in this app: the
+  // owner of the tenant.
+  const { data: tenantRow } = await supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", sub.tenant_id)
+    .maybeSingle();
+  if (
+    !tenantRow ||
+    (tenantRow as { owner_id: string | null }).owner_id !== profile.user_id
+  ) {
+    return {
+      ok: false,
+      error:
+        "Only the account owner can change what a customer pays. Ask them to make this change.",
+    };
+  }
+
   if (!(await checkVersion(supabase, "subscriptions", subscriptionId, ifUpdatedAt))) {
     return {
       ok: false,

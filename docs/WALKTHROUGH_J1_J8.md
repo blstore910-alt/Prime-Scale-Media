@@ -45,6 +45,7 @@ editor refuses a bare `$$` in some files whose quotes are balanced.
 | `20260918230000_commission_clawback.sql` | money back takes its commission with it | applied |
 | `20260918220000_refund_rejected_request_fee.sql` | **rejecting returns the 50 EUR** | **pending** |
 | `20260918240000_scalar_not_record.sql` | fixes a runtime fault in the two above | **pending** |
+| `20260918250000_reprice_is_owner_only.sql` | **only the owner may change what a customer pays** | **pending** |
 | `20260918200000_money_to_numeric.sql` | money stops being a float — **BACK UP FIRST** | **pending** |
 | `20260917180000_team_accounts_phase1.sql` | membership tables (no behaviour change) | not needed |
 
