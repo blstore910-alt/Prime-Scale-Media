@@ -536,7 +536,35 @@ export async function bulkCreateTopupsAsAdmin(
       .eq("tenant_id", profile.tenant_id)
       .eq("is_active", true)
       .maybeSingle();
-    bulkRates = [{ eur: Number(rate?.eur) || 0 }];
+    // ── NO RATE IS A REFUSAL HERE TOO ─────────────────────────────────
+    //
+    // The single-create path refuses this; the bulk path just carried a
+    // zero into calculateTopupAmount, which returns zeros for every
+    // non-USD row — so five EUR 1,000 top-ups were recorded as nothing
+    // arriving, with ~$290 of fee revenue invisible to every report and
+    // a toast reading "Successfully topped up 5 ad accounts".
+    //
+    // .maybeSingle() ERRORS when two rows match, and two active rate
+    // rows is a state this database has reached before — the exchange
+    // rate actions document it twice. The dialog's own guard reads a
+    // LIST, so it passes happily and previews the right figures while
+    // the server stores zeros.
+    const bulkRate = Number(rate?.eur);
+    const needsConversion = rows.some(
+      (r) =>
+        typeof r.type === "string" &&
+        FEE_APPLICABLE_TYPES.includes(r.type) &&
+        String(r.currency ?? "USD").toUpperCase() !== "USD",
+    );
+    if (needsConversion && !(bulkRate > 0)) {
+      return {
+        ok: false,
+        error:
+          "There is no single active exchange rate, so a non-USD top-up cannot be converted. Check Settings → Finance — if two rates are active, stand one down. Nothing was created.",
+        code: "invalid",
+      };
+    }
+    bulkRates = [{ eur: bulkRate || 0 }];
 
     for (const row of rows) {
       if (typeof row.type !== "string") continue;

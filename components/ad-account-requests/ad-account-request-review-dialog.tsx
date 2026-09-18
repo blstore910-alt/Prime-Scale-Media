@@ -86,9 +86,24 @@ export default function AdAccountRequestReviewDialog({
   const metadata = (data?.metadata as Record<string, unknown> | null) ?? null;
   const metadataEntries = metadata ? Object.entries(metadata) : [];
   const hasAdvertiser = Boolean(data?.advertiser_id);
-  const showCreateInvoice = statusValue === "pending";
+  // ── THEY MAY HAVE PAID ALREADY ──────────────────────────────────────
+  //
+  // A self-service request debits the 50 EUR from the wallet at
+  // CREATION and stamps metadata.request_fee. The desk then saw a
+  // `pending` row and an enabled "Create Invoice", raised a second 50
+  // EUR as an ad_account_fee invoice, and the customer's billing table
+  // renders that with a live Pay now — so 50 EUR service, 100 EUR taken,
+  // and the rejection refund can only ever give back the first one.
+  //
+  // The only sign it had already been paid was `request_fee: 50` in the
+  // dialog's raw metadata dump.
+  const feeAlreadyTaken = Number(metadata?.request_fee ?? 0) > 0;
+  const showCreateInvoice = statusValue === "pending" && !feeAlreadyTaken;
   const showCreateAdAccount =
-    statusValue === "pending" || statusValue === "payment_successful";
+    statusValue === "pending" ||
+    statusValue === "payment_pending" ||
+    statusValue === "in_progress" ||
+    statusValue === "payment_successful";
   const canReject =
     !!data && !["completed", "approved", "rejected"].includes(statusValue);
 
@@ -241,6 +256,15 @@ export default function AdAccountRequestReviewDialog({
                 Reject
               </Button>
             )}
+            {/* Say it, rather than leaving a gap where a button was. An
+                operator who finds no Create Invoice needs to know the
+                fee is already in, not wonder whether the screen is
+                broken. */}
+            {feeAlreadyTaken && statusValue === "pending" ? (
+              <span className="self-center text-sm text-muted-foreground">
+                Fee already paid from their wallet
+              </span>
+            ) : null}
             {showCreateInvoice && (
               <Button
                 variant="outline"

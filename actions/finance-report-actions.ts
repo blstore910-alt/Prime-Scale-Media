@@ -130,7 +130,17 @@ export async function financeReportForMe(): Promise<
   for (const r of await source("wallet top-ups", (from, to) =>
     supabase
       .from("wallet_topups")
-      .select("id, amount, currency, status, reference, created_at")
+      // reference_no, not reference. This asked for a column that does
+      // not exist on wallet_topups — the neighbouring precharges block is
+      // where `reference` is real, and it looks copied. PostgREST throws
+      // 42703, the source is recorded as failed, and the report loses
+      // EVERY credit: an advertiser who put in EUR 40,000 and spent
+      // 36,000 read "In EUR 0.00 · Out EUR 36,000 · Net -36,000", and
+      // the CSV they hand a bookkeeper had no income rows at all.
+      //
+      // The banner did say the totals were incomplete, which is honest
+      // and still a wrong statement of account.
+      .select("id, amount, currency, status, reference_no, created_at")
       .eq("advertiser_id", advertiserId)
       .order("created_at", { ascending: true })
       .range(from, to),
@@ -144,7 +154,7 @@ export async function financeReportForMe(): Promise<
       at: String(r.created_at ?? ""),
       kind: "wallet_topup",
       label: status === "completed" ? "Top-up received" : "Top-up pending",
-      reference: str(r.reference),
+      reference: str(r.reference_no),
       account: null,
       counterparty: null,
       currency: cur(r.currency),
