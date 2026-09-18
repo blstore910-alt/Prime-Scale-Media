@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { resolveUserContext } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -35,12 +35,30 @@ export async function getSignedPaymentSlipUrl(
     return { ok: false, error: "No payment slip" };
   }
 
+  // ── A SESSION IS NOT THE SAME AS AN ACCOUNT ─────────────────────────
+  //
+  // This action had no guard at all: it leaned entirely on the storage
+  // policy, and that policy tests `role = 'admin'` and the tenant — it
+  // was not touched by the sweep that taught every helper in `public` to
+  // reject a deactivated account, because that sweep covered tables and
+  // storage.objects is not one of them.
+  //
+  // So an admin whose access has just been taken away still holds a
+  // valid JWT, and every money RPC refuses them while this hands out
+  // five-minute signed links to any customer's bank receipt in the
+  // tenant — name, IBAN, amount.
+  //
+  // resolveUserContext checks the role, the tenant AND that the account
+  // is still active, and carries the maintenance freeze with it.
+  const auth = await resolveUserContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   // Legacy full-URL rows: nothing to sign, hand it back.
   if (!looksLikePath(storedValue)) {
     return { ok: true, data: { url: storedValue } };
   }
 
-  const supabase = await createClient();
+  const supabase = auth.ctx.supabase;
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(storedValue, SIGNED_TTL_SECONDS);

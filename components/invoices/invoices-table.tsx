@@ -23,6 +23,7 @@ import { invoiceStatusView } from "@/lib/invoice-status";
 import { toast } from "sonner";
 import CreateInvoiceDialog from "./create-invoice-dialog";
 import useInvoices from "./use-invoices";
+import PsmSortFilter from "@/components/psm/sort-filter";
 
 const formatInvoiceType = (type: string | null) => {
   if (!type) return "—";
@@ -69,6 +70,7 @@ const stateRow = (colSpan: number, msg: string, danger = false) => (
 // download and the CreateInvoiceDialog — presentation only, every column,
 // search and action preserved.
 export default function InvoicesTable() {
+  const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -87,12 +89,15 @@ export default function InvoicesTable() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Status too, or narrowing on page 3 keeps you on page 3 of a list
+  // that may no longer have one.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, status]);
 
   const { invoices, total, isLoading, isError, error } = useInvoices({
     search: debouncedSearch,
+    status,
     page,
     perPage,
   });
@@ -192,6 +197,33 @@ export default function InvoicesTable() {
             placeholder="Search invoice no…"
           />
         </label>
+        {/* "Who owes us money" was unanswerable from this screen: the bar
+            was a search box and nothing else, while every row carries
+            Paid / Unpaid / Overdue / Void / Refunded. An operator paged
+            through everything by hand. */}
+        <PsmSortFilter
+          filters={[
+            {
+              id: "status",
+              label: "Status",
+              value: status,
+              onChange: (v) => setStatus(v),
+              options: [
+                { value: "all", label: "All statuses" },
+                { value: "unpaid", label: "Unpaid" },
+                { value: "overdue", label: "Overdue" },
+                { value: "paid", label: "Paid" },
+                { value: "void", label: "Void" },
+                { value: "refunded", label: "Refunded" },
+              ],
+            },
+          ]}
+          searchActive={!!search.trim()}
+          onReset={() => {
+            setStatus("all");
+            setSearch("");
+          }}
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>

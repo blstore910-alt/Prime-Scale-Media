@@ -41,19 +41,42 @@ async function resolveOwnedAdvertiser(): Promise<
   if (userError || !userData.user) {
     return { ok: false, error: "Unauthorized" };
   }
-  const { data: profile } = await supabase
+  // ── THE PROFILE THEY ARE ACTING AS, NOT THE OLDEST ONE ──────────────
+  //
+  // This took `order created_at asc limit 1` and ignored the profile_id
+  // cookie that the layout and every other guard use — so somebody with
+  // a profile in two tenants got tenant A's row while standing in tenant
+  // B's shell.
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  const wanted = cookieStore.get("profile_id")?.value;
+  const { data: profiles } = await supabase
     .from("user_profiles")
     .select("id, user_id, tenant_id")
-    .eq("user_id", userData.user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .eq("user_id", userData.user.id);
+  const list = (profiles ?? []) as Array<{
+    id: string;
+    user_id: string;
+    tenant_id: string | null;
+  }>;
+  const profile = wanted
+    ? list.find((p) => p.id === wanted) ?? list[0]
+    : list[0];
   if (!profile?.tenant_id) return { ok: false, error: "Profile missing" };
 
+  // ── AND THE ADVERTISER IN THAT TENANT ───────────────────────────────
+  //
+  // `.maybeSingle()` on user_id alone ERRORS when somebody has an
+  // advertiser row in two tenants, returning null — so "Advertiser
+  // missing" for ever, in BOTH tenants. companies is then never written,
+  // the billing run finds no company, counts them in skipped_no_company
+  // and raises no invoice at all: silently unbillable while their
+  // subscription reads active.
   const { data: advertiser } = await supabase
     .from("advertisers")
     .select("id, tenant_id, user_id")
     .eq("user_id", userData.user.id)
+    .eq("tenant_id", profile.tenant_id)
     .maybeSingle();
   if (!advertiser) return { ok: false, error: "Advertiser missing" };
   if (advertiser.tenant_id !== profile.tenant_id) {

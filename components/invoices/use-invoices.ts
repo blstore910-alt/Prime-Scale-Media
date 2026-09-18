@@ -7,6 +7,8 @@ import { useMemo } from "react";
 
 export type InvoicesQueryParams = {
   search?: string | undefined;
+  /** "all", or one of the statuses the rows actually carry. */
+  status?: string | undefined;
   page?: number;
   perPage?: number;
 };
@@ -22,6 +24,7 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
       profile?.tenant_id,
       isAdvertiser ? advertiserId : "admin",
       params.search ?? "",
+      params.status ?? "all",
       params.page ?? 1,
       params.perPage ?? 10,
     ],
@@ -30,6 +33,7 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
       isAdvertiser,
       advertiserId,
       params.search,
+      params.status,
       params.page,
       params.perPage,
     ],
@@ -41,7 +45,7 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
     queryKey,
     enabled: !!profile?.tenant_id && (!isAdvertiser || !!advertiserId),
     queryFn: async () => {
-      const { search, page = 1, perPage = 10 } = params;
+      const { search, status, page = 1, perPage = 10 } = params;
       const supabase = createClient();
 
       let query = supabase
@@ -59,6 +63,16 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
           return { items: [], total: 0 };
         }
         query = query.eq("advertiser_id", advertiserId);
+      }
+
+      // ── WHO OWES US MONEY ───────────────────────────────────────────
+      //
+      // The filter bar was a search box and nothing else, while every row
+      // carries Paid / Unpaid / Overdue / Void / Refunded. So the one
+      // question this screen exists to answer could not be asked, and an
+      // operator paged through everything by hand.
+      if (status && status !== "all") {
+        query = query.eq("status", status);
       }
 
       if (search && search.trim() !== "") {
