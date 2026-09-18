@@ -26,6 +26,18 @@ export type MatchedDeposit = {
   reference: string | null;
   receivedAt: string;
   status: string;
+  /**
+   * How many deposits point at this one claim.
+   *
+   * It should always be 1 and it is not guaranteed to be. A customer who
+   * pays the same reference twice produces two credits, and the webhook
+   * matches each of them independently against the still-pending top-up.
+   * Only one can ever be credited — wise_confirm_suggestion refuses the
+   * second with "Topup no longer pending" — so the second real payment
+   * sits in the bank, uncredited, while every screen says the match was
+   * found. The customer is owed that money and nothing says so.
+   */
+  count: number;
 };
 
 export function useMatchedDeposits(topupIds: Array<string | null | undefined>) {
@@ -70,8 +82,13 @@ export function useMatchedDeposits(topupIds: Array<string | null | undefined>) {
         // — and the card says "matched", not "matched to exactly one", so a
         // silent pick here is honest.
         const prev = out[r.suggested_topup_id];
-        if (prev && prev.receivedAt >= r.created_at) continue;
+        const seen = (prev?.count ?? 0) + 1;
+        if (prev && prev.receivedAt >= r.created_at) {
+          prev.count = seen;
+          continue;
+        }
         out[r.suggested_topup_id] = {
+          count: seen,
           topupId: r.suggested_topup_id,
           amountCents: Math.round(Number(r.amount_cents ?? 0)),
           currency: String(r.currency ?? ""),

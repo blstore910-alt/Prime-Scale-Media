@@ -492,8 +492,15 @@ export async function rematchWiseDeposits(): Promise<
     };
     if (d.tenant_id !== null && d.tenant_id !== profile.tenant_id) continue;
     // Still suggested after the pass above means its top-up IS pending —
-    // there is nothing to re-decide.
-    if (d.status === "suggested") continue;
+    // there is nothing to re-decide. But its top-up is SPOKEN FOR: without
+    // claiming it here, a later row in this same sweep could be matched to
+    // it as well, and one top-up cannot settle two deposits.
+    if (d.status === "suggested") {
+      const spokenFor = (row as { suggested_topup_id?: string | null })
+        .suggested_topup_id;
+      if (spokenFor) claimed.add(spokenFor);
+      continue;
+    }
 
     const iban = normalizeIban(d.sender_iban);
     const candidates = (pending as PendingTopup[]).filter(

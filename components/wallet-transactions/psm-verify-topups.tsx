@@ -105,6 +105,26 @@ function MatchedStrip({
       deposit.reference && norm(deposit.reference) !== norm(ownReference)
         ? deposit.reference
         : null;
+    // MORE THAN ONE PAYMENT ANSWERS THIS CLAIM. Only one of them can be
+    // credited, so the others are real money sitting in the bank that no
+    // screen accounts for. This is the only place that can notice.
+    if (deposit.count > 1) {
+      return (
+        <div className="tupmatch bad">
+          <X />
+          <div>
+            <b>
+              {deposit.count} bank deposits match this one claim
+            </b>
+            <div>
+              Only one can be credited. Check the bank before you verify —
+              the others are real payments that nothing here will settle.
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="tupmatch ok">
         <Check />
