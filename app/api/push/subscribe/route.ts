@@ -104,3 +104,56 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * Hand a device back.
+ *
+ * THERE WAS NO UNSUBSCRIBE PATH AT ALL. Signing out cleared the session
+ * and the profile_id cookie and left the push_subscriptions row alone —
+ * the only delete in the codebase is the one that reaps endpoints the
+ * push service reports as 404/410. So the next person to sign in on that
+ * browser kept receiving the previous user's notifications: "Your topup
+ * has been completed", and for an admin "Supplier balance is low" and
+ * "Suspicious activity".
+ *
+ * Worse, it compounded: the manager reads
+ * pushManager.getSubscription(), sees the PREVIOUS user's live
+ * subscription, takes the "already subscribed" branch and never offers
+ * the prompt — so user B is never registered either, and silently
+ * receives nothing of their own.
+ *
+ * The J1-J8 walkthrough is five test users in one browser, so this was
+ * going to fire on the first pass.
+ *
+ * Scoped to the caller's own row by user_id AND endpoint. The RLS policy
+ * already permits a self-delete, so no migration is needed.
+ */
+export async function DELETE(req: Request) {
+  let body: PushSubscriptionBody;
+  try {
+    body = (await req.json()) as PushSubscriptionBody;
+  } catch {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const endpoint = (body.endpoint ?? "").trim();
+  if (!endpoint || endpoint.length > MAX_ENDPOINT || !isValidHttpsUrl(endpoint)) {
+    return NextResponse.json({ error: "Invalid endpoint" }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Called on the way OUT, so a session that has already gone is the
+  // ordinary case, not an error worth shouting about. Nothing to delete.
+  if (!user) return NextResponse.json({ ok: true });
+
+  await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("endpoint", endpoint);
+
+  return NextResponse.json({ ok: true });
+}

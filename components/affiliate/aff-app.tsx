@@ -1116,12 +1116,19 @@ export default function AffiliateApp() {
                       <Ic name="i-receipt" />
                     </span>
                     <div>
-                      <b>2. Invoice</b>
+                      {/* No invoice is created. There is no commission
+                          invoice type, no cron that raises one, and
+                          settlement is an admin marking the commission
+                          paid. The pill and the paragraph above were
+                          corrected; this list, sixty lines down, still
+                          described a process that does not exist. */}
+                      <b>2. We check it</b>
                       <div
                         className="d"
                         style={{ color: "var(--faint)", fontSize: ".84rem" }}
                       >
-                        An invoice is created for the PSM team.
+                        We confirm the balance and the payment details with
+                        you.
                       </div>
                     </div>
                   </div>
@@ -1137,7 +1144,8 @@ export default function AffiliateApp() {
                         className="d"
                         style={{ color: "var(--faint)", fontSize: ".84rem" }}
                       >
-                        We pay it to your account — within 7 days.
+                        We pay it to your account by hand. Nothing in the
+                        app moves it automatically.
                       </div>
                     </div>
                   </div>

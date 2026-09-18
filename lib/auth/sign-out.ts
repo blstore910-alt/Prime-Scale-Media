@@ -17,6 +17,48 @@ import { createClient } from "@/lib/supabase/client";
  * navigates away immediately after.
  */
 export async function signOutCompletely() {
+  // ── THE PUSH SUBSCRIPTION GOES FIRST ────────────────────────────────
+  //
+  // It has to happen while the session is still valid, because the
+  // delete is scoped to the caller's own user_id.
+  //
+  // Without it the row survived sign-out and the next person on that
+  // browser kept receiving the previous user's notifications — "Your
+  // topup has been completed", and for an admin "Supplier balance is
+  // low". It compounded too: the manager reads
+  // pushManager.getSubscription(), saw the previous user's live
+  // subscription, took the "already subscribed" branch and never offered
+  // the prompt, so the new person was never registered either.
+  //
+  // Best-effort in every direction. A browser that refuses to unsubscribe
+  // must not leave somebody stuck signed in.
+  try {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      const sub = await registration.pushManager.getSubscription();
+      if (sub) {
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {});
+        await sub.unsubscribe().catch(() => {});
+      }
+    }
+  } catch {
+    // No service worker, no permission, offline. Carry on signing out.
+  }
+  try {
+    // Per-browser, not per-user, and never cleared — so the next person
+    // never saw the opt-in either.
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("push-notification-dismissed");
+    }
+  } catch {
+    /* private mode, blocked storage */
+  }
+
   try {
     const supabase = createClient();
     await supabase.auth.signOut();

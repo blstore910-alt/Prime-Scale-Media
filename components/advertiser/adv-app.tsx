@@ -1116,7 +1116,13 @@ export default function AdvertiserApp() {
             perks:
               plan?.features.length
                 ? plan.features
-                : ["Support 7 days a week", "Cancel monthly"],
+                : // NOT "Cancel monthly". There is no cancellation
+                  // control anywhere in the customer app — every
+                  // subscription status change, `cancelled` included, is
+                  // behind requireAdminCtx. Printing it as a perk inside
+                  // the pay-now confirmation promises something the
+                  // customer cannot do and has to email us for.
+                  ["Support 7 days a week", "No long-term contract"],
           }
         : undefined,
       title: isPlan ? "Renew your plan?" : "Pay this from your wallet?",
@@ -2072,7 +2078,15 @@ export default function AdvertiserApp() {
                       <div className="l3">
                         <span className="badge pend">Verifying</span>
                         <span className="l3t">
-                          We credit it as soon as we see it land.
+                          {/* Nothing watches. The Wise adapter answers
+                              "not implemented yet" for every live call
+                              and the deposit feed is off on production,
+                              so the only crediting path is an admin
+                              checking the bank by hand. "As soon as we
+                              see it land" makes a customer wait instead
+                              of chasing. */}
+                          We check the bank and credit it by hand, usually
+                          the same working day.
                         </span>
                       </div>
                     </div>
@@ -2457,7 +2471,18 @@ export default function AdvertiserApp() {
                       settles against the invoice it affects, so pointing a
                       customer at a manual override invites exactly the
                       off-ledger change this product is built to avoid. */}
-                  Plan changes take effect from your next billing cycle.
+                  {/* They do not. An increase raises a pro-rata
+                      subscription_adjustment invoice immediately, due in
+                      seven days, which the daily auto-debit then takes
+                      from the wallet; an unpaid current invoice is voided
+                      and reissued at the new amount for the SAME period.
+                      Telling somebody the money moves next month, on the
+                      screen where they ask for the change, is the one
+                      sentence that decides whether they keep enough in
+                      the wallet. */}
+                  A change is charged pro-rata straight away, not next
+                  month. Ask us and we will tell you the exact figure
+                  first.
                 </div>
               </div>
               <div className="card">

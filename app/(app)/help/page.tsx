@@ -24,7 +24,11 @@ export default function Help() {
           <HelpCard
             icon={Wallet}
             title="How do I top up my wallet?"
-            body="Go to Wallet → Add Balance. Choose currency and account group, transfer the exact reference number, then submit the amount. An admin reviews within one business day."
+            // "within one business day" is a service level nothing
+            // measures, alerts on or escalates — there is no timer on the
+            // verify queue anywhere in the app. Saying what we do instead
+            // of what we guarantee costs nothing and is true.
+            body="Go to Wallet → Add Balance. Choose currency and account group, transfer using the exact reference shown, then submit the amount. We check it against the bank and credit it by hand — message us if it has not appeared."
           />
           <HelpCard
             icon={ShieldCheck}

@@ -126,12 +126,34 @@ function InstructionItem({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
+  // ── DO NOT SAY "COPIED" WITHOUT CHECKING ───────────────────────────
+  //
+  // writeText returns a promise and it rejects routinely - mobile Safari
+  // outside a user gesture, an unfocused document, a PWA, an insecure
+  // context, a denied permission. This neither awaited it nor caught it,
+  // so the tick and the toast fired unconditionally.
+  //
+  // These are the beneficiary name, the IBAN, the account number and the
+  // SWIFT for a real bank transfer. Being told an IBAN copied when it did
+  // not means pasting whatever was on the clipboard before into a
+  // payment.
+  //
+  // The correct pattern is in the same flow, on the reference copy in
+  // wallet-topup-dialog, and says the same thing in its own comment.
+  const handleCopy = async () => {
     const cleanValue = value.split("\n(")[0];
-    navigator.clipboard.writeText(cleanValue);
-    setCopied(true);
-    toast.success(label + " Copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(cleanValue);
+      setCopied(true);
+      toast.success(label + " copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error(
+        "Couldn't copy - select the " +
+          label.toLowerCase() +
+          " and copy it by hand.",
+      );
+    }
   };
 
   return (
