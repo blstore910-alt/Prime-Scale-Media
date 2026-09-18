@@ -59,3 +59,22 @@ The client-side changes that call these RPCs land in the same commit
 that adds the migration files. Deploy the SQL BEFORE deploying the
 new frontend, or the affected UI flows will fail closed with
 "function does not exist".
+
+## ⚠️ Niet alles staat in deze map
+
+Een aantal fixes is alleen als los bestand in `supabase/checks/`
+geschreven en nooit een genummerde migratie geworden — dus wie "plak de
+migraties" doet, slaat ze over. Ze zijn allemaal gebundeld in:
+
+    supabase/checks/ALLES-IN-1.sql
+
+Veilig om twee keer te draaien. Daarin zitten onder meer: row-level
+security op `logs` en `wallet_exchanges` (die hadden nergens een policy),
+`security_invoker` op de drie views die anders als eigenaar draaien,
+het intrekken van `rate_limit_check` bij `anon`, en het versmallen van
+`get_invite_by_token`. Zolang die niet gedraaid is, is de database niet
+in de staat die deze map beschrijft.
+
+Daarnaast, alleen bij een incident en nooit zomaar:
+`supabase/checks/FREEZE-MONEY.sql` en `UNFREEZE-MONEY.sql` — zie
+`docs/RUNBOOK.md`.
