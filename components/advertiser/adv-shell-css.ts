@@ -132,8 +132,14 @@ export const ADV_CSS = `
   .hero-w .v{font-family:var(--hd);font-weight:800;letter-spacing:-.02em;
     font-size:clamp(1.15rem,5.4vw,1.5rem);font-variant-numeric:tabular-nums;
     overflow-wrap:anywhere}
-  .hero-a{display:flex;gap:8px;margin-top:15px;flex-wrap:wrap}
-  .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1 1 auto;
+  /* A GRID, not a wrapping flex row. At 375px the three labels plus their
+     icons need ~346px and the hero gives 299, so Top up and Exchange took
+     row one at half width each and "Ad accounts" sat alone underneath —
+     on the first screen a customer sees. Three equal tracks that are
+     allowed to shrink fit; below 420px the icons step aside rather than
+     the layout breaking. */
+  .hero-a{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:15px}
+  .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:0;
     border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.88rem;
     border-radius:12px;padding:11px 14px;color:#fff;
     background:linear-gradient(118deg,#4f83ff,#6d63ff 52%,#9a6bff);
@@ -143,7 +149,11 @@ export const ADV_CSS = `
   .hero-btn:disabled{opacity:.55;cursor:default;transform:none;filter:none}
   .hero-btn.gh{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);box-shadow:none}
   .hero-btn.gh:hover{background:rgba(255,255,255,.16)}
-  .hero-btn svg{width:16px;height:16px}
+  .hero-btn svg{width:16px;height:16px;flex:0 0 auto}
+  @media(max-width:420px){
+    .hero-btn{padding:11px 6px;font-size:.82rem;gap:5px}
+    .hero-btn svg{display:none}
+  }
   /* A block the size of the number that is coming, not the number zero.
      The dashboard used to render €0 / $0 the instant it mounted and swap in
      the real balances a moment later — which is a flicker, and for that
@@ -491,6 +501,13 @@ export const ADV_CSS = `
   .duerow .ai svg{width:16px;height:16px}
   .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--txt-2);line-height:1.3;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Let THIS one wrap. The row is otherwise a single line by design,
+     but the company-details message is 55 characters in about 198px,
+     so it read "Add your company details to t..." beside a button
+     labelled "Add" — the only sentence telling a new customer why Top
+     up and Exchange do nothing, cut off before it says anything. */
+  .duerow.msg{align-items:flex-start}
+  .duerow.msg .dtx{white-space:normal;line-height:1.35}
   .duerow .dtx b{font-weight:800;color:var(--ink)}
   /* Brand, not amber. The marker down the left edge already says "note", so
      the button does not have to say it again — and an orange pill was the
@@ -569,7 +586,10 @@ export const ADV_CSS = `
     .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
     .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
     .bb svg{width:22px;height:22px}.bb.on{color:var(--primary-600)}.bb.on .bbic{background:var(--primary-tint)}
-    .content{padding:20px 16px 92px}
+    /* The bar is 68px plus the notch inset, which is 34px once Safari
+       collapses its toolbar — so 92px of padding left about ten
+       pixels of the last row under it. */
+    .content{padding:20px 16px calc(84px + env(safe-area-inset-bottom))}
   }
 
   /* Topbar account menu (anchored to the avatar) */
@@ -609,7 +629,9 @@ export const ADV_CSS = `
        tokens actually live. */
     .tbl.wide td{display:grid;grid-template-columns:minmax(88px,auto) 1fr;align-items:baseline;gap:3px 16px;padding:5px 0;border:0;text-align:right;min-width:0}
     .tbl.wide td>*{overflow-wrap:anywhere}
-    .tbl.wide td::before{content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
+    .tbl.wide td::before{/* 11.5px at 6.4:1, not 10.6px at 3.35:1 — this is
+      the word that says whether a figure is AMOUNT, BALANCE or FEE, and on
+      a phone the numbers were legible while their labels were not. */content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--txt-2);font-weight:700}
     .tbl.wide td>*{grid-column:2;min-width:0}
     .tbl.wide td>span{justify-self:end}
     /* The first cell is the card's TITLE, not another labelled field. Every
@@ -623,9 +645,19 @@ export const ADV_CSS = `
        one rule above it. A small button floating at the right edge of a card
        is hard to hit and reads as an afterthought. */
     .tbl.wide tr td:last-child:empty{display:none}
-    .tbl.wide tr td:last-child:not(:first-child){padding:11px 0 0;margin-top:6px;border-top:1px solid var(--line)}
-    .tbl.wide tr td:last-child:not(:first-child)::before{display:none}
-    .tbl.wide tr td:last-child:not(:first-child)>*{grid-column:1 / -1}
+    /* ONLY WHEN IT REALLY HOLDS ACTIONS.
+       These three assumed the last cell is always a row of buttons, and
+       on the referrals table it is the COMMISSION — so the card printed a
+       bare green amount under a rule with no label at all, and the value
+       (a text node, not an element) auto-placed into the narrow LABEL
+       column and sat on the left, where a label belongs. :has() makes the
+       test what it was always meant to be. */
+    .tbl.wide tr td:last-child:not(:first-child):has(button),
+    .tbl.wide tr td:last-child:not(:first-child):has(a.btn){padding:11px 0 0;margin-top:6px;border-top:1px solid var(--line)}
+    .tbl.wide tr td:last-child:not(:first-child):has(button)::before,
+    .tbl.wide tr td:last-child:not(:first-child):has(a.btn)::before{display:none}
+    .tbl.wide tr td:last-child:not(:first-child):has(button)>*,
+    .tbl.wide tr td:last-child:not(:first-child):has(a.btn)>*{grid-column:1 / -1}
     .tbl.wide tr td:last-child .btn{width:100%;justify-content:center}
     /* TWO buttons in an action cell. The rule above makes a lone button
        full width, which is right — but it also hit both buttons of a pair,
@@ -639,6 +671,22 @@ export const ADV_CSS = `
      "we are looking", and a static amber pill does not say that.
      The bar is decorative and indeterminate ON PURPOSE. A percentage
      would be a lie: nothing here knows how far along a bank transfer is. */
+
+  /* THREE BUTTONS NOW, NOT TWO. The invoice row gained View beside
+     Download, and these were flex:1 1 0 with nowrap labels and nothing to
+     clip them: a third button pushed the row past its track instead of
+     shrinking inside it. This shell is .advapp, so none of the admin
+     shell's action-row rules reach it — it needs its own.
+
+     Equal columns, and the LABEL is what gives way, not the row. */
+  .tbl.wide tr td:last-child .actrow{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+    gap:8px;align-items:center
+  }
+  /* MOVED OUT OF THE 640px BLOCK. These rules lived inside it, so the
+     "your money is on its way" card — the one that tells a customer
+     their transfer has been received and is being checked — rendered
+     with no card, no amber and no progress bar on every desktop. */
   .ptup{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
     padding:13px 14px;border-radius:15px;border:1px solid #f3e3c2;
     background:linear-gradient(180deg,#fffdf8,#fff8ea);margin-top:12px}
@@ -670,18 +718,13 @@ export const ADV_CSS = `
     .ptup .bar i{width:100%;animation:none;opacity:.5}
     .ptup .ico{animation:none}
   }
-
-  /* THREE BUTTONS NOW, NOT TWO. The invoice row gained View beside
-     Download, and these were flex:1 1 0 with nowrap labels and nothing to
-     clip them: a third button pushed the row past its track instead of
-     shrinking inside it. This shell is .advapp, so none of the admin
-     shell's action-row rules reach it — it needs its own.
-
-     Equal columns, and the LABEL is what gives way, not the row. */
-  .tbl.wide tr td:last-child .actrow{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
-    gap:8px;align-items:center
-  }
+    /* THREE fit, if they are told to. auto-fit with a 96px minimum
+       resolves to two tracks in a 299px cell (375px phone), so Pay now
+       / View / Download came out 2 + 1 — and only at 375px, which is
+       why it read as intermittent. Same rule the admin shell already
+       uses. */
+    .tbl.wide tr td:last-child .actrow:has(> :nth-child(3)){grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .tbl.wide tr td:last-child .actrow:has(> :nth-child(3)) .btn{padding:7px 6px;font-size:.72rem}
     .tbl.wide tr td:last-child .actrow .btn{
       width:100%;min-width:0;justify-content:center;padding:7px 8px;
       font-size:.8rem;gap:5px

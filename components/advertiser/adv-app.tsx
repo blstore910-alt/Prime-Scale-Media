@@ -1362,10 +1362,14 @@ export default function AdvertiserApp() {
               /* The app no longer blocks the door with this form, so it has
                  to say plainly why the buttons are quiet — otherwise "you can
                  look but nothing works" is just a broken app. */
-              <div className="duerow">
+              <div className="duerow msg">
                 <span className="ai">
                   <Ic name="i-building" />
                 </span>
+                {/* .msg: this row carries a sentence, not a figure, and at
+                    375px the nowrap the row is otherwise built on cut it
+                    to "Add your company details to t…" beside a button
+                    reading "Add". */}
                 <span className="dtx">
                   Add your company details to top up or request an account
                 </span>

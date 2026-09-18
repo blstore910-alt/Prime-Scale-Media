@@ -176,8 +176,12 @@ const MATCH_CSS = `
 .tupmatch b{display:block;font-size:.83rem;font-weight:700}
 .tupmatch div div{color:var(--txt-2);margin-top:1px;overflow:hidden;
   text-overflow:ellipsis}
-.tupmatch.ok{background:var(--win-soft);color:var(--win)}
-.tupmatch.warn{background:var(--warn-soft);color:var(--warn)}
+/* #0e8f66 and #8a5a00, not the fill colours: this strip said whether
+   a bank deposit actually matched, at 2.2:1 on its own tint — a pale
+   smear on a phone, on the sentence that stops an admin crediting a
+   wallet against nothing. The badges beside it already use these. */
+.tupmatch.ok{background:var(--win-soft);color:#0e8f66}
+.tupmatch.warn{background:var(--warn-soft);color:#8a5a00}
 .tupmatch.bad{background:var(--danger-soft);color:var(--danger)}
 .tupmatch.idle{background:var(--panel-2);color:var(--txt-2)}
 .tupref{font-family:var(--mono,ui-monospace,monospace);font-weight:700;

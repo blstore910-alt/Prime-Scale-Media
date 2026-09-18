@@ -349,7 +349,10 @@ export const AFF_CSS = `
     .bb svg{width:22px;height:22px}
     .bb.on{color:var(--primary-600)}.bb.on .bbic{background:var(--primary-tint)}
     .bb:active .bbic{transform:scale(.92)}
-    .content{padding:20px 16px 92px}
+    /* The bar is 68px plus the notch inset, which is 34px once Safari
+       collapses its toolbar — so 92px of padding left about ten
+       pixels of the last row under it. */
+    .content{padding:20px 16px calc(84px + env(safe-area-inset-bottom))}
     .tb-title{display:none}.tb-brand .mark{display:grid}.topbar{gap:9px;padding:10px 14px}.tier{padding:7px 10px}
     .avgrid{grid-template-columns:repeat(5,1fr)}.frow{grid-template-columns:1fr}
     .filterbar{gap:8px}

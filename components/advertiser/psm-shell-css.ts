@@ -274,9 +274,28 @@ export const PSM_APP_CSS = `
 @keyframes fpop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
 .psmapp .flab{font-size:.63rem;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-top:6px}
 .psmapp .flab:first-child{margin-top:0}
-.psmapp .fpanel select{width:100%;font-family:var(--bd);font-weight:600;font-size:.86rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;padding-right:34px;background:var(--panel);color:var(--ink);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:15px;transition:border-color .14s,color .14s}
+.psmapp .fpanel select{/* 16px below 640: iOS zooms a page on focus of
+  anything smaller and never zooms back, and this sheet is the only way to
+  filter a list on a phone. The (0,1,1) guard further down loses to this
+  (0,2,1) rule, so the size is set here. */width:100%;font-family:var(--bd);font-weight:600;font-size:.86rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;padding-right:34px;background:var(--panel);color:var(--ink);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:15px;transition:border-color .14s,color .14s}
 .psmapp .fpanel select:hover{border-color:var(--primary);color:var(--primary-600)}
 .psmapp .fpanel select:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
+/* ── iOS ZOOMS, AND DOES NOT ZOOM BACK ──────────────────────────────────
+   Safari zooms the whole page when a text control smaller than 16px takes
+   focus, and never restores it — the list is then scrolled sideways and
+   the operator has to pinch out by hand. The general .psmapp guard is
+   (0,1,1) and loses to the (0,2,1) rules that set these, so the exception
+   is stated here at a specificity that wins.
+   .fpanel is the filter sheet: on a phone it is the ONLY way to narrow a
+   list. .feeedit is the inline fee editor, which is autoFocused — so the
+   page zoomed the instant the cell was tapped, before a digit was typed;
+   it also gets the width a three-figure percentage needs. */
+@media (max-width:640px){
+  .psmapp .fpanel select,
+  .psmapp .fpanel-date,
+  .psmapp .feeedit input{font-size:16px}
+  .psmapp .feeedit input{width:78px}
+}
 .psmapp .fpanel-foot{display:flex;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
 .psmapp .fpanel-foot .btn{flex:1;justify-content:center}
 /* Non-select controls inside the panel (a date, a range) match the selects
@@ -318,7 +337,7 @@ export const PSM_APP_CSS = `
   .psmapp .bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--faint);font-size:.6rem;font-weight:700;padding:4px 2px;cursor:pointer;transition:.14s}
   .psmapp .bbic{width:46px;height:28px;border-radius:99px;display:grid;place-items:center;position:relative;transition:.16s}
   .psmapp .bb svg{width:22px;height:22px}.psmapp .bb.on{color:var(--primary-600)}.psmapp .bb.on .bbic{background:var(--primary-tint)}
-  .psmapp .content{padding:16px 16px 92px}
+  .psmapp .content{padding:16px 16px calc(84px + env(safe-area-inset-bottom))}
   /* The views set gap:16 inline on their flex column. On a phone that is a
      line of nothing between every block, and with the filter bar's own
      margin on top of it there was 26px between the bar and the first card.
@@ -349,7 +368,7 @@ export const PSM_APP_CSS = `
   }
   .psmapp .tbl.wide td::before{
     content:attr(data-label);grid-column:1;grid-row:1;justify-self:start;text-align:left;
-    font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700
+    font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--txt-2);font-weight:700
   }
   /* The first cell is the card's TITLE, not another labelled field. Every
      one of these lists leads with the thing the row IS — a client code, an

@@ -129,6 +129,14 @@ const SHEET_CSS = `
 .udsheet .uds-err svg{width:20px;height:20px;color:var(--danger);flex:0 0 auto}
 .udsheet .uds-state{display:grid;place-items:center;min-height:220px}
 @keyframes uds-spin{to{transform:rotate(360deg)}}
+
+/* The same iOS rule the shell has. This sheet is a portal OUTSIDE
+   .psmapp and re-declares the styles it needs, and this one was missed —
+   so changing a user's role or writing an admin note zoomed the page
+   every time, on a drawer opened from two different screens. */
+@media (max-width:640px){
+  .udsheet input,.udsheet select,.udsheet textarea{font-size:16px}
+}
 `;
 
 function initials(name?: string | null) {
