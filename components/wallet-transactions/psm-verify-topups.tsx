@@ -19,6 +19,7 @@ import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import { CommunityPill } from "@/components/community/community-pill";
 import TablePagination from "../ui/table-pagination";
+import { formatPaymentReference } from "@/lib/payment-reference";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -297,8 +298,21 @@ export default function PsmVerifyTopups({
                   }}
                 >
                   <span style={{ color: "var(--faint)" }}>Reference</span>
+                  {/* THE SAME STRING THE CUSTOMER WAS GIVEN. This printed the
+                      bare reference while the customer was told to write
+                      <client code>-<reference>, and the bank deposit beside
+                      it now shows what they actually wrote. An admin
+                      matching by eye was comparing two different strings and
+                      had to know that the prefix was ours. */}
                   <span className="mono" style={{ fontWeight: 600 }}>
-                    {t.reference_no ?? "—"}
+                    {formatPaymentReference(
+                      (
+                        t.advertiser as
+                          | { tenant_client_code?: string }
+                          | undefined
+                      )?.tenant_client_code,
+                      t.reference_no,
+                    ) || "—"}
                   </span>
                 </div>
                 <div className="actrow tupacts">
