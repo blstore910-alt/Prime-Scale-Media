@@ -50,7 +50,10 @@ export default function RockadsPanel() {
   });
 
   return (
-    <div className="psmview" style={{ display: "grid", gap: 14 }}>
+    <div
+      className="psmview rkwrap"
+      style={{ display: "grid", gap: 14, minWidth: 0 }}
+    >
       <style>{CSS}</style>
 
       <div className="phead">
@@ -184,9 +187,11 @@ export default function RockadsPanel() {
             <h3 style={{ margin: "0 0 4px", fontSize: ".95rem" }}>
               Their ad accounts
             </h3>
-            <p className="muted" style={{ margin: "0 0 8px", fontSize: ".8rem" }}>
-              The commission column is what we pay them. Admins only — it
-              never appears on a customer&apos;s screen.
+            <p
+              className="muted"
+              style={{ margin: "0 0 8px", fontSize: ".8rem", lineHeight: 1.45 }}
+            >
+              What each one costs us. Admins only.
             </p>
             {accounts.isLoading ? (
               <p className="muted" style={{ margin: 0 }}>
@@ -241,21 +246,34 @@ export default function RockadsPanel() {
 }
 
 const CSS = `
-.rkt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+/* NOTHING HERE MAY BE WIDER THAN ITS PHONE. Three fixed columns could not
+   shrink, so the third tile sat off the right edge and every line beside
+   it ran past the screen. auto-fit means three across on a laptop and two
+   on a phone, and every box is allowed to be narrower than its contents so
+   the TEXT gives way instead of the layout. */
+.rkwrap{min-width:0;overflow-x:hidden}
+.rkt{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));
+  gap:8px;min-width:0}
 .rk{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-  padding:9px 11px;min-width:0}
+  padding:9px 11px;min-width:0;overflow:hidden}
 .rk b{display:block;font-family:var(--hd);font-size:1.05rem;font-weight:800;
   letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap}
-.rk span{display:block;font-size:.64rem;color:var(--txt-2);
-  text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-top:2px}
-.rkrows{display:flex;flex-direction:column;gap:6px}
+.rk span{display:block;font-size:.62rem;color:var(--txt-2);
+  text-transform:uppercase;letter-spacing:.05em;font-weight:800;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rkrows{display:flex;flex-direction:column;gap:6px;min-width:0}
 .rkrow{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:8px 0;border-top:1px solid var(--line)}
+  padding:8px 0;border-top:1px solid var(--line);min-width:0}
 .rkrow:first-child{border-top:0}
+.rkrow > div{min-width:0}
 .rkrow b{font-size:.9rem;font-weight:650;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;display:block}
-.rkrow .mono{font-weight:700;white-space:nowrap}
+/* The second line under a name is the one that ran off: a long account
+   name plus a platform plus a status plus a percentage. It clips. */
+.rkrow .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rkrow .mono{font-weight:700;white-space:nowrap;flex:0 0 auto}
+.rkhead p{overflow-wrap:anywhere}
 .rkenv{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:4px;
   font-size:.82rem}
 .rkenv li{display:flex;align-items:center;gap:7px}
