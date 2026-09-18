@@ -467,8 +467,26 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)){
     grid-template-columns:repeat(3,minmax(0,1fr));gap:6px
   }
+  /* FOUR: three named, and the last one as its glyph alone.
+     Four equal quarters is 80px each, which leaves 44px for a word and
+     "Commission" needs 55 — so an earlier pass turned every glyph up over
+     its label to buy the width. That works and looks like a toolbar.
+     Giving the LAST control its icon alone buys the same width more
+     cheaply: 38px for it, and 94px each for the other three, which is 62px
+     of label — enough. One unnamed glyph instead of four, and the row
+     keeps the plain shape the three-button rows have.
+     The trade is real: on these cards the last control is Deactivate, and
+     it is the one an unnamed icon suits least. It keeps its title, and it
+     is set apart at the end of the row rather than sitting in a line of
+     identical boxes. */
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)){
-    grid-template-columns:repeat(4,minmax(0,1fr));gap:5px
+    grid-template-columns:1fr 1fr 1fr auto;gap:6px
+  }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4) .alab{
+    display:none
+  }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4){
+    padding:9px 11px
   }
   /* THREE fit beside their icons; FOUR do not. At 400px a third of the
      card is about 105px — icon, gap and padding take 36 of it and leave 69
@@ -481,17 +499,16 @@ export const PSM_APP_CSS = `
     gap:6px;padding:9px 6px;font-size:.72rem;letter-spacing:-.01em
   }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
-    flex-direction:column;gap:3px;padding:9px 3px;font-size:.64rem;
-    line-height:1.15;letter-spacing:-.01em;text-align:center;height:auto
+    gap:5px;padding:9px 4px;font-size:.7rem;letter-spacing:-.015em
   }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg{
     width:14px;height:14px
   }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn svg{
-    width:16px;height:16px
+    width:14px;height:14px
   }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .alab{
-    max-width:100%;white-space:normal;overflow-wrap:anywhere
+    max-width:100%;overflow:hidden;text-overflow:ellipsis
   }
   .psmapp .tbl.wide td.fullcell .actrow .btn{
     width:100%;min-width:0;justify-content:center;padding:8px 10px
