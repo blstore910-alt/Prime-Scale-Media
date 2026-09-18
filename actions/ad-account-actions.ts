@@ -445,6 +445,17 @@ export async function createAdAccountFromRequest(
   if (req.status === "completed") {
     return { ok: false, error: "Request already completed" };
   }
+  // A rejected request is not a request any more. Without this, admin B
+  // rejecting while admin A has the review dialog open did not stop A from
+  // creating the account — the customer then held a rejection AND an
+  // account, and the 50 euro fee was returned in neither case.
+  if (req.status === "rejected") {
+    return {
+      ok: false,
+      error:
+        "Somebody rejected this request while you had it open. Set it back to pending first if it should go ahead.",
+    };
+  }
 
   // Force the correct advertiser_id from the request row.
   const created = await createAdAccountAsAdmin({
@@ -453,11 +464,19 @@ export async function createAdAccountFromRequest(
   });
   if (!created.ok) return created;
 
+  // CLAIM IT. The status predicate is the whole guard: two admins who both
+  // read `pending` both got here, both created an account and both marked
+  // the request completed — one request, two ad accounts, two ok:true.
+  // Its siblings rejectAdAccountRequest and setAdAccountRequestStatus both
+  // take ifUpdatedAt; this one was missed, and a row-version check would
+  // not have been enough anyway — the second write has to fail because the
+  // row is no longer claimable, not because it changed.
   const { data: reqRows, error: reqError } = await supabase
     .from("ad_account_requests")
     .update({ status: "completed", rejection_reason: null })
     .eq("id", requestId)
     .eq("tenant_id", profile.tenant_id)
+    .neq("status", "completed")
     .select("id");
 
   // The same rollback for a write that MATCHED NOTHING as for one that

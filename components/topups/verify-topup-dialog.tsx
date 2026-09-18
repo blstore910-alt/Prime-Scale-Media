@@ -123,18 +123,32 @@ function VerifyTopupInvoice({
     netAmount: 0,
   });
 
+  // THE FEE IS TAKEN OFF THE DOLLAR FIGURE, NOT THE ONE THE CUSTOMER PAID.
+  //
+  // This computed both from amount_received — the amount in the currency
+  // the customer transferred — and printed both in that currency. The
+  // server does something different: calculateTopupAmount converts to USD
+  // first and takes the fee off there, because an ad-account balance is
+  // USD. So a €1,000 top-up at 0.86 showed "Fee €20.00 / Net Credit
+  // €980.00" while $1,139.53 gross was in play and $23.26 came off — about
+  // 16% out, on the screen where an admin edits the fee and releases the
+  // money.
+  //
+  // The gross USD needs no exchange rate to recover: the stored
+  // topup_amount is the net and fee_amount is the fee, both USD, so their
+  // sum is the gross. Editing the percentage then re-splits that exact
+  // figure, which is what the server will do too.
+  const grossUsd =
+    Number(topup.topup_amount ?? 0) + Number(topup.fee_amount ?? 0);
+
   useEffect(() => {
-    const amount = Number(topup.amount_received);
     const feeParam = Number(feePercentage);
-
-    const feeVal = (amount * feeParam) / 100;
-    const netVal = amount - feeVal;
-
+    const feeVal = (grossUsd * feeParam) / 100;
     setCalculatedValues({
       feeAmount: feeVal,
-      netAmount: netVal,
+      netAmount: grossUsd - feeVal,
     });
-  }, [feePercentage, topup.amount_received]);
+  }, [feePercentage, grossUsd]);
 
   const { mutate: verifyTopup, isPending } = useMutation({
     mutationKey: ["verify-topup"],
@@ -267,7 +281,7 @@ function VerifyTopupInvoice({
               {feePercentage}%
             </div>
             <div className="col-span-4 text-right text-destructive">
-              - {formatCurrency(calculatedValues.feeAmount, topup.currency)}
+              - {formatCurrency(calculatedValues.feeAmount, "USD")}
             </div>
 
             <Separator className="col-span-12 my-2" />
@@ -275,7 +289,12 @@ function VerifyTopupInvoice({
             {/* Total */}
             <div className="col-span-6 text-base font-bold">Net Credit</div>
             <div className="col-span-6 text-right text-base font-bold text-primary">
-              {formatCurrency(calculatedValues.netAmount, topup.currency)}
+              {formatCurrency(calculatedValues.netAmount, "USD")}
+            </div>
+            {/* Says which currency is which, because two are on screen. */}
+            <div className="col-span-12 mt-1 text-right text-xs text-muted-foreground">
+              Paid {formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}
+              {" · "}the ad account is credited in USD
             </div>
           </div>
         </div>
