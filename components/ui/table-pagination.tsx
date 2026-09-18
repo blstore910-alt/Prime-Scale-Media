@@ -1,4 +1,7 @@
+"use client";
+
 import * as React from "react";
+import { useEffect, useState } from "react";
 import {
   Pagination,
   PaginationContent,
@@ -27,13 +30,37 @@ export default function TablePagination({
 }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / perPage));
 
+  // ── HOW MANY NUMBERS FIT, NOT HOW MANY WE CAN THINK OF ─────────────
+  //
+  // Seven consecutive page numbers plus two ellipses plus first, last,
+  // Previous and Next is thirteen controls — fine on a desktop table,
+  // and about twice the width a phone has. The row wraps now rather than
+  // spilling, but wrapping thirteen items onto three lines is not an
+  // improvement either.
+  //
+  // Three around the current page on a narrow screen, seven on a wide
+  // one. The first and last page, the ellipses and both arrows stay
+  // either way, so nothing becomes unreachable — the middle just gets
+  // shorter.
+  const [span, setSpan] = useState(7);
+  useEffect(() => {
+    const apply = () =>
+      setSpan(
+        typeof window !== "undefined" && window.innerWidth < 640 ? 3 : 7,
+      );
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
+
   const buildPages = () => {
     const pages: (number | -1 | -2)[] = [];
-    let start = Math.max(1, page - 3);
-    let end = Math.min(totalPages, page + 3);
-    if (end - start < 6) {
-      start = Math.max(1, Math.min(start, totalPages - 6));
-      end = Math.min(totalPages, start + 6);
+    const half = Math.floor(span / 2);
+    let start = Math.max(1, page - half);
+    let end = Math.min(totalPages, page + half);
+    if (end - start < span - 1) {
+      start = Math.max(1, Math.min(start, totalPages - (span - 1)));
+      end = Math.min(totalPages, start + (span - 1));
     }
 
     if (start > 1) pages.push(1);

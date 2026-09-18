@@ -8,6 +8,15 @@ const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
     aria-label="pagination"
+    // WRAPS RATHER THAN SPILLING OFF THE SCREEN.
+    //
+    // A middle page renders up to thirteen items — Previous, first, an
+    // ellipsis, seven numbers, an ellipsis, last, Next — which is about
+    // 660px in the ~330px an admin has on a phone. Centred and unwrapped,
+    // roughly half of that overflowed off each edge, so "Next" simply
+    // could not be tapped on page 5 of the audit log; the only fallback
+    // was scrolling the whole page sideways, which is the one gesture
+    // this app has deliberately engineered out everywhere else.
     className={cn("mx-auto flex w-full justify-center", className)}
     {...props}
   />
@@ -20,7 +29,10 @@ const PaginationContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ul
     ref={ref}
-    className={cn("flex flex-row items-center gap-1", className)}
+    className={cn(
+      "flex flex-row flex-wrap items-center justify-center gap-1",
+      className,
+    )}
     {...props}
   />
 ))
@@ -70,7 +82,9 @@ const PaginationPrevious = ({
     {...props}
   >
     <ChevronLeft className="h-4 w-4" />
-    <span>Previous</span>
+    {/* The word is dropped below sm: the arrow and the aria-label carry
+        it, and the two words were a quarter of the row's width. */}
+    <span className="hidden sm:inline">Previous</span>
   </PaginationLink>
 )
 PaginationPrevious.displayName = "PaginationPrevious"
@@ -85,7 +99,7 @@ const PaginationNext = ({
     className={cn("gap-1 pr-2.5", className)}
     {...props}
   >
-    <span>Next</span>
+    <span className="hidden sm:inline">Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
 )
