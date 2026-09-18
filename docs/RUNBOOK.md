@@ -303,6 +303,32 @@ met een duidelijke melding.
 2. Verify `/api/health` → `maintenance: false`.
 3. Banner verdwijnt binnen 30s.
 
+### ⚠️ MAINTENANCE_MODE stopt de RPCs NIET
+
+`maintenanceGuard()` is de eerste regel van elke mutation server action.
+De RPCs die de **browser rechtstreeks** aanroept gaan daar niet langs, en
+dat zijn er zestien die geld verplaatsen — `top_up_create_for_advertiser`,
+`wallet_exchange`, `invoice_pay_from_wallet`, `wallet_topup_admin_verify`,
+`top_up_admin_verify`, `wallet_admin_adjust` en de rest. Dus precies
+tijdens het incident waarin je writes wilt stoppen, lopen die door.
+
+Voor een echt slot, in deze volgorde:
+
+1. `MAINTENANCE_MODE=true` in Vercel — **eerst**, want de banner is de
+   uitleg.
+2. Plak `supabase/checks/FREEZE-MONEY.sql` in de SQL editor. Die haalt
+   EXECUTE weg bij `authenticated`/`anon` en **schrijft op wat hij
+   weghaalde** in `_money_freeze`. `service_role` blijft ongemoeid, dus
+   de cron en de server actions blijven werken en jij kunt het nog
+   rechtzetten.
+3. Terug: `supabase/checks/UNFREEZE-MONEY.sql` — die zet terug uit het
+   opschrijfboekje, niet uit een lijstje namen, zodat een functie die
+   bewust server-only was dat blijft. Daarna pas `MAINTENANCE_MODE` uit.
+
+De klant ziet in die periode een kale "permission denied for function…"
+toast. Dat is lelijk en het is voor een uur de juiste ruil — daarom staat
+de banner er eerst.
+
 ---
 
 ## Wie is er nu actief?
