@@ -288,12 +288,23 @@ export default function PsmAccountPool() {
         // future top-up, for ever, under "Ad account allocated to the
         // advertiser." The margin strip on the same dialog refuses to
         // compute in precisely that state.
+        // ...AND `?? undefined` PUT IT STRAIGHT BACK. When the customer
+        // has no advertiser_plans row, planFee is null, so a blank box
+        // sent `undefined` — and the server's fallback for undefined is
+        // `pool.fee_percentage`, which is OUR SUPPLIER COST. That is the
+        // exact outcome the comment above describes as fixed. The button
+        // below refuses a blank box when there is nothing to fall back
+        // on, so this never has to guess.
         fee:
-          feeInput.trim() === ""
-            ? planFee ?? undefined
-            : Number(feeInput),
+          feeInput.trim() === "" ? (planFee ?? undefined) : Number(feeInput),
+        // `undefined`, not null, for a blank box. The server falls back
+        // to the supplier's own reported figure only on undefined, and
+        // reads an explicit null as "not recorded" — so sending null for
+        // every blank box left ad_account_costs.supplier_fee_pct empty on
+        // EVERY pool allocation, and both margin strips then print
+        // "margin unknown" across the whole pool-sourced estate.
         supplierFeePct:
-          supplierFeeInput.trim() === "" ? null : Number(supplierFeeInput),
+          supplierFeeInput.trim() === "" ? undefined : Number(supplierFeeInput),
         name: nameInput.trim() || undefined,
       });
       if (!res.ok) throw new Error(res.error);
@@ -1029,10 +1040,24 @@ export default function PsmAccountPool() {
           <button
             className="btn block grad"
             style={{ marginTop: 14 }}
+            /* The hint under the box says "Their plan rate: 5%" and
+               invites you to leave it blank — and then this disabled the
+               button anyway, because it only considered the POOL's fee
+               as a fallback and not the plan's. The server accepts
+               either. Now the two agree, and what it actually refuses is
+               the one case where there is nothing to fall back on: no
+               typed fee, no plan rate. (It no longer accepts the pool's
+               own figure as a fallback, because that figure is what we
+               PAY.) */
             disabled={
               assign.isPending ||
               !advertiserId ||
-              (assigning.fee_percentage == null && feeInput.trim() === "")
+              (feeInput.trim() === "" && planFee == null)
+            }
+            title={
+              feeInput.trim() === "" && planFee == null
+                ? "This customer has no plan rate, so type the fee to charge them on top-ups."
+                : undefined
             }
             onClick={() => assign.mutate()}
           >

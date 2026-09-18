@@ -72,7 +72,27 @@ export async function POST(request: NextRequest) {
     }
 
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    // ── ONE ADDRESS, AND IT HAS TO LOOK LIKE ONE ──────────────────────
+    //
+    // This accepted any string. Paste two comma-separated addresses and
+    // it becomes one send where each recipient sees the other in the To:
+    // header — and the address stored on the invitation is then that
+    // whole string, so the invite can never be redeemed by either of
+    // them: accept-invite compares the signed-in email to it. The
+    // sibling route validates with z.string().email(); this one did not.
+    const looksLikeOneAddress =
+      /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email) && email.length <= 254;
     const role = body.role;
+
+    if (email && !looksLikeOneAddress) {
+      return NextResponse.json(
+        {
+          error:
+            "That does not look like a single email address. Invite one person at a time.",
+        },
+        { status: 400 },
+      );
+    }
 
     if (!email || !role) {
       return NextResponse.json(
@@ -219,6 +239,14 @@ export async function POST(request: NextRequest) {
     const topup_fee_pct = isAdvertiser
       ? numOrNull(body.topup_fee_pct, 0, 100)
       : null;
+    // The currency the plan is priced in, resolved once so the stored row
+    // and the email agree. The insert below computes the same thing
+    // inline; this is that value, named.
+    const planCurrency =
+      isAdvertiser &&
+      String(body.plan_currency ?? "EUR").toUpperCase() === "USD"
+        ? "USD"
+        : "EUR";
 
     const payload = {
       email,
@@ -280,8 +308,14 @@ export async function POST(request: NextRequest) {
     const planLines: string[] = [];
     if (isAdvertiser) {
       if (monthly_fee != null) {
+        // WITH THE CURRENCY. This wrote "225.00 per month" with no
+        // symbol, on the email where somebody agrees to a price in
+        // writing — and the invitation stores plan_currency, so they can
+        // then be invoiced EUR 225 or USD 225 and the email supports
+        // either reading.
+        const cur = planCurrency;
         planLines.push(
-          `<strong>${Number(monthly_fee).toFixed(2)}</strong> per month`,
+          `<strong>${cur} ${Number(monthly_fee).toFixed(2)}</strong> per month`,
         );
       }
       if (included_ad_accounts != null) {

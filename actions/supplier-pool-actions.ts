@@ -243,7 +243,26 @@ export async function assignSupplierAdAccount(input: {
       code: "invalid",
     };
   }
-  const fee = input.fee != null ? Number(input.fee) : Number(pool.fee_percentage);
+  // ── OUR COST IS NOT THEIR FEE ───────────────────────────────────────
+  //
+  // This fell back to `pool.fee_percentage`, which is what WE PAY the
+  // supplier — so an allocation that arrived without a fee (the client
+  // sends nothing when the customer has no plan rate) wrote our own cost
+  // onto the ad account as the customer's rate. Every future top-up then
+  // charges exactly what it costs: zero margin, permanently, and only
+  // findable by comparing ad_accounts.fee against
+  // ad_account_costs.supplier_fee_pct.
+  //
+  // A fee we were not given is a refusal, not a default.
+  if (input.fee == null) {
+    return {
+      ok: false,
+      error:
+        "No fee was given for this allocation, and this customer has no plan rate to fall back on. Enter the fee to charge them on top-ups.",
+      code: "invalid",
+    };
+  }
+  const fee = Number(input.fee);
   if (!Number.isFinite(fee) || fee < 0 || fee > 100) {
     return { ok: false, error: "Fee must be between 0 and 100", code: "invalid" };
   }

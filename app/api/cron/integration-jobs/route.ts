@@ -234,10 +234,32 @@ async function checkRateLimitAbuse(
     .from("tenants")
     .select("id, owner_id");
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-  const summary = abused
+  // ── THE BUCKET KEY IS SOMEBODY'S IP OR SOMEBODY'S UUID ─────────────
+  //
+  // Keys are "<bucket>:ip:<address>" or "<bucket>:user:<uuid>", and
+  // rate_limit_buckets is GLOBAL, not tenant-scoped. This wrote the raw
+  // keys into a notification for EVERY tenant owner — so one tenant's
+  // owner receives the IP addresses and user ids of another tenant's
+  // customers, in a row that reaches their browser via select("*") and
+  // lands in their own GDPR export. Nothing renders it, which is exactly
+  // why it went unnoticed.
+  //
+  // What an owner actually needs is which KIND of endpoint is being hit
+  // and how hard. The identity belongs in the activity log, which is
+  // tenant-scoped and admin-only.
+  const summary = Object.entries(
+    abused.reduce<Record<string, { hits: number; worst: number }>>((acc, b) => {
+      const k = kind(b.key) || "unknown";
+      const cur = acc[k] ?? { hits: 0, worst: 0 };
+      cur.hits += 1;
+      cur.worst = Math.max(cur.worst, Number(b.count) || 0);
+      acc[k] = cur;
+      return acc;
+    }, {}),
+  )
     .slice(0, 5)
-    .map((b) => `${b.key} (${b.count})`)
-    .join(", ");
+    .map(([k, v]) => `${k}: ${v.hits} over the limit, worst ${v.worst}`)
+    .join(" · ");
 
   for (const t of (tenants ?? []) as Array<{
     id: string;
@@ -260,7 +282,12 @@ async function checkRateLimitAbuse(
       is_read: false,
     });
   }
-  return { checked: true, abused: abused.map((b) => b.key) };
+  // The KINDS, not the keys — this value is returned to the cron caller
+  // and ends up in logs. Same reasoning as the summary above.
+  return {
+    checked: true,
+    abused: Array.from(new Set(abused.map((b) => kind(b.key) || "unknown"))),
+  };
 }
 
 export async function GET(req: NextRequest) {

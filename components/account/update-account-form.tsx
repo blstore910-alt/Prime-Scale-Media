@@ -417,6 +417,20 @@ export default function UpdateAccountForm({
             after the header and the footer, so the footer is always on
             screen however tall the sheet ends up. */}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-1">
+          {/* DISABLED, like the advertiser select below it, because the
+              server drops `platform` from the update allowlist and always
+              did — so this was a live dropdown whose change was silently
+              thrown away under the words "Ad Account updated
+              successfully". `metadata` on the same save DOES persist, so
+              the two disagreed afterwards.
+
+              It is not an oversight in the allowlist either: platform
+              decides the premium two-point fee discount
+              (topup-actions reads it) and the beneficiary bank a customer
+              is told to pay. Changing it under an account with history
+              re-prices every future top-up and re-routes real transfers.
+              That belongs in a deliberate move, not in a general edit
+              form — so the form now says what the server does. */}
           <SelectField
             label="Select Platform"
             name="platform"
@@ -424,6 +438,7 @@ export default function UpdateAccountForm({
             control={control}
             options={typeOptions}
             placeholder="Select"
+            disabled
           />
 
           <InputField

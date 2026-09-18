@@ -131,23 +131,33 @@ function buildPushFromRecord(record: NotificationRecord) {
     // and someone hammering a financial endpoint, arrived on a phone giving
     // no reason to open the app.
     case "supplier_low_balance": {
-      const bal = record.payload?.balance;
+      // `available`, not `balance`. The insert writes
+      // { currency, available, threshold } and this read a key nothing
+      // writes, so it always took the generic branch — which is the
+      // branch the comment above claims was fixed. The figure is the
+      // whole point of the alert.
+      const bal = record.payload?.available ?? record.payload?.balance;
+      const cur = record.payload?.currency;
       return {
         title: "Supplier balance is low",
         body:
           bal != null
-            ? `The supplier's spendable balance is down to ${bal}. Top-ups may start failing.`
+            ? `The supplier's spendable balance is down to ${cur ? `${cur} ` : ""}${bal}. Top-ups may start failing.`
             : "The supplier's spendable balance is below the safety threshold. Top-ups may start failing.",
         url: "/settings/integrations",
       };
     }
 
     case "rate_limit_abuse": {
-      const action = record.payload?.action;
+      // `summary`, not `action`. The insert writes { buckets, summary }
+      // and this read a key nothing writes, so it always fell to the
+      // generic sentence — again, the one the comment above says was
+      // fixed. The summary names which kind of endpoint is being hit.
+      const what = record.payload?.summary ?? record.payload?.action;
       return {
         title: "Suspicious activity",
-        body: action
-          ? `Someone is hitting the rate limit on ${action}. Worth a look.`
+        body: what
+          ? `Someone is hitting a rate limit — ${what}. Worth a look.`
           : "Someone is hitting a rate limit on a sensitive action. Worth a look.",
         // There is no /system-status route — the rate-limit view lives in
         // the System section at the bottom of the admin dashboard.
