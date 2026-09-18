@@ -39,6 +39,7 @@ import {
   InputGroupInput,
 } from "../ui/input-group";
 import { Label } from "../ui/label";
+import { planPrice } from "@/lib/pure-plan-price";
 
 const inviteBaseSchema = z.object({
   email: z.email("Please enter a valid email address"),
@@ -197,10 +198,11 @@ export default function InviteForm() {
 
   function prefillFrom(p: PlanOption | undefined) {
     if (!p) return;
-    form.setValue("monthly_fee", p.monthly_fee);
+    const base = String(p.currency).toUpperCase() === "USD" ? "USD" : "EUR";
+    setPlanCurrency(base);
+    form.setValue("monthly_fee", planPrice(p, base, "month").amount);
     form.setValue("included_ad_accounts", p.included_ad_accounts);
     form.setValue("topup_fee_pct", p.topup_fee_pct);
-    setPlanCurrency(String(p.currency).toUpperCase() === "USD" ? "USD" : "EUR");
   }
 
   useEffect(() => {
@@ -470,6 +472,53 @@ export default function InviteForm() {
                       </Select>
                     )}
                   />
+
+                  {/* WHICH CURRENCY THIS CUSTOMER PAYS IN.
+                      The plan carries a price per currency — EUR 200 is
+                      $225, not $226.14 — and until this control existed
+                      there was no way to choose the second one, so a
+                      pinned USD price could be saved and never charged.
+                      The figure beside each option is the amount that
+                      will be invoiced, so nobody has to trust that the
+                      conversion happened. */}
+                  {planId ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        Bills in
+                      </span>
+                      {(["EUR", "USD"] as const).map((c) => {
+                        const p = tiers.find((x) => x.id === planId);
+                        const price = p ? planPrice(p, c, "month") : null;
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => {
+                              setPlanCurrency(c);
+                              if (price) form.setValue("monthly_fee", price.amount);
+                            }}
+                            className={
+                              "rounded-md border px-2.5 py-1 text-xs font-medium " +
+                              (planCurrency === c
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-input text-muted-foreground")
+                            }
+                          >
+                            {c === "USD" ? "$" : "€"}
+                            {price ? price.amount : "—"}
+                            {price && !price.pinned ? (
+                              <span
+                                className="ml-1 opacity-60"
+                                title="No price set for this currency — this is a conversion, not a chosen price. Set one in Settings → Finance → Plans."
+                              >
+                                ~
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Community (overrides the plan) */}
