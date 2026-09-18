@@ -270,6 +270,11 @@ export default function AccountsTable() {
   };
 
   const handleDownload = async () => {
+    // The flag existed, was reset, and was READ by the spinner — and
+    // was never actually set, so the spinner was dead code and the
+    // button was never disabled. An admin clicks, sees nothing happen,
+    // and clicks again; each press fires a full unpaginated select.
+    setDownloadingCSV(true);
     const fields = [
       { label: "ID", value: "id" },
       { label: "Name", value: "name" },
@@ -309,7 +314,11 @@ export default function AccountsTable() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error(safeErrorMessage(error));
+      // And say so. A failure that only reaches the console is a
+      // button that does nothing, from where the operator is sitting.
+      toast.error("Couldn't build the export", {
+        description: safeErrorMessage(error),
+      });
     } finally {
       setDownloadingCSV(false);
     }
@@ -539,8 +548,9 @@ export default function AccountsTable() {
           <button
             className="btn ghost"
             onClick={handleDownload}
+            disabled={downloadingCSV}
             aria-label="Download CSV"
-            title="Download CSV"
+            title={downloadingCSV ? "Building the file…" : "Download CSV"}
           >
             {downloadingCSV ? (
               <Loader2 className="animate-spin" />

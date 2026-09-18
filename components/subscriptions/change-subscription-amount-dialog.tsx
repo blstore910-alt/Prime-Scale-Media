@@ -124,6 +124,23 @@ export default function ChangeSubscriptionAmountDialog({
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       onOpenChange(false);
+    } catch (e) {
+      // A REJECTED PROMISE IS NOT A HANDLED ERROR.
+      //
+      // This was try/finally with no catch, so a request that never
+      // returned — a dropped connection, a deploy mid-flight, a 500
+      // from the endpoint — rejected unhandled: the spinner stopped,
+      // the dialog stayed open and nothing was said. The !res.ok
+      // branch only covers errors the action RETURNS. The admin
+      // could not tell whether the plan had been repriced or the
+      // refund paid, and the obvious next move is to press Save
+      // again — which on the refund path pays it twice.
+      toast.error("Couldn't change the amount", {
+        description:
+          e instanceof Error
+            ? e.message
+            : "The request did not come back. Reload and check before trying again.",
+      });
     } finally {
       setIsPending(false);
     }

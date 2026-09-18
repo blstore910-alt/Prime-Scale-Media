@@ -19,6 +19,7 @@ import UserAffiliates from "./user-affiliates";
 
 import UserSubscriptionDetails from "./user-subscription-details";
 import UserWalletTopups from "./user-wallet-topups";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 
 // The sheet renders in a Radix portal OUTSIDE the `.psmapp` shell, so the
 // mockup's scoped classes and font variables aren't in scope here. This
@@ -228,10 +229,28 @@ export default function UserDetailsSheet({
     );
   };
 
-  const updateAccountStatus = (value: string) => {
+  // ── DEACTIVATING IS NOT A DROPDOWN CHOICE ───────────────────────────
+  //
+  // This fired on the select's onChange, with no confirmation anywhere in
+  // this file. updateUserProfile's action then bulk-writes EVERY one of
+  // that advertiser's subscriptions to inactive, and activating them
+  // again writes only the profile back — the subscriptions do not
+  // return. The row two clicks away on the list guards exactly this with
+  // a danger dialog that says so in as many words; the sheet let one
+  // mis-aimed click do it.
+  //
+  // It also wrote `status` without `is_active`, so the header counters
+  // and the Active filter — both of which read is_active — kept counting
+  // the customer as live.
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+
+  const applyAccountStatus = (value: string) => {
     if (!profileId) return;
     updateUserProfile(
-      { userId: profileId, data: { status: value } },
+      {
+        userId: profileId,
+        data: { status: value, is_active: value === "active" },
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({
@@ -241,9 +260,27 @@ export default function UserDetailsSheet({
             queryKey: ["users"],
           });
           toast.success("Account status updated successfully");
+          setPendingStatus(null);
+        },
+        onError: (e: Error) => {
+          toast.error("Couldn't update the account status", {
+            description: e.message,
+          });
+          setPendingStatus(null);
         },
       },
     );
+  };
+
+  const updateAccountStatus = (value: string) => {
+    if (!profileId) return;
+    // Switching somebody ON is reversible and costs nothing; switching
+    // them OFF ends their subscriptions and cannot be undone from here.
+    if (value === "active") {
+      applyAccountStatus(value);
+      return;
+    }
+    setPendingStatus(value);
   };
 
   const saving = isUpdatingAdvertiser || isPending;
@@ -504,6 +541,25 @@ export default function UserDetailsSheet({
             </div>
           </div>
         )}
+        <ConfirmModal
+          open={!!pendingStatus}
+          onOpenChange={(next) => {
+            if (!next && !saving) setPendingStatus(null);
+          }}
+          title="Switch this customer off?"
+          lead="Every subscription they have is ended at the same time. Turning them back on does NOT bring those subscriptions back — you would have to create them again."
+          cta="Yes, switch them off"
+          tone="danger"
+          busy={saving}
+          busyLabel="Saving…"
+          onConfirm={() => {
+            if (pendingStatus) applyAccountStatus(pendingStatus);
+          }}
+        >
+          <ConfirmFact label="Customer" value={data?.full_name ?? data?.email ?? "—"} />
+          <ConfirmFact label="New status" value={pendingStatus ?? ""} />
+        </ConfirmModal>
+
       </SheetContent>
     </Sheet>
   );
