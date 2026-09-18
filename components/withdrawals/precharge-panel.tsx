@@ -353,7 +353,19 @@ function PrechargeCreateDialog({
   const hasPending = (pendingForAdvertiser ?? []).length > 0;
 
   const numeric = Number(amount);
-  const valid = !!advertiserId && Number.isFinite(numeric) && numeric > 0;
+  // REFUSED, not merely warned. A free-form advance carries no
+  // source_wallet_topup_id, so the balance trigger cannot settle it — and
+  // verifying the customer's pending top-up then credits the wallet a
+  // SECOND time with the advance still outstanding. A warning is fine for
+  // something inconvenient; this is money leaving twice, and the correct
+  // control is a few centimetres away on the top-up itself, where it
+  // settles by itself.
+  //
+  // Advancing credit to somebody with NO pending top-up is still allowed:
+  // that is the case this dialog exists for, and there is nothing for it
+  // to double against.
+  const valid =
+    !!advertiserId && Number.isFinite(numeric) && numeric > 0 && !hasPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -377,10 +389,11 @@ function PrechargeCreateDialog({
                 waiting to be verified.
               </p>
               <p className="mt-1 text-muted-foreground">
-                An advance made here is not attached to it, so verifying that
-                top-up will credit the wallet a SECOND time and this advance
-                will stay outstanding. Use the Precharge button on the top-up
-                itself — that one settles when you verify it.
+                An advance made here cannot attach to it, so verifying that
+                top-up would credit the wallet a second time. Use the
+                <strong> Precharge</strong> button on the top-up itself —
+                that one settles when you verify it. This form stays
+                disabled until they have none waiting.
               </p>
             </div>
           ) : null}
