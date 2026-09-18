@@ -7,6 +7,8 @@ import {
   toCsv,
   currenciesIn,
   accountsIn,
+  KIND_LABELS,
+  KIND_ORDER,
   type FinanceLine,
 } from "../../lib/pure-finance-report.ts";
 
@@ -162,4 +164,36 @@ test("the filters are built from the data that is there", () => {
 test("an empty report summarises to nothing, not to zero rows of noise", () => {
   assert.deepEqual(summarise([]), []);
   assert.deepEqual(currenciesIn([]), []);
+});
+
+
+// ── THE THREE LISTS HAVE TO AGREE ────────────────────────────────────
+//
+// A kind lives in three places: the union, KIND_LABELS and KIND_ORDER.
+// TypeScript makes the Record exhaustive, so a missing LABEL cannot
+// compile — but KIND_ORDER is a plain array, and a kind left out of it
+// simply never appears in the filter dropdown. The line is then in the
+// report, in the totals and in the CSV, and unfilterable, which is the
+// kind of gap nobody notices because everything still works.
+test("every labelled kind is offered in the filter", () => {
+  const labelled = Object.keys(KIND_LABELS).sort();
+  const ordered = [...KIND_ORDER].sort();
+  assert.deepEqual(ordered, labelled);
+  assert.equal(new Set(KIND_ORDER).size, KIND_ORDER.length);
+});
+
+// Refunds and adjustments arrive pre-signed from the server, and the
+// summary has to read them from the customer's side: a refund LEAVES the
+// wallet, an adjustment carries its own delta either way.
+test("refunds count as money out, adjustments either way", () => {
+  const t = summarise([
+    line({ id: "r1", kind: "refund", amount: -500, currency: "EUR" }),
+    line({ id: "a1", kind: "adjustment", amount: 25, currency: "EUR" }),
+    line({ id: "a2", kind: "adjustment", amount: -10, currency: "EUR" }),
+  ]);
+  const eur = t.find((x) => x.currency === "EUR");
+  assert.ok(eur);
+  assert.equal(eur.out, 510);
+  assert.equal(eur.in, 25);
+  assert.equal(eur.net, -485);
 });

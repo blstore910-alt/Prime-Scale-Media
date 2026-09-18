@@ -35,6 +35,7 @@ export type FinanceKind =
   | "fee"
   | "invoice"
   | "adjustment"
+  | "refund"
   | "precharge"
   | "exchange"
   | "commission";
@@ -65,6 +66,12 @@ export const KIND_LABELS: Record<FinanceKind, string> = {
   fee: "Fee",
   invoice: "Invoice",
   adjustment: "Adjustment",
+  // A refund is money going back OUT of the wallet, to the customer's own
+  // bank. Not the same event as an adjustment (a signed correction) and
+  // not the same as a withdrawal (which returns money from an AD ACCOUNT
+  // to the wallet), so it gets its own row in the filter rather than
+  // being folded into either.
+  refund: "Refund to your bank",
   precharge: "Advance",
   exchange: "Currency exchange",
   commission: "Commission",
@@ -78,6 +85,7 @@ export const KIND_ORDER: FinanceKind[] = [
   "fee",
   "invoice",
   "adjustment",
+  "refund",
   "precharge",
   "exchange",
   "commission",

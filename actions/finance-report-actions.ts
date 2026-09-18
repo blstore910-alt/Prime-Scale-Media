@@ -355,6 +355,69 @@ export async function financeReportForMe(): Promise<
     }
   }
 
+  // ── Refunds and approved adjustments ────────────────────────────────
+  //
+  // Both tables are admin-read-only by design — they carry `reason`, an
+  // internal note, plus the ids of the two members of staff who raised
+  // and reviewed the row. That is the right default for the TABLE and
+  // the wrong one for the AMOUNTS, which are the customer's own money: a
+  // report that omits them reconciles to a number the wallet disagrees
+  // with, and 500 EUR can leave without ever appearing.
+  //
+  // So they come through my_wallet_extras, a SECURITY DEFINER function
+  // that re-checks the advertiser is the caller's own and returns six
+  // columns: kind, id, date, signed amount, currency, status, reference.
+  // No reason, no requested_by, no reviewed_by.
+  //
+  // ── AND ITS ABSENCE IS NOT A FAILURE ────────────────────────────────
+  //
+  // Migrations are pasted by hand and code reaches production in
+  // minutes, so this function does not exist yet on live. A missing RPC
+  // answers PGRST202 / 404, which the `source()` helper would put in
+  // `failed` — and the screen would then tell every customer that part
+  // of their report could not be read, on a report that is in fact
+  // complete for everything that exists. Not-there-yet is dark, not
+  // broken. A REAL error still lands in `failed`, which is the case
+  // worth telling them about.
+  {
+    const { data: extras, error: extrasErr } = await supabase.rpc(
+      "my_wallet_extras",
+      { p_advertiser_id: advertiserId },
+    );
+    const notDeployed =
+      !!extrasErr &&
+      /PGRST202|Could not find the function|does not exist|schema cache/i.test(
+        `${(extrasErr as { code?: string }).code ?? ""} ${safeErrorMessage(extrasErr)}`,
+      );
+    if (extrasErr && !notDeployed) {
+      failed.push("refunds and adjustments");
+    } else if (Array.isArray(extras)) {
+      for (const raw of extras as Row[]) {
+        const kind = String(raw.kind ?? "");
+        if (kind !== "refund" && kind !== "adjustment") continue;
+        lines.push({
+          id: `${kind}-${String(raw.row_id ?? "")}`,
+          at: String(raw.at ?? ""),
+          kind,
+          label:
+            kind === "refund"
+              ? "Refunded to your bank"
+              : num(raw.amount) >= 0
+                ? "Correction in your favour"
+                : "Correction",
+          reference: str(raw.reference),
+          account: null,
+          counterparty: null,
+          currency: cur(raw.currency),
+          // Already signed by the function: a refund is negative, an
+          // adjustment carries its own delta.
+          amount: num(raw.amount),
+          status: str(raw.status),
+        });
+      }
+    }
+  }
+
   return {
     ok: true,
     data: { lines: sortLines(lines), failed, truncated, audience: "advertiser" },
