@@ -119,10 +119,10 @@ const SYMBOL: Record<string, string> = {
 };
 function money(currency: string, cents: number): string {
   const cur = (currency || "").toUpperCase();
-  const amount = (cents / 100).toLocaleString(undefined, {
+  const amount = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
+  }).format(cents / 100);
   const sym = SYMBOL[cur];
   return sym ? sym + amount : cur + " " + amount;
 }
@@ -189,7 +189,11 @@ const WISE_CSS = `
 .wtile b{display:block;font-family:var(--hd);font-size:1.12rem;font-weight:800;
   letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.25}
 .wtile span{display:block;font-size:.64rem;color:var(--txt-2);
-  text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-top:1px}
+  text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-top:2px;
+  /* Reserve the two lines the longest label needs, so three tiles with
+     one-, two- and two-line captions do not end at three different
+     heights. */
+  min-height:2.2em;line-height:1.1}
 .wtile.hot b{color:var(--warn)}
 .wsearch{display:flex;align-items:center;gap:8px;margin-top:10px;
   background:var(--panel);border:1px solid var(--line);border-radius:11px;
