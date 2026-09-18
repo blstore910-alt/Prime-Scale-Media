@@ -22,6 +22,7 @@ import {
   setWiseDepositArchived,
 } from "@/actions/wise-actions";
 import { wiseIngestStatus } from "@/actions/integration-actions";
+import { formatPaymentReference } from "@/lib/payment-reference";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -465,7 +466,15 @@ export default function WiseReviewPanel() {
         out[r.id] = {
           code: (a?.tenant_client_code ?? "").trim(),
           name: (prof?.full_name ?? "").trim(),
-          reference: String(r.reference_no ?? ""),
+          // The SAME string the payer was given, so the two references on
+          // this card — what the bank says they wrote, and what we asked
+          // them to write — can be compared by eye. They were "0005-6164655424"
+          // and "6164655424", and telling an admin those are a match
+          // required knowing that the prefix is ours.
+          reference: formatPaymentReference(
+            a?.tenant_client_code,
+            r.reference_no,
+          ),
         };
       }
       return out;

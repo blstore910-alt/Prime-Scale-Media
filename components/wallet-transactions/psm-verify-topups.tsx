@@ -60,10 +60,13 @@ function MatchedStrip({
   deposit,
   unreadable,
   pending,
+  ownReference,
 }: {
   deposit?: MatchedDeposit;
   unreadable: boolean;
   pending: boolean;
+  /** What the card already prints one line above. */
+  ownReference: string;
 }) {
   // A settled top-up has already been credited; the question the strip
   // answers does not apply any more.
@@ -73,6 +76,17 @@ function MatchedStrip({
     const amount =
       (deposit.currency === "USD" ? "$" : "€") +
       (deposit.amountCents / 100).toFixed(2);
+    // The reference is printed one line above this strip. Repeating it
+    // here said the same number twice in four lines — so it is shown only
+    // when the payer wrote something DIFFERENT from what we gave them,
+    // which is the case where it is information rather than an echo. The
+    // matcher pairs on an equal reference, so a difference means this was
+    // matched by hand or by a known sender, and an admin should see that.
+    const norm = (v: string) => v.replace(/\D+/g, "");
+    const otherRef =
+      deposit.reference && norm(deposit.reference) !== norm(ownReference)
+        ? deposit.reference
+        : null;
     return (
       <div className="tupmatch ok">
         <Check />
@@ -81,8 +95,14 @@ function MatchedStrip({
           <div>
             {deposit.senderName ? "from " + deposit.senderName + " · " : ""}
             {shortDay(deposit.receivedAt)}
-            {deposit.reference ? " · ref " + deposit.reference : ""}
           </div>
+          {/* Its own line, and unbreakable: "· ref" was wrapping away from
+              the number it labels. */}
+          {otherRef ? (
+            <div>
+              they wrote <span className="tupref">{otherRef}</span>
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -112,7 +132,7 @@ function MatchedStrip({
 }
 
 const MATCH_CSS = `
-.tupmatch{display:flex;gap:9px;align-items:flex-start;margin-top:10px;
+.tupmatch{display:flex;gap:9px;align-items:flex-start;margin:10px 0 12px;
   border-radius:10px;padding:9px 11px;font-size:.8rem;line-height:1.4}
 .tupmatch svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
 .tupmatch b{display:block;font-size:.83rem;font-weight:700}
@@ -121,6 +141,8 @@ const MATCH_CSS = `
 .tupmatch.ok{background:var(--win-soft);color:var(--win)}
 .tupmatch.warn{background:var(--warn-soft);color:var(--warn)}
 .tupmatch.bad{background:var(--danger-soft);color:var(--danger)}
+.tupref{font-family:var(--mono,ui-monospace,monospace);font-weight:700;
+  white-space:nowrap}
 `;
 
 const advName = (t: WalletTopupWithAdvertiser) => {
@@ -425,6 +447,16 @@ export default function PsmVerifyTopups({
                   deposit={deposits[t.id]}
                   unreadable={depositsUnreadable}
                   pending={pend}
+                  ownReference={
+                    formatPaymentReference(
+                      (
+                        t.advertiser as
+                          | { tenant_client_code?: string }
+                          | undefined
+                      )?.tenant_client_code,
+                      t.reference_no,
+                    ) || ""
+                  }
                 />
                 <div className="actrow tupacts">
                   {/* The card's own onClick is a mouse convenience. This is
