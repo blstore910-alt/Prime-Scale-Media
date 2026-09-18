@@ -1,30 +1,20 @@
 -- =====================================================================
--- RUN THIS WHOLE FILE. Two parts, in this order.
+-- RUN THIS WHOLE FILE. Three parts, in this order.
 -- =====================================================================
--- Everything still outstanding that is SAFE to run in one go.
---
 --   PART 1  Rejecting an ad-account request gives the 50 EUR back.
---           Adds one function and rewires the reject path. Additive:
---           nothing existing changes shape.
+--   PART 2  Replaces the clawback function (same fix: a record field
+--           cannot be used inside a SQL statement). Safe to run even if
+--           you have not applied the clawback migration — it just
+--           replaces a function that is not called yet.
+--   PART 3  The wallet integrity check. READ-ONLY, six questions.
 --
---   PART 2  The wallet integrity check. READ-ONLY — six questions about
---           whether every euro has a reason. Run it now, and again before
---           and after the J1-J8 walkthrough, so you can tell what that
---           session did to the books.
+-- NOT IN HERE: 20260918200000_money_to_numeric.sql. It REWRITES STORED
+-- VALUES in 21 columns. Back up first and run it on its own.
 --
--- DELIBERATELY NOT IN HERE:
---
---   20260918200000_money_to_numeric.sql — it REWRITES STORED VALUES in
---   21 columns. Take a Supabase backup first and run it on its own, with
---   its own header read. It does not belong in a bundle you paste and
---   scroll past.
---
--- Every dollar-quoted block below carries a NAMED tag ($blk0$ and so on)
--- rather than a bare $$, because the SQL editor refused a file whose
--- quotes were balanced.
+-- Every dollar-quoted block carries a NAMED tag.
 -- =====================================================================
 
--- ═══ PART 1 of 2 ═══════════════════════════════════════════════════
+-- ═══ PART 1 of 3 ═══════════════════════════════════════
 -- =====================================================================
 -- Rejecting an ad-account request gives the 50 euro back.
 -- =====================================================================
@@ -72,23 +62,33 @@ security definer
 set search_path = public
 as $blk0$
 declare
-  v_uid   uuid := auth.uid();
-  v_admin record;
-  v_req   record;
-  v_fee   numeric;
-  v_cur   text;
-  v_src   text;
-  v_wallet record;
-  v_perk_id uuid;
-  v_refunded numeric := 0;
+  -- SCALARS, NOT RECORDS. A record variable's field cannot be referenced
+  -- inside a SQL statement — Postgres tries to resolve `v_admin.id` as
+  -- relation.column and reports `relation "v_admin" does not exist`. Every
+  -- value that is used inside an UPDATE or a SELECT below is its own
+  -- variable for that reason.
+  v_uid          uuid := auth.uid();
+  v_admin_id     uuid;
+  v_admin_tenant uuid;
+  v_req_tenant   uuid;
+  v_req_status   text;
+  v_req_adv      uuid;
+  v_meta         jsonb;
+  v_fee          numeric;
+  v_cur          text;
+  v_src          text;
+  v_wallet_id    uuid;
+  v_perk_id      uuid;
+  v_refunded     numeric := 0;
   v_perk_restored boolean := false;
+  v_already      boolean;
 begin
   if v_uid is null then
     raise exception 'not authenticated' using errcode = '28000';
   end if;
 
   -- Active admin only. Same gate as every other money mover.
-  select up.* into v_admin
+  select up.id, up.tenant_id into v_admin_id, v_admin_tenant
     from public.user_profiles up
    where up.user_id = v_uid
      and up.role = 'admin'
@@ -98,27 +98,29 @@ begin
     raise exception 'admins only' using errcode = '42501';
   end if;
 
-  select * into v_req
-    from public.ad_account_requests
-   where id = p_request_id
+  select r.tenant_id, r.status, r.advertiser_id, coalesce(r.metadata, '{}'::jsonb)
+    into v_req_tenant, v_req_status, v_req_adv, v_meta
+    from public.ad_account_requests r
+   where r.id = p_request_id
    for update;
   if not found then
     raise exception 'request not found' using errcode = '42704';
   end if;
-  if v_req.tenant_id <> v_admin.tenant_id then
+  if v_req_tenant <> v_admin_tenant then
     raise exception 'not your tenant' using errcode = '42501';
   end if;
-  if v_req.status = 'completed' then
+  if v_req_status = 'completed' then
     raise exception 'That request was already completed — it cannot be rejected.'
       using errcode = '22000';
   end if;
-  if v_req.status = 'rejected' then
+  if v_req_status = 'rejected' then
     raise exception 'That request was already rejected.' using errcode = '22000';
   end if;
 
-  v_fee := coalesce((v_req.metadata->>'request_fee')::numeric, 0);
-  v_cur := upper(coalesce(v_req.metadata->>'request_fee_currency', 'EUR'));
-  v_src := coalesce(v_req.metadata->>'request_fee_free_source', '');
+  v_fee := coalesce((v_meta->>'request_fee')::numeric, 0);
+  v_cur := upper(coalesce(v_meta->>'request_fee_currency', 'EUR'));
+  v_src := coalesce(v_meta->>'request_fee_free_source', '');
+  v_already := (v_meta->>'request_fee_refunded_at') is not null;
 
   -- ── The rejection itself ──────────────────────────────────────────
   update public.ad_account_requests
@@ -128,9 +130,10 @@ begin
 
   -- ── Give the money back ───────────────────────────────────────────
   -- Only when something was actually taken, and only once.
-  if v_fee > 0 and (v_req.metadata->>'request_fee_refunded_at') is null then
-    select * into v_wallet from public.wallets
-     where advertiser_id = v_req.advertiser_id
+  if v_fee > 0 and not v_already then
+    select w.id into v_wallet_id
+      from public.wallets w
+     where w.advertiser_id = v_req_adv
      for update;
     if not found then
       raise exception 'That advertiser has no wallet to refund into.'
@@ -141,12 +144,12 @@ begin
       update public.wallets
          set usd_balance = coalesce(usd_balance, 0) + v_fee,
              updated_at = now()
-       where id = v_wallet.id;
+       where id = v_wallet_id;
     else
       update public.wallets
          set eur_balance = coalesce(eur_balance, 0) + v_fee,
              updated_at = now()
-       where id = v_wallet.id;
+       where id = v_wallet_id;
     end if;
     v_refunded := v_fee;
   end if;
@@ -155,14 +158,14 @@ begin
   -- The perk that was consumed was not recorded by id, so this restores
   -- to a free-request perk that is still live. If there is none left, the
   -- count is simply not restored — inventing one would be worse.
-  if v_src = 'perk' and (v_req.metadata->>'request_fee_refunded_at') is null then
-    select id into v_perk_id
-      from public.advertiser_perks
-     where advertiser_id = v_req.advertiser_id
-       and kind = 'free_ad_account_requests'
-       and active
-       and (expires_at is null or expires_at > now())
-     order by expires_at nulls last
+  if v_src = 'perk' and not v_already then
+    select ap.id into v_perk_id
+      from public.advertiser_perks ap
+     where ap.advertiser_id = v_req_adv
+       and ap.kind = 'free_ad_account_requests'
+       and ap.active
+       and (ap.expires_at is null or ap.expires_at > now())
+     order by ap.expires_at nulls last
      for update
      limit 1;
     if found then
@@ -179,7 +182,7 @@ begin
        set metadata = coalesce(metadata, '{}'::jsonb)
                       || jsonb_build_object(
                            'request_fee_refunded_at', now(),
-                           'request_fee_refunded_by', v_admin.id
+                           'request_fee_refunded_by', v_admin_id
                          )
      where id = p_request_id;
   end if;
@@ -214,7 +217,134 @@ select
    and (r.metadata->>'request_fee_refunded_at') is null
  order by r.created_at desc;
 
--- ═══ PART 2 of 2 ═══════════════════════════════════════════════════
+-- ═══ PART 2 of 3 ═══════════════════════════════════════
+-- =====================================================================
+-- Replace two functions that used a RECORD field inside a SQL statement.
+-- =====================================================================
+-- ⚠️ APPLY ON SUPABASE MANUALLY. Run this after 20260918230000.
+--
+-- `relation "v_admin" does not exist` — Postgres resolving `v_admin.id`
+-- inside an UPDATE as relation.column rather than as a PL/pgSQL record
+-- field. The refund function hit it on the way in; the clawback function
+-- has the same shape and would have hit it at the first real clawback,
+-- which is a worse place to find out.
+--
+-- Both are rewritten with plain scalar variables. Nothing about what they
+-- DO has changed — same gates, same arithmetic, same idempotency.
+-- =====================================================================
+
+set search_path = public;
+
+create or replace function public._claw_back_referral_commission(
+  p_advertiser_id uuid,
+  p_amount numeric,
+  p_currency text,
+  p_source text,
+  p_source_id uuid,
+  p_reason text default null
+) returns numeric
+language plpgsql
+security definer
+set search_path = public
+as $blk0$
+declare
+  -- SCALARS. A record variable's field cannot be referenced inside a SQL
+  -- statement — Postgres resolves `v_link_id` as relation.column and
+  -- reports `relation "v_link" does not exist`. Every value used inside a
+  -- SELECT or an UPDATE below is its own variable.
+  v_link_id     uuid;
+  v_link_tenant uuid;
+  v_cur      text := upper(coalesce(p_currency, 'EUR'));
+  v_volume   numeric := 0;
+  v_earned   numeric := 0;
+  v_clawed   numeric := 0;
+  v_share    numeric := 0;
+  v_amount   numeric := 0;
+begin
+  if p_amount is null or p_amount <= 0 then
+    return 0;
+  end if;
+
+  -- The link that refers THIS advertiser. If they were not referred there
+  -- is nothing to claw back.
+  select rl.id, rl.tenant_id into v_link_id, v_link_tenant
+    from public.referral_links rl
+   where rl.referred_advertiser_id = p_advertiser_id
+   order by rl.created_at
+   limit 1;
+  if not found then
+    return 0;
+  end if;
+
+  -- Everything they ever topped up successfully, in this currency.
+  select coalesce(sum(wt.amount), 0) into v_volume
+    from public.wallet_topups wt
+    join public.wallets w on w.id = wt.wallet_id
+   where w.advertiser_id = p_advertiser_id
+     and wt.status = 'completed'
+     and upper(coalesce(wt.currency, 'EUR')) = v_cur;
+
+  if v_volume <= 0 then
+    return 0;
+  end if;
+
+  select coalesce(sum(rc.amount), 0) into v_earned
+    from public.referral_commissions rc
+   where rc.referral_link_id = v_link_id
+     and upper(coalesce(rc.currency, 'EUR')) = v_cur;
+
+  select coalesce(sum(cb.amount), 0) into v_clawed
+    from public.referral_clawbacks cb
+   where cb.referral_link_id = v_link_id
+     and cb.currency = v_cur;
+
+  if v_earned - v_clawed <= 0 then
+    return 0;
+  end if;
+
+  v_share := least(p_amount / v_volume, 1);
+  v_amount := round((v_earned * v_share)::numeric, 2);
+  -- Never more than is still standing.
+  v_amount := least(v_amount, round((v_earned - v_clawed)::numeric, 2));
+  if v_amount <= 0 then
+    return 0;
+  end if;
+
+  insert into public.referral_clawbacks
+    (tenant_id, referral_link_id, advertiser_id, amount, currency,
+     source, source_id, returned_amount, topup_volume, share, reason)
+  values
+    (v_link_tenant, v_link_id, p_advertiser_id, v_amount, v_cur,
+     p_source, p_source_id, round(p_amount::numeric, 2),
+     round(v_volume::numeric, 2), round(v_share, 4), p_reason)
+  on conflict (source, source_id) do nothing;
+
+  if not found then
+    return 0;   -- already clawed back for this row
+  end if;
+
+  -- Keep the running total on the link in step, the same figure the
+  -- accrual trigger maintains.
+  if v_cur = 'USD' then
+    update public.referral_links
+       set earnings_usd = greatest(coalesce(earnings_usd, 0) - v_amount, 0),
+           updated_at = now()
+     where id = v_link_id;
+  else
+    update public.referral_links
+       set earnings_eur = greatest(coalesce(earnings_eur, 0) - v_amount, 0),
+           updated_at = now()
+     where id = v_link_id;
+  end if;
+
+  return v_amount;
+end;
+$blk0$;
+
+revoke all on function public._claw_back_referral_commission(uuid, numeric, text, text, uuid, text)
+  from public, anon, authenticated;
+
+-- ═══ PART 3 of 3 ═══════════════════════════════════════
 -- =====================================================================
 -- Does every euro in every wallet have a reason?
 -- =====================================================================

@@ -110,7 +110,12 @@ security definer
 set search_path = public
 as $blk0$
 declare
-  v_link     record;
+  -- SCALARS. A record variable's field cannot be referenced inside a SQL
+  -- statement — Postgres resolves `v_link_id` as relation.column and
+  -- reports `relation "v_link" does not exist`. Every value used inside a
+  -- SELECT or an UPDATE below is its own variable.
+  v_link_id     uuid;
+  v_link_tenant uuid;
   v_cur      text := upper(coalesce(p_currency, 'EUR'));
   v_volume   numeric := 0;
   v_earned   numeric := 0;
@@ -124,7 +129,7 @@ begin
 
   -- The link that refers THIS advertiser. If they were not referred there
   -- is nothing to claw back.
-  select rl.* into v_link
+  select rl.id, rl.tenant_id into v_link_id, v_link_tenant
     from public.referral_links rl
    where rl.referred_advertiser_id = p_advertiser_id
    order by rl.created_at
@@ -147,12 +152,12 @@ begin
 
   select coalesce(sum(rc.amount), 0) into v_earned
     from public.referral_commissions rc
-   where rc.referral_link_id = v_link.id
+   where rc.referral_link_id = v_link_id
      and upper(coalesce(rc.currency, 'EUR')) = v_cur;
 
   select coalesce(sum(cb.amount), 0) into v_clawed
     from public.referral_clawbacks cb
-   where cb.referral_link_id = v_link.id
+   where cb.referral_link_id = v_link_id
      and cb.currency = v_cur;
 
   if v_earned - v_clawed <= 0 then
@@ -171,7 +176,7 @@ begin
     (tenant_id, referral_link_id, advertiser_id, amount, currency,
      source, source_id, returned_amount, topup_volume, share, reason)
   values
-    (v_link.tenant_id, v_link.id, p_advertiser_id, v_amount, v_cur,
+    (v_link_tenant, v_link_id, p_advertiser_id, v_amount, v_cur,
      p_source, p_source_id, round(p_amount::numeric, 2),
      round(v_volume::numeric, 2), round(v_share, 4), p_reason)
   on conflict (source, source_id) do nothing;
@@ -186,12 +191,12 @@ begin
     update public.referral_links
        set earnings_usd = greatest(coalesce(earnings_usd, 0) - v_amount, 0),
            updated_at = now()
-     where id = v_link.id;
+     where id = v_link_id;
   else
     update public.referral_links
        set earnings_eur = greatest(coalesce(earnings_eur, 0) - v_amount, 0),
            updated_at = now()
-     where id = v_link.id;
+     where id = v_link_id;
   end if;
 
   return v_amount;

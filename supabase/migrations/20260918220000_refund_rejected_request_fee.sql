@@ -45,23 +45,33 @@ security definer
 set search_path = public
 as $blk0$
 declare
-  v_uid   uuid := auth.uid();
-  v_admin record;
-  v_req   record;
-  v_fee   numeric;
-  v_cur   text;
-  v_src   text;
-  v_wallet record;
-  v_perk_id uuid;
-  v_refunded numeric := 0;
+  -- SCALARS, NOT RECORDS. A record variable's field cannot be referenced
+  -- inside a SQL statement — Postgres tries to resolve `v_admin.id` as
+  -- relation.column and reports `relation "v_admin" does not exist`. Every
+  -- value that is used inside an UPDATE or a SELECT below is its own
+  -- variable for that reason.
+  v_uid          uuid := auth.uid();
+  v_admin_id     uuid;
+  v_admin_tenant uuid;
+  v_req_tenant   uuid;
+  v_req_status   text;
+  v_req_adv      uuid;
+  v_meta         jsonb;
+  v_fee          numeric;
+  v_cur          text;
+  v_src          text;
+  v_wallet_id    uuid;
+  v_perk_id      uuid;
+  v_refunded     numeric := 0;
   v_perk_restored boolean := false;
+  v_already      boolean;
 begin
   if v_uid is null then
     raise exception 'not authenticated' using errcode = '28000';
   end if;
 
   -- Active admin only. Same gate as every other money mover.
-  select up.* into v_admin
+  select up.id, up.tenant_id into v_admin_id, v_admin_tenant
     from public.user_profiles up
    where up.user_id = v_uid
      and up.role = 'admin'
@@ -71,27 +81,29 @@ begin
     raise exception 'admins only' using errcode = '42501';
   end if;
 
-  select * into v_req
-    from public.ad_account_requests
-   where id = p_request_id
+  select r.tenant_id, r.status, r.advertiser_id, coalesce(r.metadata, '{}'::jsonb)
+    into v_req_tenant, v_req_status, v_req_adv, v_meta
+    from public.ad_account_requests r
+   where r.id = p_request_id
    for update;
   if not found then
     raise exception 'request not found' using errcode = '42704';
   end if;
-  if v_req.tenant_id <> v_admin.tenant_id then
+  if v_req_tenant <> v_admin_tenant then
     raise exception 'not your tenant' using errcode = '42501';
   end if;
-  if v_req.status = 'completed' then
+  if v_req_status = 'completed' then
     raise exception 'That request was already completed — it cannot be rejected.'
       using errcode = '22000';
   end if;
-  if v_req.status = 'rejected' then
+  if v_req_status = 'rejected' then
     raise exception 'That request was already rejected.' using errcode = '22000';
   end if;
 
-  v_fee := coalesce((v_req.metadata->>'request_fee')::numeric, 0);
-  v_cur := upper(coalesce(v_req.metadata->>'request_fee_currency', 'EUR'));
-  v_src := coalesce(v_req.metadata->>'request_fee_free_source', '');
+  v_fee := coalesce((v_meta->>'request_fee')::numeric, 0);
+  v_cur := upper(coalesce(v_meta->>'request_fee_currency', 'EUR'));
+  v_src := coalesce(v_meta->>'request_fee_free_source', '');
+  v_already := (v_meta->>'request_fee_refunded_at') is not null;
 
   -- ── The rejection itself ──────────────────────────────────────────
   update public.ad_account_requests
@@ -101,9 +113,10 @@ begin
 
   -- ── Give the money back ───────────────────────────────────────────
   -- Only when something was actually taken, and only once.
-  if v_fee > 0 and (v_req.metadata->>'request_fee_refunded_at') is null then
-    select * into v_wallet from public.wallets
-     where advertiser_id = v_req.advertiser_id
+  if v_fee > 0 and not v_already then
+    select w.id into v_wallet_id
+      from public.wallets w
+     where w.advertiser_id = v_req_adv
      for update;
     if not found then
       raise exception 'That advertiser has no wallet to refund into.'
@@ -114,12 +127,12 @@ begin
       update public.wallets
          set usd_balance = coalesce(usd_balance, 0) + v_fee,
              updated_at = now()
-       where id = v_wallet.id;
+       where id = v_wallet_id;
     else
       update public.wallets
          set eur_balance = coalesce(eur_balance, 0) + v_fee,
              updated_at = now()
-       where id = v_wallet.id;
+       where id = v_wallet_id;
     end if;
     v_refunded := v_fee;
   end if;
@@ -128,14 +141,14 @@ begin
   -- The perk that was consumed was not recorded by id, so this restores
   -- to a free-request perk that is still live. If there is none left, the
   -- count is simply not restored — inventing one would be worse.
-  if v_src = 'perk' and (v_req.metadata->>'request_fee_refunded_at') is null then
-    select id into v_perk_id
-      from public.advertiser_perks
-     where advertiser_id = v_req.advertiser_id
-       and kind = 'free_ad_account_requests'
-       and active
-       and (expires_at is null or expires_at > now())
-     order by expires_at nulls last
+  if v_src = 'perk' and not v_already then
+    select ap.id into v_perk_id
+      from public.advertiser_perks ap
+     where ap.advertiser_id = v_req_adv
+       and ap.kind = 'free_ad_account_requests'
+       and ap.active
+       and (ap.expires_at is null or ap.expires_at > now())
+     order by ap.expires_at nulls last
      for update
      limit 1;
     if found then
@@ -152,7 +165,7 @@ begin
        set metadata = coalesce(metadata, '{}'::jsonb)
                       || jsonb_build_object(
                            'request_fee_refunded_at', now(),
-                           'request_fee_refunded_by', v_admin.id
+                           'request_fee_refunded_by', v_admin_id
                          )
      where id = p_request_id;
   end if;
