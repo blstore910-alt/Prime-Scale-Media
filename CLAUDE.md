@@ -4,6 +4,50 @@ This file is loaded automatically at the start of every Claude Code
 session in this project. Keep it short — long instructions are worse
 than none. Update it when patterns change.
 
+## The plan — do not ask, this is settled
+
+Three tracks, running together until the app is ready for real customers.
+The owner has had to restate this many times; it is written here so nobody
+has to again.
+
+1. **Agents sweep.** Read-only agents in parallel, hunting a class of
+   fault at a time — money arithmetic, client/server rule mismatches,
+   permissions, dead ends per journey, empty/error states, regressions in
+   the day's own diff. Findings get fixed, not filed.
+2. **UI round.** Claude works through the screens; the owner is in the
+   browser and says what looks wrong. Claude fixes and deploys; the owner
+   reloads and looks again.
+3. **The real J1–J8 walkthrough,** together, on production, with real
+   money. The script is `docs/WALKTHROUGH_J1_J8.md`: five test users, the
+   whole test plan A–Z, and a Known-limitations table so a known gap is
+   not reported as a new bug.
+
+**The goal is to go live cleanly after that** — real customers, nothing
+embarrassing, nothing that quietly takes the wrong money.
+
+## Deploying — preview first, then production
+
+`git push origin feat/redesign-advertiser:main` publishes to
+app.primescalemedia.com immediately. **That is production. There is no
+staging in front of it.**
+
+So every batch goes to a PREVIEW build first:
+
+```
+git push origin feat/redesign-advertiser        # preview URL on Vercel
+# look at the screens that changed
+git push origin feat/redesign-advertiser:main   # then production
+```
+
+What preview buys: it builds, the page renders, the JSX is valid. That is
+the class of fault that has bitten twice — a backtick inside a CSS
+template literal, and a modal rendered outside its parent element.
+
+What it does **not** buy: Vercel Preview talks to the **same Supabase
+database**. A write on preview is a write on live data. It is a render
+gate, not a sandbox. Migrations are unaffected either way — those are
+pasted by hand into the SQL editor and take effect for both.
+
 ## Project shape
 
 Multi-tenant financial dashboard on Next.js 15 (app router) +

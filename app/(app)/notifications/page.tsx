@@ -33,6 +33,7 @@ export default function NotificationsPage() {
   const {
     notifications,
     isLoading,
+    isError,
     unreadCount,
     markAsRead,
     markAllAsRead,
@@ -350,10 +351,30 @@ export default function NotificationsPage() {
           </div>
         ))}
 
-        {notifications.length === 0 && (
-          <div className="text-center py-20 text-muted-foreground italic">
-            No notifications found.
+        {/* A failed read is not an empty inbox. These carry "your
+            top-up was rejected", so "No notifications found" on a broken
+            query is the one sentence that must not appear. */}
+        {isError ? (
+          <div className="py-20 text-center">
+            <p className="text-sm font-medium text-destructive">
+              We couldn&apos;t load your notifications — this is NOT an empty
+              list.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => window.location.reload()}
+            >
+              Reload
+            </Button>
           </div>
+        ) : (
+          notifications.length === 0 && (
+            <div className="text-center py-20 text-muted-foreground italic">
+              No notifications found.
+            </div>
+          )
         )}
       </div>
 

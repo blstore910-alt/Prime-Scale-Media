@@ -51,8 +51,14 @@ export function NotificationsPopover() {
   const router = useRouter();
   const { profile } = useAppContext();
 
-  const { notifications, isLoading, unreadCount, markAsRead, markAllAsRead } =
-    useNotifications();
+  const {
+    notifications,
+    isLoading,
+    isError,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
 
   const { mutate: updateTransaction, isPending: isApprovingWalletTopup } =
     useUpdateTransaction(walletTopupToApprove ?? ({} as WalletTopupWithAdvertiser));
@@ -297,6 +303,12 @@ export function NotificationsPopover() {
             {isLoading ? (
               <div className="flex h-[300px] items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : isError ? (
+              // Not "No notifications" — that is a statement about the
+              // customer's inbox, and we do not know what is in it.
+              <div className="flex h-[300px] items-center justify-center px-6 text-center text-sm text-destructive">
+                We couldn&apos;t load these. Reload to try again.
               </div>
             ) : notifications.length === 0 ? (
               <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">

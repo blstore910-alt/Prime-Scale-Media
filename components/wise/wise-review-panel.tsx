@@ -105,12 +105,32 @@ const clip: CSSProperties = {
 // whether the senders left the field blank or whether we simply cannot read
 // it — those need opposite responses, and guessing wrong wastes a day.
 function WiseIngestBar() {
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["wise-ingest-status"],
     queryFn: () => wiseIngestStatus(),
     staleTime: 60_000,
   });
-  if (!data?.ok) return null;
+
+  // Hold the height while it loads, and SAY something when it fails.
+  // Returning null for both meant this strip appeared out of nowhere and
+  // pushed the whole deposits table down — and when the read failed, the
+  // one line that says "webhook NOT configured — no deposit can arrive"
+  // simply was not there. Its own comment says that line exists because
+  // guessing wrong wastes a day.
+  if (isLoading) {
+    return <div style={{ height: 30, marginTop: 10 }} aria-hidden="true" />;
+  }
+  if (!data?.ok) {
+    return (
+      <div
+        className="muted"
+        style={{ marginTop: 10, fontSize: ".82rem", minHeight: 30 }}
+      >
+        Couldn&apos;t read the feed&apos;s status — this line normally says
+        whether the webhook is on.
+      </div>
+    );
+  }
 
   const ago = data.newestReceivedAt
     ? dayjs(data.newestReceivedAt).fromNow()
@@ -159,7 +179,7 @@ export default function WiseReviewPanel() {
   const queryClient = useQueryClient();
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["wise-incoming", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -531,9 +551,31 @@ Statement tried: ${p.attempts.join(" | ")}`
                     className="muted"
                     style={{ textAlign: "center", padding: "34px 0" }}
                   >
-                    {showArchived
-                      ? "Nothing archived."
-                      : "No bank deposits detected yet."}
+                    {/* A failed read is not an empty feed. "No bank
+                        deposits detected yet" on the screen that exists to
+                        notice incoming money is the worst possible way to
+                        report a broken query — and it takes the "N to
+                        confirm" badge down with it. */}
+                    {isError ? (
+                      <>
+                        <span style={{ color: "var(--danger)", fontWeight: 600 }}>
+                          We couldn&apos;t load the deposits — this is NOT an
+                          empty feed.
+                        </span>
+                        <div style={{ marginTop: 10 }}>
+                          <button
+                            className="btn ghost sm"
+                            onClick={() => refetch()}
+                          >
+                            Try again
+                          </button>
+                        </div>
+                      </>
+                    ) : showArchived ? (
+                      "Nothing archived."
+                    ) : (
+                      "No bank deposits detected yet."
+                    )}
                   </td>
                 </tr>
               ) : (

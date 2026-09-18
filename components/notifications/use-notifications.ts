@@ -17,7 +17,14 @@ export default function useNotifications() {
   // ever pruned, so unread rows accumulate forever.
   const RECENT_LIMIT = 50;
 
-  const { data: notifications = [], isLoading } = useQuery({
+  // isError, and it is RETURNED. Without it no caller could tell "you
+  // have no notifications" from "we could not ask" — and these carry
+  // "your top-up was rejected".
+  const {
+    data: notifications = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["notifications", userId],
     enabled: !!userId,
     queryFn: async () => {
@@ -36,7 +43,7 @@ export default function useNotifications() {
 
   // Counted server-side, so the badge stays honest past the cap instead of
   // undercounting to at most RECENT_LIMIT.
-  const { data: unreadCount = 0 } = useQuery({
+  const { data: unreadCount = 0, isError: countError } = useQuery({
     // Nested under "notifications" on purpose: the three mutations below
     // invalidate that prefix, so the badge refreshes with the list.
     queryKey: ["notifications", userId, "unread-count"],
@@ -96,6 +103,11 @@ export default function useNotifications() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
+    // A refused "mark all read" refetched, everything was still unread,
+    // and nothing was said — the sibling markAsRead has had this since it
+    // was written.
+    onError: (e: Error) =>
+      toast.error("Couldn't mark them read", { description: e.message }),
   });
 
   const deleteRead = useMutation({
@@ -119,11 +131,19 @@ export default function useNotifications() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
+    // Same as its sibling: a delete that is refused should say so, not
+    // look like a slow refetch.
+    onError: (e: Error) =>
+      toast.error("Couldn't clear them", { description: e.message }),
   });
 
   return {
     notifications,
     isLoading,
+    // Both, so a caller can say "we couldn't ask" instead of "you have
+    // none" and can show the badge as a dot when the count is unknown.
+    isError,
+    countError,
     unreadCount,
     markAsRead,
     markAllAsRead,

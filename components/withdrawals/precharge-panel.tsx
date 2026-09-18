@@ -64,7 +64,7 @@ export default function PrechargePanel() {
   const [createOpen, setCreateOpen] = useState(false);
   const [settlingId, setSettlingId] = useState<string | null>(null);
 
-  const { data: rows, isLoading } = useQuery({
+  const { data: rows, isLoading, isError, refetch } = useQuery({
     queryKey: ["wallet-precharges", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -127,7 +127,12 @@ export default function PrechargePanel() {
         <Button onClick={() => setCreateOpen(true)}>New precharge</Button>
       </div>
 
-      {outstandingEntries.length > 0 && (
+      {isError && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
+          The outstanding total is unknown right now — the read failed.
+        </div>
+      )}
+      {!isError && outstandingEntries.length > 0 && (
         <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
           Outstanding advances across all customers:{" "}
           {outstandingEntries.map(([cur, total], i) => (
@@ -162,6 +167,27 @@ export default function PrechargePanel() {
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              // NOT "no precharges yet". A failed read emptied the list and
+              // removed the outstanding banner with it, on the screen that
+              // tells you how much credit is out the door before a payment
+              // has cleared.
+              <TableRow>
+                <TableCell colSpan={6} className="py-10 text-center">
+                  <p className="text-sm font-medium text-destructive">
+                    We couldn&apos;t load the advances — this is NOT an empty
+                    list.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => refetch()}
+                  >
+                    Try again
+                  </Button>
                 </TableCell>
               </TableRow>
             ) : list.length === 0 ? (

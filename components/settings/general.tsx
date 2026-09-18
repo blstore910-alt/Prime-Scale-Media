@@ -54,8 +54,19 @@ const validationSchema = z.object({
 type FormValues = z.infer<typeof validationSchema>;
 
 export default function GeneralSettings() {
-  const { data, isLoading } = useProfileData();
+  const { data, isLoading, isError } = useProfileData();
   const { mutate: updateProfile, isPending } = useUpdateProfile();
+
+  // A failed read spun here forever — same spinner as "still loading", no
+  // message, no retry — and the company record behind this form is what
+  // prints on every invoice.
+  if (isError) {
+    return (
+      <p className="p-10 text-center text-sm text-destructive">
+        We couldn&apos;t load this. Reload the page to try again.
+      </p>
+    );
+  }
 
   if (isLoading || !data) {
     return (

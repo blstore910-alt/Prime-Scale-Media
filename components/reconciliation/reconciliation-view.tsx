@@ -349,6 +349,14 @@ export default function ReconciliationView() {
           <div className="rspin">
             <Loader2 className="animate-spin" />
           </div>
+        ) : entriesQ.isError ? (
+          // NOT "no entries yet", on the screen whose whole purpose is
+          // noticing money that never arrived. The hero above is already
+          // careful about this distinction; the ledger below it was not.
+          <p style={{ margin: 0, padding: 20, color: "var(--danger)", fontWeight: 600 }}>
+            We couldn&apos;t load the ledger — this is NOT an empty ledger.
+            Reload before drawing any conclusion from this screen.
+          </p>
         ) : (entriesQ.data ?? []).length === 0 ? (
           <p className="muted" style={{ margin: 0, padding: 20 }}>
             No entries yet.
