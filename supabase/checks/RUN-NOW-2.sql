@@ -90,25 +90,6 @@ begin
 end;
 $blk1$;
 
--- Who this has been happening to. Every row here is a customer who has
--- not been invoiced since that adjustment was raised.
-select
-  a.tenant_client_code            as client,
-  i.number                        as blocking_invoice,
-  i.type,
-  i.total,
-  i.currency,
-  i.created_at::date              as raised,
-  s.next_payment_date::date       as stuck_since,
-  s.amount                        as monthly,
-  s.currency                      as monthly_currency
-  from public.invoices i
-  join public.subscriptions s on s.id = i.subscription_id
-  left join public.advertisers a on a.id = s.advertiser_id
- where i.status = 'unpaid'
-   and i.period_start is null
- order by i.created_at;
-
 
 -- =====================================================================
 -- DEEL 2 — A WITHDRAWAL TAKES ITS CURRENCY FROM THE CALLER.
@@ -153,15 +134,6 @@ drop trigger if exists trg_withdrawal_is_always_usd
 create trigger trg_withdrawal_is_always_usd
   before insert or update of currency on public.ad_account_withdrawals
   for each row execute function public._withdrawal_is_always_usd();
-
--- Anything already requested in EUR is worth a look before it is approved.
-select
-  w.id, w.amount, w.currency, w.status, w.created_at::date,
-  a.tenant_client_code as client
-  from public.ad_account_withdrawals w
-  left join public.advertisers a on a.id = w.advertiser_id
- where upper(coalesce(w.currency, 'USD')) <> 'USD'
- order by w.created_at desc;
 
 
 -- =====================================================================
@@ -217,13 +189,6 @@ begin
   raise notice 'DEEL 3: the subscription row is locked before the refund is decided.';
 end;
 $blk3$;
-
--- Refunds already paid twice, if any. Empty is what you want.
-select reference, count(*) as times, sum(amount) as total
-  from public.wallet_adjustments
- where reference like 'subscription_change_refund:%'
- group by reference
-having count(*) > 1;
 
 
 -- =====================================================================
@@ -401,3 +366,60 @@ select
   exists (select 1 from pg_trigger
            where tgname='trg_withdrawal_is_always_usd')
                                                 as d2b_withdrawal_trigger;
+
+
+-- =====================================================================
+-- WAT ER TE ZIEN IS. Alle diagnoses, ná alle fixes.
+-- =====================================================================
+-- These were interleaved with the fixes, and one of them named a column
+-- that does not exist on live — which stopped the script at DEEL 3 and
+-- meant 4, 5 and 6 never ran. A query that only LOOKS should never be
+-- able to block a fix, so they all live down here now.
+
+
+-- ── DEEL 1 — customers whose billing had stopped ────────────────
+-- Who this has been happening to. Every row here is a customer who has
+-- not been invoiced since that adjustment was raised.
+select
+  a.tenant_client_code            as client,
+  i.number                        as blocking_invoice,
+  i.type,
+  i.total,
+  i.currency,
+  i.created_at::date              as raised,
+  s.next_payment_date::date       as stuck_since,
+  s.amount                        as monthly,
+  s.currency                      as monthly_currency
+  from public.invoices i
+  join public.subscriptions s on s.id = i.subscription_id
+  left join public.advertisers a on a.id = s.advertiser_id
+ where i.status = 'unpaid'
+   and i.period_start is null
+ order by i.created_at;
+
+
+-- ── DEEL 2 — withdrawals already asked for in EUR ───────────────
+-- Anything already requested in EUR is worth a look before it is approved.
+select
+  w.id, w.amount, w.currency, w.status, w.created_at::date,
+  a.tenant_client_code as client
+  from public.ad_account_withdrawals w
+  left join public.advertisers a on a.id = w.advertiser_id
+ where upper(coalesce(w.currency, 'USD')) <> 'USD'
+ order by w.created_at desc;
+
+
+-- ── DEEL 3 — refunds paid more than once ────────────────────────
+-- Refunds already paid twice, if any. Empty is what you want.
+-- `delta`, not `amount`: this table stores a SIGNED delta, which is why
+-- the column is named for what it is. Reading the repo rather than
+-- guessing is the rule here, and I guessed.
+select
+  reference,
+  count(*)     as times,
+  sum(delta)   as total_delta,
+  min(currency) as currency
+  from public.wallet_adjustments
+ where reference like 'subscription_change_refund:%'
+ group by reference
+having count(*) > 1;
