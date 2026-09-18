@@ -71,7 +71,20 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
       // carries Paid / Unpaid / Overdue / Void / Refunded. So the one
       // question this screen exists to answer could not be asked, and an
       // operator paged through everything by hand.
-      if (status && status !== "all") {
+      // ── "OVERDUE" IS NOT A STATUS ──────────────────────────────────
+      //
+      // The only statuses anything writes are unpaid, paid and void.
+      // 'refunded' exists nowhere but as an RPC's return label, and
+      // overdue is a DERIVED condition: unpaid with a due date in the
+      // past. So selecting Overdue always returned "No invoices", which
+      // reads as "nobody is late" while past-due invoices sit under
+      // Unpaid — on the screen an operator uses to find exactly those.
+      if (status === "overdue") {
+        query = query
+          .eq("status", "unpaid")
+          .not("due_date", "is", null)
+          .lt("due_date", new Date().toISOString());
+      } else if (status && status !== "all") {
         query = query.eq("status", status);
       }
 

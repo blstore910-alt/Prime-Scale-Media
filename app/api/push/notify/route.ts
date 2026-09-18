@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import webpush from "web-push";
 import { safeErrorMessage } from "@/lib/pure-error";
 
@@ -177,8 +178,23 @@ function buildPushFromRecord(record: NotificationRecord) {
 export async function POST(req: Request) {
   try {
     // 1) Verify Supabase webhook secret
-    const secret = req.headers.get("x-push-secret");
-    if (!secret || secret !== process.env.PUSH_WEBHOOK_SECRET) {
+    // ── CONSTANT TIME, LIKE THE OTHER TWO ─────────────────────────
+    //
+    // A plain `!==` on a secret leaks its length and, character by
+    // character, its contents to anyone who can measure. This route is
+    // in publicRoutes, runs with the SERVICE ROLE, and past this gate
+    // takes recipient_user_id straight from the body — so it can read
+    // and delete any user's push subscriptions. lib/cron-auth.ts and the
+    // Wise webhook both use timingSafeEqual; this was the one that did
+    // not.
+    const secret = req.headers.get("x-push-secret") ?? "";
+    const expected = process.env.PUSH_WEBHOOK_SECRET ?? "";
+    // A missing secret means CLOSED, never open.
+    const a = Buffer.from(secret);
+    const b = Buffer.from(expected);
+    const secretOk =
+      expected.length > 0 && a.length === b.length && timingSafeEqual(a, b);
+    if (!secretOk) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

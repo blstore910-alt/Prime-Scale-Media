@@ -58,6 +58,24 @@ export async function signOutCompletely() {
   } catch {
     /* private mode, blocked storage */
   }
+  // ── AND THE FORM DRAFTS ────────────────────────────────────────────
+  //
+  // hooks/use-form-draft writes to an IndexedDB database so a long form
+  // survives a reload. Four forms use it, and one of them is company
+  // onboarding — VAT number, company address, phone, official email. On
+  // a shared machine that database outlived the session entirely:
+  // nothing ever deleted it, and a draft is keyed by form, not by user.
+  //
+  // Deleting the whole database is right rather than clever: a draft is
+  // a convenience, and the cost of losing one on sign-out is a form
+  // retyped, against somebody else reading a company's tax details.
+  try {
+    if (typeof indexedDB !== "undefined") {
+      indexedDB.deleteDatabase("psm-form-drafts");
+    }
+  } catch {
+    /* blocked or unsupported; nothing else depends on it */
+  }
 
   try {
     const supabase = createClient();

@@ -42,6 +42,27 @@ import { Label } from "../ui/label";
 import { planPrice } from "@/lib/pure-plan-price";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 
+/**
+ * A blank box means "not set", never 0.
+ *
+ * z.coerce.number() turns "" into 0, and 0 is MEANINGFUL on this form:
+ * the hint under these fields says "0 = free, no sub", and the RPC that
+ * creates the subscription returns without writing anything when the fee
+ * is 0. So when the plans read fails and the auto-prime never runs, all
+ * three boxes stay blank, the invite goes out quoting "0.00 per month",
+ * and that customer is billed NOTHING for ever — while
+ * included_ad_accounts = 0 also means they are charged EUR 50 for the
+ * accounts they were told were included.
+ *
+ * setValueAs runs before the resolver, so the empty string never reaches
+ * zod. The change-subscription dialog guards this exact case and says so
+ * in those words; this form never got it.
+ */
+const BLANK_OR_NUMBER = {
+  setValueAs: (v: unknown) =>
+    v === "" || v === null || v === undefined ? undefined : Number(v),
+};
+
 const inviteBaseSchema = z.object({
   email: z.email("Please enter a valid email address"),
   role: z.enum(["advertiser", "affiliate"], {
@@ -50,6 +71,8 @@ const inviteBaseSchema = z.object({
   plan_id: z.string().optional(),
   community_id: z.string().optional(),
   affiliate_id: z.string().optional(),
+  // An empty field is NOT zero — see BLANK_OR_NUMBER at the registration
+  // sites below, which is what stops "" ever reaching zod here.
   monthly_fee: z.coerce.number().min(0).optional(),
   included_ad_accounts: z.coerce.number().min(0).optional(),
   topup_fee_pct: z.coerce.number().min(0).max(100).optional(),
@@ -635,8 +658,13 @@ export default function InviteForm() {
                       id="invite-monthly-fee"
                       type="number"
                       min="0"
-                      step="1"
-                      {...form.register("monthly_fee")}
+                      // NOT step="1": the form submits through a real
+                      // <form onSubmit>, so native validation runs first,
+                      // and a EUR 99.50 plan — which the Plans screen can
+                      // store and a live subscription already uses — made
+                      // Submit do nothing but show a browser tooltip.
+                      step="0.01"
+                      {...form.register("monthly_fee", BLANK_OR_NUMBER)}
                     />
                   </div>
                   <div>
@@ -648,7 +676,7 @@ export default function InviteForm() {
                       type="number"
                       min="0"
                       step="1"
-                      {...form.register("included_ad_accounts")}
+                      {...form.register("included_ad_accounts", BLANK_OR_NUMBER)}
                     />
                   </div>
                   <div>
@@ -660,8 +688,10 @@ export default function InviteForm() {
                       type="number"
                       min="0"
                       max="100"
-                      step="0.1"
-                      {...form.register("topup_fee_pct")}
+                      // numeric(5,2) in the database, so two decimals are
+                      // storable and step="0.1" refused them.
+                      step="0.01"
+                      {...form.register("topup_fee_pct", BLANK_OR_NUMBER)}
                     />
                   </div>
                 </div>

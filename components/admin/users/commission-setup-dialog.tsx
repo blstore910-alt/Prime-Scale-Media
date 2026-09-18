@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { CURRENCIES } from "@/lib/constants";
 import { Advertiser } from "@/lib/types/advertiser";
+import { useAppContext } from "@/context/app-provider";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -100,6 +101,8 @@ export default function CommissionSetupDialog({
     setCommissionCurrency(nextValues.commission_currency);
   }, [open, advertiser]);
 
+  const { isSuperAdmin } = useAppContext();
+
   const {
     showPct: enablePct,
     showOnetime: enableOnetime,
@@ -167,6 +170,21 @@ export default function CommissionSetupDialog({
             Configure commission rules for this advertiser.
           </DialogDescription>
         </DialogHeader>
+
+        {/* ── OWNER-ONLY, AND THE SERVER ALWAYS SAID SO ────────────────
+            setAdvertiserCommission refuses anyone who is not the tenant
+            owner. The menu item that opens this is offered to every
+            admin, so an employee filled the form in, pressed Save and
+            got an error toast — with no way to know beforehand. The flag
+            exists and is correct in the app context; nothing consulted
+            it. */}
+        {!isSuperAdmin ? (
+          <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+            Commission terms are set by the account owner. Ask them to
+            change this — the server will refuse it from here, so filling
+            it in would not save.
+          </div>
+        ) : (
         <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-sm font-semibold">Commission Type</Label>
@@ -256,14 +274,17 @@ export default function CommissionSetupDialog({
             </div>
           </div>
         </div>
+        )}
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {isSuperAdmin ? "Cancel" : "Close"}
           </Button>
-          <Button onClick={handleSave} disabled={!isDirty || isPending}>
-            {isPending ? <Loader2 className="animate-spin mr-2" /> : null}
-            Save Changes
-          </Button>
+          {isSuperAdmin && (
+            <Button onClick={handleSave} disabled={!isDirty || isPending}>
+              {isPending ? <Loader2 className="animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

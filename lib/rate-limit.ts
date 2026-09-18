@@ -88,4 +88,11 @@ export const LIMITS = {
     max: 30,
     windowSeconds: 3600,
   },
+  // SIGNING IN HAD NO LIMIT AT ALL. loginUser is a server action, which
+  // is a public POST endpoint, and it passed FormData straight to
+  // signInWithPassword — so the only thing standing in front of a
+  // password-guessing run was GoTrue's own limits, which this app does
+  // not configure and cannot see. Keyed per IP, generous for a person
+  // who has forgotten which password they used.
+  login: { bucket: "login", max: 20, windowSeconds: 900 },
 } as const;

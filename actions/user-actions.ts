@@ -1,5 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
+import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
+
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -39,6 +42,31 @@ export async function changeProfile(profileId: string, pathname: string) {
 export async function loginUser(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+
+  // ── SIGNING IN HAD NO RATE LIMIT ────────────────────────────────────
+  //
+  // A server action is a public POST endpoint — the middleware is not an
+  // authorization boundary for one, because the action is posted to
+  // whatever path the page happens to be on. So this passed FormData
+  // straight into signInWithPassword with nothing in front of it, and
+  // eight other endpoints in this app have a bucket while the one that
+  // takes a password did not.
+  //
+  // Per IP, because a guessing run varies the email. A failure to READ
+  // the limit is not a reason to refuse somebody their own account, so
+  // this errs open on an unreachable limiter — the same choice the
+  // signup and invite paths make.
+  const hdrs = await headers();
+  const allowed = await rateLimitCheck(
+    LIMITS.login,
+    `ip:${callerIp({ headers: hdrs })}`,
+  );
+  if (!allowed) {
+    return {
+      error:
+        "Too many sign-in attempts from this connection. Wait a few minutes and try again.",
+    };
+  }
 
   const supabase = await createClient();
 

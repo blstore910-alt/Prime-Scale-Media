@@ -214,7 +214,10 @@ export default function InvoicesTable() {
                 { value: "overdue", label: "Overdue" },
                 { value: "paid", label: "Paid" },
                 { value: "void", label: "Void" },
-                { value: "refunded", label: "Refunded" },
+                /* No "Refunded": nothing in the app ever writes that
+                   status — it exists only as a label an RPC returns —
+                   so the option could only ever answer "No invoices",
+                   which reads as a fact about the books. */
               ],
             },
           ]}

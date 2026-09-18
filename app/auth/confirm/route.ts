@@ -240,7 +240,21 @@ export async function GET(request: NextRequest) {
   if (metadataTenant && urlTenant && metadataTenant !== urlTenant) {
     return redirectWithError(request, "Tenant slug mismatch");
   }
-  const tenantSlug = metadataTenant ?? urlTenant;
+  // ── AND A SILENT METADATA IS NOT PERMISSION TO TRUST THE URL ────────
+  //
+  // The mismatch refusal above only fires when BOTH are present. Users
+  // minted by auth.admin.createUser — the invite-signup route and the
+  // admin-create route — carry no tenant_slug metadata at all, so such a
+  // user with no profile yet, confirming with ?t=<any slug>, got a
+  // service-role user_profiles insert as an ADVERTISER in a tenant they
+  // chose from the address bar.
+  //
+  // The URL is only trusted when the app has no opinion AND the user has
+  // no profile to contradict it, which is the genuine self-signup case
+  // this fallback was written for — and that flow always sets the
+  // metadata, so in practice the fallback now serves nobody but a
+  // legacy link.
+  const tenantSlug = metadataTenant ?? (metadata ? null : urlTenant);
 
   const metadataReferral = getStringMetadataValue(metadata, "referral_code");
   const urlReferral = searchParams.get("ref");

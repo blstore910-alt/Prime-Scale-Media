@@ -164,11 +164,26 @@ export default function CommissionsTable() {
     commissionType: commissionType === "all" ? undefined : commissionType,
     sort,
     search: debouncedSearch,
+    // ── A CALENDAR DATE IS NOT AN INSTANT ──────────────────────────
+    //
+    // `dayjs(picked).utc().startOf("day")` converts the local midnight
+    // to UTC FIRST and then truncates — so in any UTC+ zone it lands on
+    // the previous day. Picking 15 Sep in a CEST browser produced
+    // from = 14 Sep 00:00Z, to = 15 Sep 00:00Z: the whole of the 14th,
+    // and none of the 15th. A commission created on the 15th at 10:00
+    // UTC was excluded and one from the 14th was included, so the owner
+    // reconciling a payout read "nothing earned on the 15th".
+    //
+    // Take the Y-M-D the person actually picked and build the UTC
+    // instant from those digits.
     createdFrom: hasDateRange
-      ? dayjs(dateRange?.from).utc().startOf("day").toISOString()
+      ? dayjs.utc(dayjs(dateRange?.from).format("YYYY-MM-DD")).toISOString()
       : undefined,
     createdTo: hasDateRange
-      ? dayjs(dateRange?.to).utc().startOf("day").add(1, "day").toISOString()
+      ? dayjs
+          .utc(dayjs(dateRange?.to).format("YYYY-MM-DD"))
+          .add(1, "day")
+          .toISOString()
       : undefined,
     page,
     perPage,

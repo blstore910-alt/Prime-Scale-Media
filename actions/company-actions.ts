@@ -53,17 +53,33 @@ async function resolveOwnedAdvertiser(): Promise<
   const wanted = cookieStore.get("profile_id")?.value;
   const { data: profiles } = await supabase
     .from("user_profiles")
-    .select("id, user_id, tenant_id")
+    .select("id, user_id, tenant_id, is_active, status")
     .eq("user_id", userData.user.id);
   const list = (profiles ?? []) as Array<{
     id: string;
     user_id: string;
     tenant_id: string | null;
+    is_active?: boolean | null;
+    status?: string | null;
   }>;
   const profile = wanted
     ? list.find((p) => p.id === wanted) ?? list[0]
     : list[0];
   if (!profile?.tenant_id) return { ok: false, error: "Profile missing" };
+  // ── AND STILL ACTIVE ────────────────────────────────────────────────
+  //
+  // This was the only context resolver in the repo with no is_active /
+  // status test, so a switched-off advertiser could still reach
+  // saveOwnCompanyOnboarding and rewrite the company name, VAT number
+  // and billing address that go on every invoice. A deactivated user
+  // keeps a valid JWT until it expires; nothing revokes it. Its sibling
+  // 200 lines down blocks exactly this and says so.
+  if (
+    profile.is_active === false ||
+    (profile.status ?? "active") === "inactive"
+  ) {
+    return { ok: false, error: "Account is inactive" };
+  }
 
   // ── AND THE ADVERTISER IN THAT TENANT ───────────────────────────────
   //
