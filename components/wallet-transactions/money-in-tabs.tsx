@@ -174,26 +174,35 @@ export default function MoneyInTabs() {
 
 const TAB_CSS = `
 .mitabs-wrap{display:flex;flex-direction:column;gap:18px}
-.mitabs{display:flex;gap:6px;background:var(--panel-2);border-radius:13px;
-  padding:4px;overflow-x:auto;scrollbar-width:none}
-.mitabs::-webkit-scrollbar{display:none}
-.mitab{flex:1 1 0;min-width:max-content;display:flex;align-items:center;
-  justify-content:center;gap:7px;border:0;background:transparent;
-  cursor:pointer;border-radius:10px;padding:9px 12px;font:inherit;
-  font-size:.86rem;font-weight:650;color:var(--txt-2);white-space:nowrap;
+/* NO HORIZONTAL SCROLL, EVER. This bar used to be overflow-x:auto, which
+   is how the third tab ended up half off the edge of a phone: the bar
+   looked complete, and a whole queue was hidden behind a sideways scroll
+   nobody would think to try. It cannot overflow now — the labels get
+   shorter instead. */
+.mitabs{display:flex;gap:5px;background:var(--panel-2);border-radius:14px;
+  padding:4px;overflow:hidden}
+.mitab{flex:1 1 0;min-width:0;display:flex;align-items:center;
+  justify-content:center;gap:6px;border:0;background:transparent;
+  cursor:pointer;border-radius:11px;padding:10px 8px;font:inherit;
+  font-size:.88rem;font-weight:650;color:var(--txt-2);white-space:nowrap;
   transition:background .15s,color .15s}
+.mitab span{overflow:hidden;text-overflow:ellipsis}
 .mitab:hover{color:var(--ink)}
-.mitab.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow-sm)}
-.mitab em{font-style:normal;font-size:.72rem;font-weight:800;
-  font-variant-numeric:tabular-nums;min-width:20px;padding:1px 6px;
+.mitab.on{background:var(--panel);color:var(--ink);font-weight:750;
+  box-shadow:var(--shadow-sm)}
+.mitab em{flex:0 0 auto;font-style:normal;font-size:.72rem;font-weight:800;
+  font-variant-numeric:tabular-nums;min-width:19px;padding:1px 6px;
   border-radius:999px;background:var(--line);color:var(--txt-2)}
-.mitab em.hot{background:var(--warn);color:#fff}
-.mitab.on em.hot{background:var(--warn);color:#fff}
+.mitab em.hot,.mitab.on em.hot{background:var(--warn);color:#fff}
+/* Short names well before the bar gets tight — a label that is merely
+   ellipsised ("Wallet top…") is no more readable than one off the edge. */
 .mitab .mishort{display:none}
-@media(max-width:430px){
+@media(max-width:620px){
   .mitab .milong{display:none}
   .mitab .mishort{display:inline}
-  .mitab{padding:9px 8px;font-size:.82rem;gap:5px}
+}
+@media(max-width:360px){
+  .mitab{padding:10px 6px;font-size:.84rem;gap:5px}
 }
 .mihead h1{margin:0;font-family:var(--hd);font-size:1.6rem;font-weight:800;
   letter-spacing:-.03em}
