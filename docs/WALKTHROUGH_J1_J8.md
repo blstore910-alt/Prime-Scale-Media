@@ -21,8 +21,9 @@ the result, says what it means, and fixes what breaks.
 
 ### 0.1 Migrations that must be applied
 
-Paste each into the Supabase SQL editor, in order, and check its read-back
-before moving on. The ones marked **pending** are not applied yet.
+Paste each into the Supabase SQL editor and check its read-back before
+moving on. Every dollar-quoted block carries a NAMED tag (`$blk0$`) — the
+editor refuses a bare `$$` in some files whose quotes are balanced.
 
 | File | What it fixes | State |
 |---|---|---|
@@ -31,14 +32,56 @@ before moving on. The ones marked **pending** are not applied yet.
 | `20260917230000_first_topup_has_no_minimum.sql` | server and screen share the minimum | applied |
 | `20260917240000_wise_deposit_description.sql` | keep what Wise says about a deposit | applied |
 | `20260917250000_wise_deposit_archive.sql` | archive a deposit, reversibly | applied |
+| `20260918100000_commission_type_vocabulary.sql` | percentage commission had never accrued | applied |
 | `20260918110000_require_profile_rejects_deactivated.sql` | a deactivated admin loses ~20 money RPCs | applied |
 | `20260918120000_pay_invoice_rejects_deactivated.sql` | …and cannot pay an invoice from a wallet | applied |
-| `20260918100000_commission_type_vocabulary.sql` | **percentage commission has never accrued** | **pending** |
-| `20260917140000_first_invoice_due_in_3_days.sql` | the first invoice gets a due date | **pending** |
-| `20260917180000_team_accounts_phase1.sql` | the membership tables (no behaviour change) | **pending** |
+| `20260918130000_two_more_role_only_gates.sql` | two more role-only gates | applied |
+| `20260918140000_policies_reject_deactivated_admin.sql` | 33 RLS policies stop trusting a role alone | applied |
+| `20260918160000_affiliate_unpaid_split.sql` | payout stops asking for money already paid | applied |
+| `20260918170000_restore_orphan_void.sql` | undoes a revert 20260918130000 caused | applied |
+| `20260918180000_first_invoice_on_signup.sql` | **the first invoice exists at all** | applied |
+| `20260918190000_deactivated_stay_deactivated.sql` | a switched-off customer stays off | applied |
+| `20260918210000_one_unpaid_subscription_invoice.sql` | never two bills for one month | applied |
+| `20260918230000_commission_clawback.sql` | money back takes its commission with it | applied |
+| `20260918220000_refund_rejected_request_fee.sql` | **rejecting returns the 50 EUR** | **pending** |
+| `20260918240000_scalar_not_record.sql` | fixes a runtime fault in the two above | **pending** |
+| `20260918200000_money_to_numeric.sql` | money stops being a float — **BACK UP FIRST** | **pending** |
+| `20260917180000_team_accounts_phase1.sql` | membership tables (no behaviour change) | not needed |
 
-The commission one matters most: until it is applied, **J6 cannot pass**,
-because no referral set up as "Percentage" earns anything.
+`supabase/checks/RUN-NOW-bundle.sql` holds the two pending non-destructive
+ones in order, plus the wallet integrity check.
+
+### 0.1b Run the integrity check first, and again afterwards
+
+`supabase/checks/WALLET-INTEGRITY.sql`. Read-only. Its first question is
+the one that matters: does every wallet balance agree with its own audit
+history. Run it **before** this walkthrough and **after**, so you can tell
+what the session did to the books rather than guessing later.
+
+### 0.1c Two things the app will not do for you
+
+**A company must exist before anybody can be invoiced.** The billing run
+skips an advertiser with no `companies` row and notifies the admins
+instead — there is no invoice, so J2 and J3 cannot start. Filling the
+company in is a step of J1; do not skip it.
+
+**The subscription must be active and due.** A plan that was deactivated
+and reactivated can sit at `inactive`, and the run only looks at `active`
+rows whose `next_payment_date` has arrived. If J2 has nothing to pay:
+
+```sql
+select a.tenant_client_code, s.status, s.amount, s.next_payment_date,
+       (c.id is not null) as has_company
+  from public.subscriptions s
+  join public.advertisers a on a.id = s.advertiser_id
+  left join public.companies c on c.advertiser_id = a.id
+ where a.tenant_client_code = 'PSM0005';
+```
+
+Do NOT fix it by setting `next_payment_date = now()` while an unpaid
+invoice already exists — that used to mint a second bill for the same
+month. `20260918210000` now refuses it, but activating from the
+Subscriptions screen is the honest route.
 
 ### 0.2 Environment
 
@@ -268,6 +311,28 @@ email to money in their wallet without asking us anything.
      for.)
 
 ---
+
+## Where this script and the app disagree
+
+Found by walking the script through the code on 2026-09-18. The APP is
+right and the wording below was written before the screens were renamed.
+Read this before J1 so a renamed button is not reported as a missing one.
+
+| Step | The script says | What is actually there |
+|---|---|---|
+| J1.2 | the plan pill reads **Inactive** | it reads **Active · Renews \<date\>** from the first minute — there is no inactive-until-paid state |
+| J1.4 | reference like `0005-6164655424` | client codes pad to six: `000005-6164655424` |
+| J1.6 | "Bank deposits (Wise)" | the **Bank deposits** tab on /wallet-topups |
+| J1.6 | "Match found" | **Ready to credit** |
+| J1.6 | "Confirm & complete" | **Confirm & credit**, and it now asks first — the modal carries the bank's figures, the customer's, both references and the slip |
+| J1.6 | "Fetch details from Wise" | **Sync with Wise**. It also re-matches, and the panel runs it by itself on arrival |
+| J1.7 | then press **Verify** in Pending top-ups | impossible, and not a fault: confirming the deposit already completed the top-up, so it has left that queue |
+| J2.1b | apply `20260917140000` if the due date is missing | that trigger only shortens a date already set; the missing-invoice cause is 0.1c above |
+| J3.2 | "Approve" and "Reject" | **Review**, **I'm on it**, **Details**. Create Ad Account lives inside Review — and pressing "I'm on it" hides it until you set the request back to pending |
+| J5.2 | the 0.6% fee is applied | it is computed in the browser only; the server recomputes from `p_amount` |
+| J5.3 | an admin publishes a rate at /settings/finance | with zero rate rows that card renders nothing at all — there is no way to publish the first one from the UI |
+| J6.2 | assign the link at /affiliates | that screen only approves and rejects. Assigning is /users → Details → Affiliates |
+| J6.3 | commission in the currency it was earned in | the affiliate view is EUR-only; `earnings_usd` accrues and is not rendered |
 
 ## Known limitations — do not report these as new
 
