@@ -742,10 +742,25 @@ function AdvertiserRow({
           >
             <Monitor /> <span className="alab">Accounts</span>
           </Link>
+          {/* COMMISSION NEEDS AN ADVERTISER ROW, and an affiliate has
+              none by design — the Plan cell on this same row prints
+              "Affiliate — no plan" for exactly that reason. The handler
+              bails on a missing row, and stop() kills the row click
+              first, so on the whole Affiliates tab this button did
+              absolutely nothing: not even open the details sheet. Same
+              on any advertiser profile whose advertisers row is missing.
+              Disabled and explained, like the Accounts link above it. */}
           <button
             className="btn ghost sm"
-            onClick={stop(() => onCommissionSetup(advertiser))}
-            title="Commission"
+            disabled={!advertiser}
+            onClick={stop(() => {
+              if (advertiser) onCommissionSetup(advertiser);
+            })}
+            title={
+              advertiser
+                ? "Commission"
+                : "Commission terms live on the advertiser record, and this profile has none"
+            }
           >
             <HandCoins /> <span className="alab">Commission</span>
           </button>

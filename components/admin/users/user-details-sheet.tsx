@@ -498,7 +498,12 @@ export default function UserDetailsSheet({
               </>
             ) : null}
 
-            {/* Notes */}
+            {/* NOTES LIVE ON advertisers.note, and an affiliate has no
+                advertisers row. The card rendered for every profile and
+                the save bailed on a missing row, so on an affiliate the
+                admin typed a note, Save Changes appeared, the click did
+                nothing, and closing the sheet discarded it. */}
+            {advertiser ? (
             <div className="uds-card">
               <label htmlFor="notes" className="uds-lbl">
                 Notes
@@ -526,6 +531,14 @@ export default function UserDetailsSheet({
                             });
                             toast.success("Notes updated successfully");
                           },
+                          // A refused write said nothing at all: the hook
+                          // has no onError and the global handler is a
+                          // QueryCache, which covers reads only. The admin
+                          // walked away believing the note was on file.
+                          onError: (e: Error) =>
+                            toast.error("Couldn't save the note", {
+                              description: e.message,
+                            }),
                         },
                       );
                     }}
@@ -539,6 +552,7 @@ export default function UserDetailsSheet({
                 </div>
               )}
             </div>
+            ) : null}
           </div>
         )}
         <ConfirmModal
