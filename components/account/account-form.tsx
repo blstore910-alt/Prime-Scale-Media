@@ -268,6 +268,46 @@ export default function AccountForm({
 
   const supplierFeeWatch = watch("supplier_fee_pct");
   const feeWatch = watch("fee");
+
+  // ── The customer's plan rate, as ADVICE ──────────────────────────────
+  // The fee that is actually charged comes from THIS account — that is the
+  // rule, and resolveEffectiveFeePct enforces it server-side. But the
+  // advertiser's plan carries a rate that was agreed with them, and an
+  // admin opening this form has no way to know it. So it is offered here:
+  // prefilled on a new account, and stated under the field either way, so
+  // a deliberate difference is deliberate and an accidental one is
+  // visible.
+  const advertiserIdWatch = watch("advertiser_id");
+  const { data: planPct } = useQuery({
+    queryKey: ["advertiser-plan-fee", advertiserIdWatch],
+    enabled: !!advertiserIdWatch,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertiser_plans")
+        .select("topup_fee_pct")
+        .eq("advertiser_id", advertiserIdWatch)
+        .maybeSingle();
+      if (error) throw error;
+      const n = Number(
+        (data as { topup_fee_pct?: number | null } | null)?.topup_fee_pct,
+      );
+      return Number.isFinite(n) ? n : null;
+    },
+  });
+
+  // Prefill only, and only while the field is untouched — never overwrite
+  // a number somebody has typed.
+  const prefilledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (planPct === null || planPct === undefined) return;
+    if (!advertiserIdWatch) return;
+    if (prefilledFor.current === advertiserIdWatch) return;
+    if (feeWatch != null && Number(feeWatch) !== 0) return;
+    prefilledFor.current = advertiserIdWatch;
+    setValue("fee", planPct, { shouldDirty: false });
+  }, [planPct, advertiserIdWatch, feeWatch, setValue]);
   const marginText = (() => {
     const charge = Number(feeWatch);
     const cost = Number(supplierFeeWatch);
@@ -457,13 +497,26 @@ export default function AccountForm({
             placeholder="Select"
           />
 
-          <InputField
-            label="Fee (%)"
-            name="fee"
-            id="fee-percent"
-            type="number"
-            control={control}
-          />
+          <div className="space-y-1">
+            <InputField
+              label="Fee (%) — what the customer pays"
+              name="fee"
+              id="fee-percent"
+              type="number"
+              control={control}
+            />
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {planPct === null || planPct === undefined
+                ? "This account's own fee is what gets charged on its top-ups."
+                : Number(feeWatch) === planPct
+                  ? `Matches their plan (${planPct}%). This account's fee is what gets charged.`
+                  : `Their plan says ${planPct}% — this account overrides it and ${
+                      feeWatch == null || Number(feeWatch) === 0
+                        ? "nothing will be charged until you set a rate"
+                        : `${feeWatch}% gets charged`
+                    }.`}
+            </p>
+          </div>
 
           {/* What WE pay the supplier. This whole form is admin-only, and the
               value is stored in the admin-only ad_account_costs table — never
