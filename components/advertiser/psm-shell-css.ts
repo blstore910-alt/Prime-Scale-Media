@@ -470,16 +470,26 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)){
     grid-template-columns:repeat(4,minmax(0,1fr));gap:5px
   }
-  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn,
+  /* THREE fit beside their icons; FOUR do not. At 400px a third of the
+     card is about 105px — icon, gap and padding take 36 of it and leave 69
+     for the word, which "Min amount" fits into. A quarter is about 80px,
+     leaving 44, and "Commission" needs 55. So three stay on one line and
+     save a row of height; four turn the glyph up over the word to buy the
+     label the button's whole width. As many as fit beside, otherwise
+     above. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn{
+    gap:6px;padding:9px 6px;font-size:.72rem;letter-spacing:-.01em
+  }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
     flex-direction:column;gap:3px;padding:9px 3px;font-size:.64rem;
     line-height:1.15;letter-spacing:-.01em;text-align:center;height:auto
   }
-  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg,
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg{
+    width:14px;height:14px
+  }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn svg{
     width:16px;height:16px
   }
-  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .alab,
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .alab{
     max-width:100%;white-space:normal;overflow-wrap:anywhere
   }
