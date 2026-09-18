@@ -264,11 +264,38 @@ export default function AdvertiserApp() {
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("advertiser_plans")
-        .select("plan:plans(name, features)")
-        .eq("advertiser_id", advertiserId)
-        .maybeSingle();
+      // ASK FOR THE NEW COLUMN, SURVIVE WITHOUT IT.
+      //
+      // Code reaches production in minutes; a migration is pasted by hand
+      // and lands whenever somebody gets to it. So the two are never in
+      // step, and a select naming a column that does not exist yet does
+      // not degrade — it throws, and this screen showed a customer
+      // "column plans_1.features does not exist" across their own
+      // dashboard.
+      //
+      // One retry without the column. The plan still has a name, which is
+      // the part that matters; the perks fall back to the generic line.
+      let data: unknown = null;
+      let error: { message?: string } | null = null;
+      {
+        const full = await supabase
+          .from("advertiser_plans")
+          .select("plan:plans(name, features)")
+          .eq("advertiser_id", advertiserId)
+          .maybeSingle();
+        if (full.error) {
+          const lean = await supabase
+            .from("advertiser_plans")
+            .select("plan:plans(name)")
+            .eq("advertiser_id", advertiserId)
+            .maybeSingle();
+          data = lean.data;
+          error = lean.error;
+        } else {
+          data = full.data;
+          error = full.error;
+        }
+      }
       if (error) throw error;
       if (!data) return null;
       const row = data as {
