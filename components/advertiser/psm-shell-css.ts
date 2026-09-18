@@ -777,6 +777,19 @@ export const PSM_APP_CSS = `
 .psmapp .btn.ghost.danger:hover{background:var(--danger-soft);color:var(--danger)}
 .psmapp .btn.ghost.danger svg{color:var(--danger)}
 
+/* A quiet count line under a page heading: how many of the thing on this
+   screen are in each state. Sits under the subtitle, reads as data rather
+   than as a control. */
+.psmapp .subcounts{display:flex;flex-wrap:wrap;gap:4px 12px;margin:6px 0 0;
+  font-size:.8rem;color:var(--txt-2)}
+.psmapp .subcounts span{display:inline-flex;align-items:center;gap:5px}
+.psmapp .subcounts span::before{content:"";width:6px;height:6px;
+  border-radius:50%;background:var(--line-2)}
+.psmapp .subcounts span.on{color:var(--win);font-weight:650}
+.psmapp .subcounts span.on::before{background:var(--win)}
+.psmapp .subcounts span.due{color:var(--warn);font-weight:650}
+.psmapp .subcounts span.due::before{background:var(--warn)}
+
 /* ── One tab bar, for every screen that has two lists in it ───────────
    Built first for money coming in (top-ups / deposits / precharge) and
    then wanted again for people (advertisers / affiliates), so it lives

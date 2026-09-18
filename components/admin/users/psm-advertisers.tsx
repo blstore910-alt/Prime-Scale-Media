@@ -126,19 +126,28 @@ export default function PsmAdvertisers() {
     staleTime: 60_000,
     queryFn: async () => {
       const supabase = createClient();
-      const one = async (r: string) => {
-        const { count, error } = await supabase
+      // Two numbers per role: how many there are, and how many are still
+      // switched on. The tab badge answers the first; "how many are we
+      // actually serving" is the one anybody asks, and it needed a filter
+      // and a read of the pagination.
+      const one = async (r: string, active?: boolean) => {
+        let q = supabase
           .from("user_profiles")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", me?.tenant_id)
           .eq("role", r);
+        if (active !== undefined) q = q.eq("is_active", active);
+        const { count, error } = await q;
         return error ? null : (count ?? 0);
       };
-      const [advertiser, affiliate] = await Promise.all([
-        one("advertiser"),
-        one("affiliate"),
-      ]);
-      return { advertiser, affiliate };
+      const [advertiser, affiliate, advertiserOn, affiliateOn] =
+        await Promise.all([
+          one("advertiser"),
+          one("affiliate"),
+          one("advertiser", true),
+          one("affiliate", true),
+        ]);
+      return { advertiser, affiliate, advertiserOn, affiliateOn };
     },
   });
 
@@ -249,6 +258,26 @@ export default function PsmAdvertisers() {
               ? "Who refers, what they have earned."
               : "Plans, money and status."}
           </p>
+          {kindCounts ? (
+            <p className="subcounts">
+              {(() => {
+                const total = isAffiliateTab
+                  ? kindCounts.affiliate
+                  : kindCounts.advertiser;
+                const on = isAffiliateTab
+                  ? kindCounts.affiliateOn
+                  : kindCounts.advertiserOn;
+                const off =
+                  total === null || on === null ? null : total - on;
+                return (
+                  <>
+                    <span className="on">{on === null ? "—" : on} active</span>
+                    {off ? <span>{off} deactivated</span> : null}
+                  </>
+                );
+              })()}
+            </p>
+          ) : null}
         </div>
       </div>
 

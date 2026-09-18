@@ -880,7 +880,7 @@ export default function AdvertiserApp() {
         </div>
         <div className="kv">
           <span>Fee</span>
-          <b>{a.fee ?? 0}%</b>
+          <b>{Number(a.fee ?? 0)}%</b>
         </div>
         <div className="kv">
           <span>Currency</span>
@@ -1168,7 +1168,15 @@ export default function AdvertiserApp() {
               disabled={!wallet || !companyComplete}
               loading={walletLoading}
             />
-            {subscription?.amount && subscription.next_payment_date && (
+            {/* Number(), not truthiness. subscriptions.amount is moving from
+                a float to numeric, and PostgREST serialises numeric as a
+                STRING — so `0` stops being falsy and becomes "0.00", which
+                is not. A free plan would then start showing "Monthly fee €0"
+                with a Pay button beside it on the customer's own dashboard.
+                Same at the two sites below. */}
+            {subscription &&
+              Number(subscription.amount ?? 0) > 0 &&
+              subscription.next_payment_date && (
               /* One quiet row, not a filled banner with a solid blue button
                  in it. Nothing here is wrong yet — the fee is simply due —
                  and a notice that shouts competes with the balances directly
@@ -1853,7 +1861,7 @@ export default function AdvertiserApp() {
                       : "No plan"}
                 </span>
                 <div className="plan">
-                  {subscription?.amount
+                  {subscription && Number(subscription.amount ?? 0) > 0
                     ? `${planMoney(subscription.amount)} / month`
                     : "Subscription"}
                 </div>
@@ -1880,7 +1888,9 @@ export default function AdvertiserApp() {
                   Pay it from your wallet whenever suits you — or leave it, and
                   we&apos;ll take it from your wallet on the due date.
                 </p>
-                {subscription?.amount && subscription.next_payment_date ? (
+                {subscription &&
+                Number(subscription.amount ?? 0) > 0 &&
+                subscription.next_payment_date ? (
                   <>
                     <div className="list-row" style={{ borderTop: 0 }}>
                       <span

@@ -68,7 +68,7 @@ export default function AdvertiserAccountCard({
             </div>
             <div className="flex  flex-col ">
               <span className="text-sm text-muted-foreground">Fee:</span>
-              <span className="font-medium">{account.fee}%</span>
+              <span className="font-medium">{Number(account.fee ?? 0)}%</span>
             </div>
           </div>
           <div className="flex gap-2 mt-4 pt-4 border-t">
@@ -130,7 +130,7 @@ export default function AdvertiserAccountCard({
               Fee
             </span>
             <span className="text-sm font-semibold truncate font-mono">
-              {account.fee}%
+              {Number(account.fee ?? 0)}%
             </span>
           </div>
 

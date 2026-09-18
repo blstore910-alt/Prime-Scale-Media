@@ -16,6 +16,8 @@ import {
   Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useAppContext } from "@/context/app-provider";
 import ChangeSubscriptionAmountDialog from "./change-subscription-amount-dialog";
@@ -50,7 +52,36 @@ export default function PsmSubscriptions() {
   const [page, setPage] = useState(1);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const { isSuperAdmin } = useAppContext();
+  const { isSuperAdmin, profile } = useAppContext();
+
+  // HOW MANY ARE ACTUALLY RUNNING. The page showed a list and a total, and
+  // "how many people are we billing" — the first question anybody has on
+  // this screen — meant counting rows by eye or setting a filter and
+  // reading the pagination. Counted independently of the filter, because
+  // these describe the book, not the current view.
+  const { data: statusCounts } = useQuery({
+    queryKey: ["subscription-status-counts", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const one = async (st: string) => {
+        const { count, error } = await supabase
+          .from("subscriptions")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", profile?.tenant_id)
+          .eq("status", st);
+        return error ? null : (count ?? 0);
+      };
+      const [active, pastDue, paused, inactive] = await Promise.all([
+        one("active"),
+        one("past_due"),
+        one("paused"),
+        one("inactive"),
+      ]);
+      return { active, pastDue, paused, inactive };
+    },
+  });
   const [amountEditSub, setAmountEditSub] = useState<Subscription | null>(null);
 
   useEffect(() => setPage(1), [status, date]);
@@ -144,6 +175,25 @@ export default function PsmSubscriptions() {
         <div className="ptxt">
           <h1>Subscriptions</h1>
           <p>Recurring monthly plans.</p>
+          {/* A dash, never a zero: a count we could not read must not read
+              as "nobody is being billed". */}
+          {statusCounts ? (
+            <p className="subcounts">
+              <span className="on">
+                {statusCounts.active === null ? "—" : statusCounts.active}{" "}
+                active
+              </span>
+              {statusCounts.pastDue ? (
+                <span className="due">{statusCounts.pastDue} past due</span>
+              ) : null}
+              {statusCounts.paused ? (
+                <span>{statusCounts.paused} paused</span>
+              ) : null}
+              {statusCounts.inactive ? (
+                <span>{statusCounts.inactive} inactive</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         <div className="pacts">
           <button className="btn grad" onClick={() => setIsCreateOpen(true)}>
