@@ -3,7 +3,15 @@
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Archive, ArchiveRestore, Link2, Loader2 } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  Link2,
+  Loader2,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
@@ -75,36 +83,143 @@ const NEUTRAL: CSSProperties = {
 function statusView(status: string): {
   label: string;
   cls: string;
+  tone: string;
   style?: CSSProperties;
 } {
   switch (status) {
     case "confirmed":
     case "completed":
-      return { label: "Credited", cls: "badge ok" };
+      return { label: "Credited", cls: "badge ok", tone: "t-done" };
     case "matched":
     case "suggested":
-      return { label: "Match found", cls: "badge pend" };
+      // "Match found" describes the database. "Ready to credit" describes
+      // the admin's next move, which is the only thing this screen is for.
+      return { label: "Ready to credit", cls: "badge pend", tone: "t-ready" };
     case "ambiguous":
-      return { label: "Needs a look", cls: "badge due" };
+      return { label: "Needs a look", cls: "badge due", tone: "t-open" };
     case "unmatched":
-      return { label: "No match", cls: "badge", style: NEUTRAL };
+      return {
+        label: "Waiting to be matched",
+        cls: "badge",
+        tone: "t-open",
+        style: NEUTRAL,
+      };
     default:
-      return { label: "Received", cls: "badge", style: NEUTRAL };
+      return { label: "Received", cls: "badge", tone: "t-open", style: NEUTRAL };
   }
 }
 
-const clip: CSSProperties = {
-  maxWidth: 180,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
+/** EUR 5.00 is a database row. 5,00 EUR with a symbol is money. */
+const SYMBOL: Record<string, string> = {
+  EUR: "€",
+  USD: "$",
+  GBP: "£",
+  HKD: "HK$",
 };
+function money(currency: string, cents: number): string {
+  const cur = (currency || "").toUpperCase();
+  const amount = (cents / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const sym = SYMBOL[cur];
+  return sym ? sym + amount : cur + " " + amount;
+}
 
-// What the feed can and cannot do right now, in one line. Every deposit in
-// this list read "no reference" and there was nothing on the screen to say
-// whether the senders left the field blank or whether we simply cannot read
-// it — those need opposite responses, and guessing wrong wastes a day.
-function WiseIngestBar() {
+// The deposit list, styled as its own thing.
+//
+// It used to be a five-column table folded into cards on a phone, so every
+// deposit arrived as four stacked "REFERENCE & SENDER / RESULT / NOTE /
+// ACTION" labels with the values hidden among them -- table headings
+// pretending to be a card. An admin reading this screen wants four facts in
+// this order: how much, from whom, where it is going, and what to press.
+// That is what a card should be, so this is a card, not a folded row.
+const WISE_CSS = `
+.wdeps{display:flex;flex-direction:column;gap:10px}
+@media(min-width:980px){
+  .wdeps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+}
+.wdep{position:relative;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:13px 14px 13px 17px;overflow:hidden;
+  box-shadow:var(--shadow-sm)}
+.wdep::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:var(--line-2)}
+.wdep.t-ready::before{background:var(--primary)}
+.wdep.t-done::before{background:var(--win)}
+.wdep.t-open::before{background:var(--warn)}
+.wdep.is-archived{opacity:.72}
+.wdh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wamt{font-family:var(--hd);font-weight:800;font-size:1.3rem;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wdh .badge{flex:0 0 auto}
+.wdate{margin-top:1px;font-size:.76rem;color:var(--txt-2)}
+.wfrom{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.wname{font-weight:650;font-size:.94rem;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.wname.none{font-weight:500;color:var(--faint)}
+.wref{margin-top:5px;display:flex;align-items:center;gap:6px;min-width:0}
+.wlab{font-size:.6rem;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--txt-2);background:var(--panel-2);
+  border-radius:5px;padding:2px 5px;flex:0 0 auto}
+.wrefv{font-size:.88rem;font-weight:700;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.wnone{font-size:.83rem;color:var(--faint);font-style:italic}
+.wiban,.wdesc{margin-top:4px;font-size:.73rem;color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wto{margin-top:10px;display:flex;gap:9px;align-items:flex-start;
+  background:var(--primary-tint);border-radius:10px;padding:9px 11px}
+.wtoa{font-weight:800;color:var(--primary);flex:0 0 auto;line-height:1.35}
+.wtoc{font-family:var(--hd);font-weight:800;font-size:.95rem;
+  letter-spacing:-.01em}
+.wtot{font-size:.8rem;color:var(--txt-2);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.wtor{margin-top:2px;font-size:.71rem;color:var(--faint)}
+.wnote{margin:9px 0 0;font-size:.79rem;line-height:1.45;color:var(--txt-2)}
+.wact{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wact.one{grid-template-columns:1fr}
+.wact>*{min-width:0}
+.wact .btn{width:100%;justify-content:center}
+.wdone{display:flex;align-items:center;justify-content:center;
+  font-size:.83rem;font-weight:650;color:var(--win)}
+.wtiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+  margin-top:12px}
+.wtile{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:9px 11px;min-width:0}
+.wtile b{display:block;font-family:var(--hd);font-size:1.12rem;font-weight:800;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.25}
+.wtile span{display:block;font-size:.64rem;color:var(--txt-2);
+  text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-top:1px}
+.wtile.hot b{color:var(--warn)}
+.wsearch{display:flex;align-items:center;gap:8px;margin-top:10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:0 10px;height:42px}
+.wsearch svg{width:16px;height:16px;color:var(--faint);flex:0 0 auto}
+.wsearch input{flex:1 1 auto;min-width:0;border:0;background:transparent;
+  outline:none;font:inherit;font-size:.9rem;color:var(--ink);height:100%}
+.wsearch input::placeholder{color:var(--faint)}
+.wsearch button{flex:0 0 auto;border:0;background:transparent;cursor:pointer;
+  display:flex;align-items:center;padding:4px;border-radius:6px}
+.wsearch button:hover{background:var(--panel-2)}
+`;
+
+/** See the auto-sync in WiseReviewPanel. */
+const AUTO_SYNC_KEY = "psm.wise.autosync";
+const AUTO_SYNC_EVERY_MS = 10 * 60 * 1000;
+
+// The state of the feed, as three numbers and — only when something is
+// wrong — one sentence.
+//
+// This was a row of three green pills, a wrapping sentence of counts, and a
+// paragraph of explanation above it: five things in a stack, saying roughly
+// one thing. Worse, the pills were loudest when everything was FINE. "Webhook
+// on / References readable / Manual confirm" is three green badges telling an
+// admin that nothing has happened, every single time they open the screen, so
+// the one day one of them turns red it reads as more of the same.
+//
+// So the good news is one quiet line, and the numbers an admin actually
+// checks — how much arrived, how much we can read, how much is waiting on
+// them — are the tiles.
+function WiseTiles({ waiting }: { waiting: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["wise-ingest-status"],
     queryFn: () => wiseIngestStatus(),
@@ -113,21 +228,20 @@ function WiseIngestBar() {
 
   // Hold the height while it loads, and SAY something when it fails.
   // Returning null for both meant this strip appeared out of nowhere and
-  // pushed the whole deposits table down — and when the read failed, the
-  // one line that says "webhook NOT configured — no deposit can arrive"
-  // simply was not there. Its own comment says that line exists because
-  // guessing wrong wastes a day.
+  // pushed the whole deposits list down — and when the read failed, the
+  // line that says "webhook NOT configured — no deposit can arrive" simply
+  // was not there.
   if (isLoading) {
-    return <div style={{ height: 30, marginTop: 10 }} aria-hidden="true" />;
+    return <div style={{ height: 62, marginTop: 12 }} aria-hidden="true" />;
   }
   if (!data?.ok) {
     return (
       <div
         className="muted"
-        style={{ marginTop: 10, fontSize: ".82rem", minHeight: 30 }}
+        style={{ marginTop: 12, fontSize: ".82rem", minHeight: 62 }}
       >
-        Couldn&apos;t read the feed&apos;s status — this line normally says
-        whether the webhook is on.
+        Couldn&apos;t read the feed&apos;s status — this normally says whether
+        the webhook is on.
       </div>
     );
   }
@@ -135,41 +249,63 @@ function WiseIngestBar() {
   const ago = data.newestReceivedAt
     ? dayjs(data.newestReceivedAt).fromNow()
     : null;
-  const bits: { label: string; tone: "ok" | "pend" | "due" }[] = [
-    data.webhookConfigured
-      ? { label: "Webhook on", tone: "ok" }
-      : {
-          label: "Webhook NOT configured — no deposit can arrive",
-          tone: "due",
-        },
-    data.readTokenConfigured
-      ? { label: "References readable", tone: "ok" }
-      : { label: "No read token — references stay blank", tone: "pend" },
-    data.autoSettle
-      ? { label: "AUTO-SETTLE ON", tone: "due" }
-      : { label: "Manual confirm", tone: "ok" },
-  ];
+
+  // Only what is WRONG gets a sentence. Each of these changes what an admin
+  // should do next; the healthy version of each changes nothing.
+  const problems: string[] = [];
+  if (!data.webhookConfigured) {
+    problems.push("The webhook is not configured — no deposit can arrive.");
+  }
+  if (!data.readTokenConfigured) {
+    problems.push(
+      "No Wise read token — references stay blank and every deposit has to be matched by hand.",
+    );
+  }
+  if (data.autoSettle) {
+    problems.push(
+      "AUTO-SETTLE IS ON — matched deposits credit wallets without anyone confirming.",
+    );
+  }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 6,
-        alignItems: "center",
-        marginTop: 10,
-      }}
-    >
-      {bits.map((b) => (
-        <span key={b.label} className={`badge ${b.tone}`}>
-          {b.label}
-        </span>
-      ))}
-      <span className="muted" style={{ fontSize: ".8rem" }}>
-        {data.total} deposits · {data.withReference} with a reference
-        {ago ? ` · last received ${ago}` : " · none received yet"}
-      </span>
-    </div>
+    <>
+      <div className="wtiles">
+        <div className="wtile">
+          <b>{data.total}</b>
+          <span>Deposits</span>
+        </div>
+        <div className="wtile">
+          <b>{data.withReference}</b>
+          <span>With a reference</span>
+        </div>
+        <div className={"wtile" + (waiting > 0 ? " hot" : "")}>
+          <b>{waiting}</b>
+          <span>Waiting for you</span>
+        </div>
+      </div>
+      {problems.length > 0 ? (
+        <div style={{ marginTop: 8 }}>
+          {problems.map((t) => (
+            <p
+              key={t}
+              style={{
+                margin: "4px 0 0",
+                fontSize: ".82rem",
+                fontWeight: 600,
+                color: "var(--danger)",
+              }}
+            >
+              {t}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="muted" style={{ margin: "8px 0 0", fontSize: ".78rem" }}>
+          Watching the bank automatically · nothing is credited until you
+          confirm it{ago ? " · last payment " + ago : " · nothing received yet"}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -344,13 +480,18 @@ export default function WiseReviewPanel() {
     },
     onSuccess: (d) => {
       if (d.filled > 0) {
+        // It no longer says "Re-check matches to use them". The refresh
+        // re-matches itself now, so that sentence was instructions for a
+        // step that had already happened.
         toast.success(
           `Filled in ${d.filled} deposit${d.filled === 1 ? "" : "s"}`,
           {
             description:
-              d.withReference > 0
-                ? `${d.withReference} now carry the payer's reference — Re-check matches to use them.`
-                : "Sender and description only; no reference was on file.",
+              d.suggested > 0
+                ? `${d.suggested} now match a pending top-up and are ready to confirm.`
+                : d.withReference > 0
+                  ? `${d.withReference} now carry the payer's reference. None of them match a top-up that is pending right now.`
+                  : "Sender and description only; no reference was on file.",
           },
         );
       } else {
@@ -438,6 +579,63 @@ Statement tried: ${p.attempts.join(" | ")}`
   });
 
   const suggestedCount = allRows.filter((r) => r.status === "suggested").length;
+  // A boolean, not the array: `data ?? []` is a new array on every render,
+  // so depending on it re-ran the effect every time. The ref below made
+  // that harmless, but a dependency that always changes is a trap for
+  // whoever edits this next.
+  const hasBlankReference = allRows.some(
+    (r) =>
+      !r.reference &&
+      !r.archived_at &&
+      r.status !== "confirmed" &&
+      r.status !== "completed",
+  );
+
+  // ── Keep itself up to date ────────────────────────────────────────
+  // Pressing "Fetch details from Wise" and then "Re-check matches" was a
+  // procedure an admin had to KNOW, on the one screen whose entire job is
+  // to notice money arriving. A page that needs a ritual to tell the truth
+  // is a page that will be read while it is lying.
+  //
+  // New deposits are enriched by the webhook as they land, so this is for
+  // the ones recorded before that worked, and for the case where Wise's
+  // statement lags the webhook by a few seconds.
+  //
+  // Bounded on purpose: once per mount, only when a deposit is actually
+  // missing its reference, and at most once every ten minutes per browser —
+  // each run is up to sixty calls to Wise, and an admin who reloads all
+  // morning should not be the reason that token gets rate-limited. It is
+  // silent: it reports by filling the list in, not with a toast.
+  const autoSyncedRef = useRef(false);
+  useEffect(() => {
+    if (autoSyncedRef.current) return;
+    if (isLoading || isError) return;
+    if (!hasBlankReference) return;
+
+    // sessionStorage can throw (private windows, blocked site data), and a
+    // sync that cannot read its own clock should still not run in a loop —
+    // so a failure here means "do not auto-sync", not "sync every time".
+    let last = 0;
+    try {
+      last = Number(window.sessionStorage.getItem(AUTO_SYNC_KEY) ?? 0);
+    } catch {
+      return;
+    }
+    if (Number.isFinite(last) && Date.now() - last < AUTO_SYNC_EVERY_MS) return;
+
+    autoSyncedRef.current = true;
+    try {
+      window.sessionStorage.setItem(AUTO_SYNC_KEY, String(Date.now()));
+    } catch {
+      /* the once-per-mount ref still holds */
+    }
+    void refreshWiseDepositDetails().then((res) => {
+      if (!res.ok) return;
+      if (res.data.filled === 0 && res.data.suggested === 0) return;
+      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["wise-ingest-status"] });
+    });
+  }, [hasBlankReference, isLoading, isError, queryClient]);
 
   // Rendering all 100 made this page 28,000px tall on a phone — 35 screens of
   // scrolling, and the handful of deposits that actually need a decision were
@@ -446,6 +644,7 @@ Statement tried: ${p.attempts.join(" | ")}`
   // capped behind a count the admin can open.
   const REST_PREVIEW = 8;
   const [showAll, setShowAll] = useState(false);
+  const [depositQuery, setDepositQuery] = useState("");
   // The archived ones are a separate view, not a longer fold. The fold
   // ("show N more with nothing to confirm") hides every quiet row
   // INCLUDING the ones that still need a person, which is why the queue
@@ -454,9 +653,52 @@ Statement tried: ${p.attempts.join(" | ")}`
   const live = allRows.filter((r) =>
     showArchived ? !!r.archived_at : !r.archived_at,
   );
-  const needsAction = live.filter((r) => r.status === "suggested");
-  const rest = live.filter((r) => r.status !== "suggested");
-  const restShown = showAll ? rest : rest.slice(0, REST_PREVIEW);
+
+  // Search the DEPOSITS. The search box at the top of the screen only ever
+  // filtered the wallet top-ups, so the one place with 231 rows in it was
+  // the one place you could not search — and finding the payment a customer
+  // is asking about meant scrolling past two hundred old test transfers.
+  //
+  // Everything a person would type is matched: the reference the payer
+  // wrote, their name, their IBAN, the amount (with or without decimals),
+  // Wise's own description, and — when the deposit is already pointed at a
+  // top-up — that customer's PSM code and name.
+  const needle = depositQuery.trim().toLowerCase();
+  const searched = needle
+    ? live.filter((r) => {
+        const to = r.suggested_topup_id
+          ? (matchedTo?.[r.suggested_topup_id] ?? null)
+          : null;
+        const hay = [
+          r.reference,
+          r.sender_name,
+          r.sender_iban,
+          r.description,
+          r.note,
+          (r.amount_cents / 100).toFixed(2),
+          String(r.amount_cents / 100),
+          r.currency,
+          to?.code,
+          to?.name,
+          to?.reference,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        // Spaces removed on both sides so a typed IBAN with the bank's own
+        // grouping still finds the row it was copied from.
+        return (
+          hay.includes(needle) ||
+          hay.replace(/\s/g, "").includes(needle.replace(/\s/g, ""))
+        );
+      })
+    : live;
+
+  const needsAction = searched.filter((r) => r.status === "suggested");
+  const rest = searched.filter((r) => r.status !== "suggested");
+  // A search must not be folded away. "Show 223 more" hiding the single row
+  // somebody just searched for is the whole point of the search, missed.
+  const restShown = showAll || needle ? rest : rest.slice(0, REST_PREVIEW);
   const rows = [...needsAction, ...restShown];
   const hiddenCount = rest.length - restShown.length;
 
@@ -465,25 +707,31 @@ Statement tried: ${p.attempts.join(" | ")}`
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <style>{WISE_CSS}</style>
       <div>
-        {/* Title and its action on ONE line, the way every other screen in
-            this app puts them. marginLeft:auto inside a wrapping h2 dropped
-            the button onto a line of its own, floating between the heading
-            and the sentence that explains it. */}
+        {/* Title and its actions on ONE line. What used to sit here: the
+            title, two buttons an admin had to know the order of, a
+            three-line paragraph, three green pills and a wrapping sentence
+            of counts — before a single deposit was visible. On a phone that
+            was the entire first screen. */}
         <div className="phead">
           <h2
-            style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
           >
-            Bank deposits (Wise)
+            Bank deposits
             {suggestedCount > 0 && (
               <span className="badge pend">{suggestedCount} to confirm</span>
             )}
           </h2>
-          {/* wrap: .actrow is flex-end with no wrapping, and a flex-end
-              row that overflows spills out of its START edge — which is how
-              a button disappears behind the heading instead of moving to
-              the next line. Three of them fit on a laptop and not on a
-              narrow window. */}
+          {/* wrap: .actrow is flex-end with no wrapping, and a flex-end row
+              that overflows spills out of its START edge — which is how a
+              button disappears behind the heading instead of moving to the
+              next line. */}
           <div className="actrow" style={{ flexWrap: "wrap" }}>
             {archivedCount > 0 && (
               <button
@@ -496,309 +744,258 @@ Statement tried: ${p.attempts.join(" | ")}`
                   : `Archived (${archivedCount})`}
               </button>
             )}
+            {/* ONE button where there were two. "Fetch details from Wise"
+                and then "Re-check matches" was a two-step chore with an
+                order you had to know, on a screen whose job is to notice
+                money. The fetch now re-matches on its own, and the page
+                runs it on its own — so this is a manual re-try, not a
+                procedure. */}
             <button
               className="btn ghost sm"
-              disabled={refresh.isPending}
+              disabled={refresh.isPending || rematch.isPending}
               onClick={() => refresh.mutate()}
-              title="Ask Wise for the reference, sender and description of the deposits that arrived without them"
+              title="Ask Wise again for the reference and sender of every deposit that arrived without them, then re-match"
             >
-              {refresh.isPending ? "Asking Wise…" : "Fetch details from Wise"}
-            </button>
-            <button
-              className="btn ghost sm"
-              disabled={rematch.isPending}
-              onClick={() => rematch.mutate()}
-              title="Match the deposits with no match against the top-ups that are pending right now"
-            >
-              {rematch.isPending ? "Re-checking…" : "Re-check matches"}
+              <RefreshCw
+                className={refresh.isPending ? "animate-spin" : undefined}
+              />
+              {refresh.isPending ? "Syncing…" : "Sync with Wise"}
             </button>
           </div>
         </div>
-        <p className="muted" style={{ margin: "6px 0 0", fontSize: ".92rem" }}>
-          Incoming bank payments detected via Wise. During the safe-start phase
-          nothing completes on its own — confirm each suggested match and the
-          matching topup is credited.
-        </p>
-        <WiseIngestBar />
+        <WiseTiles waiting={suggestedCount} />
+        <div className="wsearch">
+          <Search />
+          <input
+            value={depositQuery}
+            onChange={(e) => setDepositQuery(e.target.value)}
+            placeholder="Search reference, sender, IBAN or amount…"
+            aria-label="Search bank deposits"
+          />
+          {depositQuery ? (
+            <button
+              type="button"
+              onClick={() => setDepositQuery("")}
+              aria-label="Clear the search"
+            >
+              <X />
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        <div className="tblwrap">
-          <table className="tbl wide">
-            <thead>
-              <tr>
-                <th>Amount &amp; date</th>
-                <th>Reference &amp; sender</th>
-                <th>Result</th>
-                <th>Note</th>
-                <th className="r">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "34px 0" }}>
-                    <Loader2
-                      className="animate-spin"
-                      style={{ width: 20, height: 20, color: "var(--faint)" }}
-                    />
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="muted"
-                    style={{ textAlign: "center", padding: "34px 0" }}
-                  >
-                    {/* A failed read is not an empty feed. "No bank
-                        deposits detected yet" on the screen that exists to
-                        notice incoming money is the worst possible way to
-                        report a broken query — and it takes the "N to
-                        confirm" badge down with it. */}
-                    {isError ? (
-                      <>
-                        <span style={{ color: "var(--danger)", fontWeight: 600 }}>
-                          We couldn&apos;t load the deposits — this is NOT an
-                          empty feed.
-                        </span>
-                        <div style={{ marginTop: 10 }}>
-                          <button
-                            className="btn ghost sm"
-                            onClick={() => refetch()}
-                          >
-                            Try again
-                          </button>
-                        </div>
-                      </>
-                    ) : showArchived ? (
-                      "Nothing archived."
-                    ) : (
-                      "No bank deposits detected yet."
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((r) => {
-                  const badge = statusView(r.status);
-                  return (
-                    <tr key={r.id}>
-                      <td data-label="Amount & date" style={{ verticalAlign: "top" }}>
-                        <div className="mono" style={{ fontWeight: 700 }}>
-                          {r.currency} {(r.amount_cents / 100).toFixed(2)}
-                        </div>
-                        <div
-                          className="muted"
-                          style={{ fontSize: ".75rem", whiteSpace: "nowrap" }}
-                        >
-                          {shortDate(r.created_at)}
-                        </div>
-                      </td>
-                      <td data-label="Reference & sender" style={{ verticalAlign: "top" }}>
-                        <div
-                          className="mono"
-                          style={{
-                            fontSize: ".8rem",
-                            fontStyle: r.reference ? "normal" : "italic",
-                            color: r.reference ? "var(--ink)" : "var(--faint)",
-                          }}
-                        >
-                          {r.reference || "no reference"}
-                        </div>
-                        {r.sender_name && (
-                          <div className="muted" style={{ fontSize: ".75rem", ...clip }}>
-                            {r.sender_name}
-                          </div>
-                        )}
-                        {r.sender_iban && (
-                          <div
-                            className="mono"
-                            style={{
-                              fontSize: ".75rem",
-                              color: "var(--txt-2)",
-                              // An IBAN is one unbreakable 34-character
-                              // token; its three siblings in this cell were
-                              // clipped and this one was missed, so each
-                              // deposit card became a sideways-scrolling
-                              // strip on a phone.
-                              ...clip,
-                            }}
-                            title={r.sender_iban ?? undefined}
-                          >
-                            {r.sender_iban}
-                          </div>
-                        )}
-                        {/* What Wise itself says about this credit. This
-                            used to be the only line here besides the
-                            reference, and it showed OUR OWN idempotency key
-                            (balanceId:occurredAt:amount) as if it were
-                            sender information. The key is still available
-                            on hover, where an internal id belongs. */}
-                        {r.description ? (
-                          <div
-                            className="muted"
-                            style={{ fontSize: ".75rem", ...clip, maxWidth: 220 }}
-                            title={r.description}
-                          >
-                            {r.description}
-                          </div>
-                        ) : null}
-                        <div
-                          className="mono"
-                          style={{ fontSize: ".7rem", color: "var(--faint)", ...clip }}
-                          title={`Wise id: ${r.external_id}`}
-                        >
-                          {r.external_id}
-                        </div>
-                      </td>
-                      <td data-label="Result" style={{ verticalAlign: "top" }}>
-                        <span
-                          className={badge.cls}
-                          style={badge.style}
-                          title={r.status}
-                        >
-                          {badge.label}
-                        </span>
-                        {/* WHOSE wallet Confirm would credit. */}
-                        {r.suggested_topup_id && matchedTo?.[r.suggested_topup_id] ? (
-                          <div style={{ marginTop: 5 }}>
-                            <div
-                              style={{
-                                fontFamily: "var(--hd)",
-                                fontWeight: 800,
-                                fontSize: ".82rem",
-                                letterSpacing: "-.01em",
-                              }}
-                            >
-                              {matchedTo[r.suggested_topup_id].code || "No code"}
-                            </div>
-                            <div
-                              className="muted"
-                              style={{ fontSize: ".75rem", ...clip, maxWidth: 170 }}
-                              title={matchedTo[r.suggested_topup_id].name}
-                            >
-                              {matchedTo[r.suggested_topup_id].name || "—"}
-                            </div>
-                            <div
-                              className="mono"
-                              style={{ fontSize: ".7rem", color: "var(--faint)" }}
-                            >
-                              ref {matchedTo[r.suggested_topup_id].reference || "—"}
-                            </div>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td data-label="Note" style={{ verticalAlign: "top" }}>
-                        <div
-                          className="muted"
-                          style={{ fontSize: ".82rem", ...clip, maxWidth: 240 }}
-                          title={r.note ?? undefined}
-                        >
-                          {r.note ?? "—"}
-                        </div>
-                      </td>
-                      <td
-                        data-label="Action"
-                        className="r fullcell"
-                        style={{ verticalAlign: "top" }}
-                      >
-                        {/* One row, both actions, same size — they were a
-                            button and then a button in its own div with a
-                            top margin, so they stacked and stepped. */}
-                        <div className="actrow" style={{ flexWrap: "wrap" }}>
-                        {r.status === "suggested" && r.suggested_topup_id ? (
-                          <button
-                            className="btn sm"
-                            disabled={actingId === r.id}
-                            onClick={() => confirm.mutate(r.id)}
-                          >
-                            {actingId === r.id ? "…" : "Confirm & complete"}
-                          </button>
-                        ) : r.status === "confirmed" || r.status === "matched" ? (
-                          <span
-                            className="muted"
-                            style={{ fontSize: ".82rem" }}
-                          >
-                            done
-                          </span>
-                        ) : (
-                          /* An unmatched deposit used to show a dash — a row
-                             in a money queue that nobody could do anything
-                             about, which is how a queue quietly stops being
-                             worked. The matcher fails for ordinary reasons (a
-                             missing reference, a bank that stripped it, two
-                             top-ups for the same amount), and a person can
-                             see straight away what it belongs to. */
-                          <ManualMatch
-                            transferId={r.id}
-                            amountCents={r.amount_cents}
-                            currency={r.currency}
-                            tenantId={tenantId}
-                            busy={actingId === r.id}
-                            onDone={() => {
-                              queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
-                              queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
-                              queryClient.invalidateQueries({ queryKey: ["wallets"] });
-                            }}
-                          />
-                        )}
-                        {/* Put it aside. 231 deposits, most of them old
-                            test payments of 0.01 that will never match
-                            anything, and no way to clear one out of the way
-                            — so the one that mattered sat in a list of two
-                            hundred that did not. Archiving is reversible
-                            and loses nothing. */}
-                        <button
-                          className="btn ghost sm"
-                          disabled={archive.isPending}
-                          onClick={() =>
-                            archive.mutate({
-                              id: r.id,
-                              archived: !r.archived_at,
-                            })
-                          }
-                          title={
-                            r.archived_at
-                              ? "Put it back in the queue"
-                              : "Move it to Archived — nothing is deleted"
-                          }
-                        >
-                          {r.archived_at ? <ArchiveRestore /> : <Archive />}
-                          {r.archived_at ? "Unarchive" : "Archive"}
-                        </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {isLoading ? (
+        <div className="card" style={{ padding: 34, textAlign: "center" }}>
+          <Loader2
+            className="animate-spin"
+            style={{ width: 20, height: 20, color: "var(--faint)" }}
+          />
         </div>
-        {hiddenCount > 0 && (
-          <div style={{ padding: "12px 14px", borderTop: "1px solid var(--line)" }}>
-            <button
-              className="btn ghost sm"
-              onClick={() => setShowAll(true)}
-              style={{ width: "100%", justifyContent: "center" }}
-            >
-              Show {hiddenCount} more deposit{hiddenCount === 1 ? "" : "s"} with
-              nothing to confirm
-            </button>
-          </div>
-        )}
-        {showAll && rest.length > REST_PREVIEW && (
-          <div style={{ padding: "12px 14px", borderTop: "1px solid var(--line)" }}>
-            <button
-              className="btn ghost sm"
-              onClick={() => setShowAll(false)}
-              style={{ width: "100%", justifyContent: "center" }}
-            >
-              Show fewer
-            </button>
-          </div>
-        )}
-      </div>
+      ) : rows.length === 0 ? (
+        <div className="card" style={{ padding: 30, textAlign: "center" }}>
+          {/* A failed read is not an empty feed. "No bank deposits detected
+              yet" on the screen that exists to notice incoming money is the
+              worst possible way to report a broken query -- and it takes the
+              "N to confirm" badge down with it. */}
+          {isError ? (
+            <>
+              <span style={{ color: "var(--danger)", fontWeight: 600 }}>
+                We couldn&apos;t load the deposits — this is NOT an empty feed.
+              </span>
+              <div style={{ marginTop: 10 }}>
+                <button className="btn ghost sm" onClick={() => refetch()}>
+                  Try again
+                </button>
+              </div>
+            </>
+          ) : needle ? (
+            /* NOT "no deposits detected yet". There are 231 of them; this
+               search matched none. Saying the feed is empty when a filter
+               is what emptied it sends an admin looking for a broken
+               webhook. */
+            <>
+              <span className="muted">
+                No deposit matches &ldquo;{depositQuery}&rdquo;
+                {showArchived ? " in the archive" : ""}.
+              </span>
+              <div style={{ marginTop: 10 }}>
+                <button
+                  className="btn ghost sm"
+                  onClick={() => setDepositQuery("")}
+                >
+                  Clear the search
+                </button>
+              </div>
+            </>
+          ) : (
+            <span className="muted">
+              {showArchived
+                ? "Nothing archived."
+                : "No bank deposits detected yet."}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="wdeps">
+          {rows.map((r) => {
+            const v = statusView(r.status);
+            const to = r.suggested_topup_id
+              ? (matchedTo?.[r.suggested_topup_id] ?? null)
+              : null;
+            const ready = r.status === "suggested" && !!r.suggested_topup_id;
+            const done =
+              r.status === "confirmed" ||
+              r.status === "completed" ||
+              r.status === "matched";
+            return (
+              <article
+                key={r.id}
+                className={"wdep " + v.tone + (r.archived_at ? " is-archived" : "")}
+                /* The composite idempotency key used to be PRINTED on every
+                   card, directly under the sender, where it read as if it
+                   were payment information. It is ours, not the bank's, and
+                   it is the first thing the eye lands on when there is no
+                   reference. Hover, which is where an internal id belongs. */
+                title={"Wise id: " + r.external_id}
+              >
+                <header className="wdh">
+                  <div className="wamt">{money(r.currency, r.amount_cents)}</div>
+                  <span className={v.cls} style={v.style}>
+                    {v.label}
+                  </span>
+                </header>
+                <div className="wdate">{shortDate(r.created_at)}</div>
+
+                {/* WHO PAID, in the order a person reads a bank line: the
+                    name, the reference they wrote, the account it came
+                    from. These were four labelled table cells stacked into
+                    a column of headings on a phone. */}
+                <div className="wfrom">
+                  <div className={"wname" + (r.sender_name ? "" : " none")}>
+                    {r.sender_name || "Sender not on the payment"}
+                  </div>
+                  <div className="wref">
+                    {r.reference ? (
+                      <>
+                        <span className="wlab">Ref</span>
+                        <span className="wrefv mono" title={r.reference}>
+                          {r.reference}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="wnone">no reference on the payment</span>
+                    )}
+                  </div>
+                  {r.sender_iban ? (
+                    <div className="wiban mono" title={r.sender_iban}>
+                      {r.sender_iban}
+                    </div>
+                  ) : null}
+                  {r.description ? (
+                    <div className="wdesc" title={r.description}>
+                      {r.description}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* WHERE IT GOES. The whole decision on this screen is "is
+                    this that person's money", so the answer gets its own
+                    tinted strip rather than a third column. */}
+                {to ? (
+                  <div className="wto">
+                    <span className="wtoa">&rarr;</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="wtoc">{to.code || "No code"}</div>
+                      <div className="wtot" title={to.name}>
+                        {to.name || "—"}
+                      </div>
+                      <div className="wtor mono">ref {to.reference || "—"}</div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* The note explains why there is nothing to confirm. Beside
+                    a ready match it would only repeat the strip above. */}
+                {r.note && !ready ? <p className="wnote">{r.note}</p> : null}
+
+                <div className="wact">
+                  {ready ? (
+                    <button
+                      className="btn"
+                      disabled={actingId === r.id}
+                      onClick={() => confirm.mutate(r.id)}
+                    >
+                      {actingId === r.id ? "…" : "Confirm & credit"}
+                    </button>
+                  ) : done ? (
+                    <span className="wdone">Credited</span>
+                  ) : (
+                    /* An unmatched deposit used to show a dash — a row in a
+                       money queue that nobody could do anything about, which
+                       is how a queue quietly stops being worked. */
+                    <ManualMatch
+                      transferId={r.id}
+                      amountCents={r.amount_cents}
+                      currency={r.currency}
+                      tenantId={tenantId}
+                      busy={actingId === r.id}
+                      onDone={() => {
+                        queryClient.invalidateQueries({
+                          queryKey: ["wise-incoming"],
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: ["wallet-transactions"],
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["wallets"] });
+                      }}
+                    />
+                  )}
+                  {/* Put it aside. 231 deposits, most of them old test
+                      payments of 0.01 that will never match anything, and no
+                      way to clear one out of the way — so the one that
+                      mattered sat in a list of two hundred that did not.
+                      Archiving is reversible and loses nothing. */}
+                  <button
+                    className="btn ghost"
+                    disabled={archive.isPending}
+                    onClick={() =>
+                      archive.mutate({ id: r.id, archived: !r.archived_at })
+                    }
+                    title={
+                      r.archived_at
+                        ? "Put it back in the queue"
+                        : "Move it to Archived — nothing is deleted"
+                    }
+                  >
+                    {r.archived_at ? <ArchiveRestore /> : <Archive />}
+                    {r.archived_at ? "Unarchive" : "Archive"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {hiddenCount > 0 ? (
+        <button
+          className="btn ghost sm"
+          onClick={() => setShowAll(true)}
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          Show {hiddenCount} more deposit{hiddenCount === 1 ? "" : "s"} with
+          nothing to confirm
+        </button>
+      ) : null}
+      {showAll && rest.length > REST_PREVIEW ? (
+        <button
+          className="btn ghost sm"
+          onClick={() => setShowAll(false)}
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          Show fewer
+        </button>
+      ) : null}
     </div>
   );
 }

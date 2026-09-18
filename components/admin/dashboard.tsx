@@ -127,32 +127,6 @@ export default function AdminDashboard() {
   const { isSuperAdmin, dispatch } = useAppContext();
   const pending = usePendingCounts();
 
-  // An unreadable count renders as a dash, never as a number.
-  const n = (v: number | null) => (v === null ? "—" : v);
-
-  // A count that could not be read contributes nothing to the total. That is
-  // only honest because the banner refuses to render this headline at all
-  // when pending.isError is true — it shows "Couldn't load the queues"
-  // instead — so an unknown queue can never be quietly summed into a
-  // reassuring number.
-  const needsAction =
-    (pending.walletTopups ?? 0) +
-    (pending.topUps ?? 0) +
-    (pending.adAccountRequests ?? 0) +
-    (pending.withdrawals ?? 0);
-
-  // Jump the "needs action" CTA to the most urgent non-empty queue.
-  const primaryQueue =
-    (pending.walletTopups ?? 0) > 0
-      ? "/wallet-topups"
-      : (pending.adAccountRequests ?? 0) > 0
-        ? "/ad-account-requests"
-        : (pending.topUps ?? 0) > 0
-          ? "/top-ups"
-          : (pending.withdrawals ?? 0) > 0
-            ? "/withdrawals"
-            : null;
-
   const queues: Queue[] = [
     {
       href: "/wallet-topups",
@@ -213,36 +187,15 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Needs-your-action hero (mockup .attn) + New invite share one row —
-          real pending counts; the invite is a normal, compact button. */}
+      {/* The "N items need action" hero is GONE. It restated, in a sentence,
+          exactly what the queue cards below show as badges — and those cards
+          now sort work-first, so the answer to "who is waiting on me" is
+          already the first thing on the screen. A banner that repeats the
+          next row is a row of nothing, and it will only get emptier as
+          standing actions arrive. The failed read still speaks: "we could
+          not read the counts" is not something any card can say. */}
       <div className="attnrow">
-        {needsAction > 0 ? (
-          <div className="attn">
-            <span className="ai">
-              <Zap />
-            </span>
-            <div>
-              <b>
-                {needsAction} {needsAction === 1 ? "item needs" : "items need"}{" "}
-                action
-              </b>
-              {/* A null count is unknown, and rendering it directly printed
-                  NOTHING — "  wallet topups · 7 ad-account topups" — while
-                  the headline above it counted that queue as zero. Each
-                  number says what it knows. */}
-              <div className="sub">
-                {n(pending.walletTopups)} wallet topups · {n(pending.topUps)}{" "}
-                ad-account topups · {n(pending.adAccountRequests)} account
-                requests · {n(pending.withdrawals)} withdrawals
-              </div>
-            </div>
-            {primaryQueue && (
-              <Link className="btn sm cta" href={primaryQueue}>
-                Open queue <ArrowRight />
-              </Link>
-            )}
-          </div>
-        ) : pending.isError ? (
+        {pending.isError ? (
           /* Never claim "all caught up" off a failed read. The counts are
              unknown, not zero, and this banner is the one place an admin
              decides whether anyone is waiting on their money. */
@@ -259,11 +212,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         ) : null}
-        {/* Nothing is rendered when the queues are empty. A banner saying so
-            is a whole row telling an admin that there is nothing to tell
-            them — and the queue cards immediately below already show zeros.
-            The two failure cases above still speak, because "we could not
-            read the counts" is genuinely worth a row. */}
       </div>
 
       <h2>Queues</h2>

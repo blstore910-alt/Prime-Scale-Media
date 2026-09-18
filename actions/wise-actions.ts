@@ -618,6 +618,8 @@ export async function refreshWiseDepositDetails(
     looked: number;
     filled: number;
     withReference: number;
+    /** Matches the re-check found with the references this run filled in. */
+    suggested: number;
     reason: string | null;
   }>
 > {
@@ -632,6 +634,7 @@ export async function refreshWiseDepositDetails(
         looked: 0,
         filled: 0,
         withReference: 0,
+        suggested: 0,
         reason:
           "No Wise read token is set (WISE_API_TOKEN), so there is nothing to ask. The webhook can still record deposits; it just cannot look up what the payer wrote.",
       },
@@ -646,6 +649,7 @@ export async function refreshWiseDepositDetails(
         looked: 0,
         filled: 0,
         withReference: 0,
+        suggested: 0,
         reason:
           "The Wise token is set but it could not list any profiles — it is probably expired, or it is a token for a different account. Check WISE_API_TOKEN.",
       },
@@ -668,7 +672,7 @@ export async function refreshWiseDepositDetails(
   if (!rows || rows.length === 0) {
     return {
       ok: true,
-      data: { looked: 0, filled: 0, withReference: 0, reason: null },
+      data: { looked: 0, filled: 0, withReference: 0, suggested: 0, reason: null },
     };
   }
 
@@ -735,9 +739,25 @@ export async function refreshWiseDepositDetails(
         ? "Wise returned nothing for these. Either the statements no longer cover that date, or several credits of the same amount sat within a minute of each other and we refuse to guess between them."
         : null;
 
+  // ── and then MATCH, without being asked ──────────────────────────
+  // Filling in the references and then telling the admin "Re-check
+  // matches to use them" is half a job handed back to a person. The
+  // references are the whole reason the matcher can work; running it is
+  // the same click, a second later, every single time. So it is not a
+  // click any more.
+  //
+  // Failure here does not fail the refresh — the references are already
+  // saved, and the next run (or the manual button, still there) matches
+  // them.
+  let suggested = 0;
+  if (filled > 0) {
+    const rematch = await rematchWiseDeposits();
+    if (rematch.ok) suggested = rematch.data.suggested;
+  }
+
   return {
     ok: true,
-    data: { looked: rows.length, filled, withReference, reason },
+    data: { looked: rows.length, filled, withReference, suggested, reason },
   };
 }
 
