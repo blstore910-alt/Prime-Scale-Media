@@ -680,6 +680,26 @@ export default function AdvertiserApp() {
   // and says so rather than borrowing next_payment_date.
   const dueBillDate =
     dueSubInvoice?.due_date ?? (dueSubInvoice ? null : subscription?.next_payment_date ?? null);
+  // BOTH LEGS, OR NEITHER.
+  //
+  // This panel printed the EUR half of four figures and put a euro sign
+  // on it, while affiliate_referral_stats returns four buckets and the
+  // hook totals all four. One referral on a 3% link whose advertiser
+  // topped up $30,000 read "Commission EUR 0 - Spend driven EUR 0" on a
+  // row that also said "Top-ups 1". The same person in the dedicated
+  // affiliate app saw the real number, because that screen prints both.
+  //
+  // Never a currency symbol on a figure that has a sibling in another
+  // currency: when both are non-zero they are shown together, and a
+  // currency with nothing in it is left out rather than printed as zero.
+  const twoLeg = (e: number, u: number): string => {
+    const eNum = Number(e) || 0;
+    const uNum = Number(u) || 0;
+    if (eNum && uNum) return `${eur(eNum)} · ${usd(uNum)}`;
+    if (uNum) return usd(uNum);
+    return eur(eNum);
+  };
+
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -1269,9 +1289,22 @@ export default function AdvertiserApp() {
               title="Open wallet"
             >
               <Ic name="i-wallet" />
+              {/* BOTH, OR THE ONE THEY ACTUALLY HOLD.
+                  This printed the EUR balance under a label reading
+                  "Wallet", so an advertiser who only ever funds USD read
+                  "Wallet EUR 0" on every screen in the app — including
+                  while standing on the wallet page where the USD card
+                  said $12,400. Every other balance surface here shows
+                  both and never picks one. */}
               <span className="e">
                 <small>Wallet</small>
-                <b>{eurText}</b>
+                <b>
+                  {usdBal > 0 && eurBal > 0
+                    ? `${eurText} · ${usdText}`
+                    : usdBal > 0
+                      ? usdText
+                      : eurText}
+                </b>
               </span>
             </button>
             {subscription?.status && (
@@ -1703,7 +1736,9 @@ export default function AdvertiserApp() {
                   Commission
                 </div>
                 <div className="v">
-                  {aff.isError ? "—" : eur(aff.totals.earnings_eur)}
+                  {aff.isError
+                    ? "—"
+                    : twoLeg(aff.totals.earnings_eur, aff.totals.earnings_usd)}
                 </div>
               </div>
               <div className="stat">
@@ -1714,7 +1749,9 @@ export default function AdvertiserApp() {
                   Spend driven
                 </div>
                 <div className="v">
-                  {aff.isError ? "—" : eur(aff.totals.spend_eur)}
+                  {aff.isError
+                    ? "—"
+                    : twoLeg(aff.totals.spend_eur, aff.totals.spend_usd)}
                 </div>
               </div>
             </div>
@@ -1749,14 +1786,14 @@ export default function AdvertiserApp() {
                             {r.topup_count}
                           </td>
                           <td data-label="Spend" className="r mono">
-                            {eur(r.spend_eur)}
+                            {twoLeg(r.spend_eur, r.spend_usd)}
                           </td>
                           <td
                             data-label="Commission"
                             className="r mono"
                             style={{ fontWeight: 700, color: "var(--win)" }}
                           >
-                            {eur(r.earnings_eur)}
+                            {twoLeg(r.earnings_eur, r.earnings_usd)}
                           </td>
                         </tr>
                       ))

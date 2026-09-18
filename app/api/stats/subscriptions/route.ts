@@ -221,7 +221,10 @@ export async function GET(request: NextRequest) {
     .from("invoices")
     .select("created_at, currency, total")
     .eq("tenant_id", profile.tenant_id)
-    .eq("type", "subscription")
+    // an upgrade raises a subscription_adjustment, and it is subscription revenue:
+      // the total-profit tile was fixed for exactly this and the card
+      // beside it never was, so 20 paid EUR 50 invoices read as zero.
+      .in("type", ["subscription", "subscription_adjustment"])
     .eq("status", "paid")
     .gte("created_at", periodStart)
     .lt("created_at", periodEnd);

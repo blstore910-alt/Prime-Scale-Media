@@ -426,7 +426,29 @@ export default function AdAccountRequestForm({
         onSuccess: async () => {
           await draft.clear();
           reset();
+          setConfirming(null);
           setOpen(false);
+        },
+        // ── A RETRY MUST NOT BE ONE TAP AWAY ───────────────────────────
+        //
+        // `confirming` was cleared only on success, so a failure left the
+        // dialog open with a live "Yes, send it" and the pending flag
+        // dropped. ad_account_request_create_paid has no idempotency key
+        // and no unique constraint: every call locks the wallet, debits
+        // 50 EUR and inserts a row.
+        //
+        // The dangerous shape is a call that COMMITTED and whose response
+        // was lost — a 504, a dropped connection, a suspended tab. The
+        // toast says "Failed to submit request", the customer taps again,
+        // and 100 EUR is gone for one account with two pending rows.
+        //
+        // Closing the confirmation sends them back through the form,
+        // where the wallet figure has been refetched and will show what
+        // actually happened. It is one extra tap when the failure was
+        // genuine, and it is the only thing standing between a lost
+        // response and a double charge until the RPC takes a request key.
+        onError: () => {
+          setConfirming(null);
         },
       },
     );
