@@ -124,10 +124,39 @@ begin
 end;
 $$;
 
-drop trigger if exists trg_apply_wallet_topup_balance on public.wallet_topups;
-create trigger trg_apply_wallet_topup_balance
-  after update of status on public.wallet_topups
-  for each row execute function public._apply_wallet_topup_balance();
+-- ⚠️ SUPERSEDED — DO NOT RE-CREATE THIS TRIGGER.
+--
+-- 20260913220000_fix_wallet_topup_double_credit.sql DROPPED this trigger
+-- and its function, and replaced BOTH of the old wallet-balance triggers
+-- with a single trg_wallet_topup_balance_sync. Running the two together
+-- credits every verified top-up TWICE: a EUR 10,000 payment becomes EUR
+-- 20,000 in the customer's wallet, and the assertion that would catch it
+-- lives in a file nobody is running at that moment.
+--
+-- This file is one people re-run — it carries ensure_advertiser_and_wallet
+-- — and another migration's rollback note even tells you to re-apply an
+-- old file. So the statements are commented out rather than deleted, the
+-- way all-migrations.sql already does, and the check below says which
+-- triggers are actually on the table.
+-- drop trigger if exists trg_apply_wallet_topup_balance on public.wallet_topups;
+-- create trigger trg_apply_wallet_topup_balance
+--   after update of status on public.wallet_topups
+--   for each row execute function public._apply_wallet_topup_balance();
+
+-- Exactly ONE balance trigger, and it must be the sync one.
+select
+  t.tgname                                   as trigger_name,
+  case when t.tgname = 'trg_wallet_topup_balance_sync'
+       then 'correct'
+       else 'SUPERSEDED - drop it, it double-credits' end as verdict
+  from pg_trigger t
+  join pg_class c on c.oid = t.tgrelid
+  join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'public'
+   and c.relname = 'wallet_topups'
+   and not t.tgisinternal
+ order by t.tgname;
+
 
 
 -- Sanity check
