@@ -438,7 +438,7 @@ export const PSM_APP_CSS = `
      line on a very narrow one, and every button in the set is the same
      size either way. */
   .psmapp .tbl.wide td.fullcell .actrow{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px
   }
   .psmapp .tbl.wide td.fullcell .actrow .btn{
     width:100%;min-width:0;justify-content:center;padding:8px 10px
@@ -446,10 +446,20 @@ export const PSM_APP_CSS = `
   .psmapp .actrow .btn svg{width:15px;height:15px}
   .psmapp .actrow .btn svg{flex:0 0 auto}
   .psmapp .actrow .alab{overflow:hidden;text-overflow:ellipsis}
-  /* Below 420px three labels cannot fit without shrinking the tap target,
-     so the icons carry it. Each button keeps its title for a long-press. */
+  /* LABELS STAY. This used to hide them below 420px on the reasoning that
+     four controls could not fit across 340px without shrinking the tap
+     target — true of a single ROW, and the buttons are not in a row here.
+     In a card they are a two-up grid, and what it actually produced was
+     four unnamed glyphs stacked in a column half the card wide: an eye, a
+     monitor, a hand and a crossed-out person, on the screen where an admin
+     deactivates a paying customer. A tooltip is not an answer on a phone,
+     where there is no hover.
+
+     Two per line with their names on, which is what the cell below already
+     does for Confirm and Archive. The icon-only treatment survives only in
+     the desktop table's own action column, where the header says what the
+     column is. */
   @media (max-width:420px){
-    .psmapp .actrow .alab{display:none}
     .psmapp .actrow .btn{padding:10px 8px}
   }
 
@@ -613,18 +623,13 @@ export const PSM_APP_CSS = `
      see the .actrow rule above, which already left-aligns on this
      breakpoint. Kept here only for the desktop table, where .actrow
      right-aligns because Actions is the last column. */
-  /* Below 420px the row buttons are icons only (~46px each), so three of
-     them fit inside ONE column of the two-up grid. Letting the actions cell
-     stay full-width there left the card with two rows that each had an empty
-     right half — STATUS alone, then ACTIONS alone — which is both taller and
-     more ragged than it needs to be. Paired up, the card loses a row and the
-     grid has no holes.
-
-     Above 420px the labels come back and three of them will not fit a
-     column, so there it keeps the full width it needs. */
-  @media (max-width:420px){
-    .psmapp .tbl.wide td.fullcell:has(.actrow){grid-column:auto}
-  }
+  /* The actions cell keeps the FULL card width at every size. It used to
+     drop to a single grid column below 420px, on the assumption that the
+     buttons there were icon-only and three would fit across it. They are
+     not icon-only any more (see the .alab rule above), and inside a
+     half-width column the two-up grid resolves to ONE column — so four
+     buttons came out as four stacked rows, each the width of half a card.
+     Full width, two per line. */
   /* Same reason: a right-aligned money cell in a card sits under a
      left-aligned label. .r is for table columns, not for cards. */
   .psmapp .tbl.wide td.r > *{justify-self:start}
