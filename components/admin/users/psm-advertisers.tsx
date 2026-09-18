@@ -33,6 +33,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAffiliateEarnings } from "@/hooks/use-affiliate-earnings";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 import PsmAvatar from "@/components/ui/psm-avatar";
+import { safeIlikeTerm } from "@/lib/utils/search";
 
 // Admin advertisers list, ported to the mockup look. Reuses the real
 // `useUsers` data hook (unchanged query) and the real detail sheet +
@@ -154,17 +155,49 @@ export default function PsmAdvertisers() {
     const supabase = createClient();
     try {
       setDownloadingCSV(true);
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("*, advertiser:advertisers(*), tenant:tenants(*)");
-      if (error) throw error;
+      // ── THE SAME ROWS THE SCREEN IS SHOWING ─────────────────────────
+      //
+      // This ran an unfiltered select: no tenant, no role, no active
+      // filter, no search, no paging. The button sits in the filter bar
+      // beside Search and Filter, and the table above it excludes admins
+      // and the caller's own row — so an export headed "Advertisers"
+      // contained affiliates, every employee admin and the super-admin,
+      // with their email addresses, and disagreed with everything on
+      // screen.
+      //
+      // Paged, because a select that stops at PostgREST's 1,000 rows
+      // gives a short file with no sign that it is short.
+      const PAGE = 1000;
+      const rows: unknown[] = [];
+      for (let from = 0; from < 50_000; from += PAGE) {
+        let q = supabase
+          .from("user_profiles")
+          .select("*, advertiser:advertisers(*), tenant:tenants(*)")
+          .eq("tenant_id", me?.tenant_id ?? "")
+          .neq("role", "admin")
+          .eq("role", kind);
+        if (active !== undefined) q = q.eq("is_active", active);
+        if (debounced && debounced.trim().length > 0) {
+          const term = safeIlikeTerm(debounced);
+          if (term.length > 0) {
+            q = q.or(`full_name.ilike."*${term}*",email.ilike."*${term}*"`);
+          }
+        }
+        const { data: page, error: pageErr } = await q
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (pageErr) throw pageErr;
+        rows.push(...(page ?? []));
+        if ((page ?? []).length < PAGE) break;
+      }
+      const data = rows;
       const parser = new Parser(opts);
       const csv = parser.parse(data);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "users.csv";
+      a.download = `${kind}s.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

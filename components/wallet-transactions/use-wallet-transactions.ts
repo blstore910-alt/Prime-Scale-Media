@@ -4,6 +4,7 @@ import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { safeIlikeTerm } from "@/lib/utils/search";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { extractTopupReference } from "@/lib/payment-reference";
 
 export type WalletTransactionsQueryParams = {
   status?: string | undefined;
@@ -74,7 +75,22 @@ export default function useWalletTransactions(
       // screen an admin uses to find a payment before crediting real money.
       // Text match now, same as the sibling ad-account queue.
       if (search && search.trim() !== "") {
-        const term = safeIlikeTerm(search.trim());
+        // ── THE REFERENCE THE CARD PRINTS, NOT THE ONE IT STORES ──────
+        //
+        // The card shows formatPaymentReference(clientCode, reference_no)
+        // — "000005-4839" — and that is the string the customer is told
+        // to write on the transfer, the one on the slip, and the one on
+        // the bank statement. The column holds the bare "4839", so an
+        // admin copying the reference off the card, the slip or the bank
+        // got an empty queue on the screen they use before crediting
+        // real money.
+        //
+        // extractTopupReference pulls the tail out of whichever shape
+        // they pasted; when it finds nothing, the raw text is used, so a
+        // partial search still behaves.
+        const raw = search.trim();
+        const tail = extractTopupReference(raw) ?? raw;
+        const term = safeIlikeTerm(tail);
         if (term.length > 0) {
           query = query.ilike("reference_no", `%${term}%`);
         }

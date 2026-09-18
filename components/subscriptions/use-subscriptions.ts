@@ -49,7 +49,13 @@ export default function useSubscriptions(params: SubscriptionsQueryParams = {}) 
       }
 
       if (date) {
-        query = query.eq("start_date", date);
+        // ── "ON OR AFTER", WHICH IS WHAT THE LABEL SAYS ───────────────
+        //
+        // The control is labelled "Started on or after" and this was an
+        // equality match, so asking for everything since 1 September
+        // returned only plans whose start_date is exactly that day — and
+        // an operator reads that as "nothing started since then".
+        query = query.gte("start_date", date);
       }
 
       const start = (page - 1) * perPage;
