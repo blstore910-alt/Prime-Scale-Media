@@ -1081,7 +1081,23 @@ Statement tried: ${p.attempts.join(" | ")}`
             const to = r.suggested_topup_id
               ? (matchedTo?.[r.suggested_topup_id] ?? null)
               : null;
-            const ready = r.status === "suggested" && !!r.suggested_topup_id;
+            // ── AN ARCHIVED DEPOSIT IS NOT READY ──────────────────────
+            //
+            // The two counts at the top of this screen both say
+            // `&& !r.archived_at` — a put-aside deposit is deliberately
+            // not in the work queue. This one did not, so opening the
+            // Archived view drew a live "Confirm & credit" on every
+            // matched row in it, and pressing it credits a wallet from a
+            // deposit an admin had explicitly set aside. Archiving is
+            // described on this screen as reversible and lossless; a
+            // button that moves money out of that view is neither.
+            //
+            // Unarchive is one click away and right there on the card, so
+            // nothing is blocked — it just has to be said out loud first.
+            const ready =
+              r.status === "suggested" &&
+              !!r.suggested_topup_id &&
+              !r.archived_at;
             const done =
               r.status === "confirmed" ||
               r.status === "completed" ||
@@ -1196,6 +1212,14 @@ Statement tried: ${p.attempts.join(" | ")}`
                     </button>
                   ) : done ? (
                     <span className="wdone">Credited</span>
+                  ) : r.archived_at ? (
+                    /* Same reason as `ready` above: matching by hand
+                       credits a top-up, so it is a money action and does
+                       not belong on a row that was put aside. The card
+                       says what it is and keeps Unarchive beside it. */
+                    <span className="wdone" title="Put aside — unarchive it to work on it">
+                      Put aside
+                    </span>
                   ) : (
                     /* An unmatched deposit used to show a dash — a row in a
                        money queue that nobody could do anything about, which

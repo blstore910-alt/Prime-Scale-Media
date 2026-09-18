@@ -328,8 +328,30 @@ export default function PrechargePanel() {
                         Cancel
                       </Button>
                     ) : (
-                      <span className="text-xs text-muted-foreground">
-                        settled
+                      // NOT "settled" FOR EVERYTHING THAT IS NOT
+                      // OUTSTANDING. There are three statuses, and this
+                      // printed the same word for two of them — so an
+                      // advance the admin had just CANCELLED came back
+                      // reading "settled", which is the one thing the
+                      // cancel dialog on this very screen says it must
+                      // not: "the advance is closed as cancelled rather
+                      // than settled — settled would record that the
+                      // money arrived." The money did not arrive; that
+                      // is why it was cancelled. Reading the row later,
+                      // the table said the payment cleared.
+                      <span
+                        className={
+                          r.status === "cancelled"
+                            ? "text-xs text-muted-foreground line-through"
+                            : "text-xs text-muted-foreground"
+                        }
+                        title={
+                          r.status === "cancelled"
+                            ? "The payment never arrived — the credit was taken back out"
+                            : "The payment arrived and the advance was closed"
+                        }
+                      >
+                        {r.status === "cancelled" ? "cancelled" : "settled"}
                       </span>
                     )}
                   </TableCell>
