@@ -74,6 +74,17 @@ ${s} .btn{
   box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 10px 22px -14px rgba(58,111,255,.85),0 2px 5px -3px rgba(20,30,80,.35);
   transition:transform .12s cubic-bezier(.2,.7,.3,1),box-shadow .12s,filter .12s,background-color .12s;
 }
+/* THE MODIFIERS HAVE TO WIN.
+   The rule above is scoped (0,2,0); .btn.sm and .btn.sm2 in the shell
+   sheets are unscoped and therefore ALSO (0,2,0) — and this file is
+   appended last, so equal specificity meant source order decided and the
+   base rule beat both. A change made to shrink buttons enlarged the
+   densest ones in the app: every small ghost button in a table action
+   row. Restated here at the same scope, so the modifier is later too.
+   (No backticks in this comment: it lives inside a template literal, and
+   one here has broken the production build twice.) */
+${s} .btn.sm{padding:8px 12px;font-size:.85rem}
+${s} .btn.sm2{padding:8px 12px;font-size:.82rem}
 ${s} .btn:hover{transform:translateY(-1px);filter:brightness(1.04);
   box-shadow:0 1px 0 rgba(255,255,255,.26) inset,0 16px 28px -16px rgba(58,111,255,.9),0 3px 7px -4px rgba(20,30,80,.4)}
 /* A real press: down, and the lift taken away. Buttons that only change

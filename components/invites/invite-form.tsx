@@ -185,11 +185,22 @@ export default function InviteForm() {
   // Fee precedence: picking a tier prefills; picking a community overrides;
   // manual edits win (nothing re-runs unless you pick again). A community
   // "takes over" simply because selecting it is the most recent action.
+  // THE PLAN'S CURRENCY TRAVELS WITH ITS PRICE.
+  //
+  // Only the amount was carried, and the invitation's plan_currency was
+  // never written at all, so create_subscription_from_invite defaulted to
+  // EUR: a $225 plan became a EUR 225 subscription, invoiced in EUR and
+  // collectable only from the EUR wallet. A customer who funds a USD
+  // wallet then goes past_due every month and is dunned for money they
+  // cannot pay with.
+  const [planCurrency, setPlanCurrency] = useState<"EUR" | "USD">("EUR");
+
   function prefillFrom(p: PlanOption | undefined) {
     if (!p) return;
     form.setValue("monthly_fee", p.monthly_fee);
     form.setValue("included_ad_accounts", p.included_ad_accounts);
     form.setValue("topup_fee_pct", p.topup_fee_pct);
+    setPlanCurrency(String(p.currency).toUpperCase() === "USD" ? "USD" : "EUR");
   }
 
   useEffect(() => {
@@ -263,6 +274,7 @@ export default function InviteForm() {
             ? values.included_ad_accounts ?? null
             : null,
           topup_fee_pct: isAdvertiser ? values.topup_fee_pct ?? null : null,
+          plan_currency: isAdvertiser ? planCurrency : null,
         }),
         method: "POST",
       });

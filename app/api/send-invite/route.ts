@@ -24,6 +24,7 @@ type SendInviteBody = {
   monthly_fee?: number | null;
   included_ad_accounts?: number | null;
   topup_fee_pct?: number | null;
+  plan_currency?: string | null;
 };
 
 function numOrNull(v: unknown, min: number, max: number): number | null {
@@ -239,6 +240,19 @@ export async function POST(request: NextRequest) {
       monthly_fee,
       included_ad_accounts,
       topup_fee_pct,
+      // THE CURRENCY, which was missing.
+      //
+      // create_subscription_from_invite does
+      // `upper(coalesce(v_inv.plan_currency,'EUR'))`, so a $225 plan
+      // became a EUR 225 subscription — about EUR 26 a month more than
+      // agreed, invoiced in EUR, and collectable only from the EUR
+      // wallet. A customer who funds a USD wallet then goes past_due
+      // every month and is dunned for money they cannot pay with.
+      plan_currency: isAdvertiser
+        ? String(body.plan_currency ?? "EUR").toUpperCase() === "USD"
+          ? "USD"
+          : "EUR"
+        : null,
     };
 
     const { error } = await supabase.from("invitations").insert(payload);

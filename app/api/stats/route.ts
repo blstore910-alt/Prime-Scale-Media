@@ -109,6 +109,7 @@ export async function GET() {
         .eq("tenant_id", profile.tenant_id)
         .eq("status", "completed")
         .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
         .range(from, to),
     ),
     supabase
@@ -161,6 +162,7 @@ export async function GET() {
     ])
       .eq("status", "paid")
       .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
       .range(from, to),
     ),
     pageAllRows<CurrencyAmountRow>((from, to) =>
@@ -170,6 +172,7 @@ export async function GET() {
         .eq("tenant_id", profile.tenant_id)
         .eq("status", "paid")
         .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
         .range(from, to),
     ),
     supabase

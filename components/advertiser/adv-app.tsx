@@ -40,6 +40,7 @@ import { invoiceStatusView } from "@/lib/invoice-status";
 import { effectiveMinTopup } from "@/lib/min-topup";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import PsmAvatar from "@/components/ui/psm-avatar";
+import FinanceReport from "@/components/finance/finance-report";
 
 dayjs.extend(relativeTime);
 
@@ -49,6 +50,7 @@ type View =
   | "accounts"
   | "requests"
   | "billing"
+  | "report"
   | "referrals"
   | "notif"
   | "settings"
@@ -59,6 +61,7 @@ const TITLES: Record<View, string> = {
   accounts: "Ad accounts",
   requests: "Requests",
   billing: "Billing",
+  report: "Financial report",
   referrals: "Affiliate program",
   notif: "Notifications",
   settings: "Settings",
@@ -1036,6 +1039,7 @@ export default function AdvertiserApp() {
     { v: "accounts", icon: "i-ad", label: "Ad accounts" },
     { v: "requests", icon: "i-rocket", label: "Requests" },
     { v: "billing", icon: "i-receipt", label: "Billing" },
+    { v: "report", icon: "i-chart", label: "Financial report" },
   ];
   const NAV2: { v: View; icon: string; label: string }[] = [
     { v: "notif", icon: "i-bell", label: "Notifications" },
@@ -2007,6 +2011,22 @@ export default function AdvertiserApp() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* FINANCIAL REPORT */}
+          <div className={`view${view === "report" ? " on" : ""}`}>
+            <div className="phead">
+              <div>
+                <h1>Financial report</h1>
+                <p>
+                  Every top-up, funding, fee, invoice and return in one
+                  place — filter it, total it, export it.
+                </p>
+              </div>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <FinanceReport audience="advertiser" />
+            </div>
           </div>
 
           {/* REQUESTS */}

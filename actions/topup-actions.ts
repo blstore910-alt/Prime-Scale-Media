@@ -50,15 +50,28 @@ async function resolveEffectiveFeePct(
   adAccountId?: string | null,
 ): Promise<{ applied: boolean; pct: number }> {
   let accountPct: number | null = null;
+  // THE PLATFORM DISCOUNT LIVES HERE NOW, not beside one caller.
+  //
+  // A Meta-EU-Premium account gets two points off. That was written into
+  // the single-create path only, so the bulk path charged the full rate
+  // for the same account, and the verify FLOOR compared against a rate
+  // two points above what the row was legitimately created at — which
+  // refused any non-owner adjusting a premium top-up at all, including
+  // raising it. One rule, in the one function that knows the account.
+  let isPremium = false;
   if (adAccountId) {
     const { data: acct } = await supabase
       .from("ad_accounts")
-      .select("fee")
+      .select("fee, platform")
       .eq("id", adAccountId)
       .maybeSingle();
-    const raw = (acct as { fee?: number | string | null } | null)?.fee;
+    const row = acct as
+      | { fee?: number | string | null; platform?: string | null }
+      | null;
+    const raw = row?.fee;
     const n = raw === null || raw === undefined ? NaN : Number(raw);
     if (Number.isFinite(n) && n > 0) accountPct = n;
+    isPremium = row?.platform === "eu-meta-premium";
   }
 
   const { data: plan } = await supabase
@@ -88,8 +101,13 @@ async function resolveEffectiveFeePct(
     .filter((p) => p.kind === "topup_discount")
     .reduce((max, p) => Math.max(max, Number(p.amount) || 0), 0);
 
+  const premium = isPremium ? 2 : 0;
+
   if (accountPct === null && !hasPlan && !waiver && discount === 0) {
-    return { applied: false, pct: fallbackPct };
+    // Nothing is configured, so there is no rate of OURS to enforce — the
+    // caller's own figure stands. The premium discount still applies,
+    // because that is a property of the account, not of a plan.
+    return { applied: false, pct: Math.max(0, fallbackPct - premium) };
   }
   const base =
     accountPct !== null
@@ -97,7 +115,7 @@ async function resolveEffectiveFeePct(
       : hasPlan
         ? Number(plan!.topup_fee_pct)
         : fallbackPct;
-  const pct = waiver ? 0 : Math.max(0, base - discount);
+  const pct = waiver ? 0 : Math.max(0, base - discount - premium);
   return { applied: true, pct };
 }
 
@@ -296,18 +314,9 @@ export async function createTopupAsAdmin(
     //
     // A discount the server does not know about is not a discount. It is
     // resolved from the ACCOUNT, server-side, where the amounts are.
-    let platformPct = resolvedPct;
-    if (typeof input.account_id === "string" && input.account_id) {
-      const { data: acct } = await supabase
-        .from("ad_accounts")
-        .select("platform")
-        .eq("id", input.account_id)
-        .maybeSingle();
-      if ((acct as { platform?: string } | null)?.platform === "eu-meta-premium") {
-        platformPct = Math.max(resolvedPct - 2, 0);
-      }
-    }
-    const pct = platformPct;
+    // The premium discount is applied by resolveEffectiveFeePct now, so
+    // that the bulk path and the verify floor agree with this one.
+    const pct = resolvedPct;
     // ALWAYS recompute, not only when a plan or perk applies.
     //
     // `if (applied)` meant that for an advertiser with no plan and no perk
@@ -337,6 +346,24 @@ export async function createTopupAsAdmin(
     const rates: MinimalRate[] = [{ eur: Number(rate?.eur) || 0 }];
     const amountReceived = Number(input.amount_received) || 0;
     const currency = String(input.currency || "USD");
+
+    // NO RATE IS A REFUSAL, not a zero.
+    //
+    // calculateTopupAmount divides the received amount by the rate, so a
+    // missing or stood-down rate row makes topup_amount, amount_usd and
+    // fee_amount all "0.00" — a 1,000 EUR transfer recorded as nothing
+    // arriving, and the supplier push then funds $0 against money we
+    // actually hold. Saving a new exchange rate stands the old one down
+    // FIRST, so "no active rate" is a state this app can genuinely be in
+    // for a few seconds, and the only sign of it is a failed save toast.
+    if (currency.toUpperCase() !== "USD" && !(Number(rate?.eur) > 0)) {
+      return {
+        ok: false,
+        error:
+          "There is no active exchange rate, so a non-USD top-up cannot be converted. Set the rate in Settings → Finance first.",
+        code: "invalid",
+      };
+    }
     const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
       amountReceived,
       rates,
@@ -540,7 +567,14 @@ export async function bulkCreateTopupsAsAdmin(
       typeof row.advertiser_id === "string"
     ) {
       const resolved = feeByAdvertiser.get(feeKeyOf(row));
-      if (resolved?.applied) {
+      // ALWAYS, not only when a plan or a perk applies — the same rule the
+      // single-create path states at length above. `if (applied)` left the
+      // derived columns exactly as the browser sent them for any
+      // advertiser with no plan, no perk and a zero account fee, which is
+      // the majority of new customers. Recomputing unconditionally means
+      // the stored figures are always the ones our own arithmetic produced
+      // from the amount and the effective percentage, never a caller's.
+      if (resolved) {
         const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
           Number(row.amount_received) || 0,
           bulkRates,
@@ -747,7 +781,18 @@ export async function verifyAdTopup(
         Number(row.fee) || 0,
         typeof row.account_id === "string" ? row.account_id : null,
       );
-      if (effective.applied && newFeePercent + 0.0001 < effective.pct) {
+      // GATE ON THE NUMBER, not on `applied`.
+      //
+      // `applied` is false precisely when nothing is configured — no
+      // plan, no perk, and an account fee of 0, which is most new
+      // customers. In that case pct falls back to the row's OWN stored
+      // fee, which is exactly the figure a verify must not silently drop
+      // below. Requiring `applied` therefore switched the guard off for
+      // the population it most needed to cover: a 10,000 EUR top-up
+      // carrying fee = 5 could be verified at 0 by any admin, and the
+      // row would then genuinely read 0% so the fee report agreed with
+      // it.
+      if (newFeePercent + 0.0001 < effective.pct) {
         const { data: tenant } = await supabase
           .from("tenants")
           .select("owner_id")
