@@ -5,6 +5,7 @@ import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { updateOwnProfileAndCompany } from "@/actions/company-actions";
@@ -851,6 +852,7 @@ export default function AdvertiserApp() {
   // the first press, with no way back — one mis-tap on a phone and the month
   // was paid. The state is generic so the next money button gets the same
   // treatment for free instead of another bespoke boolean.
+  const [taxOpen, setTaxOpen] = useState(false);
   const [ask, setAsk] = useState<{
     title: string;
     lead: string;
@@ -1844,7 +1846,15 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Ad accounts</h1>
-                <p>Where your budget does its work.</p>
+                <p>
+                  Where your budget does its work.{" "}
+                  {/* The question a customer asks when a figure is lower
+                      than they expected. Answering it before they ask is
+                      cheaper than answering it afterwards. */}
+                  <button className="linkish" onClick={() => setTaxOpen(true)}>
+                    Tax rates by country
+                  </button>
+                </p>
               </div>
               {canRequestAccount ? (
                 <RequestAdAccountDialog>
@@ -2637,6 +2647,13 @@ export default function AdvertiserApp() {
 
       {/* The money confirmation. Same shape as the sign-out one, because a
           customer should not have to learn two kinds of "are you sure". */}
+      <TaxRatesDialog
+        open={taxOpen}
+        onClose={() => setTaxOpen(false)}
+        tenantId={tenantId}
+        apiLinked={false}
+      />
+
       {ask && (
         <div className="modal">
           <div

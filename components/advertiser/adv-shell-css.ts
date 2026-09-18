@@ -289,6 +289,13 @@ export const ADV_CSS = `
   .mback{position:absolute;inset:0;background:rgba(12,18,48,.5);backdrop-filter:blur(2px)}
   .mcard{position:relative;width:min(480px,100%);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;animation:pop .2s ease}
 
+  /* A link that is a button, because it opens a dialog rather than
+     going anywhere. */
+  .linkish{border:0;background:none;padding:0;font:inherit;cursor:pointer;
+    color:var(--primary-600);font-weight:600;text-decoration:underline;
+    text-underline-offset:2px}
+  .linkish:hover{color:var(--primary)}
+
   /* ── The plan, on the box that charges for it ──────────────────────
      Somebody is about to pay 200 a month. The confirmation listed
      "Monthly plan" in grey beside an amount — the same shape as a 5-euro
