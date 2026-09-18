@@ -54,9 +54,16 @@ function useQueueCounts(tenantId: string | null) {
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
           .eq("status", "pending"),
+        // TENANT-SCOPED, like the two either side of it. Without the
+        // filter this counted every tenant's unassigned deposits — and,
+        // worse, an RLS-filtered read is not an ERROR, so a count that
+        // returned nothing because the rows were not visible rendered as a
+        // confident 0 on a queue that had work in it. That is the one
+        // failure this file's own header says tabs must not introduce.
         supabase
           .from("wise_incoming_transfers")
           .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
           .eq("status", "suggested")
           .is("archived_at", null),
         supabase

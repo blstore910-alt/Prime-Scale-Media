@@ -32,7 +32,7 @@ export function useMatchedDeposits(topupIds: Array<string | null | undefined>) {
   const ids = Array.from(new Set(topupIds.filter((v): v is string => !!v)));
   ids.sort();
 
-  const { data, isError } = useQuery({
+  const { data, isError, isLoading } = useQuery({
     // The sorted id list IS the key, so the query refetches when the page
     // of top-ups changes and not on every render.
     queryKey: ["matched-deposits", ids.join(",")],
@@ -45,7 +45,13 @@ export function useMatchedDeposits(topupIds: Array<string | null | undefined>) {
         .select(
           "suggested_topup_id, amount_cents, currency, sender_name, reference, created_at, status",
         )
-        .in("suggested_topup_id", ids);
+        .in("suggested_topup_id", ids)
+        // A deposit somebody deliberately put aside is not evidence for
+        // anything. Without this, archiving one still painted the green
+        // "Matched with a bank deposit" strip on the top-up card and
+        // flipped the credit dialog's lead to "a bank deposit matching
+        // this claim has arrived".
+        .is("archived_at", null);
       if (error) throw error;
 
       const out: Record<string, MatchedDeposit> = {};
@@ -84,5 +90,11 @@ export function useMatchedDeposits(topupIds: Array<string | null | undefined>) {
   // second one is the state that tells an admin to go and check the slip.
   // Reporting an unreadable feed as the second one would quietly turn a
   // broken query into a reason to trust the customer's word.
-  return { byTopup: data ?? {}, isError };
+  // LOADING IS ITS OWN STATE. While the query is in flight byTopup is
+  // empty, and an empty result renders as the amber "no bank deposit
+  // matched this yet — only the customer's word so far". That is the
+  // sentence that tells an admin not to trust the claim, and it was being
+  // shown on first paint, on every page change and on every window
+  // refocus, a beat before it turned green. Four states, not three.
+  return { byTopup: data ?? {}, isError, isLoading: ids.length > 0 && isLoading };
 }

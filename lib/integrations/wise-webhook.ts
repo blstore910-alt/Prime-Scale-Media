@@ -3,7 +3,11 @@
 // route call this so the settle logic lives in one place.
 
 import { createClient } from "@supabase/supabase-js";
-import { matchIncomingTransfer, type PendingTopup } from "./wise-match";
+import {
+  matchIncomingTransfer,
+  normalizeIban,
+  type PendingTopup,
+} from "./wise-match";
 import { fetchWiseTxnDetail } from "./wise-api";
 
 type WiseEvent = {
@@ -120,9 +124,11 @@ export async function processWiseWebhook(
     }
   }
 
-  const senderIban = rawIban
-    ? rawIban.replace(/\s/g, "").toUpperCase()
-    : null;
+  // normalizeIban returns null for Wise's UNKNOWNBANKACCOUNT placeholder —
+  // see the note on isPlaceholderIban. This is the path that LEARNS a
+  // sender->advertiser pairing, so a placeholder getting through here is
+  // what would later credit one customer's money to another.
+  const senderIban = normalizeIban(rawIban);
 
   const { data: pendingRows, error: pendingErr } = await supabase
     .from("wallet_topups")

@@ -3,7 +3,7 @@
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
-import type { MatchedDeposit } from "@/hooks/use-matched-deposits";
+import { useMatchedDeposits } from "@/hooks/use-matched-deposits";
 import { formatPaymentReference } from "@/lib/payment-reference";
 
 interface WalletTransactionApproveDialogProps {
@@ -12,10 +12,6 @@ interface WalletTransactionApproveDialogProps {
   topup: WalletTopupWithAdvertiser;
   onConfirm: () => void;
   isPending: boolean;
-  /** The bank deposit matched to this claim, when one has arrived. */
-  deposit?: MatchedDeposit;
-  /** True when the bank feed could not be read — NOT the same as "none". */
-  depositsUnreadable?: boolean;
 }
 
 /**
@@ -42,9 +38,20 @@ export default function WalletTransactionApproveDialog({
   topup,
   onConfirm,
   isPending,
-  deposit,
-  depositsUnreadable,
 }: WalletTransactionApproveDialogProps) {
+  // IT LOOKS THIS UP ITSELF. These three arrived as props, and this dialog
+  // is opened from three places — the verify queue, the notifications
+  // popover and the notifications page. Only the first one passed them, so
+  // from the other two the dialog stated "No bank deposit has been matched
+  // to this yet" whether or not one had, immediately above the button that
+  // credits real money. A fact this dialog asserts should not depend on
+  // which screen opened it.
+  const {
+    byTopup,
+    isError: depositsUnreadable,
+    isLoading: depositsLoading,
+  } = useMatchedDeposits([topup.id]);
+  const deposit = byTopup[topup.id];
   const requestedAmount = Number(topup.amount ?? 0);
   const symbol =
     CURRENCY_SYMBOLS[topup.currency as keyof typeof CURRENCY_SYMBOLS] ?? "";
@@ -66,7 +73,9 @@ export default function WalletTransactionApproveDialog({
           ? "A bank deposit matching this claim has arrived. Check the figure below against it, then credit."
           : depositsUnreadable
             ? "We could not read the bank feed, so nothing here confirms the money arrived. Check the slip before you credit."
-            : "No bank deposit has been matched to this yet — so far this is only the customer's word. Check the slip first; this credits exactly the figure below."
+            : depositsLoading
+              ? "Still checking the bank feed for a matching deposit. Check the slip before you credit."
+              : "No bank deposit has been matched to this yet — so far this is only the customer's word. Check the slip first; this credits exactly the figure below."
       }
       cta={`Yes, credit ${symbol}${requestedAmount.toFixed(2)}`}
       busy={isPending}
@@ -108,7 +117,9 @@ export default function WalletTransactionApproveDialog({
               ).toFixed(2)}${deposit.senderName ? " from " + deposit.senderName : ""}`
             : depositsUnreadable
               ? "could not be checked"
-              : "none matched yet"
+              : depositsLoading
+                ? "still checking…"
+                : "none matched yet"
         }
         strong={!!deposit}
       />

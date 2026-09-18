@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   matchIncomingTransfer,
   extractReferenceDigits,
+  normalizeIban,
   type PendingTopup,
 } from "../../lib/integrations/wise-match.ts";
 
@@ -110,9 +111,18 @@ describe("matchIncomingTransfer", () => {
   it("known sender rescues same-amount collision (no reference)", () => {
     // Two customers both have a pending $500 topup, no reference.
     // Amount alone is ambiguous, but the sender IBAN is known to be
-    // advertiser adv-2 → matches theirs.
+    // advertiser adv-2 -> matches theirs.
+    //
+    // The IBAN is passed, not just the advertiser list it was resolved
+    // from: in production that list comes OUT of the IBAN, and the rule now
+    // refuses a list it cannot tie to a real account.
     const res = matchIncomingTransfer(
-      { amount_cents: 50000, currency: "USD", reference: null },
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        reference: null,
+        sender_iban: "NL83ABNA0129108200",
+      },
       [
         topup({ id: "a", advertiser_id: "adv-1" }),
         topup({ id: "b", advertiser_id: "adv-2" }),
@@ -123,6 +133,45 @@ describe("matchIncomingTransfer", () => {
     if (res.matched) {
       assert.equal(res.topupId, "b");
       assert.equal(res.via, "sender");
+    }
+  });
+
+  it("Wise's UNKNOWNBANKACCOUNT placeholder is not a known sender", () => {
+    // THE WRONG-WALLET PATH. Wise writes this literal string when the
+    // paying bank supplies no account details, so it is the SAME value for
+    // every such payer. Learned from one customer's reference-confirmed
+    // payment, it would then "identify" the next customer whose bank does
+    // the same -- and credit their money to the first customer's wallet,
+    // with the amount, the currency and the date all agreeing.
+    const res = matchIncomingTransfer(
+      {
+        amount_cents: 50000,
+        currency: "USD",
+        reference: null,
+        sender_iban: "UNKNOWNBANKACCOUNT",
+      },
+      [
+        topup({ id: "a", advertiser_id: "adv-1" }),
+        topup({ id: "b", advertiser_id: "adv-2" }),
+      ],
+      ["adv-2"],
+    );
+    assert.equal(res.matched, false);
+  });
+
+  it("normalizeIban keeps a real account and drops every placeholder", () => {
+    assert.equal(normalizeIban("NL83 ABNA 0129 1082 00"), "NL83ABNA0129108200");
+    for (const junk of [
+      "UNKNOWNBANKACCOUNT",
+      "unknownbankaccount",
+      "UNKNOWN",
+      "N/A",
+      "  -  ",
+      "",
+      null,
+      undefined,
+    ]) {
+      assert.equal(normalizeIban(junk), null, String(junk));
     }
   });
 

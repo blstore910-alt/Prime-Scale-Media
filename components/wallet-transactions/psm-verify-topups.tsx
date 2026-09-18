@@ -59,11 +59,13 @@ const shortDay = (iso: string) => {
 function MatchedStrip({
   deposit,
   unreadable,
+  loading,
   pending,
   ownReference,
 }: {
   deposit?: MatchedDeposit;
   unreadable: boolean;
+  loading: boolean;
   pending: boolean;
   /** What the card already prints one line above. */
   ownReference: string;
@@ -71,6 +73,22 @@ function MatchedStrip({
   // A settled top-up has already been credited; the question the strip
   // answers does not apply any more.
   if (!pending) return null;
+
+  // STILL ASKING. An empty answer and an unanswered question look identical
+  // from here, and the empty answer's sentence — "only the customer's word
+  // so far" — is the one that tells an admin not to trust the claim. It was
+  // being shown on first paint, on every page change and on every window
+  // refocus, a beat before it turned green.
+  if (loading && !deposit) {
+    return (
+      <div className="tupmatch idle">
+        <Search />
+        <div>
+          <b>Checking the bank feed…</b>
+        </div>
+      </div>
+    );
+  }
 
   if (deposit) {
     const amount =
@@ -141,6 +159,7 @@ const MATCH_CSS = `
 .tupmatch.ok{background:var(--win-soft);color:var(--win)}
 .tupmatch.warn{background:var(--warn-soft);color:var(--warn)}
 .tupmatch.bad{background:var(--danger-soft);color:var(--danger)}
+.tupmatch.idle{background:var(--panel-2);color:var(--txt-2)}
 .tupref{font-family:var(--mono,ui-monospace,monospace);font-weight:700;
   white-space:nowrap}
 `;
@@ -230,9 +249,11 @@ export default function PsmVerifyTopups({
   );
 
   // The bank deposit behind each claim — see hooks/use-matched-deposits.
-  const { byTopup: deposits, isError: depositsUnreadable } = useMatchedDeposits(
-    transactions.map((t) => t.id),
-  );
+  const {
+    byTopup: deposits,
+    isError: depositsUnreadable,
+    isLoading: depositsLoading,
+  } = useMatchedDeposits(transactions.map((t) => t.id));
 
   const confirmApprove = () =>
     updateTransaction(
@@ -437,6 +458,7 @@ export default function PsmVerifyTopups({
                 <MatchedStrip
                   deposit={deposits[t.id]}
                   unreadable={depositsUnreadable}
+                  loading={depositsLoading}
                   pending={pend}
                   ownReference={
                     formatPaymentReference(
@@ -552,8 +574,6 @@ export default function PsmVerifyTopups({
 
       {selected && (
         <WalletTransactionApproveDialog
-          deposit={deposits[selected.id]}
-          depositsUnreadable={depositsUnreadable}
           open={approveOpen}
           onOpenChange={setApproveOpen}
           topup={selected}

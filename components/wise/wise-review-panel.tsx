@@ -22,6 +22,7 @@ import {
   setWiseDepositArchived,
 } from "@/actions/wise-actions";
 import { wiseIngestStatus } from "@/actions/integration-actions";
+import { isPlaceholderIban } from "@/lib/integrations/wise-match";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -92,6 +93,12 @@ function statusView(status: string): {
     case "completed":
       return { label: "Credited", cls: "badge ok", tone: "t-done" };
     case "matched":
+      // 'matched' means the money is ALREADY IN THE WALLET — the card body
+      // says "Credited" for it and offers no button. It was folded in with
+      // 'suggested' when the label changed to "Ready to credit", so a
+      // settled row wore a blue bar and a badge saying it was waiting for
+      // somebody, above the word Credited.
+      return { label: "Credited", cls: "badge ok", tone: "t-done" };
     case "suggested":
       // "Match found" describes the database. "Ready to credit" describes
       // the admin's next move, which is the only thing this screen is for.
@@ -118,17 +125,16 @@ const SYMBOL: Record<string, string> = {
   HKD: "HK$",
 };
 /**
- * Wise puts a literal placeholder where a sender's account should be when
- * the paying bank did not give it. Printed as-is it read like an account
- * number — UNKNOWNBANKACCOUNT, in monospace, under the payer's name — so
- * the one line on the card that should identify a bank account was the
- * loudest thing saying nothing.
+ * The same rule the MATCHER uses, so the screen and the matcher cannot
+ * disagree about what counts as a bank account.
+ *
+ * This file had its own copy of the placeholder list, added when the only
+ * problem looked like an ugly UNKNOWNBANKACCOUNT under a payer's name. It
+ * is not only a display problem — that value is a matching key — so the
+ * list lives in lib/integrations/wise-match.ts now and this reads it.
  */
-const NON_IBANS = new Set(["UNKNOWNBANKACCOUNT", "UNKNOWN", "N/A", "NA", "-"]);
 function realIban(v: string | null): string | null {
-  if (!v) return null;
-  const cleaned = v.replace(/[\s()]/g, "").toUpperCase();
-  return cleaned && !NON_IBANS.has(cleaned) ? v : null;
+  return isPlaceholderIban(v) ? null : v;
 }
 
 /**
@@ -700,7 +706,13 @@ Statement tried: ${p.attempts.join(" | ")}`
       toast.error("Couldn't move that deposit", { description: e.message }),
   });
 
-  const suggestedCount = allRows.filter((r) => r.status === "suggested").length;
+  // ARCHIVED ROWS ARE NOT WAITING FOR ANYBODY. This counted them, while
+  // the tab badge beside it did not — so putting one suggested deposit
+  // aside left the header saying "1 to confirm" and the tile saying 1
+  // Waiting for you, in orange, over a list with nothing in it.
+  const suggestedCount = allRows.filter(
+    (r) => r.status === "suggested" && !r.archived_at,
+  ).length;
   // A boolean, not the array: `data ?? []` is a new array on every render,
   // so depending on it re-ran the effect every time. The ref below made
   // that harmless, but a dependency that always changes is a trap for
@@ -751,14 +763,17 @@ Statement tried: ${p.attempts.join(" | ")}`
     } catch {
       /* the once-per-mount ref still holds */
     }
-    void refreshWiseDepositDetails().then((res) => {
-      if (!res.ok) return;
-      if (res.data.filled === 0 && res.data.suggested === 0) return;
-      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
-      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["wise-ingest-status"] });
-    });
-  }, [hasBlankReference, isLoading, isError, queryClient]);
+    // THROUGH THE MUTATION, not around it. Calling the action directly left
+    // refresh.isPending false, so "Sync with Wise" stayed clickable while
+    // the automatic run was in flight — and each run is up to sixty calls
+    // to Wise, both of them writing the same rows. It also means the
+    // button, the spinner and the toast all describe the automatic run.
+    refresh.mutate();
+    // `refresh` is a stable mutation object from react-query and the effect
+    // is ref-guarded to one run per mount either way; listing it only
+    // silences the rule.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasBlankReference, isLoading, isError]);
 
   // Rendering all 100 made this page 28,000px tall on a phone — 35 screens of
   // scrolling, and the handful of deposits that actually need a decision were
@@ -1094,6 +1109,15 @@ Statement tried: ${p.attempts.join(" | ")}`
                           queryKey: ["wallet-transactions"],
                         });
                         queryClient.invalidateQueries({ queryKey: ["wallets"] });
+                        // Matching by hand credits a top-up, so the tab
+                        // badges are stale the moment it succeeds. Every
+                        // other mutation on this screen already said so.
+                        queryClient.invalidateQueries({
+                          queryKey: ["money-in-counts"],
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: ["matched-deposits"],
+                        });
                       }}
                     />
                   )}

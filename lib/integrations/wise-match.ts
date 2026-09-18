@@ -54,10 +54,61 @@ export type MatchResult =
   | { matched: true; topupId: string; via: "reference" | "sender" }
   | { matched: false; reason: string };
 
+/**
+ * WISE WRITES A PLACEHOLDER WHERE AN ACCOUNT SHOULD BE.
+ *
+ * When the paying bank supplies no account details, Wise reports the
+ * sender account as the literal string UNKNOWNBANKACCOUNT. It is not an
+ * identifier — it is the absence of one, spelled out — and it is the SAME
+ * string for every payer whose bank does that.
+ *
+ * That matters here and not only on screen, because a sender account is a
+ * MATCHING KEY. Rule 2 below credits a deposit with no reference to the
+ * advertiser a sender account is known to belong to, and
+ * wise_remember_sender learns that pairing from any reference-confirmed
+ * payment. So:
+ *
+ *   advertiser X pays EUR 500 with a correct reference, from a bank that
+ *   sends no account details  ->  we learn "UNKNOWNBANKACCOUNT belongs to X"
+ *   advertiser Y wires EUR 500 with NO reference, same kind of bank
+ *                              ->  the placeholder matches, X has one
+ *                                  pending EUR 500 top-up, and Y's money
+ *                                  is credited to X's wallet.
+ *
+ * Amount, currency and date all agree. Nothing downstream can catch it.
+ * That is the same undetectable class of fault the amount-only rule was
+ * deleted for, arriving through a different door.
+ *
+ * So a placeholder normalises to NULL: not an account, therefore never a
+ * key. Every caller that learns, looks up or displays a sender account
+ * goes through this function.
+ */
+const PLACEHOLDER_IBANS = new Set([
+  "UNKNOWNBANKACCOUNT",
+  "UNKNOWNBANKACCOUNTNUMBER",
+  "UNKNOWN",
+  "UNKNOWNACCOUNT",
+  "NOTPROVIDED",
+  "NOTAVAILABLE",
+  "N/A",
+  "NA",
+  "NONE",
+  "NULL",
+  "-",
+]);
+
+export function isPlaceholderIban(iban: string | null | undefined): boolean {
+  if (!iban) return true;
+  const cleaned = iban.replace(/[\s()\-_.]/g, "").toUpperCase();
+  return cleaned.length === 0 || PLACEHOLDER_IBANS.has(cleaned);
+}
+
 export function normalizeIban(iban: string | null | undefined): string | null {
   if (!iban) return null;
   const cleaned = iban.replace(/\s/g, "").toUpperCase();
-  return cleaned.length > 0 ? cleaned : null;
+  if (cleaned.length === 0) return null;
+  if (isPlaceholderIban(cleaned)) return null;
+  return cleaned;
 }
 
 const CENTS_EPSILON = 1; // 1 cent tolerance for rounding
@@ -180,7 +231,12 @@ export function matchIncomingTransfer(
   // topups across their accounts and gave no reference, it's genuinely
   // ambiguous → review (the reference in step 1 is what disambiguates
   // that case, which is why customers are asked to include it).
-  const senderIds = knownSenderAdvertiserIds ?? [];
+  // A placeholder is not a sender. If the caller resolved its advertiser
+  // list from one, it resolved it from "this bank told us nothing", which
+  // is true of many payers at once.
+  const senderIds = normalizeIban(transfer.sender_iban)
+    ? (knownSenderAdvertiserIds ?? [])
+    : [];
   if (senderIds.length > 0) {
     const idSet = new Set(senderIds);
     const bySender = candidates.filter(

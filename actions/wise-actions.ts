@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { resolveAdminContext, wroteSomething } from "./_shared";
 import {
   matchIncomingTransfer,
+  normalizeIban,
   type PendingTopup,
 } from "@/lib/integrations/wise-match";
 import {
@@ -265,7 +266,15 @@ export async function matchWiseToTopup(
 
   const { data: linked, error: linkErr } = await admin
     .from("wise_incoming_transfers")
-    .update({ suggested_topup_id: topupId, status: "suggested" })
+    // tenant_id for the same reason as the sweep below: matching a deposit
+    // is the moment we learn whose money it is, and a row left NULL is
+    // readable by every tenant's owner and hidden from this tenant's other
+    // admins.
+    .update({
+      suggested_topup_id: topupId,
+      status: "suggested",
+      tenant_id: profile.tenant_id,
+    })
     .eq("id", transferId)
     .select("id");
   if (linkErr) return { ok: false, error: safeErrorMessage(linkErr) };
@@ -364,12 +373,15 @@ export async function rematchWiseDeposits(): Promise<
   }
 
   // Sender IBAN → advertiser ids, the same signal the webhook uses.
+  // normalizeIban drops Wise's UNKNOWNBANKACCOUNT placeholder. Looking it
+  // up would return every advertiser whose bank once sent no details, and
+  // the sender rule would then treat "we know nothing about this payer" as
+  // "we know exactly who this payer is".
   const ibans = Array.from(
     new Set(
       deposits
-        .map((d) => (d as { sender_iban?: string | null }).sender_iban)
-        .filter((v): v is string => !!v)
-        .map((v) => v.replace(/\s/g, "").toUpperCase()),
+        .map((d) => normalizeIban((d as { sender_iban?: string | null }).sender_iban))
+        .filter((v): v is string => !!v),
     ),
   );
   const advertisersByIban = new Map<string, string[]>();
@@ -483,9 +495,7 @@ export async function rematchWiseDeposits(): Promise<
     // there is nothing to re-decide.
     if (d.status === "suggested") continue;
 
-    const iban = d.sender_iban
-      ? d.sender_iban.replace(/\s/g, "").toUpperCase()
-      : null;
+    const iban = normalizeIban(d.sender_iban);
     const candidates = (pending as PendingTopup[]).filter(
       (t) => !claimed.has(t.id),
     );
@@ -511,6 +521,17 @@ export async function rematchWiseDeposits(): Promise<
       .update({
         suggested_topup_id: match.topupId,
         status: "suggested",
+        // STAMP THE TENANT. A deposit arrives with tenant_id NULL whenever
+        // the webhook could not match it — the normal case, since most
+        // arrive with no reference — and every write that later matched one
+        // set the status and left the tenant alone. A NULL-tenant row is
+        // readable by an admin of ANY tenant under the live policy, and it
+        // is invisible to a non-owner admin of the tenant that actually
+        // owns it: the queue hides from the person who has to work it and
+        // shows itself to people with no business seeing the payer's name,
+        // IBAN and amount. The moment we decide which top-up this money
+        // settles, we know whose money it is. Say so.
+        tenant_id: profile.tenant_id,
         note: `re-checked: matched via ${match.via}`,
       })
       .eq("id", d.id)
