@@ -26,6 +26,7 @@ import {
   getWalletTopupIdFromNotification,
 } from "@/components/notifications/notification-utils";
 import NotificationActionStatusDialog from "@/components/notifications/notification-action-status-dialog";
+import ConfirmModal from "@/components/ui/confirm-modal";
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function NotificationsPage() {
   } | null>(null);
   const [isResolvingAction, setIsResolvingAction] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const { mutate: updateTransaction, isPending: isApprovingWalletTopup } =
     useUpdateTransaction(walletTopupToApprove ?? ({} as WalletTopupWithAdvertiser));
@@ -309,16 +311,16 @@ export default function NotificationsPage() {
               <span className="hidden sm:inline">Mark all read</span>
             </Button>
           )}
+          {/* ASK FIRST. This is a permanent delete sitting immediately
+              beside the benign "Mark all read", and below sm it renders
+              as the icon alone — so the only statement of what it does
+              lived in a title attribute, which a phone never shows.
+              Several of these rows are the customer's only record that a
+              top-up was verified. It is not recoverable. */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              deleteRead.mutate(undefined, {
-                onSuccess: () => toast.success("Old read notifications cleaned"),
-                onError: (err) =>
-                  toast.error("Cleanup failed", { description: err.message }),
-              });
-            }}
+            onClick={() => setCleanupOpen(true)}
             disabled={deleteRead.isPending}
             aria-label="Clean up"
             title="Delete notifications older than 30 days that you've already read"
@@ -435,6 +437,24 @@ export default function NotificationsPage() {
           isPending={isApprovingWalletTopup}
         />
       )}
+
+      <ConfirmModal
+        open={cleanupOpen}
+        onOpenChange={(next) => !next && setCleanupOpen(false)}
+        title="Delete your old read notifications?"
+        lead="Everything you have already read and that is older than 30 days is removed permanently. Some of these are the only record you have that a top-up was verified — this cannot be undone."
+        cta="Yes, delete them"
+        busy={deleteRead.isPending}
+        busyLabel="Deleting…"
+        onConfirm={() => {
+          setCleanupOpen(false);
+          deleteRead.mutate(undefined, {
+            onSuccess: () => toast.success("Old read notifications cleaned"),
+            onError: (err) =>
+              toast.error("Cleanup failed", { description: err.message }),
+          });
+        }}
+      />
     </div>
   );
 }

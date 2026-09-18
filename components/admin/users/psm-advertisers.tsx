@@ -809,7 +809,20 @@ function AdvertiserRow({
           if (!next) setAskDeactivate(false);
         }}
         title="Deactivate this customer?"
-        lead="They lose access — and every subscription they have is stopped with them. Activating them again does NOT bring the subscriptions back; you would have to set those up by hand."
+        /* THIS NAMED THE ONE CONSEQUENCE THAT IS FALSE AND OMITTED THE
+           TWO THAT ARE TRUE. Deactivating writes every subscription to
+           `inactive`, which stops NEW invoices being raised — but the
+           auto-debit loop filters only on `<> 'cancelled'`, so an invoice
+           already issued is still taken out of the switched-off
+           customer's wallet on its due date. And when that debit
+           succeeds, the paid-invoice trigger sets the subscription back
+           to `active` and rolls the period forward, so billing resumes
+           monthly for somebody who cannot log in to see it.
+
+           Nothing in the app writes `cancelled`, which is the only status
+           the billing run treats as terminal. Until that is fixed in SQL,
+           the least this screen can do is stop promising the opposite. */
+        lead="They lose access immediately. Their subscriptions are set to inactive, so no NEW invoice is raised — but an invoice already issued is still collected from their wallet on its due date, and a successful collection currently sets the subscription back to active. Check their open invoices before you do this."
         cta="Yes, deactivate"
         tone="danger"
         onConfirm={() => {

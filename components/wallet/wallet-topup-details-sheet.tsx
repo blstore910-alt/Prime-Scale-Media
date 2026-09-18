@@ -18,6 +18,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useState } from "react";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import { useOutstandingPrecharges } from "@/hooks/use-outstanding-precharges";
 
 const formatAmount = (value: number | string | null | undefined) => {
   const num = Number(value ?? 0);
@@ -62,6 +63,14 @@ export default function WalletTopupDetailsSheet({
   });
 
   const [confirming, setConfirming] = useState(false);
+  // Same reason as the verify queue's dialog: an advance already credited
+  // this wallet, and verifying settles it rather than adding to it. This
+  // sheet is the worse of the two — it shows neither a matched bank
+  // deposit nor an advance — and it is reachable from /wallets without
+  // going near the verify queue at all.
+  const { precharges, isError: prechargeUnreadable } =
+    useOutstandingPrecharges(topupId ? [topupId] : []);
+  const advance = topupId ? precharges[topupId] : undefined;
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
@@ -181,7 +190,13 @@ export default function WalletTopupDetailsSheet({
         open={confirming}
         onOpenChange={(next) => !next && setConfirming(false)}
         title="Credit this deposit to the customer's wallet?"
-        lead="Only do this once you have seen the money arrive on the bank statement. Crediting a deposit that never arrived is put right with an adjustment, not by pressing this again."
+        lead={
+          advance
+            ? "This top-up was already advanced to the wallet. Verifying settles that advance, so the balance will NOT go up again — it is already there."
+            : prechargeUnreadable
+              ? "We could not check whether this was already advanced, so the balance may not move. Check the advances screen first."
+              : "Only do this once you have seen the money arrive on the bank statement. Crediting a deposit that never arrived is put right with an adjustment, not by pressing this again."
+        }
         cta="Yes, credit it"
         busy={isVerifying}
         busyLabel="Crediting…"
@@ -198,6 +213,13 @@ export default function WalletTopupDetailsSheet({
           strong
         />
         <ConfirmFact label="Reference" value={topup?.reference_no ?? "—"} />
+        {advance && (
+          <ConfirmFact
+            label="Wallet changes by"
+            value={`${topup?.currency?.toUpperCase() ?? ""} 0.00`}
+            strong
+          />
+        )}
       </ConfirmModal>
     </Sheet>
   );

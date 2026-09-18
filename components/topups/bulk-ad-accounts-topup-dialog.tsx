@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Button } from "@/components/ui/button";
 import { CURRENCIES } from "@/lib/constants";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -275,6 +276,19 @@ export default function BulkTopupAdAccountsDialog({
     }
   }, [open, reset, defaultRows]);
 
+  // ── N IRREVERSIBLE MOVEMENTS ON ONE CLICK, WITH NO CONFIRMATION ────
+  //
+  // This is the only multi-row money control in the app — up to 200 rows
+  // — rows are opt-OUT (an untouched row is included), and it is
+  // available to advertisers as well as admins. The single-account
+  // equivalent asks first and says why: "It leaves your wallet now. Money
+  // on an ad account can only come back through a withdrawal request,
+  // which we have to approve." This one showed no total and asked
+  // nothing.
+  const [confirming, setConfirming] = useState<BulkTopupFormValues | null>(
+    null,
+  );
+
   const handleBulkTopup = async (values: BulkTopupFormValues) => {
     const filteredValues = values.rows.filter((row) => row.enabled);
     // useExchangeRates returns the raw array, which is [] (truthy) when no
@@ -336,7 +350,7 @@ export default function BulkTopupAdAccountsDialog({
         </DialogHeader>
 
         <form
-          onSubmit={handleSubmit(handleBulkTopup)}
+          onSubmit={handleSubmit((values) => setConfirming(values))}
           className="space-y-4 flex flex-col min-h-0"
         >
           {isTabletScreen ? (
@@ -604,6 +618,53 @@ export default function BulkTopupAdAccountsDialog({
           </div>
         </form>
       </DialogContent>
+
+      <ConfirmModal
+        open={!!confirming}
+        onOpenChange={(next) => {
+          if (!next) setConfirming(null);
+        }}
+        title="Move this money to these ad accounts?"
+        lead="It leaves the wallet now, for every account listed. Money on an ad account can only come back through a withdrawal request, which we have to approve — so this is as final as the single top-up, times the number of rows."
+        cta="Yes, top them all up"
+        busy={isSubmitting}
+        busyLabel="Sending…"
+        onConfirm={() => {
+          const values = confirming;
+          setConfirming(null);
+          if (values) void handleBulkTopup(values);
+        }}
+      >
+        <ConfirmFact
+          label="Accounts"
+          value={String((confirming?.rows ?? []).filter((r) => r.enabled).length)}
+          strong
+        />
+        {/* Per currency, never one total: a EUR row and a USD row are not
+            summable, and printing a single figure over both is the fault
+            this app spends the most comments warning about. */}
+        {Object.entries(
+          (confirming?.rows ?? [])
+            .filter((r) => r.enabled)
+            .reduce<Record<string, number>>((acc, r) => {
+              const cur = String(r.currency ?? "").toUpperCase() || "—";
+              acc[cur] = (acc[cur] ?? 0) + (Number(r.amount) || 0);
+              return acc;
+            }, {}),
+        ).map(([cur, total]) => (
+          <ConfirmFact
+            key={cur}
+            label={`Out of the ${cur} wallet`}
+            value={`${cur} ${total.toFixed(2)}`}
+            strong
+          />
+        ))}
+        {(confirming?.rows ?? []).filter((r) => r.enabled).length === 0 && (
+          <p className="pt-2 text-xs text-muted-foreground">
+            Nothing is enabled, so nothing will be sent.
+          </p>
+        )}
+      </ConfirmModal>
     </Dialog>
   );
 }

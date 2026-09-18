@@ -25,8 +25,18 @@ function isCurrency(v: unknown): v is BankAccountCurrency {
 
 // Trim a string field to null when empty; leave undefined untouched so the
 // caller can omit a field from the patch entirely.
-function trimOrNull(v: unknown): string | null {
-  if (v == null) return null;
+//
+// ...WHICH IS WHAT IT SAID AND NOT WHAT IT DID. `v == null` is true for
+// undefined as well as null, so an omitted field came back as null and
+// was then written unconditionally — a partial patch that left out
+// swift_bic CLEARED it, on the table holding the IBANs customers wire
+// to. Latent only because the one caller always sends the whole draft.
+//
+// undefined now means "not in this patch" and is dropped by the caller;
+// an explicit null still clears.
+function trimOrNull(v: unknown): string | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
   const s = String(v).trim();
   return s.length ? s : null;
 }
@@ -141,6 +151,14 @@ export async function upsertBankAccount(input: {
   };
   if (typeof input.is_active === "boolean") fields.is_active = input.is_active;
   if (typeof input.sort_order === "number") fields.sort_order = input.sort_order;
+
+  // A field the caller did NOT send is dropped rather than written as
+  // null. This is the other half of trimOrNull's contract, and without it
+  // a partial patch clears the IBAN, the SWIFT or the beneficiary on the
+  // account customers wire money to.
+  for (const k of Object.keys(fields)) {
+    if (fields[k] === undefined) delete fields[k];
+  }
 
   // Resolve any existing row by the natural key (tenant, type, currency).
   const { data: existing, error: existErr } = await supabase

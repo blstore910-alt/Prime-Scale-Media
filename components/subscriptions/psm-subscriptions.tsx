@@ -430,7 +430,16 @@ export default function PsmSubscriptions() {
                                   // every month that was skipped, raising
                                   // and auto-debiting each one. A plan off
                                   // for three months is billed for three.
-                                  lead: "Billing stops and any invoice already issued is still collected. If you reactivate later, the months it was off are billed then — move the next payment date first if you do not want that.",
+                                  // ...AND IT REACTIVATES ITSELF. When
+                                  // that already-issued invoice IS
+                                  // collected, the paid-invoice trigger
+                                  // sets the subscription back to active
+                                  // and rolls the period forward — so
+                                  // "billing stops" is true until the
+                                  // first successful debit and false
+                                  // afterwards. Said out loud until the
+                                  // SQL is fixed.
+                                  lead: "No new invoice is raised. But an invoice already issued is still collected from the wallet on its due date — and when that collection succeeds the subscription currently switches itself back to active and carries on monthly. Check their open invoices first.",
                                   cta: "Yes, stop it",
                                   danger: true,
                                   done: "Subscription disabled successfully.",

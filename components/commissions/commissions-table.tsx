@@ -302,6 +302,8 @@ export default function CommissionsTable() {
                                 <CommissionStatusAction
                                   commissionId={commission.id}
                                   status={commission.status}
+                                  amount={commission.amount}
+                                  currency={commission.currency}
                                 />
                               </td>
                             )}

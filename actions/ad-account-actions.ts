@@ -507,7 +507,14 @@ export async function createAdAccountFromRequest(
     return {
       ok: false,
       error:
-        "Somebody rejected this request while you had it open. Set it back to pending first if it should go ahead.",
+        // NOT "set it back to pending": setAdAccountRequestStatus
+        // deliberately excludes `rejected` from its transitions, because
+        // the EUR 50 refund has already been made and putting the row
+        // back would charge for it a second time. The UI offers "Back to
+        // pending" only for in_progress. So the remedy this sentence
+        // named did not exist, and the admin was left with a request
+        // that could not go forward or back.
+        "Somebody rejected this request while you had it open, and the request fee has already been refunded. A rejected request can't be reopened — ask the customer to file a new one so the fee is taken correctly.",
     };
   }
 

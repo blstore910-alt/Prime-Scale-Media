@@ -4,6 +4,7 @@ import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useMatchedDeposits } from "@/hooks/use-matched-deposits";
+import { useOutstandingPrecharges } from "@/hooks/use-outstanding-precharges";
 import { formatPaymentReference } from "@/lib/payment-reference";
 
 interface WalletTransactionApproveDialogProps {
@@ -52,6 +53,22 @@ export default function WalletTransactionApproveDialog({
     isLoading: depositsLoading,
   } = useMatchedDeposits([topup.id]);
   const deposit = byTopup[topup.id];
+  // ── AND WHETHER IT HAS ALREADY BEEN ADVANCED ──────────────────────
+  //
+  // An advance credits the wallet BEFORE the payment clears, and
+  // verifying settles it: +amount then -amount. Net movement, zero. This
+  // dialog said "this credits exactly the figure below" and the button
+  // said "Yes, credit EUR 1,000" either way — so an admin pressed it,
+  // saw the balance not move, concluded it had failed and reached for a
+  // manual adjustment. The customer ends up EUR 1,000 ahead on a EUR
+  // 1,000 payment. The admin manual states the opposite in as many
+  // words.
+  const {
+    precharges,
+    isError: prechargeUnreadable,
+    isLoading: prechargeLoading,
+  } = useOutstandingPrecharges([topup.id]);
+  const advance = precharges[topup.id];
   const requestedAmount = Number(topup.amount ?? 0);
   const symbol =
     CURRENCY_SYMBOLS[topup.currency as keyof typeof CURRENCY_SYMBOLS] ?? "";
@@ -69,7 +86,11 @@ export default function WalletTransactionApproveDialog({
          admin should be told that first, and when one does NOT, that is the
          warning — not a generic reminder shown identically either way. */
       lead={
-        deposit
+        advance
+          ? "This top-up was already advanced to the wallet. Verifying settles that advance, so the balance will NOT go up again — it is already there. Do not top it up by hand afterwards."
+          : prechargeUnreadable
+            ? "We could not check whether this top-up was already advanced, so the balance may not move when you credit it. Check the advances screen first."
+          : deposit
           ? "A bank deposit matching this claim has arrived. Check the figure below against it, then credit."
           : depositsUnreadable
             ? "We could not read the bank feed, so nothing here confirms the money arrived. Check the slip before you credit."
@@ -77,10 +98,14 @@ export default function WalletTransactionApproveDialog({
               ? "Still checking the bank feed for a matching deposit. Check the slip before you credit."
               : "No bank deposit has been matched to this yet — so far this is only the customer's word. Check the slip first; this credits exactly the figure below."
       }
-      cta={`Yes, credit ${symbol}${requestedAmount.toFixed(2)}`}
+      cta={
+        advance
+          ? "Yes, settle the advance"
+          : `Yes, credit ${symbol}${requestedAmount.toFixed(2)}`
+      }
       busy={isPending}
       busyLabel="Crediting…"
-      disabled={requestedAmount <= 0}
+      disabled={requestedAmount <= 0 || prechargeLoading}
       onConfirm={onConfirm}
     >
       <ConfirmFact
@@ -94,6 +119,15 @@ export default function WalletTransactionApproveDialog({
         value={`${symbol}${requestedAmount.toFixed(2)}`}
         strong
       />
+      {advance && (
+        <ConfirmFact
+          label="Already advanced"
+          value={`${symbol}${advance.outstanding.toFixed(2)} — settles now`}
+        />
+      )}
+      {advance && (
+        <ConfirmFact label="Wallet changes by" value={`${symbol}0.00`} strong />
+      )}
       <ConfirmFact
         label="Reference"
         value={
