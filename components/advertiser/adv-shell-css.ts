@@ -864,4 +864,13 @@ export const ADV_CSS = `
 .advapp .tool.ava-btn{background:transparent;border:1px solid transparent}
 .advapp .tool.ic-btn:hover,
 .advapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
+
+/* ── A generated face inside the avatar chip ────────────────────────────
+   components/ui/psm-avatar.tsx draws an SVG disc. The chip around it
+   keeps its size, its radius and — importantly — its ::after status dot,
+   which a replaced element like <svg> cannot carry itself. The chip's own
+   brand background would otherwise show as a square behind a round face,
+   so it steps aside when it is holding one. */
+  .avatar:has(> svg){background:none;color:transparent}
+  .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 `  + refineCss(".advapp");

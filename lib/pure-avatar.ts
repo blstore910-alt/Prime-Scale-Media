@@ -108,8 +108,12 @@ export function initialsFrom(
   const clean = String(name ?? "").trim();
   if (clean) {
     const parts = clean.split(/\s+/).filter(Boolean);
+    // The FIRST TWO words, not first-and-last. "Baris Demir" is BD either
+    // way, but "Prime Scale Media" is PS rather than PM, and "Anna Maria
+    // de Vries" is AM rather than AD. Company names are half of what goes
+    // through here and first-and-last serves them badly.
     if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      return (parts[0][0] + parts[1][0]).toUpperCase();
     }
     return parts[0].slice(0, 2).toUpperCase();
   }

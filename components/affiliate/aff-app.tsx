@@ -16,6 +16,7 @@ import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
+import PsmAvatar from "@/components/ui/psm-avatar";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
 const SUPPORT_EMAIL = "contact@primescalemedia.com";
@@ -381,7 +382,15 @@ export default function AffiliateApp() {
           </button>
         ))}
         <div className="side-foot">
-          <div className="avatar">{ini}</div>
+          <div className="avatar">
+            <PsmAvatar
+              seed={profile?.id ?? name}
+              name={name}
+              email={profile?.email}
+              role="affiliate"
+              size={36}
+            />
+          </div>
           <div className="who">
             {name}
             <small>{tier.name} partner</small>
@@ -446,7 +455,15 @@ export default function AffiliateApp() {
                 aria-expanded={menuOpen}
                 title="Account"
               >
-                <span className="avatar">{ini}</span>
+                <span className="avatar">
+            <PsmAvatar
+              seed={profile?.id ?? name}
+              name={name}
+              email={profile?.email}
+              role="affiliate"
+              size={36}
+            />
+          </span>
                 <Ic name="i-chev" />
               </button>
               {menuOpen && (

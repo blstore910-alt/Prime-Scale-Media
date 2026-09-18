@@ -35,6 +35,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import PsmAvatar from "@/components/ui/psm-avatar";
 
 type Item = {
   title: string;
@@ -291,7 +292,15 @@ export default function AdminShell({
           </div>
         ))}
         <div className="side-foot">
-          <span className="avatar">{ini}</span>
+          <span className="avatar">
+            <PsmAvatar
+              seed={profile?.id ?? name}
+              name={name}
+              email={profile?.email}
+              role="admin"
+              size={36}
+            />
+          </span>
           <div className="who">
             {name}
             <small>{roleLabel}</small>
@@ -337,7 +346,15 @@ export default function AdminShell({
                 aria-expanded={menuOpen}
                 title="Account"
               >
-                <span className="avatar">{ini}</span>
+                <span className="avatar">
+            <PsmAvatar
+              seed={profile?.id ?? name}
+              name={name}
+              email={profile?.email}
+              role="admin"
+              size={36}
+            />
+          </span>
                 <ChevronDown />
               </button>
               {menuOpen && (

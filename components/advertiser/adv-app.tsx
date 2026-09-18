@@ -39,6 +39,7 @@ import { invoiceTypeLabel } from "@/lib/invoice-type";
 import { invoiceStatusView } from "@/lib/invoice-status";
 import { effectiveMinTopup } from "@/lib/min-topup";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
+import PsmAvatar from "@/components/ui/psm-avatar";
 
 dayjs.extend(relativeTime);
 
@@ -1180,7 +1181,15 @@ export default function AdvertiserApp() {
           <Ic name="i-gift" /> Affiliate program
         </button>
         <div className="side-foot">
-          <span className="avatar">{ini}</span>
+          <span className="avatar">
+            <PsmAvatar
+              seed={profile?.id ?? name}
+              name={name}
+              email={profile?.email}
+              role="advertiser"
+              size={36}
+            />
+          </span>
           <div className="who">
             {name}
             <small>{profile?.tenant?.name ?? "Advertiser"}</small>
@@ -1253,7 +1262,15 @@ export default function AdvertiserApp() {
                 aria-expanded={menuOpen}
                 title="Account"
               >
-                <span className="avatar">{ini}</span>
+                <span className="avatar">
+            <PsmAvatar
+              seed={profile?.id ?? name}
+              name={name}
+              email={profile?.email}
+              role="advertiser"
+              size={36}
+            />
+          </span>
                 <Ic name="i-chev" />
               </button>
               {menuOpen && (

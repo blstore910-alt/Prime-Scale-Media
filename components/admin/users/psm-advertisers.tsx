@@ -32,29 +32,7 @@ import { useAppContext } from "@/context/app-provider";
 import { useQuery } from "@tanstack/react-query";
 import { useAffiliateEarnings } from "@/hooks/use-affiliate-earnings";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
-
-const chipStyle = {
-  width: 36,
-  height: 36,
-  flex: "0 0 auto" as const,
-  borderRadius: 10,
-  display: "grid" as const,
-  placeItems: "center" as const,
-};
-
-const TONES = ["b", "t", "g", "p"] as const;
-
-function initials(name?: string | null) {
-  if (!name) return "PS";
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "PS"
-  );
-}
+import PsmAvatar from "@/components/ui/psm-avatar";
 
 // Admin advertisers list, ported to the mockup look. Reuses the real
 // `useUsers` data hook (unchanged query) and the real detail sheet +
@@ -353,11 +331,10 @@ export default function PsmAdvertisers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((profile, i) => (
+                  {rows.map((profile) => (
                     <AdvertiserRow
                       key={profile.id}
                       profile={profile}
-                      tone={TONES[i % TONES.length]}
                       onView={() => openDetails(profile)}
                       onCreateSubscription={openCreateSubscription}
                       onCommissionSetup={openCommission}
@@ -457,7 +434,6 @@ export default function PsmAdvertisers() {
 
 function AdvertiserRow({
   profile,
-  tone,
   onView,
   onCreateSubscription,
   onCommissionSetup,
@@ -465,7 +441,6 @@ function AdvertiserRow({
   earningsError,
 }: {
   profile: Profile;
-  tone: (typeof TONES)[number];
   onView: () => void;
   onCreateSubscription: (advertiserId: string) => void;
   onCommissionSetup: (advertiser: Advertiser | undefined) => void;
@@ -563,9 +538,23 @@ function AdvertiserRow({
           aligned lines and read as broken. */}
       <td data-label="Advertiser" className="fullcell">
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <span className={`ci ${tone}`} style={chipStyle}>
-            {initials(profile.full_name)}
-          </span>
+          {/* THE FACE IS THE PERSON, not the row.
+              This was `ci ${TONES[i % 4]}` — a colour picked from the
+              row's INDEX, so the same customer changed colour the moment
+              the list was sorted or filtered, which is the opposite of
+              what a coloured chip is for. The avatar is generated from
+              the profile id, so it is the same picture here, in the
+              top-up queue and in their own header; and the hue family
+              says advertiser or affiliate without reading a word.
+              Drawn locally — see lib/pure-avatar.ts for why not an
+              avatar service. */}
+          <PsmAvatar
+            seed={profile.id}
+            name={profile.full_name}
+            email={profile.email}
+            role={isAffiliate ? "affiliate" : "advertiser"}
+            size={36}
+          />
           {/* Code first, name under it. The desk works in client codes —
               they are on the invoice, they prefix every payment reference,
               and they are unique where a name is not. Scanning a list for

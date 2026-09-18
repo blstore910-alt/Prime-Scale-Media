@@ -1114,4 +1114,13 @@ export const PSM_APP_CSS = `
   .psmapp .phead-actions .btn{min-height:40px}
   .psmapp .phead-actions .btn.ghost{min-width:42px;justify-content:center}
 }
+
+/* ── A generated face inside the avatar chip ────────────────────────────
+   components/ui/psm-avatar.tsx draws an SVG disc. The chip around it
+   keeps its size, its radius and — importantly — its ::after status dot,
+   which a replaced element like <svg> cannot carry itself. The chip's own
+   brand background would otherwise show as a square behind a round face,
+   so it steps aside when it is holding one. */
+.psmapp .avatar:has(> svg){background:none;color:transparent}
+.psmapp .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 `  + refineCss(".psmapp");

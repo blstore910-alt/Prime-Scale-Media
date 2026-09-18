@@ -474,4 +474,13 @@ export const AFF_CSS = `
   .affapp select,
   .affapp textarea{font-size:16px}
 }
+
+/* ── A generated face inside the avatar chip ────────────────────────────
+   components/ui/psm-avatar.tsx draws an SVG disc. The chip around it
+   keeps its size, its radius and — importantly — its ::after status dot,
+   which a replaced element like <svg> cannot carry itself. The chip's own
+   brand background would otherwise show as a square behind a round face,
+   so it steps aside when it is holding one. */
+  .avatar:has(> svg){background:none;color:transparent}
+  .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 `  + refineCss(".affapp");
