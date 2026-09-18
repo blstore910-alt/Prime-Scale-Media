@@ -1204,7 +1204,13 @@ export default function AffiliateApp() {
                     <input defaultValue={profile?.email ?? ""} disabled />
                   </div>
                   <div className="field">
-                    <label>Show earnings in</label>
+                    {/* IT DOES NOT CHANGE A DISPLAYED FIGURE. Every earnings
+                        number on this app shows EUR and USD separately;
+                        this choice is read in exactly one place — the
+                        currency of the payout request. So it is named after
+                        what it does. A control that says one thing and does
+                        another is worse than no control. */}
+                    <label>Request payouts in</label>
                     <div className="seg2">
                       <button
                         type="button"
@@ -1226,7 +1232,20 @@ export default function AffiliateApp() {
               </div>
               <div className="card">
                 <h2>Notification preferences</h2>
-                <p className="cap">Choose what pings you.</p>
+                {/* THESE ALERTS ARE NOT SENT YET. There is a real
+                    per-type preference system in this app
+                    (notification_preferences + the push route), but its
+                    catalog has no affiliate entries and nothing emits
+                    them — so wiring these switches to the server would be
+                    exactly as fake as the localStorage they write to now,
+                    with a more convincing face on it.
+                    The choice is kept for when the alerts exist; the
+                    sentence says that plainly instead of implying four
+                    working switches. */}
+                <p className="cap">
+                  Choose what pings you. These alerts aren&apos;t being sent
+                  yet — your choices are saved for when they are.
+                </p>
                 <NotifToggle label="New referral joined" desc="When someone signs up via your link" storeKey="new-referral" def />
                 <NotifToggle label="Commission earned" desc="When a referral tops up" storeKey="commission" def />
                 <NotifToggle label="Payout status" desc="When a payout is requested or paid" storeKey="payout" def />
