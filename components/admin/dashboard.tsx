@@ -223,12 +223,18 @@ export default function AdminDashboard() {
             be work, and treating "unknown" as "nothing" is the mistake this
             whole screen is careful about elsewhere. Ties keep their declared
             order, so the layout does not shuffle on every refetch. */}
-        {[...queues]
-          .sort((a, b) => {
+        {/* NOT WHILE IT IS STILL COUNTING. Sorting work-first is right, but
+            the counts arrive a second after the page does — so the cards
+            rendered in declared order, then visibly rearranged themselves
+            under the cursor. A list that reorders after you have started
+            reading it is worse than one that is briefly in the wrong order,
+            and worse still if you were already reaching for a card.
+            Declared order until the answer is known, then sorted once. */}
+        {(pending.isLoading ? queues : [...queues].sort((a, b) => {
             const weight = (c: number | null | undefined) =>
               c === undefined ? 0 : c === null ? 2 : c > 0 ? 2 : 1;
             return weight(b.count) - weight(a.count);
-          })
+          }))
           .map((q) => {
           const Icon = q.icon;
           // A queue that declares a count still has one when it is null —

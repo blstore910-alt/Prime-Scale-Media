@@ -86,7 +86,16 @@ const STATS_CSS = `
 .psm-stats{--purple-tint:#f3e8ff;display:flex;flex-direction:column;gap:12px}
 
 /* Period control — one clearly-labelled bar that governs the metrics below. */
-.psm-stats .statctl{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:7px 9px;box-shadow:var(--shadow-sm)}
+.psm-stats .statctl{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:6px 8px;box-shadow:var(--shadow-sm);overflow:hidden}
+.psm-stats .statctl .seg2{min-width:0;flex:1 1 auto}
+.psm-stats .statctl .seg2 button{min-width:0;padding:6px 8px;font-size:.8rem}
+/* The range button keeps its icon and loses its words when the row gets
+   tight — a calendar glyph is unambiguous, and a chosen range still prints
+   its dates because that is the information. */
+@media (max-width:470px){
+  .psm-stats .statctl .rangelbl{display:none}
+  .psm-stats .statctl .rangelbl.set{display:inline}
+}
 .psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
 /* WRAPS, does not scroll. Measured at 400px: six options need 440px in a
    233px strip, so four of them were off screen — and a horizontal scroller
@@ -159,11 +168,16 @@ const STATS_CSS = `
 @media (prefers-reduced-motion:reduce){.psm-stats .profit-hero .ring{animation:none}}
 `;
 
+// SHORT, because they have to share ONE line with the range button.
+// "This Week / This Month / This Year" plus "Last month" plus Select Range
+// needed 440px in a 233px strip, so the bar wrapped to three rows on a
+// phone and the period control was taller than the figures it filtered.
+// The word "This" is carried by the heading above them.
 const PERIODS: { value: DashboardPeriod; label: string }[] = [
   { value: "today", label: "Today" },
-  { value: "week", label: "This Week" },
-  { value: "month", label: "This Month" },
-  { value: "year", label: "This Year" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+  { value: "year", label: "Year" },
 ];
 
 export function DashboardStatsCards() {
@@ -262,7 +276,9 @@ export function DashboardStatsCards() {
       className={`rangebtn${hasRange && !isLastMonthSelected ? " on" : ""}`}
     >
       <CalendarIcon />
-      {dateRangeLabel}
+      <span className={`rangelbl${hasRange ? " set" : ""}`}>
+        {dateRangeLabel}
+      </span>
     </button>
   );
 
@@ -296,14 +312,6 @@ export function DashboardStatsCards() {
             {p.label}
           </button>
         ))}
-        <button
-          type="button"
-          aria-pressed={isLastMonthSelected}
-          className={isLastMonthSelected ? "on" : ""}
-          onClick={() => selectMonth(lastMonthStart)}
-        >
-          Last month
-        </button>
       </div>
       {showStepArrows && (
         <button
