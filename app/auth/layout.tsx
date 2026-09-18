@@ -170,17 +170,26 @@ const AUTH_CSS = `
    A line fades in just before the rocket leaves and stays until the new
    document paints. Pure CSS: no timer to get out of step with the
    navigation, and it simply disappears with the page. */
-.psmauth[data-launching]::after{
+.psmauth[data-launching] .brand::after{
   content:"Taking you to your dashboard…";
-  position:absolute;left:0;right:0;bottom:14%;z-index:2;
+  position:absolute;left:0;right:0;bottom:12%;z-index:3;
   text-align:center;font-family:var(--bd);font-size:.9rem;font-weight:600;
   color:rgba(255,255,255,.62);letter-spacing:.01em;
   opacity:0;animation:psmland .5s ease 1.45s forwards}
 @keyframes psmland{to{opacity:1}}
 .psmauth[data-launching] .brand{overflow:visible}
+/* .pts too. The feature list was the one thing on the panel NOT faded, so
+   as the rocket left it sat there alone — and the "Taking you to your
+   dashboard" line, which was centred across the whole grid rather than over
+   the dark panel, landed straight on top of it. Two separate faults, one
+   picture: on a desktop the sentence read across a column of ticks and half
+   of the sign-in form.
+   The line belongs to .brand, which is the panel the rocket is in and is
+   the whole screen on a phone. */
 .psmauth[data-launching] .logo,
 .psmauth[data-launching] .brand h1,
 .psmauth[data-launching] .brand .sub,
+.psmauth[data-launching] .pts,
 .psmauth[data-launching] .card{animation:psmfade .4s ease forwards}
 @keyframes psmfade{to{opacity:0}}
 .psmauth[data-launching] .ship{animation:psmascend 1.9s linear forwards}
