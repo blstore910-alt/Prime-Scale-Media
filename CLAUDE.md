@@ -25,28 +25,37 @@ has to again.
 **The goal is to go live cleanly after that** — real customers, nothing
 embarrassing, nothing that quietly takes the wrong money.
 
-## Deploying — preview first, then production
+## Deploying — branch, then production, then test live
 
 `git push origin feat/redesign-advertiser:main` publishes to
 app.primescalemedia.com immediately. **That is production. There is no
 staging in front of it.**
 
-So every batch goes to a PREVIEW build first:
+The rhythm:
 
 ```
-git push origin feat/redesign-advertiser        # preview URL on Vercel
-# look at the screens that changed
-git push origin feat/redesign-advertiser:main   # then production
+git push origin feat/redesign-advertiser        # build gate
+git push origin feat/redesign-advertiser:main   # promote
 ```
 
-What preview buys: it builds, the page renders, the JSX is valid. That is
-the class of fault that has bitten twice — a backtick inside a CSS
-template literal, and a modal rendered outside its parent element.
+Sequentially, not both at once — pushing both together doubles the Vercel
+queue and makes every change take twice as long to appear.
 
-What it does **not** buy: Vercel Preview talks to the **same Supabase
-database**. A write on preview is a write on live data. It is a render
-gate, not a sandbox. Migrations are unaffected either way — those are
-pasted by hand into the SQL editor and take effect for both.
+The branch push is a BUILD GATE, nothing more: it catches a broken build
+before production (a backtick inside a CSS template literal, JSX outside
+its parent — each has bitten twice). The owner does **not** want preview
+URLs and does not test on them.
+
+Testing happens on the real URL, after promoting. Preview talks to the
+**same Supabase database**, so a write there is a write on live data — it
+proves the build and the render and nothing else.
+
+Before any push: `npx tsc --noEmit && npm test` chained with `&&`. A grep
+over test output silently matches nothing and reads as success.
+
+Migrations do not deploy with git. They are pasted by hand into the SQL
+editor, and every dollar-quoted block needs a NAMED tag (`$blk0$`, not
+`$$`) or the editor can refuse a file whose quotes are balanced.
 
 ## Project shape
 
