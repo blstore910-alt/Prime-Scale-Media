@@ -944,7 +944,13 @@ Statement tried: ${p.attempts.join(" | ")}`
               button disappears behind the heading instead of moving to the
               next line. */}
           <div className="actrow" style={{ flexWrap: "wrap" }}>
-            {archivedCount > 0 && (
+            {/* `|| showArchived`: this rendered only while something was
+          archived, and it is the ONLY way back to the queue. Restoring
+          the last archived deposit dropped the count to zero, the button
+          vanished while the filter was still on, and the entire deposits
+          list — including anything waiting to be credited — was
+          unreachable until a page reload. */}
+        {(archivedCount > 0 || showArchived) && (
               <button
                 className={`btn ${showArchived ? "" : "ghost"} sm`}
                 onClick={() => setShowArchived((v) => !v)}
@@ -1381,7 +1387,10 @@ function ManualMatch({
       const { data, error } = await supabase
         .from("wallet_topups")
         .select(
-          "id, amount, currency, created_at, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
+          // reference_no too: two customers can wire the same figure —
+          // candidates are matched to the cent — and without it the
+          // picker gives an operator nothing to tell them apart.
+          "id, amount, currency, created_at, reference_no, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
         )
         // Scoped to this tenant like every other admin query on this table.
         // RLS should already do it, but a list that credits money is not the
@@ -1402,6 +1411,7 @@ function ManualMatch({
         amount: number;
         currency: string;
         created_at: string;
+        reference_no: string | null;
         advertiser?: {
           tenant_client_code?: string | null;
           profile?: { full_name?: string | null } | null;
@@ -1410,8 +1420,20 @@ function ManualMatch({
     },
   });
 
+  // ASK FIRST, like the Confirm & credit button on this same card.
+  //
+  // This credited a wallet on one click. Candidates are amount-matched to
+  // the cent, so two customers who wired the same figure both appear in
+  // the list, and the Wise feed currently holds 229 deposits with no
+  // reference at all — the ambiguous case is the normal case. The
+  // sibling action a few centimetres away shows the bank amount, the
+  // sender, both references, the customer's claim and the slip before it
+  // moves anything.
+  const [confirming, setConfirming] = useState(false);
+
   const submit = async () => {
     if (!picked) return;
+    setConfirming(false);
     setSaving(true);
     try {
       const { matchWiseToTopup } = await import("@/actions/wise-actions");
@@ -1479,7 +1501,18 @@ function ManualMatch({
               "Unknown advertiser";
             return (
               <option key={c.id} value={c.id}>
-                {who} — {dayjs(c.created_at).format("D MMM")}
+                {/* THE AMOUNT AND THE REFERENCE, not just a name and a
+                    date. Candidates are matched to the cent, so two
+                    customers who wired the same figure both appear here
+                    — and with only "CODE · name — 12 Mar" on the option
+                    there is nothing to tell them apart. */}
+                {who} — {c.currency ?? ""}
+                {Number(c.amount ?? 0).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+                {c.reference_no ? ` · ref ${c.reference_no}` : " · no ref"} ·{" "}
+                {dayjs(c.created_at).format("D MMM")}
               </option>
             );
           })}
@@ -1508,13 +1541,59 @@ function ManualMatch({
         {candidates.length > 0 && (
           <button
             className="btn sm"
-            onClick={submit}
+            onClick={() => setConfirming(true)}
             disabled={!picked || saving || busy}
           >
             {saving ? "…" : "Match & credit"}
           </button>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirming}
+        onOpenChange={(next) => {
+          if (!next && !saving) setConfirming(false);
+        }}
+        title="Credit this customer?"
+        lead="This links the bank deposit to their claim and credits their wallet. There is no undo."
+        cta="Yes, credit it"
+        busy={saving}
+        busyLabel="Crediting…"
+        onConfirm={submit}
+      >
+        {(() => {
+          const c = candidates.find((x) => x.id === picked);
+          const p = Array.isArray(c?.advertiser)
+            ? c?.advertiser[0]
+            : c?.advertiser;
+          const prof = Array.isArray(p?.profile) ? p?.profile[0] : p?.profile;
+          const money = (n: unknown, cur: unknown) =>
+            `${String(cur ?? "")} ${Number(n ?? 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`;
+          return (
+            <>
+              <ConfirmFact
+                label="Customer"
+                value={
+                  [p?.tenant_client_code, prof?.full_name]
+                    .filter(Boolean)
+                    .join(" · ") || "Unknown"
+                }
+              />
+              <ConfirmFact
+                label="They claimed"
+                value={money(c?.amount, c?.currency)}
+              />
+              <ConfirmFact
+                label="Their reference"
+                value={c?.reference_no ?? "none given"}
+              />
+            </>
+          );
+        })()}
+      </ConfirmModal>
     </div>
   );
 }

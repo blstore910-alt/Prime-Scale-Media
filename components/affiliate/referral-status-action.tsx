@@ -4,6 +4,7 @@ import { setReferralLinkStatus } from "@/actions/referral-actions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 
 // Approve / reject control for a referral link. Only interactive
 // while the link is pending; once active or rejected it just shows
@@ -13,9 +14,14 @@ import { toast } from "sonner";
 export default function ReferralStatusAction({
   referralLinkId,
   status,
+  affiliateName,
+  referredName,
 }: {
   referralLinkId: string;
   status: string | null;
+  /** For the confirmation, so it names who it is about. */
+  affiliateName?: string | null;
+  referredName?: string | null;
 }) {
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<
@@ -43,6 +49,19 @@ export default function ReferralStatusAction({
     onSettled: () => setPendingAction(null),
   });
 
+  // ── BOTH OF THESE ARE ONE-WAY, AND THEY SIT 8px APART ──────────────
+  //
+  // Reject flips the link to `rejected`, and on refetch the controls
+  // disappear entirely — this component renders buttons only while the
+  // status is pending, and setReferralLinkStatus is called from nowhere
+  // else. There is no path back to pending or active anywhere in the
+  // app. The commission trigger gates on `active`, so the affiliate
+  // silently stops earning on every future top-up.
+  //
+  // Approve is the same shape in the other direction: it starts accrual
+  // against real spend. Neither should happen on a mis-aimed click.
+  const [asking, setAsking] = useState<"active" | "rejected" | null>(null);
+
   const current = (status ?? "active").toLowerCase();
 
   if (current === "active") {
@@ -65,17 +84,43 @@ export default function ReferralStatusAction({
       <button
         className="btn ghost sm"
         disabled={isPending}
-        onClick={() => mutate("rejected")}
+        onClick={() => setAsking("rejected")}
       >
         {isPending && pendingAction === "rejected" ? "…" : "Reject"}
       </button>
       <button
         className="btn sm"
         disabled={isPending}
-        onClick={() => mutate("active")}
+        onClick={() => setAsking("active")}
       >
         {isPending && pendingAction === "active" ? "…" : "Approve"}
       </button>
+
+      <ConfirmModal
+        open={!!asking}
+        onOpenChange={(next) => {
+          if (!next && !isPending) setAsking(null);
+        }}
+        title={
+          asking === "rejected" ? "Reject this affiliate?" : "Approve this affiliate?"
+        }
+        lead={
+          asking === "rejected"
+            ? "They stop earning on every future top-up from this customer, and there is no way back to pending from inside the app."
+            : "Commission starts accruing on this customer's top-ups from now on."
+        }
+        cta={asking === "rejected" ? "Yes, reject" : "Yes, approve"}
+        tone={asking === "rejected" ? "danger" : undefined}
+        busy={isPending}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          if (asking) mutate(asking);
+          setAsking(null);
+        }}
+      >
+        <ConfirmFact label="Affiliate" value={affiliateName ?? "—"} />
+        <ConfirmFact label="Referred customer" value={referredName ?? "—"} />
+      </ConfirmModal>
     </div>
   );
 }

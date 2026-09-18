@@ -56,6 +56,17 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
 
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      // ── AND THE BANK-DEPOSIT PANEL BESIDE IT ───────────────────────
+      //
+      // All three panels on /wallet-topups are mounted at once and merely
+      // hidden, so nothing remounts when the operator switches tab. This
+      // credited the wallet and left the Wise card still reading "Ready
+      // to credit" with Confirm & credit armed — clicking it then hits
+      // "Topup no longer pending" and shows a red failure toast about a
+      // payment that went through perfectly.
+      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["matched-deposits"] });
+      queryClient.invalidateQueries({ queryKey: ["wise-match-candidates"] });
       queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({
         queryKey: ["wallet-transaction-details", topup.id],
