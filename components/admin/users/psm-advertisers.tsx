@@ -185,6 +185,13 @@ export default function PsmAdvertisers() {
         }
         const { data: page, error: pageErr } = await q
           .order("created_at", { ascending: false })
+          // AND A UNIQUE TIEBREAKER. Postgres gives no defined order
+          // among rows sharing a created_at — a batch of invite-accepts
+          // lands in the same second — so a row on the 1,000 boundary
+          // could appear twice or vanish. useUsers adds this for exactly
+          // that reason, and the same fault was fixed in the stats page
+          // walk earlier today.
+          .order("id", { ascending: true })
           .range(from, from + PAGE - 1);
         if (pageErr) throw pageErr;
         rows.push(...(page ?? []));

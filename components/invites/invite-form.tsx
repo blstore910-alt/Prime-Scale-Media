@@ -508,11 +508,37 @@ export default function InviteForm() {
                       {(["EUR", "USD"] as const).map((c) => {
                         const p = tiers.find((x) => x.id === planId);
                         const price = p ? planPrice(p, c, "month", eurToUsd) : null;
+                        // ── NO RATE AND NO PINNED PRICE IS NOT A PRICE ──
+                        //
+                        // planPrice returns the BASE amount unchanged when
+                        // it has no rate to convert with — so with no
+                        // active exchange rate the chip rendered "$200 ~"
+                        // over the euro figure, and clicking it wrote
+                        // monthly_fee 200 with plan_currency USD: a $200
+                        // subscription for a EUR 200 plan, about EUR 23 a
+                        // month short, for ever.
+                        //
+                        // "No active rate" is a state this app documents
+                        // reaching — saving a rate stands the old one down
+                        // first — and the top-up path REFUSES in it rather
+                        // than pricing. So does this.
+                        const unpriceable =
+                          !!price &&
+                          !price.pinned &&
+                          c !== (String(p?.currency ?? "EUR").toUpperCase() === "USD" ? "USD" : "EUR") &&
+                          !(Number(eurToUsd) > 0);
                         return (
                           <button
                             key={c}
                             type="button"
+                            disabled={unpriceable}
+                            title={
+                              unpriceable
+                                ? "No exchange rate is published, and no price is set for this currency — publish a rate or pin a price first."
+                                : undefined
+                            }
                             onClick={() => {
+                              if (unpriceable) return;
                               setPlanCurrency(c);
                               if (price) form.setValue("monthly_fee", price.amount);
                             }}
@@ -523,8 +549,8 @@ export default function InviteForm() {
                                 : "border-input text-muted-foreground")
                             }
                           >
-                            {c === "USD" ? "$" : "€"}
-                            {price ? price.amount : "—"}
+                            {unpriceable ? "" : c === "USD" ? "$" : "€"}
+                            {unpriceable ? `${c} —` : price ? price.amount : "—"}
                             {price && !price.pinned ? (
                               <span
                                 className="ml-1 opacity-60"

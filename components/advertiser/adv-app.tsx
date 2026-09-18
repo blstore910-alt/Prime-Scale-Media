@@ -385,7 +385,7 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: invoices, isError: invError } = useQuery<
+  const { data: invoices, isError: invError, isLoading: invLoading } = useQuery<
     (InvoiceWithRelations & { due_date?: string | null })[]
   >({
     queryKey: ["adv-invoices", advertiserId, tenantId],
@@ -733,6 +733,21 @@ export default function AdvertiserApp() {
       | undefined,
   ): boolean => {
     if (!inv) return false;
+    // ── A BALANCE WE HAVE NOT READ IS NOT A BALANCE OF ZERO ───────────
+    //
+    // usdBal and eurBal are 0 both while the wallet query is in flight
+    // and when it has failed — the same file is careful about this 160
+    // lines up, where the figures render as "…" and "—". Here it meant
+    // the primary button first read "Top up to pay EUR 5.00", and
+    // pressing it in that window navigated to the wallet instead of
+    // paying. On a FAILED read it never flips: a customer holding EUR
+    // 10,000 is permanently told to top up in order to pay EUR 5, and
+    // the invoice goes past due and gets dunned.
+    //
+    // Unknown keeps the Pay label and lets the RPC answer. Being wrong
+    // that way costs one refusal message; the other way costs a customer
+    // who cannot pay a bill they can afford.
+    if (walletLoading || walletError) return true;
     const bal = invCurrency(inv) === "USD" ? usdBal : eurBal;
     // A cent of tolerance: these columns are single-precision on live, so
     // an exact-balance payment must not be refused by a rounding artefact.
@@ -2315,9 +2330,13 @@ export default function AdvertiserApp() {
                     so a customer who had just paid was still being told how
                     to pay. */}
                 <p className="cap">
-                  {dueSubInvoice
-                    ? "Pay it from your wallet whenever suits you — or leave it, and we'll take it from your wallet on the due date."
-                    : "Nothing owed right now. We'll raise the next one automatically."}
+                  {invError
+                    ? "We couldn't read your invoices just now, so we'd rather not tell you this month is settled."
+                    : invLoading
+                      ? "Looking up this month…"
+                      : dueSubInvoice
+                        ? "Pay it from your wallet whenever suits you — or leave it, and we'll take it from your wallet on the due date."
+                        : "Nothing owed right now. We'll raise the next one automatically."}
                 </p>
                 {subscription &&
                 Number(subscription.amount ?? 0) > 0 &&
@@ -2354,7 +2373,19 @@ export default function AdvertiserApp() {
                           from the plan's monthly figure. */}
                       <div>
                         <div style={{ fontWeight: 700 }}>
-                          {dueSubInvoice ? "Monthly fee" : "This month is paid"}
+                          {/* A failed or in-flight read is not "paid".
+                              Every branch here keyed off dueSubInvoice,
+                              which is falsy for paid, errored AND loading
+                              alike — so on a dropped invoices read the
+                              customer got a green tick, "This month is
+                              paid" and "Nothing owed right now", directly
+                              above a button saying the invoices could not
+                              be loaded. */}
+                          {invError || invLoading
+                            ? "Checking your billing…"
+                            : dueSubInvoice
+                              ? "Monthly fee"
+                              : "This month is paid"}
                         </div>
                         <div
                           style={{ color: "var(--faint)", fontSize: ".82rem" }}
@@ -2375,7 +2406,7 @@ export default function AdvertiserApp() {
                           are late for something they have already done.
                           A relative time belongs on something still open;
                           on a settled one the only useful word is Paid. */}
-                      {dueSubInvoice ? (
+                      {invError || invLoading ? null : dueSubInvoice ? (
                         dueBillDate ? (
                           <span
                             className="badge due"

@@ -317,7 +317,16 @@ async function finaliseJob(
     return "succeeded";
   }
 
-  const attemptsAfterClaim = job.attempts + 1;
+  // claimBatch already wrote attempts + 1 and returned the UPDATED row, so
+  // adding one again made every job die an attempt early: with
+  // max_attempts = 5 a retryable 503 was marked terminally failed when the
+  // database said 4, and the backoff was shifted a slot throughout. The
+  // refund path proves the intent — it writes back job.attempts - 1.
+  //
+  // The job is a push for a top-up already marked completed, so the cost
+  // is a supplier that recovers on the fifth try and is never funded,
+  // with the customer's money already taken.
+  const attemptsAfterClaim = job.attempts;
   const isTerminal =
     !outcome.retryable || attemptsAfterClaim >= job.max_attempts;
 
