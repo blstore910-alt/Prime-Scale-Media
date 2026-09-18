@@ -117,6 +117,23 @@ const SYMBOL: Record<string, string> = {
   GBP: "£",
   HKD: "HK$",
 };
+/**
+ * Wise puts a literal placeholder where a sender's account should be when
+ * the paying bank did not give it. Printed as-is it read like an account
+ * number — UNKNOWNBANKACCOUNT, in monospace, under the payer's name — so
+ * the one line on the card that should identify a bank account was the
+ * loudest thing saying nothing.
+ */
+const NON_IBANS = new Set(["UNKNOWNBANKACCOUNT", "UNKNOWN", "N/A", "NA", "-"]);
+function realIban(v: string | null): string | null {
+  if (!v) return null;
+  const cleaned = v.replace(/[\s()]/g, "").toUpperCase();
+  return cleaned && !NON_IBANS.has(cleaned) ? v : null;
+}
+
+/** Digits only, for comparing two spellings of one reference. */
+const refDigits = (v: string) => v.replace(/\D+/g, "");
+
 function money(currency: string, cents: number): string {
   const cur = (currency || "").toUpperCase();
   const amount = new Intl.NumberFormat("en-US", {
@@ -910,8 +927,8 @@ Statement tried: ${p.attempts.join(" | ")}`
                       <span className="wnone">no reference on the payment</span>
                     )}
                   </div>
-                  {r.sender_iban ? (
-                    <div className="wiban mono" title={r.sender_iban}>
+                  {realIban(r.sender_iban) ? (
+                    <div className="wiban mono" title={r.sender_iban ?? undefined}>
                       {r.sender_iban}
                     </div>
                   ) : null}
@@ -933,7 +950,17 @@ Statement tried: ${p.attempts.join(" | ")}`
                       <div className="wtot" title={to.name}>
                         {to.name || "—"}
                       </div>
-                      <div className="wtor mono">ref {to.reference || "—"}</div>
+                      {/* The reference is printed three lines above, under
+                          REF. Repeating it here said the same number twice
+                          on one card; it is shown only when the payer wrote
+                          something DIFFERENT from what we gave them, which
+                          is the case worth an admin's eye. */}
+                      {to.reference &&
+                      refDigits(to.reference) !== refDigits(r.reference ?? "") ? (
+                        <div className="wtor mono">
+                          we asked for {to.reference}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
