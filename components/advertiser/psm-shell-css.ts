@@ -459,16 +459,27 @@ export const PSM_APP_CSS = `
      Scoped to rows that actually HAVE a fourth control, so the two-button
      rows elsewhere (Confirm & credit / Archive) keep their wide, plain
      shape. */
+  /* THREE gets the same treatment, for the same reason: two-up left one
+     button alone on a second row, centred under nothing, which reads as an
+     afterthought rather than as the third of a set. Declared BEFORE the
+     four-up rule so a row of four still gets four — :nth-child(3) matches
+     a row of four as well. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)){
+    grid-template-columns:repeat(3,minmax(0,1fr));gap:6px
+  }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)){
     grid-template-columns:repeat(4,minmax(0,1fr));gap:5px
   }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn,
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
     flex-direction:column;gap:3px;padding:9px 3px;font-size:.64rem;
     line-height:1.15;letter-spacing:-.01em;text-align:center;height:auto
   }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg,
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn svg{
     width:16px;height:16px
   }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .alab,
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .alab{
     max-width:100%;white-space:normal;overflow-wrap:anywhere
   }
