@@ -470,8 +470,13 @@ export default function AdvertiserApp() {
   // When the wallet read fails, `wallet` is undefined and both balances fall
   // to 0 — which renders as a confident "€0.00". Show "—" instead: an unknown
   // balance and an empty one are very different things to tell a customer.
-  const eurText = walletError ? "—" : eur(eurBal);
-  const usdText = walletError ? "—" : usd(usdBal);
+  // THREE STATES, NOT TWO. While the read is in flight eurBal is 0, so
+  // every wallet figure on this app printed a confident €0.00 and then
+  // corrected itself a moment later — the customer's own balance, wrong,
+  // on first paint and on every return to the tab. A dash says "not yet"
+  // and does not have to take anything back.
+  const eurText = walletError ? "—" : walletLoading ? "…" : eur(eurBal);
+  const usdText = walletError ? "—" : walletLoading ? "…" : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
   // Company details are what an invoice is built from, so nothing that costs
   // money or creates work can start without them. Browsing can: the app no
