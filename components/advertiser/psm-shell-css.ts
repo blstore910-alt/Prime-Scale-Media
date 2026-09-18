@@ -485,9 +485,6 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4) .alab{
     display:none
   }
-  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4){
-    padding:9px 11px
-  }
   /* THREE fit beside their icons; FOUR do not. At 400px a third of the
      card is about 105px — icon, gap and padding take 36 of it and leave 69
      for the word, which "Min amount" fits into. A quarter is about 80px,
@@ -498,8 +495,19 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn{
     gap:6px;padding:9px 6px;font-size:.72rem;letter-spacing:-.01em
   }
+  /* Measured on the live card: the track is 94px, the icon and its gap
+     take 19 and the padding 8, which leaves 67 for a word — and
+     "Commission" wants 66. One pixel of clearance is not a margin, it is
+     a coincidence, and it ellipsised the moment anything rounded the other
+     way. Three pixels come back off the gap and the padding. */
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
-    gap:5px;padding:9px 4px;font-size:.7rem;letter-spacing:-.015em
+    gap:4px;padding:9px 3px;font-size:.7rem;letter-spacing:-.015em
+  }
+  /* AFTER the rule above, or it loses to it — which is how the one control
+     with no label to widen it ended up the narrowest thing on the card, at
+     24px. A destructive action is not a 24px target. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4){
+    padding:9px 12px
   }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg{
     width:14px;height:14px
