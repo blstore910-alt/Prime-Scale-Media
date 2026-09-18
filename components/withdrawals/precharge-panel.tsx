@@ -88,6 +88,39 @@ export default function PrechargePanel() {
     },
   });
 
+  // TAKE IT BACK, when the payment is not coming.
+  //
+  // The panel offered only "Settle", which means *the money arrived*. So
+  // a precharged top-up that turned out to be wrong left the desk
+  // choosing between recording something untrue and leaving a customer
+  // holding money for a payment we refused. The RPC has existed since
+  // 20260918290000 and had no caller anywhere in the app.
+  const [cancelling, setCancelling] = useState<{
+    id: string;
+    amount: number;
+    currency: string;
+    who: string | null;
+  } | null>(null);
+
+  const cancelAdvance = useMutation({
+    mutationFn: async (id: string) => {
+      const { cancelWalletPrecharge } = await import(
+        "@/actions/precharge-actions"
+      );
+      const res = await cancelWalletPrecharge(id);
+      if (!res.ok) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      toast.success("Advance cancelled — the credit is back out");
+      setCancelling(null);
+      queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't cancel that advance", { description: e.message }),
+  });
+
   const settle = useMutation({
     mutationFn: async (id: string) => {
       setSettlingId(id);
@@ -273,6 +306,27 @@ export default function PrechargePanel() {
                       >
                         {settlingId === r.id ? "…" : "Settle"}
                       </Button>
+                    ) : null}
+                    {r.status === "outstanding" ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={cancelAdvance.isPending}
+                        title="The payment is not coming — take the credit back out"
+                        onClick={() =>
+                          setCancelling({
+                            id: r.id,
+                            amount: Number(r.outstanding),
+                            currency: r.currency ?? "EUR",
+                            who:
+                              r.advertiser?.profile?.full_name ??
+                              r.advertiser?.tenant_client_code ??
+                              null,
+                          })
+                        }
+                      >
+                        Cancel
+                      </Button>
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         settled
@@ -291,6 +345,37 @@ export default function PrechargePanel() {
         onOpenChange={setCreateOpen}
         tenantId={tenantId}
       />
+
+      {/* Cancelling is the verb that was missing. The RPC refuses to push
+          a wallet below zero and names the shortfall when it cannot
+          proceed, so a customer who has already spent part of the advance
+          produces a sentence an admin can act on rather than a negative
+          balance nobody chose. */}
+      <ConfirmModal
+        open={!!cancelling}
+        onOpenChange={(next) => {
+          if (!next && !cancelAdvance.isPending) setCancelling(null);
+        }}
+        title="Cancel this advance?"
+        lead="Use this when the payment is not coming. The credit comes back out of their wallet, and the advance is closed as cancelled rather than settled — settled would record that the money arrived."
+        cta="Yes, cancel it"
+        tone="danger"
+        busy={cancelAdvance.isPending}
+        busyLabel="Cancelling…"
+        onConfirm={() => {
+          if (cancelling) cancelAdvance.mutate(cancelling.id);
+        }}
+      >
+        <ConfirmFact label="Customer" value={cancelling?.who ?? "—"} />
+        <ConfirmFact
+          label="Comes back out"
+          value={
+            cancelling
+              ? formatCurrency(cancelling.amount, cancelling.currency)
+              : "—"
+          }
+        />
+      </ConfirmModal>
 
       {/* Settling takes the advance back out of the customer's wallet and
           cannot be undone — the RPC refuses anything that is not still

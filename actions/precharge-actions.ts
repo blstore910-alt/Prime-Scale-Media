@@ -105,3 +105,57 @@ export async function settleWalletPrecharge(
   if (error) return { ok: false, error: safeErrorMessage(error) };
   return { ok: true, data: null };
 }
+
+/**
+ * Take an advance back out, because the payment it was made against is
+ * not coming.
+ *
+ * WHY THIS HAD TO EXIST. The panel offered exactly one verb —
+ * "Settle" — which means *the money arrived*. So when a precharged
+ * top-up turned out to be wrong, the desk had a choice between
+ * recording something untrue in order to get the balance back, and
+ * leaving a customer holding money for a payment we refused. Migration
+ * 20260918290000 then made rejecting such a top-up a refusal, which
+ * closed the silent version of the fault and left the desk with no way
+ * out at all: the RPC it tells them to use had no caller anywhere in
+ * the app.
+ *
+ * The RPC refuses to push a wallet negative and names the shortfall
+ * when it cannot proceed, so a customer who has already spent part of
+ * the advance produces a sentence an admin can act on rather than a
+ * balance below zero.
+ */
+export async function cancelWalletPrecharge(
+  prechargeId: string,
+  reason?: string,
+): Promise<ActionResult> {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (typeof prechargeId !== "string" || !prechargeId) {
+    return { ok: false, error: "Invalid input" };
+  }
+
+  const { supabase } = auth.ctx;
+  const { error } = await supabase.rpc("wallet_precharge_cancel", {
+    p_precharge_id: prechargeId,
+    p_reason:
+      typeof reason === "string" && reason.trim() ? reason.trim() : null,
+  });
+  if (error) {
+    // The function ships with migration 20260918290000. Say which file,
+    // rather than showing a PostgREST message to somebody holding a
+    // customer's money.
+    if (
+      error.code === "42883" ||
+      /could not find|does not exist/i.test(error.message ?? "")
+    ) {
+      return {
+        ok: false,
+        error:
+          "Cancelling an advance needs migration 20260918290000_reject_cannot_strand_an_advance.sql. Apply it, then try again — nothing has changed.",
+      };
+    }
+    return { ok: false, error: safeErrorMessage(error) };
+  }
+  return { ok: true, data: null };
+}

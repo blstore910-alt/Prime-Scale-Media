@@ -49,15 +49,21 @@ export default function ExchangeRates() {
           </CardAction>
         </CardHeader>
 
-        {exchangeRates && exchangeRates.length > 0 ? (
-          <ExchangeRatesForm
-            defaultValues={{
-              GBP: String(formatRate(exchangeRates[0].gbp) ?? ""),
-              HKD: String(formatRate(exchangeRates[0].hkd) ?? ""),
-              EUR: String(formatRate(exchangeRates[0].eur) ?? ""),
-            }}
-          />
-        ) : isLoading ? (
+        {/* ── AN EMPTY LIST IS WHEN THE FORM IS MOST NEEDED ──────────────
+            The form was behind `length > 0`, and zero rows loads
+            SUCCESSFULLY — so it fell through to null and the card
+            rendered a heading, a logs button and nothing else.
+            That is not a rare state. upsertExchangeRate stands the
+            current active row DOWN FIRST, so any save that is then
+            refused leaves the tenant with no active rate — and this is
+            the only screen that could publish one. Its own comment
+            promises the failure is "recoverable by saving again"; it was
+            not, because the thing that would save had stopped rendering.
+            Meanwhile every advertiser's Exchange button is dead and a
+            non-USD top-up is refused outright.
+            The insert branch in the action already handles no-existing-
+            row, so the form just needs to appear. */}
+        {isLoading ? (
           <div className="p-6 flex items-center justify-center h-48">
             <Loader2 className="animate-spin" />
           </div>
@@ -65,7 +71,23 @@ export default function ExchangeRates() {
           <div className="p-6 flex items-center justify-center h-48">
             <p className="text-destructive">{error?.message}</p>
           </div>
-        ) : null}
+        ) : (
+          <>
+            {!exchangeRates || exchangeRates.length === 0 ? (
+              <p className="px-6 pb-2 text-sm text-muted-foreground">
+                No rate is published yet, so conversions and the customers&apos;
+                Exchange button are switched off until you save one.
+              </p>
+            ) : null}
+            <ExchangeRatesForm
+              defaultValues={{
+                GBP: String(formatRate(exchangeRates?.[0]?.gbp) ?? ""),
+                HKD: String(formatRate(exchangeRates?.[0]?.hkd) ?? ""),
+                EUR: String(formatRate(exchangeRates?.[0]?.eur) ?? ""),
+              }}
+            />
+          </>
+        )}
       </Card>
     </section>
   );
