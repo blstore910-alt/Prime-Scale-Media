@@ -147,6 +147,20 @@ export default function WalletExchangeDialog({
     },
     onError: (err: Error) => {
       toast.error("Exchange failed", { description: err.message });
+      // ── AND DROP THE CONFIRMATION ──────────────────────────────────
+      //
+      // Same shape as the ad-account top-up and the wallet adjustment:
+      // `confirming` survived an error and `busy` went false, so the
+      // modal stayed open with a live confirm button. A call that
+      // COMMITTED and whose response was lost — a 504, a dropped
+      // connection, a suspended tab — reads exactly like one that
+      // failed, and the second press converts the amount again at
+      // whatever rate is active by then.
+      //
+      // wallet_exchange exists only on the live database, so nothing
+      // here can say whether it is idempotent. Sending them back to the
+      // form re-reads both balances, which is where the answer is.
+      setConfirming(null);
     },
   });
 

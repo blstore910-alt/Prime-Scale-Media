@@ -766,7 +766,7 @@ export async function updateTopupAsAdmin(
   // Verify target is in caller's tenant
   const { data: existing } = await supabase
     .from("top_ups")
-    .select("id, tenant_id, updated_at")
+    .select("id, tenant_id, updated_at, status")
     .eq("id", topupId)
     .maybeSingle();
   if (!existing) return { ok: false, error: "Top-up not found", code: "not_found" };
@@ -789,6 +789,29 @@ export async function updateTopupAsAdmin(
     const s = cleaned.status;
     if (s !== "pending" && s !== "completed" && s !== "rejected") {
       return { ok: false, error: "Invalid status" };
+    }
+    // ── COMPLETED DOES NOT GO BACKWARDS ───────────────────────────────
+    //
+    // This was the last of the three money-status actions with no
+    // transition guard. invoice-actions refuses paid -> unpaid and says
+    // why; referral-actions now refuses paid -> unpaid for the same
+    // reason. A completed top-up has had its money split, its fee
+    // recorded and, if the gate is armed, a supplier push queued —
+    // writing `pending` or `rejected` over the top of that changes the
+    // row and undoes none of it, and the fee and profit reports, which
+    // read fee_amount, go on agreeing with a row that now claims the
+    // payment never landed.
+    //
+    // Undoing a verify is a real thing an admin needs, and it has its own
+    // RPC that reverses the money. This action is not it.
+    const was = String(existing.status ?? "");
+    if (was === "completed" && s !== "completed") {
+      return {
+        ok: false,
+        error:
+          "This top-up is already completed. Changing it back here would leave the money split and the row saying otherwise — undo the verification instead.",
+        code: "invalid",
+      };
     }
   }
   if (Object.keys(cleaned).length === 0) {

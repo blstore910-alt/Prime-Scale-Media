@@ -504,7 +504,29 @@ export default function AccountTopupForm({
         cta="Yes, top it up"
         busy={isPending}
         busyLabel="Sending…"
-        onConfirm={() => confirming && mutate(confirming)}
+        onConfirm={() =>
+          confirming &&
+          mutate(confirming, {
+            // ── A FAILED RESPONSE IS NOT A FAILED CALL ─────────────
+            //
+            // `confirming` was cleared on success only, and `busy` goes
+            // false on error — so a failure left this dialog open with a
+            // live "Yes, top it up". The dangerous shape is a call that
+            // COMMITTED and whose response was lost: a 504, a dropped
+            // connection, a backgrounded tab on mobile. The toast says
+            // "Unable to request topup", the customer taps again, and
+            // the whole amount leaves the wallet twice — which the
+            // dialog's own words say "can only come back through a
+            // withdrawal request, which we have to approve".
+            //
+            // top_up_create_for_advertiser exists only on the live
+            // database, so nothing in this repository can say whether it
+            // is idempotent. The client is the only defence there is.
+            // The sibling ad-account request form closes exactly this
+            // door and explains why; this one did not.
+            onError: () => setConfirming(null),
+          })
+        }
       >
         <ConfirmFact
           label="Ad account"

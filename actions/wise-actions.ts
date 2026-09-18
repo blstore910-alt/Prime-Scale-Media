@@ -187,7 +187,27 @@ export async function matchWiseToTopup(
   ) {
     return { ok: false, error: "Forbidden" };
   }
-  if (transfer.status === "completed" || transfer.status === "confirmed") {
+  // ── 'matched' MEANS ALREADY CREDITED TOO ────────────────────────────
+  //
+  // The auto-settle path writes 'matched' when it has credited a top-up
+  // from this deposit. Everything else in the app agrees it is spent —
+  // the review panel renders 'matched' as "Credited", and
+  // rematchWiseDeposits excludes it — and only this guard did not. It
+  // then rewrites the row to 'suggested' and calls
+  // wise_confirm_suggestion, crediting a SECOND top-up from one bank
+  // deposit. The `alreadyCredited` twin check cannot save it: it excludes
+  // the row itself and returns null when the reference is empty, which is
+  // the normal case.
+  //
+  // Not reachable from the UI today — the button is never rendered on a
+  // matched row, and matched rows only exist with WISE_AUTO_SETTLE on,
+  // which production does not have. This is the one line that has to be
+  // right before that switch is ever turned on.
+  if (
+    transfer.status === "completed" ||
+    transfer.status === "confirmed" ||
+    transfer.status === "matched"
+  ) {
     return { ok: false, error: "That deposit has already been credited." };
   }
 

@@ -164,6 +164,19 @@ export default function WalletEditDialog({
     },
     onError: (error: Error) => {
       toast.error("Failed to update wallet", { description: error.message });
+      // ── AND CLOSE THE CONFIRMATION ─────────────────────────────────
+      //
+      // wallet_admin_adjust takes p_usd_delta / p_eur_delta — a DELTA,
+      // with no idempotency token — so replaying it is non-idempotent by
+      // construction. `pending` survived an error and the confirm button
+      // re-enabled, still holding deltas computed from a balance that is
+      // now stale. One lost response plus one more press applies the same
+      // adjustment twice.
+      //
+      // Going back to the form re-reads the current balances, so whatever
+      // the first call actually did is visible before anyone decides
+      // again. One extra step when the failure was genuine.
+      setPending(null);
     },
   });
 
