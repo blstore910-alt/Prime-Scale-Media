@@ -339,6 +339,25 @@ function PrechargeCreateDialog({
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [reason, setReason] = useState("");
 
+  // ── AN ADVANCE IN THE WRONG CURRENCY IS OUR MONEY ───────────────────
+  //
+  // The reset left `currency` where the last advance put it. Advance EUR
+  // 2,000 to one customer; later a different customer wires $5,000, the
+  // admin types 5000 and the field still reads EUR — so eur_balance is
+  // credited 5,000, about $5,814 of spendable credit against a $5,000
+  // payment. The customer can spend it before the top-up is verified,
+  // and settling then tries to take EUR 5,000 back out of a wallet whose
+  // euros have gone, so the advance cannot be closed at all.
+  const [primedFor, setPrimedFor] = useState(false);
+  if (open && !primedFor) {
+    setPrimedFor(true);
+    setAdvertiserId("");
+    setAmount("");
+    setCurrency("USD");
+    setReason("");
+  }
+  if (!open && primedFor) setPrimedFor(false);
+
   const { data: advertisers } = useQuery({
     queryKey: ["precharge-advertisers", tenantId],
     enabled: !!tenantId && open,

@@ -888,6 +888,40 @@ function RefundRequestDialog({
   const [address, setAddress] = useState("");
   const [bankCurrency, setBankCurrency] = useState<"USD" | "EUR" | "HKD">("EUR");
 
+  // ── EVERY FIELD, EVERY OPEN ─────────────────────────────────────────
+  //
+  // This dialog is mounted unconditionally, so its state survives a
+  // close. The success path cleared the amount and the payout fields and
+  // left `currency` and `bankCurrency` alone; Cancel cleared nothing at
+  // all. Both of those cost money.
+  //
+  //   Raise a EUR 1,000 refund for one customer. Open it again for a
+  //   customer leaving with USD 1,000 and no euros, type 1000, submit.
+  //   It is raised as EUR 1,000: the approval drives eur_balance to
+  //   -1,000 while the dollars sit untouched, and the payout instruction
+  //   is for about $1,163 — more than that customer's entire balance.
+  //
+  //   Worse on Cancel: paste one customer's IBAN and business name,
+  //   press Cancel, open it later for somebody else, and their refund
+  //   carries the first customer's bank details. The money is wired to
+  //   the wrong account.
+  //
+  // Same shape the change-amount dialog already fixed for its refund
+  // pill. A default that persists is not a default.
+  const [primedFor, setPrimedFor] = useState(false);
+  if (open && !primedFor) {
+    setPrimedFor(true);
+    setAdvertiserId("");
+    setAmount("");
+    setCurrency("USD");
+    setReason("");
+    setPayoutDetails("");
+    setBusinessName("");
+    setAddress("");
+    setBankCurrency("EUR");
+  }
+  if (!open && primedFor) setPrimedFor(false);
+
   const { data: advertisers } = useQuery({
     queryKey: ["refund-advertisers", tenantId],
     enabled: !!tenantId && open,
@@ -1422,6 +1456,25 @@ function AdjustmentRequestDialog({
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [reason, setReason] = useState("");
+
+  // ── THE DIRECTION IS THE MOST IMPORTANT FIELD, AND IT PERSISTED ─────
+  //
+  // The reset cleared the advertiser, the amount and the reason, and
+  // left `direction` and `currency` where the last request put them. So
+  // removing $500 from one customer and then opening the dialog to
+  // CREDIT another $200 sends delta = -200: the wallet goes down $200
+  // instead of up, a $400 swing against a balance that was meant to
+  // rise, on a screen whose whole purpose is correcting a balance.
+  const [primedFor, setPrimedFor] = useState(false);
+  if (open && !primedFor) {
+    setPrimedFor(true);
+    setAdvertiserId("");
+    setDirection("add");
+    setAmount("");
+    setCurrency("USD");
+    setReason("");
+  }
+  if (!open && primedFor) setPrimedFor(false);
 
   const { data: advertisers } = useQuery({
     queryKey: ["adjustment-advertisers", tenantId],
