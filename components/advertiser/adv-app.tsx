@@ -84,17 +84,6 @@ const SUPPORT_EMAIL = "contact@primescalemedia.com";
 const platformLabel = (p: string | null) =>
   PLATFORMS.find((x) => x.value === p)?.label ?? p ?? "—";
 
-function initials(name?: string | null) {
-  if (!name) return "PS";
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "PS"
-  );
-}
 
 // Every status an ad account can hold, and NOT an "anything else is fine"
 // fallback. That fallback is how `disabled` — the status an admin actually
@@ -156,7 +145,6 @@ export default function AdvertiserApp() {
     });
   const name = (profile?.full_name as string) ?? "there";
   const firstName = name.split(" ")[0];
-  const ini = initials(name);
   // Approved affiliate or not. An `active` referral_links row is the only
   // thing that makes an advertiser one.
   const { isAffiliate, isError: affiliateUnknown } = useIsAffiliate();
@@ -2258,9 +2246,14 @@ export default function AdvertiserApp() {
                 <h2>
                   <Ic name="i-clock" /> This month
                 </h2>
+                {/* Two different situations, two different sentences. The
+                    first one was printed whether or not anything was owed,
+                    so a customer who had just paid was still being told how
+                    to pay. */}
                 <p className="cap">
-                  Pay it from your wallet whenever suits you — or leave it, and
-                  we&apos;ll take it from your wallet on the due date.
+                  {dueSubInvoice
+                    ? "Pay it from your wallet whenever suits you — or leave it, and we'll take it from your wallet on the due date."
+                    : "Nothing owed right now. We'll raise the next one automatically."}
                 </p>
                 {subscription &&
                 Number(subscription.amount ?? 0) > 0 &&
@@ -2269,12 +2262,19 @@ export default function AdvertiserApp() {
                     <div className="list-row" style={{ borderTop: 0 }}>
                       <span
                         className="ico"
-                        style={{
-                          background: "var(--warn-soft)",
-                          color: "var(--warn)",
-                        }}
+                        style={
+                          dueSubInvoice
+                            ? {
+                                background: "var(--warn-soft)",
+                                color: "var(--warn)",
+                              }
+                            : {
+                                background: "var(--win-soft)",
+                                color: "#0e8f66",
+                              }
+                        }
                       >
-                        <Ic name="i-receipt" />
+                        <Ic name={dueSubInvoice ? "i-receipt" : "i-check"} />
                       </span>
                       {/* The DUE DATE OF THE INVOICE, not next_payment_date.
                           Those are different facts and the screen was
@@ -2289,71 +2289,87 @@ export default function AdvertiserApp() {
                           the same reason: an adjustment can make it differ
                           from the plan's monthly figure. */}
                       <div>
-                        <div style={{ fontWeight: 700 }}>Monthly fee</div>
+                        <div style={{ fontWeight: 700 }}>
+                          {dueSubInvoice ? "Monthly fee" : "This month is paid"}
+                        </div>
                         <div
                           style={{ color: "var(--faint)", fontSize: ".82rem" }}
                         >
-                          {dueBillDate
-                            ? `Due ${dayjs(dueBillDate).format("D MMM YYYY")}`
-                            : "Due date not set"}{" "}
-                          · {dueBillAmount}
+                          {dueSubInvoice
+                            ? `${
+                                dueBillDate
+                                  ? `Due ${dayjs(dueBillDate).format("D MMM YYYY")}`
+                                  : "Due date not set"
+                              } · ${dueBillAmount}`
+                            : subscription.next_payment_date
+                              ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · ${planMoney2(subscription.amount)}`
+                              : "We'll tell you when the next one is ready"}
                         </div>
                       </div>
-                      {dueBillDate && (
-                        <span
-                          className="badge due"
-                          style={{ marginLeft: "auto" }}
-                        >
-                          {dayjs(dueBillDate).fromNow()}
+                      {/* "18 hours ago" in a red badge, on an invoice that
+                          has been PAID, is the screen telling somebody they
+                          are late for something they have already done.
+                          A relative time belongs on something still open;
+                          on a settled one the only useful word is Paid. */}
+                      {dueSubInvoice ? (
+                        dueBillDate ? (
+                          <span
+                            className="badge due"
+                            style={{ marginLeft: "auto" }}
+                          >
+                            {dayjs(dueBillDate).fromNow()}
+                          </span>
+                        ) : null
+                      ) : (
+                        <span className="badge ok" style={{ marginLeft: "auto" }}>
+                          Paid
                         </span>
                       )}
                     </div>
-                    <button
-                      className="btn block grad"
-                      style={{ marginTop: 14 }}
-                      disabled={!dueSubInvoice}
-                      onClick={() => {
-                        // Not enough in the wallet: send them to the one
-                        // screen that can change that, rather than into a
-                        // confirmation that ends in a refusal.
-                        if (dueSubInvoice && !canPayInvoice(dueSubInvoice)) {
-                          go("wallet");
-                          return;
-                        }
-                        if (dueSubInvoice) askToPay(dueSubInvoice);
-                        else if (invError) {
-                          toast.error(
-                            "We couldn't load your invoices, so we'd rather not take money yet. Give it a reload.",
-                          );
-                        } else {
-                          toast.message("No unpaid subscription invoice to pay.");
-                        }
-                      }}
-                    >
-                      {/* A WALLET, not a tick. A tick means "done", and
-                          this button has not done anything yet — it takes
-                          money out of a wallet, which is what the icon
-                          should say. The three other states are not
-                          payments at all, so they get their own. */}
-                      <Ic
-                        name={
-                          dueSubInvoice
-                            ? canPayInvoice(dueSubInvoice)
-                              ? "i-wallet"
-                              : "i-plus"
-                            : invError
-                              ? "i-refresh"
-                              : "i-check"
-                        }
-                      />{" "}
-                      {dueSubInvoice
-                        ? canPayInvoice(dueSubInvoice)
+                    {/* NO BUTTON WHEN THERE IS NOTHING TO PRESS.
+                        A full-width gradient slab reading "No subscription
+                        invoice due" is the loudest thing on the card, and
+                        it says nothing — it is a disabled control shouting
+                        about its own absence. The row above already says
+                        the month is paid and when the next one lands.
+                        The failed-to-load case DOES get a button, because
+                        there the customer can do something: reload. */}
+                    {dueSubInvoice ? (
+                      <button
+                        className="btn block grad"
+                        style={{ marginTop: 14 }}
+                        onClick={() => {
+                          // Not enough in the wallet: send them to the one
+                          // screen that can change that, rather than into a
+                          // confirmation that ends in a refusal.
+                          if (!canPayInvoice(dueSubInvoice)) {
+                            go("wallet");
+                            return;
+                          }
+                          askToPay(dueSubInvoice);
+                        }}
+                      >
+                        {/* A WALLET, not a tick. A tick means "done", and
+                            this button has not done anything yet — it takes
+                            money out of a wallet, which is what the icon
+                            should say. */}
+                        <Ic
+                          name={canPayInvoice(dueSubInvoice) ? "i-wallet" : "i-plus"}
+                        />{" "}
+                        {canPayInvoice(dueSubInvoice)
                           ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
-                          : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
-                        : invError
-                          ? "Couldn't load your invoices"
-                          : "No subscription invoice due"}
-                    </button>
+                          : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
+                      </button>
+                    ) : invError ? (
+                      <button
+                        className="btn block ghost"
+                        style={{ marginTop: 14 }}
+                        onClick={() => window.location.reload()}
+                      >
+                        <Ic name="i-refresh" /> Couldn&apos;t load your invoices
+                        — reload
+                      </button>
+                    ) : null}
                   </>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>

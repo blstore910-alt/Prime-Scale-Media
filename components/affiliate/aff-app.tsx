@@ -100,7 +100,6 @@ export default function AffiliateApp() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const name = (profile?.full_name as string) ?? "Affiliate";
-  const ini = initials(name);
 
   // Real referral book (all-time) + this-month slice for the topbar pill.
   const all = useAffiliateStats();

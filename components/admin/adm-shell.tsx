@@ -75,17 +75,6 @@ const TITLES: Record<string, string> = {
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
-function initials(name?: string | null) {
-  if (!name) return "PS";
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "PS"
-  );
-}
 
 export default function AdminShell({
   children,
@@ -102,7 +91,6 @@ export default function AdminShell({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const name = (profile?.full_name as string) ?? "Admin";
-  const ini = initials(name);
   const roleLabel = isSuperAdmin ? "Super admin" : "Admin";
 
   const groups: Group[] = [
