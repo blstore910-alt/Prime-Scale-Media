@@ -1,20 +1,25 @@
 -- =====================================================================
--- RUN THIS WHOLE FILE. Three parts, in this order.
+-- EVERYTHING OUTSTANDING THAT IS SAFE. Run the whole file, top to bottom.
 -- =====================================================================
---   PART 1  Rejecting an ad-account request gives the 50 EUR back.
---   PART 2  Replaces the clawback function (same fix: a record field
---           cannot be used inside a SQL statement). Safe to run even if
---           you have not applied the clawback migration — it just
---           replaces a function that is not called yet.
---   PART 3  The wallet integrity check. READ-ONLY, six questions.
+--   PART 1  Rejecting an ad-account request returns the 50 EUR.
+--   PART 2  Replaces two functions that used a RECORD field inside a SQL
+--           statement (`relation "v_admin" does not exist`). Harmless to
+--           run whatever state you are in.
+--   PART 3  Repricing a plan becomes owner-only, in the database — the
+--           screen and the action already are.
+--   PART 4  The wallet integrity check. READ-ONLY, six questions.
 --
--- NOT IN HERE: 20260918200000_money_to_numeric.sql. It REWRITES STORED
--- VALUES in 21 columns. Back up first and run it on its own.
+-- NOT HERE, ON PURPOSE: money_to_numeric. It REWRITES STORED VALUES in 21
+-- columns and drops three views to rebuild them. It gets its own file and
+-- its own backup, because it does not belong in something you paste and
+-- scroll past.
 --
 -- Every dollar-quoted block carries a NAMED tag.
 -- =====================================================================
 
--- ═══ PART 1 of 3 ═══════════════════════════════════════
+
+-- ═══ PART 1 of 4 ═══════════════════════════════════════
+
 -- =====================================================================
 -- Rejecting an ad-account request gives the 50 euro back.
 -- =====================================================================
@@ -217,7 +222,8 @@ select
    and (r.metadata->>'request_fee_refunded_at') is null
  order by r.created_at desc;
 
--- ═══ PART 2 of 3 ═══════════════════════════════════════
+-- ═══ PART 2 of 4 ═══════════════════════════════════════
+
 -- =====================================================================
 -- Replace two functions that used a RECORD field inside a SQL statement.
 -- =====================================================================
@@ -344,7 +350,110 @@ $blk0$;
 revoke all on function public._claw_back_referral_commission(uuid, numeric, text, text, uuid, text)
   from public, anon, authenticated;
 
--- ═══ PART 3 of 3 ═══════════════════════════════════════
+-- ═══ PART 3 of 4 ═══════════════════════════════════════
+
+-- =====================================================================
+-- Changing what a customer pays is the owner's decision, not an admin's.
+-- =====================================================================
+-- ⚠️ APPLY ON SUPABASE MANUALLY.
+--
+-- WHAT WAS OPEN. change_subscription_amount checked for role = 'admin'.
+-- The screen hid its Amount button from anyone but the tenant owner, and
+-- the server action did not check at all — so a plain admin, an employee,
+-- could reprice any customer's plan by calling the action or the RPC
+-- directly. On a DOWNGRADE that path can also hand money back.
+--
+-- A hidden button is not a boundary. The button, the action and this
+-- function now all say the same thing, and this one is the only one that
+-- cannot be gone around.
+--
+-- SUPER-ADMIN means what it means everywhere else in this app: the owner
+-- of the tenant (tenants.owner_id). _is_super_admin_of exists for exactly
+-- this and is used where present; the ownership test is inlined as a
+-- fallback so this migration does not depend on it.
+--
+-- The is_active gate that 20260918130000 added is preserved — this narrows
+-- WHO, it does not widen anything.
+--
+-- ROLLBACK: re-apply 20260918170000_restore_orphan_void.sql, which carries
+-- the current body with the admin-only gate.
+-- =====================================================================
+
+set search_path = public;
+
+do $blk0$
+declare
+  v_src text;
+  v_new text;
+  v_old text;
+begin
+  select pg_get_functiondef(p.oid) into v_src
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public'
+     and p.proname = 'change_subscription_amount'
+   limit 1;
+
+  if v_src is null then
+    raise exception 'change_subscription_amount not found';
+  end if;
+
+  if position('tenants t' in v_src) > 0
+     or position('_is_super_admin_of' in v_src) > 0
+  then
+    raise notice 'Already owner-gated — no change.';
+    return;
+  end if;
+
+  -- The admin lookup this function performs. Narrow it to the owner by
+  -- adding an EXISTS on tenants. Written to match the shape used by
+  -- 20260918130000 (role + is_active), and to say so loudly if the body
+  -- has moved on since.
+  v_old := 'and up.role = ''admin''';
+  if position(v_old in v_src) = 0 then
+    raise notice
+      'The admin test is written differently — gate it by hand. Look for the select into the admin profile.';
+    return;
+  end if;
+
+  v_new := replace(
+    v_src,
+    v_old,
+    'and up.role = ''admin''
+       and exists (
+         select 1 from public.tenants t
+          where t.id = up.tenant_id
+            and t.owner_id = up.user_id
+       )'
+  );
+
+  execute v_new;
+  raise notice 'Repricing is now owner-only.';
+end;
+$blk0$;
+
+-- ── Read back ────────────────────────────────────────────────────────
+-- owner_gated must be true. admins_who_can_reprice is how many people in
+-- each tenant still can — it should equal the number of tenants.
+select
+  (pg_get_functiondef(p.oid) like '%owner_id = up.user_id%') as owner_gated
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and p.proname = 'change_subscription_amount';
+
+select
+  t.initials                                      as tenant,
+  count(*) filter (where up.role = 'admin')       as admins,
+  count(*) filter (where up.role = 'admin'
+                     and t.owner_id = up.user_id) as can_reprice_now
+  from public.tenants t
+  left join public.user_profiles up on up.tenant_id = t.id
+ group by t.id, t.initials
+ order by t.initials;
+
+-- ═══ PART 4 of 4 ═══════════════════════════════════════
+
 -- =====================================================================
 -- Does every euro in every wallet have a reason?
 -- =====================================================================
