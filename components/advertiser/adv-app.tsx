@@ -207,7 +207,8 @@ export default function AdvertiserApp() {
   // indistinguishable from an empty one, and the screen tells a customer
   // with ten live ad accounts that they have none and should request their
   // first — which is both alarming and wrong.
-  const { data: accounts, isError: accountsError } = useQuery<AdAccount[]>({
+  const { data: accounts, isLoading: accountsLoading, isError: accountsError } =
+    useQuery<AdAccount[]>({
     queryKey: ["adv-accounts", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -240,6 +241,30 @@ export default function AdvertiserApp() {
         .limit(1);
       if (error) throw error;
       return data?.[0] ?? null;
+    },
+  });
+
+  // WHICH PLAN. The billing screens said "Monthly plan" and the customer's
+  // plan has a name — Prime, Starter, whatever they were sold. On the box
+  // that takes money out of their wallet, naming it is the difference
+  // between "some monthly charge" and "the thing I signed up for".
+  const { data: planName } = useQuery<string | null>({
+    queryKey: ["adv-plan-name", advertiserId],
+    enabled: !!advertiserId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertiser_plans")
+        .select("plan:plans(name)")
+        .eq("advertiser_id", advertiserId)
+        .maybeSingle();
+      if (error) throw error;
+      const plan = (data as { plan?: { name?: string } | Array<{ name?: string }> } | null)
+        ?.plan;
+      const one = Array.isArray(plan) ? plan[0] : plan;
+      const name = (one?.name ?? "").trim();
+      return name || null;
     },
   });
 
@@ -344,7 +369,9 @@ export default function AdvertiserApp() {
     markAllAsRead,
   } = useNotifications();
 
-  const { data: company } = useQuery<Record<string, unknown> | null>({
+  const { data: company, isLoading: companyLoading } = useQuery<
+    Record<string, unknown> | null
+  >({
     queryKey: ["adv-company", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -806,9 +833,28 @@ export default function AdvertiserApp() {
       title: "Pay this from your wallet?",
       lead: `We take it out of your ${cur} wallet straight away. There is no undo — if it turns out to be wrong, message us and we sort it out.`,
       facts: [
-        ["What for", invoiceTypeLabel(inv.type)],
+        [
+          "What for",
+          // Named, when they have a plan. "Monthly plan" alone is the
+          // category; "Monthly plan · Prime" is the thing they bought.
+          planName && inv.type === "subscription"
+            ? `${invoiceTypeLabel(inv.type)} · ${planName}`
+            : invoiceTypeLabel(inv.type),
+        ],
         ["Amount", `${sym}${money2(inv.total)}`],
-        ["Out of", `Your ${cur} wallet`],
+        // BEFORE AND AFTER. "Out of your EUR wallet" did not say what was
+        // in it or what would be left — so somebody pressing this could
+        // not tell whether it empties them, and the one thing a person
+        // wants to know before money leaves is what remains.
+        [
+          `Your ${cur} wallet`,
+          (() => {
+            const before = cur === "USD" ? usdBal : eurBal;
+            const after = before - Number(inv.total ?? 0);
+            const fmt = (n: number) => `${sym}${money2(n)}`;
+            return `${fmt(before)} → ${fmt(after)}`;
+          })(),
+        ],
         [
           "Due",
           inv.due_date
@@ -1116,6 +1162,14 @@ export default function AdvertiserApp() {
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
             <OnboardingChecklist
+              /* WAIT FOR THE ANSWERS, not just for localStorage. The ticks
+                 come from three separate queries — company, wallet,
+                 accounts — that land at different moments, so the card drew
+                 itself with nothing ticked and then ticked them one by one,
+                 and when the last one landed it swapped to a different card
+                 entirely. That is the flicker: a checklist appearing to
+                 undo itself while you read it. */
+              loading={companyLoading || walletLoading || accountsLoading}
               advertiserId={advertiserId}
               company={company ?? null}
               eurBalance={eurBal}

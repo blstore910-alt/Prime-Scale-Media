@@ -14,6 +14,8 @@ type Props = {
   eurBalance: number;
   usdBalance: number;
   accountsCount: number;
+  /** True while any of the reads behind the ticks is still in flight. */
+  loading?: boolean;
   onNavigate: (view: string) => void;
 };
 
@@ -78,6 +80,7 @@ export default function OnboardingChecklist({
   eurBalance,
   usdBalance,
   accountsCount,
+  loading = false,
   onNavigate,
 }: Props) {
   const [manual, setManual] = useState<string[]>([]);
@@ -186,7 +189,10 @@ export default function OnboardingChecklist({
   // render the right thing. It used to render NOTHING, which meant the card
   // appeared a frame later and shoved the whole dashboard down. A block of
   // the same height holds the place instead, so the page arrives assembled.
-  if (!hydrated) {
+  // `loading` as well as `hydrated`. localStorage answers in the same tick;
+  // the three queries behind the ticks do not, and drawing the card before
+  // they land is what made it appear to tick and untick itself.
+  if (!hydrated || loading) {
     return <div className="card onb-skel" aria-hidden="true" />;
   }
 
