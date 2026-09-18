@@ -193,7 +193,25 @@ export async function getReconciliation(): Promise<
     const c = String(e.currency ?? "").toUpperCase();
     const dest = String(e.destination ?? "");
     const signed = e.direction === "withdrawal" ? -n(e.amount) : n(e.amount);
-    if (c === "USD" || c === "EUR") received[c] += signed;
+    // ── "RECEIVED" MEANS MONEY THAT ARRIVED ─────────────────────────
+    //
+    // This added the SIGNED figure, so every withdrawal the owner
+    // recorded was subtracted from what customers had paid in — and
+    // `credited` on the other side of the comparison is the sum of
+    // completed wallet top-ups, which withdrawals do not touch.
+    //
+    // Record a EUR 10,000 deposit: "All balanced". Then record the EUR
+    // 8,000 you moved out of the bank, and the same screen flips to
+    // amber, "1 to investigate", "Credited 10,000 · Received 2,000",
+    // with a red Check badge — on the one screen that answers "is
+    // somebody taking money". Nothing is missing. And once that alarm is
+    // known to be false, a real gap is invisible.
+    //
+    // The signed sum is still right for the per-destination balance,
+    // which is what a bank account actually holds.
+    if ((c === "USD" || c === "EUR") && e.direction !== "withdrawal") {
+      received[c] += n(e.amount);
+    }
     const key = `${dest}|${c}`;
     balMap.set(key, (balMap.get(key) ?? 0) + signed);
   }

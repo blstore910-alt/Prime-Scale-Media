@@ -110,10 +110,24 @@ async function resolveEffectiveFeePct(
   const premium = isPremium ? 2 : 0;
 
   if (accountPct === null && !hasPlan && !waiver && discount === 0) {
-    // Nothing is configured, so there is no rate of OURS to enforce — the
-    // caller's own figure stands. The premium discount still applies,
-    // because that is a property of the account, not of a plan.
-    return { applied: false, pct: Math.max(0, fallbackPct - premium) };
+    // ── THE CALLER'S FIGURE, UNTOUCHED ──────────────────────────────
+    //
+    // Nothing is configured, so there is no rate of OURS to enforce and
+    // the caller's own figure stands.
+    //
+    // The premium two points do NOT apply again here, and that matters.
+    // verifyAdTopup passes the ROW'S STORED FEE as fallbackPct — a
+    // figure created with the two points already taken off. Subtracting
+    // them a second time put the floor BELOW the row's own rate: a
+    // premium account stored at 3% resolved a floor of 1%, so any
+    // non-owner could verify at 1% and leave ~$232 uncollected on a EUR
+    // 10,000 top-up. The comment further down says the fallback is
+    // "exactly the figure a verify must not silently drop below"; this
+    // line was dropping two points below it.
+    //
+    // The discount belongs to a rate we resolved, never to one we were
+    // handed.
+    return { applied: false, pct: Math.max(0, fallbackPct) };
   }
   const base =
     accountPct !== null
@@ -870,17 +884,37 @@ export async function verifyAdTopup(
   // anything and there are real reasons to. Going BELOW what the account
   // and the plan resolve to is the owner's call.
   if (newFeePercent !== null) {
-    const { data: row } = await supabase
+    // ── A READ WE COULD NOT MAKE IS NOT PERMISSION ──────────────────
+    //
+    // This discarded `error` and then wrote both checks so that "no row"
+    // meant "no check": `if (row && tenant mismatch)` and
+    // `if (row?.advertiser_id)`. Any null read — a column a pending
+    // migration adds, an RLS hiccup, two matching rows — skipped the
+    // tenant compare AND the whole floor, and called the RPC with
+    // p_new_fee_percent = 0. Nothing in SQL guards that parameter, so a
+    // EUR 10,000 top-up re-splits at 0% and the row then genuinely reads
+    // 0%, which is precisely the outcome the floor was written to stop.
+    //
+    // updateTopupAsAdmin in this same file gets this right.
+    const { data: row, error: rowErr } = await supabase
       .from("top_ups")
       .select("advertiser_id, account_id, fee, tenant_id")
       .eq("id", topupId)
       .maybeSingle();
 
-    if (row && row.tenant_id !== profile.tenant_id) {
+    if (rowErr) {
+      return {
+        ok: false,
+        error: "Could not read this top-up, so the fee cannot be checked.",
+        code: "invalid",
+      };
+    }
+    if (!row) return { ok: false, error: "Top-up not found", code: "not_found" };
+    if (row.tenant_id !== profile.tenant_id) {
       return { ok: false, error: "Forbidden", code: "forbidden" };
     }
 
-    if (row?.advertiser_id) {
+    if (row.advertiser_id) {
       const effective = await resolveEffectiveFeePct(
         supabase,
         String(row.advertiser_id),

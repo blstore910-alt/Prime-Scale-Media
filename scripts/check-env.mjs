@@ -49,6 +49,10 @@ const REQUIRED = [
     hint: "shared secret between Supabase webhook and /api/push/notify",
     server: true,
   },
+  {
+    name: "CRON_SECRET",
+    hint: "any long random string; Vercel sends it as Authorization: Bearer. WITHOUT IT BOTH CRON ROUTES ARE CLOSED and the nightly billing run does not fire.",
+  },
 ];
 
 const OPTIONAL = [

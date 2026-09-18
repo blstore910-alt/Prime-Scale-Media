@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export { callerIp } from "./pure-request";
 
@@ -20,7 +20,24 @@ export async function rateLimitCheck(
   keySuffix: string,
 ): Promise<boolean> {
   try {
-    const supabase = await createClient();
+    // ── THE ADMIN CLIENT, NOT THE COOKIE-BOUND ONE ────────────────────
+    //
+    // createClient() is the SSR client built on the ANON key, and
+    // PostgREST honours whatever role the JWT carries. "Server-side" and
+    // "service-role" are not the same thing, and the difference matters
+    // now: rate_limit_check is being revoked from anon and authenticated
+    // — because that grant let anyone lock out a named customer by
+    // posting their uuid as the bucket key — and this is its only
+    // caller.
+    //
+    // Left as it was, the revoke would have turned off ALL EIGHT limits
+    // at once: signup, accept-invite, send-invite, push-subscribe,
+    // heartbeat, client-error-log, gdpr-export and financial-request
+    // (30/hour on wallet top-up, ad-account request and withdrawal).
+    // Every call would 42501, the catch below would fail open, and the
+    // alarm would die with it — the abuse cron reads rate_limit_buckets,
+    // which would simply stop being written.
+    const supabase = await createAdminClient();
     const key = `${spec.bucket}:${keySuffix}`;
     const { data, error } = await supabase.rpc("rate_limit_check", {
       p_key: key,
