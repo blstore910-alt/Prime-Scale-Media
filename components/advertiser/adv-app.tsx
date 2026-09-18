@@ -2018,7 +2018,20 @@ export default function AdvertiserApp() {
                         }
                       }}
                     >
-                      <Ic name="i-check" />{" "}
+                      {/* A WALLET, not a tick. A tick means "done", and
+                          this button has not done anything yet — it takes
+                          money out of a wallet, which is what the icon
+                          should say. The three other states are not
+                          payments at all, so they get their own. */}
+                      <Ic
+                        name={
+                          dueSubInvoice
+                            ? "i-wallet"
+                            : invError
+                              ? "i-refresh"
+                              : "i-check"
+                        }
+                      />{" "}
                       {dueSubInvoice
                         ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
                         : invError
