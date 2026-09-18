@@ -22,7 +22,9 @@
 -- not a baseline.
 create temporary view _baseline as
 select coalesce(
-         (select min(created_at)
+         -- w.created_at, qualified: advertisers has one too, and an
+         -- unqualified min(created_at) across the join is ambiguous.
+         (select min(w.created_at)
             from public.wallets w
             join public.advertisers a on a.id = w.advertiser_id
            where a.tenant_client_code = 'PSM0005'),
