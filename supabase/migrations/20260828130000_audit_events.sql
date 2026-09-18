@@ -134,6 +134,7 @@ declare
     'subscriptions',
     'exchange_rates',
     'referral_commissions',
+    'referral_clawbacks',
     'referral_links',
     'ad_accounts',
     'ad_account_requests',
