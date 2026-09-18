@@ -188,7 +188,12 @@ function ExchangeRatesForm({
       setValue("HKD", String(formatRate(usdRates.hkd)), { shouldDirty: true });
       setValue("GBP", String(formatRate(usdRates.gbp)), { shouldDirty: true });
       setValue("EUR", String(formatRate(usdRates.eur)), { shouldDirty: true });
-      toast.success("Latest rates applied");
+      // FILLED IN, NOT APPLIED. This only setValue()s the three form
+      // fields; the rates are committed by Save changes and its
+      // confirmation. "Latest rates applied" sent the owner away
+      // believing today's rate was live while every conversion in the
+      // app kept running on the old one.
+      toast.success("Latest rates filled in — press Save changes to apply");
     } catch (error) {
       console.error(safeErrorMessage(error));
       toast.error("Failed to fetch latest rates");
@@ -265,7 +270,7 @@ function ExchangeRatesForm({
                 "Apply Latest Rates"
               )}
             </Button>
-            <Button form="exchange-rates-form" disabled={!formState.isDirty}>
+            <Button form="exchange-rates-form" disabled={!formState.isDirty || isPending}>
               {isPending ? (
                 <>
                   <Loader2 className="animate-spin" />

@@ -257,20 +257,31 @@ export default function AdminsTable() {
         onOpenChange={(next) => {
           if (!next) setAskAdmin(null);
         }}
+        /* ── ONE FIELD, THE ONE THE SERVER TOGGLES ───────────────────
+           The row button labels itself from `status === "active"`, which
+           is also what the action toggles on. All four of these keyed off
+           `is_active === false` — a DIFFERENT column, typed
+           `boolean | null` in this very file, so a null sent the dialog
+           down the DEACTIVATE branch.
+           Where the two disagree, or is_active is simply absent, the row
+           said "Activate" and the dialog said "Take away this admin's
+           access? They lose access immediately" over a red "Yes,
+           deactivate" — and pressing it GRANTED access, followed by
+           "Admin activated." */
         title={
-          askAdmin?.is_active === false
-            ? "Give this admin access back?"
-            : "Take away this admin's access?"
+          askAdmin?.status === "active"
+            ? "Take away this admin's access?"
+            : "Give this admin access back?"
         }
         lead={
-          askAdmin?.is_active === false
-            ? "They can sign in and work the desk again straight away."
-            : "They lose access immediately, including to anything they had open."
+          askAdmin?.status === "active"
+            ? "They lose access immediately, including to anything they had open."
+            : "They can sign in and work the desk again straight away."
         }
         cta={
-          askAdmin?.is_active === false ? "Yes, activate" : "Yes, deactivate"
+          askAdmin?.status === "active" ? "Yes, deactivate" : "Yes, activate"
         }
-        tone={askAdmin?.is_active === false ? "default" : "danger"}
+        tone={askAdmin?.status === "active" ? "danger" : "default"}
         busy={!!pendingAdminId}
         busyLabel="Saving…"
         onConfirm={() => {

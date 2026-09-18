@@ -194,11 +194,10 @@ export default function PsmPromotions() {
   // typing its original terms in again from memory. And for a
   // subscription_waiver or a fee discount, revoking means the customer
   // starts paying full price from their next invoice with no notice.
-  const [revoking, setRevoking] = useState<{
-    id: string;
-    kind?: string | null;
-    advertiser_id?: string | null;
-  } | null>(null);
+  // The whole row, because the confirmation needs to name the customer
+  // and the perk — `setRevoking(p)` already hands it over, and the type
+  // was throwing most of it away.
+  const [revoking, setRevoking] = useState<PerkRow | null>(null);
 
   const revoke = useMutation({
     mutationFn: async (id: string) => {
@@ -543,7 +542,34 @@ export default function PsmPromotions() {
           if (r) revoke.mutate(r.id);
         }}
       >
-        <ConfirmFact label="Perk" value={revoking?.kind ?? "—"} />
+        {/* WHO, AS WELL AS WHAT. Revoking is irreversible — the RPC sets
+            active = false and there is no path back — and the only fact
+            in this dialog was the raw enum, `topup_discount`, not the
+            label the table rendered two lines earlier, and never the
+            customer. On a screen where several advertisers hold the same
+            perk kind, nothing here said which row was about to go. */}
+        <ConfirmFact
+          label="Customer"
+          value={
+            revoking
+              ? [
+                  revoking.advertiser?.tenant_client_code,
+                  name(revoking.advertiser?.profile ?? null),
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "—"
+              : "—"
+          }
+        />
+        <ConfirmFact
+          label="Perk"
+          value={
+            revoking
+              ? PERK_KIND_LABELS[revoking.kind as PerkKind] ??
+                String(revoking.kind ?? "—")
+              : "—"
+          }
+        />
       </ConfirmModal>
     </div>
   );
