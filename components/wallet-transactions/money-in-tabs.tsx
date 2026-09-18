@@ -181,9 +181,14 @@ const TAB_CSS = `
    shorter instead. */
 .mitabs{display:flex;gap:5px;background:var(--panel-2);border-radius:14px;
   padding:4px;overflow:hidden}
-.mitab{flex:1 1 0;min-width:0;display:flex;align-items:center;
+/* Sized to their CONTENT, not to equal thirds. Equal thirds gave every tab
+   the same width whatever its name, so the longest one — Precharge, nine
+   letters and a count — was the one that got clipped to "Prechar…", while
+   Top-ups sat in a box with room to spare. They share the leftover space
+   instead of being forced to share all of it. */
+.mitab{flex:1 1 auto;min-width:0;display:flex;align-items:center;
   justify-content:center;gap:6px;border:0;background:transparent;
-  cursor:pointer;border-radius:11px;padding:10px 8px;font:inherit;
+  cursor:pointer;border-radius:11px;padding:10px 10px;font:inherit;
   font-size:.88rem;font-weight:650;color:var(--txt-2);white-space:nowrap;
   transition:background .15s,color .15s}
 .mitab span{overflow:hidden;text-overflow:ellipsis}
@@ -201,8 +206,9 @@ const TAB_CSS = `
   .mitab .milong{display:none}
   .mitab .mishort{display:inline}
 }
-@media(max-width:360px){
-  .mitab{padding:10px 6px;font-size:.84rem;gap:5px}
+@media(max-width:430px){
+  .mitab{padding:10px 7px;font-size:.82rem;gap:5px}
+  .mitab em{font-size:.68rem;min-width:17px;padding:1px 5px}
 }
 .mihead h1{margin:0;font-family:var(--hd);font-size:1.6rem;font-weight:800;
   letter-spacing:-.03em}
