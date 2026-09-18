@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { ScrollArea } from "../ui/scroll-area";
 import { Skeleton } from "../ui/skeleton";
 import { useCreateAccountTopup } from "./use-create-account-topup";
+import { quoteTopupFeePct } from "@/actions/topup-actions";
 
 type CurrencyCode = "USD" | "EUR";
 
@@ -190,7 +191,44 @@ export default function AccountTopupForm({
   const selectedCurrency = watch("currency");
   const amount = watch("amount");
   const accountId = watch("account_id");
-  const fee = selectedAccount?.fee ?? 0;
+  // ── WHAT THIS TOP-UP ACTUALLY COSTS, ASKED OF THE SERVER ───────────
+  //
+  // This read `selectedAccount.fee` and nothing else. That column is ONE
+  // of five inputs the server consults: resolveEffectiveFeePct in
+  // actions/topup-actions.ts also weighs the advertiser's plan rate, a
+  // topup_fee_waiver, a topup_discount perk and the Meta-EU-Premium two
+  // points — and the account's own column is treated as "not set" when it
+  // is 0, which it is for every account nobody has priced by hand.
+  //
+  // So the common case was the broken one: an account with fee = 0 on a
+  // 5% plan hid the fee line entirely, said the whole amount lands, and
+  // then 5% was taken. The customer is told one number and charged
+  // another, on the screen that spends their money.
+  //
+  // quoteTopupFeePct runs that same resolution server-side, scoped to the
+  // caller's own advertiser and their own account, and returns the
+  // percentage ONLY — no plan name, no perk name, nothing about where the
+  // rate comes from.
+  const feeQuote = useQuery({
+    queryKey: ["topup-fee-quote", accountId],
+    enabled: !!accountId,
+    // The rate is a property of the account and the plan, neither of
+    // which moves while a dialog is open. Re-asking on every keystroke
+    // would be a round-trip per character.
+    staleTime: 60_000,
+    queryFn: async () => {
+      const res = await quoteTopupFeePct(accountId);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+  });
+
+  // The account's own column stays the fallback for the seconds before
+  // the quote lands and for the case where it cannot be reached — it is
+  // the best figure available here without the server, and it is never
+  // shown as final: the submit button waits for the quote.
+  const fee = feeQuote.data?.pct ?? parseAmount(selectedAccount?.fee);
+  const feeIsSettled = !!accountId && feeQuote.isSuccess;
   useEffect(() => {
     if (account?.id) {
       setValue("account_id", account.id);
@@ -390,6 +428,7 @@ export default function AccountTopupForm({
               fee_pct={fee}
               fee_amount={(parseAmount(amount) * fee) / 100}
               remaining={remainingBalance}
+              feePending={feeQuote.isLoading}
             />
           )}
 
@@ -407,10 +446,19 @@ export default function AccountTopupForm({
             isPending ||
             !hasWallet ||
             !selectedAccount ||
-            !selectedAccountCurrency
+            !selectedAccountCurrency ||
+            // Never open the confirmation on a fee we have not resolved
+            // yet. It is one round-trip, and the whole point of that
+            // dialog is that the figures in it are the real ones.
+            feeQuote.isLoading
+          }
+          title={
+            feeQuote.isLoading ? "Checking the fee on this account…" : undefined
           }
         >
-          {isPending && <Loader2 className="animate-spin" />}
+          {(isPending || feeQuote.isLoading) && (
+            <Loader2 className="animate-spin" />
+          )}
           Top up this account
         </Button>
       </div>
@@ -457,6 +505,18 @@ export default function AccountTopupForm({
           label="Wallet afterwards"
           value={formatCurrency(remainingBalance, selectedCurrency)}
         />
+        {/* Said out loud rather than hidden. If the rate could not be
+            resolved, the figures above came from the ad account's own
+            column, which is not what a customer on a plan is charged —
+            so the dialog says which of the two it is showing instead of
+            presenting a guess with the same confidence as a fact. */}
+        {!feeIsSettled && (
+          <p className="pt-2 text-xs text-muted-foreground">
+            We could not confirm this account&apos;s rate just now, so the
+            fee above is the account&apos;s own. The amount charged is
+            always the rate on your account.
+          </p>
+        )}
       </ConfirmModal>
     </form>
   );
@@ -513,6 +573,7 @@ function BalanceSummary({
   remaining,
   fee_amount,
   fee_pct,
+  feePending,
 }: {
   currency: CurrencyCode;
   balance: number;
@@ -520,6 +581,10 @@ function BalanceSummary({
   fee_amount: number;
   fee_pct: number;
   remaining: number;
+  // The fee has been asked of the server and the answer is not back. A
+  // dash is the honest thing to print; a number taken from the account's
+  // own column would be the wrong one for anyone on a plan.
+  feePending: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
@@ -531,17 +596,25 @@ function BalanceSummary({
         <span className="font-medium">{formatCurrency(balance, currency)}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Topup amount</span>
-        <span className="font-medium">{formatCurrency(amount, currency)}</span>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Fee ({fee_pct}%)</span>
+        {/* It said "Topup amount", which is the same words as the field
+            above it while being a different number — the field is what
+            leaves the wallet, this is what survives the fee. Two labels,
+            because they are two amounts. */}
+        <span className="text-muted-foreground">Lands on the account</span>
         <span className="font-medium">
-          {formatCurrency(fee_amount, currency)}
+          {feePending ? "—" : formatCurrency(amount, currency)}
         </span>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Remaining balance</span>
+        <span className="text-muted-foreground">
+          {feePending ? "Top-up fee" : `Top-up fee (${fee_pct}%)`}
+        </span>
+        <span className="font-medium">
+          {feePending ? "checking…" : formatCurrency(fee_amount, currency)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Wallet afterwards</span>
         <span
           className={cn("font-semibold", remaining < 0 && "text-destructive")}
         >
