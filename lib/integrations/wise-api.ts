@@ -238,20 +238,34 @@ export async function fetchWiseTxnDetail(args: {
   const token = process.env.WISE_API_TOKEN;
   if (!token || !args.balanceId || !args.occurredAt) return null;
 
-  // BY CURRENCY first. The id in the webhook's key is the borderless
-  // account, not the per-currency balance a statement is kept for — see
-  // findBalanceForCurrency. The key's id is tried only as a fallback, for
-  // the case where a future payload really does carry a balance id.
+  // THE KEY'S OWN ID FIRST, currency only as a fallback.
+  //
+  // The id in the webhook's key is usually the borderless account rather
+  // than the per-currency balance a statement is kept for — that is the bug
+  // this resolution exists to work around. But when the id DOES name a real
+  // balance, it names the balance the money actually landed in, and nothing
+  // else here does.
+  //
+  // Resolving by currency alone throws that away. A token can see several
+  // profiles, and more than one of them can hold the same currency: a
+  // deposit into the business profile would then be enriched from the
+  // personal profile's statement, and whatever credit of the same amount
+  // happened to sit in the window would have its reference, sender name and
+  // IBAN written onto the wrong deposit. That IBAN then feeds the sender
+  // rule. So: ask who owns the id; only if nobody does, fall back to the
+  // balance that holds this currency.
   let profileId: string | number | null = args.profileId || null;
   let balanceId = String(args.balanceId);
 
-  const byCurrency = await findBalanceForCurrency(args.currency);
-  if (byCurrency) {
-    profileId = byCurrency.profileId;
-    balanceId = byCurrency.balanceId;
+  const owner = await findProfileForBalance(balanceId);
+  if (owner.profileId !== null) {
+    profileId = owner.profileId;
   } else {
-    const owner = await findProfileForBalance(balanceId);
-    if (owner.profileId !== null) profileId = owner.profileId;
+    const byCurrency = await findBalanceForCurrency(args.currency);
+    if (byCurrency) {
+      profileId = byCurrency.profileId;
+      balanceId = byCurrency.balanceId;
+    }
   }
   if (!profileId || !balanceId) return null;
 
@@ -575,7 +589,7 @@ const balanceOwnerCache = new Map<
  */
 const currencyBalanceCache = new Map<
   string,
-  { profileId: string | number; balanceId: string } | null
+  { profileId: string | number; balanceId: string }
 >();
 
 export async function findBalanceForCurrency(
@@ -585,8 +599,13 @@ export async function findBalanceForCurrency(
   const cur = String(currency ?? "").toUpperCase();
   if (!token || !cur) return null;
 
+  // Only a POSITIVE answer is cached. Caching "no balance in this currency"
+  // for the life of the process means one transient non-ok response from
+  // Wise silently disables enrichment for that currency until the instance
+  // is replaced — a failure that looks exactly like "the payers left the
+  // reference blank".
   const cached = currencyBalanceCache.get(cur);
-  if (cached !== undefined) return cached;
+  if (cached) return cached;
 
   for (const pid of await fetchWiseProfileIds()) {
     const list = await fetchBalanceList(pid, token);
@@ -597,7 +616,6 @@ export async function findBalanceForCurrency(
       return found;
     }
   }
-  currencyBalanceCache.set(cur, null);
   return null;
 }
 

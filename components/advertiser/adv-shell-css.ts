@@ -571,8 +571,25 @@ export const ADV_CSS = `
     .ptup .ico{animation:none}
   }
 
-  .tbl.wide tr td:last-child .actrow{display:flex;gap:8px;align-items:center}
-    .tbl.wide tr td:last-child .actrow .btn{flex:1 1 0;width:auto;min-width:0}
+  /* THREE BUTTONS NOW, NOT TWO. The invoice row gained View beside
+     Download, and these were flex:1 1 0 with nowrap labels and nothing to
+     clip them: a third button pushed the row past its track instead of
+     shrinking inside it. This shell is .advapp, so none of the admin
+     shell's action-row rules reach it — it needs its own.
+
+     Equal columns, and the LABEL is what gives way, not the row. */
+  .tbl.wide tr td:last-child .actrow{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+    gap:8px;align-items:center
+  }
+    .tbl.wide tr td:last-child .actrow .btn{
+      width:100%;min-width:0;justify-content:center;padding:7px 8px;
+      font-size:.8rem;gap:5px
+    }
+    .tbl.wide tr td:last-child .actrow .btn svg{flex:0 0 auto}
+    .tbl.wide tr td:last-child .actrow .alab{
+      min-width:0;overflow:hidden;text-overflow:ellipsis
+    }
     .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
     .tbl.wide td[colspan]::before{display:none}
     .tbl.wide td[colspan]{border-top:0;margin-top:0}

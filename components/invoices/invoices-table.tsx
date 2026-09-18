@@ -350,7 +350,7 @@ export default function InvoicesTable() {
                                     ) : (
                                       <CheckCircle />
                                     )}
-                                    Mark paid
+                                    <span className="alab">Mark paid</span>
                                   </button>
                                 )}
                                 {/* VIEW as well as download. Reading an

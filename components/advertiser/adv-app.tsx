@@ -2029,9 +2029,14 @@ export default function AdvertiserApp() {
                                     disabled={payingId === inv.id}
                                     onClick={() => askToPay(inv)}
                                   >
-                                    {payingId === inv.id
-                                      ? "Paying…"
-                                      : "Pay now"}
+                                    {/* .alab: it is the only thing the
+                                        action-row CSS will clip, and this
+                                        row has three buttons in it now. */}
+                                    <span className="alab">
+                                      {payingId === inv.id
+                                        ? "Paying…"
+                                        : "Pay now"}
+                                    </span>
                                   </button>
                                 )}
                                 {/* VIEW as well as download, the same pair
