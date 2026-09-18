@@ -366,10 +366,12 @@ export const ADV_CSS = `
     -webkit-background-clip:text;background-clip:text;color:transparent}
   .planhero .ph-amt span{font-size:.8rem;color:rgba(255,255,255,.55)}
 
-  /* Pills that wrap, not a stacked list. Three lines become one or two,
-     and the button stops sitting below the fold on a phone. */
-  .planhero .ph-perks{list-style:none;margin:14px 0 0;padding:0;display:flex;
-    flex-wrap:wrap;gap:6px}
+  /* STACKED, each pill only as wide as its own words. Wrapping put two on
+     one line and the third alone underneath, and a ragged edge reads as an
+     accident rather than as a list. Down the left they line up, and the
+     eye gets three separate reasons instead of one paragraph of them. */
+  .planhero .ph-perks{list-style:none;margin:14px 0 0;padding:0;
+    display:flex;flex-direction:column;align-items:flex-start;gap:6px}
   .planhero .ph-perks li{display:inline-flex;align-items:center;gap:6px;
     font-size:.74rem;font-weight:600;color:rgba(255,255,255,.92);
     background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.09);
