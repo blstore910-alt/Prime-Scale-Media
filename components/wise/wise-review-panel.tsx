@@ -6,6 +6,8 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Archive,
   ArchiveRestore,
+  Copy,
+  FileText,
   Link2,
   Loader2,
   RefreshCw,
@@ -23,6 +25,8 @@ import {
 } from "@/actions/wise-actions";
 import { wiseIngestStatus } from "@/actions/integration-actions";
 import { isPlaceholderIban } from "@/lib/integrations/wise-match";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import PaymentSlipDialog from "@/components/wallet-transactions/payment-slip-dialog";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -193,6 +197,17 @@ function readableNote(note: string | null): string | null {
   return note;
 }
 
+/** Put a string on the clipboard and say so. */
+function copyText(value: string) {
+  if (!value) return;
+  void navigator.clipboard
+    .writeText(value)
+    .then(() => toast.success("Copied " + value))
+    .catch(() =>
+      toast.error("Couldn't copy that — select it by hand instead."),
+    );
+}
+
 /** Digits only, for comparing two spellings of one reference. */
 const refDigits = (v: string) => v.replace(/\D+/g, "");
 
@@ -316,6 +331,12 @@ const WISE_CSS = `
 .wsearch button{flex:0 0 auto;border:0;background:transparent;cursor:pointer;
   display:flex;align-items:center;padding:4px;border-radius:6px}
 .wsearch button:hover{background:var(--panel-2)}
+.wcopy{display:inline-flex;align-items:center;gap:5px;border:0;padding:0;
+  background:transparent;cursor:pointer;font:inherit;font-size:.88rem;
+  font-weight:700;color:var(--ink);max-width:100%}
+.wcopy svg{width:12px;height:12px;color:var(--faint);flex:0 0 auto}
+.wcopy:hover{color:var(--primary)}
+.wcopy:hover svg{color:var(--primary)}
 `;
 
 /** See the auto-sync in WiseReviewPanel. */
@@ -544,7 +565,19 @@ export default function WiseReviewPanel() {
     ),
   ).sort();
   const { data: matchedTo } = useQuery<
-    Record<string, { code: string; name: string; reference: string }>
+    Record<
+      string,
+      {
+        code: string;
+        name: string;
+        reference: string;
+        amount: number;
+        currency: string;
+        filedAt: string;
+        slip: string | null;
+        advertiserId: string | null;
+      }
+    >
   >({
     queryKey: ["wise-matched-topups", suggestedIds],
     enabled: suggestedIds.length > 0,
@@ -553,18 +586,32 @@ export default function WiseReviewPanel() {
       const { data, error } = await supabase
         .from("wallet_topups")
         .select(
-          "id, reference_no, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
+          "id, reference_no, amount, currency, created_at, payment_slip, advertiser_id, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
         )
         .in("id", suggestedIds);
       if (error) throw error;
       const out: Record<
         string,
-        { code: string; name: string; reference: string }
+        {
+          code: string;
+          name: string;
+          reference: string;
+          amount: number;
+          currency: string;
+          filedAt: string;
+          slip: string | null;
+          advertiserId: string | null;
+        }
       > = {};
       for (const row of data ?? []) {
         const r = row as {
           id: string;
           reference_no: string | number | null;
+          amount: number | string | null;
+          currency: string | null;
+          created_at: string;
+          payment_slip: string | null;
+          advertiser_id: string | null;
           advertiser?:
             | {
                 tenant_client_code?: string | null;
@@ -590,6 +637,13 @@ export default function WiseReviewPanel() {
             a?.tenant_client_code,
             r.reference_no,
           ),
+          // What the CUSTOMER claimed, so the confirmation can put it beside
+          // what the BANK says without anybody leaving the screen.
+          amount: Number(r.amount ?? 0),
+          currency: String(r.currency ?? ""),
+          filedAt: r.created_at,
+          slip: r.payment_slip,
+          advertiserId: r.advertiser_id,
         };
       }
       return out;
@@ -710,6 +764,17 @@ Statement tried: ${p.attempts.join(" | ")}`
   // the tab badge beside it did not — so putting one suggested deposit
   // aside left the header saying "1 to confirm" and the tile saying 1
   // Waiting for you, in orange, over a list with nothing in it.
+  // NOTHING ON THIS SCREEN MOVES MONEY ON ONE CLICK. "Confirm & credit"
+  // did: one press and a customer's wallet was credited, with no chance to
+  // read the two references side by side or look at the slip. Every other
+  // money action in this app asks first, in the same box, and this was the
+  // one that did not.
+  const [askConfirm, setAskConfirm] = useState<WiseRow | null>(null);
+  const [slipFor, setSlipFor] = useState<string | null>(null);
+  const askTo = askConfirm?.suggested_topup_id
+    ? (matchedTo?.[askConfirm.suggested_topup_id] ?? null)
+    : null;
+
   const suggestedCount = allRows.filter(
     (r) => r.status === "suggested" && !r.archived_at,
   ).length;
@@ -1022,9 +1087,19 @@ Statement tried: ${p.attempts.join(" | ")}`
                     {r.reference ? (
                       <>
                         <span className="wlab">Ref</span>
-                        <span className="wrefv mono" title={r.reference}>
+                        {/* Click it, it is on the clipboard. An admin
+                            comparing this against a bank statement or a
+                            customer's email was selecting ten digits by
+                            hand on a phone. */}
+                        <button
+                          type="button"
+                          className="wrefv mono wcopy"
+                          title={"Copy " + r.reference}
+                          onClick={() => copyText(r.reference ?? "")}
+                        >
                           {r.reference}
-                        </span>
+                          <Copy />
+                        </button>
                       </>
                     ) : (
                       <span className="wnone">no reference on the payment</span>
@@ -1085,7 +1160,7 @@ Statement tried: ${p.attempts.join(" | ")}`
                     <button
                       className="btn"
                       disabled={actingId === r.id}
-                      onClick={() => confirm.mutate(r.id)}
+                      onClick={() => setAskConfirm(r)}
                     >
                       {actingId === r.id ? "…" : "Confirm & credit"}
                     </button>
@@ -1147,6 +1222,102 @@ Statement tried: ${p.attempts.join(" | ")}`
           })}
         </div>
       )}
+
+      {/* CREDITING REAL MONEY ASKS FIRST. Everything it needs to decide is
+          in the box: what the bank says, what the customer claimed, both
+          references side by side, and the slip one click away — so nobody
+          has to leave the screen, and nobody credits on one press. */}
+      <ConfirmModal
+        open={!!askConfirm}
+        onOpenChange={(o) => {
+          if (!o) setAskConfirm(null);
+        }}
+        title="Credit this wallet?"
+        lead={
+          askConfirm && askTo
+            ? "This completes the top-up and puts the money in their wallet. Check the two references agree before you do."
+            : "This completes the top-up and puts the money in their wallet."
+        }
+        cta={
+          askConfirm
+            ? `Yes, credit ${money(askConfirm.currency, askConfirm.amount_cents)}`
+            : "Yes, credit"
+        }
+        busy={confirm.isPending}
+        busyLabel="Crediting…"
+        onConfirm={() => {
+          if (!askConfirm) return;
+          const id = askConfirm.id;
+          setAskConfirm(null);
+          confirm.mutate(id);
+        }}
+      >
+        {askConfirm ? (
+          <>
+            <ConfirmFact
+              label="Bank says"
+              value={`${money(askConfirm.currency, askConfirm.amount_cents)} from ${
+                askConfirm.sender_name || "an unnamed sender"
+              }`}
+              strong
+            />
+            <ConfirmFact
+              label="They wrote"
+              value={askConfirm.reference || "no reference"}
+            />
+            <ConfirmFact
+              label="Customer"
+              value={
+                askTo
+                  ? `${askTo.code || "No code"}${askTo.name ? " · " + askTo.name : ""}`
+                  : "—"
+              }
+            />
+            <ConfirmFact
+              label="We asked for"
+              value={askTo?.reference || "—"}
+            />
+            <ConfirmFact
+              label="They claimed"
+              value={
+                askTo
+                  ? `${askTo.currency === "USD" ? "$" : "€"}${askTo.amount.toFixed(2)} on ${new Date(
+                      askTo.filedAt,
+                    ).toLocaleDateString()}`
+                  : "—"
+              }
+            />
+            {/* The slip is the other half of the check, and it was two
+                screens away. */}
+            {askTo?.slip ? (
+              <div style={{ marginTop: 10 }}>
+                <button
+                  className="btn ghost sm"
+                  style={{ width: "100%", justifyContent: "center" }}
+                  onClick={() => setSlipFor(askTo.slip)}
+                >
+                  <FileText /> View the payment slip
+                </button>
+              </div>
+            ) : (
+              <p
+                className="muted"
+                style={{ margin: "10px 0 0", fontSize: ".8rem" }}
+              >
+                No payment slip was uploaded with this top-up.
+              </p>
+            )}
+          </>
+        ) : null}
+      </ConfirmModal>
+
+      <PaymentSlipDialog
+        open={!!slipFor}
+        onOpenChange={(o) => {
+          if (!o) setSlipFor(null);
+        }}
+        paymentSlipUrl={slipFor}
+      />
 
       {hiddenCount > 0 ? (
         <button
