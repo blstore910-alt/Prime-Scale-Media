@@ -737,9 +737,15 @@ Statement tried: ${p.attempts.join(" | ")}`
               flexWrap: "wrap",
             }}
           >
-            Bank deposits
-            {suggestedCount > 0 && (
+            {/* The tab bar names this panel and carries its count. What is
+                left here is the one thing the tab cannot say: how many of
+                them are waiting on a person right now. */}
+            {suggestedCount > 0 ? (
               <span className="badge pend">{suggestedCount} to confirm</span>
+            ) : (
+              <span className="muted" style={{ fontSize: ".88rem" }}>
+                Nothing waiting on you
+              </span>
             )}
           </h2>
           {/* wrap: .actrow is flex-end with no wrapping, and a flex-end row

@@ -251,15 +251,6 @@ export default function PsmVerifyTopups({
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <style>{MATCH_CSS}</style>
-      <div className="phead">
-        <div>
-          <h1>Wallet Topups</h1>
-          <p>
-            Check the bank before you credit.
-          </p>
-        </div>
-      </div>
-
       <div className="fbar">
         <label className="fsr">
           <Search />

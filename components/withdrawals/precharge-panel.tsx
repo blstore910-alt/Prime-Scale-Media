@@ -116,14 +116,9 @@ export default function PrechargePanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Precharge</h2>
-          <p className="text-sm text-muted-foreground">
-            Advance wallet credit to a customer before their payment clears.
-            Settle it once the money arrives.
-          </p>
-        </div>
+      {/* The title and the sentence under it moved to the tab bar, which
+          already named this panel. */}
+      <div className="flex items-start justify-end gap-4">
         <Button onClick={() => setCreateOpen(true)}>New precharge</Button>
       </div>
 

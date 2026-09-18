@@ -81,12 +81,42 @@ export default function MoneyInTabs() {
   const [tab, setTab] = useState<TabKey>("topups");
   const { data: counts } = useQueueCounts(tenantId);
 
-  const TABS: { key: TabKey; label: string; count: number | null | undefined }[] =
-    [
-      { key: "topups", label: "Wallet top-ups", count: counts?.topups },
-      { key: "deposits", label: "Bank deposits", count: counts?.deposits },
-      { key: "precharge", label: "Precharge", count: counts?.precharge },
-    ];
+  // TWO NAMES EACH. Three full labels plus three counts do not fit across a
+  // phone, and the bar scrolled sideways with the third tab half off the
+  // screen — a queue you cannot see is a queue nobody works. The short name
+  // is used below 430px, where the tab bar is the only thing naming the
+  // panel anyway.
+  const TABS: {
+    key: TabKey;
+    label: string;
+    short: string;
+    caption: string;
+    count: number | null | undefined;
+  }[] = [
+    {
+      key: "topups",
+      label: "Wallet top-ups",
+      short: "Top-ups",
+      caption: "Check the bank before you credit.",
+      count: counts?.topups,
+    },
+    {
+      key: "deposits",
+      label: "Bank deposits",
+      short: "Deposits",
+      caption: "Money arriving in the bank, as Wise reports it.",
+      count: counts?.deposits,
+    },
+    {
+      key: "precharge",
+      label: "Precharge",
+      short: "Precharge",
+      caption:
+        "Advance wallet credit before a payment clears. It settles when the money arrives.",
+      count: counts?.precharge,
+    },
+  ];
+  const active = TABS.find((t) => t.key === tab);
 
   return (
     <div className="psmview mitabs-wrap">
@@ -101,7 +131,8 @@ export default function MoneyInTabs() {
             className={"mitab" + (tab === t.key ? " on" : "")}
             onClick={() => setTab(t.key)}
           >
-            <span>{t.label}</span>
+            <span className="milong">{t.label}</span>
+            <span className="mishort">{t.short}</span>
             {/* A zero is worth showing: "nothing is waiting" is an answer.
                 An unreadable count is a dash, never a zero. */}
             {t.count === undefined ? null : (
@@ -112,6 +143,17 @@ export default function MoneyInTabs() {
           </button>
         ))}
       </div>
+
+      {/* ONE heading for the screen, not two. Each panel printed its own
+          title directly under the tab that already named it — "Wallet
+          top-ups" over "Wallet Topups" — so the caption moves here and the
+          panels lost their headings. */}
+      {active ? (
+        <div className="mihead">
+          <h1>{active.label}</h1>
+          <p>{active.caption}</p>
+        </div>
+      ) : null}
 
       {/* Hidden, not unmounted — see the note above. */}
       <div hidden={tab !== "topups"}>
@@ -147,4 +189,13 @@ const TAB_CSS = `
   border-radius:999px;background:var(--line);color:var(--txt-2)}
 .mitab em.hot{background:var(--warn);color:#fff}
 .mitab.on em.hot{background:var(--warn);color:#fff}
+.mitab .mishort{display:none}
+@media(max-width:430px){
+  .mitab .milong{display:none}
+  .mitab .mishort{display:inline}
+  .mitab{padding:9px 8px;font-size:.82rem;gap:5px}
+}
+.mihead h1{margin:0;font-family:var(--hd);font-size:1.6rem;font-weight:800;
+  letter-spacing:-.03em}
+.mihead p{margin:4px 0 0;color:var(--txt-2);font-size:.9rem;line-height:1.45}
 `;
