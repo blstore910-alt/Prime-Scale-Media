@@ -55,7 +55,10 @@ export default function RockadsPanel() {
 
       <div className="phead">
         <div className="ptxt">
-          <h2>Supplier API</h2>
+          {/* NAMED. There are two suppliers now and the other one's
+              connectivity lives in the card above, so a panel called
+              "Supplier API" is ambiguous the moment you have both. */}
+          <h2>RockAds (supplier)</h2>
           {/* 34 characters is the budget — a longer subtitle is cut
               mid-word on a phone. The full sentence lives at the foot of
               the panel, where there is room for it. */}
@@ -203,11 +206,20 @@ export default function RockadsPanel() {
                   <div key={a.id} className="rkrow">
                     <div style={{ minWidth: 0 }}>
                       <b>{a.name || a.aliasName || a.id}</b>
+                      {/* Only what means something. Their platform id is a
+                          UUID, not the 1/3/4 the docs promise, so when we
+                          cannot name the platform we say nothing rather
+                          than printing the id where a name belongs. */}
                       <div className="muted" style={{ fontSize: ".78rem" }}>
-                        {a.platform} · {a.status}
-                        {a.supplierCommission
-                          ? ` · costs us ${a.supplierCommission.rate}%`
-                          : " · cost not reported"}
+                        {[
+                          a.platform,
+                          a.status,
+                          a.supplierCommission
+                            ? `costs us ${a.supplierCommission.rate}%`
+                            : "cost not reported",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </div>
                     </div>
                     <span className="mono">{money(a.balance, a.currency)}</span>

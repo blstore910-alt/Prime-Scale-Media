@@ -69,6 +69,23 @@ const DASH_CSS = `
 
 .psm-dash .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:10px}
 .psm-dash .qcard{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+/* The loading skeleton: the same card, with its contents as quiet blocks.
+   Same height and same count as the real thing, so nothing below it moves
+   when the answer arrives — the point is ONE transition instead of badges
+   appearing, numbers changing and tints flipping one after another. */
+.psm-dash .qcard.qskel{cursor:default;pointer-events:none}
+.psm-dash .qcard.qskel .qi{background:var(--line);box-shadow:none}
+.psm-dash .qcard.qskel .ql{height:12px;border-radius:6px;background:var(--line);flex:1 1 auto;max-width:180px}
+.psm-dash .qcard.qskel .qbadge{width:26px;height:20px;background:var(--line);color:transparent;border:0}
+.psm-dash .qcard.qskel .qi,
+.psm-dash .qcard.qskel .ql,
+.psm-dash .qcard.qskel .qbadge{animation:qpulse 1.1s ease-in-out infinite}
+@keyframes qpulse{0%,100%{opacity:.55}50%{opacity:.95}}
+@media (prefers-reduced-motion:reduce){
+  .psm-dash .qcard.qskel .qi,
+  .psm-dash .qcard.qskel .ql,
+  .psm-dash .qcard.qskel .qbadge{animation:none}
+}
 .psm-dash .qcard:hover{border-color:var(--primary);transform:translateY(-2px)}
 /* A queue with work in it looks different from an empty one BEFORE you read
    the number: a coloured edge down the side and a title at full strength. An
@@ -230,11 +247,29 @@ export default function AdminDashboard() {
             reading it is worse than one that is briefly in the wrong order,
             and worse still if you were already reaching for a card.
             Declared order until the answer is known, then sorted once. */}
-        {(pending.isLoading ? queues : [...queues].sort((a, b) => {
+        {/* A SKELETON WHILE IT COUNTS, not the real cards with provisional
+            values in them. Rendering the cards first and letting the counts
+            arrive a second later meant the badges appeared, the numbers
+            changed and the tints flipped from quiet grey to brand colour —
+            a screen that rearranges its own colours while you are reading
+            it. One transition, from obviously-loading to done, is calmer
+            and more honest than three small ones that each look like a bug.
+
+            The skeleton has the same number of rows at the same height, so
+            nothing below it moves when the real cards replace it. */}
+        {pending.isLoading
+          ? queues.map((q) => (
+              <div key={q.href} className="qcard qskel" aria-hidden="true">
+                <span className="qi ci" />
+                <span className="ql" />
+                <span className="qbadge" />
+              </div>
+            ))
+          : [...queues].sort((a, b) => {
             const weight = (c: number | null | undefined) =>
               c === undefined ? 0 : c === null ? 2 : c > 0 ? 2 : 1;
             return weight(b.count) - weight(a.count);
-          }))
+          })
           .map((q) => {
           const Icon = q.icon;
           // A queue that declares a count still has one when it is null —

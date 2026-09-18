@@ -71,9 +71,10 @@ export type RockadsAdAccount = {
   currency: string;
   /** pending | approved | banned | deleted | rejected */
   status: string;
-  /** 1 Meta · 3 TikTok · 4 Google */
+  /** Whatever they send. Documented as 1/3/4; live it is a UUID. */
   platformId: string;
-  platform: string;
+  /** Readable name, or null when their id is one we cannot name. */
+  platform: string | null;
   timezone: string;
   createdAt: string;
   adsManagerUrl?: string;
@@ -84,11 +85,24 @@ export type RockadsAdAccount = {
   supplierCommission: { rate: number; category: string } | null;
 };
 
+/**
+ * Their docs say platform_id is 1 (Meta), 3 (TikTok) or 4 (Google). The
+ * live API returns a UUID. So the map is kept for the documented case and
+ * an unrecognised id yields NOTHING rather than "Platform
+ * c4ca4238-a0b9-…" — an internal identifier printed where a platform name
+ * belongs is the same fault as the Wise composite key on a deposit card,
+ * and it reads as information when it is noise.
+ */
 const PLATFORMS: Record<string, string> = {
   "1": "Meta",
   "3": "TikTok",
   "4": "Google",
 };
+
+/** A readable platform, or null when their id means nothing to us. */
+function platformName(id: string): string | null {
+  return PLATFORMS[id] ?? null;
+}
 
 function credentials(): { key: string; secret: string } | null {
   const key = process.env.ROCKADS_API_KEY;
@@ -192,7 +206,7 @@ function toAdAccount(a: Record<string, unknown>): RockadsAdAccount {
     currency: String(a.currency_code ?? "").toUpperCase(),
     status: String(a.status ?? ""),
     platformId,
-    platform: PLATFORMS[platformId] ?? `Platform ${platformId || "?"}`,
+    platform: platformName(platformId),
     timezone: String(a.timezone ?? ""),
     createdAt: String(a.created_at ?? ""),
     adsManagerUrl:
@@ -304,9 +318,7 @@ export async function probeRockads(): Promise<RockadsProbe> {
 
   const byPlatform: Record<string, number> = {};
   for (const acc of accounts) {
-    const key =
-      PLATFORMS[String(acc.platform_id ?? "")] ??
-      `Platform ${String(acc.platform_id ?? "?")}`;
+    const key = platformName(String(acc.platform_id ?? "")) ?? "Unnamed platform";
     byPlatform[key] = (byPlatform[key] ?? 0) + 1;
   }
 
