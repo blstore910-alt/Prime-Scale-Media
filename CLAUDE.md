@@ -91,6 +91,20 @@ The auth guards are `apiRequireAdmin()`, `requireAdmin()`,
 `requireSuperAdmin()`. Use them at the boundary; don't roll your
 own.
 
+## Non-negotiable — a column a migration has not added yet
+
+Code reaches production in minutes; migrations are pasted by hand into
+the SQL editor whenever somebody gets to it. **They are never in step.**
+
+A `select` naming a column that does not exist yet does not degrade — it
+throws, and PostgREST's message ("column plans_1.features does not
+exist") lands on whatever screen asked for it. A customer read that
+across their own dashboard.
+
+So anything reading a column added by a pending migration must hold when
+it is absent: ask for it, and on error retry without it. The feature
+stays dark until the migration lands, instead of the screen breaking.
+
 ## Non-negotiable — logging
 
 Never `console.error(err)` where `err` is a raw Supabase error object.
