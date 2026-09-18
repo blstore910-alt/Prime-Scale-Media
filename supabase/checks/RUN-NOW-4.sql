@@ -118,8 +118,10 @@ begin
     raise notice 'DEEL 2: create_subscription_from_invite not found.';
     return;
   end if;
-  if position('a.tenant_id = v_inv.tenant_id' in v_src) > 0
-     and position('where user_id = v_uid limit 1' in v_src) = 0 then
+  -- The marker is the exact text the replacement writes, so a second run
+  -- is a clean no-op. Checking for something ELSE is how two migrations
+  -- today reported success while having changed nothing.
+  if position('tenant_id = v_inv.tenant_id order by' in v_src) > 0 then
     raise notice 'DEEL 2: already tenant-scoped - no change.';
     return;
   end if;
