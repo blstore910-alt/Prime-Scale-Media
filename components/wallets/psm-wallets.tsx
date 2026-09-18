@@ -178,10 +178,18 @@ export default function PsmWallets() {
               <thead>
                 <tr>
                   <th>Advertiser</th>
+                  {/* Created sits between the reference and the balances,
+                      not after them. In a card this table folds into two
+                      columns, and in THAT order the row read
+                      reference | EUR, then USD | created — so the two
+                      balances, the only pair on the card that belongs
+                      together, were the one pair split across two rows,
+                      each sitting beside something unrelated. Identity
+                      first, then money. */}
                   <th>Reference</th>
+                  <th>Created</th>
                   <th className="r">EUR Balance</th>
                   <th className="r">USD Balance</th>
-                  <th>Created</th>
                   <th className="r">Actions</th>
                 </tr>
               </thead>
@@ -234,12 +242,6 @@ export default function PsmWallets() {
                     <td className="mono nw" data-label="Reference">
                       {wallet.reference_no ?? "—"}
                     </td>
-                    <td className="r mono" data-label="EUR Balance">
-                      {formatAmount(wallet.eur_balance)}
-                    </td>
-                    <td className="r mono" data-label="USD Balance">
-                      {formatAmount(wallet.usd_balance)}
-                    </td>
                     {/* nw: this column was narrow enough that 16-09-2026
                         broke after the second dash, so the row was two lines
                         tall and the header above it looked misaligned. */}
@@ -247,6 +249,12 @@ export default function PsmWallets() {
                       {wallet.created_at
                         ? dayjs(wallet.created_at).format(DATE_FORMAT)
                         : "—"}
+                    </td>
+                    <td className="r mono" data-label="EUR Balance">
+                      {formatAmount(wallet.eur_balance)}
+                    </td>
+                    <td className="r mono" data-label="USD Balance">
+                      {formatAmount(wallet.usd_balance)}
                     </td>
                     <td className="r fullcell" data-label="Actions">
                       {/* One row, equal widths. The auto-fit grid with a
