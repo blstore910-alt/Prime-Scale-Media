@@ -233,6 +233,11 @@ ${s} .umenu{
   animation:psmpop .16s cubic-bezier(.2,.8,.25,1);
 }
 ${s} .umenu-hd{display:flex;align-items:center;gap:10px;padding:10px 11px 11px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+/* The menu tile holds a generated avatar now, so its own brand fill would
+   sit as a coloured square behind a round face. Same rule the sidebar
+   chip already follows. */
+${s} .umenu-av:has(> svg){background:none;color:transparent;border-radius:50%}
+${s} .umenu-av > svg{width:100%;height:100%;border-radius:50%;display:block}
 ${s} .umenu-av{width:34px;height:34px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
   font-family:var(--hd);font-weight:800;font-size:.8rem;letter-spacing:-.02em;color:#fff;background:var(--brand);
   box-shadow:0 6px 14px -8px rgba(124,92,255,.8),inset 0 1px 0 rgba(255,255,255,.3)}

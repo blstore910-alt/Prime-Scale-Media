@@ -362,7 +362,22 @@ export default function AdminShell({
                   <div className="umenu-hd">
                     {/* The avatar comes with you into the menu, so the panel
                         is visibly the tile it opened from. */}
-                    <span className="umenu-av">{ini}</span>
+                    <span className="umenu-av">
+                      {/* THE SAME PICTURE AS EVERYWHERE ELSE.
+                          This tile still drew initials while the
+                          sidebar and the toolbar a few pixels away
+                          drew the generated avatar — so one person
+                          had three different faces on one screen,
+                          which is the exact thing a deterministic
+                          avatar exists to prevent. */}
+                      <PsmAvatar
+                        seed={profile?.id ?? name}
+                        name={name}
+                        email={profile?.email}
+                        role="admin"
+                        size={34}
+                      />
+                    </span>
                     <span className="umenu-who">
                       <span className="nm">{name}</span>
                       <span className="sub">{roleLabel}</span>
