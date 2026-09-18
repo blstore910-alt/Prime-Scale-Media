@@ -465,20 +465,42 @@ export default function WiseReviewPanel() {
     enabled: !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("wise_incoming_transfers")
-        .select(
-          "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban, archived_at, description",
-        )
-        .order("created_at", { ascending: false })
+      // ── TWO OF THESE COLUMNS COME FROM PENDING MIGRATIONS ─────────
+      //
+      // `description` (20260917240000) and `archived_at` (20260917250000)
+      // are named unconditionally. CLAUDE.md's rule is: ask for it, and
+      // on error ask again without it — because a column the live schema
+      // does not have yet does not degrade, it THROWS, and the whole
+      // deposits screen goes dark rather than losing two fields. This is
+      // the desk where customers' bank transfers wait to be credited.
+      const BASE =
+        "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban";
+      const run = (cols: string) =>
+        supabase
+          .from("wise_incoming_transfers")
+          .select(cols)
+          .order("created_at", { ascending: false })
         // 100 was less than the table holds — live has 229 — so the
         // "show N more" button below promised 92 more while 129 were not
         // fetched at all and could not be reached from this screen by any
         // means. The cap is now well above the real count; the PREVIEW cap
         // (REST_PREVIEW) is what keeps the page short.
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as WiseRow[];
+          .limit(500);
+
+      const { data, error } = await run(BASE + ", archived_at, description");
+      if (error) {
+        const retry = await run(BASE);
+        if (retry.error) throw retry.error;
+        // The two features stay dark — no archive filter, no bank
+        // description — and every deposit is still readable and
+        // creditable, which is the part that matters.
+        return (retry.data ?? []).map((r) => ({
+          ...(r as object),
+          archived_at: null,
+          description: null,
+        })) as unknown as WiseRow[];
+      }
+      return (data ?? []) as unknown as WiseRow[];
     },
   });
 

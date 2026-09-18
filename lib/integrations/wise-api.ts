@@ -729,7 +729,23 @@ export async function findProfileForBalance(
       seen.push(`profile ${pid}: request failed`);
     }
   }
+  // ── CACHE POSITIVES ONLY ───────────────────────────────────────────
+  //
+  // This cached the miss for the life of the process, INCLUDING a miss
+  // caused purely by a transient HTTP failure (a 429 or a 500 is pushed
+  // into `seen` and the loop carries on). Once cached, the caller falls
+  // through to findBalanceForCurrency, which returns the FIRST profile
+  // holding a balance in that currency — so with a token that can see two
+  // profiles, a business-profile deposit gets enriched from the personal
+  // profile's statement, writing another payer's reference, sender name
+  // and IBAN onto this deposit row. That reference then drives the
+  // re-match, and the IBAN is what the sender-memory learns from.
+  //
+  // The comment on the caller says the balance id is tried FIRST for
+  // exactly this reason; a sticky negative made the fallback permanent.
+  // The sibling cache in this file already caches positives only, "because
+  // one transient non-ok response silently disables enrichment" — the
+  // same reasoning, not applied here.
   const miss = { profileId: null, seen };
-  balanceOwnerCache.set(String(balanceId), miss);
   return miss;
 }

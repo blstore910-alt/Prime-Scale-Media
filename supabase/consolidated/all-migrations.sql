@@ -723,7 +723,21 @@ end;
 $$;
 
 revoke all on function public.rate_limit_check(text, integer, integer) from public;
-grant execute on function public.rate_limit_check(text, integer, integer) to authenticated, anon;
+-- SERVER-SIDE ONLY. This used to be granted to `authenticated, anon`,
+-- and the bucket key is entirely caller-supplied — so anyone on the
+-- internet could POST p_key = "financial-request:user:<a customer's uuid>"
+-- thirty times and lock that named customer out of top-ups, ad-account
+-- requests and withdrawals for the hour, renewed for ever. Advertiser
+-- uuids are visible to affiliates and to admins.
+--
+-- Every legitimate caller is server-side: lib/rate-limit.ts uses the
+-- admin client, and the anonymous routes that need it run on the server
+-- too. The revoke is here as well as in the checks file, because re-
+-- running this migration (or supabase/consolidated/all-migrations.sql)
+-- would otherwise silently RESTORE the grant.
+revoke execute on function public.rate_limit_check(text, integer, integer)
+  from public, anon, authenticated;
+grant execute on function public.rate_limit_check(text, integer, integer) to service_role;
 
 -- Opportunistic janitor — call from cron once a day.
 create or replace function public.rate_limit_prune(p_older_than_seconds integer default 86400)

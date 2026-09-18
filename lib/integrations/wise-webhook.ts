@@ -130,12 +130,12 @@ export async function processWiseWebhook(
   // what would later credit one customer's money to another.
   const senderIban = normalizeIban(rawIban);
 
-  const { data: pendingRows, error: pendingErr } = await supabase
+  const { data: pendingAll, error: pendingErr } = await supabase
     .from("wallet_topups")
     // created_at: the matcher checks the DATE as well as the reference and
     // the amount. See CLAIM_BEFORE_DEPOSIT_DAYS in wise-match.ts.
     .select(
-      "id, reference_no, amount, currency, status, advertiser_id, created_at",
+      "id, reference_no, amount, currency, status, advertiser_id, created_at, tenant_id",
     )
     .eq("status", "pending")
     .eq("currency", currency);
@@ -143,10 +143,32 @@ export async function processWiseWebhook(
     return { status: 500, body: { error: "Query failed" } };
   }
 
+  // ── THE MATCHER RAN ACROSS EVERY TENANT ─────────────────────────────
+  //
+  // This runs on the service-role client with no tenant filter, and the
+  // webhook has no tenant to filter BY: the Wise account is one account
+  // and nothing maps it to a tenant. So a deposit into one tenant's bank
+  // could be suggested against — and with auto-settle on, credited to —
+  // a pending top-up in another. Every downstream action re-checks the
+  // tenant; the matcher itself did not. (rematchWiseDeposits, which does
+  // have a tenant, filters by it.)
+  //
+  // Until there is a Wise-account-to-tenant mapping, this fails CLOSED:
+  // if the pending claims span more than one tenant, no automatic match
+  // is offered and the deposit is recorded unmatched for a human. With a
+  // single tenant — which is today — nothing changes.
+  const pendingTenants = new Set(
+    (pendingAll ?? [])
+      .map((r) => String((r as { tenant_id?: unknown }).tenant_id ?? ""))
+      .filter(Boolean),
+  );
+  const crossTenant = pendingTenants.size > 1;
+  const pendingRows = crossTenant ? [] : (pendingAll ?? []);
+
   // Which advertisers does this sender IBAN belong to? (Could be
   // several — one customer, multiple accounts, same bank.)
   let knownAdvertiserIds: string[] = [];
-  if (senderIban) {
+  if (senderIban && !crossTenant) {
     const { data: senderRows } = await supabase
       .from("advertiser_bank_senders")
       .select("advertiser_id")

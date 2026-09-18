@@ -133,11 +133,20 @@ export default function ReconciliationView() {
   const anyMovement = rows.some(
     (r) => Math.abs(r.credited) >= 0.01 || Math.abs(r.received) >= 0.01,
   );
+  // A TRUNCATED READ IS NOT A BALANCED BOOK. Both walks hit a page
+  // ceiling at 50,000 rows; past that the totals are a floor, and a floor
+  // compared against a floor can come out level while real money is
+  // missing from both sides. The screen is careful everywhere else to
+  // distinguish "unknown" from "balanced"; this is the one input it did
+  // not have.
+  const truncated = reconQ.data?.truncated === true;
   const heroTone = reconQ.isLoading
     ? "idle"
     : reconQ.isError
       ? "err"
-      : !anyMovement
+      : truncated
+        ? "warn"
+        : !anyMovement
         ? "idle"
         : mismatches.length === 0
           ? ""
@@ -146,6 +155,8 @@ export default function ReconciliationView() {
     ? "Checking…"
     : reconQ.isError
       ? "Unable to load"
+      : truncated
+        ? "Too much history to check in one pass"
       : !anyMovement
         ? "Nothing to compare yet"
         : mismatches.length === 0

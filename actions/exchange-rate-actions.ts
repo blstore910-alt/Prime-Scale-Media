@@ -86,6 +86,32 @@ export async function ensureInitialExchangeRates(): Promise<
     return { ok: true, data: { created: false } };
   }
 
+  // ── AND HAS THIS TENANT EVER HAD A RATE? ───────────────────────────
+  //
+  // "No ACTIVE rate" is two different situations. One is a brand-new
+  // tenant, which is what this function is for. The other is a tenant
+  // whose owner stood the old rate down — upsertExchangeRate deactivates
+  // first, in a separate statement — and whose second write then failed,
+  // or who deactivated one deliberately.
+  //
+  // In that second case the next EMPLOYEE admin to open any page would
+  // fetch a rate from an unpinned public CDN and publish it as the
+  // tenant's active rate. upsertExchangeRate was deliberately raised to
+  // owner-only because "an employee admin could change the rate every
+  // conversion in the app divides by" — and this routed straight around
+  // that gate, on a page load, with no one pressing anything.
+  //
+  // A tenant that has ever had a rate does not get one invented for it.
+  const { data: everRows, error: everErr } = await supabase
+    .from("exchange_rates")
+    .select("id")
+    .eq("tenant_id", profile.tenant_id)
+    .limit(1);
+  if (everErr) return { ok: false, error: everErr.message };
+  if ((everRows ?? []).length > 0) {
+    return { ok: true, data: { created: false } };
+  }
+
   let usdRates;
   try {
     usdRates = await getExchangeRate("USD");

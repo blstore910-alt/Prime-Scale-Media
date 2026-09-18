@@ -245,7 +245,30 @@ export async function GET(request: NextRequest) {
     );
   }
   const rawRate = toNumber((rateRow as { eur?: unknown } | null)?.eur);
-  const usdToEurRate = rawRate > 0 ? rawRate : 1;
+  // ── NO ACTIVE RATE IS NOT A RATE OF 1 ─────────────────────────────
+  //
+  // Falling back to 1 was justified as "a brand-new tenant has no rate
+  // row yet". But upsertExchangeRate stands the current row DOWN first,
+  // in a separate statement, and its own comment says a failed second
+  // write "leaves the tenant with NO active row" — so no-row is also the
+  // transient, and potentially stuck, state of a live tenant. During it
+  // the USD columns (topup_amount, fee_amount, amount_usd are always
+  // dollars) print unconverted under a euro sign: at 0.86 that overstates
+  // EUR volume, fee revenue and profit by about 16%, silently, on the
+  // owner's own dashboard.
+  //
+  // A tenant that genuinely has no rate has no non-USD money to convert
+  // either, so refusing costs them nothing and tells them what to fix.
+  if (!(rawRate > 0)) {
+    return NextResponse.json(
+      {
+        error:
+          "There is no active exchange rate, so fee figures cannot be converted. Set the rate in Settings -> Finance.",
+      },
+      { status: 409 },
+    );
+  }
+  const usdToEurRate = rawRate;
 
   // ── AND EVERY ROW, NOT THE FIRST THOUSAND ─────────────────────────
   //

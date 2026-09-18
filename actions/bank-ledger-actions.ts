@@ -1,5 +1,7 @@
 "use server";
 
+import { pageAllRows } from "@/lib/page-all-rows";
+
 import {
   type BankLedgerEntry,
   type DestinationBalance,
@@ -130,10 +132,26 @@ export async function addLedgerEntry(input: {
 // ─────────────────────────────────────────
 // getReconciliation — the integrity check. Compares total credited to
 // wallets (completed topups) against total actually received (ledger
-// deposits − withdrawals), per currency; plus per-destination balances.
+// DEPOSITS only — withdrawals are excluded, because `credited` does not
+// move when the owner takes money out of the bank), per currency; plus
+// per-destination balances, which DO use the signed figure.
+//
+// KNOWN GAP, deliberately not papered over: an internal transfer between
+// the two bank destinations is recorded honestly as a withdrawal on one
+// and a deposit on the other — the per-destination balances need both
+// legs — and the deposit leg then inflates `received`. There is no
+// `transfer` direction to distinguish it. Until there is, a transfer
+// shows up as a gap in our favour. Flagged rather than guessed at,
+// because inventing a heuristic ("a deposit that matches a withdrawal on
+// the same day") would hide real money.
 // ─────────────────────────────────────────
 export async function getReconciliation(): Promise<
-  ActionResult<{ rows: ReconciliationRow[]; balances: DestinationBalance[] }>
+  ActionResult<{
+    rows: ReconciliationRow[];
+    balances: DestinationBalance[];
+    /** A page ceiling was hit, so these totals are a floor. */
+    truncated: boolean;
+  }>
 > {
   const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -154,32 +172,49 @@ export async function getReconciliation(): Promise<
     amount: number | string | null;
   };
 
-  const topupRows: TopupRow[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+  // ── BOTH WALKS NEED AN ORDER, AND IT HAS TO BE UNIQUE ───────────────
+  //
+  // These paged with .range() and NO .order() at all. Postgres gives no
+  // stable row order without ORDER BY, so consecutive LIMIT/OFFSET pages
+  // can repeat one row and skip another — and on the one screen that
+  // answers "is somebody taking money", both sides of the comparison
+  // became non-deterministic past 1,000 rows, with the gap changing
+  // between refreshes.
+  //
+  // lib/page-all-rows.ts names THIS FILE as one of the two places already
+  // bitten by paging, and its header says the pages must be ordered by
+  // the caller so they are stable while we walk them. This file did not
+  // use it. It does now, which also gives it the page ceiling and the
+  // `truncated` flag — so "we could not read all of it" stops looking
+  // exactly like "it balances".
+  const topupPage = await pageAllRows<TopupRow>((from, to) =>
+    supabase
       .from("wallet_topups")
       .select("amount, currency")
       .eq("tenant_id", profile.tenant_id)
       .eq("status", "completed")
-      .range(from, from + PAGE - 1);
-    if (error) return { ok: false, error: error.message };
-    const page = (data ?? []) as TopupRow[];
-    topupRows.push(...page);
-    if (page.length < PAGE) break;
-  }
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  if (topupPage.error) return { ok: false, error: topupPage.error };
+  const topupRows = topupPage.rows;
 
-  const ledgerRows: LedgerRow[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+  const ledgerPage = await pageAllRows<LedgerRow>((from, to) =>
+    supabase
       .from("bank_ledger_entries")
       .select("destination, currency, direction, amount")
       .eq("tenant_id", profile.tenant_id)
-      .range(from, from + PAGE - 1);
-    if (error) return { ok: false, error: error.message };
-    const page = (data ?? []) as LedgerRow[];
-    ledgerRows.push(...page);
-    if (page.length < PAGE) break;
-  }
+      .order("entry_date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  if (ledgerPage.error) return { ok: false, error: ledgerPage.error };
+  const ledgerRows = ledgerPage.rows;
+
+  // A truncated read is not a balanced book. The view distinguishes
+  // "unknown" from "balanced" everywhere else; give it the input.
+  const truncated = topupPage.truncated || ledgerPage.truncated;
 
   const credited: Record<string, number> = { USD: 0, EUR: 0 };
   for (const t of topupRows ?? []) {
@@ -234,5 +269,5 @@ export async function getReconciliation(): Promise<
     }
   }
 
-  return { ok: true, data: { rows, balances } };
+  return { ok: true, data: { rows, balances, truncated } };
 }
