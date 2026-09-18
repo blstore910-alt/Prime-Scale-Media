@@ -257,11 +257,18 @@ export async function GET(request: NextRequest) {
       .eq("status", "completed")
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
+    // FOUR TYPES, not two. The profit TILE counts subscription,
+    // subscription_adjustment, manual_invoice and ad_account_fee — that
+    // was fixed in app/api/stats/route.ts with the note "twenty requests
+    // at 50 EUR is 1,000 EUR collected and reported as zero" — and the
+    // SERIES on the same screen was left reading two of them. So the
+    // chart sat below the number beside it by every upgrade and every
+    // extra-account fee ever collected, with nothing to explain the gap.
     supabase
       .from("invoices")
       .select("created_at, currency, total")
       .eq("tenant_id", profile.tenant_id)
-      .eq("type", "subscription")
+      .in("type", ["subscription", "subscription_adjustment"])
       .eq("status", "paid")
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
@@ -269,7 +276,7 @@ export async function GET(request: NextRequest) {
       .from("invoices")
       .select("created_at, currency, total")
       .eq("tenant_id", profile.tenant_id)
-      .eq("type", "manual_invoice")
+      .in("type", ["manual_invoice", "ad_account_fee"])
       .eq("status", "paid")
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),

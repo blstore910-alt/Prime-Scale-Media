@@ -663,6 +663,30 @@ export default function AdvertiserApp() {
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
 
+  // CAN THEY ACTUALLY PAY IT?
+  //
+  // Both Pay buttons were enabled whatever the balance. An advertiser with
+  // nothing in their EUR wallet pressed Pay on a €200 invoice and the
+  // confirmation rendered "€0.00 → €-200.00" as a FACT, under a button
+  // reading "Yes, pay €200.00". Confirming reaches the RPC's "Insufficient
+  // wallet balance", so they learn by getting an error — on the most-used
+  // money button in the app.
+  //
+  // A greyed-out button would stop the error and teach them nothing, so
+  // the one that cannot pay offers the thing that fixes it instead.
+  const canPayInvoice = (
+    inv:
+      | { total?: number | string | null; currency?: string | null; items?: unknown }
+      | null
+      | undefined,
+  ): boolean => {
+    if (!inv) return false;
+    const bal = invCurrency(inv) === "USD" ? usdBal : eurBal;
+    // A cent of tolerance: these columns are single-precision on live, so
+    // an exact-balance payment must not be refused by a rounding artefact.
+    return bal + 0.005 >= Number(inv.total ?? 0);
+  };
+
 
   // What actually gates a new ad account is the PLAN, not the wallet.
   // A plan comes with included accounts, so an advertiser whose plan is
@@ -907,12 +931,35 @@ export default function AdvertiserApp() {
         : "EUR";
     const sym = cur === "USD" ? "$" : "€";
     const isPlan = inv.type === "subscription" && !!planName;
+
+    // "PER MONTH" IS A CLAIM ABOUT WHAT RECURS, and the card was making it
+    // about the invoice total. A customer on a €200 plan with a discount
+    // is invoiced €5, so the hero read "€5.00 per month" — a stated
+    // recurring price that is false, on the screen where they decide to
+    // pay. A prorated invoice after a plan change reads the same way, and
+    // a yearly term would have printed twelve months as a monthly price.
+    //
+    // So the period is only claimed when the amount actually IS the
+    // recurring one. Otherwise the card says what is true of this
+    // payment: it is due now.
+    const subAmount = Number(subscription?.amount ?? NaN);
+    const invAmount = Number(inv.total ?? 0);
+    const isRecurringAmount =
+      Number.isFinite(subAmount) && Math.abs(subAmount - invAmount) < 0.005;
+    const term =
+      String(
+        (subscription as { billing_period?: string | null } | null)
+          ?.billing_period ?? "month",
+      ) === "year"
+        ? "per year"
+        : "per month";
+
     setAsk({
       hero: isPlan
         ? {
             name: planName!,
             amount: `${sym}${money2(inv.total)}`,
-            per: "per month",
+            per: isRecurringAmount ? term : "due now",
             // Straight from the plan row. When an admin has not filled
             // them in yet, one line that is true of every plan rather
             // than an empty card or an invented promise.
@@ -1350,9 +1397,20 @@ export default function AdvertiserApp() {
                 {/* A date, not "in a month". It is shorter, so the row holds
                     one line at phone width, and it is the more useful of the
                     two for something you have to pay. */}
+                {/* THE INVOICE FIGURE, NOT THE PLAN'S. The perks engine
+                    invoices a discounted amount while subscriptions.amount
+                    stays at list price, so a discounted customer read
+                    "Monthly fee €200 · due 5 Oct" here with "€5
+                    outstanding" in the tile a few centimetres above, and
+                    the button between them charges €5. The billing card
+                    and the tile were both fixed for exactly this; this row
+                    was missed. One number, from the thing being paid. */}
                 <span className="dtx">
-                  Monthly fee <b>{planMoney(subscription.amount)}</b> · due{" "}
-                  {dayjs(subscription.next_payment_date).format("D MMM")}
+                  {dueSubInvoice ? "Due now" : "Monthly fee"}{" "}
+                  <b>{dueSubInvoice ? dueBillAmount : planMoney(subscription.amount)}</b>
+                  {dueBillDate
+                    ? ` · due ${dayjs(dueBillDate).format("D MMM")}`
+                    : ""}
                 </span>
                 {/* "Pay", not "Pay now". The row must hold one line at phone
                     width and the sentence beside it is the part carrying the
@@ -1937,11 +1995,28 @@ export default function AdvertiserApp() {
                 <h1>Requests</h1>
                 <p>Everything you&apos;ve asked us for.</p>
               </div>
-              <RequestAdAccountDialog>
-                <button className="btn grad">
+              {/* THE SAME GATE AS THE ACCOUNTS TAB. This button opened the
+                  identical dialog with no check, so a customer with no
+                  company details and an unpaid plan could fill the whole
+                  form and submit — and the RPC has no company or plan
+                  check either, only a balance one. It charged 50 EUR and
+                  created a request for somebody the Accounts screen
+                  refuses and who cannot be invoiced. */}
+              {canRequestAccount ? (
+                <RequestAdAccountDialog>
+                  <button className="btn grad">
+                    <Ic name="i-plus" /> New request
+                  </button>
+                </RequestAdAccountDialog>
+              ) : (
+                <button
+                  className="btn grad"
+                  disabled
+                  title="Your plan has to be active first — that is what your included ad accounts come from"
+                >
                   <Ic name="i-plus" /> New request
                 </button>
-              </RequestAdAccountDialog>
+              )}
             </div>
             {myRequests.length ? (
               <div className="card" style={{ padding: 0 }}>
@@ -2114,6 +2189,13 @@ export default function AdvertiserApp() {
                       style={{ marginTop: 14 }}
                       disabled={!dueSubInvoice}
                       onClick={() => {
+                        // Not enough in the wallet: send them to the one
+                        // screen that can change that, rather than into a
+                        // confirmation that ends in a refusal.
+                        if (dueSubInvoice && !canPayInvoice(dueSubInvoice)) {
+                          go("wallet");
+                          return;
+                        }
                         if (dueSubInvoice) askToPay(dueSubInvoice);
                         else if (invError) {
                           toast.error(
@@ -2132,14 +2214,18 @@ export default function AdvertiserApp() {
                       <Ic
                         name={
                           dueSubInvoice
-                            ? "i-wallet"
+                            ? canPayInvoice(dueSubInvoice)
+                              ? "i-wallet"
+                              : "i-plus"
                             : invError
                               ? "i-refresh"
                               : "i-check"
                         }
                       />{" "}
                       {dueSubInvoice
-                        ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
+                        ? canPayInvoice(dueSubInvoice)
+                          ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
+                          : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
                         : invError
                           ? "Couldn't load your invoices"
                           : "No subscription invoice due"}
@@ -2250,7 +2336,18 @@ export default function AdvertiserApp() {
                                   <button
                                     className="btn ghost sm"
                                     disabled={payingId === inv.id}
-                                    onClick={() => askToPay(inv)}
+                                    title={
+                                      canPayInvoice(inv)
+                                        ? "Pay this from your wallet"
+                                        : "Your wallet does not cover this yet"
+                                    }
+                                    onClick={() => {
+                                      if (!canPayInvoice(inv)) {
+                                        go("wallet");
+                                        return;
+                                      }
+                                      askToPay(inv);
+                                    }}
                                   >
                                     {/* .alab: it is the only thing the
                                         action-row CSS will clip, and this
@@ -2258,7 +2355,9 @@ export default function AdvertiserApp() {
                                     <span className="alab">
                                       {payingId === inv.id
                                         ? "Paying…"
-                                        : "Pay now"}
+                                        : canPayInvoice(inv)
+                                          ? "Pay now"
+                                          : "Top up to pay"}
                                     </span>
                                   </button>
                                 )}

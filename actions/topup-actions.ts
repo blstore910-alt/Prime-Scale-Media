@@ -715,6 +715,55 @@ export async function verifyAdTopup(
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
+  // ── A VERIFY MUST NOT BE A REPRICE ──────────────────────────────────
+  //
+  // p_new_fee_percent is taken straight from the dialog and re-splits the
+  // money. That is a payload overriding the ad account — the one thing
+  // the fee rule at the top of this file says must never happen — and
+  // unlike repricing a subscription, which is owner-only behind three
+  // gates, there was nothing here at all. An employee admin could open a
+  // 10,000 EUR top-up on a 4% account, type 0, and confirm: nothing
+  // collected, the row now genuinely reads 0%, and the fee report agrees
+  // with it.
+  //
+  // Raising the fee is still allowed for any admin — it cannot cost us
+  // anything and there are real reasons to. Going BELOW what the account
+  // and the plan resolve to is the owner's call.
+  if (newFeePercent !== null) {
+    const { data: row } = await supabase
+      .from("top_ups")
+      .select("advertiser_id, account_id, fee, tenant_id")
+      .eq("id", topupId)
+      .maybeSingle();
+
+    if (row && row.tenant_id !== profile.tenant_id) {
+      return { ok: false, error: "Forbidden", code: "forbidden" };
+    }
+
+    if (row?.advertiser_id) {
+      const effective = await resolveEffectiveFeePct(
+        supabase,
+        String(row.advertiser_id),
+        Number(row.fee) || 0,
+        typeof row.account_id === "string" ? row.account_id : null,
+      );
+      if (effective.applied && newFeePercent + 0.0001 < effective.pct) {
+        const { data: tenant } = await supabase
+          .from("tenants")
+          .select("owner_id")
+          .eq("id", profile.tenant_id)
+          .maybeSingle();
+        if (!tenant || tenant.owner_id !== profile.user_id) {
+          return {
+            ok: false,
+            error: `This account's rate is ${effective.pct}%. Only the super-admin can verify below it — ask them, or use a fee waiver so the reason is recorded.`,
+            code: "forbidden",
+          };
+        }
+      }
+    }
+  }
+
   const { data, error } = await supabase.rpc("top_up_admin_verify", {
     p_top_up_id: topupId,
     p_new_fee_percent: newFeePercent,

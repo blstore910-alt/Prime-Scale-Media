@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Resolver, useForm } from "react-hook-form";
@@ -45,8 +45,49 @@ export default function WalletEditDialog({
   wallet: WalletWithAdvertiser | null;
 }) {
   const queryClient = useQueryClient();
-  const currentUsd = round2(Number(wallet?.usd_balance ?? 0));
-  const currentEur = round2(Number(wallet?.eur_balance ?? 0));
+
+  // THE BASE HAS TO BE FRESH, because what is sent is a DELTA.
+  //
+  // The form takes an absolute balance — "make it 600" — and sends
+  // `target - base` to wallet_admin_adjust, which applies that difference
+  // to whatever the balance is NOW. The base came from the row captured
+  // when the list was loaded and never refreshed. So: list loaded at
+  // €500, a €1,000 top-up is verified in the meantime, admin opens Edit
+  // (still showing 500), types 600 to correct it -> delta +100 -> the
+  // wallet becomes €1,600, while the confirmation they just read said
+  // "500.00 -> 600.00".
+  //
+  // Re-reading on open closes the window that actually happens. The
+  // seconds while the dialog is open remain, which is why the RPC should
+  // eventually take the expected base and refuse a mismatch.
+  const { data: fresh } = useQuery({
+    queryKey: ["wallet-edit-base", wallet?.id],
+    enabled: open && !!wallet?.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallets")
+        .select("usd_balance, eur_balance")
+        .eq("id", wallet!.id)
+        .single();
+      if (error) throw error;
+      return data as { usd_balance: number | string; eur_balance: number | string };
+    },
+  });
+
+  const currentUsd = round2(
+    Number(fresh?.usd_balance ?? wallet?.usd_balance ?? 0),
+  );
+  const currentEur = round2(
+    Number(fresh?.eur_balance ?? wallet?.eur_balance ?? 0),
+  );
+  // Until the fresh read lands, the base on screen is the one from the
+  // list — so the form stays shut rather than computing a delta against a
+  // number we already suspect.
+  const baseUnknown = open && !!wallet?.id && !fresh;
 
   // Second-confirmation gate: the form's Save populates this pending
   // payload; only an explicit confirm below actually runs the mutation.
@@ -90,7 +131,7 @@ export default function WalletEditDialog({
   const finalEur = round2(currentEur + eurDelta);
   const usdNegative = finalUsd < 0;
   const eurNegative = finalEur < 0;
-  const noChange = usdDelta === 0 && eurDelta === 0;
+  const noChange = usdDelta === 0 && eurDelta === 0 || baseUnknown;
   const hasNegativeFinal = usdNegative || eurNegative;
 
   const { mutate, isPending } = useMutation({

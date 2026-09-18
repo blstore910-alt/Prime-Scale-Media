@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 interface CreateAdAccountRequestPayload {
@@ -15,6 +15,7 @@ interface CreateAdAccountRequestPayload {
 }
 
 export const useCreateAdAccountRequest = () => {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload: CreateAdAccountRequestPayload) => {
       const supabase = createClient();
@@ -41,6 +42,22 @@ export const useCreateAdAccountRequest = () => {
       return data;
     },
     onSuccess: () => {
+      // THE SCREEN HAS TO CATCH UP WITH THE MONEY. This debits 50 EUR and
+      // creates a request, and invalidated nothing — so the toast said
+      // "it will appear here" and it did not, and the balance beside it
+      // still showed the amount from before the charge. The advertiser
+      // app is a single page whose views are CSS toggles, so nothing
+      // remounts and the 30-second staleTime with refetchOnWindowFocus
+      // off means it stays wrong until a hard reload. A customer whose
+      // balance disagrees with what they just did checks their bank,
+      // not the page.
+      //
+      // request-fee-preview too: a second request inside 30 seconds
+      // would otherwise still read "Included in your plan — no fee"
+      // after that allowance was just used up.
+      qc.invalidateQueries({ queryKey: ["ad-account-requests"] });
+      qc.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      qc.invalidateQueries({ queryKey: ["request-fee-preview"] });
       toast.success(
         // Not "the fee was charged": the RPC sets the fee to 0 and debits
         // nothing when the request is covered by the plan or a perk, and the

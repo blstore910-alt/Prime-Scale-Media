@@ -1,6 +1,7 @@
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 type CurrencyKey = "usd" | "eur";
 
@@ -95,11 +96,21 @@ export async function GET() {
     referralCommissionsResult,
     exchangeRateResult,
   ] = await Promise.all([
-    supabase
-      .from("top_ups")
-      .select("topup_amount, fee_amount, currency")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("status", "completed"),
+    // PAGED. PostgREST caps a response at 1,000 rows, so an unbounded
+    // select here made "Total top-ups", "Fees" and total profit correct
+    // right up to the thousandth completed top-up and quietly short for
+    // ever after — no error, just a smaller number on the owner's
+    // dashboard. Ordered oldest-first so the pages are stable while we
+    // walk them. See lib/page-all-rows.ts.
+    pageAllRows<TopupRow>((from, to) =>
+      supabase
+        .from("top_ups")
+        .select("topup_amount, fee_amount, currency")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("status", "completed")
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from("ad_accounts")
       .select("id", { count: "exact", head: true })
@@ -133,7 +144,8 @@ export async function GET() {
     // invoice, so every upgrade a customer paid for was missing from profit.
     // (A downgrade refunds through `wallet_adjustments`, not a negative
     // invoice, so there is nothing to subtract here.)
-    supabase
+    pageAllRows<InvoiceRow>((from, to) =>
+      supabase
       .from("invoices")
       .select("total, currency")
       .eq("tenant_id", profile.tenant_id)
@@ -147,12 +159,19 @@ export async function GET() {
       "manual_invoice",
       "ad_account_fee",
     ])
-      .eq("status", "paid"),
-    supabase
-      .from("referral_commissions")
-      .select("amount, currency")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("status", "paid"),
+      .eq("status", "paid")
+      .order("created_at", { ascending: true })
+      .range(from, to),
+    ),
+    pageAllRows<CurrencyAmountRow>((from, to) =>
+      supabase
+        .from("referral_commissions")
+        .select("amount, currency")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("status", "paid")
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from("exchange_rates")
       .select("eur")
@@ -161,7 +180,7 @@ export async function GET() {
       .maybeSingle(),
   ]);
 
-  const errors = [
+  const errors: unknown[] = [
     topupsResult.error,
     adAccountsTotalResult.error,
     activeAdAccountsResult.error,
@@ -187,12 +206,20 @@ export async function GET() {
   const rawUsdToEurRate = toNumber(activeExchangeRate?.eur);
   const usdToEurRate = rawUsdToEurRate > 0 ? rawUsdToEurRate : 1;
 
-  const topups = (topupsResult.data || []) as TopupRow[];
+  const topups = topupsResult.rows;
   const advertiserStatuses = (advertisersStatusesResult.data ||
     []) as AdvertiserStatusRow[];
-  const invoiceRevenue = (invoiceRevenueResult.data || []) as InvoiceRow[];
-  const referralCommissions = (referralCommissionsResult.data ||
-    []) as CurrencyAmountRow[];
+  const invoiceRevenue = invoiceRevenueResult.rows;
+  const referralCommissions = referralCommissionsResult.rows;
+
+  // A CAP IS NEWS, not something to swallow. If any of the three walks hit
+  // the page ceiling the totals below are a floor, and saying so is the
+  // difference between a number that is wrong and a number that says it is
+  // incomplete.
+  const truncated =
+    topupsResult.truncated ||
+    invoiceRevenueResult.truncated ||
+    referralCommissionsResult.truncated;
 
   // ── The one thing to understand about `top_ups` ──────────────────────
   // `topup_amount` and `fee_amount` are ALWAYS USD. calculateTopupAmount()
@@ -259,6 +286,10 @@ export async function GET() {
   }, 0);
 
   return NextResponse.json({
+    // True only if a walk hit its page ceiling, in which case every total
+    // below is a floor. Surfaced rather than swallowed: a silently
+    // truncated total reads exactly like a complete one.
+    incomplete: truncated,
     total_topups: {
       count: topups.length,
       usd_amount: Number(totals.topupsUsd.usd.toFixed(2)),
