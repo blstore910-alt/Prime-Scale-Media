@@ -59,7 +59,17 @@ begin
       raise notice 'DEEL 1: % does not exist here — skipped.', v_name;
       continue;
     end if;
-    execute format('alter view public.%I set (security_invoker = on)', v_name);
+    -- A MATERIALIZED view cannot carry security_invoker at all, and
+    -- `alter view` on one errors and takes the whole block down with it.
+    if (select c.relkind from pg_class c
+          join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public' and c.relname = v_name) = 'm' then
+      raise warning 'DEEL 1: % is a MATERIALIZED view. It bypasses RLS and cannot be fixed this way.', v_name;
+      continue;
+    end if;
+    -- `= true`, not `= on`: reloptions store the literal you write, and
+    -- the readbacks below compare against it.
+    execute format('alter view public.%I set (security_invoker = true)', v_name);
     raise notice 'DEEL 1: % now reads as the caller.', v_name;
   end loop;
 end;
@@ -69,8 +79,9 @@ $blk1$;
 -- tables. Anything not true is still handing out rows.
 select
   c.relname                                            as view_name,
+  c.reloptions                                         as raw_options,
   coalesce(
-    (select option_value = 'true'
+    (select option_value::boolean
        from pg_options_to_table(c.reloptions)
       where option_name = 'security_invoker'),
     false
@@ -641,7 +652,11 @@ select
 -- =====================================================================
 -- Everything above, in one row. All true is the goal.
 select
-  coalesce((select option_value = 'true'
+  -- CAST IT. This compared the stored value to the string 'true' while
+  -- the ALTER above wrote `on`, so a view that HAD been fixed reported
+  -- false. On this particular check that is the difference between "we
+  -- are fine" and "a deactivated customer is reading every tenant".
+  coalesce((select option_value::boolean
               from pg_class c
               join pg_namespace n on n.oid = c.relnamespace,
                    pg_options_to_table(c.reloptions)
