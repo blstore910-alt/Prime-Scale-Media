@@ -335,34 +335,45 @@ export const ADV_CSS = `
     transform:translateX(-120%);animation:phsheen 2.4s ease-out .3s 1 forwards}
   @keyframes phsheen{to{transform:translateX(120%)}}
 
-  .planhero .ph-mark{position:absolute;right:14px;top:12px;z-index:1;
-    opacity:.11;pointer-events:none}
-  .planhero .ph-mark svg{width:60px;height:60px}
+  /* Moved out of the name's corner, and quieter still. */
+  .planhero .ph-mark{position:absolute;right:-10px;bottom:-14px;z-index:0;
+    opacity:.07;pointer-events:none;transform:rotate(-12deg)}
+  .planhero .ph-mark svg{width:96px;height:96px}
 
+  /* Money left, name right. Side by side they competed for the same
+     first glance; anchored to opposite corners each gets one. */
+  .planhero .ph-head{display:flex;align-items:flex-start;
+    justify-content:space-between;gap:14px}
+  .planhero .ph-left{min-width:0}
   .planhero .ph-tag{display:block;font-size:.58rem;font-weight:800;
     letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45)}
-  .planhero .ph-name{font-family:var(--hd);font-weight:800;font-size:2.1rem;
-    letter-spacing:-.035em;line-height:1.02;margin-top:4px}
-  .planhero .ph-amt{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+  .planhero .ph-name{font-family:var(--hd);font-weight:800;font-size:2.15rem;
+    letter-spacing:-.04em;line-height:.95;text-align:right;flex:0 0 auto;
+    margin-top:-2px;
+    background:linear-gradient(180deg,#ffffff,#c7d4ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .planhero .ph-amt{display:flex;align-items:baseline;gap:8px;margin-top:6px}
   .planhero .ph-amt b{font-family:var(--hd);font-weight:800;font-size:1.7rem;
     letter-spacing:-.03em;line-height:1;
     background:linear-gradient(92deg,#dfe8ff,#bcd0ff 45%,#c9b6ff);
     -webkit-background-clip:text;background-clip:text;color:transparent}
   .planhero .ph-amt span{font-size:.8rem;color:rgba(255,255,255,.55)}
 
-  .planhero .ph-perks{list-style:none;margin:16px 0 0;padding:0;display:grid;
-    gap:9px}
-  .planhero .ph-perks li{display:flex;align-items:center;gap:10px;
-    font-size:.84rem;color:rgba(255,255,255,.9);min-width:0}
-  .planhero .ph-tick{flex:0 0 auto;width:19px;height:19px;border-radius:50%;
-    display:grid;place-items:center;
-    background:rgba(126,240,184,.16);color:#7ef0b8}
-  .planhero .ph-tick svg{width:11px;height:11px}
+  /* Pills that wrap, not a stacked list. Three lines become one or two,
+     and the button stops sitting below the fold on a phone. */
+  .planhero .ph-perks{list-style:none;margin:14px 0 0;padding:0;display:flex;
+    flex-wrap:wrap;gap:6px}
+  .planhero .ph-perks li{display:inline-flex;align-items:center;gap:6px;
+    font-size:.74rem;font-weight:600;color:rgba(255,255,255,.92);
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.09);
+    border-radius:999px;padding:5px 10px 5px 8px;white-space:nowrap}
+  .planhero .ph-perks svg{width:11px;height:11px;flex:0 0 auto;color:#7ef0b8}
 
   @media (max-width:400px){
-    .planhero .ph-body{padding:17px 16px 15px}
-    .planhero .ph-name{font-size:1.8rem}
-    .planhero .ph-amt b{font-size:1.5rem}
+    .planhero .ph-body{padding:16px 15px 14px}
+    .planhero .ph-name{font-size:1.75rem}
+    .planhero .ph-amt b{font-size:1.45rem}
+    .planhero .ph-perks li{font-size:.71rem;padding:4px 9px 4px 7px}
   }
   @media (prefers-reduced-motion:reduce){
     .planhero .ph-sheen{display:none}

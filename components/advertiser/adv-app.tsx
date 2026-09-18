@@ -927,7 +927,9 @@ export default function AdvertiserApp() {
         : undefined,
       title: isPlan ? "Renew your plan?" : "Pay this from your wallet?",
       icon: "i-wallet",
-      lead: `We take it out of your ${cur} wallet straight away. There is no undo — if it turns out to be wrong, message us and we sort it out.`,
+      // Shorter, same meaning. Three lines of warning above the facts
+      // pushed the button below the fold on a phone.
+      lead: `Taken from your ${cur} wallet straight away. No undo — if it is wrong, message us and we sort it out.`,
       facts: [
         [
           "What for",
@@ -2673,18 +2675,25 @@ export default function AdvertiserApp() {
                 </span>
                 <span className="ph-sheen" aria-hidden="true" />
                 <div className="ph-body">
-                  <span className="ph-tag">Your plan</span>
-                  <div className="ph-name">{ask.hero.name}</div>
-                  <div className="ph-amt">
-                    <b>{ask.hero.amount}</b>
-                    <span>{ask.hero.per}</span>
+                  {/* The name anchors the top-RIGHT and the money the
+                      left, so the two do not compete on one line. The
+                      perks are pills that wrap rather than a stacked list
+                      — three lines become one or two, and the whole
+                      confirmation stops needing a scroll. */}
+                  <div className="ph-head">
+                    <div className="ph-left">
+                      <span className="ph-tag">Your plan</span>
+                      <div className="ph-amt">
+                        <b>{ask.hero.amount}</b>
+                        <span>{ask.hero.per}</span>
+                      </div>
+                    </div>
+                    <div className="ph-name">{ask.hero.name}</div>
                   </div>
                   <ul className="ph-perks">
                     {ask.hero.perks.map((t) => (
                       <li key={t}>
-                        <span className="ph-tick">
-                          <Ic name="i-check" />
-                        </span>
+                        <Ic name="i-check" />
                         {t}
                       </li>
                     ))}
