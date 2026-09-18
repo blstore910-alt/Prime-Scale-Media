@@ -5,6 +5,7 @@ import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { csvSafe } from "@/lib/csv-safe";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { getURL } from "@/lib/utils";
@@ -140,8 +141,11 @@ export default function AffiliateApp() {
   const refsUnavailable = refs.isError || refs.isLoading;
 
   // Tier progression counts BOTH currencies — a USD-paid affiliate was
-  // otherwise stuck at Starter with €0. (Combined figure mirrors the sibling
-  // affiliate-dashboard; the headline shows each currency separately below.)
+  // otherwise stuck at Starter with €0 — but they are CONVERTED now rather
+  // than added. `lifetimeEur + lifetimeUsd` is not a euro figure, and the
+  // gap to the next tier was printed with a euro sign anyway: an affiliate
+  // on $1,000 and €0 was shown a tier they had not reached and told
+  // "€1,500 more".
   // The earnings read failed, or has not landed yet. Either way the totals
   // below are 0 because there is nothing to add up — not because nothing was
   // earned — so every screen that states a figure has to say so instead.
@@ -156,7 +160,12 @@ export default function AffiliateApp() {
   // never be DEMOTED by one either, which is what the tier track did.
   const dash = "—";
 
-  const lifetimeCombined = lifetimeEur + lifetimeUsd;
+  // Without a rate the two cannot be put on one scale, and guessing parity
+  // is the same bug wearing a confident face. The ladder then counts euros
+  // only and SAYS so, rather than quietly inflating itself with dollars.
+  const { rate: usdToEur } = useUsdToEur();
+  const tierBlind = lifetimeUsd > 0 && !usdToEur;
+  const lifetimeCombined = lifetimeEur + (usdToEur ? lifetimeUsd * usdToEur : 0);
   const tierIndex = useMemo(() => {
     let idx = 0;
     TIERS.forEach((t, i) => {
@@ -819,7 +828,17 @@ export default function AffiliateApp() {
                       <div className="fill" style={{ width: `${tierPct}%` }} />
                     </div>
                     <p className="tiernote">
-                      {nextTier ? (
+                      {/* When the USD side could not be converted the ladder
+                          is counting euros only, and saying so is the
+                          difference between a motivating target and a wrong
+                          one. */}
+                      {tierBlind ? (
+                        <>
+                          Your USD earnings aren&apos;t counted here yet — we
+                          couldn&apos;t read today&apos;s rate. This shows
+                          your EUR progress only.
+                        </>
+                      ) : nextTier ? (
                         <>
                           {eur(nextTier.min - lifetimeCombined)} more in
                           lifetime earnings to reach{" "}

@@ -154,7 +154,7 @@ export default function AdvertiserApp() {
   const ini = initials(name);
   // Approved affiliate or not. An `active` referral_links row is the only
   // thing that makes an advertiser one.
-  const { isAffiliate } = useIsAffiliate();
+  const { isAffiliate, isError: affiliateUnknown } = useIsAffiliate();
 
   const {
     data: wallet,
@@ -1328,6 +1328,17 @@ export default function AdvertiserApp() {
                     <Ic name="i-check" /> Copy link
                   </button>
                 </div>
+              ) : affiliateUnknown ? (
+                /* "Ask an admin to enable the affiliate program" is a
+                   statement about this account's STATUS, and we do not know
+                   it — the read failed. Telling an approved affiliate to go
+                   and ask for something they already have sends them to
+                   support about an account that works. */
+                <p className="muted" style={{ margin: 0 }}>
+                  We couldn&apos;t check your referral link just now. This
+                  does not mean you don&apos;t have one — reload and it should
+                  appear.
+                </p>
               ) : (
                 <p className="muted" style={{ margin: 0 }}>
                   Your referral link isn&apos;t set up yet — ask an admin to
@@ -1344,7 +1355,13 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   Referred
                 </div>
-                <div className="v">{aff.rows.length}</div>
+                {/* aff.isError was referenced NOWHERE on this screen, so
+                    a failed read printed Referred 0, Active 0, Commission
+                    €0 and Spend €0 — four figures it could not vouch for,
+                    on the page where an advertiser checks what their
+                    referrals earned them. The wallet block eight lines up
+                    already does this correctly. */}
+                <div className="v">{aff.isError ? "—" : aff.rows.length}</div>
               </div>
               <div className="stat">
                 <div className="k">
@@ -1354,7 +1371,9 @@ export default function AdvertiserApp() {
                   Active
                 </div>
                 <div className="v">
-                  {aff.rows.filter((r) => Number(r.topup_count) > 0).length}
+                  {aff.isError
+                    ? "—"
+                    : aff.rows.filter((r) => Number(r.topup_count) > 0).length}
                 </div>
               </div>
               <div className="stat">
@@ -1364,7 +1383,9 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   Commission
                 </div>
-                <div className="v">{eur(aff.totals.earnings_eur)}</div>
+                <div className="v">
+                  {aff.isError ? "—" : eur(aff.totals.earnings_eur)}
+                </div>
               </div>
               <div className="stat">
                 <div className="k">
@@ -1373,7 +1394,9 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   Spend driven
                 </div>
-                <div className="v">{eur(aff.totals.spend_eur)}</div>
+                <div className="v">
+                  {aff.isError ? "—" : eur(aff.totals.spend_eur)}
+                </div>
               </div>
             </div>
             <div className="card" style={{ padding: "16px 8px 8px" }}>
@@ -1428,7 +1451,9 @@ export default function AdvertiserApp() {
                             color: "var(--faint)",
                           }}
                         >
-                          No referrals yet.
+                          {aff.isError
+                            ? "We couldn't read your referrals just now — this is not a zero. Reload to try again."
+                            : "No referrals yet."}
                         </td>
                       </tr>
                     )}
