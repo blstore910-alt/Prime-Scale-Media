@@ -856,6 +856,10 @@ export default function AdvertiserApp() {
     lead: string;
     facts: [string, string][];
     cta: string;
+    /** The glyph on the confirm button. A tick means "done"; a button
+        that takes money out of a wallet should say so, like the one that
+        opened it. */
+    icon?: string;
     busyLabel: string;
     run: () => Promise<boolean>;
     /**
@@ -917,6 +921,7 @@ export default function AdvertiserApp() {
           }
         : undefined,
       title: isPlan ? "Renew your plan?" : "Pay this from your wallet?",
+      icon: "i-wallet",
       lead: `We take it out of your ${cur} wallet straight away. There is no undo — if it turns out to be wrong, message us and we sort it out.`,
       facts: [
         [
@@ -2652,23 +2657,34 @@ export default function AdvertiserApp() {
                 for less motion. */}
             {ask.hero && (
               <div className="planhero">
+                {/* Two slow aurorae and a rocket watermark. The brand mark
+                    is the quietest thing on it — a card that shouts its
+                    own logo at somebody about to pay is selling to
+                    somebody who has already bought. */}
+                <span className="ph-aur a" aria-hidden="true" />
+                <span className="ph-aur b" aria-hidden="true" />
+                <span className="ph-mark" aria-hidden="true">
+                  <Ic name="i-rocket" />
+                </span>
                 <span className="ph-sheen" aria-hidden="true" />
-                <div className="ph-top">
+                <div className="ph-body">
                   <span className="ph-tag">Your plan</span>
-                  <span className="ph-name">{ask.hero.name}</span>
+                  <div className="ph-name">{ask.hero.name}</div>
+                  <div className="ph-amt">
+                    <b>{ask.hero.amount}</b>
+                    <span>{ask.hero.per}</span>
+                  </div>
+                  <ul className="ph-perks">
+                    {ask.hero.perks.map((t) => (
+                      <li key={t}>
+                        <span className="ph-tick">
+                          <Ic name="i-check" />
+                        </span>
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="ph-amt">
-                  <b>{ask.hero.amount}</b>
-                  <span>{ask.hero.per}</span>
-                </div>
-                <ul className="ph-perks">
-                  {ask.hero.perks.map((t) => (
-                    <li key={t}>
-                      <Ic name="i-check" />
-                      {t}
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
             <p className="cap">{ask.lead}</p>
@@ -2720,7 +2736,8 @@ export default function AdvertiserApp() {
                   }
                 }}
               >
-                <Ic name="i-check" /> {asking ? ask.busyLabel : ask.cta}
+                <Ic name={ask.icon ?? "i-check"} />{" "}
+                {asking ? ask.busyLabel : ask.cta}
               </button>
             </div>
           </div>

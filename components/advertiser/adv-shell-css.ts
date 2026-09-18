@@ -292,40 +292,81 @@ export const ADV_CSS = `
   /* ── The plan, on the box that charges for it ──────────────────────
      Somebody is about to pay 200 a month. The confirmation listed
      "Monthly plan" in grey beside an amount — the same shape as a 5-euro
-     correction. This is the pricing card they chose it from: dark, which
-     is what this brand looks like when it means it, the name in the
-     display face, the amount large, and the two or three things that
-     actually distinguish one plan from another.
+     correction.
 
-     It sits ABOVE the facts and replaces none of them. The line about
-     there being no undo still follows it. */
-  .planhero{position:relative;overflow:hidden;margin:2px 0 14px;
-    border-radius:16px;padding:16px 18px 14px;color:#fff;
-    background:
-      radial-gradient(120% 120% at 8% 0%, rgba(91,141,255,.42), transparent 55%),
-      radial-gradient(110% 120% at 100% 100%, rgba(139,92,246,.45), transparent 52%),
-      linear-gradient(155deg,#04050E,#0c1230 58%,#141a3c)}
-  .planhero .ph-sheen{position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.13) 50%,transparent 62%);
-    transform:translateX(-120%);animation:phsheen 2.6s ease-out .25s 1 forwards}
+     What carries it: air, one very large name, and a price that is the
+     second thing you read and nothing else competing to be first. The
+     movement is two slow aurorae that never stop and never hurry, rather
+     than a sheen that fires once and leaves a static card behind. The
+     rocket is the quietest thing on it, because a card that shouts its own
+     logo at somebody who has already bought is selling to the wrong
+     person. */
+  .planhero{position:relative;overflow:hidden;isolation:isolate;
+    margin:2px 0 16px;border-radius:18px;color:#fff;
+    background:linear-gradient(158deg,#04050E,#0b1029 55%,#12183a);
+    box-shadow:0 18px 40px -26px rgba(16,22,60,.85),
+               inset 0 1px 0 rgba(255,255,255,.07)}
+  /* A hairline of brand across the top edge. */
+  .planhero::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
+    background:linear-gradient(90deg,transparent,#5B8DFF,#8B5CF6,transparent);
+    opacity:.85;z-index:3}
+  .planhero .ph-body{position:relative;z-index:2;padding:20px 20px 18px}
+
+  /* The light, moving. Two blobs on long, different periods so they never
+     land in the same place twice and it never reads as a loop. */
+  .planhero .ph-aur{position:absolute;border-radius:50%;filter:blur(34px);
+    pointer-events:none;z-index:0}
+  .planhero .ph-aur.a{width:260px;height:260px;top:-120px;left:-70px;
+    background:radial-gradient(circle,rgba(91,141,255,.55),transparent 68%);
+    animation:phdrift1 17s ease-in-out infinite}
+  .planhero .ph-aur.b{width:300px;height:300px;right:-110px;bottom:-150px;
+    background:radial-gradient(circle,rgba(139,92,246,.55),transparent 68%);
+    animation:phdrift2 23s ease-in-out infinite}
+  @keyframes phdrift1{
+    0%,100%{transform:translate(0,0) scale(1)}
+    50%{transform:translate(38px,26px) scale(1.16)}}
+  @keyframes phdrift2{
+    0%,100%{transform:translate(0,0) scale(1.05)}
+    50%{transform:translate(-34px,-22px) scale(.9)}}
+
+  /* One pass of light on open, and then it is done. */
+  .planhero .ph-sheen{position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.16) 50%,transparent 60%);
+    transform:translateX(-120%);animation:phsheen 2.4s ease-out .3s 1 forwards}
   @keyframes phsheen{to{transform:translateX(120%)}}
-  .planhero .ph-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-  .planhero .ph-tag{font-size:.6rem;font-weight:800;letter-spacing:.14em;
-    text-transform:uppercase;color:rgba(255,255,255,.55)}
-  .planhero .ph-name{font-family:var(--hd);font-weight:800;font-size:1.45rem;
-    letter-spacing:-.02em;line-height:1.1}
-  .planhero .ph-amt{display:flex;align-items:baseline;gap:7px;margin-top:6px}
-  .planhero .ph-amt b{font-family:var(--hd);font-weight:800;font-size:2rem;
-    letter-spacing:-.03em;line-height:1}
-  .planhero .ph-amt span{font-size:.82rem;color:rgba(255,255,255,.6)}
-  .planhero .ph-perks{list-style:none;margin:12px 0 0;padding:0;display:grid;
-    gap:6px}
-  .planhero .ph-perks li{display:flex;align-items:center;gap:8px;
-    font-size:.83rem;color:rgba(255,255,255,.88)}
-  .planhero .ph-perks svg{width:14px;height:14px;flex:0 0 auto;
-    color:#7ef0b8}
+
+  .planhero .ph-mark{position:absolute;right:14px;top:12px;z-index:1;
+    opacity:.11;pointer-events:none}
+  .planhero .ph-mark svg{width:60px;height:60px}
+
+  .planhero .ph-tag{display:block;font-size:.58rem;font-weight:800;
+    letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+  .planhero .ph-name{font-family:var(--hd);font-weight:800;font-size:2.1rem;
+    letter-spacing:-.035em;line-height:1.02;margin-top:4px}
+  .planhero .ph-amt{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+  .planhero .ph-amt b{font-family:var(--hd);font-weight:800;font-size:1.7rem;
+    letter-spacing:-.03em;line-height:1;
+    background:linear-gradient(92deg,#dfe8ff,#bcd0ff 45%,#c9b6ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .planhero .ph-amt span{font-size:.8rem;color:rgba(255,255,255,.55)}
+
+  .planhero .ph-perks{list-style:none;margin:16px 0 0;padding:0;display:grid;
+    gap:9px}
+  .planhero .ph-perks li{display:flex;align-items:center;gap:10px;
+    font-size:.84rem;color:rgba(255,255,255,.9);min-width:0}
+  .planhero .ph-tick{flex:0 0 auto;width:19px;height:19px;border-radius:50%;
+    display:grid;place-items:center;
+    background:rgba(126,240,184,.16);color:#7ef0b8}
+  .planhero .ph-tick svg{width:11px;height:11px}
+
+  @media (max-width:400px){
+    .planhero .ph-body{padding:17px 16px 15px}
+    .planhero .ph-name{font-size:1.8rem}
+    .planhero .ph-amt b{font-size:1.5rem}
+  }
   @media (prefers-reduced-motion:reduce){
     .planhero .ph-sheen{display:none}
+    .planhero .ph-aur{animation:none}
   }
   @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
   .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.mhead h2{font-size:1.15rem}.mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
