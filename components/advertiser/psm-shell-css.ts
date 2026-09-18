@@ -440,6 +440,30 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow{
     display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px
   }
+  /* FOUR CONTROLS, ONE ROW, ALL NAMED. Two-up put them in two rows and ate
+     half the card; icon-only put them in one row and said nothing. The
+     third way is to turn the button itself: the glyph goes ABOVE its word
+     instead of beside it, which buys each label the button's whole width
+     instead of what is left after the icon. At 400px that is about 78px a
+     tile — enough for "Commission" — and the four sit on one line at the
+     foot of the card.
+
+     Scoped to rows that actually HAVE a fourth control, so the two-button
+     rows elsewhere (Confirm & credit / Archive) keep their wide, plain
+     shape. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)){
+    grid-template-columns:repeat(4,minmax(0,1fr));gap:5px
+  }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
+    flex-direction:column;gap:3px;padding:9px 3px;font-size:.64rem;
+    line-height:1.15;letter-spacing:-.01em;text-align:center;height:auto
+  }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn svg{
+    width:16px;height:16px
+  }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .alab{
+    max-width:100%;white-space:normal;overflow-wrap:anywhere
+  }
   .psmapp .tbl.wide td.fullcell .actrow .btn{
     width:100%;min-width:0;justify-content:center;padding:8px 10px
   }
