@@ -1255,8 +1255,18 @@ export default function AdvertiserApp() {
                     : (subscription?.status ?? "—")}
                 </div>
                 <div className="sub">
+                  {/* THE INVOICE'S FIGURE, NOT THE PLAN'S. These are not
+                      the same number: the perks engine invoices a
+                      DISCOUNTED amount while subscriptions.amount stays at
+                      list price, so a customer holding a subscription
+                      discount read "€200 outstanding" on their dashboard
+                      while the invoice — and the Pay button in the card
+                      below — was €5. Same after a plan change or an
+                      adjustment, and the currency could differ too. The
+                      billing card was fixed for exactly this; the tile was
+                      missed. */}
                   {dueSubInvoice
-                    ? `${planMoney(subscription?.amount)} outstanding`
+                    ? `${dueBillAmount} outstanding`
                     : subscription?.next_payment_date
                       ? `Renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
                       : "No subscription"}

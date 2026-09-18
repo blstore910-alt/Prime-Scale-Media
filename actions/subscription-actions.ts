@@ -219,6 +219,24 @@ export async function changeSubscriptionAmount(
   if (!Number.isFinite(amount) || amount < 0) {
     return { ok: false, error: "Amount must be zero or positive" };
   }
+  // ZERO IS NOT A PLAN. Setting a subscription to 0 issued an unpaid
+  // invoice for 0, and invoice_pay_from_wallet refuses it — "Invoice has
+  // no payable amount". So the customer's Pay now produced a red toast
+  // every single time, the nightly auto-debit hit the same refusal and
+  // parked them in past_due with a dunning notice, and nothing could ever
+  // clear it. Meanwhile their dashboard read "Nothing to pay right now."
+  // directly above a €0.00 row badged Due.
+  //
+  // A customer who should not be billed has their subscription DISABLED,
+  // which is a state the screen can act on. Free-by-plan is expressed at
+  // the invite, where amount 0 correctly creates no subscription at all.
+  if (amount === 0) {
+    return {
+      ok: false,
+      error:
+        "A subscription cannot be zero — an invoice for nothing cannot be paid, and it would park this customer as past due for ever. Disable the subscription instead.",
+    };
+  }
   if (newCurrency && newCurrency !== "EUR" && newCurrency !== "USD") {
     return { ok: false, error: "Invalid currency" };
   }
