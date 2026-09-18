@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button";
 import { useAppContext } from "@/context/app-provider";
 import WithdrawDialog from "@/components/withdrawals/withdraw-dialog";
 import { useState } from "react";
+import { AD_ACCOUNT_STATUS_CHOICES } from "@/lib/ad-account-status";
 import {
   isAccountLocked,
   accountLockedReason,
@@ -327,10 +328,43 @@ export function AccountDetailsSheet({
                           <SelectTrigger className="capitalize" size="sm">
                             <SelectValue />
                           </SelectTrigger>
+                          {/* ── THE APP'S OWN LIST, NOT A LOCAL COPY ────
+                              lib/ad-account-status.ts is the single source
+                              of truth and says the three an admin may
+                              CHOOSE are active / disabled / banned.
+                              `paused` is written by the supplier sync, not
+                              picked. So this offered a status nobody sets
+                              and omitted the one everything else uses:
+                              /accounts filters by Disabled, J8 step 1 says
+                              to set Disabled, and the pool-release guard
+                              names it.
+                              Worse, on a `disabled` (or pending, or
+                              suspended) account there was NO matching
+                              item, so the control rendered EMPTY — and the
+                              only "off" option offered was Banned, which
+                              tells the customer "closed by the platform".
+                              The current value is kept as an extra option
+                              so a status we did not set still shows. */}
                           <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="paused">Paused</SelectItem>
-                            <SelectItem value="banned">Banned</SelectItem>
+                            {AD_ACCOUNT_STATUS_CHOICES.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>
+                                {c.label}
+                              </SelectItem>
+                            ))}
+                            {(() => {
+                              const cur = String(
+                                (data as { status?: string | null } | null)
+                                  ?.status ?? "",
+                              ).toLowerCase();
+                              const known = AD_ACCOUNT_STATUS_CHOICES.some(
+                                (c) => c.value === cur,
+                              );
+                              return cur && !known ? (
+                                <SelectItem value={cur} className="capitalize">
+                                  {cur} (set elsewhere)
+                                </SelectItem>
+                              ) : null;
+                            })()}
                           </SelectContent>
                         </Select>
                       </div>

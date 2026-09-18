@@ -651,13 +651,30 @@ export default function WiseReviewPanel() {
 
   // Ask Wise what it knows about the ones we recorded blind. Context
   // only — reference, sender, description — never a status or a match.
+  // ── AN AUTOMATIC RUN REPORTS BY FILLING THE LIST IN ─────────────────
+  //
+  // The mount effect calls this, so the mutation's own toasts fired on
+  // page load with nothing pressed — including a THIRTY-SECOND
+  // toast.message carrying raw Wise HTTP statuses and a snippet of their
+  // response body, and a toast.error when Wise cannot be reached, which
+  // on production is the normal outcome because there is no Wise token.
+  // An admin opened /wallet-topups and got a half-minute technical
+  // report as though they had pressed "Sync with Wise".
+  //
+  // The effect's own comment says "It is silent: it reports by filling
+  // the list in, not with a toast." Now it is.
   const refresh = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { silent?: boolean }) => {
       const res = await refreshWiseDepositDetails();
       if (!res.ok) throw new Error(res.error);
-      return res.data;
+      return { ...res.data, silent: !!opts?.silent };
     },
     onSuccess: (d) => {
+      if (d?.silent) {
+        // Still refresh the list — that IS the report.
+        queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+        return;
+      }
       if (d.filled > 0) {
         // It no longer says "Re-check matches to use them". The refresh
         // re-matches itself now, so that sentence was instructions for a
@@ -737,8 +754,13 @@ Statement tried: ${p.attempts.join(" | ")}`
       queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wise-ingest-status"] });
     },
-    onError: (e: Error) =>
-      toast.error("Couldn't reach Wise", { description: e.message }),
+    // Quiet on the automatic run too. On production there is no Wise
+    // token, so THIS is the branch that fires on every page load — a red
+    // "Couldn't reach Wise" for something nobody asked for.
+    onError: (e: Error, vars) => {
+      if (vars?.silent) return;
+      toast.error("Couldn't reach Wise", { description: e.message });
+    },
   });
 
   // Archived rows are out of the way, not gone. The toggle brings them
@@ -832,7 +854,7 @@ Statement tried: ${p.attempts.join(" | ")}`
     // the automatic run was in flight — and each run is up to sixty calls
     // to Wise, both of them writing the same rows. It also means the
     // button, the spinner and the toast all describe the automatic run.
-    refresh.mutate();
+    refresh.mutate({ silent: true });
     // `refresh` is a stable mutation object from react-query and the effect
     // is ref-guarded to one run per mount either way; listing it only
     // silences the rule.
@@ -970,7 +992,7 @@ Statement tried: ${p.attempts.join(" | ")}`
             <button
               className="btn ghost sm"
               disabled={refresh.isPending || rematch.isPending}
-              onClick={() => refresh.mutate()}
+              onClick={() => refresh.mutate({})}
               title="Ask Wise again for the reference and sender of every deposit that arrived without them, then re-match"
             >
               <RefreshCw

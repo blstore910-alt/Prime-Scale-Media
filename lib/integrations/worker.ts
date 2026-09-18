@@ -168,6 +168,50 @@ async function dispatch(
 > {
   if (job.provider === "supplier1") {
     if (job.operation === "push_topup") {
+      // ── IS THE TOP-UP STILL COLLECTED? ────────────────────────────
+      //
+      // The job carries its own amount, frozen at enqueue time, and
+      // nothing re-read the row. So: an admin verifies a EUR 10,000
+      // ad-account top-up, the job is queued, the admin notices the
+      // wrong account and undoes the verify — which reverses the money
+      // on our side — and up to a minute later this worker funds the
+      // supplier anyway, for a payment the app has un-collected.
+      //
+      // This file's own header promises `* -> cancelled (admin action,
+      // worker never picks these)`, and nothing in the tree ever writes
+      // `cancelled` to integration_jobs. There is no admin action. So
+      // the check has to be here, against the row itself.
+      //
+      // The idempotency key is `topup:<id>`, which is the only link the
+      // job keeps to what it is paying for.
+      const topupId = String(job.idempotency_key ?? "").startsWith("topup:")
+        ? String(job.idempotency_key).slice("topup:".length)
+        : null;
+      if (topupId) {
+        const { data: row, error: rowErr } = await ctx.supabase
+          .from("top_ups")
+          .select("status")
+          .eq("id", topupId)
+          .maybeSingle();
+        // A read we could not make is not permission to send money.
+        if (rowErr) {
+          return {
+            ok: false,
+            error: "Could not confirm the top-up is still completed",
+            retryable: true,
+          };
+        }
+        if (!row || String(row.status ?? "") !== "completed") {
+          return {
+            ok: false,
+            error: `The top-up is no longer completed (${row?.status ?? "gone"}), so nothing was funded`,
+            // NOT retryable: this is a decision, not a hiccup. Retrying
+            // would just ask the same question every minute for ever.
+            retryable: false,
+          };
+        }
+      }
+
       const res = await ctx.supplier1.pushTopup({
         external_ad_account_id: String(job.payload.external_ad_account_id),
         amount_cents: Number(job.payload.amount_cents),
