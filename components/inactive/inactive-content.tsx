@@ -25,6 +25,14 @@ export default function InactiveContent({
   user: User;
   profile: UserProfile;
 }) {
+  // The person looking at this page, so the table below can be
+  // scoped to their own payments instead of the tenant's.
+  const advertiserId =
+    (profile as { advertiser?: { id?: string }[] | { id?: string } | null })
+      ?.advertiser instanceof Array
+      ? (profile as { advertiser?: { id?: string }[] }).advertiser?.[0]?.id ?? null
+      : ((profile as { advertiser?: { id?: string } | null }).advertiser?.id ?? null);
+
   return (
     <AppProvider user={user} profile={profile}>
       <QueryClientProvider client={queryClient}>
@@ -73,7 +81,17 @@ export default function InactiveContent({
                 </h2>
                 <p className="text-sm text-muted-foreground">Read-only view</p>
               </div>
-              <ReadonlyTopupsTable />
+              {/* THEIR OWN TOP-UPS, NOT THE TENANT'S.
+                  This renders the admin table, which reads top_ups_view
+                  with no advertiser and no tenant predicate — it relied
+                  entirely on the view carrying RLS, and the view is still
+                  owner-semantics on live. Even once that is fixed the
+                  payload is the whole view row, including top_ups.source,
+                  which the GDPR export excludes by name because it can
+                  carry a supplier identifier.
+                  Scoped to the person looking, and to the columns the row
+                  renderer actually uses. */}
+              <ReadonlyTopupsTable advertiserId={advertiserId} />
             </div>
 
             <p className="text-center text-sm text-gray-500 mt-8">

@@ -41,6 +41,7 @@ import { effectiveMinTopup } from "@/lib/min-topup";
 import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import FinanceReport from "@/components/finance/finance-report";
+import { isAccountLocked } from "@/lib/pure-account-status";
 
 dayjs.extend(relativeTime);
 
@@ -92,15 +93,6 @@ const platformLabel = (p: string | null) =>
 // button beside it. A status we do not recognise is not a working account;
 // it is a status nobody has taught this screen, and the customer should
 // not be invited to put money on it.
-const ACCOUNT_LOCKED_STATUSES = [
-  "banned",
-  "paused",
-  "pending",
-  "disabled",
-  "suspended",
-  "rejected",
-  "closed",
-];
 
 const statusBadge = (st: string | null) => {
   const v = (st ?? "").trim().toLowerCase();
@@ -227,12 +219,26 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("subscriptions")
+        // status IN the billable set, newest first — the same rows the
+        // billing run and the top-up RPC read. With no filter the newest
+        // row won whatever its status, so an inactive draft created beside
+        // a live plan made the screen say "not active" while the server
+        // still saw a running subscription: the top-up dialog then dropped
+        // its minimum to 0, took a EUR 50 transfer, and the RPC refused it
+        // with "Minimum top-up is 300 EUR" after the money had been sent.
         .select("amount, currency, status, next_payment_date")
         .eq("advertiser_id", advertiserId)
         .eq("tenant_id", tenantId)
+        // The BILLABLE set, not every row. Without this the newest row won
+        // whatever its status, so an inactive draft sitting beside a live
+        // plan made this screen read "not active" while the server still
+        // saw a running subscription.
+        .in("status", ["active", "past_due"])
         .order("start_date", { ascending: false })
         .limit(1);
       if (error) throw error;
+      // Nothing billable is a real answer — it means no plan is running,
+      // which is what every server rule means by the same words.
       return data?.[0] ?? null;
     },
   });
@@ -329,7 +335,15 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("wallet_topups")
-        .select()
+        // NOT a bare .select(). postgrest-js defaults the columns
+        // argument to "*", so this shipped the whole row while the type
+        // annotation above lists seven fields — including notes and
+        // rejection_reason, which are the admin's private remarks about
+        // this payment, delivered to the person they are about. A grep
+        // for select("*") does not match select().
+        .select(
+          "id, created_at, currency, amount, status, reference_no, description",
+        )
         .eq("wallet_id", wallet!.id)
         .order("created_at", { ascending: false })
         .limit(30);
@@ -1083,7 +1097,9 @@ export default function AdvertiserApp() {
     // Locked for money, not just for looks: a switched-off account must
     // not offer a Top up button, and until now `disabled` was not in this
     // list at all.
-    const locked = ACCOUNT_LOCKED_STATUSES.includes(
+    // One list, in lib/pure-account-status, used by the card, the
+    // sheet and the server action. An unknown status counts as locked.
+    const locked = isAccountLocked(
       (a.status ?? "").trim().toLowerCase(),
     );
     return (

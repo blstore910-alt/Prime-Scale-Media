@@ -32,8 +32,21 @@ export default async function InactivePage() {
   }
 
   const profile = existingProfile
-    ? profiles?.find((p) => p.id === existingProfile)
+    ? profiles?.find((p) => p.id === existingProfile) ?? profiles[0]
     : profiles[0];
+
+  // ── THIS PAGE IS FOR PEOPLE WHO ARE ACTUALLY SWITCHED OFF ───────────
+  //
+  // /inactive sits OUTSIDE the (app) group, so it never passes that
+  // layout's role and status gate, and the middleware only checks that a
+  // session exists. So any signed-in advertiser who typed the path got
+  // the page — and the page renders the admin top-ups table.
+  //
+  // A route that is not behind the gate has to carry its own.
+  const isInactive =
+    profile?.is_active === false ||
+    String(profile?.status ?? "active").toLowerCase() !== "active";
+  if (!isInactive) redirect("/dashboard");
 
   return <InactiveContent user={user} profile={profile} />;
 }

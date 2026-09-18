@@ -43,6 +43,10 @@ import { Button } from "@/components/ui/button";
 import { useAppContext } from "@/context/app-provider";
 import WithdrawDialog from "@/components/withdrawals/withdraw-dialog";
 import { useState } from "react";
+import {
+  isAccountLocked,
+  accountLockedReason,
+} from "@/lib/pure-account-status";
 
 export function AccountDetailsSheet({
   accountId,
@@ -380,9 +384,24 @@ export function AccountDetailsSheet({
                     <SlidersHorizontal /> Set topup limit
                   </Button>
                 )}
+                {/* NOT ON A SWITCHED-OFF ACCOUNT. The card in the
+                    advertiser app correctly hides Top up when the status
+                    is locked — but the card body is still clickable and
+                    opens this sheet, which gated Withdraw on "is this an
+                    advertiser" and nothing else. A real pending
+                    withdrawal was created on a disabled account and an
+                    admin could approve it. See lib/pure-account-status. */}
                 {isAdvertiser && (
                   <Button
                     variant="outline"
+                    disabled={isAccountLocked(
+                      (data as { status?: string | null } | null)?.status,
+                    )}
+                    title={
+                      accountLockedReason(
+                        (data as { status?: string | null } | null)?.status,
+                      ) ?? "Move funds back to your wallet"
+                    }
                     onClick={() => setWithdrawOpen(true)}
                   >
                     Withdraw to wallet

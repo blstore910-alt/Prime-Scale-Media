@@ -5,6 +5,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 export type TopupsQueryParams = {
+  /**
+   * WHOSE TOP-UPS. Absent on the admin screen, which is meant to see the
+   * tenant's; present on any customer-facing surface, which is not.
+   *
+   * This query reads top_ups_view with no tenant and no advertiser
+   * predicate — it relies entirely on the view carrying row-level
+   * security through, and the view is owner-semantics until the pending
+   * fix lands. /inactive rendered this table to a signed-in customer, so
+   * "the view will sort it out" was the only thing between them and
+   * every tenant's payments.
+   *
+   * A customer surface says whose rows it wants. Belt as well as braces.
+   */
+  advertiserId?: string | null;
   type?: string | undefined;
   source?: string | undefined;
   status?: string | undefined;
@@ -50,6 +64,9 @@ export default function useTopups(params: TopupsQueryParams = {}) {
   const queryKey = useMemo(
     () => [
       "top-ups",
+      // In the key as well as the deps: two surfaces sharing one cache
+      // entry is how a customer ends up looking at the admin result.
+      params.advertiserId ?? "all-advertisers",
       params.type ?? "all",
       params.source ?? "all",
       params.status ?? "all",
@@ -59,6 +76,7 @@ export default function useTopups(params: TopupsQueryParams = {}) {
       params.perPage ?? 10,
     ],
     [
+      params.advertiserId,
       params.type,
       params.source,
       params.status,
@@ -74,9 +92,33 @@ export default function useTopups(params: TopupsQueryParams = {}) {
   >({
     queryKey,
     queryFn: async () => {
-      const { type, source, status, search, page = 1, perPage = 10 } = params;
+      const {
+        advertiserId,
+        type,
+        source,
+        status,
+        search,
+        page = 1,
+        perPage = 10,
+      } = params;
 
-      let query = supabase.from("top_ups_view").select(`*`, { count: "exact" });
+      // A customer gets the columns their own row renderer uses, not the
+      // whole view. top_ups.source can carry a supplier identifier — the
+      // GDPR export excludes it by name for exactly that reason — and
+      // notes is admin free text about them.
+      //
+      // Two literal selects rather than one conditional string, because
+      // postgrest-js infers the row type from the literal and a ternary
+      // gives it a union it cannot parse.
+      let query = advertiserId
+        ? supabase
+            .from("top_ups_view")
+            .select(
+              "id, created_at, number, type, status, currency, amount_received, amount_usd, topup_amount, fee, fee_amount, account_name, tenant_client_code",
+              { count: "exact" },
+            )
+            .eq("advertiser_id", advertiserId)
+        : supabase.from("top_ups_view").select(`*`, { count: "exact" });
 
       if (type && type !== "all") {
         query = query.eq("type", type);

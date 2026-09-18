@@ -1024,13 +1024,23 @@ export default function AffiliateApp() {
                       like the affiliate is owed nothing. */}
                   <button
                     className="btn gold"
-                    onClick={() => setPayOpen(true)}
-                    disabled={statsUnavailable}
+                    // A EUR 0.00 request cannot be acted on and reads, to
+                    // whoever receives it, like the affiliate is owed
+                    // nothing — which the comment above already says. The
+                    // button was guarded on the stats being readable and
+                    // not on there being anything to ask for.
+                    disabled={
+                      statsUnavailable ||
+                      (all.payable.eur <= 0 && all.payable.usd <= 0)
+                    }
                     title={
                       statsUnavailable
                         ? "Your balance couldn't be loaded — reload before requesting a payout."
-                        : undefined
+                        : all.payable.eur <= 0 && all.payable.usd <= 0
+                          ? "Nothing outstanding to request yet"
+                          : "Request a payout"
                     }
+                    onClick={() => setPayOpen(true)}
                   >
                     <Ic name="i-download" /> Request payout
                   </button>
@@ -1515,9 +1525,21 @@ export default function AffiliateApp() {
               </button>
             </div>
             <p className="cap">
-              Your balance: <b>{eur(all.totals.earnings_eur)}</b> in EUR +{" "}
-              <b>{usd(all.totals.earnings_usd)}</b> in USD. Our team processes
-              payouts manually.
+              {/* WHAT IS STILL OWED, not what was ever earned.
+                  This read earnings_*, which is lifetime gross — so an
+                  affiliate already paid EUR 500 saw EUR 500 here and the
+                  email below asked for it a second time, indistinguishable
+                  from a first request on both sides. The RPC has reported
+                  unpaid_* since migration 20260918160000 and nothing had
+                  ever read it. Where the RPC does not report it the figure
+                  falls back to lifetime and says so, rather than implying
+                  a precision it does not have. */}
+              {all.payable.isLifetime ? "Earned to date" : "Still owed to you"}:{" "}
+              <b>{eur(all.payable.eur)}</b> in EUR +{" "}
+              <b>{usd(all.payable.usd)}</b> in USD.{" "}
+              {all.payable.isLifetime
+                ? "That is everything you have earned, not what is outstanding — we'll confirm the exact figure."
+                : "Our team processes payouts manually."}
             </p>
             <div className="mlabel">Payout currency</div>
             <div className="seg2">
@@ -1555,16 +1577,26 @@ export default function AffiliateApp() {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   });
+                // The outstanding figure, matching the line above. Asking
+                // for lifetime gross means asking for money already paid.
                 const amount =
                   showEurUsd === "EUR"
-                    ? `€${exact(all.totals.earnings_eur)}`
-                    : `$${exact(all.totals.earnings_usd)}`;
+                    ? `€${exact(all.payable.eur)}`
+                    : `$${exact(all.payable.usd)}`;
                 const subject = encodeURIComponent(
                   `Payout request — ${amount} (${showEurUsd})`,
                 );
                 const body = encodeURIComponent(
                   `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\n` +
-                    `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n\nThank you.`,
+                    `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n` +
+                    // Which basis the figure came from, so whoever reads
+                    // it knows whether to check it against the ledger
+                    // before paying.
+                    `Basis: ${
+                      all.payable.isLifetime
+                        ? "lifetime earned - outstanding figure unavailable, please verify"
+                        : "outstanding, already net of anything paid"
+                    }\n\nThank you.`,
                 );
                 window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
                 setPayOpen(false);

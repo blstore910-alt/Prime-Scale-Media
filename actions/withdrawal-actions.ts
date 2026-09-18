@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { resolveAdminContext, resolveUserContext } from "./_shared";
+import {
+  isAccountLocked,
+  accountLockedReason,
+} from "@/lib/pure-account-status";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -81,11 +85,30 @@ export async function requestAdAccountWithdrawal(input: {
   // value is only used to catch a mismatch and say so.
   const { data: acct, error: acctErr } = await supabase
     .from("ad_accounts")
-    .select("id, name, currency")
+    .select("id, name, currency, status")
     .eq("id", input.ad_account_id)
     .maybeSingle();
   if (acctErr) return { ok: false, error: safeErrorMessage(acctErr) };
   if (!acct) return { ok: false, error: "That ad account was not found." };
+
+  // ── A SWITCHED-OFF ACCOUNT MOVES NO MONEY ───────────────────────────
+  //
+  // The sheet gates the button on this now, and a button is not a
+  // boundary: the RPC checks ownership and never looks at status, so a
+  // withdrawal from a banned or closed account was created as `pending`
+  // and an admin could approve it — crediting the wallet from an account
+  // the platform had already shut. Nothing on the approve screen shows
+  // the status either.
+  //
+  // An unknown status counts as locked. See lib/pure-account-status.
+  if (isAccountLocked((acct as { status?: string | null }).status)) {
+    return {
+      ok: false,
+      error:
+        accountLockedReason((acct as { status?: string | null }).status) +
+        " Nothing can be withdrawn from it — message us if that looks wrong.",
+    };
+  }
 
   // ── THE BALANCE IS USD. THE ACCOUNT'S CURRENCY IS NOT THE BALANCE'S ──
   //

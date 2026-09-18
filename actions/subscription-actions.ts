@@ -91,15 +91,32 @@ export async function createSubscriptionAsAdmin(
     return { ok: false, error: "Forbidden" };
   }
 
+  // ── THE SAME SET THE BILLING RUN BILLS ──────────────────────────────
+  //
+  // This looked for `active` only, and the nightly run collects from
+  // `active` AND `past_due`. So: a customer's plan cannot be collected
+  // one night and is set past_due; an admin opens New subscription, this
+  // guard finds no active row and lets it through; the activate guard
+  // below finds none either. Two rows now exist, the run raises two
+  // invoices, and the auto-debit takes both from one wallet — EUR 198 a
+  // month for a EUR 99 plan. The customer's dashboard reads the newest
+  // row only, so they see one plan and one charge.
+  const BILLABLE = ["active", "past_due"];
   const { data: existing } = await supabase
     .from("subscriptions")
-    .select("id")
+    .select("id, status")
     .eq("advertiser_id", input.advertiser_id)
-    .eq("status", "active")
+    .in("status", BILLABLE)
     .limit(1)
     .maybeSingle();
   if (existing) {
-    return { ok: false, error: "Advertiser already has an active subscription" };
+    return {
+      ok: false,
+      error:
+        existing.status === "past_due"
+          ? "This advertiser already has a subscription — it is past due, which still bills. Settle or stop that one first."
+          : "Advertiser already has an active subscription",
+    };
   }
 
   const { data: inserted, error: insertError } = await supabase
@@ -172,11 +189,14 @@ export async function setSubscriptionStatus(
   // shows only the newer plan. They are billed twice and can only see —
   // and only pay — one of them.
   if (status === "active" && sub.advertiser_id) {
+    // past_due too, for the reason given on the create path above: a
+    // past_due subscription is still being billed, so activating a second
+    // one beside it doubles the charge.
     const { data: others } = await supabase
       .from("subscriptions")
       .select("id")
       .eq("advertiser_id", sub.advertiser_id)
-      .eq("status", "active")
+      .in("status", ["active", "past_due"])
       .neq("id", subscriptionId)
       .limit(1);
     if ((others ?? []).length > 0) {

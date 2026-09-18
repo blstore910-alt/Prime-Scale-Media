@@ -17,7 +17,12 @@ import ReadonlyTopupRow from "./readonly-topup-row";
 import TopupsFilters from "./topups-filters";
 import useTopups from "./use-topups";
 
-export default function ReadonlyTopupsTable() {
+export default function ReadonlyTopupsTable({
+  advertiserId,
+}: {
+  /** Whose top-ups. Required on a customer surface — see use-topups.ts. */
+  advertiserId?: string | null;
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -87,6 +92,7 @@ export default function ReadonlyTopupsTable() {
   }, [type, source, status, sort, debouncedSearch]);
 
   const { topups, total, isLoading, isError, error } = useTopups({
+    advertiserId,
     type: type === "all" ? undefined : type,
     source: source === "all" ? undefined : source,
     status: status === "all" ? undefined : status,
