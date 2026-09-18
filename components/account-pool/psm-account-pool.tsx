@@ -274,7 +274,24 @@ export default function PsmAccountPool() {
       const res = await assignSupplierAdAccount({
         poolId: assigning.id,
         advertiserId,
-        fee: feeInput.trim() === "" ? undefined : Number(feeInput),
+        // ── BLANK MEANS THE PLAN RATE, WHICH IS WHAT THE FIELD SAYS ────
+        //
+        // The placeholder is the advertiser's plan rate and the hint
+        // under it reads "Their plan rate: 5%" — the ordinary "blank
+        // means this" affordance. But blank sent undefined, and the
+        // server falls back to pool.fee_percentage, which is what we PAY
+        // THE SUPPLIER. That lands in ad_accounts.fee, which outranks
+        // the plan rate permanently.
+        //
+        // So allocating a 2%-cost account to a customer on a 5% plan
+        // with the box left empty earned exactly zero margin on every
+        // future top-up, for ever, under "Ad account allocated to the
+        // advertiser." The margin strip on the same dialog refuses to
+        // compute in precisely that state.
+        fee:
+          feeInput.trim() === ""
+            ? planFee ?? undefined
+            : Number(feeInput),
         supplierFeePct:
           supplierFeeInput.trim() === "" ? null : Number(supplierFeeInput),
         name: nameInput.trim() || undefined,

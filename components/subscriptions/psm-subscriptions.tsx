@@ -359,7 +359,7 @@ export default function PsmSubscriptions() {
                               onClick={() =>
                                 askStatus(s, "active", {
                                   title: "Start billing this customer?",
-                                  lead: "It begins a recurring monthly charge, and the billing run raises the first invoice on its next pass.",
+                                  lead: "It begins a recurring monthly charge. If this plan was paused or stopped, the billing run starts from its stored next-payment date and walks forward — so every month it was off is invoiced on the next pass and auto-debited from the wallet. Move the next payment date first if you do not want that.",
                                   cta: "Yes, activate it",
                                   done: "Subscription activated successfully.",
                                 })
@@ -458,7 +458,7 @@ export default function PsmSubscriptions() {
                               onClick={() =>
                                 askStatus(s, "active", {
                                   title: "Start billing this customer?",
-                                  lead: "It begins a recurring monthly charge, and the billing run raises the first invoice on its next pass.",
+                                  lead: "It begins a recurring monthly charge. If this plan was paused or stopped, the billing run starts from its stored next-payment date and walks forward — so every month it was off is invoiced on the next pass and auto-debited from the wallet. Move the next payment date first if you do not want that.",
                                   cta: "Yes, activate it",
                                   done: "Subscription activated successfully.",
                                 })

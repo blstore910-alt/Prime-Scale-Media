@@ -145,11 +145,29 @@ export default function PsmPromotions() {
           throw new Error("A discount cannot exceed 100%.");
         }
       }
+      // AN EMPTY FIELD IS A MISTAKE, NOT A ONE. Number("") and
+      // Number("0") are both 0, and `|| 1` turned both into 1 — so
+      // clearing the count, or typing 0, granted a free ad-account
+      // request: 50 EUR given away that nobody decided to give, under
+      // "Perk granted." A negative went through unvalidated and was
+      // clamped by the RPC to 0, producing an Active perk reading "0
+      // remaining" with the same success toast.
+      //
+      // The discount field four lines up is validated and its comment
+      // states this rule. This one did not follow it.
+      if (isCount) {
+        const raw = String(count ?? "").trim();
+        const n = Number(raw);
+        if (raw === "" || !Number.isFinite(n) || n < 1) {
+          throw new Error("Enter how many free requests this grants — at least 1.");
+        }
+      }
+
       const res = await grantPerk({
         advertiser_id: advertiserId,
         kind,
         amount: isDiscount ? Number(amount) : null,
-        remaining: isCount ? Number(count) || 1 : null,
+        remaining: isCount ? Math.floor(Number(count)) : null,
         expires_at: expires
           ? new Date(`${expires}T23:59:59`).toISOString()
           : null,

@@ -38,7 +38,19 @@ export default function WalletMinTopupDialog({
   }, [open, wallet]);
 
   const parsedMinTopup = useMemo(() => Number(minTopup), [minTopup]);
-  const isInvalid = Number.isNaN(parsedMinTopup) || parsedMinTopup < 0;
+  // AN EMPTY BOX IS A MISTAKE, NOT A ZERO.
+  //
+  // Number("") is 0, so clearing the field to start again left isInvalid
+  // false, Save enabled, and 0 written — and the app reads 0 as "no
+  // minimum at all", so that customer could then transfer EUR 5 against
+  // a EUR 300 floor. The warning "Enter a valid amount of 0 or greater"
+  // could never fire for a blank field, which is exactly the case it
+  // reads as if it covers.
+  //
+  // A typed 0 is still allowed: that is a decision, and an admin who
+  // means it can type it.
+  const isBlank = String(minTopup ?? "").trim() === "";
+  const isInvalid = isBlank || Number.isNaN(parsedMinTopup) || parsedMinTopup < 0;
 
   const { mutate, isPending } = useMutation({
     mutationKey: ["wallet-min-topup", wallet?.id],
