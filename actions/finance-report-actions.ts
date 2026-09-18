@@ -218,6 +218,13 @@ export async function financeReportForMe(): Promise<
         "id, account_id, topup_amount, fee_amount, amount_received, currency, status, created_at, type",
       )
       .eq("advertiser_id", advertiserId)
+      // A DELETED TOP-UP IS NOT A DEBIT. `is_deleted` is the only way to
+      // strike out a completed top-up, and this statement showed the
+      // struck-out ones as money that left the wallet — so a customer's
+      // own report carried a phantom debit and its Net disagreed with
+      // their actual balance by exactly that amount, with nothing on the
+      // screen to explain it. They hand this CSV to a bookkeeper.
+      .not("is_deleted", "is", true)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to),
@@ -319,9 +326,18 @@ export async function financeReportForMe(): Promise<
       id: `inv-${r.id}`,
       at: String(r.paid_at ?? r.created_at ?? ""),
       kind: "invoice",
+      // A VOID INVOICE IS NOT UNPAID. `(paid ? "" : " (unpaid)")` called
+      // a cancelled invoice money owed, on the customer's own statement.
+      // The amount is correctly 0 either way; the words were not.
       label:
         String(r.type ?? "invoice").replace(/_/g, " ") +
-        (paid ? "" : " (unpaid)"),
+        (paid
+          ? ""
+          : String(r.status ?? "") === "void"
+            ? " (cancelled)"
+            : String(r.status ?? "") === "refunded"
+              ? " (refunded)"
+              : " (unpaid)"),
       reference: str(r.number),
       account: null,
       counterparty: null,

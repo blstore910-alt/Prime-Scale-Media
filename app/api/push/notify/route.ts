@@ -217,6 +217,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, skipped: "no recipient_user_id" });
     }
 
+    // 3a-bis) ── DO NOT PUSH TO SOMEBODY WHO HAS BEEN SWITCHED OFF ────
+    //
+    // Deactivation and the GDPR erasure request both set is_active =
+    // false (and status pending_erasure), and neither touches
+    // push_subscriptions — so a customer whose account was closed, or
+    // who had asked to be erased, went on receiving notifications on
+    // their phone. This is the last delivery point, so it is the right
+    // place to ask.
+    {
+      const { data: recipient } = await supabase
+        .from("user_profiles")
+        .select("is_active, status")
+        .eq("user_id", userId)
+        .limit(1);
+      const p0 = (recipient ?? [])[0] as
+        | { is_active?: boolean | null; status?: string | null }
+        | undefined;
+      if (
+        p0 &&
+        (p0.is_active === false ||
+          (p0.status ?? "active") === "inactive" ||
+          (p0.status ?? "") === "pending_erasure")
+      ) {
+        return NextResponse.json({ ok: true, skipped: "recipient inactive" });
+      }
+    }
+
     // 3b) Respect the recipient's per-type push preference. Absence of a
     // row means enabled (opt-out model), so we only skip on an explicit
     // push_enabled=false. The in-app notification row already exists —

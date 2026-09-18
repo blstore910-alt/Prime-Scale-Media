@@ -109,11 +109,18 @@ async function syncSupplierPools(
         parts.push(`${c.externalId}: ${c.from ?? "unknown"} → ${c.to ?? "unknown"}`);
       }
       try {
+        // ACTIVE admins. A switched-off admin keeps their `role`, so
+        // this kept notifying them every fifteen minutes about inventory
+        // they can no longer see. Every server action and eleven RPCs
+        // were hardened for is_active in the 2026-08/09 sweep; the
+        // notification recipients were the residue.
         const { data: admins } = await supabase
           .from("user_profiles")
           .select("user_id")
           .eq("tenant_id", tenantId)
           .eq("role", "admin")
+          .neq("is_active", false)
+          .neq("status", "inactive")
           .limit(20);
         for (const a of (admins ?? []) as Array<{ user_id: string }>) {
           await supabase.from("notifications").insert({

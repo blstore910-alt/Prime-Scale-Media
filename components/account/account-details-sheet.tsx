@@ -558,7 +558,11 @@ function TopupHistory({ account }: { account: AdAccount }) {
         .select(
           "id, created_at, amount_received, currency, topup_amount, fee, fee_amount, status",
         )
-        .eq("account_id", account.id);
+        .eq("account_id", account.id)
+        // A deleted top-up is not history. This sheet is shown to the
+        // ADVERTISER as well as the admin, so a struck-out row read as a
+        // funding they never received.
+        .not("is_deleted", "is", true);
       if (error) throw error;
       return data;
     },

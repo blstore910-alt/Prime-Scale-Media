@@ -289,7 +289,16 @@ function buildInvoiceHtml(
   const normalizedStatus = compactText(invoice.status).toLowerCase();
   const isPaid = normalizedStatus === "paid";
   const statusText = formatLabel(normalizedStatus) || "Unpaid";
-  const statusClass = isPaid ? "paid" : "unpaid";
+  // ── A VOID INVOICE IS NOT A DEBT ────────────────────────────────────
+  //
+  // `isPaid ? "paid" : "unpaid"` printed "Void" in the red unpaid style
+  // on a document a customer keeps, so a cancelled invoice read as money
+  // owed. lib/invoice-status.ts exists for exactly this distinction and
+  // both screens use it; the PDF did not. Void and refunded are settled
+  // in the sense that matters here: nothing is owed.
+  const isSettled =
+    isPaid || normalizedStatus === "void" || normalizedStatus === "refunded";
+  const statusClass = isSettled ? "paid" : "unpaid";
   const paidAt =
     isPaid && invoice.paid_at ? formatIsoDate(invoice.paid_at) : "";
   const settlementLabel = isPaid ? "Amount Paid" : "Amount Due";

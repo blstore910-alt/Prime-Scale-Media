@@ -11,6 +11,7 @@ import {
 } from "./_shared";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { isAccountLocked } from "@/lib/pure-account-status";
 import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -290,11 +291,26 @@ export async function createTopupAsAdmin(
   if (typeof input.account_id === "string" && input.account_id.length > 0) {
     const { data: acct } = await supabase
       .from("ad_accounts")
-      .select("id, tenant_id, advertiser_id")
+      .select("id, tenant_id, advertiser_id, status, name")
       .eq("id", input.account_id)
       .maybeSingle();
     if (!acct || acct.tenant_id !== profile.tenant_id) {
       return { ok: false, error: "Ad account not found" };
+    }
+    // ── DO NOT FUND A LOCKED ACCOUNT ──────────────────────────────────
+    //
+    // isAccountLocked is honoured in three places and all three are the
+    // WITHDRAWAL side or the customer's own Top up button. The funding
+    // side had no check at all, so an admin could create — and mark paid
+    // — a top-up against a banned or disabled account, and a bulk run of
+    // 200 rows could include several. The customer-facing card is
+    // correctly locked, which is what made the gap hard to see.
+    if (isAccountLocked(acct.status)) {
+      return {
+        ok: false,
+        error: `${acct.name ?? "That ad account"} is ${String(acct.status ?? "not usable")}, so money sent to it cannot be spent. Reactivate it first.`,
+        code: "invalid",
+      };
     }
     if (acct.advertiser_id !== input.advertiser_id) {
       return {
@@ -488,7 +504,7 @@ export async function bulkCreateTopupsAsAdmin(
   if (accountIds.length > 0) {
     const { data: accts, error: acctsError } = await supabase
       .from("ad_accounts")
-      .select("id, tenant_id, advertiser_id")
+      .select("id, tenant_id, advertiser_id, status, name")
       .in("id", accountIds);
     if (acctsError) return { ok: false, error: acctsError.message };
     const acctById = new Map(
@@ -496,6 +512,19 @@ export async function bulkCreateTopupsAsAdmin(
         .filter((a) => a.tenant_id === profile.tenant_id)
         .map((a) => [a.id, a.advertiser_id]),
     );
+    // Same refusal as the single path — a bulk run is exactly where a
+    // banned account slips through unnoticed.
+    const lockedName = (accts ?? []).find((a) =>
+      isAccountLocked((a as { status?: string | null }).status),
+    );
+    if (lockedName) {
+      const l = lockedName as { name?: string | null; status?: string | null };
+      return {
+        ok: false,
+        error: `${l.name ?? "One of these ad accounts"} is ${String(l.status ?? "not usable")}, so money sent to it cannot be spent. Remove that row or reactivate the account. Nothing was created.`,
+        code: "invalid",
+      };
+    }
     for (const row of rows) {
       const acctId = row.account_id;
       if (typeof acctId !== "string" || acctId.length === 0) continue;

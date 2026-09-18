@@ -1,5 +1,7 @@
 "use server";
 
+import { isAccountLocked } from "@/lib/pure-account-status";
+
 import { createClient } from "@/lib/supabase/server";
 import { syncSupplierPool } from "@/lib/integrations/sync-pool";
 import { cookies } from "next/headers";
@@ -202,7 +204,7 @@ export async function assignSupplierAdAccount(input: {
   const { data: pool } = await supabase
     .from("supplier_ad_accounts")
     .select(
-      "id, tenant_id, provider, external_id, name, bm_id, platform, currency, timezone, fee_percentage, advertiser_id",
+      "id, tenant_id, provider, external_id, name, bm_id, platform, currency, timezone, fee_percentage, advertiser_id, status",
     )
     .eq("id", input.poolId)
     .maybeSingle();
@@ -210,6 +212,27 @@ export async function assignSupplierAdAccount(input: {
   if (pool.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden", code: "forbidden" };
   }
+  // ── SUSPENDED INVENTORY IS NOT INVENTORY ────────────────────────────
+  //
+  // The pool screen says this in its own words — "a suspended account in
+  // the pool is inventory you must NOT allocate" — and then left it to
+  // the admin to remember the filter: the default view is Unassigned /
+  // Any status, and the "Unallocated inventory" count includes suspended
+  // rows. This select did not even ask for `status`, so nothing here
+  // could check it. Allocating one creates a real ad account the
+  // customer sees, and the supplier then rejects or silently drops its
+  // top-ups.
+  //
+  // isAccountLocked is the app's single source of truth for what counts
+  // as unusable.
+  if (isAccountLocked(pool.status)) {
+    return {
+      ok: false,
+      error: `That pool account is ${String(pool.status ?? "not usable")} at the supplier, so it cannot be allocated. Release it or pick another.`,
+      code: "invalid",
+    };
+  }
+
   if (pool.advertiser_id) {
     return {
       ok: false,

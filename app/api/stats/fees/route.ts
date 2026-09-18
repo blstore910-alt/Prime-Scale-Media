@@ -292,6 +292,17 @@ export async function GET(request: NextRequest) {
       // gives no stable order among ties, so a row on a page boundary
       // could be counted twice or skipped.
       .order("id", { ascending: true })
+      // A DELETED TOP-UP IS NOT REVENUE. `is_deleted` is the only way
+      // to strike out a COMPLETED top-up — updateTopupAsAdmin refuses
+      // completed -> anything and the reject RPC applies to pending rows
+      // only — and it was honoured in one reader out of thirteen. So a
+      // struck-out EUR 10,000 top-up went on contributing its fee and
+      // its dollars to every figure on this dashboard, and to the
+      // customer's own statement of account.
+      //
+      // `.not(x, "is", true)` and not `.neq(x, true)`: neq on a nullable
+      // column drops the NULL rows, which is nearly all of them.
+      .not("is_deleted", "is", true)
       .range(from, to),
   );
   // AN ERROR IS NOT AN EMPTY PERIOD. `const { data } = ...` discarded it,

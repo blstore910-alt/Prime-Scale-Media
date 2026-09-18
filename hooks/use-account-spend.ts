@@ -55,6 +55,10 @@ export function useAccountSpend(tenantId: string | null | undefined): {
           .select("account_id, topup_amount, status, created_at")
           .eq("tenant_id", tenantId)
           .eq("status", "completed")
+          // A deleted top-up is not spend. This feeds the Spend column on
+          // /accounts AND lastAt, which is what decides the derived
+          // "Inactive - no top-up in 30 days" badge.
+          .not("is_deleted", "is", true)
           .order("created_at", { ascending: true })
           .range(from, from + PAGE - 1);
         if (error) throw error;

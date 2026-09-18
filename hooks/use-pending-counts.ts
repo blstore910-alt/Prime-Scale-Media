@@ -68,7 +68,10 @@ export function usePendingCounts(): PendingCounts {
           .from("top_ups")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
-          .eq("status", "pending"),
+          .eq("status", "pending")
+          // A deleted top-up is not waiting on anybody. This badge is
+          // how an admin decides whether the queue needs working.
+          .not("is_deleted", "is", true),
         supabase
           .from("ad_account_requests")
           .select("id", { count: "exact", head: true })

@@ -77,6 +77,38 @@ function perkDetail(p: PerkRow) {
 // Admin promotions / perks manager, mockup look. Reuses the same data reads
 // (advertisers + advertiser_perks) and the real grantPerk / revokePerk server
 // actions (SECURITY DEFINER RPCs) — presentation only, no new mutations.
+/**
+ * Is this perk actually in force right now?
+ *
+ * The SQL that applies one and resolveEffectiveFeePct both require FOUR
+ * things: active, started, not expired, and — for a perk with a count —
+ * something left. The admin screen tested the first and printed green.
+ */
+type PerkLike = {
+  active?: boolean | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  remaining?: number | null;
+};
+
+function perkWhyNot(p: PerkLike): string | null {
+  const now = Date.now();
+  if (p.starts_at && new Date(p.starts_at).getTime() > now) {
+    return "Starts later";
+  }
+  if (p.expires_at && new Date(p.expires_at).getTime() <= now) {
+    return "Expired";
+  }
+  if (p.remaining !== null && p.remaining !== undefined && Number(p.remaining) <= 0) {
+    return "Used up";
+  }
+  return null;
+}
+
+function perkExhausted(p: PerkLike): boolean {
+  return perkWhyNot(p) !== null;
+}
+
 export default function PsmPromotions() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -503,8 +535,32 @@ export default function PsmPromotions() {
                         : "No expiry"}
                     </td>
                     <td data-label="Status">
-                      {p.active ? (
+                      {/* ── "ACTIVE" IS A FOUR-PART TEST, NOT ONE COLUMN ──
+                          Both enforcement paths — the SQL that applies a
+                          perk and resolveEffectiveFeePct — require
+                          active AND started AND not expired AND (for a
+                          counted perk) remaining > 0. This printed a
+                          green Active on the one column, so a
+                          free-request perk that expired on 1 September
+                          still read Active in October and the admin went
+                          on believing that customer's next request was
+                          free while they were charged EUR 50.
+
+                          Same words the enforcement uses, so the screen
+                          and the rule cannot drift again. */}
+                      {p.active && !perkExhausted(p) ? (
                         <span className="badge ok">Active</span>
+                      ) : p.active ? (
+                        <span
+                          className="badge"
+                          style={{
+                            background: "var(--warn-soft)",
+                            color: "var(--warn)",
+                          }}
+                          title={perkWhyNot(p) ?? undefined}
+                        >
+                          {perkWhyNot(p) ?? "Not in force"}
+                        </span>
                       ) : (
                         <span
                           className="badge"

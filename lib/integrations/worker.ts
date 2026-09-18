@@ -190,7 +190,14 @@ async function dispatch(
       if (topupId) {
         const { data: row, error: rowErr } = await ctx.supabase
           .from("top_ups")
-          .select("status")
+          // is_deleted TOO. enqueue.ts refuses a deleted top-up and says
+          // so; this re-read asked only about `status` — and marking a
+          // row deleted does not touch its status, so the guard passed
+          // and the supplier was funded for a row the app considers
+          // struck out. This function's own comment says "a read we
+          // could not make is not permission to send money"; it was
+          // asking the wrong question.
+          .select("status, is_deleted")
           .eq("id", topupId)
           .maybeSingle();
         // A read we could not make is not permission to send money.
@@ -201,10 +208,18 @@ async function dispatch(
             retryable: true,
           };
         }
-        if (!row || String(row.status ?? "") !== "completed") {
+        if (
+          !row ||
+          String(row.status ?? "") !== "completed" ||
+          (row as { is_deleted?: unknown }).is_deleted === true
+        ) {
           return {
             ok: false,
-            error: `The top-up is no longer completed (${row?.status ?? "gone"}), so nothing was funded`,
+            error: `The top-up is no longer completed (${
+              (row as { is_deleted?: unknown } | null)?.is_deleted === true
+                ? "deleted"
+                : (row?.status ?? "gone")
+            }), so nothing was funded`,
             // NOT retryable: this is a decision, not a hiccup. Retrying
             // would just ask the same question every minute for ever.
             retryable: false,
