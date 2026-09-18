@@ -12,11 +12,27 @@ import type { Supplier1Adapter, WiseAdapter } from "../../lib/integrations/types
 // Tiny in-memory Supabase stub — only the calls the worker makes.
 // Not a general fixture, just enough to exercise the state machine.
 // ─────────────────────────────────────────────────────────────────
-function makeMockSupabase(initial: IntegrationJobRow[]) {
+function makeMockSupabase(
+  initial: IntegrationJobRow[],
+  // What a `top_ups` read answers with. The push dispatcher re-reads the
+  // row before funding anything — a verify that has been undone must not
+  // reach the supplier — and this stub answered every table with the JOB
+  // chain, so `top_ups` came back as a job row and the guard was never
+  // properly exercised. Default: the ordinary case, still completed.
+  topup: { status?: string } | null = { status: "completed" },
+) {
   const rows = new Map<string, IntegrationJobRow>();
   for (const r of initial) rows.set(r.id, { ...r });
 
-  const from = (_table: string) => {
+  const from = (table: string) => {
+    if (table === "top_ups") {
+      const row: Record<string, unknown> = {
+        select: () => row,
+        eq: () => row,
+        maybeSingle: async () => ({ data: topup, error: null }),
+      };
+      return row as never;
+    }
     let selectSpec = "";
     let statusFilter: string[] | null = null;
     let lteField: string | null = null;
@@ -163,7 +179,12 @@ function baseJob(overrides: Partial<IntegrationJobRow> = {}): IntegrationJobRow 
       amount_cents: 500_00,
       currency: "USD",
     },
-    idempotency_key: overrides.idempotency_key ?? "key-1",
+    // `topup:<id>` — the shape lib/integrations/enqueue.ts actually
+    // writes. It was "key-1", which the dispatcher's parser does not
+    // recognise, so EVERY test here took the topupId === null path and
+    // skipped the re-read guard entirely. That is why adding the guard
+    // turned only the other test file red.
+    idempotency_key: overrides.idempotency_key ?? "topup:topup-1",
     attempts: 0,
     max_attempts: 5,
     next_run_at: "2020-01-01T00:00:00.000Z",
@@ -308,6 +329,80 @@ describe("processIntegrationJobs — retry path", () => {
     assert.equal(stored.status, "pending");
     assert.equal(stored.last_error, "boom");
     assert.ok(stored.next_run_at > "2026-08-30T10:00:00Z");
+  });
+});
+
+describe("processIntegrationJobs — the attempt counter", () => {
+  // THE FIXTURE THAT ACTUALLY DISCRIMINATES.
+  //
+  // claimBatch writes attempts + 1 and returns the UPDATED row, so
+  // finaliseJob must use job.attempts as-is. It used to add one again,
+  // killing every job an attempt early. Neither existing test could see
+  // it: attempts 0 is nowhere near the cap, and attempts 4 with a cap of
+  // 5 is terminal either way (5 >= 5 and 6 >= 5). Only attempts 3 tells
+  // them apart — correct: 4 >= 5 is false, so it RETRIES; broken: 5 >= 5
+  // is true, so it dies with the customer's money already taken and the
+  // supplier never funded.
+  //
+  // Reverting that one line used to leave the suite green.
+  it("a job one below the cap retries rather than dying", async () => {
+    const { supabase, rows } = makeMockSupabase([
+      baseJob({ attempts: 3, max_attempts: 5 }),
+    ]);
+    const summary = await processIntegrationJobs(
+      {
+        supabase,
+        ...brokenAdapter,
+        env: ARMED,
+        now: () => new Date("2026-08-30T10:00:00Z"),
+      },
+      { batchSize: 5 },
+    );
+    assert.equal(summary.retried, 1);
+    assert.equal(summary.failed, 0);
+    const stored = rows.get("job-1")!;
+    assert.equal(stored.status, "pending");
+    assert.equal(stored.attempts, 4);
+  });
+});
+
+describe("processIntegrationJobs — the top-up re-read", () => {
+  // The guard that shipped without tests: the job carries an amount
+  // frozen at enqueue time, so an admin who undoes a verify must not have
+  // the supplier funded a minute later for a payment we un-collected.
+  it("a top-up that is no longer completed is not funded", async () => {
+    const { supabase, rows } = makeMockSupabase([baseJob()], {
+      status: "pending",
+    });
+    const summary = await processIntegrationJobs(
+      {
+        supabase,
+        ...okAdapter,
+        env: ARMED,
+        now: () => new Date("2026-08-30T10:00:00Z"),
+      },
+      { batchSize: 5 },
+    );
+    assert.equal(summary.succeeded, 0);
+    assert.equal(summary.failed, 1);
+    // Terminal, not retried: it is a decision, and asking again every
+    // minute answers the same way for ever.
+    assert.equal(rows.get("job-1")!.status, "failed");
+  });
+
+  it("a top-up that is gone is not funded either", async () => {
+    const { supabase } = makeMockSupabase([baseJob()], null);
+    const summary = await processIntegrationJobs(
+      {
+        supabase,
+        ...okAdapter,
+        env: ARMED,
+        now: () => new Date("2026-08-30T10:00:00Z"),
+      },
+      { batchSize: 5 },
+    );
+    assert.equal(summary.succeeded, 0);
+    assert.equal(summary.failed, 1);
   });
 });
 

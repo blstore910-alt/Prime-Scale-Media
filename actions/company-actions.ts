@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { maintenanceGuard, wroteSomething } from "./_shared";
 
@@ -211,14 +212,41 @@ export async function updateOwnProfileAndCompany(input: {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { ok: false, error: "Unauthorized" };
 
-  const { data: profileRow } = await supabase
+  // ── THE ACTIVE PROFILE, NOT THE OLDEST ONE ──────────────────────────
+  //
+  // This ignored the `profile_id` cookie that every other guard in the
+  // app honours and just took the earliest row. One person can hold a
+  // profile in more than one tenant — the app is built for it, and
+  // resolveOwnedAdvertiser in this same file was explicitly fixed for
+  // this very bug, with a comment saying so. So somebody switched to
+  // tenant B and saved their company details, and it was written into
+  // tenant A's row — and for an admin that row is the one printed on
+  // every invoice the tenant issues.
+  //
+  // AND A DEACTIVATED ACCOUNT COULD STILL WRITE IT. There was no
+  // is_active / status test anywhere here, so an admin whose access had
+  // just been taken away could still rewrite the company name, VAT number
+  // and address that appear on the tenant's invoices.
+  const cookieStore = await cookies();
+  const activeProfileId = cookieStore.get("profile_id")?.value;
+  const { data: profileRows } = await supabase
     .from("user_profiles")
-    .select("id, tenant_id, user_id, role")
+    .select("id, tenant_id, user_id, role, is_active, status")
     .eq("user_id", userData.user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+
+  // Never .single() and never .maybeSingle(): maybeSingle THROWS on two
+  // rows, and two rows is the normal case for these people.
+  const profileRow = activeProfileId
+    ? profileRows?.find((p) => p.id === activeProfileId) ?? profileRows?.[0]
+    : profileRows?.[0];
   if (!profileRow) return { ok: false, error: "Profile missing" };
+  if (
+    profileRow.is_active === false ||
+    (profileRow.status ?? "active") === "inactive"
+  ) {
+    return { ok: false, error: "Account is inactive" };
+  }
 
   if (input.profile && Object.keys(input.profile).length > 0) {
     const cleaned: Record<string, unknown> = {};
