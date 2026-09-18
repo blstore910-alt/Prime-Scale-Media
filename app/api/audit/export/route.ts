@@ -38,11 +38,24 @@ export async function GET(req: Request) {
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
+  // ── SAY IT IF THE FILE IS SHORT ────────────────────────────────────
+  //
+  // The action computes a row count and a truncation flag and this route
+  // dropped both on the floor. A compliance export that stops at a page
+  // ceiling looks exactly like a complete one — same headers, same
+  // shape, fewer rows — and the person who opens it has no way to tell.
+  // Two response headers cost nothing, and the filename says it too, so
+  // it survives being forwarded as an attachment.
+  const truncated = result.data.truncated === true;
   return new NextResponse(result.data.csv, {
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="audit-${stamp}.csv"`,
+      "Content-Disposition": `attachment; filename="audit-${stamp}${
+        truncated ? "-PARTIAL" : ""
+      }.csv"`,
+      "X-Export-Rows": String(result.data.count),
+      "X-Export-Truncated": truncated ? "true" : "false",
       "Cache-Control": "no-store",
     },
   });

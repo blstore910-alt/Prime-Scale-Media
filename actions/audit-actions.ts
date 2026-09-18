@@ -1,5 +1,8 @@
 "use server";
 
+import { pageAllRows } from "@/lib/page-all-rows";
+import { csvSafe } from "@/lib/csv-safe";
+
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
@@ -22,7 +25,9 @@ export async function exportAuditEventsCsv(params: {
   toIso: string;
   table?: string;
   action?: string;
-}): Promise<ActionResult<{ csv: string; count: number }>> {
+}): Promise<
+  ActionResult<{ csv: string; count: number; truncated: boolean }>
+> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { ok: false, error: "Unauthorized" };
@@ -63,28 +68,49 @@ export async function exportAuditEventsCsv(params: {
     return { ok: false, error: "Range too wide (max 366 days)" };
   }
 
-  let query = supabase
-    .from("audit_events")
-    .select("*")
-    .eq("tenant_id", profile.tenant_id)
-    .gte("occurred_at", from.toISOString())
-    .lte("occurred_at", to.toISOString())
-    .order("occurred_at", { ascending: false })
-    .limit(10_000); // hard cap per call
+  // ── .limit(10_000) DOES NOT MEAN 10,000 ────────────────────────────
+  //
+  // PostgREST caps a response at 1,000 rows whatever the limit says, and
+  // the order was newest-first — so a compliance export of a busy month
+  // silently dropped the OLDEST rows and arrived short with nothing on it
+  // saying so. The count was computed here and then discarded by the
+  // route that serves the file.
+  //
+  // Paged, oldest-first with a unique tiebreaker, and the ceiling is
+  // REPORTED rather than swallowed.
+  const paged = await pageAllRows<Record<string, unknown>>((fromRow, toRow) => {
+    let q = supabase
+      .from("audit_events")
+      .select("*")
+      .eq("tenant_id", profile.tenant_id)
+      .gte("occurred_at", from.toISOString())
+      .lte("occurred_at", to.toISOString())
+      .order("occurred_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(fromRow, toRow);
+    if (params.table && params.table !== "all") {
+      q = q.eq("table_name", params.table);
+    }
+    if (params.action && params.action !== "all") {
+      q = q.eq("action", params.action);
+    }
+    return q;
+  });
+  if (paged.error) return { ok: false, error: paged.error };
+  const data = paged.rows;
 
-  if (params.table && params.table !== "all") {
-    query = query.eq("table_name", params.table);
-  }
-  if (params.action && params.action !== "all") {
-    query = query.eq("action", params.action);
-  }
-
-  const { data, error } = await query;
-  if (error) return { ok: false, error: error.message };
-
+  // ── EVERY COLUMN, NOT TWO OF TEN ───────────────────────────────────
+  //
+  // Eight of these went into the line raw. An id and a timestamp look
+  // harmless until one is null, or carries a comma or a quote. And
+  // nothing had a formula guard: audit rows carry values a CUSTOMER
+  // typed, so a before/after snapshot containing =HYPERLINK runs when the
+  // compliance export is opened.
   const escape = (v: unknown): string => {
-    if (v == null) return "";
-    const s = typeof v === "string" ? v : JSON.stringify(v);
+    if (v == null) return '""';
+    const raw = typeof v === "string" ? v : JSON.stringify(v);
+    const safe = csvSafe(raw);
+    const s = typeof safe === "string" ? safe : String(safe);
     // Quote and double any embedded quotes.
     return `"${s.replace(/"/g, '""')}"`;
   };
@@ -104,19 +130,22 @@ export async function exportAuditEventsCsv(params: {
 
   const rows = (data ?? []).map((r) =>
     [
-      r.id,
-      r.occurred_at,
-      r.actor_user_id,
-      r.actor_profile_id,
-      r.tenant_id,
-      r.table_name,
-      r.action,
-      r.row_id,
+      escape(r.id),
+      escape(r.occurred_at),
+      escape(r.actor_user_id),
+      escape(r.actor_profile_id),
+      escape(r.tenant_id),
+      escape(r.table_name),
+      escape(r.action),
+      escape(r.row_id),
       escape(r.before_data),
       escape(r.after_data),
     ].join(","),
   );
 
   const csv = [header, ...rows].join("\n");
-  return { ok: true, data: { csv, count: rows.length } };
+  return {
+    ok: true,
+    data: { csv, count: rows.length, truncated: paged.truncated },
+  };
 }

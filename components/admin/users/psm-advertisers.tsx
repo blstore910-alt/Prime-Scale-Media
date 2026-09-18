@@ -34,6 +34,7 @@ import { useAffiliateEarnings } from "@/hooks/use-affiliate-earnings";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import { safeIlikeTerm } from "@/lib/utils/search";
+import { csvSafe } from "@/lib/csv-safe";
 
 // Admin advertisers list, ported to the mockup look. Reuses the real
 // `useUsers` data hook (unchanged query) and the real detail sheet +
@@ -138,14 +139,35 @@ export default function PsmAdvertisers() {
   const hasNext = page * perPage < totalCount;
 
   const handleDownload = async () => {
+    // Customer-controlled text goes through csvSafe. Excel and Sheets
+    // evaluate a cell starting with = + - @ as a formula, and json2csv's
+    // default formatter only quotes, which does not stop it. `full_name`
+    // is validated as min(2) and nothing else, so a customer can set
+    // their own name to a =HYPERLINK payload and wait for an admin to
+    // open the export. lib/csv-safe.ts exists for exactly this.
+    const text = (v: unknown) => csvSafe(v ?? "");
     const fields = [
       { label: "ID", value: "id" },
       { label: "Status", value: "status" },
-      { label: "Name", value: "full_name" },
-      { label: "Email", value: "email" },
+      {
+        label: "Name",
+        value: (r: Record<string, unknown>) => text(r.full_name),
+      },
+      { label: "Email", value: (r: Record<string, unknown>) => text(r.email) },
       { label: "Active", value: "is_active" },
-      { label: "Tenant", value: "tenant.name" },
-      { label: "Client Code", value: "advertiser.[0].tenant_client_code" },
+      {
+        label: "Tenant",
+        value: (r: Record<string, unknown>) =>
+          text((r.tenant as { name?: unknown } | null)?.name),
+      },
+      {
+        label: "Client Code",
+        value: (r: Record<string, unknown>) =>
+          text(
+            (r.advertiser as Array<{ tenant_client_code?: unknown }> | null)?.[0]
+              ?.tenant_client_code,
+          ),
+      },
       { label: "Startup Fee", value: "advertiser.[0].startup_fee" },
       { label: "Fee Status", value: "advertiser.[0].fee_status" },
       { label: "Created At", value: "created_at" },
@@ -197,7 +219,9 @@ export default function PsmAdvertisers() {
         rows.push(...(page ?? []));
         if ((page ?? []).length < PAGE) break;
       }
-      const data = rows;
+      // The typed field accessors above make json2csv infer a stricter
+      // row type than `unknown[]`; the rows are plain objects.
+      const data = rows as Record<string, unknown>[];
       const parser = new Parser(opts);
       const csv = parser.parse(data);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

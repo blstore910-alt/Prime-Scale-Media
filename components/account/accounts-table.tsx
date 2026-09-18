@@ -23,6 +23,7 @@ import { PLATFORMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { csvSafe } from "@/lib/csv-safe";
 import { useQuery } from "@tanstack/react-query";
 import { Parser } from "json2csv";
 import {
@@ -275,15 +276,46 @@ export default function AccountsTable() {
     // button was never disabled. An admin clicks, sees nothing happen,
     // and clicks again; each press fires a full unpaginated select.
     setDownloadingCSV(true);
+    // ── EVERY CUSTOMER-CONTROLLED CELL GOES THROUGH csvSafe ───────────
+    //
+    // Excel and Sheets evaluate a cell that starts with = + - @ as a
+    // formula. lib/csv-safe.ts exists for this and was used by two of the
+    // nine exports; json2csv's default formatter only QUOTES, which does
+    // not stop it. `full_name` is validated as min(2) and nothing else, so
+    // a customer setting their name to =HYPERLINK(...) has that run when
+    // an admin opens the file.
+    //
+    // Currency is here too: this is a mixed USD/EUR book and the column
+    // simply was not exported, while "Fee" is a PERCENTAGE under a
+    // money-shaped header. Both are labelled now.
     const fields = [
       { label: "ID", value: "id" },
-      { label: "Name", value: "name" },
+      { label: "Name", value: (r: Record<string, unknown>) => csvSafe(r.name) },
       { label: "Platform", value: "platform" },
       { label: "Status", value: "status" },
-      { label: "Fee", value: "fee" },
+      { label: "Currency", value: "currency" },
+      { label: "Fee %", value: "fee" },
       { label: "Fee Status", value: "fee_status" },
-      { label: "Advertiser Name", value: "advertiser.profile.full_name" },
-      { label: "Advertiser Email", value: "advertiser.profile.email" },
+      {
+        label: "Advertiser Name",
+        value: (r: Record<string, unknown>) =>
+          csvSafe(
+            (
+              (r.advertiser as { profile?: { full_name?: unknown } } | null)
+                ?.profile?.full_name
+            ) ?? "",
+          ),
+      },
+      {
+        label: "Advertiser Email",
+        value: (r: Record<string, unknown>) =>
+          csvSafe(
+            (
+              (r.advertiser as { profile?: { email?: unknown } } | null)
+                ?.profile?.email
+            ) ?? "",
+          ),
+      },
       { label: "Start Date", value: "start_date" },
       { label: "Created At", value: "created_at" },
       { label: "Updated At", value: "updated_at" },
@@ -310,7 +342,9 @@ export default function AccountsTable() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "users.csv";
+      // It is the AD ACCOUNTS export. "users.csv" is what an admin then
+      // emails to someone, or opens next to the real users export.
+      a.download = "ad-accounts.csv";
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
