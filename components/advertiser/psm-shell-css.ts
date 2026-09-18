@@ -440,7 +440,7 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow{
     display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;
     /* STRETCH. The actions cell carries .r as well as .fullcell, and
-       `td.r > * {justify-self:start}` further down — written for a money
+       td.r > * {justify-self:start} further down — written for a money
        value that should sit under its label rather than at the right edge —
        also caught this grid. A grid told to size to its content resolves
        auto-fit to a SINGLE column, so a 325px-wide cell laid four buttons
