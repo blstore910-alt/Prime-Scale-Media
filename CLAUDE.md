@@ -91,6 +91,10 @@ locally on prerender. `npx tsc --noEmit`, `npx next lint`, and
 
 ## Docs to know
 
+- `docs/WALKTHROUGH_J1_J8.md` — **the script for going through the app by
+  hand on production.** Five test users, J1-J8 step by step, the
+  migrations that must be applied first, and a Known-limitations table so
+  a known gap is not reported as a new bug.
 - `docs/ROUTE_MAP.md` — **which file actually renders each screen.**
   Check it before editing a view: several ported `psm-*` components are
   on no route at all, and fixes have landed in them twice.
