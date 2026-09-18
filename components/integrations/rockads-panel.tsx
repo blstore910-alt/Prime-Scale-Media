@@ -95,9 +95,26 @@ export default function RockadsPanel() {
         <div className="card">
           <p style={{ margin: 0, fontWeight: 650 }}>Not connected.</p>
           <p className="muted" style={{ margin: "6px 0 0", fontSize: ".9rem" }}>
-            Set ROCKADS_API_KEY and ROCKADS_API_SECRET in Vercel and redeploy.
-            Until then this panel can tell you nothing — which is different
-            from telling you there is nothing.
+            {live?.said}
+          </p>
+          {/* WHICH ONE. A tick per variable, so a typo in one name or a
+              value saved to the wrong Vercel environment is visible at a
+              glance instead of being four possibilities behind one
+              sentence. */}
+          <ul className="rkenv">
+            <li className={live?.keySet ? "on" : "off"}>
+              ROCKADS_API_KEY {live?.keySet ? "reached this deployment" : "did not"}
+            </li>
+            <li className={live?.secretSet ? "on" : "off"}>
+              ROCKADS_API_SECRET{" "}
+              {live?.secretSet ? "reached this deployment" : "did not"}
+            </li>
+          </ul>
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: ".82rem" }}>
+            If you have set them: check the Environment they were saved to
+            (they must be on Production), check the spelling, and redeploy —
+            a deployment that already existed does not pick up new
+            variables.
           </p>
         </div>
       ) : (
@@ -227,4 +244,13 @@ const CSS = `
 .rkrow b{font-size:.9rem;font-weight:650;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;display:block}
 .rkrow .mono{font-weight:700;white-space:nowrap}
+.rkenv{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:4px;
+  font-size:.82rem}
+.rkenv li{display:flex;align-items:center;gap:7px}
+.rkenv li::before{content:"";width:7px;height:7px;border-radius:50%;
+  flex:0 0 auto}
+.rkenv li.on{color:var(--win)}
+.rkenv li.on::before{background:var(--win)}
+.rkenv li.off{color:var(--danger)}
+.rkenv li.off::before{background:var(--danger)}
 `;

@@ -250,6 +250,15 @@ export async function fetchRockadsAdAccount(
  */
 export type RockadsProbe = {
   credentialsSet: boolean;
+  /**
+   * WHICH of the two is missing, never their values. "Not connected"
+   * covers a missing key, a missing secret, a typo in either name and a
+   * variable set on the wrong Vercel environment — and those are four
+   * different fixes. Saying only "not connected" is how an afternoon
+   * goes.
+   */
+  keySet: boolean;
+  secretSet: boolean;
   walletsStatus: number | null;
   walletCount: number;
   accountsStatus: number | null;
@@ -262,17 +271,26 @@ export type RockadsProbe = {
 };
 
 export async function probeRockads(): Promise<RockadsProbe> {
+  const keySet = !!process.env.ROCKADS_API_KEY;
+  const secretSet = !!process.env.ROCKADS_API_SECRET;
   const creds = credentials();
   if (!creds) {
     return {
       credentialsSet: false,
+      keySet,
+      secretSet,
       walletsStatus: null,
       walletCount: 0,
       accountsStatus: null,
       accountCount: 0,
       currencies: [],
       byPlatform: {},
-      said: "ROCKADS_API_KEY and ROCKADS_API_SECRET are not set.",
+      said:
+        keySet && !secretSet
+          ? "ROCKADS_API_KEY is set but ROCKADS_API_SECRET is not."
+          : secretSet && !keySet
+            ? "ROCKADS_API_SECRET is set but ROCKADS_API_KEY is not."
+            : "Neither ROCKADS_API_KEY nor ROCKADS_API_SECRET reached this deployment.",
     };
   }
 
@@ -294,6 +312,8 @@ export async function probeRockads(): Promise<RockadsProbe> {
 
   return {
     credentialsSet: true,
+    keySet,
+    secretSet,
     walletsStatus: w.status || null,
     walletCount: wallets.length,
     accountsStatus: a.status || null,
