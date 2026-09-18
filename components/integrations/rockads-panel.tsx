@@ -52,7 +52,18 @@ export default function RockadsPanel() {
   return (
     <div
       className="psmview rkwrap"
-      style={{ display: "grid", gap: 14, minWidth: 0 }}
+      /* gridTemplateColumns, and it is not decoration. A grid with no
+         column definition gets ONE implicit track sized to max-content —
+         so the panel grew to fit its longest ad-account name (514px) inside
+         a 353px parent, and everything in it, including the card above,
+         hung off the right edge of the phone. minmax(0,1fr) is what makes a
+         single-column grid agree to be as narrow as its container. */
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr)",
+        gap: 14,
+        minWidth: 0,
+      }}
     >
       <style>{CSS}</style>
 
