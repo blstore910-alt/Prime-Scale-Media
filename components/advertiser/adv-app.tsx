@@ -248,10 +248,16 @@ export default function AdvertiserApp() {
   // plan has a name — Prime, Starter, whatever they were sold. On the box
   // that takes money out of their wallet, naming it is the difference
   // between "some monthly charge" and "the thing I signed up for".
+  // WHAT THE PLAN GIVES EVERY MONTH, from the plan's own row.
+  //
+  // Not the included accounts and not a fee percentage. The accounts are a
+  // ONE-TIME allocation at signup — printing them on a renewal promises
+  // two more this month — and the top-up fee is per AD ACCOUNT, where the
+  // account's own rate overrides the plan's, so a flat figure here can be
+  // untrue for the very account they are about to fund.
   const { data: plan } = useQuery<{
     name: string | null;
-    includedAccounts: number | null;
-    topupFeePct: number | null;
+    features: string[];
   } | null>({
     queryKey: ["adv-plan", advertiserId],
     enabled: !!advertiserId,
@@ -260,25 +266,23 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("advertiser_plans")
-        .select("included_ad_accounts, topup_fee_pct, plan:plans(name)")
+        .select("plan:plans(name, features)")
         .eq("advertiser_id", advertiserId)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
       const row = data as {
-        included_ad_accounts?: number | string | null;
-        topup_fee_pct?: number | string | null;
-        plan?: { name?: string } | Array<{ name?: string }> | null;
+        plan?:
+          | { name?: string; features?: string[] | null }
+          | Array<{ name?: string; features?: string[] | null }>
+          | null;
       };
       const embedded = Array.isArray(row.plan) ? row.plan[0] : row.plan;
-      const n = (v: unknown) => {
-        const x = Number(v);
-        return Number.isFinite(x) ? x : null;
-      };
       return {
         name: (embedded?.name ?? "").trim() || null,
-        includedAccounts: n(row.included_ad_accounts),
-        topupFeePct: n(row.topup_fee_pct),
+        features: (embedded?.features ?? []).filter(
+          (f): f is string => typeof f === "string" && f.trim().length > 0,
+        ),
       };
     },
   });
@@ -876,17 +880,13 @@ export default function AdvertiserApp() {
             name: planName!,
             amount: `${sym}${money2(inv.total)}`,
             per: "per month",
-            perks: [
-              plan?.includedAccounts != null
-                ? `${plan.includedAccounts} ad account${
-                    plan.includedAccounts === 1 ? "" : "s"
-                  } included`
-                : "",
-              plan?.topupFeePct != null
-                ? `${plan.topupFeePct}% top-up fee`
-                : "",
-              "Cancel monthly",
-            ].filter(Boolean),
+            // Straight from the plan row. When an admin has not filled
+            // them in yet, one line that is true of every plan rather
+            // than an empty card or an invented promise.
+            perks:
+              plan?.features.length
+                ? plan.features
+                : ["Your ad accounts stay live", "Cancel monthly"],
           }
         : undefined,
       title: isPlan ? "Renew your plan?" : "Pay this from your wallet?",
