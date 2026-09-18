@@ -20,6 +20,10 @@ import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import { CommunityPill } from "@/components/community/community-pill";
 import TablePagination from "../ui/table-pagination";
 import { formatPaymentReference } from "@/lib/payment-reference";
+import {
+  useMatchedDeposits,
+  type MatchedDeposit,
+} from "@/hooks/use-matched-deposits";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -27,6 +31,97 @@ const money = (v: number | string | null | undefined, cur: string | null) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(v ?? 0));
+
+const shortDay = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+};
+
+/**
+ * "Matched with a bank deposit of EUR 5.00 from BL E-COMMERCE."
+ *
+ * Or, when nothing has arrived, it says THAT — plainly, in amber, because
+ * an admin about to credit a wallet from a queue of identical-looking cards
+ * has no other way to tell the two apart. A card with money behind it and a
+ * card with only a claim behind it looked exactly the same.
+ *
+ * Three states, never two: matched, nothing yet, and "we could not read the
+ * feed". The third must not render as the second — see the hook.
+ */
+function MatchedStrip({
+  deposit,
+  unreadable,
+  pending,
+}: {
+  deposit?: MatchedDeposit;
+  unreadable: boolean;
+  pending: boolean;
+}) {
+  // A settled top-up has already been credited; the question the strip
+  // answers does not apply any more.
+  if (!pending) return null;
+
+  if (deposit) {
+    const amount =
+      (deposit.currency === "USD" ? "$" : "€") +
+      (deposit.amountCents / 100).toFixed(2);
+    return (
+      <div className="tupmatch ok">
+        <Check />
+        <div>
+          <b>Matched with a bank deposit of {amount}</b>
+          <div>
+            {deposit.senderName ? "from " + deposit.senderName + " · " : ""}
+            {shortDay(deposit.receivedAt)}
+            {deposit.reference ? " · ref " + deposit.reference : ""}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (unreadable) {
+    return (
+      <div className="tupmatch bad">
+        <X />
+        <div>
+          <b>We couldn&apos;t check the bank feed</b>
+          <div>This does NOT mean no money arrived — check the slip.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tupmatch warn">
+      <Search />
+      <div>
+        <b>No bank deposit matched this yet</b>
+        <div>Only the customer&apos;s word so far — check the slip.</div>
+      </div>
+    </div>
+  );
+}
+
+const MATCH_CSS = `
+.tupmatch{display:flex;gap:9px;align-items:flex-start;margin-top:10px;
+  border-radius:10px;padding:9px 11px;font-size:.8rem;line-height:1.4}
+.tupmatch svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
+.tupmatch b{display:block;font-size:.83rem;font-weight:700}
+.tupmatch div div{color:var(--txt-2);margin-top:1px;overflow:hidden;
+  text-overflow:ellipsis}
+.tupmatch.ok{background:var(--win-soft);color:var(--win)}
+.tupmatch.warn{background:var(--warn-soft);color:var(--warn)}
+.tupmatch.bad{background:var(--danger-soft);color:var(--danger)}
+`;
 
 const advName = (t: WalletTopupWithAdvertiser) => {
   const a = t.advertiser as
@@ -111,6 +206,11 @@ export default function PsmVerifyTopups({
     transactions.map((t) => t.advertiser_id),
   );
 
+  // The bank deposit behind each claim — see hooks/use-matched-deposits.
+  const { byTopup: deposits, isError: depositsUnreadable } = useMatchedDeposits(
+    transactions.map((t) => t.id),
+  );
+
   const confirmApprove = () =>
     updateTransaction(
       { action: "approve" },
@@ -127,6 +227,7 @@ export default function PsmVerifyTopups({
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <style>{MATCH_CSS}</style>
       <div className="phead">
         <div>
           <h1>Wallet Topups</h1>
@@ -315,6 +416,15 @@ export default function PsmVerifyTopups({
                     ) || "—"}
                   </span>
                 </div>
+                {/* DID THE MONEY ACTUALLY ARRIVE? Everything above this
+                    line is what the CUSTOMER said. This is the only thing
+                    on the card that is a fact about the bank, and Verify —
+                    which credits real money — sits directly under it. */}
+                <MatchedStrip
+                  deposit={deposits[t.id]}
+                  unreadable={depositsUnreadable}
+                  pending={pend}
+                />
                 <div className="actrow tupacts">
                   {/* The card's own onClick is a mouse convenience. This is
                       the keyboard route to the details sheet — the view an
@@ -418,6 +528,8 @@ export default function PsmVerifyTopups({
 
       {selected && (
         <WalletTransactionApproveDialog
+          deposit={deposits[selected.id]}
+          depositsUnreadable={depositsUnreadable}
           open={approveOpen}
           onOpenChange={setApproveOpen}
           topup={selected}

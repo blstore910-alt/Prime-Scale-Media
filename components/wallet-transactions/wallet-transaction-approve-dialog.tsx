@@ -3,6 +3,8 @@
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
+import type { MatchedDeposit } from "@/hooks/use-matched-deposits";
+import { formatPaymentReference } from "@/lib/payment-reference";
 
 interface WalletTransactionApproveDialogProps {
   open: boolean;
@@ -10,6 +12,10 @@ interface WalletTransactionApproveDialogProps {
   topup: WalletTopupWithAdvertiser;
   onConfirm: () => void;
   isPending: boolean;
+  /** The bank deposit matched to this claim, when one has arrived. */
+  deposit?: MatchedDeposit;
+  /** True when the bank feed could not be read — NOT the same as "none". */
+  depositsUnreadable?: boolean;
 }
 
 /**
@@ -36,6 +42,8 @@ export default function WalletTransactionApproveDialog({
   topup,
   onConfirm,
   isPending,
+  deposit,
+  depositsUnreadable,
 }: WalletTransactionApproveDialogProps) {
   const requestedAmount = Number(topup.amount ?? 0);
   const symbol =
@@ -48,7 +56,18 @@ export default function WalletTransactionApproveDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Credit this wallet?"
-      lead="Check the amount against the slip first. This credits exactly the figure below — if the bank shows something else, reject it and ask them to send it again."
+      /* The lead now leads with what we KNOW. "Check the amount against
+         the slip" was the right instruction when the screen had nothing but
+         the customer's claim on it; when a matching bank deposit exists, an
+         admin should be told that first, and when one does NOT, that is the
+         warning — not a generic reminder shown identically either way. */
+      lead={
+        deposit
+          ? "A bank deposit matching this claim has arrived. Check the figure below against it, then credit."
+          : depositsUnreadable
+            ? "We could not read the bank feed, so nothing here confirms the money arrived. Check the slip before you credit."
+            : "No bank deposit has been matched to this yet — so far this is only the customer's word. Check the slip first; this credits exactly the figure below."
+      }
       cta={`Yes, credit ${symbol}${requestedAmount.toFixed(2)}`}
       busy={isPending}
       busyLabel="Crediting…"
@@ -66,10 +85,32 @@ export default function WalletTransactionApproveDialog({
         value={`${symbol}${requestedAmount.toFixed(2)}`}
         strong
       />
-      <ConfirmFact label="Reference" value={topup.reference_no ?? "—"} />
+      <ConfirmFact
+        label="Reference"
+        value={
+          formatPaymentReference(
+            topup.advertiser?.tenant_client_code,
+            topup.reference_no,
+          ) || "—"
+        }
+      />
       <ConfirmFact
         label="Filed"
         value={new Date(topup.created_at).toLocaleDateString()}
+      />
+      {/* The fact that decides it. */}
+      <ConfirmFact
+        label="Bank deposit"
+        value={
+          deposit
+            ? `${deposit.currency === "USD" ? "$" : "€"}${(
+                deposit.amountCents / 100
+              ).toFixed(2)}${deposit.senderName ? " from " + deposit.senderName : ""}`
+            : depositsUnreadable
+              ? "could not be checked"
+              : "none matched yet"
+        }
+        strong={!!deposit}
       />
     </ConfirmModal>
   );
