@@ -29,7 +29,8 @@ Regenerate the list with the script at the bottom.
 `commissions/commission-{card,row}` · `invoices/invoice-{card,row}` ·
 `account/account-{card,row}` · `invites/invite-card` ·
 `affiliate/affiliate-card` · `affiliate/referral-link-box` ·
-`admin/users/user-topup-dialog` · `my-affiliates/my-affiliates-table` ·
+`admin/users/user-topup-dialog` · `admin/users/user-table` ·
+`my-affiliates/my-affiliates-table` ·
 `dashboard/{fees,profit}-stats-card`
 
 Each has a live equivalent. They are kept for now only because deleting a

@@ -284,8 +284,26 @@ export default function PsmRequests() {
           >
             {isError
               ? "Couldn't load the account requests — this is NOT an empty queue. Reload to retry."
-              : "No account requests to show."}
+              : debounced || statusFilter !== "all"
+                ? /* A filter left on from earlier looks exactly like an
+                     empty queue, and the way out of it is not on screen. */
+                  debounced
+                  ? `No account requests match “${debounced}”.`
+                  : "No account requests match the filter you have set."
+                : "No account requests to show."}
           </p>
+          {!isError && (debounced || statusFilter !== "all") ? (
+            <button
+              className="btn ghost sm"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+              }}
+            >
+              Clear the search and filters
+            </button>
+          ) : null}
         </div>
       )}
 

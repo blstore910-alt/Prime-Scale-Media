@@ -410,9 +410,30 @@ export default function PsmSubscriptions() {
         </div>
       ) : (
         <div className="card">
+          {/* "You have none" and "your filters match none" are different
+              facts. On a billing screen the first one reads as "nobody is
+              being charged", which is a sentence nobody should see because
+              a status chip was left set. */}
           <p className="muted" style={{ margin: 0 }}>
-            No subscriptions found.
+            {search
+              ? `No subscriptions match “${search}”.`
+              : status !== "all" || date
+                ? "No subscriptions match the filters you have set."
+                : "No subscriptions yet."}
           </p>
+          {search || status !== "all" || date ? (
+            <button
+              className="btn ghost sm"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                setSearch("");
+                setStatus("all");
+                setDate("");
+              }}
+            >
+              Clear the search and filters
+            </button>
+          ) : null}
         </div>
       )}
 
