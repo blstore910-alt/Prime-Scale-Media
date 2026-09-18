@@ -115,7 +115,20 @@ async function resolveEffectiveFeePct(
       : hasPlan
         ? Number(plan!.topup_fee_pct)
         : fallbackPct;
-  const pct = waiver ? 0 : Math.max(0, base - discount - premium);
+  // PERCENT OFF, NOT PERCENTAGE POINTS OFF.
+  //
+  // The promotions screen labels this "Top-up fee discount (%)", accepts
+  // 0-100, and renders the row as "20% off" — and its sibling
+  // subscription_discount is applied multiplicatively. This subtracted
+  // the number from the RATE, so 20% granted against a 5% ad account gave
+  // max(0, 5 - 20) = 0%: a EUR 10,000 top-up collected nothing instead of
+  // $465, on every top-up for as long as the perk lived. Even a modest 5%
+  // took the fee to zero rather than to 4.75%.
+  //
+  // The premium two points stay a subtraction, because that is genuinely
+  // what they are: two points off the rate, not a proportion of it.
+  const discounted = base * (1 - Math.min(Math.max(discount, 0), 100) / 100);
+  const pct = waiver ? 0 : Math.max(0, discounted - premium);
   return { applied: true, pct };
 }
 
@@ -541,6 +554,54 @@ export async function bulkCreateTopupsAsAdmin(
           acctId,
         ),
       );
+    }
+  }
+
+  // ── A ROW'S CURRENCY MUST BE ITS ACCOUNT'S ──────────────────────────
+  //
+  // Every row used to default to EUR, so an admin filling amounts for USD
+  // ad accounts and leaving the default wrote EUR top-ups against USD
+  // accounts, out of the EUR wallet. The dialog now seeds from the
+  // account and refuses a mismatch — and a dialog is not a boundary, so
+  // the same refusal lives here, where the payload arrives.
+  {
+    const ids = [
+      ...new Set(
+        rows
+          .map((r) => (typeof r.account_id === "string" ? r.account_id : null))
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    if (ids.length) {
+      const { data: accts } = await supabase
+        .from("ad_accounts")
+        .select("id, name, currency")
+        .in("id", ids);
+      const byId = new Map(
+        (accts ?? []).map((a) => [
+          String(a.id),
+          {
+            name: String(a.name ?? "that account"),
+            cur: String(a.currency ?? "").toUpperCase(),
+          },
+        ]),
+      );
+      for (const row of rows) {
+        const id = typeof row.account_id === "string" ? row.account_id : null;
+        if (!id) continue;
+        const acct = byId.get(id);
+        // An account that does not state a currency is not a mismatch —
+        // there is nothing to disagree with.
+        if (!acct || (acct.cur !== "EUR" && acct.cur !== "USD")) continue;
+        const rowCur = String(row.currency ?? "").toUpperCase();
+        if (rowCur && rowCur !== acct.cur) {
+          return {
+            ok: false,
+            error: `${acct.name} is a ${acct.cur} account, so it cannot be funded from the ${rowCur} wallet. Nothing was created.`,
+            code: "invalid",
+          };
+        }
+      }
     }
   }
 

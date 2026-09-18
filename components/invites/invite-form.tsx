@@ -2,7 +2,7 @@
 
 import { safeErrorMessage } from "@/lib/pure-error";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -40,6 +40,7 @@ import {
 } from "../ui/input-group";
 import { Label } from "../ui/label";
 import { planPrice } from "@/lib/pure-plan-price";
+import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 
 const inviteBaseSchema = z.object({
   email: z.email("Please enter a valid email address"),
@@ -196,11 +197,29 @@ export default function InviteForm() {
   // cannot pay with.
   const [planCurrency, setPlanCurrency] = useState<"EUR" | "USD">("EUR");
 
+  // THE RATE, which planPrice needs to fall back on.
+  //
+  // Both call sites below omitted it, so a plan with no pinned USD price
+  // returned the EUR amount with pinned:false — and the chip printed
+  // "$200 ~" for the EUR 200 plan while the tooltip said "this is a
+  // conversion". It was not a conversion; it was the euro number wearing
+  // a dollar sign, and picking it would have billed $200 a month for
+  // ever. The three seeded plans now have pinned prices, which hides it;
+  // any new plan would have walked straight into it.
+  const { exchangeRates: inviteRates } = useExchangeRates({ activeOnly: true });
+  const eurToUsd = useMemo(() => {
+    const row = (inviteRates ?? []).find(
+      (r) => String(r.currency).toUpperCase() === "USD",
+    );
+    const eur = Number(row?.eur);
+    return Number.isFinite(eur) && eur > 0 ? 1 / eur : null;
+  }, [inviteRates]);
+
   function prefillFrom(p: PlanOption | undefined) {
     if (!p) return;
     const base = String(p.currency).toUpperCase() === "USD" ? "USD" : "EUR";
     setPlanCurrency(base);
-    form.setValue("monthly_fee", planPrice(p, base, "month").amount);
+    form.setValue("monthly_fee", planPrice(p, base, "month", eurToUsd).amount);
     form.setValue("included_ad_accounts", p.included_ad_accounts);
     form.setValue("topup_fee_pct", p.topup_fee_pct);
   }
@@ -488,7 +507,7 @@ export default function InviteForm() {
                       </span>
                       {(["EUR", "USD"] as const).map((c) => {
                         const p = tiers.find((x) => x.id === planId);
-                        const price = p ? planPrice(p, c, "month") : null;
+                        const price = p ? planPrice(p, c, "month", eurToUsd) : null;
                         return (
                           <button
                             key={c}

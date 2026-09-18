@@ -194,7 +194,16 @@ export function AccountDetailsSheet({
                   </div>
                 </div>
 
-                {data.notes && (
+                {/* ADMIN FREE TEXT, AND IT IS NOT THE CUSTOMER'S.
+                    This sheet is mounted inside the advertiser app and
+                    opened from any account card, and these two blocks had
+                    no role check while three others in this same file do.
+                    ad_accounts.notes is excluded from the customer's own
+                    GDPR export by name — "admin free text about the
+                    customer's account" — because it is where an operator
+                    writes things like a supplier account number and the
+                    rate we pay for it. */}
+                {!isAdvertiser && data.notes && (
                   <div className="mt-2 text-sm">
                     <span className="font-medium text-muted-foreground block">
                       Notes:
@@ -205,8 +214,10 @@ export function AccountDetailsSheet({
                   </div>
                 )}
 
-                {/* Metadata Fields Section */}
-                {(data.metadata as Record<string, string | string[]>) &&
+                {/* Metadata Fields Section — admin-only for the same
+                    reason: every key is rendered, whatever was put in it. */}
+                {!isAdvertiser &&
+                  (data.metadata as Record<string, string | string[]>) &&
                   Object.keys(data.metadata || {}).length > 0 &&
                   (() => {
                     const metadata = data.metadata as Record<
@@ -407,7 +418,15 @@ function TopupHistory({ account }: { account: AdAccount }) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("top_ups")
-        .select("*")
+        // NOT select("*"). Five columns render and the whole row crossed
+        // the wire — including top_ups.source, which the GDPR export
+        // excludes by name because it "can carry a supplier identifier",
+        // and top_ups.notes. The same leak one file over was closed with
+        // this exact shape and the note "not rendering is not the same as
+        // not sending".
+        .select(
+          "id, created_at, amount_received, currency, topup_amount, fee, fee_amount, status",
+        )
         .eq("account_id", account.id);
       if (error) throw error;
       return data;

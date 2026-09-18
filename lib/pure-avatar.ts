@@ -24,6 +24,44 @@
 
 export type AvatarRole = "advertiser" | "affiliate" | "admin" | "unknown";
 
+/**
+ * The ten styles.
+ *
+ * Deliberately NOT ten variations of one idea. A picker where every
+ * option is a slightly different face is not a choice, it is a slider —
+ * so these differ in kind: a face, an abstract, a monogram, a pattern, a
+ * mark. Whichever is chosen, it stays deterministic from the seed, so the
+ * same person is the same picture everywhere in the app.
+ */
+export const AVATAR_STYLES = [
+  "beam",     // a face: two eyes and a mouth, tilted
+  "marble",   // soft overlapping blobs, organic
+  "bauhaus",  // circle, bar and square on a grid
+  "rings",    // concentric arcs, off-centre
+  "pixel",    // a mirrored 5x5 identicon
+  "mono",     // initials on a two-tone ground
+  "slab",     // one big letter, offset colour block behind it
+  "orbit",    // a disc with a ring and a moon
+  "wave",     // stacked bands with a sine to them
+  "shard",    // angular facets, cut glass
+] as const;
+
+export type AvatarStyle = (typeof AVATAR_STYLES)[number];
+
+/** What each one is called on the picker. */
+export const AVATAR_STYLE_LABELS: Record<AvatarStyle, string> = {
+  beam: "Beam",
+  marble: "Marble",
+  bauhaus: "Bauhaus",
+  rings: "Rings",
+  pixel: "Pixel",
+  mono: "Monogram",
+  slab: "Slab",
+  orbit: "Orbit",
+  wave: "Wave",
+  shard: "Shard",
+};
+
 export type AvatarSpec = {
   /** Background of the disc. */
   bg: string;
@@ -43,6 +81,14 @@ export type AvatarSpec = {
   mouthW: number;
   /** The two letters shown when initials are asked for instead of a face. */
   initials: string;
+
+  // ── Everything the other nine styles draw from ─────────────────────
+  /** Three more colours from the same family, for the abstract styles. */
+  palette: [string, string, string];
+  /** 0..1 knobs. Independent slices of one hash, so nothing moves in step. */
+  k: [number, number, number, number, number, number];
+  /** A mirrored 5x5 bitmap, 25 booleans, for the pixel style. */
+  bits: boolean[];
 };
 
 /**
@@ -146,6 +192,20 @@ export function avatarFor(
 
   const bg = palette[pick(0, palette.length)];
 
+  // Three more from the same family, each a different distance away, so
+  // an abstract style reads as one person's colours rather than as
+  // confetti.
+  const at = (n: number) => palette[(pick(0, palette.length) + n) % palette.length];
+
+  // The pixel grid is MIRRORED: 15 decisions become 25 cells, and the
+  // symmetry is what makes an identicon read as a mark rather than as
+  // noise. Column 3 and 4 echo 1 and 0.
+  const bits: boolean[] = [];
+  for (let row = 0; row < 5; row += 1) {
+    const left = [0, 1, 2].map((col) => ((h >>> (row * 3 + col)) & 1) === 1);
+    bits.push(left[0], left[1], left[2], left[1], left[0]);
+  }
+
   return {
     bg,
     bg2: darken(bg, 0.28),
@@ -156,6 +216,16 @@ export function avatarFor(
     smile: (pick(19, 5) + 1) / 5,
     mouthW: 9 + pick(23, 6),
     initials: initialsFrom(opts?.name, opts?.email),
+    palette: [at(1), at(2), at(3)],
+    k: [
+      pick(3, 100) / 100,
+      pick(7, 100) / 100,
+      pick(13, 100) / 100,
+      pick(17, 100) / 100,
+      pick(21, 100) / 100,
+      pick(25, 100) / 100,
+    ],
+    bits,
   };
 }
 

@@ -439,7 +439,13 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("companies")
-        .select("name, vat_no, country, is_not_vat, official_email, phone, address, state, zipcode, billings(address, state, country, zipcode)")
+        // registration_no and website_url are in COMPANY_ALLOWED and are
+        // posted back by saveCompany, so leaving them OUT of this select
+        // meant they came back as "" and every save wiped them. The
+        // registration number is printed on the invoice PDF and it is the
+        // field /complete-profile's own gate tests — so wiping it makes
+        // that page reappear for ever.
+        .select("name, vat_no, country, is_not_vat, official_email, phone, address, state, zipcode, registration_no, website_url, billings(address, state, country, zipcode)")
         .eq("advertiser_id", advertiserId)
         .maybeSingle();
       if (error) throw error;
@@ -1460,8 +1466,14 @@ export default function AdvertiserApp() {
                     the button between them charges €5. The billing card
                     and the tile were both fixed for exactly this; this row
                     was missed. One number, from the thing being paid. */}
+                {/* "Outstanding", not "Due now". "Due now EUR 5.00 · due
+                    25 Sep" says two things that contradict each other: it
+                    is not due now, it is open until the 25th. And
+                    "outstanding" is the word the tile directly above uses
+                    for the same figure, so the two agree instead of
+                    describing one amount two ways. */}
                 <span className="dtx">
-                  {dueSubInvoice ? "Due now" : "Monthly fee"}{" "}
+                  {dueSubInvoice ? "Outstanding" : "Monthly fee"}{" "}
                   <b>{dueSubInvoice ? dueBillAmount : planMoney(subscription.amount)}</b>
                   {dueBillDate
                     ? ` · due ${dayjs(dueBillDate).format("D MMM")}`
@@ -1771,7 +1783,7 @@ export default function AdvertiserApp() {
                 pending={pendingByCurrency.EUR}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
-                disabled={!wallet}
+                disabled={!wallet || (!companyComplete && !gateUnknown)}
               />
               <WalletCard
                 cur="usd"
@@ -1780,9 +1792,31 @@ export default function AdvertiserApp() {
                 pending={pendingByCurrency.USD}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
-                disabled={!wallet}
+                disabled={!wallet || (!companyComplete && !gateUnknown)}
               />
             </div>
+            {/* THE SAME GATE THE DASHBOARD HAS, and the same sentence.
+                It was applied on the dashboard's hero and nowhere else,
+                so a customer with no company details could tap the
+                balance, land here, open the dialog, and be handed an IBAN
+                and a reference. They make a real bank transfer, and
+                wallet_topup_advertiser_create takes amount, currency and
+                slip only — there is no server-side gate — so the money
+                arrives for somebody no invoice can be raised for. A
+                disabled button on one screen is not a rule. */}
+            {!companyComplete && !gateUnknown && (
+              <div className="duerow msg" style={{ marginTop: 12 }}>
+                <span className="ai">
+                  <Ic name="i-building" />
+                </span>
+                <span className="dtx">
+                  Add your company details to top up or request an account
+                </span>
+                <a className="dlink" href="/complete-profile">
+                  Add <Ic name="i-arrow" />
+                </a>
+              </div>
+            )}
             {pendingTopups.length > 0 && (
               <div className="card">
                 <h2>
@@ -2014,7 +2048,7 @@ export default function AdvertiserApp() {
                 </h3>
                 <p>
                   {accountsError
-                    ? "This isn&apos;t an empty list — the request didn&apos;t come back. Give it a reload."
+                    ? "This isn't an empty list — the request didn't come back. Give it a reload."
                     : !canRequestAccount && invError
                       ? "Your invoices didn't load, so we can't tell whether the plan is paid. Reload to try again."
                     : canRequestAccount

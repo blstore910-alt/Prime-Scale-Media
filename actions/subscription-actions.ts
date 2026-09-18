@@ -111,7 +111,18 @@ export async function createSubscriptionAsAdmin(
       amount,
       start_date: startDate.toISOString(),
       status: "inactive",
-      next_payment_date: startDate.add(1, "month").toISOString(),
+      // DUE ON THE START DATE, not a month after it.
+      //
+      // The billing run only selects a subscription whose
+      // next_payment_date has arrived, so starting the clock a month
+      // ahead meant an admin-created subscription raised no invoice for
+      // thirty days: the customer's dashboard read "No subscription
+      // invoice due" with Pay disabled, and the ad-account Request button
+      // stayed disabled behind it because it waits on a PAID subscription
+      // invoice. 20260918180000 closed exactly this for the invite path
+      // and its backfill was a one-shot update, so every new
+      // admin-created subscription kept landing in the same gap.
+      next_payment_date: startDate.toISOString(),
     })
     .select("id")
     .single();

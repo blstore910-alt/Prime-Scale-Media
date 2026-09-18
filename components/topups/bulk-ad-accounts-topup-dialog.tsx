@@ -44,6 +44,10 @@ type BulkTopupRow = {
   account_name: string;
   enabled: boolean;
   currency: string;
+  /** What the ACCOUNT is denominated in, or null when it does not say.
+   *  Carried on the row so the schema can refuse a mismatch the way the
+   *  single-account form already does. */
+  account_currency: string | null;
   amount: string;
   fee: string;
   min_topup: number;
@@ -112,12 +116,27 @@ const buildBulkTopupSchema = (isAdvertiser: boolean) =>
               account_name: z.string(),
               enabled: z.boolean(),
               currency: z.string().min(1, "Currency is required"),
+              account_currency: z.string().nullable(),
               amount: z.string(),
               fee: z.string(),
               min_topup: z.number(),
             })
             .superRefine((row, ctx) => {
               if (!row.enabled) return;
+
+              // THE SAME REFUSAL THE SINGLE FORM MAKES. Funding a USD ad
+              // account out of the EUR wallet is not a preference, it is
+              // a mistake, and thirty rows at once is where it happens.
+              if (
+                row.account_currency &&
+                row.currency !== row.account_currency
+              ) {
+                ctx.addIssue({
+                  path: ["currency"],
+                  code: "custom",
+                  message: `This account is ${row.account_currency}`,
+                });
+              }
 
               if (!row.amount.trim()) {
                 ctx.addIssue({
@@ -201,7 +220,29 @@ export default function BulkTopupAdAccountsDialog({
         account_name: account.name,
         enabled: true,
         amount: "",
-        currency: "EUR",
+        // THE ACCOUNT'S OWN CURRENCY, not EUR for everybody.
+        //
+        // Every row defaulted to EUR. An admin filling amounts for USD ad
+        // accounts, leaving the default and submitting wrote EUR top-ups
+        // against USD accounts, out of the EUR wallet. The single-account
+        // form forbids exactly this — "Only USD wallet is allowed for this
+        // account" — and nothing on this dialog or in
+        // bulkCreateTopupsAsAdmin compared the row's currency to the
+        // account's at all.
+        //
+        // USD when the account does not say: top_ups.topup_amount and
+        // amount_usd are USD by construction, so USD is the safe guess
+        // and EUR was never the right one.
+        currency:
+          String(account.currency ?? "").toUpperCase() === "EUR"
+            ? "EUR"
+            : "USD",
+        account_currency:
+          String(account.currency ?? "").toUpperCase() === "EUR"
+            ? "EUR"
+            : String(account.currency ?? "").toUpperCase() === "USD"
+              ? "USD"
+              : null,
         fee: String(account.fee ?? 0),
         min_topup: account.min_topup ?? 0,
       })),

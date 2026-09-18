@@ -60,6 +60,14 @@ export default function ChangeSubscriptionAmountDialog({
     setPrimedFor(subscription.id);
     setAmount(String(subscription.amount ?? ""));
     setCurrency((subscription.currency as "EUR" | "USD") || "EUR");
+    // AND THE REFUND PILL, which was not being re-primed.
+    //
+    // The dialog is mounted unconditionally, so its state survives a
+    // close. Tick "refund to the wallet" for one customer, then lower a
+    // different customer's amount an hour later, and the dialog opens
+    // with it already selected — and Save pays real money out of our
+    // side, decided by nobody. A default that persists is not a default.
+    setRefund(false);
   }
   if (!open && primedFor !== null) {
     setPrimedFor(null);

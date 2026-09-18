@@ -153,15 +153,16 @@ export async function financeReportForMe(): Promise<
     });
   }
 
-  // ── Wallet out to an ad account, and what we charged for it ─────────
+  // ── Wallet out to an ad account ─────────────────────────────────────
   // topup_amount, amount_usd and fee_amount are ALWAYS USD by
-  // construction; `currency` is only what the customer paid in. Reporting
-  // these in the paid currency is the mistake one screen already makes.
+  // construction; `currency` is what the customer paid in, and
+  // amount_received is what actually left their wallet. See the note in
+  // the loop for why that distinction decides the whole report.
   for (const r of await source("ad account funding", (from, to) =>
     supabase
       .from("top_ups")
       .select(
-        "id, account_id, topup_amount, fee_amount, currency, status, created_at, type",
+        "id, account_id, topup_amount, fee_amount, amount_received, currency, status, created_at, type",
       )
       .eq("advertiser_id", advertiserId)
       .order("created_at", { ascending: true })
@@ -169,33 +170,54 @@ export async function financeReportForMe(): Promise<
   )) {
     const done = String(r.status ?? "") === "completed";
     const acct = r.account_id ? accountName.get(String(r.account_id)) ?? null : null;
+
+    // THE WALLET LEG, IN THE WALLET'S OWN CURRENCY.
+    //
+    // This booked the movement in USD at topup_amount, because
+    // topup_amount, amount_usd and fee_amount are USD by construction.
+    // But what LEAVES THE WALLET is amount_received, in the currency the
+    // customer chose — that is the figure the top-up form validates
+    // against the balance and prints as "wallet afterwards". Reporting
+    // the USD leg against a EUR wallet made the per-currency net
+    // meaningless: a EUR 10,000 top-up spent down to EUR 1,000 read as
+    // "EUR in 10,000, out 0, net 10,000", plus an invented -$10,465 in a
+    // currency the customer never held.
+    //
+    // One line per movement, in the currency that moved. The USD side —
+    // what landed on the account and what the fee was — is stated in the
+    // line's own text, where it informs without being added to a total
+    // it does not belong to.
+    const landed = Math.abs(num(r.topup_amount));
+    const fee = Math.abs(num(r.fee_amount));
+    const left = Math.abs(num(r.amount_received));
+    const detail = done
+      ? [
+          landed > 0 ? `$${landed.toFixed(2)} landed` : null,
+          fee > 0 ? `$${fee.toFixed(2)} fee` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+
     lines.push({
       id: `tu-${r.id}`,
       at: String(r.created_at ?? ""),
       kind: "account_topup",
-      label: done ? "Funded ad account" : "Funding pending",
+      label: done
+        ? detail
+          ? `Funded ad account — ${detail}`
+          : "Funded ad account"
+        : "Funding pending",
       reference: null,
       account: acct,
       counterparty: null,
-      currency: "USD",
-      amount: done ? -Math.abs(num(r.topup_amount)) : 0,
+      currency: cur(r.currency),
+      // amount_received, not topup_amount: the wallet is what this report
+      // reconciles against, and the fee is already inside this figure.
+      // Booking the fee again as its own line would subtract it twice.
+      amount: done ? -left : 0,
       status: String(r.status ?? ""),
     });
-    const fee = Math.abs(num(r.fee_amount));
-    if (done && fee > 0) {
-      lines.push({
-        id: `fee-${r.id}`,
-        at: String(r.created_at ?? ""),
-        kind: "fee",
-        label: "Top-up fee",
-        reference: null,
-        account: acct,
-        counterparty: null,
-        currency: "USD",
-        amount: -fee,
-        status: "completed",
-      });
-    }
   }
 
   // ── Money coming back out of an ad account ──────────────────────────

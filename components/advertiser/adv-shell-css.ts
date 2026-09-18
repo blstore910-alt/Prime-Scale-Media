@@ -141,7 +141,7 @@ export const ADV_CSS = `
   .hero-a{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:15px}
   .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:0;
     border:0;cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.88rem;
-    border-radius:12px;padding:11px 14px;color:#fff;
+    border-radius:12px;padding:9px 14px;color:#fff;
     background:linear-gradient(118deg,#4f83ff,#6d63ff 52%,#9a6bff);
     box-shadow:0 14px 30px -14px rgba(96,86,255,.8),inset 0 1px 0 rgba(255,255,255,.28);
     transition:.14s}
@@ -150,9 +150,14 @@ export const ADV_CSS = `
   .hero-btn.gh{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);box-shadow:none}
   .hero-btn.gh:hover{background:rgba(255,255,255,.16)}
   .hero-btn svg{width:16px;height:16px;flex:0 0 auto}
+  /* THE ICON STAYS. Hiding it below 420px bought the width the third
+     label needed, and it cost the thing that makes a row of three read as
+     a row of three. Shortening "Ad accounts" to "Accounts" buys the same
+     width and costs nothing — under a wallet balance, in an app whose
+     only accounts are ad accounts, one word says it. */
   @media(max-width:420px){
-    .hero-btn{padding:11px 6px;font-size:.82rem;gap:5px}
-    .hero-btn svg{display:none}
+    .hero-btn{padding:9px 7px;font-size:.8rem;gap:5px}
+    .hero-btn svg{width:14px;height:14px}
   }
   /* A block the size of the number that is coming, not the number zero.
      The dashboard used to render €0 / $0 the instant it mounted and swap in
@@ -518,7 +523,7 @@ export const ADV_CSS = `
   .duerow .dlink{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
     cursor:pointer;font-family:var(--bd);font-weight:700;font-size:.82rem;
     color:var(--primary-600);background:var(--primary-tint);border:1px solid #cfe0ff;
-    padding:7px 11px;border-radius:9px;box-shadow:0 1px 0 #fff inset;transition:.13s}
+    padding:6px 11px;border-radius:9px;box-shadow:0 1px 0 #fff inset;transition:.13s}
   .duerow .dlink:hover{background:#fff;border-color:var(--primary);
     box-shadow:0 1px 0 #fff inset,0 6px 14px -10px rgba(58,111,255,.7)}
   .duerow .dlink:active{transform:translateY(1px)}

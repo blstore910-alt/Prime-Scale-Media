@@ -98,7 +98,13 @@ export default function BalanceHero({
             itself. From here the next thing anyone does with funded money is
             put it on an ad account. */}
         <button className="hero-btn gh" onClick={onOpenAccounts}>
-          <Ic name="i-ad" /> Ad accounts
+          {/* "Accounts", not "Ad accounts". The icon belongs beside the
+              label — that is what makes a row of three read as a row of
+              three rather than as three words — and the only reason it
+              was being dropped on a narrow phone was this third label
+              being two words. Under the wallet balance, in an app whose
+              only accounts are ad accounts, one word says it. */}
+          <Ic name="i-ad" /> Accounts
         </button>
       </div>
     </section>

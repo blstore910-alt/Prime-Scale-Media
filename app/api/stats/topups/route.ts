@@ -1,6 +1,7 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -254,27 +255,35 @@ export async function GET(request: NextRequest) {
   // could read. On a financial dashboard that is not a degraded
   // experience, it is a wrong answer.
 
-  const { data, error: readError } = await supabase
-    .from("top_ups")
-    .select("created_at, currency, topup_amount")
-    .eq("tenant_id", profile.tenant_id)
-    .gte("created_at", periodStart)
-    .lt("created_at", periodEnd)
-    .eq("status", "completed");
-
-  if (readError) {
-
+  // PAGED, like the summary route. PostgREST stops at 1,000 rows and this
+  // one feeds the admin dashboard's top-ups card, so past the thousandth
+  // completed top-up in the selected period the figure was quietly short
+  // with nothing to say so.
+  //
+  // The (created_at, id) order matters: a bulk top-up inserts up to 200
+  // rows sharing one now(), and Postgres gives no stable order among
+  // ties — without the tiebreaker a row on a page boundary can be counted
+  // twice or skipped.
+  const paged = await pageAllRows<TopupRow>((from, to) =>
+    supabase
+      .from("top_ups")
+      .select("created_at, currency, topup_amount")
+      .eq("tenant_id", profile.tenant_id)
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .eq("status", "completed")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  if (paged.error) {
     return NextResponse.json(
-
       { error: "Failed to load top-up stats." },
-
       { status: 500 },
-
     );
-
   }
 
-  const rows = (data || []) as TopupRow[];
+  const rows = paged.rows;
   const series = buildSeries(rows, periodStart, periodEnd, granularity, usdToEurRate);
 
   const totals = rows.reduce(

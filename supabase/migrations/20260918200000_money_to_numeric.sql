@@ -136,7 +136,17 @@ begin
     select view_name, definition from public._view_backup_20260918
      order by view_name
   loop
-    execute format('create view public.%I as %s', r.view_name, r.definition);
+    execute format('create view public.%I with (security_invoker = on) as %s', r.view_name, r.definition);
+    -- AND THE GRANTS, which pg_get_viewdef does not carry either. Without
+    -- them `authenticated` loses SELECT and /top-ups, /commissions,
+    -- /affiliates and /inactive all fail with "permission denied for view".
+    --
+    -- AND security_invoker, above: a recreated view runs as its OWNER by
+    -- default, so dropping and rebuilding these silently switched
+    -- row-level security back off underneath them. The header says the
+    -- views come back "exactly as they were" — they do not, and that is
+    -- what makes this easy to miss.
+    execute format('grant select on public.%I to authenticated', r.view_name);
     raise notice 'recreated view %', r.view_name;
   end loop;
 end;

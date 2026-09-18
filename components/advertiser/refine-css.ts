@@ -83,8 +83,12 @@ ${s} .btn{
    row. Restated here at the same scope, so the modifier is later too.
    (No backticks in this comment: it lives inside a template literal, and
    one here has broken the production build twice.) */
-${s} .btn.sm{padding:8px 12px;font-size:.85rem}
-${s} .btn.sm2{padding:8px 12px;font-size:.82rem}
+/* Lower again. "View all", "Pay" and the table action buttons sit
+   inside cards and beside text, where a 38px slab reads as heavy.
+   7px keeps a 34px control, which is still comfortable next to a
+   heading and no longer competes with it. */
+${s} .btn.sm{padding:7px 12px;font-size:.84rem}
+${s} .btn.sm2{padding:7px 12px;font-size:.82rem}
 ${s} .btn:hover{transform:translateY(-1px);filter:brightness(1.04);
   box-shadow:0 1px 0 rgba(255,255,255,.26) inset,0 16px 28px -16px rgba(58,111,255,.9),0 3px 7px -4px rgba(20,30,80,.4)}
 /* A real press: down, and the lift taken away. Buttons that only change
