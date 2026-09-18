@@ -1917,10 +1917,14 @@ export default function AdvertiserApp() {
                   </button>
                 </p>
               </div>
+              {/* "Request ad account" under a heading that already says
+                  Ad accounts is the page title twice. The shorter label
+                  is the one that fits beside the heading instead of
+                  dropping to its own line. */}
               {canRequestAccount ? (
                 <RequestAdAccountDialog>
                   <button className="btn grad">
-                    <Ic name="i-plus" /> Request ad account
+                    <Ic name="i-plus" /> Request one
                   </button>
                 </RequestAdAccountDialog>
               ) : (
@@ -1929,7 +1933,7 @@ export default function AdvertiserApp() {
                   disabled
                   title="Your plan has to be active first — that is what your included ad accounts come from"
                 >
-                  <Ic name="i-plus" /> Request ad account
+                  <Ic name="i-plus" /> Request one
                 </button>
               )}
             </div>

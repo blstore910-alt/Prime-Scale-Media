@@ -62,6 +62,14 @@ ${s} .fbtn:hover{border-color:var(--primary);color:var(--primary-600)}
    gradient that is brighter at the top, a hairline of white along the top
    edge, and a shadow tinted with the button's own hue rather than grey. */
 ${s} .btn{
+  /* SMALLER, EVERYWHERE. These inherited the body's 16px at weight 700
+     with 11px of padding above and below, which came out as a 46px slab
+     — fine for one hero button, wrong for the eight of them on a phone
+     screen. 14px text and 10px of padding is still a comfortable tap
+     target (42px with the border) and stops a button shouting louder
+     than the heading above it. */
+  font-size:.875rem;
+  padding:10px 15px;
   background-image:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,0) 58%);
   box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 10px 22px -14px rgba(58,111,255,.85),0 2px 5px -3px rgba(20,30,80,.35);
   transition:transform .12s cubic-bezier(.2,.7,.3,1),box-shadow .12s,filter .12s,background-color .12s;
@@ -147,6 +155,19 @@ ${s} .mfoot{padding-top:15px;margin-top:17px;border-top:1px solid var(--line)}
    two-line confirmation came out as tall as a top-up. */
 ${s} .mcard:has(.mfoot) .cap{margin-bottom:0}
 ${s} .mcard .mfoot .btn{font-size:.9rem;padding:11px 18px}
+
+/* ── The page-head action ───────────────────────────────────────────────
+   .phead is space-between with wrap, so as soon as the title and the
+   button stop fitting side by side the button drops to its own line and
+   lands hard against the left margin — under the subtitle, in line with
+   nothing. It reads like something that fell off.
+   Pushed to the right instead, where it lines up with the edge of the
+   cards below it, and given the same air above as the subtitle has. */
+@media (max-width:640px){
+  ${s} .phead{align-items:flex-start}
+  ${s} .phead>.btn,
+  ${s} .phead>*:last-child:not(:first-child){margin-left:auto}
+}
 
 /* On a phone a dialog belongs at the bottom, under the thumb, with the
    corners squared off against the edge it is attached to — that is what
@@ -357,7 +378,10 @@ ${s} .card.empty .empty-ic{width:52px;height:52px;border-radius:16px;display:gri
 ${s} .card.empty .empty-ic svg{width:24px;height:24px}
 ${s} .card.empty h3{font-family:var(--hd);font-weight:800;font-size:1.05rem;letter-spacing:-.02em;margin:0}
 ${s} .card.empty p{color:var(--txt-2);font-size:.88rem;margin:6px 0 16px;max-width:42ch;line-height:1.5}
-${s} .card.empty .btn{min-width:180px;justify-content:center}
+/* An empty state's action should be the obvious next step, not a slab.
+   min-width:180px on a 375px screen made "Go to billing" half the width
+   of the card it sat in. */
+${s} .card.empty .btn{min-width:0;padding:10px 20px;justify-content:center}
 
 /* ── Badges ─────────────────────────────────────────────────────────────
    A hairline of the badge's own colour, so a pale pill still has an edge. */
