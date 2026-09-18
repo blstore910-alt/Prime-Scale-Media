@@ -63,9 +63,23 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
 
       if (search && search.trim() !== "") {
         const rawTerm = search.trim();
+        // ── THE NUMBER THE SCREEN PRINTS ───────────────────────────────
+        //
+        // Every surface renders invoiceNumber(invoice) — "000005-1042" —
+        // including the PDF filename, and the placeholder says "Search
+        // invoice no…". Pasting that failed /^\d+$/, fell to the text
+        // branch, and searched client codes and company names on EMBEDDED
+        // tables, which postgrest-js cannot use to restrict parent rows
+        // without an inner join. The invoice was simply unfindable by the
+        // one identifier everybody quotes.
+        //
+        // Strip the client-code prefix and match the sequence.
+        const prefixed = /^\d+\s*[-–—/]\s*(\d+)$/.exec(rawTerm);
         const numericOnly = /^\d+$/.test(rawTerm);
 
-        if (numericOnly) {
+        if (prefixed) {
+          query = query.eq("number", Number(prefixed[1]));
+        } else if (numericOnly) {
           query = query.eq("number", Number(rawTerm));
         } else {
           const term = safeIlikeTerm(rawTerm);

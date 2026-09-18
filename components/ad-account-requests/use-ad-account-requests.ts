@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { safeIlikeTerm } from "@/lib/utils/search";
 
 export type AdAccountRequestsQueryParams = {
   search?: string | undefined;
@@ -82,12 +83,29 @@ export default function useAdAccountRequests(
         requesterEmail,
       } = params;
 
-      let query = supabase
-        .from("ad_account_requests")
-        .select(
-          "*, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
-          { count: "exact" },
-        );
+      // ── !inner ONLY WHILE SEARCHING ─────────────────────────────────
+      //
+      // postgrest-js cannot restrict parent rows by an embedded column
+      // without an inner join — which is why searching the client code
+      // needs one. But an inner join also DROPS every request that has
+      // no advertiser row yet, and those are exactly the ones the desk
+      // has to notice. So the join is inner only when a search term is
+      // narrowing the list anyway, and a plain left join the rest of the
+      // time.
+      const searching = !!(search && search.trim() !== "");
+      let query = searching
+        ? supabase
+            .from("ad_account_requests")
+            .select(
+              "*, advertiser:advertisers!inner(id, tenant_client_code, profile:user_profiles(full_name, email))",
+              { count: "exact" },
+            )
+        : supabase
+            .from("ad_account_requests")
+            .select(
+              "*, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
+              { count: "exact" },
+            );
 
       if (advertiserId) {
         query = query.eq("advertiser_id", advertiserId);
@@ -104,7 +122,30 @@ export default function useAdAccountRequests(
       }
 
       if (search && search.trim() !== "") {
-        query = query.ilike("email", `%${search.trim()}%`);
+        // ── WHAT THE CARD ACTUALLY SHOWS ───────────────────────────────
+        //
+        // The placeholder says "Search requests…" and every card leads
+        // with the advertiser's NAME and client code — while this matched
+        // only `email`, which is the ad-account email on the request, not
+        // the person's login. Searching the name or the code that is
+        // printed in front of the operator returned "No account requests
+        // match" on a queue that had them.
+        //
+        // The term also skipped safeIlikeTerm, unlike both sibling hooks,
+        // so a typed % silently widened the match.
+        //
+        // !inner on the embed, because postgrest-js cannot restrict
+        // parent rows by an embedded column without it — the invoices
+        // search has been quietly broken for the same reason.
+        const term = safeIlikeTerm(search.trim());
+        if (term.length > 0) {
+          query = query.or(
+            [
+              `email.ilike."*${term}*"`,
+              `advertiser.tenant_client_code.ilike."*${term}*"`,
+            ].join(","),
+          );
+        }
       }
 
       const { column, ascending } = buildSortParams(params.sort);

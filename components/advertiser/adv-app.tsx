@@ -634,8 +634,19 @@ export default function AdvertiserApp() {
   // dollars. Subscriptions default to EUR — the billing RPCs coalesce to it —
   // so that is the fallback, but a USD plan says so.
   const planCur = (subscription?.currency ?? "EUR").toUpperCase();
+  // A PRICE IS NOT A ROUNDED FIGURE.
+  //
+  // eur() and usd() are Math.round, which is right for a big balance on
+  // a hero tile and wrong for a price somebody is about to pay: a EUR
+  // 99.50 subscription read "EUR 100" here and on the plan card, while
+  // /subscriptions, the invoice, planMoney2 on the very next line and
+  // the actual wallet debit all said 99.50. The price was overstated by
+  // fifty cents on the screen the customer decides from.
+  //
+  // Kept as a name rather than deleted, because the two call sites read
+  // better with it — but it is the two-decimal one now.
   const planMoney = (v: number | string | null | undefined) =>
-    planCur === "USD" ? usd(v) : eur(v);
+    (planCur === "USD" ? "$" : "€") + money2(v);
   const planMoney2 = (v: number | string | null | undefined) =>
     (planCur === "USD" ? "$" : "€") + money2(v);
 
