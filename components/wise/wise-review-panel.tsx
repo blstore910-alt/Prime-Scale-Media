@@ -134,6 +134,38 @@ function realIban(v: string | null): string | null {
 /** Digits only, for comparing two spellings of one reference. */
 const refDigits = (v: string) => v.replace(/\D+/g, "");
 
+/**
+ * Wise's description, but only when it SAYS something.
+ *
+ * It is generated from the same two facts the card already prints in their
+ * own right: "Received money from BL E-COMMERCE with reference
+ * 0005-6164655424" — the sender, on the line above, and the reference, on
+ * the line above that. Three lines, one fact each, and the third repeats
+ * the other two in a sentence, clipped.
+ *
+ * A real one — a payer who typed a note, a bank that added something — is
+ * worth the line. So the name and the reference are removed along with the
+ * boilerplate around them, and if nothing is left, neither is the line.
+ */
+function usefulDescription(
+  description: string | null,
+  senderName: string | null,
+  reference: string | null,
+): string | null {
+  if (!description) return null;
+  let rest = description;
+  for (const part of [senderName, reference]) {
+    if (part) rest = rest.split(part).join(" ");
+  }
+  rest = rest
+    .replace(/received money( from)?/gi, " ")
+    .replace(/with reference/gi, " ")
+    .replace(/reference/gi, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  return rest.length > 2 ? description : null;
+}
+
 function money(currency: string, cents: number): string {
   const cur = (currency || "").toUpperCase();
   const amount = new Intl.NumberFormat("en-US", {
@@ -932,8 +964,12 @@ Statement tried: ${p.attempts.join(" | ")}`
                       {r.sender_iban}
                     </div>
                   ) : null}
-                  {r.description ? (
-                    <div className="wdesc" title={r.description}>
+                  {usefulDescription(
+                    r.description,
+                    r.sender_name,
+                    r.reference,
+                  ) ? (
+                    <div className="wdesc" title={r.description ?? undefined}>
                       {r.description}
                     </div>
                   ) : null}
