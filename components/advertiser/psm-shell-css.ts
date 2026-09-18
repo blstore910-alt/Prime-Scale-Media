@@ -493,7 +493,7 @@ export const PSM_APP_CSS = `
      label the button's whole width. As many as fit beside, otherwise
      above. */
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn{
-    gap:6px;padding:9px 6px;font-size:.72rem;letter-spacing:-.01em
+    gap:6px;padding:7px 6px;font-size:.72rem;letter-spacing:-.01em
   }
   /* Measured on the live card: the track is 94px, the icon and its gap
      take 19 and the padding 8, which leaves 67 for a word — and
@@ -501,13 +501,13 @@ export const PSM_APP_CSS = `
      a coincidence, and it ellipsised the moment anything rounded the other
      way. Three pixels come back off the gap and the padding. */
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
-    gap:4px;padding:9px 3px;font-size:.7rem;letter-spacing:-.015em
+    gap:4px;padding:7px 3px;font-size:.7rem;letter-spacing:-.015em
   }
   /* AFTER the rule above, or it loses to it — which is how the one control
      with no label to widen it ended up the narrowest thing on the card, at
      24px. A destructive action is not a 24px target. */
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4){
-    padding:9px 12px
+    padding:7px 12px
   }
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg{
     width:14px;height:14px
@@ -518,8 +518,13 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .alab{
     max-width:100%;overflow:hidden;text-overflow:ellipsis
   }
+  /* Lower. 8px top and bottom around a 14px glyph made a 34px button, and
+     three or four of them are the tallest thing on most cards. The visible
+     button shrinks; the TARGET does not — the pointer:coarse overlay near
+     the bottom of this file holds every one of these at 44px tall
+     regardless of what it looks like. */
   .psmapp .tbl.wide td.fullcell .actrow .btn{
-    width:100%;min-width:0;justify-content:center;padding:8px 10px
+    width:100%;min-width:0;justify-content:center;padding:6px 10px
   }
   .psmapp .actrow .btn svg{width:15px;height:15px}
   .psmapp .actrow .btn svg{flex:0 0 auto}
@@ -765,6 +770,12 @@ export const PSM_APP_CSS = `
 .psmapp .pactions{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:560px){.psmapp .lbl-long{display:none}}
 .psmapp .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.psmapp .btn.danger:hover{background:var(--danger)}
+/* A quiet danger: the solid red above is right for a confirmation's own
+   button and far too loud for one control in a row of four. */
+.psmapp .btn.ghost.danger{background:var(--danger-soft);color:var(--danger);
+  border-color:transparent;box-shadow:none}
+.psmapp .btn.ghost.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.psmapp .btn.ghost.danger svg{color:var(--danger)}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 
 /* ══ Polish pass ═══════════════════════════════════════════════════════

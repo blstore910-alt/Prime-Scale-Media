@@ -620,8 +620,14 @@ function AdvertiserRow({
           >
             <HandCoins /> <span className="alab">Commission</span>
           </button>
+          {/* Tinted when it is the destructive direction. On a phone this
+              is the one control in the row that shows its glyph alone —
+              there is not enough width for a fourth word — and an unnamed
+              grey icon beside three named ones reads as a button that
+              failed to render. Tinted, it reads as the stop control, which
+              is what it is. Activating is not destructive and stays plain. */}
           <button
-            className="btn ghost sm"
+            className={"btn ghost sm" + (isActive ? " danger" : "")}
             disabled={isPending}
             onClick={stop(askToggle)}
             title={isActive ? "Deactivate" : "Activate"}
