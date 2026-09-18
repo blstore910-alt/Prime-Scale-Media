@@ -32,6 +32,7 @@ import type { NotificationType } from "@/lib/types/notification";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
+import InvoiceDocButtons from "@/components/invoices/invoice-doc-buttons";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import { invoiceTypeLabel } from "@/lib/invoice-type";
 import { invoiceStatusView } from "@/lib/invoice-status";
@@ -573,36 +574,6 @@ export default function AdvertiserApp() {
   // Hand the customer their own invoice. Same route the admin list uses;
   // it constrains the query to the caller's own advertiser ids, so someone
   // else's id is a 404 rather than a document.
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const downloadInvoice = async (inv: { id: string; number?: number | string | null }) => {
-    if (downloadingId === inv.id) return;
-    setDownloadingId(inv.id);
-    try {
-      const res = await fetch(`/api/invoices/${inv.id}/pdf`);
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(payload?.error || "We couldn't prepare that invoice.");
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${formatPaymentReference(referralCode, inv.number)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "We couldn't prepare that invoice.",
-      );
-    } finally {
-      setDownloadingId(null);
-    }
-  };
-
   // What the customer actually owes right now, and by when. Falls back to
   // the plan's own figures only when there is no unpaid invoice to read —
   // and says so rather than borrowing next_payment_date.
@@ -2063,16 +2034,16 @@ export default function AdvertiserApp() {
                                       : "Pay now"}
                                   </button>
                                 )}
-                                <button
-                                  className="btn ghost sm"
-                                  disabled={downloadingId === inv.id}
-                                  onClick={() => downloadInvoice(inv)}
-                                >
-                                  <Ic name="i-download" />{" "}
-                                  {downloadingId === inv.id
-                                    ? "Preparing…"
-                                    : "Download"}
-                                </button>
+                                {/* VIEW as well as download, the same pair
+                                    the admin screen has. Reading your own
+                                    invoice used to mean saving a PDF first. */}
+                                <InvoiceDocButtons
+                                  invoiceId={inv.id}
+                                  fileLabel={formatPaymentReference(
+                                    referralCode,
+                                    inv.number,
+                                  )}
+                                />
                               </div>
                             </td>
                           </tr>

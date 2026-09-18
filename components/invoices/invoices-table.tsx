@@ -5,6 +5,7 @@ import { invoiceNumber } from "@/lib/payment-reference";
 import CustomerName from "@/components/psm/customer-name";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
+import InvoiceDocButtons from "@/components/invoices/invoice-doc-buttons";
 import { emptyRow } from "@/components/ui/empty-row";
 import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
@@ -12,7 +13,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
   CheckCircle,
-  Download,
   Loader2,
   Plus,
   Search,
@@ -72,9 +72,6 @@ export default function InvoicesTable() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<
-    string | null
-  >(null);
   const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | null>(
     null,
   );
@@ -118,40 +115,6 @@ export default function InvoicesTable() {
       });
     },
   });
-
-  const handleDownload = async (invoice: InvoiceWithRelations) => {
-    if (downloadingInvoiceId === invoice.id) return;
-
-    setDownloadingInvoiceId(invoice.id);
-
-    try {
-      const response = await fetch(`/api/invoices/${invoice.id}/pdf`);
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(payload?.error || "Failed to download invoice");
-      }
-
-      const blob = await response.blob();
-      const fileUrl = URL.createObjectURL(blob);
-
-      const anchor = document.createElement("a");
-      anchor.href = fileUrl;
-      anchor.download = `invoice-${invoiceNumber(invoice)}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-
-      URL.revokeObjectURL(fileUrl);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to download invoice",
-      );
-    } finally {
-      setDownloadingInvoiceId(null);
-    }
-  };
 
   // Marking an invoice paid is a statement about money that did or did not
   // arrive, made with one click next to a Download button. It settles a debt
@@ -272,8 +235,6 @@ export default function InvoicesTable() {
                           ] ?? "€";
                         const isUpdatingStatus =
                           updatingInvoiceId === invoice.id;
-                        const isDownloading =
-                          downloadingInvoiceId === invoice.id;
                         return (
                           <tr key={invoice.id}>
                             <td
@@ -392,19 +353,15 @@ export default function InvoicesTable() {
                                     Mark paid
                                   </button>
                                 )}
-                                <button
-                                  className="btn ghost sm"
-                                  disabled={isDownloading}
-                                  onClick={() => handleDownload(invoice)}
-                                  title="Download invoice"
-                                  aria-label="Download invoice"
-                                >
-                                  {isDownloading ? (
-                                    <Loader2 className="animate-spin" />
-                                  ) : (
-                                    <Download />
-                                  )}
-                                </button>
+                                {/* VIEW as well as download. Reading an
+                                    invoice meant saving a PDF to disk and
+                                    then finding it again — on the screen an
+                                    admin opens precisely to check a figure
+                                    somebody has just asked about. */}
+                                <InvoiceDocButtons
+                                  invoiceId={invoice.id}
+                                  fileLabel={invoiceNumber(invoice)}
+                                />
                               </div>
                             </td>
                           </tr>

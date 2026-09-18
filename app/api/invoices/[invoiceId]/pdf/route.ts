@@ -707,7 +707,7 @@ async function buildInvoicePdf(
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ invoiceId: string }> },
 ) {
   try {
@@ -826,11 +826,17 @@ export async function GET(
     const pdfBody = new ArrayBuffer(pdfContent.byteLength);
     new Uint8Array(pdfBody).set(pdfContent);
 
+    // ?inline=1 asks the browser to RENDER the document instead of saving
+    // it. Every screen that offered an invoice offered only a download, so
+    // the way to read one was to put a file on your disk first — and then
+    // find it again when somebody asks what it says. Same document, same
+    // permission check, same filename if they do save it from the viewer.
+    const inline = request.nextUrl.searchParams.get("inline") === "1";
     return new NextResponse(pdfBody, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${fileName}"`,
         "Cache-Control": "no-store, max-age=0",
       },
     });
