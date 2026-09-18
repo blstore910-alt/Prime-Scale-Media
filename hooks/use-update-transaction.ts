@@ -56,6 +56,7 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
 
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({
         queryKey: ["wallet-transaction-details", topup.id],
       });

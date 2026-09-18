@@ -346,6 +346,7 @@ export default function WiseReviewPanel() {
     onSuccess: () => {
       toast.success("Deposit confirmed — topup completed, wallet credited");
       queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
@@ -389,6 +390,7 @@ export default function WiseReviewPanel() {
         );
       }
       queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Couldn't re-check the deposits", {
@@ -555,6 +557,7 @@ Statement tried: ${p.attempts.join(" | ")}`
         });
       }
       queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wise-ingest-status"] });
     },
     onError: (e: Error) =>
@@ -573,6 +576,7 @@ Statement tried: ${p.attempts.join(" | ")}`
     onSuccess: (v) => {
       toast.success(v.archived ? "Put aside" : "Back in the queue");
       queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Couldn't move that deposit", { description: e.message }),
@@ -633,6 +637,7 @@ Statement tried: ${p.attempts.join(" | ")}`
       if (!res.ok) return;
       if (res.data.filled === 0 && res.data.suggested === 0) return;
       queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wise-ingest-status"] });
     });
   }, [hasBlankReference, isLoading, isError, queryClient]);

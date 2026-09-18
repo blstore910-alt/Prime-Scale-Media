@@ -172,6 +172,7 @@ export default function PsmVerifyTopups({
       if (!res.ok) throw new Error(res.error);
       toast.success("Precharged — wallet credited in advance");
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
     } catch (e) {
