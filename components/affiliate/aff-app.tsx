@@ -709,7 +709,13 @@ export default function AffiliateApp() {
                   </span>{" "}
                   Your commission
                 </div>
-                <div className="n win">{eur(refs.totals.earnings_eur)}</div>
+                {/* The only one of the four tiles not guarded, so a
+                    failed read printed a confident green EUR 0 for "Your
+                    commission" beside three dashes. The one figure on this
+                    row an affiliate actually opens the page for. */}
+                <div className="n win">
+                  {refsUnavailable ? dash : eur(refs.totals.earnings_eur)}
+                </div>
               </div>
             </div>
 
@@ -717,7 +723,14 @@ export default function AffiliateApp() {
               <div className="card" style={{ padding: "18px 20px" }}>
                 <div className="prog-head">
                   <h2>Earnings summary</h2>
-                  <b style={{ color: "var(--win)" }}>{eur(monthEur)} / mo</b>
+                  {/* monthEur is a SEPARATE query from the rest of this
+                      card, so it needs its own guard — the topbar already
+                      uses monthUnavailable and this did not, which meant the
+                      one case where only the month read failed printed a
+                      confident EUR 0 / mo. */}
+                  <b style={{ color: "var(--win)" }}>
+                    {monthUnavailable ? dash : eur(monthEur)} / mo
+                  </b>
                 </div>
                 <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
                   <div className="feed-row" style={{ borderTop: 0 }}>
@@ -730,10 +743,14 @@ export default function AffiliateApp() {
                         className="d"
                         style={{ color: "var(--faint)", fontSize: ".84rem" }}
                       >
-                        Across {referredCount} referrals
+                        {statsUnavailable
+                          ? "We couldn't read your referrals"
+                          : `Across ${referredCount} referrals`}
                       </div>
                     </div>
-                    <span className="amt">{eur(lifetimeEur)}</span>
+                    <span className="amt">
+                      {statsUnavailable ? dash : eur(lifetimeEur)}
+                    </span>
                   </div>
                   <div className="feed-row">
                     <span
@@ -790,23 +807,33 @@ export default function AffiliateApp() {
                     </div>
                   </div>
                 </div>
-                <div className="track">
-                  <div className="fill" style={{ width: `${tierPct}%` }} />
-                </div>
-                <p className="tiernote">
-                  {nextTier ? (
-                    <>
-                      {eur(nextTier.min - lifetimeCombined)} more in lifetime
-                      earnings
-                      to reach <b className="gold">{nextTier.name}</b>.
-                    </>
-                  ) : (
-                    <>
-                      You&apos;ve reached the top tier —{" "}
-                      <b className="plat">{tier.name}</b>. 🎉
-                    </>
-                  )}
-                </p>
+                {/* The card contradicted itself: the line above says "we
+                    couldn't read your earnings just now — this is not a
+                    reset", and then a bar sat at 0% under a sentence saying
+                    how much more was needed, both computed from the
+                    earnings that had just been disclaimed. When the figure
+                    is unknown the progress is unknown too. */}
+                {statsUnavailable ? null : (
+                  <>
+                    <div className="track">
+                      <div className="fill" style={{ width: `${tierPct}%` }} />
+                    </div>
+                    <p className="tiernote">
+                      {nextTier ? (
+                        <>
+                          {eur(nextTier.min - lifetimeCombined)} more in
+                          lifetime earnings to reach{" "}
+                          <b className="gold">{nextTier.name}</b>.
+                        </>
+                      ) : (
+                        <>
+                          You&apos;ve reached the top tier —{" "}
+                          <b className="plat">{tier.name}</b>. 🎉
+                        </>
+                      )}
+                    </p>
+                  </>
+                )}
                 <p className="tierlegend">
                   Your <b>lifetime earnings</b> move you up the tiers. Your
                   commission rate stays whatever was agreed per referral.
@@ -906,13 +933,21 @@ export default function AffiliateApp() {
                 </div>
                 <div className="l">Commission earned</div>
                 <div className="bpots">
+                  {/* The button below is already disabled when the balance
+                      is unknown, for exactly this reason — but the two
+                      figures it is disabled ABOUT were printed as a
+                      confident EUR 0 and $0. */}
                   <div className="bpot">
                     <span className="pl">EUR earnings</span>
-                    <b>{eur(all.totals.earnings_eur)}</b>
+                    <b>
+                      {statsUnavailable ? dash : eur(all.totals.earnings_eur)}
+                    </b>
                   </div>
                   <div className="bpot">
                     <span className="pl">USD earnings</span>
-                    <b>{usd(all.totals.earnings_usd)}</b>
+                    <b>
+                      {statsUnavailable ? dash : usd(all.totals.earnings_usd)}
+                    </b>
                   </div>
                 </div>
                 <div className="sub">
@@ -1044,6 +1079,14 @@ export default function AffiliateApp() {
                     <span className="amt">+{eur(r.earnings_eur)}</span>
                   </div>
                 ))
+              ) : statsUnavailable ? (
+                /* NOT "no commission yet" — the list is empty because the
+                   read failed, and on an affiliate's own screen that
+                   sentence means "you have earned nothing". */
+                <p className="cap" style={{ margin: "8px 0 0" }}>
+                  We couldn&apos;t read your commission just now. This is not
+                  a zero — reload to try again.
+                </p>
               ) : (
                 <p className="cap" style={{ margin: "8px 0 0" }}>
                   No commission yet.
