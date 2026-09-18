@@ -10,6 +10,10 @@ import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { updateOwnProfileAndCompany } from "@/actions/company-actions";
 import { getURL } from "@/lib/utils";
+import {
+  isCompanyComplete,
+  missingCompanyFields,
+} from "@/lib/pure-company-complete";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
 import { PLATFORMS } from "@/lib/constants";
@@ -562,23 +566,13 @@ export default function AdvertiserApp() {
   // registered" and has no number to give. Requiring one locked them out of
   // topping up and requesting an account permanently, with no way to satisfy
   // the condition.
-  const billing = (company?.billings as Array<Record<string, unknown>> | undefined)?.[0];
-  const str2 = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-  const companyComplete = Boolean(
-    str2(company?.name) &&
-      str2(company?.official_email) &&
-      str2(company?.phone) &&
-      str2(company?.address) &&
-      str2(company?.country) &&
-      str2(company?.state) &&
-      str2(company?.zipcode) &&
-      (str2(company?.vat_no) || company?.is_not_vat === true) &&
-      billing &&
-      str2(billing.address) &&
-      str2(billing.state) &&
-      str2(billing.country) &&
-      str2(billing.zipcode),
-  );
+  // ONE predicate, shared with the onboarding checklist. The two used to
+  // be written out separately and differed by exactly the four billing
+  // fields, so the checklist ticked the step green while this gate — the
+  // one that actually greys out Top up, Exchange and Request an account —
+  // stayed shut. See lib/pure-company-complete.ts.
+  const companyComplete = isCompanyComplete(company);
+  const companyMissing = missingCompanyFields(company);
   // ONE history, in time order. A top-up and an exchange are both "something
   // that happened to my wallet", and two separate tables would make a
   // customer check the date on each to work out what happened first.
@@ -1455,6 +1449,14 @@ export default function AdvertiserApp() {
                  entirely. That is the flicker: a checklist appearing to
                  undo itself while you read it. */
               loading={companyLoading || walletLoading || accountsLoading}
+              /* AND WAIT FOR A FAILED READ TOO. `loading` goes false when a
+                 query FAILS, and then company is null and both balances are
+                 0 — indistinguishable from a brand-new account. So a
+                 customer holding EUR 10,000 with six live accounts was
+                 shown "Get started — 4 steps left" at 0%, told to fund
+                 their wallet, on the same dashboard whose other cards
+                 already said the reads had failed. */
+              unavailable={walletError || accountsError || companyError}
               advertiserId={advertiserId}
               company={company ?? null}
               eurBalance={eurBal}
@@ -1484,8 +1486,16 @@ export default function AdvertiserApp() {
                     375px the nowrap the row is otherwise built on cut it
                     to "Add your company details to t…" beside a button
                     reading "Add". */}
+                {/* SAY WHICH PART IS MISSING. "Add your company details"
+                    to somebody who has just filled in and saved the company
+                    card reads as though nothing was saved — and the thing
+                    they are actually missing is usually the billing
+                    address, which lives on a different form. One clause
+                    turns a dead end into an instruction. */}
                 <span className="dtx">
-                  Add your company details to top up or request an account
+                  {companyMissing.length && companyMissing.length <= 2
+                    ? `Still needed before you can top up or request an account: ${companyMissing.join(" and ")}`
+                    : "Add your company details to top up or request an account"}
                 </span>
                 {/* /complete-profile, not Settings. Settings holds three
                     fields; the full form is the only place that collects the
@@ -1891,8 +1901,16 @@ export default function AdvertiserApp() {
                 <span className="ai">
                   <Ic name="i-building" />
                 </span>
+                {/* SAY WHICH PART IS MISSING. "Add your company details"
+                    to somebody who has just filled in and saved the company
+                    card reads as though nothing was saved — and the thing
+                    they are actually missing is usually the billing
+                    address, which lives on a different form. One clause
+                    turns a dead end into an instruction. */}
                 <span className="dtx">
-                  Add your company details to top up or request an account
+                  {companyMissing.length && companyMissing.length <= 2
+                    ? `Still needed before you can top up or request an account: ${companyMissing.join(" and ")}`
+                    : "Add your company details to top up or request an account"}
                 </span>
                 <a className="dlink" href="/complete-profile">
                   Add <Ic name="i-arrow" />

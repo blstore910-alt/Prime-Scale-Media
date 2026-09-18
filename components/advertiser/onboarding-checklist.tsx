@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Ic } from "./adv-icons";
+import {
+  isCompanyComplete,
+  missingCompanyFields,
+} from "@/lib/pure-company-complete";
 
 // Presentation + localStorage only. No business-table writes here; every
 // step derives from data passed in by the parent, and manual ticks, the
@@ -16,6 +20,16 @@ type Props = {
   accountsCount: number;
   /** True while any of the reads behind the ticks is still in flight. */
   loading?: boolean;
+  /**
+   * True when one of those reads FAILED. Not the same as loading, and it
+   * used not to be passed at all — so on a failed read `isLoading` went
+   * false, `company` came back null and both balances came back 0, and a
+   * customer holding EUR 10,000 with six live accounts was shown "Get
+   * started — 4 steps left" at 0%, told to fund their wallet and request
+   * an ad account. The `dismissed` flag does not protect them: it only
+   * suppresses the all-done card.
+   */
+  unavailable?: boolean;
   onNavigate: (view: string) => void;
 };
 
@@ -81,6 +95,7 @@ export default function OnboardingChecklist({
   usdBalance,
   accountsCount,
   loading = false,
+  unavailable = false,
   onNavigate,
 }: Props) {
   const [manual, setManual] = useState<string[]>([]);
@@ -106,27 +121,30 @@ export default function OnboardingChecklist({
     saveState(advertiserId, merged);
   };
 
-  // THE SAME TEST THE APP ACTUALLY GATES ON. This checked three fields of
-  // twelve, so a green tick sat directly above the red chip "Add your
-  // company details to top up or request an account" — and a company that
-  // ticked "not VAT registered" could never satisfy it at all, because it
-  // demanded a VAT number the app itself says is optional. See
-  // companyComplete in adv-app.tsx: the invoice is built from these.
-  const companyDone =
-    !!str(company?.name) &&
-    !!str(company?.official_email) &&
-    !!str(company?.phone) &&
-    !!str(company?.address) &&
-    !!str(company?.country) &&
-    !!str(company?.state) &&
-    !!str(company?.zipcode) &&
-    (!!str(company?.vat_no) || company?.is_not_vat === true);
+  // THE SAME FUNCTION THE GATE CALLS, not a second copy of the same
+  // rule. This was written out by hand and missed the four fields that
+  // live on `billings` — so the step went green and ticked while the red
+  // chip "Add your company details to top up or request an account"
+  // stayed on the same screen and every button it gates stayed shut. The
+  // customer had done what they were told, been told they had done it,
+  // and nothing unlocked. Second time this pair disagreed; it is one
+  // function now.
+  const companyDone = isCompanyComplete(company as never);
+  const companyMissing = missingCompanyFields(company as never);
 
   const steps: Step[] = [
     {
       id: "company",
       title: "Add your company details",
-      desc: "Add your legal name, VAT ID and country so we can invoice you.",
+      // Names what is actually left when it is one or two things. A
+      // generic "add your company details" to somebody who has already
+      // saved the company card reads as though nothing saved — and what
+      // they are missing is usually the billing address, which is on a
+      // different form.
+      desc:
+        companyMissing.length && companyMissing.length <= 2
+          ? `Still needed: ${companyMissing.join(" and ")}.`
+          : "Add your legal name, VAT ID and country so we can invoice you.",
       icon: "i-building",
       cta: "Add details",
       // NOT "settings". The settings card saves `companies` only —
@@ -192,7 +210,14 @@ export default function OnboardingChecklist({
   // `loading` as well as `hydrated`. localStorage answers in the same tick;
   // the three queries behind the ticks do not, and drawing the card before
   // they land is what made it appear to tick and untick itself.
-  if (!hydrated || loading) {
+  if (!hydrated || loading || unavailable) {
+    // A FAILED READ HOLDS THE PLACE TOO, rather than drawing a checklist
+    // out of zeroes. Every tick here is derived from data: no company, no
+    // balance, no accounts is indistinguishable from a read that did not
+    // come back, and the difference between those two is "you are new"
+    // versus "we could not ask". The dashboard already says out loud, in
+    // its own cards, that it could not load — this card saying it again
+    // adds nothing, and saying the opposite is the fault.
     return <div className="card onb-skel" aria-hidden="true" />;
   }
 
