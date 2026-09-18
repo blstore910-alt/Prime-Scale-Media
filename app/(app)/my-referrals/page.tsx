@@ -1,15 +1,13 @@
 import AffiliateApp from "@/components/affiliate/aff-app";
-import { createClient } from "@/lib/supabase/server";
+import { resolveActiveProfile } from "@/lib/active-profile";
 import { redirect } from "next/navigation";
 
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("user_id", user?.user?.id)
-    .single();
+  // The LIST plus the profile_id cookie, never .single() — a person with
+  // both an advertiser and an affiliate profile made .single() error, and
+  // the redirect below then bounced them between "/" and /dashboard until
+  // the browser gave up. See lib/active-profile.ts.
+  const { profile } = await resolveActiveProfile();
 
   // Both the standalone affiliate role and an advertiser acting as an
   // affiliate (approved referral link) see referrals here.
@@ -24,6 +22,7 @@ export default async function Page() {
 
   // Advertisers-as-affiliate see referrals as the "Affiliate program" view
   // inside their own single-page advertiser shell (at /dashboard), so send
-  // them there rather than rendering a shell-less page here.
-  redirect("/dashboard");
+  // them there rather than rendering a shell-less page here — and name the
+  // view, or they arrive on the Dashboard having asked for referrals.
+  redirect("/dashboard?view=referrals");
 }

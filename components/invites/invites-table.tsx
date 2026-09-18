@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 // Maps an invitation status to a mockup badge variant + label. Kept
 // local so the shared InvitationStatusBadge (used outside the admin
@@ -130,7 +131,18 @@ export default function InvitesTable() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invites"] });
+      setCancelling(null);
+      toast.success("Invitation cancelled");
     },
+    // A REFUSAL HAS TO BE AUDIBLE. There was no onError and no success
+    // toast, and the modal closes itself before the mutation runs — so a
+    // tenant guard, MAINTENANCE_MODE or a stale row produced absolutely
+    // nothing on screen. The admin walked away believing the link was
+    // dead while the recipient could still accept it.
+    onError: (e: Error) =>
+      toast.error("Couldn't cancel that invite", {
+        description: e.message,
+      }),
   });
 
   // Cancelling kills the recipient's existing link — there is no un-cancel,
@@ -272,9 +284,10 @@ export default function InvitesTable() {
         busy={isPending}
         busyLabel="Cancelling…"
         onConfirm={() => {
-          const c = cancelling;
-          setCancelling(null);
-          if (c) handleCancelInvite(c.id);
+          // Do NOT close first. ConfirmModal refuses to close while busy,
+          // which is the whole point of its busy prop — closing before the
+          // mutation threw that away and made the failure invisible.
+          if (cancelling) handleCancelInvite(cancelling.id);
         }}
       >
         <ConfirmFact label="Invited" value={cancelling?.email ?? "—"} />

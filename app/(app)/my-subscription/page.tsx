@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { resolveActiveProfile } from "@/lib/active-profile";
 import { redirect } from "next/navigation";
 
 // /my-subscription is a REDIRECT, and only that.
@@ -11,13 +11,9 @@ import { redirect } from "next/navigation";
 //
 // The route stays because old links point at it.
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: user } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("user_id", user?.user?.id)
-    .single();
+  // .single() errored for anybody holding two profiles and sent them to
+  // /onboard as though they had never signed up. See lib/active-profile.ts.
+  const { profile } = await resolveActiveProfile();
 
   if (!profile) redirect("/onboard");
   redirect(profile.role === "advertiser" ? "/dashboard" : "/subscriptions");

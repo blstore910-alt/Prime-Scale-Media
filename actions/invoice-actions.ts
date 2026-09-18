@@ -183,6 +183,19 @@ export async function setInvoicePaidStatus(
     };
   }
 
+  // ALREADY PAID, ASKED TO BE PAID: do nothing and say it worked.
+  //
+  // The refusal above only covers paid -> unpaid. paid -> paid fell
+  // straight through to the UPDATE, which rewrites paid_at with now() —
+  // so an admin pressing "Mark paid" on an invoice the customer had
+  // already settled from their wallet moved the settlement date to today.
+  // That date is what reconciliation matches the wallet debit against and
+  // what the dunning cron keys on, and nothing on any screen would show
+  // it had moved.
+  if (invoice.status === "paid" && status === "paid") {
+    return { ok: true, data: null };
+  }
+
   // Count the rows. An UPDATE that matches nothing returns no error and no
   // rows in PostgREST, so marking an invoice paid could report success while
   // the invoice stayed open — and an invoice that looks settled but is not

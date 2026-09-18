@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -63,6 +64,12 @@ export default function PrechargePanel() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [settling, setSettling] = useState<{
+    id: string;
+    amount: number;
+    currency: string;
+    who: string | null;
+  } | null>(null);
 
   const { data: rows, isLoading, isError, refetch } = useQuery({
     queryKey: ["wallet-precharges", tenantId],
@@ -89,6 +96,7 @@ export default function PrechargePanel() {
     },
     onSuccess: () => {
       toast.success("Precharge settled");
+      setSettling(null);
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
@@ -239,11 +247,29 @@ export default function PrechargePanel() {
                   </TableCell>
                   <TableCell className="sm:text-right" data-label="">
                     {r.status === "outstanding" ? (
+                      /* SETTLING TAKES THE ADVANCE BACK OUT OF THE
+                         CUSTOMER'S WALLET, immediately and with no
+                         un-settle — the RPC refuses any status that is not
+                         'outstanding'. Every comparable button in this app
+                         asks first: verify, precharge, approve a
+                         withdrawal, pay, deactivate, mark paid. This one
+                         was the exception, in a list of rows, one misclick
+                         from real money. */
                       <Button
                         size="sm"
                         variant="outline"
                         disabled={settlingId === r.id}
-                        onClick={() => settle.mutate(r.id)}
+                        onClick={() =>
+                          setSettling({
+                            id: r.id,
+                            amount: Number(r.outstanding),
+                            currency: r.currency ?? "EUR",
+                            who:
+                              r.advertiser?.profile?.full_name ??
+                              r.advertiser?.tenant_client_code ??
+                              null,
+                          })
+                        }
                       >
                         {settlingId === r.id ? "…" : "Settle"}
                       </Button>
@@ -265,6 +291,35 @@ export default function PrechargePanel() {
         onOpenChange={setCreateOpen}
         tenantId={tenantId}
       />
+
+      {/* Settling takes the advance back out of the customer's wallet and
+          cannot be undone — the RPC refuses anything that is not still
+          outstanding. So it asks, with the three facts that decide it. */}
+      <ConfirmModal
+        open={!!settling}
+        onOpenChange={(next) => {
+          if (!next && !settle.isPending) setSettling(null);
+        }}
+        title="Settle this advance?"
+        lead="The money comes straight back out of their wallet. There is no un-settle — only a new advance."
+        cta="Yes, settle it"
+        tone="danger"
+        busy={settle.isPending}
+        busyLabel="Settling…"
+        onConfirm={() => {
+          if (settling) settle.mutate(settling.id);
+        }}
+      >
+        <ConfirmFact label="Customer" value={settling?.who ?? "—"} />
+        <ConfirmFact
+          label="Comes out of their wallet"
+          value={
+            settling
+              ? formatCurrency(settling.amount, settling.currency)
+              : "—"
+          }
+        />
+      </ConfirmModal>
     </div>
   );
 }
@@ -332,7 +387,11 @@ function PrechargeCreateDialog({
   // credited TWICE — the advance is still outstanding and nothing links
   // them. The two buttons sit a few centimetres apart and look
   // interchangeable; only the per-top-up one settles itself.
-  const { data: pendingForAdvertiser } = useQuery({
+  const {
+    data: pendingForAdvertiser,
+    isLoading: pendingLoading,
+    isError: pendingError,
+  } = useQuery({
     queryKey: ["precharge-pending-topups", advertiserId],
     enabled: !!advertiserId && open,
     queryFn: async () => {
@@ -351,6 +410,12 @@ function PrechargeCreateDialog({
     },
   });
   const hasPending = (pendingForAdvertiser ?? []).length > 0;
+  // UNKNOWN IS NOT "NO". `?? []` turns a failed or still-running query
+  // into an empty list, which reads as "they have nothing pending" — so
+  // an RLS hiccup, an offline blip, or simply clicking Create before the
+  // query resolved took the only control off this money path and let the
+  // double credit through. The guard has to hold when it cannot see.
+  const guardBlind = pendingLoading || pendingError;
 
   const numeric = Number(amount);
   // REFUSED, not merely warned. A free-form advance carries no
@@ -365,7 +430,11 @@ function PrechargeCreateDialog({
   // that is the case this dialog exists for, and there is nothing for it
   // to double against.
   const valid =
-    !!advertiserId && Number.isFinite(numeric) && numeric > 0 && !hasPending;
+    !!advertiserId &&
+    Number.isFinite(numeric) &&
+    numeric > 0 &&
+    !hasPending &&
+    !guardBlind;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

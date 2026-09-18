@@ -358,7 +358,32 @@ export async function rejectAdAccountRequest(
     "ad_account_request_reject_refund",
     { p_request_id: requestId, p_reason: trimmedReason || null },
   );
-  if (rpcError) return { ok: false, error: safeErrorMessage(rpcError) };
+  if (rpcError) {
+    // THE FUNCTION MAY NOT BE THERE YET. Migrations are pasted by hand
+    // while code deploys in two minutes, so this action can reach a
+    // database that has not got its RPC — and then no request can be
+    // rejected at all.
+    //
+    // The tempting fallback is the old behaviour: write status =
+    // 'rejected' and move on. That is exactly what this commit replaced,
+    // because it declines to provide the thing and keeps the customer's
+    // 50 EUR with nothing on any screen saying so. An admin blocked for
+    // the minute it takes to paste a migration is a better outcome than a
+    // customer quietly 50 EUR down.
+    //
+    // So: refuse, and name the file.
+    if (
+      rpcError.code === "42883" ||
+      /could not find|does not exist/i.test(rpcError.message ?? "")
+    ) {
+      return {
+        ok: false,
+        error:
+          "Rejecting also refunds the 50 EUR request fee, and that function is not installed yet. Apply migration 20260918220000_refund_rejected_request_fee.sql, then reject again — nothing has changed on this request.",
+      };
+    }
+    return { ok: false, error: safeErrorMessage(rpcError) };
+  }
 
   const paid = refund as {
     refunded?: number;
@@ -378,13 +403,25 @@ export async function rejectAdAccountRequest(
 // ─────────────────────────────────────────
 // setAdAccountRequestStatus — allow-listed status transitions
 // ─────────────────────────────────────────
+// 'rejected' AND 'cancelled' ARE DELIBERATELY ABSENT.
+//
+// Requesting an ad account costs the customer 50 EUR, taken from the
+// wallet the moment they send it. rejectAdAccountRequest gives it back in
+// one transaction. This action is a plain status write with no fee
+// handling, so allowing those two values here was a second door to the
+// same outcome with the refund missing — and worse, one that closes the
+// first: ad_account_request_reject_refund refuses a row that is already
+// rejected, so the 50 EUR could never be returned through the app
+// afterwards.
+//
+// The live screen only ever sends in_progress/pending, so this was
+// reachable only by calling the server action directly — which any
+// authenticated admin can do. A door nobody walks through is still a door.
 const REQUEST_STATUS = [
   "pending",
   "payment_pending",
   "in_progress",
   "completed",
-  "rejected",
-  "cancelled",
 ] as const;
 type RequestStatus = (typeof REQUEST_STATUS)[number];
 

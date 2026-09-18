@@ -461,6 +461,23 @@ export async function bulkCreateTopupsAsAdmin(
   // Resolved ONCE PER ADVERTISER rather than per row: a bulk run is usually
   // many accounts belonging to a handful of advertisers, and the plan and
   // perks are a property of the advertiser, not of the row.
+  // ONE KEY, BUILT ONCE, USED BY BOTH SIDES.
+  //
+  // This map was filled under `advertiserId + "|" + accountId` and read
+  // back under `advertiserId` alone. Those never match, so the lookup
+  // returned undefined every time and the whole server-side fee block
+  // was skipped — which meant `fee`, `fee_amount`, `topup_amount` and
+  // `amount_usd` were taken from the browser payload exactly as sent.
+  // A plan rate, an ad account's own rate, a fee waiver and a discount
+  // were all silently ignored on every bulk top-up.
+  //
+  // Two expressions that have to agree is a fault waiting to happen, so
+  // there is now one expression and both sides call it with the row.
+  const feeKeyOf = (r: Record<string, unknown>) =>
+    String(r.advertiser_id ?? "") +
+    "|" +
+    (typeof r.account_id === "string" ? r.account_id : "");
+
   const feeByAdvertiser = new Map<string, { applied: boolean; pct: number }>();
   const needsFee = rows.some(
     (r) => typeof r.type === "string" && FEE_APPLICABLE_TYPES.includes(r.type),
@@ -486,7 +503,7 @@ export async function bulkCreateTopupsAsAdmin(
       // every account in a bulk run the first account's fee.
       const acctId =
         typeof row.account_id === "string" ? row.account_id : null;
-      const key = advId + "|" + (acctId ?? "");
+      const key = feeKeyOf(row);
       if (feeByAdvertiser.has(key)) continue;
       feeByAdvertiser.set(
         key,
@@ -522,7 +539,7 @@ export async function bulkCreateTopupsAsAdmin(
       FEE_APPLICABLE_TYPES.includes(row.type) &&
       typeof row.advertiser_id === "string"
     ) {
-      const resolved = feeByAdvertiser.get(row.advertiser_id);
+      const resolved = feeByAdvertiser.get(feeKeyOf(row));
       if (resolved?.applied) {
         const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
           Number(row.amount_received) || 0,
