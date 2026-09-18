@@ -914,10 +914,15 @@ export default function AdvertiserApp() {
             // Straight from the plan row. When an admin has not filled
             // them in yet, one line that is true of every plan rather
             // than an empty card or an invented promise.
+            // The fallback promises NOTHING about the platform. "Your ad
+            // accounts stay live" was in here and it is not ours to
+            // promise — whether Meta keeps an account alive is Meta's
+            // decision, and a renewal card is the worst place to imply
+            // otherwise. What is left is true of every plan we sell.
             perks:
               plan?.features.length
                 ? plan.features
-                : ["Your ad accounts stay live", "Cancel monthly"],
+                : ["Support 7 days a week", "Cancel monthly"],
           }
         : undefined,
       title: isPlan ? "Renew your plan?" : "Pay this from your wallet?",
