@@ -109,6 +109,10 @@ export default function AffiliateApp() {
     notifications: notifs,
     markAsRead,
     markAllAsRead,
+    // "You're all caught up" over a read that FAILED is the worst kind of
+    // reassurance: these carry commission and payout updates. The hook
+    // exports isError for exactly this.
+    isError: notifsError,
   } = useNotifications();
 
   const lifetimeEur = all.totals.earnings_eur;
@@ -174,6 +178,14 @@ export default function AffiliateApp() {
     });
     return idx;
   }, [lifetimeCombined]);
+  // TIERS[0] IS ALSO WHAT ZERO LOOKS LIKE.
+  //
+  // lifetimeCombined is 0 while the stats are loading OR have failed, so
+  // tierIndex lands on 0 and every unguarded print said "Starter". A
+  // Legend partner opening the app on a dropped read was demoted on the
+  // sidebar, the toolbar pill and the account menu at once — while the
+  // tier card itself correctly showed a dash. Everything that prints the
+  // tier now asks statsUnavailable first.
   const tier = TIERS[tierIndex];
   const nextTier = TIERS[tierIndex + 1];
   const tierPct = nextTier
@@ -393,7 +405,7 @@ export default function AffiliateApp() {
           </div>
           <div className="who">
             {name}
-            <small>{tier.name} partner</small>
+            <small>{statsUnavailable ? "Partner" : `${tier.name} partner`}</small>
           </div>
         </div>
       </aside>
@@ -432,7 +444,7 @@ export default function AffiliateApp() {
               onClick={() => go("refs")}
               title="Your tier"
             >
-              <Ic name="i-trophy" /> {tier.name}
+              <Ic name="i-trophy" /> {statsUnavailable ? dash : tier.name}
             </button>
             <span className="tdiv" />
             <button
@@ -474,7 +486,7 @@ export default function AffiliateApp() {
                     <span className="umenu-av">{ini}</span>
                     <span className="umenu-who">
                       <span className="nm">{name}</span>
-                      <span className="sub">{tier.name} partner</span>
+                      <span className="sub">{statsUnavailable ? "Partner" : `${tier.name} partner`}</span>
                     </span>
                   </div>
                   <button
@@ -1185,10 +1197,15 @@ export default function AffiliateApp() {
                     <Ic name="i-bell" />
                   </span>
                   <div>
-                    <div className="t">You&apos;re all caught up</div>
+                    <div className="t">
+                      {notifsError
+                        ? "We couldn't load your notifications"
+                        : "You're all caught up"}
+                    </div>
                     <div className="d">
-                      New referrals, commission and payout updates will appear
-                      here.
+                      {notifsError
+                        ? "This is not an empty list — reload to try again."
+                        : "New referrals, commission and payout updates will appear here."}
                     </div>
                   </div>
                 </div>

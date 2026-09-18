@@ -189,6 +189,17 @@ export async function GET(request: NextRequest) {
       .lt("created_at", periodEnd),
   ]);
 
+  // AN ERROR IS NOT AN EMPTY PERIOD. Both errors were discarded, so a
+  // dropped read became a confident "0 new registrations" at 200 — and
+  // the batch endpoint only checks res.ok, so the card's own failure
+  // branch is never reached.
+  if (advertisersResult.error || affiliatesResult.error) {
+    return NextResponse.json(
+      { error: "Failed to load registration stats." },
+      { status: 500 },
+    );
+  }
+
   const advertisers = (advertisersResult.data || []) as RegistrationRow[];
   const affiliates = (affiliatesResult.data || []) as RegistrationRow[];
 

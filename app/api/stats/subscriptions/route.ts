@@ -207,8 +207,17 @@ export async function GET(request: NextRequest) {
   const periodStart = start.toISOString();
   const periodEnd = end.toISOString();
   const granularity = resolveBucketMode(start, end);
+  // AN ERROR IS NOT AN EMPTY PERIOD.
+  //
+  // This discarded `error`, so an RLS refusal or a dropped read became
+  // `data = null` -> `[]` -> a total of zero, returned with a 200. The
+  // batch endpoint only checks `res.ok`, so the dataset reports
+  // isError:false and the card's own "failed to load" branch is never
+  // reached: the dashboard prints a confident zero for a period nobody
+  // could read. On a financial dashboard that is not a degraded
+  // experience, it is a wrong answer.
 
-  const { data } = await supabase
+  const { data, error: readError } = await supabase
     .from("invoices")
     .select("created_at, currency, total")
     .eq("tenant_id", profile.tenant_id)
@@ -216,6 +225,18 @@ export async function GET(request: NextRequest) {
     .eq("status", "paid")
     .gte("created_at", periodStart)
     .lt("created_at", periodEnd);
+
+  if (readError) {
+
+    return NextResponse.json(
+
+      { error: "Failed to load subscription stats." },
+
+      { status: 500 },
+
+    );
+
+  }
 
   const rows = (data || []) as InvoiceRow[];
   const series = buildSeries(rows, periodStart, periodEnd, granularity);

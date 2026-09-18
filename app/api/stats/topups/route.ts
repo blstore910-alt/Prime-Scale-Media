@@ -223,22 +223,56 @@ export async function GET(request: NextRequest) {
 //
 // Fall back to 1 so an unconfigured tenant renders its own figures
 // unconverted rather than a 500 — the same choice stats/route.ts makes.
-  const { data: rateRow } = await supabase
+  const { data: rateRow, error: rateError } = await supabase
     .from("exchange_rates")
     .select("eur")
     .eq("tenant_id", profile.tenant_id)
     .eq("is_active", true)
     .maybeSingle();
+  // A RATE WE COULD NOT READ IS NOT A RATE OF 1.
+  //
+  // topup_amount is always USD, so at a rate of 1 the EUR bucket becomes
+  // raw dollars printed under a euro sign — overstated by the whole
+  // exchange rate, about 16% at 0.86. A brand-new tenant with NO rate row
+  // is a different thing entirely and still falls back to 1, because
+  // there is nothing to convert yet; an unreadable one is an error.
+  if (rateError) {
+    return NextResponse.json(
+      { error: "Failed to load the exchange rate." },
+      { status: 500 },
+    );
+  }
   const rawRate = toNumber((rateRow as { eur?: unknown } | null)?.eur);
   const usdToEurRate = rawRate > 0 ? rawRate : 1;
+  // AN ERROR IS NOT AN EMPTY PERIOD.
+  //
+  // This discarded `error`, so an RLS refusal or a dropped read became
+  // `data = null` -> `[]` -> a total of zero, returned with a 200. The
+  // batch endpoint only checks `res.ok`, so the dataset reports
+  // isError:false and the card's own "failed to load" branch is never
+  // reached: the dashboard prints a confident zero for a period nobody
+  // could read. On a financial dashboard that is not a degraded
+  // experience, it is a wrong answer.
 
-  const { data } = await supabase
+  const { data, error: readError } = await supabase
     .from("top_ups")
     .select("created_at, currency, topup_amount")
     .eq("tenant_id", profile.tenant_id)
     .gte("created_at", periodStart)
     .lt("created_at", periodEnd)
     .eq("status", "completed");
+
+  if (readError) {
+
+    return NextResponse.json(
+
+      { error: "Failed to load top-up stats." },
+
+      { status: 500 },
+
+    );
+
+  }
 
   const rows = (data || []) as TopupRow[];
   const series = buildSeries(rows, periodStart, periodEnd, granularity, usdToEurRate);

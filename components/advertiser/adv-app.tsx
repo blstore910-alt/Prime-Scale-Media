@@ -419,9 +419,18 @@ export default function AdvertiserApp() {
     notifications: notifs,
     markAsRead,
     markAllAsRead,
+    // "You're all caught up" over a read that FAILED is the worst kind of
+    // reassurance: these carry "your top-up was rejected" and request
+    // approvals. The hook exports isError for exactly this, and neither
+    // app was asking for it.
+    isError: notifsError,
   } = useNotifications();
 
-  const { data: company, isLoading: companyLoading } = useQuery<
+  const {
+    data: company,
+    isLoading: companyLoading,
+    isError: companyError,
+  } = useQuery<
     Record<string, unknown> | null
   >({
     queryKey: ["adv-company", advertiserId],
@@ -725,7 +734,7 @@ export default function AdvertiserApp() {
   // scans ALL invoices) refuses with "Minimum top-up is 300 EUR" after the
   // transfer has been made. That is the exact trap this morning's
   // migration exists to close, re-armed by a pagination limit.
-  const { data: planPaidRow } = useQuery({
+  const { data: planPaidRow, isError: planPaidError } = useQuery({
     queryKey: ["adv-plan-paid", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
@@ -756,8 +765,29 @@ export default function AdvertiserApp() {
   // `plans`, and this screen does not load plans, so the count is simply not
   // claimed here rather than guessed at.
   // Already having an account means this gate was passed once before.
+  // WE DO NOT KNOW IS NOT THE SAME AS NO.
+  //
+  // Three reads decide whether this customer may top up or ask for an
+  // account: their company, their subscription, and whether a
+  // subscription invoice has been paid. Each of them failing produced a
+  // confident FALSE — so a customer whose details are complete was told
+  // to "Add your company details", with Top up and Exchange greyed out
+  // and no way to satisfy a condition they had already met.
+  //
+  // Worse on the money side: planActive false makes effectiveMinTopup
+  // return 0, so the dialog accepted a 5 EUR transfer and showed the
+  // IBAN — while the server reads the same three facts from the database,
+  // still sees the plan running, and throws "Minimum top-up is 300 EUR"
+  // on submit. After the bank transfer has been made.
+  //
+  // So an unreadable answer is carried as unknown, and the guards below
+  // treat unknown as "let them through and let the server decide" —
+  // because the server is the real boundary and it is never wrong about
+  // its own state.
+  const gateUnknown = companyError || planPaidError || subError || invError;
   const canRequestAccount =
-    companyComplete && (planActive || (accounts ?? []).length > 0);
+    (companyComplete || gateUnknown) &&
+    (planActive || gateUnknown || (accounts ?? []).length > 0);
 
   // ── Deep links ──────────────────────────────────────────────────────
   // The views were pure state, so nothing outside this component could
@@ -1358,7 +1388,7 @@ export default function AdvertiserApp() {
                 go(v as View);
               }}
             />
-            {!companyComplete && (
+            {!companyComplete && !gateUnknown && (
               /* The app no longer blocks the door with this form, so it has
                  to say plainly why the buttons are quiet — otherwise "you can
                  look but nothing works" is just a broken app. */
@@ -1394,7 +1424,7 @@ export default function AdvertiserApp() {
               onExchange={() => setExchangeOpen(true)}
               onOpenWallet={() => go("wallet")}
               onOpenAccounts={() => go("accounts")}
-              disabled={!wallet || !companyComplete}
+              disabled={!wallet || (!companyComplete && !gateUnknown)}
               loading={walletLoading}
             />
             {/* Number(), not truthiness. subscriptions.amount is moving from
@@ -2486,12 +2516,18 @@ export default function AdvertiserApp() {
               ) : (
                 <div className="nrow">
                   <span className="nic b">
-                    <Ic name="i-bell" />
+                    <Ic name={notifsError ? "i-refresh" : "i-bell"} />
                   </span>
                   <div>
-                    <div className="t">You&apos;re all caught up</div>
+                    <div className="t">
+                      {notifsError
+                        ? "We couldn't load your notifications"
+                        : "You're all caught up"}
+                    </div>
                     <div className="d">
-                      Top-up, ad-account and billing updates will appear here.
+                      {notifsError
+                        ? "This is not an empty list — reload to try again."
+                        : "Top-up, ad-account and billing updates will appear here."}
                     </div>
                   </div>
                 </div>
@@ -2764,9 +2800,23 @@ export default function AdvertiserApp() {
         // of someone who has put in nothing yet is the wrong way round. Once
         // it is running the floor applies — 250 for NSA, 300 for everyone
         // else, unless an admin set a value for this wallet.
+        // UNKNOWN COUNTS AS RUNNING, here specifically.
+        //
+        // No minimum applies before the plan is active, and that is right
+        // — the first payment is how the plan gets paid at all. But when
+        // the three reads behind planActive have FAILED, treating that as
+        // "not active" removes the floor for a customer whose plan is in
+        // fact running: they are shown the IBAN, told 5 EUR is fine, they
+        // make the transfer, and only then does the server read the same
+        // facts from the database and refuse with "Minimum top-up is 300
+        // EUR". The money has already left their bank.
+        //
+        // So an unreadable state takes the floor, not the exemption. The
+        // cost of being wrong that way is one conversation; the other way
+        // it is a transfer that has to be sent back.
         minTopup={effectiveMinTopup({
           walletMin: wallet?.min_topup as number | null | undefined,
-          planActive,
+          planActive: planActive || !!gateUnknown,
           community,
         })}
         // Their own accounts decide where the transfer goes, so the dialog
