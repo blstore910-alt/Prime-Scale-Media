@@ -303,7 +303,6 @@ const WISE_CSS = `
 .wtor{margin-top:2px;font-size:.71rem;color:var(--faint)}
 .wnote{margin:9px 0 0;font-size:.79rem;line-height:1.45;color:var(--txt-2)}
 .wact{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.wact.one{grid-template-columns:1fr}
 .wact>*{min-width:0}
 .wact .btn{width:100%;justify-content:center}
 .wdone{display:flex;align-items:center;justify-content:center;
@@ -918,7 +917,13 @@ Statement tried: ${p.attempts.join(" | ")}`
             of counts — before a single deposit was visible. On a phone that
             was the entire first screen. */}
         <div className="phead">
-          <h2
+          {/* NOT an <h2>. The tab bar names this panel, so the heading
+              lost its text and kept its tag — an empty heading, which a
+              screen reader announces as a heading with nothing in it.
+              What is left is a status line: the one thing the tab cannot
+              say, which is whether anybody is waiting on a person. */}
+          <div
+            role="status"
             style={{
               display: "flex",
               alignItems: "center",
@@ -926,9 +931,6 @@ Statement tried: ${p.attempts.join(" | ")}`
               flexWrap: "wrap",
             }}
           >
-            {/* The tab bar names this panel and carries its count. What is
-                left here is the one thing the tab cannot say: how many of
-                them are waiting on a person right now. */}
             {suggestedCount > 0 ? (
               <span className="badge pend">{suggestedCount} to confirm</span>
             ) : (
@@ -936,7 +938,7 @@ Statement tried: ${p.attempts.join(" | ")}`
                 Nothing waiting on you
               </span>
             )}
-          </h2>
+          </div>
           {/* wrap: .actrow is flex-end with no wrapping, and a flex-end row
               that overflows spills out of its START edge — which is how a
               button disappears behind the heading instead of moving to the
