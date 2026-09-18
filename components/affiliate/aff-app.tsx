@@ -1057,17 +1057,21 @@ export default function AffiliateApp() {
                   >
                     <Ic name="i-download" /> Request payout
                   </button>
+                  {/* Same reason as the note on the request button: no
+                      timer exists anywhere in the code. */}
                   <span className="payin">
-                    <Ic name="i-clock" /> Within 7 days
+                    <Ic name="i-clock" /> Paid by hand
                   </span>
                 </div>
               </div>
               <div className="card">
                 <h2>How payouts work</h2>
                 <p className="cap">
-                  Your wallet holds the commission you&apos;ve earned. Request a
-                  payout and we create an invoice — the PSM team pays it to your
-                  account.
+                  Your wallet holds the commission you&apos;ve earned.
+                  Requesting a payout sends us an email; we check the
+                  balance, confirm the details with you and pay it out by
+                  hand. Payouts are always manual — nothing leaves
+                  automatically.
                 </p>
                 <div
                   style={{
@@ -1618,7 +1622,17 @@ export default function AffiliateApp() {
             >
               <Ic name="i-download" /> Request payout
             </button>
-            <p className="mnote">Paid to your account within 7 days.</p>
+            {/* SAY WHAT ACTUALLY HAPPENS. The button's entire effect is
+                window.location.href = mailto:… — it opens an email. It
+                writes no record, creates no invoice and starts no clock,
+                and on a desktop with no mail handler the navigation is
+                silent. "Paid to your account within 7 days" is a promise
+                nothing in this codebase keeps, printed directly under the
+                control that is supposed to keep it. */}
+            <p className="mnote">
+              This opens an email to us. We reply with the payout details
+              once we have checked the balance.
+            </p>
           </div>
         </div>
       )}

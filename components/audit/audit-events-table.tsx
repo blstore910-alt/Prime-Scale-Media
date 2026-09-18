@@ -8,11 +8,12 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetClose,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import TablePagination from "@/components/ui/table-pagination";
-import { Copy, Download, Eye, RefreshCw, Search } from "lucide-react";
+import { Copy, Download, Eye, RefreshCw, Search, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
 
@@ -370,7 +371,19 @@ export default function AuditEventsTable() {
       >
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Audit event details</SheetTitle>
+            {/* The base sheet's own Close is `hidden`, so a sheet has an X
+                only if it draws one. This one did not, and it is the only
+                way to read an audit event in full — on a phone it covers
+                the row it came from with no visible way back. */}
+            <div className="flex items-center justify-between gap-3">
+              <SheetTitle>Audit event details</SheetTitle>
+              <SheetClose
+                aria-label="Close"
+                className="rounded-sm opacity-70 transition hover:opacity-100"
+              >
+                <XIcon size={22} />
+              </SheetClose>
+            </div>
             <SheetDescription>
               {selected && (
                 <>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
+  SheetClose,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -12,7 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, XIcon } from "lucide-react";
 import { useIsTablet } from "@/hooks/use-is-tablet";
 
 type UserProfileMini = {
@@ -123,9 +124,26 @@ export default function WalletTransactionDetailsSheet({
         <SheetHeader className="sticky top-0 z-10 bg-background border-b">
           <div className="flex items-baseline justify-between gap-3">
             <SheetTitle>Wallet Transaction</SheetTitle>
-            <span className="text-xs font-mono text-muted-foreground">
-              {topup?.reference_no ?? "-"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-muted-foreground">
+                {topup?.reference_no ?? "-"}
+              </span>
+              {/* THE BASE SHEET'S OWN CLOSE CARRIES `hidden`, so a sheet
+                  only has an X if it draws one — and this one did not.
+                  It is opened by tapping ANYWHERE on a top-up card on
+                  /wallet-topups, which is the desk where deposits get
+                  verified, and on a phone it renders as a bottom sheet
+                  covering the row it came from. Escape and an overlay tap
+                  still worked, so it was recoverable rather than fatal;
+                  it just did not look it. Every other sheet in the app
+                  draws its own X. */}
+              <SheetClose
+                aria-label="Close"
+                className="rounded-sm opacity-70 transition hover:opacity-100"
+              >
+                <XIcon size={22} />
+              </SheetClose>
+            </div>
           </div>
         </SheetHeader>
 

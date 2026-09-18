@@ -16,6 +16,8 @@ import dayjs from "dayjs";
 import { AlertCircle, Loader2, ScrollText } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useState } from "react";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 
 const formatAmount = (value: number | string | null | undefined) => {
   const num = Number(value ?? 0);
@@ -59,6 +61,7 @@ export default function WalletTopupDetailsSheet({
     },
   });
 
+  const [confirming, setConfirming] = useState(false);
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
@@ -147,9 +150,20 @@ export default function WalletTopupDetailsSheet({
 
             {isAdmin && topup.status === "pending" && (
               <div className="pt-4 border-t">
+                {/* ASK FIRST. This credits a customer's wallet with
+                    wallet_topup_admin_verify on ONE click, and it was the
+                    only money button in the app that did not ask — the
+                    same action reached from /wallet-topups goes through
+                    WalletTransactionApproveDialog. It is also reachable
+                    by a route nobody would look for it on: /wallets → a
+                    wallet → its transactions → this sheet.
+
+                    Crediting a deposit that never arrived is not undone
+                    by pressing it again; it needs an adjustment and an
+                    explanation. One dialog is cheap by comparison. */}
                 <Button
                   className="w-full"
-                  onClick={() => verify()}
+                  onClick={() => setConfirming(true)}
                   disabled={isVerifying}
                 >
                   {isVerifying && (
@@ -162,6 +176,29 @@ export default function WalletTopupDetailsSheet({
           </div>
         )}
       </SheetContent>
+
+      <ConfirmModal
+        open={confirming}
+        onOpenChange={(next) => !next && setConfirming(false)}
+        title="Credit this deposit to the customer's wallet?"
+        lead="Only do this once you have seen the money arrive on the bank statement. Crediting a deposit that never arrived is put right with an adjustment, not by pressing this again."
+        cta="Yes, credit it"
+        busy={isVerifying}
+        busyLabel="Crediting…"
+        onConfirm={() => {
+          setConfirming(false);
+          verify();
+        }}
+      >
+        <ConfirmFact
+          label="Amount"
+          value={`${topup?.currency?.toUpperCase() ?? ""} ${formatAmount(
+            topup?.amount,
+          )}`}
+          strong
+        />
+        <ConfirmFact label="Reference" value={topup?.reference_no ?? "—"} />
+      </ConfirmModal>
     </Sheet>
   );
 }

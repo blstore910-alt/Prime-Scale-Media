@@ -50,11 +50,19 @@ function buildPushFromRecord(record: NotificationRecord) {
       };
     }
 
+    // ── A CUSTOMER'S NOTIFICATION MUST LAND ON A CUSTOMER'S SCREEN ────
+    //
+    // topup_completed is audience "customer" in lib/notification-catalog,
+    // and /top-ups calls requireAdmin("/dashboard"). So the person whose
+    // money had just been credited tapped "Your topup has been completed"
+    // on their phone, was bounced to /dashboard, and never saw the top-up
+    // they were told about. The three subscription types below already do
+    // this correctly; this one kept the admin route.
     case "topup_completed": {
       return {
         title: "Topup completed",
         body: "Your topup has been completed.",
-        url: "/top-ups",
+        url: "/dashboard?view=wallet",
       };
     }
 
