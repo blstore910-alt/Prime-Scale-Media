@@ -238,14 +238,22 @@ export async function fetchWiseTxnDetail(args: {
   const token = process.env.WISE_API_TOKEN;
   if (!token || !args.balanceId || !args.occurredAt) return null;
 
-  // The profile id from the payload is a hint, not a fact: a token can see
-  // several profiles and the statement endpoint answers
-  // "Balance X not found for profile Y" — a 422 — when they do not line
-  // up. Ask which profile actually holds this balance.
+  // BY CURRENCY first. The id in the webhook's key is the borderless
+  // account, not the per-currency balance a statement is kept for — see
+  // findBalanceForCurrency. The key's id is tried only as a fallback, for
+  // the case where a future payload really does carry a balance id.
   let profileId: string | number | null = args.profileId || null;
-  const owner = await findProfileForBalance(String(args.balanceId));
-  if (owner.profileId !== null) profileId = owner.profileId;
-  if (!profileId) return null;
+  let balanceId = String(args.balanceId);
+
+  const byCurrency = await findBalanceForCurrency(args.currency);
+  if (byCurrency) {
+    profileId = byCurrency.profileId;
+    balanceId = byCurrency.balanceId;
+  } else {
+    const owner = await findProfileForBalance(balanceId);
+    if (owner.profileId !== null) profileId = owner.profileId;
+  }
+  if (!profileId || !balanceId) return null;
 
   // ±36h around the credit — banks post with some delay — but NEVER past
   // now. A statement is a record of what happened; Wise refuses an
@@ -269,7 +277,7 @@ export async function fetchWiseTxnDetail(args: {
   // though the host is fixed and these come from an authenticated
   // webhook payload.
   const pid = encodeURIComponent(String(profileId));
-  const bid = encodeURIComponent(String(args.balanceId));
+  const bid = encodeURIComponent(balanceId);
   const url =
     `${wiseApiBase()}/v1/profiles/${pid}/balance-statements/` +
     `${bid}/statement.json` +
@@ -543,6 +551,93 @@ const balanceOwnerCache = new Map<
   string,
   { profileId: string | number | null; seen: string[] }
 >();
+
+/**
+ * The balance that actually holds this currency.
+ *
+ * THE WEBHOOK'S ID IS NOT A BALANCE ID. Wise reports, for this account:
+ *
+ *     profile 82348250: 146652571/EUR, 146652624/USD,
+ *                       146652614/HKD, 146652569/GBP
+ *
+ * and the composite key the webhook builds carries 63309216 — the
+ * overarching (borderless) account, not the per-currency balance the
+ * statement endpoint wants. Hence, with a valid token, a signed SCA
+ * challenge and the right profile:
+ *
+ *     Balance 63309216 not found for profile 82348250
+ *
+ * A statement is per balance, and a balance is per currency. So the
+ * lookup is by CURRENCY: the deposit says EUR, and EUR is 146652571.
+ *
+ * Returns the first profile holding a balance in that currency. Cached
+ * per currency, because every deposit in a run shares it.
+ */
+const currencyBalanceCache = new Map<
+  string,
+  { profileId: string | number; balanceId: string } | null
+>();
+
+export async function findBalanceForCurrency(
+  currency: string,
+): Promise<{ profileId: string | number; balanceId: string } | null> {
+  const token = process.env.WISE_API_TOKEN;
+  const cur = String(currency ?? "").toUpperCase();
+  if (!token || !cur) return null;
+
+  const cached = currencyBalanceCache.get(cur);
+  if (cached !== undefined) return cached;
+
+  for (const pid of await fetchWiseProfileIds()) {
+    const list = await fetchBalanceList(pid, token);
+    const hit = list.find((b) => b.cur.toUpperCase() === cur && b.id);
+    if (hit) {
+      const found = { profileId: pid, balanceId: hit.id };
+      currencyBalanceCache.set(cur, found);
+      return found;
+    }
+  }
+  currencyBalanceCache.set(cur, null);
+  return null;
+}
+
+/** The balances one profile holds, across both endpoint versions. */
+async function fetchBalanceList(
+  pid: string | number,
+  token: string,
+): Promise<Array<{ id: string; cur: string }>> {
+  const paths = [
+    `${wiseApiBase()}/v4/profiles/${encodeURIComponent(String(pid))}/balances?types=STANDARD`,
+    `${wiseApiBase()}/v3/profiles/${encodeURIComponent(String(pid))}/borderless-accounts`,
+  ];
+  for (const url of paths) {
+    try {
+      const { res } = await wiseFetch(url, token);
+      if (!res.ok) continue;
+      const raw = (await res.json()) as unknown;
+      if (!Array.isArray(raw)) continue;
+      return raw
+        .flatMap((entry) => {
+          const e = entry as {
+            id?: string | number;
+            currency?: string;
+            balances?: Array<{ id?: string | number; currency?: string }>;
+          };
+          return Array.isArray(e.balances) && e.balances.length > 0
+            ? e.balances
+            : [e];
+        })
+        .map((b) => ({
+          id: String((b as { id?: string | number }).id ?? ""),
+          cur: String((b as { currency?: string }).currency ?? ""),
+        }))
+        .filter((b) => b.id);
+    } catch {
+      /* try the next shape */
+    }
+  }
+  return [];
+}
 
 export async function findProfileForBalance(
   balanceId: string,
