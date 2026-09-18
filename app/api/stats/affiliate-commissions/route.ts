@@ -1,6 +1,7 @@
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -218,13 +219,32 @@ export async function GET(request: NextRequest) {
   // could read. On a financial dashboard that is not a degraded
   // experience, it is a wrong answer.
 
-  const { data, error: readError } = await supabase
-    .from("referral_commissions")
-    .select("created_at, currency, amount")
-    .eq("tenant_id", profile.tenant_id)
-    .eq("status", "paid")
-    .gte("created_at", periodStart)
-    .lt("created_at", periodEnd);
+  // ── EVERY ROW, NOT THE FIRST THOUSAND ─────────────────────────────
+  //
+  // PostgREST caps a response at 1,000 rows, so an unpaged sum is right
+  // until the thousand-and-first row exists and silently a fraction of
+  // the truth for ever after — no error, no warning, a smaller number.
+  // There was no .order() either, so WHICH thousand came back was
+  // unspecified and changed between refreshes. lib/page-all-rows.ts
+  // exists for this and names two earlier incidents; two of the seven
+  // stats routes got it and five did not.
+  const paged = await pageAllRows<CommissionRow>((from, to) =>
+  supabase
+      .from("referral_commissions")
+      .select("created_at, currency, amount")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("status", "paid")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .order("created_at", { ascending: true })
+      // A unique tiebreaker: rows created in the same transaction
+      // share one now(), and Postgres gives no stable order among
+      // ties — so a row on a page boundary could be counted twice
+      // or skipped, and which it is changes between requests.
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  const readError = paged.error;
 
   if (readError) {
 
@@ -238,7 +258,7 @@ export async function GET(request: NextRequest) {
 
   }
 
-  const rows = (data || []) as CommissionRow[];
+  const rows = paged.rows;
   const series = buildSeries(rows, periodStart, periodEnd, granularity);
 
   const totals = rows.reduce(

@@ -1,6 +1,7 @@
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -222,24 +223,64 @@ export async function GET(request: NextRequest) {
 //
 // Fall back to 1 so an unconfigured tenant renders unconverted figures
 // rather than a 500 — the same choice stats/route.ts makes.
-  const { data: rateRow } = await supabase
+  // ── A RATE WE COULD NOT READ IS NOT A RATE OF 1 ───────────────────
+  //
+  // This discarded `error` and then fell back to 1, which for the EUR
+  // bucket means printing raw dollars under a euro sign: a $58.14 fee on
+  // a EUR-paid top-up reports as EUR 58.14 where the truth is EUR 50.00,
+  // our own margin overstated by the whole exchange rate. Falling back to
+  // 1 is right for a tenant that has never configured a rate — it is not
+  // right for a read that failed, and the two were the same branch. The
+  // sibling route (stats/topups) says this in those words.
+  const { data: rateRow, error: rateError } = await supabase
     .from("exchange_rates")
     .select("eur")
     .eq("tenant_id", profile.tenant_id)
     .eq("is_active", true)
     .maybeSingle();
+  if (rateError) {
+    return NextResponse.json(
+      { error: "Could not read the exchange rate, so fee revenue cannot be converted." },
+      { status: 500 },
+    );
+  }
   const rawRate = toNumber((rateRow as { eur?: unknown } | null)?.eur);
   const usdToEurRate = rawRate > 0 ? rawRate : 1;
 
-  const { data } = await supabase
-    .from("top_ups")
-    .select("created_at, currency, fee_amount")
-    .eq("tenant_id", profile.tenant_id)
-    .gte("created_at", periodStart)
-    .lt("created_at", periodEnd)
-    .eq("status", "completed");
+  // ── AND EVERY ROW, NOT THE FIRST THOUSAND ─────────────────────────
+  //
+  // PostgREST caps a response at 1,000 rows, and top_ups is the highest
+  // volume money table in the app — one bulk run inserts up to 200. An
+  // unpaged sum is therefore right until the thousand-and-first row and
+  // silently a fraction of the truth for ever after: 3,000 completed
+  // top-ups report a third of the fee revenue, with no warning. There was
+  // no .order() either, so WHICH thousand came back was unspecified and
+  // changed between refreshes.
+  const paged = await pageAllRows<FeeRow>((from, to) =>
+    supabase
+      .from("top_ups")
+      .select("created_at, currency, fee_amount")
+      .eq("tenant_id", profile.tenant_id)
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .eq("status", "completed")
+      .order("created_at", { ascending: true })
+      // A unique tiebreaker: a bulk insert shares one now(), and Postgres
+      // gives no stable order among ties, so a row on a page boundary
+      // could be counted twice or skipped.
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  // AN ERROR IS NOT AN EMPTY PERIOD. `const { data } = ...` discarded it,
+  // so a failed read rendered a confident zero on a financial dashboard.
+  if (paged.error) {
+    return NextResponse.json(
+      { error: "Failed to load fee stats." },
+      { status: 500 },
+    );
+  }
 
-  const rows = (data || []) as FeeRow[];
+  const rows = paged.rows;
   const series = buildSeries(rows, periodStart, periodEnd, granularity, usdToEurRate);
 
   const totals = rows.reduce(

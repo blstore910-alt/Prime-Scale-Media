@@ -173,7 +173,17 @@ type SeamxList<T> = {
 // empty" are different facts and must render differently.
 function balanceToCents(v: number | string | null | undefined): number | null {
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
+  // A FORMATTED AMOUNT IS STILL AN AMOUNT. This used a bare Number(),
+  // while num() twenty lines down exists precisely because "SeamX returns
+  // money as a number OR a formatted string ('4,849.50')" and
+  // Number("4,849.50") is NaN. So a formatted balance read as "not
+  // reported" here, and a formatted supplier FEE — where the caller does
+  // `balanceToCents(fee) ?? 0` — became a recorded zero, which the
+  // reconciliation view then shows as "they charged us nothing". That is
+  // the exact reading the comment three lines above the caller says must
+  // be avoided.
+  const n =
+    typeof v === "string" ? Number(v.replace(/[,\s]/g, "")) : Number(v);
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
@@ -546,7 +556,11 @@ const realSupplier1Adapter: Supplier1Adapter = {
         currency: t.currency ?? null,
         gross_cents: balanceToCents(gross),
         net_cents: balanceToCents(net),
-        fee_cents: fee === undefined || fee === null ? null : balanceToCents(fee) ?? 0,
+        // `?? 0` ONLY when the value was genuinely unparseable, which is
+        // now a real anomaly rather than a formatting quirk — and even
+        // then null ("not reported") is the honest answer, because a fee
+        // of zero is a claim about what the supplier charged us.
+        fee_cents: fee === undefined || fee === null ? null : balanceToCents(fee),
         status: t.status ?? null,
         created_at: t.created_at ?? null,
       });

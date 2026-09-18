@@ -95,7 +95,34 @@ export async function listActivePlans(): Promise<ActionResult<PlanOption[]>> {
   return { ok: true, data: (data ?? []) as unknown as PlanOption[] };
 }
 
+/**
+ * A number, or null when the caller did not give one.
+ *
+ * AN EMPTY BOX IS NOT A ZERO. `Number("")` and `Number(null)` are both 0,
+ * and both are finite and within every range here — so the guards below
+ * (`if (monthly == null) return "Monthly fee must be >= 0"`) could never
+ * fire for a blank field. An owner who cleared the Monthly box on the EUR
+ * 200 Prime plan and pressed Save got "Saved 1 plan(s)" and a
+ * monthly_fee of 0. Every invite afterwards prefills 0, and a
+ * subscription of amount 0 "correctly creates no subscription at all" —
+ * so every customer invited on that plan is billed nothing, for ever, at
+ * EUR 2,400 a year each. The same helper governs topup_fee_pct, where a
+ * blank became a permanent 0% fee.
+ *
+ * The contradiction was inside one feature: the per-currency price box
+ * in the same form deliberately maps "" to null with the comment "an
+ * empty box must never arrive as a zero". The base fee did the opposite.
+ *
+ * A real zero still passes — free is a decision somebody can make, and
+ * they make it by typing 0.
+ */
 function num(v: unknown, min: number, max: number): number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "string" && v.trim() === "") return null;
+  // Booleans and arrays coerce to numbers too: Number(true) is 1,
+  // Number([]) is 0, Number([5]) is 5. None of those is somebody typing
+  // a price.
+  if (typeof v !== "number" && typeof v !== "string") return null;
   const n = Number(v);
   if (!Number.isFinite(n) || n < min || n > max) return null;
   return n;

@@ -123,15 +123,30 @@ export default function PlansCard() {
             r.yearPct.trim() === "" ? null : Number(r.yearPct);
         }
 
+        // ── AND THE SAME RULE FOR THE THREE BOXES ABOVE ──────────────
+        //
+        // `Number("")` is 0, so a cleared Monthly box arrived at the
+        // server as a deliberate price of zero — and the server's own
+        // guard could not tell the difference either. An empty box is
+        // "you did not type a price", which is an error worth showing;
+        // 0 is "free", which is a decision. Sending the raw string keeps
+        // them apart, because the server now refuses a blank by name.
+        //
+        // This is the rule the per-currency price six lines up already
+        // states in its own comment. It just was not applied to the
+        // fields underneath it.
+        const blankOrNumber = (v: string) =>
+          v.trim() === "" ? (undefined as unknown as number) : Number(v);
+
         const res = await upsertPlan({
           id: r.id,
           name: r.name.trim(),
           kind: r.kind,
-          monthly_fee: Number(r.monthly),
+          monthly_fee: blankOrNumber(r.monthly),
           currency: r.currency,
           ...prices,
-          included_ad_accounts: Number(r.included),
-          topup_fee_pct: Number(r.pct),
+          included_ad_accounts: blankOrNumber(r.included),
+          topup_fee_pct: blankOrNumber(r.pct),
           is_active: r.is_active,
           ifUpdatedAt: r.updated_at,
         });

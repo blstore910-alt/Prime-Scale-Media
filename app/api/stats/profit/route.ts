@@ -1,6 +1,7 @@
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -250,13 +251,27 @@ export async function GET(request: NextRequest) {
     referralCommissionsResult,
     exchangeRateResult,
   ] = await Promise.all([
-    supabase
-      .from("top_ups")
-      .select("created_at, currency, fee_amount")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("status", "completed")
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd),
+    // ── ALL FOUR SIDES ARE PAGED ──────────────────────────────────
+    //
+    // PostgREST stops at 1,000 rows, and this route is the one where
+    // truncation is most dangerous: revenue and cost truncate
+    // INDEPENDENTLY. 800 top-ups worth EUR 40,000 of fee revenue against
+    // 2,500 commission rows worth EUR 100,000 of true cost, and the
+    // chart reads break-even on a business losing EUR 60,000 a year.
+    // None of the four had an .order() either, so which thousand came
+    // back was unspecified.
+    pageAllRows<FeeRow>((from, to) =>
+      supabase
+        .from("top_ups")
+        .select("created_at, currency, fee_amount")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("status", "completed")
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
     // FOUR TYPES, not two. The profit TILE counts subscription,
     // subscription_adjustment, manual_invoice and ad_account_fee — that
     // was fixed in app/api/stats/route.ts with the note "twenty requests
@@ -264,29 +279,44 @@ export async function GET(request: NextRequest) {
     // SERIES on the same screen was left reading two of them. So the
     // chart sat below the number beside it by every upgrade and every
     // extra-account fee ever collected, with nothing to explain the gap.
-    supabase
-      .from("invoices")
-      .select("created_at, currency, total")
-      .eq("tenant_id", profile.tenant_id)
-      .in("type", ["subscription", "subscription_adjustment"])
-      .eq("status", "paid")
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd),
-    supabase
-      .from("invoices")
-      .select("created_at, currency, total")
-      .eq("tenant_id", profile.tenant_id)
-      .in("type", ["manual_invoice", "ad_account_fee"])
-      .eq("status", "paid")
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd),
-    supabase
-      .from("referral_commissions")
-      .select("created_at, currency, amount")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("status", "paid")
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd),
+    pageAllRows<InvoiceRow>((from, to) =>
+      supabase
+        .from("invoices")
+        .select("created_at, currency, total")
+        .eq("tenant_id", profile.tenant_id)
+        .in("type", ["subscription", "subscription_adjustment"])
+        .eq("status", "paid")
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    pageAllRows<InvoiceRow>((from, to) =>
+      supabase
+        .from("invoices")
+        .select("created_at, currency, total")
+        .eq("tenant_id", profile.tenant_id)
+        .in("type", ["manual_invoice", "ad_account_fee"])
+        .eq("status", "paid")
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    pageAllRows<CommissionRow>((from, to) =>
+      supabase
+        .from("referral_commissions")
+        .select("created_at, currency, amount")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("status", "paid")
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
     supabase
       .from("exchange_rates")
       .select("eur")
@@ -317,12 +347,10 @@ export async function GET(request: NextRequest) {
   const rawUsdToEurRate = toNumber(activeExchangeRate?.eur);
   const usdToEurRate = rawUsdToEurRate > 0 ? rawUsdToEurRate : 1;
 
-  const fees = (feesResult.data || []) as FeeRow[];
-  const subscriptionInvoices = (subscriptionInvoicesResult.data ||
-    []) as InvoiceRow[];
-  const manualInvoices = (manualInvoicesResult.data || []) as InvoiceRow[];
-  const referralCommissions = (referralCommissionsResult.data ||
-    []) as CommissionRow[];
+  const fees = feesResult.rows;
+  const subscriptionInvoices = subscriptionInvoicesResult.rows;
+  const manualInvoices = manualInvoicesResult.rows;
+  const referralCommissions = referralCommissionsResult.rows;
 
   const rows: ProfitContributionRow[] = [
     // fee_amount is USD by construction, whatever top_ups.currency says.

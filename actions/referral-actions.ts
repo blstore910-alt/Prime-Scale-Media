@@ -73,14 +73,50 @@ export async function setCommissionStatus(
     };
   }
 
-  const { data: commission } = await supabase
+  const { data: commission, error: readErr } = await supabase
     .from("referral_commissions")
-    .select("id, tenant_id")
+    .select("id, tenant_id, status")
     .eq("id", commissionId)
     .maybeSingle();
+  // A read we could not make is not permission. This discarded `error`,
+  // and the same shape has now been found four times in this codebase.
+  if (readErr) {
+    return {
+      ok: false,
+      error: "Could not read this commission, so its status was not changed.",
+    };
+  }
   if (!commission) return { ok: false, error: "Commission not found" };
   if (commission.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+
+  // ── PAID DOES NOT GO BACK TO UNPAID ─────────────────────────────────
+  //
+  // The control is a toggle whose label flips with the status, so one
+  // click returns a settled commission to the unpaid worklist — and
+  // referral_commissions has no paid_at and no payout reference, so
+  // nothing anywhere records that the money already left. The next payout
+  // run pays it again.
+  //
+  // It is worse than the invoice case it mirrors: the accrual reversal
+  // deletes rows `where status = 'unpaid'`, so a reopened row can then be
+  // deleted outright, erasing the record of a payment that was made.
+  //
+  // invoice-actions.ts refuses exactly this transition and says why. This
+  // is the same refusal, for the same reason.
+  if ((commission.status ?? "") === "paid" && status === "unpaid") {
+    return {
+      ok: false,
+      error:
+        "A paid commission can't be set back to unpaid — nothing records that the payout already happened, so the next run would pay it twice. Raise a clawback or a correction instead.",
+    };
+  }
+
+  // Already paid, asked to be paid: do nothing rather than rewrite the
+  // row and bump updated_at, which is what optimistic concurrency reads.
+  if ((commission.status ?? "") === status) {
+    return { ok: true, data: null };
   }
   if (!(await checkVersion(supabase, "referral_commissions", commissionId, ifUpdatedAt))) {
     return {
