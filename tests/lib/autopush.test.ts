@@ -288,11 +288,28 @@ describe("enqueueSupplierTopupPush", () => {
 // Second layer: even if a money job somehow exists, a shut gate must stop it
 // before any adapter method is reached.
 
-function workerStub(job: Record<string, unknown>) {
+// `topup` is what a `top_ups` read answers with. The push dispatcher
+// re-reads the row before funding anything — a top-up whose verify was
+// undone must not reach the supplier — so a stub that answers nothing
+// makes every push look cancelled. It defaults to the ordinary case:
+// the row is still completed.
+function workerStub(
+  job: Record<string, unknown>,
+  topup: { status?: string } | null | undefined = { status: "completed" },
+  topupError: unknown = null,
+) {
   const updates: Array<Record<string, unknown>> = [];
   let claimed = false;
   const supabase = {
-    from() {
+    from(table?: string) {
+      if (table === "top_ups") {
+        const row: Record<string, unknown> = {
+          select: () => row,
+          eq: () => row,
+          maybeSingle: async () => ({ data: topup ?? null, error: topupError }),
+        };
+        return row;
+      }
       const chain: Record<string, unknown> = {
         select: () => chain,
         in: () => chain,
@@ -397,6 +414,134 @@ describe("worker auto-push gate", () => {
     assert.deepEqual(calls, ["pushTopup"]);
     assert.equal(res.blocked, 0);
     assert.equal(res.succeeded, 1);
+  });
+
+  // ── THE RE-READ BEFORE THE MONEY MOVES ──────────────────────────────
+  //
+  // These three cover the guard that was shipped without them, and whose
+  // absence is why the suite went red rather than the behaviour being
+  // wrong: the job carries an amount frozen at enqueue time, so an admin
+  // who undoes a verify must not have the supplier funded a minute later
+  // for a payment we have un-collected.
+  it("does not fund a top-up whose verify was undone", async () => {
+    const calls: string[] = [];
+    const { supabase, updates } = workerStub(
+      {
+        id: "job-1",
+        provider: "supplier1",
+        operation: "push_topup",
+        status: "pending",
+        attempts: 0,
+        max_attempts: 5,
+        payload: {
+          external_ad_account_id: "seamx-9001",
+          amount_cents: 1_000_000,
+          currency: "EUR",
+        },
+        idempotency_key: "topup:topup-1",
+      },
+      { status: "pending" },
+    );
+
+    const res = await processIntegrationJobs({
+      supabase: supabase as never,
+      supplier1: {
+        pushTopup: async () => {
+          calls.push("pushTopup");
+          return { ok: true, data: { status: "completed" } } as never;
+        },
+      } as never,
+      wise: {} as never,
+      env: { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
+      now: () => new Date("2026-09-13T00:00:00Z"),
+    });
+
+    assert.deepEqual(calls, []);
+    assert.equal(res.succeeded, 0);
+    assert.equal(res.failed, 1);
+    // Terminal, not retryable: it is a decision, and asking again every
+    // minute for ever answers the same way.
+    const last = updates[updates.length - 1];
+    assert.equal(last.status, "failed");
+  });
+
+  it("does not fund a top-up that is gone", async () => {
+    const calls: string[] = [];
+    const { supabase } = workerStub(
+      {
+        id: "job-1",
+        provider: "supplier1",
+        operation: "push_topup",
+        status: "pending",
+        attempts: 0,
+        max_attempts: 5,
+        payload: {
+          external_ad_account_id: "seamx-9001",
+          amount_cents: 1000,
+          currency: "USD",
+        },
+        idempotency_key: "topup:topup-1",
+      },
+      null,
+    );
+
+    const res = await processIntegrationJobs({
+      supabase: supabase as never,
+      supplier1: {
+        pushTopup: async () => {
+          calls.push("pushTopup");
+          return { ok: true, data: { status: "completed" } } as never;
+        },
+      } as never,
+      wise: {} as never,
+      env: { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
+      now: () => new Date("2026-09-13T00:00:00Z"),
+    });
+
+    assert.deepEqual(calls, []);
+    assert.equal(res.failed, 1);
+  });
+
+  it("a read it could not make is a retry, not permission to send money", async () => {
+    const calls: string[] = [];
+    const { supabase, updates } = workerStub(
+      {
+        id: "job-1",
+        provider: "supplier1",
+        operation: "push_topup",
+        status: "pending",
+        attempts: 0,
+        max_attempts: 5,
+        payload: {
+          external_ad_account_id: "seamx-9001",
+          amount_cents: 1000,
+          currency: "USD",
+        },
+        idempotency_key: "topup:topup-1",
+      },
+      null,
+      { message: "could not connect" },
+    );
+
+    const res = await processIntegrationJobs({
+      supabase: supabase as never,
+      supplier1: {
+        pushTopup: async () => {
+          calls.push("pushTopup");
+          return { ok: true, data: { status: "completed" } } as never;
+        },
+      } as never,
+      wise: {} as never,
+      env: { SUPPLIER1_MODE: "live", SUPPLIER1_AUTOPUSH: "on" },
+      now: () => new Date("2026-09-13T00:00:00Z"),
+    });
+
+    assert.deepEqual(calls, []);
+    assert.equal(res.succeeded, 0);
+    // Still pending, so it is tried again — an unreachable database is a
+    // hiccup, and the opposite reading funds a supplier on no evidence.
+    const last = updates[updates.length - 1];
+    assert.equal(last.status, "pending");
   });
 
   it("does not hold read-only supplier work", async () => {
