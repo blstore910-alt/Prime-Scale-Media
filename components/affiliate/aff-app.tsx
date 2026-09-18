@@ -845,7 +845,12 @@ export default function AffiliateApp() {
                   </span>
                 </div>
                 <div className="tierhero">
-                  <div className={`thmedal ${tier.key}`}>
+                  {/* The label beside it is guarded; the colour was not,
+                      so the medal went bronze under the words "Your tier"
+                      and told the same lie in the one channel that reads
+                      fastest. `unknown` has no colour rule, so it falls to
+                      the neutral default. */}
+                  <div className={`thmedal ${statsUnavailable ? "unknown" : tier.key}`}>
                     <Ic name="i-medal" />
                   </div>
                   <div className="thinfo">
@@ -989,8 +994,16 @@ export default function AffiliateApp() {
                   <span className="btag">
                     <Ic name="i-wallet" /> Commission wallet
                   </span>
+                  {/* Guarded like every other tier print on this screen.
+                      tierIndex falls to 0 whenever lifetimeCombined is 0,
+                      which is true while the earnings query is loading AND
+                      when it has failed — so a Legend partner opened their
+                      wallet and the badge beside their real balance read
+                      "Starter", while the header badge and the tier card,
+                      reading the same state, correctly said "Checking…".
+                      A demotion is not something to render on a guess. */}
                   <span className="btag ghost2">
-                    <Ic name="i-trophy" /> {tier.name}
+                    <Ic name="i-trophy" /> {statsUnavailable ? "—" : tier.name}
                   </span>
                 </div>
                 <div className="l">Commission earned</div>

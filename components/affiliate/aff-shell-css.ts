@@ -168,6 +168,12 @@ export const AFF_CSS = `
   .thmedal.bronze{background:radial-gradient(circle at 35% 27%,#f2c69c,#a9631f 74%);box-shadow:0 0 0 6px #f4e3d5,0 13px 26px -8px rgba(169,99,31,.5),inset 0 2px 3px rgba(255,255,255,.55),inset 0 -4px 7px rgba(0,0,0,.14)}
   .thmedal.silver{background:radial-gradient(circle at 35% 27%,#f6f9fc,#93a0b3 74%);box-shadow:0 0 0 6px #eef1f6,0 13px 26px -8px rgba(147,160,179,.5),inset 0 2px 3px rgba(255,255,255,.6),inset 0 -4px 7px rgba(0,0,0,.12)}
   .thmedal.plat{background:radial-gradient(circle at 35% 27%,#fdfeff,#bfc9db 74%);box-shadow:0 0 0 6px #eef2f8,0 13px 26px -8px rgba(150,160,180,.5),inset 0 2px 3px rgba(255,255,255,.6),inset 0 -4px 7px rgba(0,0,0,.12)}
+  /* No tier known yet - the earnings read is loading or failed. The BASE
+     .thmedal is gold, so leaving the class off would have promoted an
+     unknown affiliate to the top tier in the one channel that reads
+     before the words do. Neutral means neutral. */
+  .thmedal.unknown{background:radial-gradient(circle at 35% 27%,#f3f5f9,#c3cad6 74%);box-shadow:0 0 0 6px #eef1f5,0 13px 26px -8px rgba(160,170,185,.35),inset 0 2px 3px rgba(255,255,255,.5),inset 0 -4px 7px rgba(0,0,0,.08)}
+  .thmedal.unknown svg{stroke:rgba(255,255,255,.9)}
   .thmedal svg{width:30px;height:30px;stroke:rgba(255,255,255,.96);stroke-width:2;filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
   .thname{font-family:var(--font-sora);font-weight:800;font-size:1.55rem;letter-spacing:-.01em;line-height:1}
   .thsub{color:var(--txt-2);font-size:.87rem;margin-top:3px}

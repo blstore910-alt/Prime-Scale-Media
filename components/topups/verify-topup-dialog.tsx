@@ -163,10 +163,26 @@ function VerifyTopupInvoice({
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       toast.success("Topup verified successfully");
       queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      // AND THE ROW'S OWN DETAIL CACHE.
+      //
+      // This dialog and the Details sheet both read useGetTopup, keyed
+      // ["topup-details", id], which inherits the app's 30s staleTime.
+      // Opening Verify fills that cache with the PENDING row; verifying
+      // invalidated the list and the wallet but never the detail. So the
+      // toast said verified, the badge in the grid flipped, and Details
+      // on the same card still read "pending" with the old fee for half
+      // a minute — the screen disagreeing with itself about money.
+      //
+      // The wallet-topup sibling (hooks/use-update-transaction.ts) has
+      // done this since it hit the same thing; the ad-account path was
+      // never given the line.
+      queryClient.invalidateQueries({
+        queryKey: ["topup-details", vars.topupId],
+      });
       onVerified(false);
     },
     onError: (err: Error) => {

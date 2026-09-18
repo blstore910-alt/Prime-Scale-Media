@@ -45,11 +45,17 @@ export default function RejectTopupDialog({
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       toast.success("Topup rejected.");
       queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallets"], exact: false });
+      // Same reason as the verify dialog: the Details sheet reads
+      // ["topup-details", id] and would otherwise keep showing the row as
+      // pending, with no rejection reason, for the cache's lifetime.
+      queryClient.invalidateQueries({
+        queryKey: ["topup-details", vars.topupId],
+      });
       onOpenChange(false);
     },
     onError: (err: Error) => {
