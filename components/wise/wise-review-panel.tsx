@@ -131,6 +131,62 @@ function realIban(v: string | null): string | null {
   return cleaned && !NON_IBANS.has(cleaned) ? v : null;
 }
 
+/**
+ * The note, in a sentence an admin would say out loud.
+ *
+ * These are written by the matcher and stored on the row, so they read like
+ * what they are: "no pending topup with matching amount/currency" — a
+ * database column joined to another with a slash. The person reading it is
+ * deciding whether somebody's money is stuck, and the sentence should tell
+ * them what to DO, not which query failed.
+ *
+ * Mapped at render rather than at write, because 231 rows already carry the
+ * old wording and they deserve the new sentence too.
+ */
+const NOTE_TEXT: Array<[RegExp, string]> = [
+  [
+    /^no pending topup with matching amount/i,
+    "No customer has told us to expect this payment. Match it by hand, or leave it until they file a top-up.",
+  ],
+  [
+    /^one pending topup fits the amount/i,
+    "One top-up fits the amount — but an amount is not proof of whose money this is. Match it by hand once you are sure.",
+  ],
+  [
+    /pending topups match the amount/i,
+    "Several top-ups fit this amount, so nothing here can tell them apart. Match it by hand.",
+  ],
+  [
+    /^amount-only match withdrawn/i,
+    "This was matched on the amount alone, which proves nothing about whose money it is. It was put back for a person to decide.",
+  ],
+  [
+    /filed too far from this payment/i,
+    "A top-up fits the amount, but it was filed too long before or after this payment to be the same one.",
+  ],
+  [
+    /no longer pending/i,
+    "The top-up this pointed at has already been credited another way.",
+  ],
+  [
+    /multiple topups share that reference/i,
+    "More than one top-up carries that reference, so the reference cannot decide it.",
+  ],
+  [
+    /multiple same-amount topups/i,
+    "This payer has several top-ups of the same amount across their accounts. The reference would settle it; without one, match by hand.",
+  ],
+  [/^re-checked: matched via reference/i, "Matched on the payer's reference."],
+  [/^re-checked: matched via sender/i, "Matched on a bank account we have seen from this customer before."],
+];
+function readableNote(note: string | null): string | null {
+  if (!note) return null;
+  for (const [pattern, text] of NOTE_TEXT) {
+    if (pattern.test(note)) return text;
+  }
+  return note;
+}
+
 /** Digits only, for comparing two spellings of one reference. */
 const refDigits = (v: string) => v.replace(/\D+/g, "");
 
@@ -1003,7 +1059,11 @@ Statement tried: ${p.attempts.join(" | ")}`
 
                 {/* The note explains why there is nothing to confirm. Beside
                     a ready match it would only repeat the strip above. */}
-                {r.note && !ready ? <p className="wnote">{r.note}</p> : null}
+                {r.note && !ready ? (
+                  <p className="wnote" title={r.note}>
+                    {readableNote(r.note)}
+                  </p>
+                ) : null}
 
                 <div className="wact">
                   {ready ? (
