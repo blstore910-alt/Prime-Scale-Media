@@ -248,25 +248,41 @@ export default function AdvertiserApp() {
   // plan has a name — Prime, Starter, whatever they were sold. On the box
   // that takes money out of their wallet, naming it is the difference
   // between "some monthly charge" and "the thing I signed up for".
-  const { data: planName } = useQuery<string | null>({
-    queryKey: ["adv-plan-name", advertiserId],
+  const { data: plan } = useQuery<{
+    name: string | null;
+    includedAccounts: number | null;
+    topupFeePct: number | null;
+  } | null>({
+    queryKey: ["adv-plan", advertiserId],
     enabled: !!advertiserId,
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("advertiser_plans")
-        .select("plan:plans(name)")
+        .select("included_ad_accounts, topup_fee_pct, plan:plans(name)")
         .eq("advertiser_id", advertiserId)
         .maybeSingle();
       if (error) throw error;
-      const plan = (data as { plan?: { name?: string } | Array<{ name?: string }> } | null)
-        ?.plan;
-      const one = Array.isArray(plan) ? plan[0] : plan;
-      const name = (one?.name ?? "").trim();
-      return name || null;
+      if (!data) return null;
+      const row = data as {
+        included_ad_accounts?: number | string | null;
+        topup_fee_pct?: number | string | null;
+        plan?: { name?: string } | Array<{ name?: string }> | null;
+      };
+      const embedded = Array.isArray(row.plan) ? row.plan[0] : row.plan;
+      const n = (v: unknown) => {
+        const x = Number(v);
+        return Number.isFinite(x) ? x : null;
+      };
+      return {
+        name: (embedded?.name ?? "").trim() || null,
+        includedAccounts: n(row.included_ad_accounts),
+        topupFeePct: n(row.topup_fee_pct),
+      };
     },
   });
+  const planName = plan?.name ?? null;
 
   // Same reason as the accounts query above: without isError a failed read
   // renders as "No wallet activity yet" to someone whose money moved this
@@ -811,6 +827,25 @@ export default function AdvertiserApp() {
     cta: string;
     busyLabel: string;
     run: () => Promise<boolean>;
+    /**
+     * The plan card, when this confirmation IS a plan payment.
+     *
+     * Somebody is about to pay 200 euros a month. The box that asks them
+     * listed "Monthly plan" in grey next to an amount — the same
+     * confirmation shape as a 5-euro correction. It should be obvious, at
+     * a glance, WHAT they are buying, and this is the pricing card they
+     * chose it from.
+     *
+     * What it does NOT do is replace the facts underneath, or the line
+     * about there being no undo. A confirmation that sells and hides that
+     * the money is gone is worse than a plain one.
+     */
+    hero?: {
+      name: string;
+      amount: string;
+      per: string;
+      perks: string[];
+    };
   } | null>(null);
   const [asking, setAsking] = useState(false);
 
@@ -834,8 +869,27 @@ export default function AdvertiserApp() {
         ? "USD"
         : "EUR";
     const sym = cur === "USD" ? "$" : "€";
+    const isPlan = inv.type === "subscription" && !!planName;
     setAsk({
-      title: "Pay this from your wallet?",
+      hero: isPlan
+        ? {
+            name: planName!,
+            amount: `${sym}${money2(inv.total)}`,
+            per: "per month",
+            perks: [
+              plan?.includedAccounts != null
+                ? `${plan.includedAccounts} ad account${
+                    plan.includedAccounts === 1 ? "" : "s"
+                  } included`
+                : "",
+              plan?.topupFeePct != null
+                ? `${plan.topupFeePct}% top-up fee`
+                : "",
+              "Cancel monthly",
+            ].filter(Boolean),
+          }
+        : undefined,
+      title: isPlan ? "Renew your plan?" : "Pay this from your wallet?",
       lead: `We take it out of your ${cur} wallet straight away. There is no undo — if it turns out to be wrong, message us and we sort it out.`,
       facts: [
         [
@@ -2564,6 +2618,32 @@ export default function AdvertiserApp() {
                 ✕
               </button>
             </div>
+            {/* THE PLAN, as the card they chose it from. Dark, because
+                that is what this brand looks like when it means it, and
+                because a paid plan should not read like a grey line item.
+                The sheen is one slow pass and stops for anyone who asked
+                for less motion. */}
+            {ask.hero && (
+              <div className="planhero">
+                <span className="ph-sheen" aria-hidden="true" />
+                <div className="ph-top">
+                  <span className="ph-tag">Your plan</span>
+                  <span className="ph-name">{ask.hero.name}</span>
+                </div>
+                <div className="ph-amt">
+                  <b>{ask.hero.amount}</b>
+                  <span>{ask.hero.per}</span>
+                </div>
+                <ul className="ph-perks">
+                  {ask.hero.perks.map((t) => (
+                    <li key={t}>
+                      <Ic name="i-check" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="cap">{ask.lead}</p>
             <div
               style={{

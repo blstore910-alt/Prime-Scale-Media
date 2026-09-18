@@ -288,6 +288,45 @@ export const ADV_CSS = `
   .modal{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px}.modal[hidden]{display:none}
   .mback{position:absolute;inset:0;background:rgba(12,18,48,.5);backdrop-filter:blur(2px)}
   .mcard{position:relative;width:min(480px,100%);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;animation:pop .2s ease}
+
+  /* ── The plan, on the box that charges for it ──────────────────────
+     Somebody is about to pay 200 a month. The confirmation listed
+     "Monthly plan" in grey beside an amount — the same shape as a 5-euro
+     correction. This is the pricing card they chose it from: dark, which
+     is what this brand looks like when it means it, the name in the
+     display face, the amount large, and the two or three things that
+     actually distinguish one plan from another.
+
+     It sits ABOVE the facts and replaces none of them. The line about
+     there being no undo still follows it. */
+  .planhero{position:relative;overflow:hidden;margin:2px 0 14px;
+    border-radius:16px;padding:16px 18px 14px;color:#fff;
+    background:
+      radial-gradient(120% 120% at 8% 0%, rgba(91,141,255,.42), transparent 55%),
+      radial-gradient(110% 120% at 100% 100%, rgba(139,92,246,.45), transparent 52%),
+      linear-gradient(155deg,#04050E,#0c1230 58%,#141a3c)}
+  .planhero .ph-sheen{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.13) 50%,transparent 62%);
+    transform:translateX(-120%);animation:phsheen 2.6s ease-out .25s 1 forwards}
+  @keyframes phsheen{to{transform:translateX(120%)}}
+  .planhero .ph-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .planhero .ph-tag{font-size:.6rem;font-weight:800;letter-spacing:.14em;
+    text-transform:uppercase;color:rgba(255,255,255,.55)}
+  .planhero .ph-name{font-family:var(--hd);font-weight:800;font-size:1.45rem;
+    letter-spacing:-.02em;line-height:1.1}
+  .planhero .ph-amt{display:flex;align-items:baseline;gap:7px;margin-top:6px}
+  .planhero .ph-amt b{font-family:var(--hd);font-weight:800;font-size:2rem;
+    letter-spacing:-.03em;line-height:1}
+  .planhero .ph-amt span{font-size:.82rem;color:rgba(255,255,255,.6)}
+  .planhero .ph-perks{list-style:none;margin:12px 0 0;padding:0;display:grid;
+    gap:6px}
+  .planhero .ph-perks li{display:flex;align-items:center;gap:8px;
+    font-size:.83rem;color:rgba(255,255,255,.88)}
+  .planhero .ph-perks svg{width:14px;height:14px;flex:0 0 auto;
+    color:#7ef0b8}
+  @media (prefers-reduced-motion:reduce){
+    .planhero .ph-sheen{display:none}
+  }
   @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
   .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.mhead h2{font-size:1.15rem}.mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
   .mlabel{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
