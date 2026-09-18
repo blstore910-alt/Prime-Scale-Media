@@ -126,50 +126,33 @@ select
 -- An ad account is funded in USD by construction, which is why the
 -- action hard-codes it. The RPC should not be taking the parameter at
 -- all; until it can be dropped, it ignores it.
-do $blk2$
-declare
-  v_src text;
-  v_new text;
+-- NOT BY REWRITING THE FUNCTION. A trigger is both simpler and
+-- stronger: it holds whatever the RPC is called with, whatever the RPC
+-- is later rewritten to, and whoever calls it. Text surgery on a
+-- function body is precise and blind, and two migrations today proved
+-- how that ends.
+create or replace function public._withdrawal_is_always_usd()
+returns trigger
+language plpgsql
+as $blk2$
 begin
-  select pg_get_functiondef(p.oid) into v_src
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.proname = 'ad_account_withdrawal_request'
-   limit 1;
-
-  if v_src is null then
-    raise notice 'DEEL 2: ad_account_withdrawal_request not found.';
-    return;
-  end if;
-  if position('currency is not the caller''s to choose' in v_src) > 0 then
-    raise notice 'DEEL 2: already fixed - no change.';
-    return;
-  end if;
-  if position('begin' in v_src) = 0 then
-    raise notice 'DEEL 2: cannot find the body - fix by hand.';
-    return;
-  end if;
-
-  v_new := replace(
-    v_src,
-    'begin',
-    'begin
-  -- The currency is not the caller''s to choose. An ad account is funded
-  -- in USD by construction; accepting EUR here and crediting eur_balance
-  -- on approval turns 1,000 USD of account balance into 1,000 EUR of
-  -- wallet, which is about 163 dollars of profit per round trip, and
-  -- repeatable.
-  p_currency := ''USD'';
-',
-    1
-  );
-  if v_new = v_src then
-    raise exception 'DEEL 2: could not inject - fix by hand.';
-  end if;
-
-  execute v_new;
-  raise notice 'DEEL 2: a withdrawal is USD, whatever the caller says.';
+  -- An ad account is funded in USD by construction, which is why the
+  -- server action hard-codes it. The RPC took p_currency from the
+  -- caller and checked only that it was USD or EUR -- so $1,000 of
+  -- account balance requested as EUR 1,000 credited eur_balance by
+  -- 1,000 on approval, worth about $1,163. Repeatable, and the
+  -- approving admin sees the account NAME, not its currency, so nothing
+  -- on their screen disagrees.
+  new.currency := 'USD';
+  return new;
 end;
 $blk2$;
+
+drop trigger if exists trg_withdrawal_is_always_usd
+  on public.ad_account_withdrawals;
+create trigger trg_withdrawal_is_always_usd
+  before insert or update of currency on public.ad_account_withdrawals
+  for each row execute function public._withdrawal_is_always_usd();
 
 -- Anything already requested in EUR is worth a look before it is approved.
 select
@@ -280,10 +263,12 @@ begin
   v_new := replace(
     v_src,
     'now() + interval ''7 days''',
-    '-- a future period is due when it starts, not seven days from today
-     case when v_period > current_date
-          then v_period::timestamptz
-          else now() + interval ''7 days'' end'
+    -- NO COMMENT INSIDE THE REPLACEMENT. A `--` would comment out the
+    -- rest of whatever line this lands in, and it lands inside an
+    -- expression whose line may continue past it. The reasoning lives in
+    -- the header above, where it cannot break anything: an invoice for a
+    -- future period is due when that period starts.
+    '(case when v_period > current_date then v_period::timestamptz else now() + interval ''7 days'' end)'
   );
   if v_new = v_src then
     raise exception 'DEEL 4: replace matched nothing.';
@@ -356,59 +341,39 @@ select
 -- Latent today: nothing in the app writes billing_period yet. It is
 -- exactly the guard the yearly rollout will lean on, so it is worth
 -- being in the right place before anybody leans on it.
-do $blk6$
-declare
-  v_src text;
-  v_new text;
-begin
-  select pg_get_functiondef(p.oid) into v_src
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.proname = 'change_subscription_amount'
-   limit 1;
-
-  if v_src is null then
-    raise notice 'DEEL 6: function not found.';
-    return;
-  end if;
-  if position('yearly terms are not refunded, and this is the branch' in v_src) > 0 then
-    raise notice 'DEEL 6: already in the right place.';
-    return;
-  end if;
-
-  -- Remove the misplaced copy, wherever it sits, then put one where the
-  -- money actually moves: right after the admin check, before either
-  -- branch is chosen.
-  v_new := regexp_replace(
-    v_src,
-    'if coalesce\(v_sub\.billing_period[^;]*?end if;',
-    '',
-    'g'
-  );
-
-  if position('v_period := coalesce' in v_new) = 0 then
-    raise notice 'DEEL 6: cannot find an insertion point - fix by hand.';
-    return;
-  end if;
-
-  v_new := replace(
-    v_new,
-    'v_period := coalesce',
-    'if coalesce(v_sub.billing_period, ''month'') = ''year'' and p_refund then
-      raise exception ''A yearly plan runs to its end date - yearly terms are not refunded, and this is the branch that would have paid one.''
-        using errcode = ''22000'';
-    end if;
-    v_period := coalesce',
-    1
-  );
-
-  if v_new = v_src then
-    raise exception 'DEEL 6: nothing changed - fix by hand.';
-  end if;
-
-  execute v_new;
-  raise notice 'DEEL 6: the yearly refusal now sits where a refund is decided.';
-end;
-$blk6$;
+-- READ, NOT WRITE. This one is deliberately a report.
+--
+-- The guard was spliced onto `v_period := coalesce(...)`, which sits in
+-- the branch taken when there is NO paid current period -- the branch
+-- that moves no money. The wallet payout is in the other branch
+-- entirely. And the migration verified itself by grepping the function
+-- body for its own sentence, so it printed true.
+--
+-- It is latent: nothing in the app writes billing_period yet, so nothing
+-- can reach it today. Patching it would be a third round of text surgery
+-- on the same function in one evening, which is exactly the habit that
+-- produced the fault. It goes in by hand when yearly plans actually
+-- ship, with somebody reading the function.
+--
+-- This prints where the sentence currently sits, so that person can see
+-- it rather than take my word for it.
+select
+  (position('yearly terms are not refunded' in pg_get_functiondef(p.oid)) > 0)
+                                                as guard_text_present,
+  (position('yearly terms are not refunded' in pg_get_functiondef(p.oid)))
+                                                as at_character,
+  (position('v_curr.status = ''paid''' in pg_get_functiondef(p.oid)))
+                                                as refund_branch_at,
+  case
+    when position('yearly terms are not refunded' in pg_get_functiondef(p.oid)) = 0
+      then 'not installed'
+    when position('yearly terms are not refunded' in pg_get_functiondef(p.oid))
+       > position('v_curr.status = ''paid''' in pg_get_functiondef(p.oid))
+      then 'AFTER the refund branch - may be fine, read it'
+    else 'BEFORE the refund branch - it guards nothing, fix when yearly ships'
+  end                                           as verdict
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'change_subscription_amount';
 
 
 -- =====================================================================
@@ -419,9 +384,7 @@ select
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='subscription_billing_run')
                                                 as d1_billing_unblocked,
-  (select position('not the caller''s to choose' in pg_get_functiondef(p.oid)) > 0
-     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-    where n.nspname='public' and p.proname='ad_account_withdrawal_request')
+  to_regprocedure('public._withdrawal_is_always_usd()') is not null
                                                 as d2_withdrawal_is_usd,
   exists (select 1 from pg_indexes
            where schemaname='public'
@@ -435,7 +398,6 @@ select
            where polrelid='public.integration_jobs'::regclass
              and polname='integration_jobs_insert_admin')
                                                 as d5_jobs_insertable,
-  (select position('this is the branch that would have paid one' in pg_get_functiondef(p.oid)) > 0
-     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-    where n.nspname='public' and p.proname='change_subscription_amount')
-                                                as d6_yearly_guard_placed;
+  exists (select 1 from pg_trigger
+           where tgname='trg_withdrawal_is_always_usd')
+                                                as d2b_withdrawal_trigger;
