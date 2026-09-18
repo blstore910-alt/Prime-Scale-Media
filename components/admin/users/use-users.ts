@@ -13,13 +13,19 @@ type UseUsersParams = {
 };
 
 export default function useUsers({
+  role,
   sort = "newest",
   search = "",
   active,
   page = 1,
   perPage = 10,
 }: UseUsersParams = {}) {
-  const queryKey = ["users", { sort, search, active, page, perPage }];
+  // `role` was in the parameter type and then thrown away, so every caller
+  // asking for one kind of person got all of them. An advertiser and an
+  // affiliate share almost no column — a plan, a wallet and a top-up total
+  // mean nothing for somebody who never buys anything — so one list of both
+  // had half its cells wrong whichever way it was labelled.
+  const queryKey = ["users", { role, sort, search, active, page, perPage }];
   const { profile } = useAppContext();
   const {
     data: profiles,
@@ -43,6 +49,8 @@ export default function useUsers({
         .neq("role", "admin")
         .neq("user_id", user?.user?.id)
         .eq("tenant_id", profile?.tenant_id);
+
+      if (role) query = query.eq("role", role);
 
       // Active filter
       if (active !== undefined) {

@@ -29,6 +29,7 @@ import useUpdateUserProfile from "./use-update-user";
 import useUsers from "./use-users";
 import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
+import { useQuery } from "@tanstack/react-query";
 import { useAffiliateEarnings } from "@/hooks/use-affiliate-earnings";
 import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 
@@ -91,18 +92,54 @@ export default function PsmAdvertisers() {
   const [commissionAdvertiser, setCommissionAdvertiser] =
     useState<Advertiser | null>(null);
 
+  // ADVERTISERS AND AFFILIATES ARE NOT THE SAME LIST. They were shown in
+  // one, and an advertiser and an affiliate share almost no column: a plan,
+  // a wallet and a top-up total mean nothing for somebody who never buys
+  // anything, and earnings and referral links mean nothing for somebody who
+  // does. Whichever heading the table carried, half its cells were wrong —
+  // so every affiliate row read "Affiliate — no plan" under a column called
+  // PLAN, which is an apology for the column rather than a value in it.
+  const [kind, setKind] = useState<"advertiser" | "affiliate">("advertiser");
+  const isAffiliateTab = kind === "affiliate";
+
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 500);
     return () => clearTimeout(t);
   }, [search]);
-  useEffect(() => setPage(1), [debounced, sort, active]);
+  useEffect(() => setPage(1), [debounced, sort, active, kind]);
 
   const { profiles, total, isLoading, isError, error } = useUsers({
+    role: kind,
     sort,
     search: debounced,
     active: active === "all" ? undefined : active === "yes",
     page,
     perPage,
+  });
+
+  // How many of each, independent of the search and filters inside the
+  // list — a tab counts the people it holds, not the people a filter has
+  // left showing. An unreadable count is a dash, never a zero.
+  const { data: kindCounts } = useQuery({
+    queryKey: ["people-counts", me?.tenant_id],
+    enabled: !!me?.tenant_id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const one = async (r: string) => {
+        const { count, error } = await supabase
+          .from("user_profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", me?.tenant_id)
+          .eq("role", r);
+        return error ? null : (count ?? 0);
+      };
+      const [advertiser, affiliate] = await Promise.all([
+        one("advertiser"),
+        one("affiliate"),
+      ]);
+      return { advertiser, affiliate };
+    },
   });
 
   const rows = (profiles?.data ?? []) as Profile[];
@@ -171,10 +208,47 @@ export default function PsmAdvertisers() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <div className="mitabs" role="tablist" aria-label="People">
+        {(
+          [
+            {
+              key: "advertiser" as const,
+              label: "Advertisers",
+              short: "Advertisers",
+              count: kindCounts?.advertiser,
+            },
+            {
+              key: "affiliate" as const,
+              label: "Affiliates",
+              short: "Affiliates",
+              count: kindCounts?.affiliate,
+            },
+          ]
+        ).map((t) => (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={kind === t.key}
+            className={"mitab" + (kind === t.key ? " on" : "")}
+            onClick={() => setKind(t.key)}
+          >
+            <span className="milong">{t.label}</span>
+            <span className="mishort">{t.short}</span>
+            {t.count === undefined ? null : (
+              <em>{t.count === null ? "—" : t.count}</em>
+            )}
+          </button>
+        ))}
+      </div>
+
       <div className="phead phead-actions">
         <div className="ptxt">
-          <h1>Advertisers</h1>
-          <p>Plans, money and status.</p>
+          <h1>{isAffiliateTab ? "Affiliates" : "Advertisers"}</h1>
+          <p>
+            {isAffiliateTab
+              ? "Who refers, what they have earned."
+              : "Plans, money and status."}
+          </p>
         </div>
       </div>
 
@@ -229,7 +303,8 @@ export default function PsmAdvertisers() {
       ) : isError ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            Failed to load advertisers. {(error as Error)?.message ?? ""}
+            Failed to load {isAffiliateTab ? "affiliates" : "advertisers"}.{" "}
+            {(error as Error)?.message ?? ""}
           </p>
         </div>
       ) : rows.length ? (
@@ -239,9 +314,11 @@ export default function PsmAdvertisers() {
               <table className="tbl wide">
                 <thead>
                   <tr>
-                    <th>Advertiser</th>
-                    <th>Plan</th>
-                    <th className="r">Topups / earnings</th>
+                    <th>{isAffiliateTab ? "Affiliate" : "Advertiser"}</th>
+                    <th>{isAffiliateTab ? "Commission" : "Plan"}</th>
+                    <th className="r">
+                      {isAffiliateTab ? "Earnings" : "Wallet topups"}
+                    </th>
                     <th>Status</th>
                     <th className="r">Actions</th>
                   </tr>
@@ -301,7 +378,8 @@ export default function PsmAdvertisers() {
            way out of it is not on screen. */
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            No advertisers match the current search or filters.
+            No {isAffiliateTab ? "affiliates" : "advertisers"} match the
+            current search or filters.
           </p>
           <button
             className="btn ghost sm"
@@ -314,7 +392,7 @@ export default function PsmAdvertisers() {
       ) : (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            No advertisers yet.
+            No {isAffiliateTab ? "affiliates" : "advertisers"} yet.
           </p>
         </div>
       )}

@@ -172,44 +172,11 @@ export default function MoneyInTabs() {
   );
 }
 
+// The tab bar itself lives in the shared shell CSS — it is wanted on the
+// people screen too, and two copies of a bar drift. What stays here is the
+// one heading this screen puts under it.
 const TAB_CSS = `
 .mitabs-wrap{display:flex;flex-direction:column;gap:18px}
-/* NO HORIZONTAL SCROLL, EVER. This bar used to be overflow-x:auto, which
-   is how the third tab ended up half off the edge of a phone: the bar
-   looked complete, and a whole queue was hidden behind a sideways scroll
-   nobody would think to try. It cannot overflow now — the labels get
-   shorter instead. */
-.mitabs{display:flex;gap:5px;background:var(--panel-2);border-radius:14px;
-  padding:4px;overflow:hidden}
-/* Sized to their CONTENT, not to equal thirds. Equal thirds gave every tab
-   the same width whatever its name, so the longest one — Precharge, nine
-   letters and a count — was the one that got clipped to "Prechar…", while
-   Top-ups sat in a box with room to spare. They share the leftover space
-   instead of being forced to share all of it. */
-.mitab{flex:1 1 auto;min-width:0;display:flex;align-items:center;
-  justify-content:center;gap:6px;border:0;background:transparent;
-  cursor:pointer;border-radius:11px;padding:10px 10px;font:inherit;
-  font-size:.88rem;font-weight:650;color:var(--txt-2);white-space:nowrap;
-  transition:background .15s,color .15s}
-.mitab span{overflow:hidden;text-overflow:ellipsis}
-.mitab:hover{color:var(--ink)}
-.mitab.on{background:var(--panel);color:var(--ink);font-weight:750;
-  box-shadow:var(--shadow-sm)}
-.mitab em{flex:0 0 auto;font-style:normal;font-size:.72rem;font-weight:800;
-  font-variant-numeric:tabular-nums;min-width:19px;padding:1px 6px;
-  border-radius:999px;background:var(--line);color:var(--txt-2)}
-.mitab em.hot,.mitab.on em.hot{background:var(--warn);color:#fff}
-/* Short names well before the bar gets tight — a label that is merely
-   ellipsised ("Wallet top…") is no more readable than one off the edge. */
-.mitab .mishort{display:none}
-@media(max-width:620px){
-  .mitab .milong{display:none}
-  .mitab .mishort{display:inline}
-}
-@media(max-width:430px){
-  .mitab{padding:10px 7px;font-size:.82rem;gap:5px}
-  .mitab em{font-size:.68rem;min-width:17px;padding:1px 5px}
-}
 .mihead h1{margin:0;font-family:var(--hd);font-size:1.6rem;font-weight:800;
   letter-spacing:-.03em}
 .mihead p{margin:4px 0 0;color:var(--txt-2);font-size:.9rem;line-height:1.45}

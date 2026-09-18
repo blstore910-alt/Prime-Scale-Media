@@ -776,6 +776,45 @@ export const PSM_APP_CSS = `
   border-color:transparent;box-shadow:none}
 .psmapp .btn.ghost.danger:hover{background:var(--danger-soft);color:var(--danger)}
 .psmapp .btn.ghost.danger svg{color:var(--danger)}
+
+/* ── One tab bar, for every screen that has two lists in it ───────────
+   Built first for money coming in (top-ups / deposits / precharge) and
+   then wanted again for people (advertisers / affiliates), so it lives
+   here rather than in one screen's own style block.
+
+   IT CANNOT OVERFLOW. An earlier version scrolled sideways and left the
+   third tab half off a phone: the bar looked complete and a whole queue
+   was hidden behind a scroll nobody would think to try. Labels get
+   shorter instead — each tab carries a long and a short name.
+
+   AND EVERY TAB CARRIES ITS COUNT, because a tab that hides a list with
+   work in it is the one way tabs make things worse. A count of zero is an
+   answer and is shown; a count that could not be READ is a dash, never a
+   zero. */
+.psmapp .mitabs{display:flex;gap:5px;background:var(--panel-2);
+  border-radius:14px;padding:4px;overflow:hidden}
+.psmapp .mitab{flex:1 1 auto;min-width:0;display:flex;align-items:center;
+  justify-content:center;gap:6px;border:0;background:transparent;
+  cursor:pointer;border-radius:11px;padding:10px 8px;font:inherit;
+  font-size:.88rem;font-weight:650;color:var(--txt-2);white-space:nowrap;
+  transition:background .15s,color .15s}
+.psmapp .mitab span{overflow:hidden;text-overflow:ellipsis}
+.psmapp .mitab:hover{color:var(--ink)}
+.psmapp .mitab.on{background:var(--panel);color:var(--ink);font-weight:750;
+  box-shadow:var(--shadow-sm)}
+.psmapp .mitab em{flex:0 0 auto;font-style:normal;font-size:.72rem;
+  font-weight:800;font-variant-numeric:tabular-nums;min-width:19px;
+  padding:1px 6px;border-radius:999px;background:var(--line);
+  color:var(--txt-2)}
+.psmapp .mitab em.hot,.psmapp .mitab.on em.hot{background:var(--warn);color:#fff}
+.psmapp .mitab .mishort{display:none}
+@media(max-width:620px){
+  .psmapp .mitab .milong{display:none}
+  .psmapp .mitab .mishort{display:inline}
+}
+@media(max-width:360px){
+  .psmapp .mitab{padding:10px 6px;font-size:.84rem;gap:5px}
+}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 
 /* ══ Polish pass ═══════════════════════════════════════════════════════
