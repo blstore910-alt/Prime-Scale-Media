@@ -109,7 +109,11 @@ export default function PsmPromotions() {
     },
   });
 
-  const { data: perks = [], isLoading: perksLoading } = useQuery<PerkRow[]>({
+  const {
+    data: perks = [],
+    isLoading: perksLoading,
+    isError: perksError,
+  } = useQuery<PerkRow[]>({
     queryKey: ["advertiser-perks", profile?.tenant_id],
     enabled: profile?.role === "admin" && !!profile?.tenant_id,
     queryFn: async () => {
@@ -425,6 +429,19 @@ export default function PsmPromotions() {
       {/* Active & recent perks */}
       {perksLoading ? (
         <p className="muted">Loading…</p>
+      ) : perksError ? (
+        /* THIS SCREEN IS WHERE AN ADMIN CHECKS WHETHER A CUSTOMER ALREADY
+           HOLDS A PERK before granting one. "No perks to show" over a
+           failed read invites a second grant — a second discount against
+           real invoices, or a second free ad account — and `data = []` is
+           the default for both "none" and "could not ask". */
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>
+            We couldn&apos;t read the perks just now — this is not an empty
+            list. Reload before granting anything, or you may grant a second
+            one on top of a discount that is already running.
+          </p>
+        </div>
       ) : rows.length ? (
         <div className="card" style={{ padding: 0 }}>
           <div className="tblwrap">

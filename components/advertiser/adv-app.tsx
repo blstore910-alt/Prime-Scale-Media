@@ -136,8 +136,16 @@ export default function AdvertiserApp() {
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const tenantId = profile?.tenant_id ?? null;
 
-  const { requests: myRequests, isLoading: isRequestsLoading } =
-    useAdAccountRequests({
+  // isError, not only isLoading. An extra ad-account request charges EUR
+  // 50 from the wallet on submit and ad_account_request_create_paid has
+  // no duplicate guard — so a customer who filed one, saw "Nothing here
+  // yet" because the read failed, and filed again is charged twice. The
+  // hook has exported isError all along.
+  const {
+    requests: myRequests,
+    isLoading: isRequestsLoading,
+    isError: isRequestsError,
+  } = useAdAccountRequests({
       advertiserId: advertiserId ?? undefined,
       tenantId: tenantId ?? undefined,
       perPage: 50,
@@ -1663,11 +1671,22 @@ export default function AdvertiserApp() {
                   </span>{" "}
                   Ad accounts
                 </div>
-                <div className="v">{(accounts ?? []).length}</div>
+                {/* "0 / None yet" is what a failed read looks like, and
+                    the card sixty lines down already says out loud "We
+                    couldn't load your ad accounts just now — this is not an
+                    empty list." Both were on the dashboard at once, and
+                    this one is the larger, higher-contrast of the two. */}
+                <div className="v">
+                  {accountsError ? "—" : (accounts ?? []).length}
+                </div>
                 <div className="sub">
-                  {(accounts ?? []).length === 0
-                    ? "None yet"
-                    : `${activeAccts.length} active`}
+                  {accountsError
+                    ? "Couldn't load"
+                    : accountsLoading
+                      ? "Checking…"
+                      : (accounts ?? []).length === 0
+                        ? "None yet"
+                        : `${activeAccts.length} active`}
                 </div>
               </div>
               <div className="stat" onClick={() => go("billing")}>
@@ -2389,7 +2408,9 @@ export default function AdvertiserApp() {
                 <p className="cap" style={{ margin: 0 }}>
                   {isRequestsLoading
                     ? "Loading your requests…"
-                    : "Nothing here yet. When you ask for an ad account, we set it up on our verified Business Manager and it shows up here."}
+                    : isRequestsError
+                      ? "We couldn't load your requests just now — this is not an empty list. Reload before you file another one, so you don't end up paying for two."
+                      : "Nothing here yet. When you ask for an ad account, we set it up on our verified Business Manager and it shows up here."}
                 </p>
               </div>
             )}
@@ -2584,6 +2605,27 @@ export default function AdvertiserApp() {
                       </button>
                     ) : null}
                   </>
+                ) : subError ? (
+                  /* `subscription` is undefined when the subscriptions read
+                     FAILS, and this else-branch then stated "Nothing to pay
+                     right now" — and took the Pay button away with it. The
+                     invoices come from a SEPARATE query, so an unpaid one
+                     can be sitting right there. The paragraph directly above
+                     was already fixed for invError and says "Pay it from your
+                     wallet whenever suits you"; underneath it, this said the
+                     opposite. The customer is told they owe nothing on the
+                     one screen that could tell them otherwise, the invoice
+                     goes past due, gets dunned, and is auto-debited anyway. */
+                  <p className="cap" style={{ margin: 0 }}>
+                    We couldn&apos;t read your plan just now, so we can&apos;t
+                    show what&apos;s due.{" "}
+                    <button
+                      className="linkbtn"
+                      onClick={() => window.location.reload()}
+                    >
+                      Reload
+                    </button>
+                  </p>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>
                     Nothing to pay right now.

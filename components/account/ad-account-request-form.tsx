@@ -262,7 +262,7 @@ export default function AdAccountRequestForm({
   // Wallet-impact preview: fee is €50 (EUR) or the rounded USD equivalent
   // via the active rate; show current balance + balance after.
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
-  const { data: feePreview } = useQuery({
+  const { data: feePreview, isError: feePreviewError } = useQuery({
     queryKey: ["request-fee-preview", advertiserId, profile?.tenant_id],
     enabled: !!advertiserId && !!profile?.tenant_id,
     queryFn: async () => {
@@ -354,6 +354,22 @@ export default function AdAccountRequestForm({
   // is undefined and feeBalance defaults to 0 — don't flash a false
   // "not enough balance" or disable submit until we actually know.
   const feeEnough = isFree || !feePreview || feeBalance >= feeAmount;
+  // ── AND THE SAME THING FOR THE SENTENCES, NOT ONLY THE GATE ─────────
+  //
+  // The line above already treats an unloaded preview as "don't refuse".
+  // Five lines up, the STATEMENTS built from the same undefined value
+  // were printed as fact: included = 0 and used = 0 make isFree false, so
+  // the card reads "Ad-account request fee: €50 / Charged from your
+  // wallet when you submit. Balance: €0.00 → €-50.00", and the
+  // confirmation says "Cost: €50 from your wallet".
+  //
+  // Two false money statements at once. The request may be included free
+  // in their plan, in which case the server charges nothing; and their
+  // balance is not €0.00. This is not a rare failure — the query fires
+  // when the dialog mounts, so that card renders it on EVERY open until
+  // the fetch lands. A customer reads "€-50.00" and backs out of a
+  // request that was free.
+  const feeUnknown = !feePreview || feePreviewError;
 
   const draft = useFormDraft<FormValues>({
     formKey: "ad-account-request",
@@ -467,7 +483,18 @@ export default function AdAccountRequestForm({
                 : "border-destructive/50 bg-destructive/5"
           }`}
         >
-          {isFree ? (
+          {feeUnknown ? (
+            <>
+              <div className="font-medium">
+                Checking what this request costs…
+              </div>
+              <div className="text-muted-foreground text-xs mt-0.5">
+                {feePreviewError
+                  ? "We couldn't read your plan and balance just now. Your plan may include this request at no cost — we'll charge the right amount when you submit."
+                  : "Your plan may include it at no cost."}
+              </div>
+            </>
+          ) : isFree ? (
             <>
               <div className="font-medium">Included in your plan — no fee</div>
               <div className="text-muted-foreground text-xs mt-0.5">
@@ -712,9 +739,11 @@ export default function AdAccountRequestForm({
         <ConfirmFact
           label="Cost"
           value={
-            isFree
-              ? "Included in your plan"
-              : `${feeSymbol}${feeAmount} from your wallet`
+            feeUnknown
+              ? "Worked out when you submit"
+              : isFree
+                ? "Included in your plan"
+                : `${feeSymbol}${feeAmount} from your wallet`
           }
           strong
         />

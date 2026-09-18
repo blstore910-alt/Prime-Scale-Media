@@ -355,7 +355,16 @@ const AUTO_SYNC_EVERY_MS = 10 * 60 * 1000;
 // So the good news is one quiet line, and the numbers an admin actually
 // checks — how much arrived, how much we can read, how much is waiting on
 // them — are the tiles.
-function WiseTiles({ waiting }: { waiting: number }) {
+function WiseTiles({
+  waiting,
+  waitingUnknown = false,
+}: {
+  waiting: number;
+  /** The deposits read failed or is in flight, so `waiting` is 0 by
+      accident. An admin scans this tile to decide whether anybody is
+      owed a credit; a confident 0 closes the screen. */
+  waitingUnknown?: boolean;
+}) {
   const { data, isLoading } = useQuery({
     queryKey: ["wise-ingest-status"],
     queryFn: () => wiseIngestStatus(),
@@ -414,8 +423,8 @@ function WiseTiles({ waiting }: { waiting: number }) {
           <b>{data.withReference}</b>
           <span>With a reference</span>
         </div>
-        <div className={"wtile" + (waiting > 0 ? " hot" : "")}>
-          <b>{waiting}</b>
+        <div className={"wtile" + (!waitingUnknown && waiting > 0 ? " hot" : "")}>
+          <b>{waitingUnknown ? "—" : waiting}</b>
           <span>Waiting for you</span>
         </div>
       </div>
@@ -953,7 +962,18 @@ Statement tried: ${p.attempts.join(" | ")}`
               flexWrap: "wrap",
             }}
           >
-            {suggestedCount > 0 ? (
+            {isError || isLoading ? (
+              /* `data ?? []` makes suggestedCount 0 both while the read is
+                 in flight and when it FAILED, and this is the line an
+                 admin scans before deciding whether to close the screen.
+                 "Nothing waiting on you" over an unreadable deposit feed
+                 leaves customers' bank transfers uncredited — while the
+                 list immediately below correctly says "We couldn't load
+                 the deposits — this is NOT an empty feed." */
+              <span className="muted" style={{ fontSize: ".88rem" }}>
+                {isError ? "We couldn't read the deposits" : "Checking…"}
+              </span>
+            ) : suggestedCount > 0 ? (
               <span className="badge pend">{suggestedCount} to confirm</span>
             ) : (
               <span className="muted" style={{ fontSize: ".88rem" }}>
@@ -1002,7 +1022,7 @@ Statement tried: ${p.attempts.join(" | ")}`
             </button>
           </div>
         </div>
-        <WiseTiles waiting={suggestedCount} />
+        <WiseTiles waiting={suggestedCount} waitingUnknown={isError || isLoading} />
         <div className="wsearch">
           <Search />
           <input
