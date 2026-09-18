@@ -216,8 +216,14 @@ begin
     raise notice 'DEEL 4: function not found.';
     return;
   end if;
-  if position('a future period is due when it starts' in v_src) > 0 then
-    raise notice 'DEEL 4: already fixed.';
+  -- THE MARKER HAS TO BE IN THE REPLACEMENT.
+  --
+  -- This looked for a sentence that lived in a comment I later removed —
+  -- so it never matched, the summary reported false while the fix was in,
+  -- and a second run would have wrapped the expression a second time.
+  -- v_period::timestamptz is in the injected text and nowhere else.
+  if position('v_period::timestamptz' in v_src) > 0 then
+    raise notice 'DEEL 4: already fixed - no change.';
     return;
   end if;
   if position('now() + interval ''7 days''' in v_src) = 0 then
@@ -355,7 +361,7 @@ select
            where schemaname='public'
              and indexname='wallet_adjustments_change_refund_uq')
                                                 as d3_refund_unique,
-  (select position('a future period is due when it starts' in pg_get_functiondef(p.oid)) > 0
+  (select position('v_period::timestamptz' in pg_get_functiondef(p.oid)) > 0
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='change_subscription_amount')
                                                 as d4_future_due_date,
