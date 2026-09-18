@@ -34,6 +34,7 @@ const initial = (s: Subscription) =>
 
 const statusCls = (s: SubscriptionStatus) => {
   if (s === "active") return "ok";
+  if (s === "past_due") return "due";
   if (s === "paused") return "pend";
   return "due"; // inactive
 };
@@ -170,6 +171,7 @@ export default function PsmSubscriptions() {
               options: [
                 { value: "all", label: "All statuses" },
                 { value: "active", label: "Active" },
+                { value: "past_due", label: "Past due" },
                 { value: "inactive", label: "Inactive" },
                 { value: "paused", label: "Paused" },
               ],
@@ -323,7 +325,15 @@ export default function PsmSubscriptions() {
                             </button>
                           )}
 
-                          {s.status === "active" && (
+                          {/* PAST DUE GETS THE SAME CONTROLS AS ACTIVE.
+                              Dunning writes this status, the billing run
+                              keeps retrying the auto-debit every day while
+                              it holds — and the action row rendered
+                              buttons only for active, inactive and paused,
+                              so the one subscription the desk most needs to
+                              stop had no buttons at all. */}
+                          {(s.status === "active" ||
+                            s.status === "past_due") && (
                             <>
                               {/* titled: .alab is display:none below 420px and
                                   then only the icon is left, so without this
@@ -335,7 +345,14 @@ export default function PsmSubscriptions() {
                                 onClick={() =>
                                 askStatus(s, "paused", {
                                   title: "Pause this subscription?",
-                                  lead: "No new invoices are raised while it is paused. Anything already unpaid stays unpaid.",
+                                  // "Anything already unpaid stays unpaid"
+                                  // was false. The auto-debit pass filters
+                                  // on 'cancelled' alone, so an invoice
+                                  // already issued is still taken out of
+                                  // the customer's wallet on its due date —
+                                  // pausing stops NEW invoices, not the
+                                  // collection of old ones.
+                                  lead: "No new invoices are raised while it is paused. An invoice that has already been issued is still collected from their wallet on its due date — void it first if that is not what you want.",
                                   cta: "Yes, pause it",
                                   done: "Subscription paused successfully.",
                                 })
@@ -356,7 +373,14 @@ export default function PsmSubscriptions() {
                                 onClick={() =>
                                 askStatus(s, "inactive", {
                                   title: "Stop this plan?",
-                                  lead: "Billing stops, and the customer keeps whatever is already invoiced. Reactivating starts it again from the next run — it does not backfill.",
+                                  // "It does not backfill" was false.
+                                  // next_payment_date is never moved, so on
+                                  // reactivation generation resumes from the
+                                  // stale date and walks forward through
+                                  // every month that was skipped, raising
+                                  // and auto-debiting each one. A plan off
+                                  // for three months is billed for three.
+                                  lead: "Billing stops and any invoice already issued is still collected. If you reactivate later, the months it was off are billed then — move the next payment date first if you do not want that.",
                                   cta: "Yes, stop it",
                                   danger: true,
                                   done: "Subscription disabled successfully.",

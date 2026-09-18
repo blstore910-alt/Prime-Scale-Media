@@ -1,4 +1,15 @@
-export const SUBSCRIPTION_STATUSES = ["active", "inactive", "paused"] as const;
+// past_due is written by the dunning run when an auto-debit fails
+// (advertiser_perks.sql). It was missing here, so every screen typed
+// against this union believed it could not happen — which is why the
+// subscriptions action row rendered no buttons for it and the status
+// filter could not list it. The one subscription the desk most needs to
+// find was the one it could not.
+export const SUBSCRIPTION_STATUSES = [
+  "active",
+  "past_due",
+  "inactive",
+  "paused",
+] as const;
 
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 

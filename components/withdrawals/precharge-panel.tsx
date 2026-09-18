@@ -324,6 +324,34 @@ function PrechargeCreateDialog({
       toast.error("Couldn't create precharge", { description: e.message }),
   });
 
+  // ── DOES THIS CUSTOMER ALREADY HAVE A TOP-UP WAITING? ───────────────
+  // A precharge made HERE carries no source_wallet_topup_id, and the
+  // balance trigger settles only advances that name the top-up they
+  // belong to. So: advance credit from this dialog, then verify the
+  // customer's pending top-up on the tab next door, and the wallet is
+  // credited TWICE — the advance is still outstanding and nothing links
+  // them. The two buttons sit a few centimetres apart and look
+  // interchangeable; only the per-top-up one settles itself.
+  const { data: pendingForAdvertiser } = useQuery({
+    queryKey: ["precharge-pending-topups", advertiserId],
+    enabled: !!advertiserId && open,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallet_topups")
+        .select("id, amount, currency")
+        .eq("advertiser_id", advertiserId)
+        .eq("status", "pending");
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        amount: number | string;
+        currency: string | null;
+      }>;
+    },
+  });
+  const hasPending = (pendingForAdvertiser ?? []).length > 0;
+
   const numeric = Number(amount);
   const valid = !!advertiserId && Number.isFinite(numeric) && numeric > 0;
 
@@ -339,6 +367,23 @@ function PrechargeCreateDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {hasPending ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
+              <p className="font-semibold text-destructive">
+                This customer already has{" "}
+                {(pendingForAdvertiser ?? []).length === 1
+                  ? "a top-up"
+                  : `${(pendingForAdvertiser ?? []).length} top-ups`}{" "}
+                waiting to be verified.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                An advance made here is not attached to it, so verifying that
+                top-up will credit the wallet a SECOND time and this advance
+                will stay outstanding. Use the Precharge button on the top-up
+                itself — that one settles when you verify it.
+              </p>
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label>Advertiser</Label>
             <Select value={advertiserId} onValueChange={setAdvertiserId}>
