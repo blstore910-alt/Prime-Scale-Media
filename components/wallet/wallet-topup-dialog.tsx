@@ -139,6 +139,7 @@ export default function WalletTopupDialog({
   referenceNo,
   minTopup,
   accountTypeSlugs = [],
+  accountsUnknown = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -147,6 +148,12 @@ export default function WalletTopupDialog({
   minTopup: number | null;
   /** Type slugs of the advertiser's own ad accounts, to route the transfer. */
   accountTypeSlugs?: string[];
+  /**
+   * The ad-accounts read did not come back — it failed, or it is still in
+   * flight. NOT the same as "this advertiser has no accounts", and the
+   * difference decides which company's IBAN we print.
+   */
+  accountsUnknown?: boolean;
 }) {
   const [step, setStep] = useState(STEPS.SELECTION);
   const [currency, setCurrency] = useState<CurrencyCode>("EUR");
@@ -168,7 +175,23 @@ export default function WalletTopupDialog({
   // server-side would ever notice: the RPC takes amount, currency and slip,
   // and never learns which beneficiary the customer was shown.
   const routed = banksForAccountTypes(accountTypeSlugs);
-  const routingUnknown = accountTypeSlugs.length > 0 && routed.length === 0;
+  // THE THIRD SITUATION, which fell into the harmless-default branch:
+  //
+  //   we could not READ the accounts → we know even less than "nobody
+  //                                    mapped this type". Ask.
+  //
+  // `accounts ?? []` is [] while the query is in flight AND when it has
+  // failed, so accountTypeSlugs arrived empty, routingUnknown was false,
+  // bankChoices was empty, the chooser was not rendered and bankGroup
+  // stayed at its useState default of "turlit". An advertiser whose
+  // accounts route to ZANEL or MUXUE was shown TURLIT LLC's IBAN and
+  // beneficiary name as the destination, with no control to correct it
+  // and no notice that anything was uncertain — and then made a real
+  // bank transfer to the wrong legal entity. Nothing server-side catches
+  // it: wallet_topup_advertiser_create takes amount, currency and slip,
+  // and never learns which beneficiary was on screen.
+  const routingUnknown =
+    accountsUnknown || (accountTypeSlugs.length > 0 && routed.length === 0);
   const bankChoices = routingUnknown
     ? BANK_GROUP_OPTIONS.map((o) => o.value)
     : routed;

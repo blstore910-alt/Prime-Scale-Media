@@ -1,6 +1,6 @@
 "use server";
 
-import { resolveUserContext, type ActionResult } from "./_shared";
+import { resolveUserContextForRead, type ActionResult } from "./_shared";
 import { pageAllRows } from "@/lib/page-all-rows";
 import type { FinanceLine } from "@/lib/pure-finance-report";
 import { sortLines } from "@/lib/pure-finance-report";
@@ -53,14 +53,25 @@ export type FinanceReport = {
 export async function financeReportForMe(): Promise<
   ActionResult<FinanceReport>
 > {
-  const auth = await resolveUserContext();
+  const auth = await resolveUserContextForRead();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
   const failed: string[] = [];
   let truncated = false;
 
-  /** One source. Never throws; records its own failure by name. */
+  /**
+   * One source. Never throws; records its own failure by name.
+   *
+   * EVERY WALK CARRIES A UNIQUE TIEBREAKER. Ordering by created_at alone
+   * is not a total order — a bulk top-up inserts up to 200 rows sharing
+   * one now(), and Postgres gives no stable order among ties — so a row
+   * sitting on a 1,000-row page boundary can be returned twice or not at
+   * all, and which it is changes between requests. That lands in the
+   * In/Out/Net tiles and in the CSV the customer hands a bookkeeper.
+   * `truncated` does not catch it: that only fires at the page ceiling.
+   * The same fix went into app/api/stats/route.ts and missed this file.
+   */
   async function source(
     name: string,
     build: (from: number, to: number) => PromiseLike<{
@@ -86,12 +97,32 @@ export async function financeReportForMe(): Promise<
   // Tenant-scoped, because one person can hold an advertiser row in more
   // than one tenant and an unfiltered `limit 1` would pick an arbitrary
   // one.
-  const { data: adv } = await supabase
+  // ── A READ WE COULD NOT MAKE IS NOT AN EMPTY REPORT ─────────────────
+  //
+  // This discarded `error` and then keyed everything off `adv?.id`, so
+  // ANY failure — an RLS hiccup, or PGRST116 because .maybeSingle()
+  // THROWS when two rows match, which is a state this database has
+  // reached — returned ok:true with no lines and an empty `failed` list.
+  // The screen then has nothing to warn about and prints "Nothing has
+  // moved yet. Your first top-up will appear here." to somebody who has
+  // moved EUR 40,000, and disables Export CSV with "Nothing to export".
+  //
+  // Genuinely having no advertiser row is a different thing and still
+  // returns the empty report, because that IS the answer.
+  const { data: adv, error: advErr } = await supabase
     .from("advertisers")
     .select("id, tenant_client_code")
     .eq("user_id", profile.user_id)
     .eq("tenant_id", profile.tenant_id)
     .maybeSingle();
+
+  if (advErr) {
+    return {
+      ok: false,
+      error:
+        "We could not work out which account this report is for, so nothing below would be complete. Reload and try again.",
+    };
+  }
 
   const advertiserId = adv?.id as string | undefined;
 
@@ -102,11 +133,16 @@ export async function financeReportForMe(): Promise<
     };
   }
 
-  const { data: walletRow } = await supabase
+  // Same shape, smaller blast radius: the wallet id is what scopes the
+  // EXCHANGES source, so discarding this error dropped that entire
+  // source without naming it, and a customer who moved EUR into USD got
+  // both currency totals wrong with no warning anywhere.
+  const { data: walletRow, error: walletErr } = await supabase
     .from("wallets")
     .select("id")
     .eq("advertiser_id", advertiserId)
     .maybeSingle();
+  if (walletErr) failed.push("currency exchanges");
   const walletId = walletRow?.id as string | undefined;
 
   // Ad account names, so a line can say which account it belongs to
@@ -118,6 +154,12 @@ export async function financeReportForMe(): Promise<
       .from("ad_accounts")
       .select("id, name")
       .eq("advertiser_id", advertiserId)
+      // .range() with NO order at all. Postgres is free to return rows in
+      // any order it likes and to change its mind between the two calls,
+      // so a second page could repeat a row the first page already had
+      // and skip one it did not — which here means an ad account's name
+      // going missing and every line belonging to it printing a uuid.
+      .order("id", { ascending: true })
       .range(from, to),
   );
   for (const a of accounts) {
@@ -143,6 +185,7 @@ export async function financeReportForMe(): Promise<
       .select("id, amount, currency, status, reference_no, created_at")
       .eq("advertiser_id", advertiserId)
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(from, to),
   )) {
     // Only completed money is money. A pending transfer is a claim, and
@@ -176,6 +219,7 @@ export async function financeReportForMe(): Promise<
       )
       .eq("advertiser_id", advertiserId)
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(from, to),
   )) {
     const done = String(r.status ?? "") === "completed";
@@ -237,6 +281,7 @@ export async function financeReportForMe(): Promise<
       .select("id, ad_account_id, amount, currency, status, created_at")
       .eq("advertiser_id", advertiserId)
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(from, to),
   )) {
     const done = ["approved", "completed", "paid"].includes(
@@ -266,6 +311,7 @@ export async function financeReportForMe(): Promise<
       .eq("advertiser_id", advertiserId)
       .eq("tenant_id", profile.tenant_id)
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(from, to),
   )) {
     const paid = String(r.status ?? "") === "paid";
@@ -295,6 +341,7 @@ export async function financeReportForMe(): Promise<
       .select("id, amount, currency, status, reference, created_at")
       .eq("advertiser_id", advertiserId)
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(from, to),
   )) {
     lines.push({
@@ -325,6 +372,7 @@ export async function financeReportForMe(): Promise<
         )
         .eq("wallet_id", walletId)
         .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
         .range(from, to),
     )) {
       const at = String(r.created_at ?? "");
@@ -435,7 +483,7 @@ export async function financeReportForMe(): Promise<
 export async function affiliateFinanceReportForMe(): Promise<
   ActionResult<FinanceReport>
 > {
-  const auth = await resolveUserContext();
+  const auth = await resolveUserContextForRead();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -486,6 +534,7 @@ export async function affiliateFinanceReportForMe(): Promise<
         )
         .eq("affiliate_advertiser_id", myId)
         .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
         .range(from, to),
     );
     if (res.error) failed.push("commissions");

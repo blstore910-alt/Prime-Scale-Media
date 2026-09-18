@@ -48,6 +48,33 @@ import {
   isAccountLocked,
   accountLockedReason,
 } from "@/lib/pure-account-status";
+import {
+  AD_ACCOUNT_CUSTOMER_COLUMNS,
+  AD_ACCOUNT_CORE_COLUMNS,
+} from "@/lib/ad-account-columns";
+
+/** What this sheet reads: the account, plus the trimmed advertiser embed. */
+type AccountDetailsRow = Partial<AdAccount> & {
+  // Always selected, by both the full and the core list, so the two
+  // consumers that hand this row on can rely on them.
+  id: string;
+  name: string;
+  currency: string | null;
+  fee: number;
+  advertiser_id: string;
+  platform: string;
+  status: string;
+  tenant_id: string;
+  advertiser?: {
+    id?: string | null;
+    tenant_client_code?: string | null;
+    profile?: {
+      full_name?: string | null;
+      email?: string | null;
+      is_active?: boolean | null;
+    } | null;
+  } | null;
+};
 
 export function AccountDetailsSheet({
   accountId,
@@ -75,23 +102,60 @@ export function AccountDetailsSheet({
     enabled: !!accountId,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        // Named columns, not two wildcards. An ADVERTISER opens this sheet
-        // in their own app (components/advertiser/adv-app.tsx), so whatever
-        // the query returns lands in their browser — and advertisers(*)
-        // carried `note`, the admin's private free-text remark about that
-        // customer, written from the /users sheet and rendered nowhere on
-        // their side. It was in the JSON and only in the JSON.
-        //
-        // The sheet reads exactly three profile fields and one advertiser
-        // field; this is that list. See lib/types/advertiser-columns.ts.
-        .select(
-          "*, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email, is_active))",
-        )
-        .eq("id", accountId)
-        .single();
-      if (error) throw error;
+      // Named columns, not two wildcards. An ADVERTISER opens this sheet
+      // in their own app (components/advertiser/adv-app.tsx), so whatever
+      // the query returns lands in their browser — and advertisers(*)
+      // carried `note`, the admin's private free-text remark about that
+      // customer, written from the /users sheet and rendered nowhere on
+      // their side. It was in the JSON and only in the JSON.
+      //
+      // THE EMBED WAS NARROWED AND THE OUTER `*` WAS LEFT. So the same
+      // fault stayed on the parent row: `ad_accounts.notes` is where an
+      // operator writes, in this file's own words 130 lines down, "things
+      // like a supplier account number and the rate we pay for it", and
+      // `metadata` has carried supplier provenance. Both are gated at the
+      // RENDER layer here (`!isAdvertiser &&`) — and a render gate does
+      // nothing about what crossed the wire, sat in the query cache, and
+      // is one network tab away. gdpr-actions.ts already excludes
+      // ad_accounts.notes from the customer's own export by name.
+      const embed =
+        ", advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email, is_active))";
+      // postgrest-js infers the row type from the select STRING, and a
+      // string it cannot see at compile time makes it give up and infer
+      // an error type — so the result is cast once, here, rather than
+      // fought with at every field. The shape is AdAccount plus the one
+      // embed above.
+      const run = async (cols: string) => {
+        const res = await supabase
+          .from("ad_accounts")
+          .select(cols + embed)
+          .eq("id", accountId)
+          .single();
+        return {
+          data: res.data as unknown as AccountDetailsRow | null,
+          error: res.error,
+        };
+      };
+
+      // An admin still needs the whole row — they are the ones the notes
+      // are written by and for.
+      if (!isAdvertiser) {
+        const { data, error } = await run("*");
+        if (error) throw error;
+        return data;
+      }
+
+      const { data, error } = await run(AD_ACCOUNT_CUSTOMER_COLUMNS);
+      if (error) {
+        // The live schema is hand-authored and diverges from the types, so
+        // a named column can simply not be there — and PostgREST's "column
+        // ad_accounts.x does not exist" would land on the customer's own
+        // screen. Fall back to the CORE list, never to `*`: a narrower
+        // sheet is a fair trade, the leak is not.
+        const retry = await run(AD_ACCOUNT_CORE_COLUMNS);
+        if (retry.error) throw retry.error;
+        return retry.data;
+      }
       return data;
     },
   });
@@ -412,7 +476,10 @@ export function AccountDetailsSheet({
                     variant="outline"
                     onClick={() => {
                       setOpen();
-                      onSetMinTopup(data);
+                      // Admin-only branch, so `data` came from the "*"
+                      // read and really is the whole row. The type is
+                      // Partial because the CUSTOMER read is not.
+                      onSetMinTopup(data as AdAccount);
                     }}
                   >
                     <SlidersHorizontal /> Set topup limit
@@ -443,7 +510,9 @@ export function AccountDetailsSheet({
                 )}
               </div>
 
-              <TopupHistory account={data} />
+              {/* Same cast, same reason: TopupHistory reads id and
+                  currency, both present in every variant of the read. */}
+              <TopupHistory account={data as AdAccount} />
             </div>
           )}
         </SheetContent>

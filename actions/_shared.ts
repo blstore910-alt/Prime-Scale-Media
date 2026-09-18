@@ -135,7 +135,29 @@ export async function resolveUserContext(): Promise<
 > {
   const mm = maintenanceGuard();
   if (!mm.ok) return { ok: false, error: mm.error };
+  return resolveUserContextForRead();
+}
 
+/**
+ * The same identity resolution, WITHOUT the maintenance freeze.
+ *
+ * For actions that only read. The rule stated 60 lines up is that "READS
+ * are unaffected — page loads, dashboards, and audit_events queries all
+ * keep working. This is deliberate: during an incident you want to look
+ * at data." Two read-only actions were routed through resolveUserContext
+ * anyway, so turning MAINTENANCE_MODE on stopped an admin opening a bank
+ * receipt to investigate the incident, and stopped a customer reading
+ * their own financial statement — neither of which can make anything
+ * worse, and both of which are what you reach for when something has
+ * gone wrong.
+ *
+ * Everything else is identical: the same session, the same profile_id
+ * cookie, the same refusal for a deactivated account. A mutation must
+ * still use resolveUserContext.
+ */
+export async function resolveUserContextForRead(): Promise<
+  { ok: true; ctx: AdminContext } | { ok: false; error: string }
+> {
   const { createClient } = await import("@/lib/supabase/server");
   const { cookies } = await import("next/headers");
 

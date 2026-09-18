@@ -1,7 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
-import { resolveUserContext } from "./_shared";
+import { resolveUserContextForRead } from "./_shared";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -48,9 +48,12 @@ export async function getSignedPaymentSlipUrl(
   // five-minute signed links to any customer's bank receipt in the
   // tenant — name, IBAN, amount.
   //
-  // resolveUserContext checks the role, the tenant AND that the account
-  // is still active, and carries the maintenance freeze with it.
-  const auth = await resolveUserContext();
+  // ...ForRead checks the session, the tenant AND that the account is
+  // still active. NOT the maintenance freeze: opening a bank receipt is
+  // a read, it cannot make an incident worse, and it is exactly what an
+  // admin reaches for while investigating one. _shared.ts states the
+  // rule — "during an incident you want to look at data".
+  const auth = await resolveUserContextForRead();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Legacy full-URL rows: nothing to sign, hand it back.

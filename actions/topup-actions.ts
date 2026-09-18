@@ -883,6 +883,40 @@ export async function verifyAdTopup(
   // Raising the fee is still allowed for any admin — it cannot cost us
   // anything and there are real reasons to. Going BELOW what the account
   // and the plan resolve to is the owner's call.
+  // ── THE TENANT CHECK IS NOT PART OF THE FEE CHECK ───────────────────
+  //
+  // All of this used to sit inside `if (newFeePercent !== null)`, so the
+  // ordinary call — verifyAdTopup(id, null), which is what the dialog
+  // sends when the fee is not being changed — reached the RPC with no
+  // tenant compare at all. An admin of tenant A could verify tenant B's
+  // top-up, marking another tenant's payment collected and then queueing
+  // a supplier push stamped with the CALLER'S tenant id.
+  //
+  // updateTopupAsAdmin, forty lines up in this same file, checks
+  // unconditionally. The only other defence was top_up_admin_verify
+  // itself, which is not in supabase/migrations at all — it is hand
+  // authored on live and named only in a comment, so nothing in this
+  // repository can say whether it compares tenants. A guard you cannot
+  // read is not a guard you can rely on.
+  {
+    const { data: row, error: rowErr } = await supabase
+      .from("top_ups")
+      .select("tenant_id")
+      .eq("id", topupId)
+      .maybeSingle();
+    if (rowErr) {
+      return {
+        ok: false,
+        error: "Could not read this top-up, so it cannot be verified.",
+        code: "invalid",
+      };
+    }
+    if (!row) return { ok: false, error: "Top-up not found", code: "not_found" };
+    if (row.tenant_id !== profile.tenant_id) {
+      return { ok: false, error: "Forbidden", code: "forbidden" };
+    }
+  }
+
   if (newFeePercent !== null) {
     // ── A READ WE COULD NOT MAKE IS NOT PERMISSION ──────────────────
     //

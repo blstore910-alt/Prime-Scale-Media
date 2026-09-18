@@ -11,6 +11,10 @@ import { getNotificationCopy } from "@/components/notifications/notification-uti
 import { updateOwnProfileAndCompany } from "@/actions/company-actions";
 import { getURL } from "@/lib/utils";
 import {
+  AD_ACCOUNT_CUSTOMER_COLUMNS,
+  AD_ACCOUNT_CORE_COLUMNS,
+} from "@/lib/ad-account-columns";
+import {
   isCompanyComplete,
   missingCompanyFields,
 } from "@/lib/pure-company-complete";
@@ -202,12 +206,31 @@ export default function AdvertiserApp() {
     enabled: !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
+      // NOT "*". This is the customer's own browser, and the row carries
+      // `notes` — where an operator writes, in account-details-sheet's
+      // own words, "things like a supplier account number and the rate we
+      // pay for it" — plus `metadata`, which has carried supplier
+      // provenance. Neither is rendered anywhere on this side; both were
+      // in the JSON. gdpr-actions.ts already excludes ad_accounts.notes
+      // from the customer's own data export by name.
       const { data, error } = await supabase
         .from("ad_accounts")
-        .select("*")
+        .select(AD_ACCOUNT_CUSTOMER_COLUMNS)
         .eq("advertiser_id", advertiserId);
-      if (error) throw error;
-      return (data ?? []) as AdAccount[];
+      if (error) {
+        // A named column the live schema does not have yet throws rather
+        // than degrading, and "column ad_accounts.x does not exist" would
+        // land on the customer's dashboard. Retry with the core list —
+        // never with "*", which would trade a thinner screen for the leak
+        // this change exists to close.
+        const retry = await supabase
+          .from("ad_accounts")
+          .select(AD_ACCOUNT_CORE_COLUMNS)
+          .eq("advertiser_id", advertiserId);
+        if (retry.error) throw retry.error;
+        return (retry.data ?? []) as unknown as AdAccount[];
+      }
+      return (data ?? []) as unknown as AdAccount[];
     },
   });
 
@@ -351,7 +374,31 @@ export default function AdvertiserApp() {
         .eq("wallet_id", wallet!.id)
         .order("created_at", { ascending: false })
         .limit(30);
-      if (error) throw error;
+      // ── AND `description` MAY NOT BE THERE ────────────────────────
+      //
+      // Narrowing the columns closed a leak and opened this: the list
+      // names `description`, which is in no migration and not in
+      // supabase/migrations/README's column list for this table. A bare
+      // .select() expands to "*" and tolerates any column set; an
+      // explicit list does not. If that column is absent on live,
+      // PostgREST throws 42703 and EVERY advertiser's wallet activity is
+      // dead — the history, and with it the only place a pending bank
+      // transfer is shown.
+      //
+      // The rule in CLAUDE.md is: ask for it, and on error ask again
+      // without it. The feature stays dark until the migration lands
+      // instead of the screen breaking. `description` is decorative here
+      // — the row falls back to "Wallet top-up" when it is empty.
+      if (error) {
+        const { data: retry, error: retryErr } = await supabase
+          .from("wallet_topups")
+          .select("id, created_at, currency, amount, status, reference_no")
+          .eq("wallet_id", wallet!.id)
+          .order("created_at", { ascending: false })
+          .limit(30);
+        if (retryErr) throw retryErr;
+        return (retry ?? []).map((r) => ({ ...r, description: null }));
+      }
       return data ?? [];
     },
   });
@@ -588,6 +635,14 @@ export default function AdvertiserApp() {
     ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
+  // A FAILED ACTIVITY READ IS NOT "NOTHING IS PENDING". The comment on
+  // the query above says this in its own words — "a failure silently
+  // makes a pending transfer disappear from the dashboard" — and then
+  // both derived values below read `activity ?? []` with no error check,
+  // which is exactly that. A customer who wired EUR 10,000 this morning
+  // is shown "Available to spend" and no pending panel, so they wire it
+  // again.
+  const pendingUnknown = activityError;
   const pendingTopups = (activity ?? []).filter(
     (t) =>
       t.status !== "completed" &&
@@ -1081,6 +1136,21 @@ export default function AdvertiserApp() {
         [
           `Your ${cur} wallet`,
           (() => {
+            // ── AND NOT A BALANCE WE HAVE NOT READ ──────────────────
+            //
+            // usdBal/eurBal are Number(wallet?.x ?? 0), which is 0 while
+            // the wallet query is in flight AND when it has failed. This
+            // dialog used to be unreachable in that state — canPayInvoice
+            // sent an unknown balance to the wallet screen instead — and
+            // then that was fixed so the Pay label stops flipping to
+            // "Top up to pay", which made the dialog reachable and left
+            // this line behind. A customer holding EUR 10,000 was told
+            // "€0.00 → €-99.00" in the one dialog whose whole purpose is
+            // that its figures are real. The balance tiles 1,300 lines up
+            // already print "—" for this; so does this now.
+            if (walletLoading || walletError) {
+              return "We couldn't read your balance just now";
+            }
             const before = cur === "USD" ? usdBal : eurBal;
             const after = before - Number(inv.total ?? 0);
             const fmt = (n: number) => `${sym}${money2(n)}`;
@@ -1873,18 +1943,48 @@ export default function AdvertiserApp() {
                 label="EUR wallet"
                 value={eurText}
                 pending={pendingByCurrency.EUR}
+                pendingUnknown={pendingUnknown}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet || (!companyComplete && !gateUnknown)}
+                /* `!wallet` is true for a tenant with genuinely no wallet
+                   row AND for a read that failed, and the second one left
+                   both buttons dead with nothing said — beside balances
+                   already rendering "—", so the screen admitted it could
+                   not read this and then disabled the way to fix it. The
+                   two stay merged (a missing wallet really is a reason to
+                   disable) and the reason is now spoken. */
+                disabledReason={
+                  walletError
+                    ? "We couldn't read your wallet just now — reload and try again"
+                    : !wallet
+                      ? "No wallet on this account yet"
+                      : undefined
+                }
               />
               <WalletCard
                 cur="usd"
                 label="USD wallet"
                 value={usdText}
                 pending={pendingByCurrency.USD}
+                pendingUnknown={pendingUnknown}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet || (!companyComplete && !gateUnknown)}
+                /* `!wallet` is true for a tenant with genuinely no wallet
+                   row AND for a read that failed, and the second one left
+                   both buttons dead with nothing said — beside balances
+                   already rendering "—", so the screen admitted it could
+                   not read this and then disabled the way to fix it. The
+                   two stay merged (a missing wallet really is a reason to
+                   disable) and the reason is now spoken. */
+                disabledReason={
+                  walletError
+                    ? "We couldn't read your wallet just now — reload and try again"
+                    : !wallet
+                      ? "No wallet on this account yet"
+                      : undefined
+                }
               />
             </div>
             {/* THE SAME GATE THE DASHBOARD HAS, and the same sentence.
@@ -3001,6 +3101,9 @@ export default function AdvertiserApp() {
         // can work it out instead of showing every customer all three
         // beneficiary companies and asking them to route their own payment.
         accountTypeSlugs={(accounts ?? []).map((a) => a.platform)}
+        /* A failed or in-flight accounts read is not "no accounts". It
+           decides which company's IBAN the customer is told to pay. */
+        accountsUnknown={accountsError || accountsLoading}
       />
       <WalletExchangeDialog
         open={exchangeOpen}
@@ -3212,18 +3315,24 @@ function WalletCard({
   label,
   value,
   pending = 0,
+  pendingUnknown = false,
   onTopup,
   onExchange,
   disabled,
+  disabledReason,
 }: {
   cur: "eur" | "usd";
   label: string;
   value: string;
   /** Sent but not yet verified, in this currency. */
   pending?: number;
+  /** The activity read failed, so `pending` is 0 by accident, not fact. */
+  pendingUnknown?: boolean;
   onTopup: () => void;
   onExchange: () => void;
   disabled?: boolean;
+  /** Why the buttons are dead. Shown so the screen is not just mute. */
+  disabledReason?: string;
 }) {
   const sym = cur === "usd" ? "$" : "€";
   return (
@@ -3237,7 +3346,9 @@ function WalletCard({
           verified yet, because that is what explains a balance that looks
           lower than they expect. */}
       <div className="wavail">
-        {pending > 0 ? (
+        {pendingUnknown ? (
+          "We couldn't check for pending transfers"
+        ) : pending > 0 ? (
           <>
             <b>
               {sym}
@@ -3250,13 +3361,28 @@ function WalletCard({
         )}
       </div>
       <div className="wa">
-        <button className="wbtn" onClick={onTopup} disabled={disabled}>
+        <button
+          className="wbtn"
+          onClick={onTopup}
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+        >
           <Ic name="i-plus" /> Top up
         </button>
-        <button className="wbtn gh" onClick={onExchange} disabled={disabled}>
+        <button
+          className="wbtn gh"
+          onClick={onExchange}
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+        >
           <Ic name="i-swap" /> Exchange
         </button>
       </div>
+      {/* A title attribute is invisible on a phone, and this is a phone
+          app. The sentence goes on the card. */}
+      {disabled && disabledReason && (
+        <div className="wavail">{disabledReason}</div>
+      )}
     </div>
   );
 }

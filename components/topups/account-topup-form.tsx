@@ -22,6 +22,10 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Skeleton } from "../ui/skeleton";
 import { useCreateAccountTopup } from "./use-create-account-topup";
 import { quoteTopupFeePct } from "@/actions/topup-actions";
+import {
+  AD_ACCOUNT_CUSTOMER_COLUMNS,
+  AD_ACCOUNT_CORE_COLUMNS,
+} from "@/lib/ad-account-columns";
 
 type CurrencyCode = "USD" | "EUR";
 
@@ -79,12 +83,23 @@ export default function AccountTopupForm({
     enabled: !!profile?.tenant_id,
     queryFn: async () => {
       const supabase = createClient();
+      // Named columns. This dialog is opened by the CUSTOMER, and
+      // ad_accounts carries `notes` (an operator's private remarks,
+      // including supplier account numbers and what we pay) and
+      // `metadata`. The form reads six fields; none of them is ours.
       const { data, error } = await supabase
         .from("ad_accounts")
-        .select("*")
+        .select(AD_ACCOUNT_CUSTOMER_COLUMNS)
         .eq("tenant_id", profile?.tenant_id);
-      if (error) throw error;
-      return (data ?? []) as AccountRecord[];
+      if (error) {
+        const retry = await supabase
+          .from("ad_accounts")
+          .select(AD_ACCOUNT_CORE_COLUMNS)
+          .eq("tenant_id", profile?.tenant_id);
+        if (retry.error) throw retry.error;
+        return (retry.data ?? []) as unknown as AccountRecord[];
+      }
+      return (data ?? []) as unknown as AccountRecord[];
     },
   });
 
@@ -229,6 +244,15 @@ export default function AccountTopupForm({
   // shown as final: the submit button waits for the quote.
   const fee = feeQuote.data?.pct ?? parseAmount(selectedAccount?.fee);
   const feeIsSettled = !!accountId && feeQuote.isSuccess;
+  // AN ERRORED QUERY IS NOT A LOADED ONE. In react-query v5 a failed
+  // query has isLoading === false, so gating only on isLoading left the
+  // error branch doing exactly what this whole change exists to stop:
+  // the button enabled, the summary printing "Top-up fee (0%) €0.00" and
+  // "Lands on the account €10,000.00" from the account's own column —
+  // the column the server treats as NOT SET and overrides with the plan
+  // rate. Three lines below its own comment saying never to open the
+  // confirmation on a fee we have not resolved.
+  const feeUnresolved = !!accountId && (feeQuote.isLoading || feeQuote.isError);
   useEffect(() => {
     if (account?.id) {
       setValue("account_id", account.id);
@@ -428,7 +452,8 @@ export default function AccountTopupForm({
               fee_pct={fee}
               fee_amount={(parseAmount(amount) * fee) / 100}
               remaining={remainingBalance}
-              feePending={feeQuote.isLoading}
+              feePending={feeUnresolved}
+              feeFailed={feeQuote.isError}
             />
           )}
 
@@ -449,11 +474,17 @@ export default function AccountTopupForm({
             !selectedAccountCurrency ||
             // Never open the confirmation on a fee we have not resolved
             // yet. It is one round-trip, and the whole point of that
-            // dialog is that the figures in it are the real ones.
-            feeQuote.isLoading
+            // dialog is that the figures in it are the real ones. A
+            // FAILED quote counts: the fallback is the account's own
+            // column, which is the wrong number for anyone on a plan.
+            feeUnresolved
           }
           title={
-            feeQuote.isLoading ? "Checking the fee on this account…" : undefined
+            feeQuote.isError
+              ? "We could not check this account's rate — reload and try again"
+              : feeQuote.isLoading
+                ? "Checking the fee on this account…"
+                : undefined
           }
         >
           {(isPending || feeQuote.isLoading) && (
@@ -574,6 +605,7 @@ function BalanceSummary({
   fee_amount,
   fee_pct,
   feePending,
+  feeFailed = false,
 }: {
   currency: CurrencyCode;
   balance: number;
@@ -585,6 +617,8 @@ function BalanceSummary({
   // dash is the honest thing to print; a number taken from the account's
   // own column would be the wrong one for anyone on a plan.
   feePending: boolean;
+  /** …and it failed rather than being still in flight. */
+  feeFailed?: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
@@ -610,7 +644,11 @@ function BalanceSummary({
           {feePending ? "Top-up fee" : `Top-up fee (${fee_pct}%)`}
         </span>
         <span className="font-medium">
-          {feePending ? "checking…" : formatCurrency(fee_amount, currency)}
+          {feePending
+            ? feeFailed
+              ? "couldn't check"
+              : "checking…"
+            : formatCurrency(fee_amount, currency)}
         </span>
       </div>
       <div className="flex items-center justify-between text-sm">

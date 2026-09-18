@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Notification } from "@/lib/types/notification";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 export default function useNotifications() {
   const supabase = createClient();
@@ -82,8 +83,14 @@ export default function useNotifications() {
     },
     // Without this the thrown guard above is swallowed and the click still
     // looks like it worked.
+    // ALL THREE THROW THE RAW PostgrestError, and `.message` on one of
+    // those is not the sanitised string this rule is about: the object
+    // also carries `details`, `hint` and `row`, and safeErrorMessage is
+    // what keeps them out of a customer's screen. This hook is mounted at
+    // the root of BOTH SPA shells, so it is every advertiser and every
+    // affiliate.
     onError: (err: Error) =>
-      toast.error("Couldn't mark it read", { description: err.message }),
+      toast.error("Couldn't mark it read", { description: safeErrorMessage(err) }),
   });
 
   const markAllAsRead = useMutation({
@@ -107,7 +114,7 @@ export default function useNotifications() {
     // and nothing was said — the sibling markAsRead has had this since it
     // was written.
     onError: (e: Error) =>
-      toast.error("Couldn't mark them read", { description: e.message }),
+      toast.error("Couldn't mark them read", { description: safeErrorMessage(e) }),
   });
 
   const deleteRead = useMutation({
@@ -134,7 +141,7 @@ export default function useNotifications() {
     // Same as its sibling: a delete that is refused should say so, not
     // look like a slow refetch.
     onError: (e: Error) =>
-      toast.error("Couldn't clear them", { description: e.message }),
+      toast.error("Couldn't clear them", { description: safeErrorMessage(e) }),
   });
 
   return {

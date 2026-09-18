@@ -80,11 +80,36 @@ export default function NotificationDialog({
   const topupCurrency = String(
     topup?.topup_currency || payload.topup_currency || topup?.currency || "-",
   );
-  const topupAmount = toNumber(topup?.topup_amount ?? payload.topup_amount);
-  const feeAmount = toNumber(topup?.fee_amount ?? payload.fee_amount);
-  const amountReceived = toNumber(
-    topup?.amount_received ?? payload.amount_received ?? topup?.topup_amount,
-  );
+  // ── TWO CURRENCIES ON ONE RECEIPT, AND THEY ARE NOT THE SAME ────────
+  //
+  // topup_amount and fee_amount are ALWAYS USD — an ad-account balance is
+  // dollars, so calculateTopupAmount converts first and takes the fee off
+  // there. `currency` is what the customer physically transferred. This
+  // formatted all three with `currency`, so a EUR 1,000 top-up at 5% and
+  // a rate of 0.86 told the customer:
+  //
+  //     Amount EUR 1,104.65 · Fee EUR 58.14 · Total Received EUR 1,000.00
+  //
+  // i.e. they paid EUR 1,000 and received EUR 1,104.65. The truth is
+  // EUR 950 credited and EUR 50 of fee: about 16% out, in our favour, on
+  // the customer's own receipt. The same fault was found and fixed in
+  // verify-topup-dialog.tsx and psm-verify-ad-topups.tsx; this screen was
+  // missed, and it is the one the CUSTOMER reads.
+  const USD = "USD";
+  const topupAmountUsd = toNumber(topup?.topup_amount ?? payload.topup_amount);
+  const feeAmountUsd = toNumber(topup?.fee_amount ?? payload.fee_amount);
+  // What they actually transferred, in the currency they transferred it
+  // in. The old fallback to topup_amount was a dollar figure wearing a
+  // euro sign, which is the same fault one layer down.
+  const amountReceivedRaw =
+    topup?.amount_received ?? payload.amount_received ?? null;
+  const amountReceived = toNumber(amountReceivedRaw);
+  const amountReceivedKnown =
+    amountReceivedRaw !== null && amountReceivedRaw !== undefined;
+  const money = (v: number, cur: string) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(
+      v,
+    );
 
   return (
     <Dialog open={open} onOpenChange={onCreateOpen}>
@@ -143,36 +168,38 @@ export default function NotificationDialog({
                 <span className="text-muted-foreground">Currency</span>
                 <span className="font-medium">{topupCurrency}</span>
               </div>
+              {/* Read top to bottom the way the money moved: what they
+                  sent, what we took, what landed. "Amount / Fee / Total
+                  Received" put the largest figure last and called the
+                  smallest one the total. */}
+              {amountReceivedKnown && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">You transferred</span>
+                  <span className="font-medium">
+                    {money(amountReceived, currency)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Amount</span>
+                <span className="text-muted-foreground">Top-up fee</span>
                 <span className="font-medium">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency,
-                  }).format(topupAmount)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Fee</span>
-                <span className="font-medium">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency,
-                  }).format(feeAmount)}
+                  {money(feeAmountUsd, USD)}
                 </span>
               </div>
 
               <div className="border-t my-2" />
 
               <div className="flex justify-between items-center text-base font-semibold">
-                <span>Total Received</span>
-                <span>
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency,
-                  }).format(amountReceived)}
-                </span>
+                <span>Landed on the account</span>
+                <span>{money(topupAmountUsd, USD)}</span>
               </div>
+              {currency.toUpperCase() !== USD && (
+                <p className="text-xs text-muted-foreground">
+                  Ad accounts are funded in US dollars, so the fee and the
+                  amount that landed are shown in dollars. You transferred{" "}
+                  {currency.toUpperCase()}.
+                </p>
+              )}
             </div>
           </div>
         </div>
