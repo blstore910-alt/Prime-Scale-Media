@@ -17,6 +17,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { suggestPrice } from "@/lib/pure-plan-price";
+import useExchangeRates from "./use-exchange-rates";
 
 const KINDS: PlanKind[] = ["tier", "community"];
 const CURRENCIES: PlanCurrency[] = ["EUR", "USD"];
@@ -27,6 +29,10 @@ type Row = {
   kind: PlanKind;
   monthly: string;
   currency: PlanCurrency;
+  /** The USD price somebody CHOSE. Empty = derive it, and say so. */
+  usd: string;
+  /** Percent off twelve months. Empty or 0 = this plan has no yearly. */
+  yearPct: string;
   included: string;
   pct: string;
   is_active: boolean;
@@ -53,6 +59,17 @@ export default function PlansCard() {
         kind: p.kind,
         monthly: String(p.monthly_fee).replace(/\.00$/, ""),
         currency: p.currency,
+        // Absent because nobody set one, OR because the migration has not
+        // been applied yet — both mean "derive it", and both look the same
+        // from here, which is exactly right.
+        usd:
+          p.monthly_fee_usd === null || p.monthly_fee_usd === undefined
+            ? ""
+            : String(p.monthly_fee_usd).replace(/\.00$/, ""),
+        yearPct:
+          p.yearly_discount_pct === null || p.yearly_discount_pct === undefined
+            ? ""
+            : String(p.yearly_discount_pct).replace(/\.00$/, ""),
         included: String(p.included_ad_accounts),
         pct: String(p.topup_fee_pct).replace(/\.00$/, ""),
         is_active: p.is_active,
@@ -85,12 +102,34 @@ export default function PlansCard() {
     mutationFn: async () => {
       const dirty = rows.filter((r) => r.dirty);
       for (const r of dirty) {
+        // SEND A PRICE ONLY WHEN IT CHANGED. The per-currency columns come
+        // from a migration applied by hand; sending them on every save
+        // would make renaming a plan fail on a database that has not got
+        // them yet. An admin who did not touch the price should never meet
+        // a migration error.
+        const was = initial.find((x) => x.id === r.id);
+        const prices: {
+          monthly_fee_usd?: number | null;
+          yearly_discount_pct?: number | null;
+        } = {};
+        // "" means "no price chosen" -> null, which is derived. It is not
+        // the same as 0, which means free, so an empty box must never
+        // arrive as a zero.
+        if (was && r.usd !== was.usd) {
+          prices.monthly_fee_usd = r.usd.trim() === "" ? null : Number(r.usd);
+        }
+        if (was && r.yearPct !== was.yearPct) {
+          prices.yearly_discount_pct =
+            r.yearPct.trim() === "" ? null : Number(r.yearPct);
+        }
+
         const res = await upsertPlan({
           id: r.id,
           name: r.name.trim(),
           kind: r.kind,
           monthly_fee: Number(r.monthly),
           currency: r.currency,
+          ...prices,
           included_ad_accounts: Number(r.included),
           topup_fee_pct: Number(r.pct),
           is_active: r.is_active,
@@ -135,6 +174,19 @@ export default function PlansCard() {
   const anyDirty = rows.some((r) => r.dirty);
   const sym = (c: PlanCurrency) => (c === "USD" ? "$" : "€");
 
+  // EUR -> USD, from the tenant's OWN active rate rather than a provider.
+  // The row is stored USD-based (1 USD = `eur` EUR), so the rate we want is
+  // its reciprocal. This is only ever used to SUGGEST a price — the number
+  // that gets charged is the one in the box.
+  const { exchangeRates } = useExchangeRates({ activeOnly: true });
+  const eurToUsd = useMemo(() => {
+    const row = (exchangeRates ?? []).find(
+      (r) => String(r.currency).toUpperCase() === "USD",
+    );
+    const eur = Number(row?.eur);
+    return Number.isFinite(eur) && eur > 0 ? 1 / eur : null;
+  }, [exchangeRates]);
+
   // Six tracks plus gaps exceed a phone's width, and the horizontal scroller
   // that used to hold them meant dragging the grid left and right to read it
   // — with the column you were editing reliably off screen.
@@ -142,8 +194,10 @@ export default function PlansCard() {
   // Below sm each plan is a small card with its fields labelled; from sm up
   // it is the same six-column grid, with the floor that stops the name
   // column collapsing to 0px.
+  const TRACKS =
+    "sm:grid-cols-[minmax(130px,1fr)_84px_84px_96px_64px_64px_60px_48px]";
   const cols =
-    "grid grid-cols-2 items-center gap-x-3 gap-y-2 rounded-lg border p-3 sm:grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_52px] sm:min-w-[560px] sm:gap-2 sm:rounded-none sm:border-0 sm:p-0";
+    `grid grid-cols-2 items-start gap-x-3 gap-y-2 rounded-lg border p-3 ${TRACKS} sm:min-w-[700px] sm:items-center sm:gap-2 sm:rounded-none sm:border-0 sm:p-0`;
   const lab = "text-xs text-muted-foreground sm:hidden";
 
   return (
@@ -152,9 +206,12 @@ export default function PlansCard() {
         <CardTitle>Plans &amp; Communities</CardTitle>
         <CardDescription>
           Billing presets used to pre-fill an advertiser at invite time —
-          monthly fee, included ad accounts, and default topup fee. Tiers
-          (Launch/Prime/Flex) and communities (e.g. NSA = free). Editable;
-          changing a preset never touches existing advertisers.
+          monthly fee, included ad accounts, and default topup fee. The USD
+          price is one you choose, not a conversion — €200 a month is $225,
+          not $226.14; leave it empty and we suggest one. Yearly % off turns
+          on a yearly term for that plan. Tiers (Launch/Prime/Flex) and
+          communities (e.g. NSA = free). Editable; changing a preset never
+          touches existing advertisers.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -166,12 +223,14 @@ export default function PlansCard() {
           <p className="text-destructive">{(error as Error)?.message}</p>
         ) : (
           <div className="grid gap-3 sm:overflow-x-auto">
-            <div className="hidden sm:grid grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_52px] gap-2 items-center min-w-[560px] text-xs text-muted-foreground border-b pb-1">
+            <div className="hidden sm:grid grid-cols-[minmax(130px,1fr)_84px_84px_96px_64px_64px_60px_48px] gap-2 items-center min-w-[700px] text-xs text-muted-foreground border-b pb-1">
               <span>Name</span>
               <span>Kind</span>
               <span className="text-right">Monthly</span>
+              <span className="text-right">USD price</span>
               <span className="text-right">Incl.</span>
               <span className="text-right">Fee %</span>
+              <span className="text-right">Year %</span>
               <span className="text-right">On</span>
             </div>
             {rows.map((r, i) => (
@@ -213,6 +272,46 @@ export default function PlansCard() {
                     />
                   </div>
                 </label>
+                {/* THE PRICE IN USD, chosen rather than converted. The
+                    empty box is honest: it means nobody has decided, and
+                    the placeholder shows what we would advise — €200 at
+                    today's rate is $226.14, and the advice is $225,
+                    because that is a price and the other is a sum. */}
+                <label className="grid gap-1">
+                  <span className={lab}>USD price / mo</span>
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="text-xs text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={r.usd}
+                      className="text-right"
+                      placeholder={
+                        r.currency === "USD"
+                          ? "—"
+                          : (suggestPrice(r.monthly, eurToUsd) ?? "auto")
+                              .toString()
+                      }
+                      onChange={(e) => patch(i, { usd: e.target.value })}
+                    />
+                  </div>
+                  {r.currency !== "USD" &&
+                  r.usd.trim() === "" &&
+                  suggestPrice(r.monthly, eurToUsd) !== null ? (
+                    <button
+                      type="button"
+                      className="justify-self-end text-[11px] text-primary underline-offset-2 hover:underline"
+                      onClick={() =>
+                        patch(i, {
+                          usd: String(suggestPrice(r.monthly, eurToUsd)),
+                        })
+                      }
+                    >
+                      use ${suggestPrice(r.monthly, eurToUsd)}
+                    </button>
+                  ) : null}
+                </label>
                 <label className="grid gap-1">
                   <span className={lab}>Included accounts</span>
                   <Input
@@ -234,6 +333,22 @@ export default function PlansCard() {
                     value={r.pct}
                     className="text-right"
                     onChange={(e) => patch(i, { pct: e.target.value })}
+                  />
+                </label>
+                {/* Percent off twelve months. Empty is not 0% — it means
+                    this plan has no yearly option and the Monthly/Yearly
+                    pill does not appear for it. */}
+                <label className="grid gap-1">
+                  <span className={lab}>Yearly % off</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="99"
+                    step="1"
+                    value={r.yearPct}
+                    className="text-right"
+                    placeholder="—"
+                    onChange={(e) => patch(i, { yearPct: e.target.value })}
                   />
                 </label>
                 <label className="flex items-center gap-2 sm:justify-end sm:pr-2">

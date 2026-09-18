@@ -166,7 +166,21 @@ ${s} .mcard .mfoot .btn{font-size:.9rem;padding:11px 18px}
     width:38px;height:4px;border-radius:99px;background:var(--line-2);
     margin:-6px auto 12px;
   }
-  ${s} .mfoot{flex-direction:column-reverse;gap:8px}
+  /* THE ACTION NEVER SCROLLS OUT OF REACH. A sheet can always be handed
+     more content than the screen holds — a plan with five perks, a long
+     wallet line, a second warning — and when that happens the thing the
+     person opened it to press must still be under their thumb rather
+     than below the fold. Trimming content buys headroom once; a footer
+     that sticks to the bottom of the sheet is true whatever the content
+     turns out to be. It carries the safe-area padding itself, so the
+     card gives up its own. */
+  ${s} .mcard:has(.mfoot){padding-bottom:0}
+  ${s} .mfoot{
+    flex-direction:column-reverse;gap:8px;
+    position:sticky;bottom:0;z-index:3;background:var(--panel);
+    margin-top:14px;padding-top:13px;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  }
   ${s} .mfoot .btn{width:100%;justify-content:center}
 }
 @media (prefers-reduced-motion:reduce){

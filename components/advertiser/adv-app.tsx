@@ -931,17 +931,20 @@ export default function AdvertiserApp() {
       icon: "i-wallet",
       // Shorter, same meaning. Three lines of warning above the facts
       // pushed the button below the fold on a phone.
-      lead: `Taken from your ${cur} wallet straight away. No undo — if it is wrong, message us and we sort it out.`,
+      lead: `Straight from your ${cur} wallet. No undo — message us if it is wrong.`,
       facts: [
-        [
-          "What for",
-          // Named, when they have a plan. "Monthly plan" alone is the
-          // category; "Monthly plan · Prime" is the thing they bought.
-          planName && inv.type === "subscription"
-            ? `${invoiceTypeLabel(inv.type)} · ${planName}`
-            : invoiceTypeLabel(inv.type),
-        ],
-        ["Amount", `${sym}${money2(inv.total)}`],
+        // WITH THE PLAN CARD ABOVE, these two rows are that card said a
+        // second time — it already names the plan and prints the amount
+        // per month, and the button underneath says "Yes, pay €5.00".
+        // Three statements of one number is what pushed the footer off
+        // the bottom of a short phone. So they appear only when there is
+        // no card above to say it.
+        ...(isPlan
+          ? ([] as [string, string][])
+          : ([
+              ["What for", invoiceTypeLabel(inv.type)],
+              ["Amount", `${sym}${money2(inv.total)}`],
+            ] as [string, string][])),
         // BEFORE AND AFTER. "Out of your EUR wallet" did not say what was
         // in it or what would be left — so somebody pressing this could
         // not tell whether it empties them, and the one thing a person

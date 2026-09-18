@@ -20,6 +20,30 @@ const CURRENCIES: PlanCurrency[] = ["EUR", "USD"];
 const SELECT_COLS =
   "id, tenant_id, name, kind, monthly_fee, currency, included_ad_accounts, topup_fee_pct, is_active, sort_order, updated_by, created_at, updated_at";
 
+/**
+ * The per-currency prices live in a migration applied BY HAND, while this
+ * code deploys in two minutes. Naming a column the live database does not
+ * have yet makes PostgREST throw, and the message lands on the admin's
+ * screen in place of the plans list — which is exactly how `plans.features`
+ * reached a customer earlier today. See the rule in CLAUDE.md.
+ *
+ * So: ask for them, and if the database has not got them yet, ask again
+ * without. A missing price is derived by lib/pure-plan-price.ts, so the
+ * screen is correct either way — it just cannot pin one until the
+ * migration lands.
+ */
+const PRICE_COLS = "monthly_fee_eur, monthly_fee_usd, yearly_fee_eur, yearly_fee_usd, yearly_discount_pct";
+
+function missingPriceColumn(err: { message?: string; code?: string } | null): boolean {
+  if (!err) return false;
+  const m = (err.message ?? "").toLowerCase();
+  return (
+    err.code === "42703" ||
+    m.includes("does not exist") ||
+    m.includes("could not find")
+  );
+}
+
 // ─────────────────────────────────────────
 // listPlans — admin, all presets for the settings screen.
 // ─────────────────────────────────────────
@@ -28,14 +52,20 @@ export async function listPlans(): Promise<ActionResult<Plan[]>> {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
-  const { data, error } = await supabase
-    .from("plans")
-    .select(SELECT_COLS)
-    .eq("tenant_id", profile.tenant_id)
-    .order("kind", { ascending: true })
-    .order("sort_order", { ascending: true });
+  const query = (cols: string) =>
+    supabase
+      .from("plans")
+      .select(cols)
+      .eq("tenant_id", profile.tenant_id)
+      .order("kind", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+  let { data, error } = await query(`${SELECT_COLS}, ${PRICE_COLS}`);
+  if (error && missingPriceColumn(error)) {
+    ({ data, error } = await query(SELECT_COLS));
+  }
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as Plan[] };
+  return { ok: true, data: (data ?? []) as unknown as Plan[] };
 }
 
 // ─────────────────────────────────────────
@@ -46,17 +76,23 @@ export async function listActivePlans(): Promise<ActionResult<PlanOption[]>> {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
-  const { data, error } = await supabase
-    .from("plans")
-    .select(
-      "id, name, kind, monthly_fee, currency, included_ad_accounts, topup_fee_pct",
-    )
-    .eq("tenant_id", profile.tenant_id)
-    .eq("is_active", true)
-    .order("kind", { ascending: true })
-    .order("sort_order", { ascending: true });
+  const BASE =
+    "id, name, kind, monthly_fee, currency, included_ad_accounts, topup_fee_pct";
+  const query = (cols: string) =>
+    supabase
+      .from("plans")
+      .select(cols)
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true)
+      .order("kind", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+  let { data, error } = await query(`${BASE}, ${PRICE_COLS}`);
+  if (error && missingPriceColumn(error)) {
+    ({ data, error } = await query(BASE));
+  }
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as PlanOption[] };
+  return { ok: true, data: (data ?? []) as unknown as PlanOption[] };
 }
 
 function num(v: unknown, min: number, max: number): number | null {
@@ -79,6 +115,14 @@ export async function upsertPlan(input: {
   topup_fee_pct: number;
   is_active?: boolean;
   sort_order?: number;
+  // Prices somebody CHOSE, per currency and term. null clears one back to
+  // derived; undefined (absent) leaves it alone. Zero is free, and is a
+  // decision — see lib/pure-plan-price.ts.
+  monthly_fee_eur?: number | null;
+  monthly_fee_usd?: number | null;
+  yearly_fee_eur?: number | null;
+  yearly_fee_usd?: number | null;
+  yearly_discount_pct?: number | null;
   ifUpdatedAt?: string;
 }): Promise<ActionResult<{ id: string }>> {
   // OWNER, not admin. This was enforced only by the settings layout
@@ -116,6 +160,43 @@ export async function upsertPlan(input: {
   if (typeof input.is_active === "boolean") patch.is_active = input.is_active;
   if (typeof input.sort_order === "number") patch.sort_order = input.sort_order;
 
+  // ── The per-currency prices, still column-allowlisted ───────────────
+  // Only the keys actually supplied are touched, so a screen that does
+  // not know about prices cannot blank one by omission.
+  const PRICE_KEYS = [
+    "monthly_fee_eur",
+    "monthly_fee_usd",
+    "yearly_fee_eur",
+    "yearly_fee_usd",
+  ] as const;
+  let touchesPrices = false;
+  for (const k of PRICE_KEYS) {
+    const v = input[k];
+    if (v === undefined) continue;
+    touchesPrices = true;
+    if (v === null) {
+      patch[k] = null; // back to derived
+      continue;
+    }
+    const parsed = num(v, 0, 1_000_000);
+    if (parsed == null) {
+      return { ok: false, error: `${k.replace(/_/g, " ")} must be 0 or more.` };
+    }
+    patch[k] = parsed;
+  }
+  if (input.yearly_discount_pct !== undefined) {
+    touchesPrices = true;
+    if (input.yearly_discount_pct === null) {
+      patch.yearly_discount_pct = null;
+    } else {
+      const d = num(input.yearly_discount_pct, 0, 99);
+      if (d == null) {
+        return { ok: false, error: "Yearly discount must be 0–99%." };
+      }
+      patch.yearly_discount_pct = d;
+    }
+  }
+
   if (input.id) {
     const { data: existing, error: fErr } = await supabase
       .from("plans")
@@ -140,7 +221,19 @@ export async function upsertPlan(input: {
       .eq("id", input.id)
       .eq("tenant_id", profile.tenant_id)
       .select("id");
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      // Naming a column the live database has not got yet fails here. The
+      // admin typed a price; dropping it silently and reporting success
+      // would be the worst of the three options.
+      if (touchesPrices && missingPriceColumn(error)) {
+        return {
+          ok: false,
+          error:
+            "Per-currency prices need migration 20260918300000. Apply it, then set the price again.",
+        };
+      }
+      return { ok: false, error: error.message };
+    }
     // A plan carries the monthly fee, the included accounts and the topup
     // fee an advertiser is invited on. A save that quietly wrote nothing
     // means the next invite uses the old numbers.
@@ -154,6 +247,15 @@ export async function upsertPlan(input: {
     .insert({ ...patch, tenant_id: profile.tenant_id })
     .select("id")
     .single();
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (touchesPrices && missingPriceColumn(error)) {
+      return {
+        ok: false,
+        error:
+          "Per-currency prices need migration 20260918300000. Apply it, then set the price again.",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
   return { ok: true, data: { id: data.id } };
 }
