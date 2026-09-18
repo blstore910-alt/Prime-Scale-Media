@@ -87,22 +87,38 @@ export async function requestAdAccountWithdrawal(input: {
   if (acctErr) return { ok: false, error: safeErrorMessage(acctErr) };
   if (!acct) return { ok: false, error: "That ad account was not found." };
 
-  // No currency recorded on the account is not an invitation to guess: ad
-  // account balances are USD throughout this app (top_ups.topup_amount and
-  // amount_usd are always USD), so that is the fallback, and it is the
-  // conservative one — it can never credit the more valuable balance by
-  // default.
-  const accountCurrency = (acct.currency ?? "USD").trim().toUpperCase();
-  if (accountCurrency !== "USD" && accountCurrency !== "EUR") {
-    return {
-      ok: false,
-      error: `This account is recorded in ${accountCurrency}, which we cannot pay back into a wallet. Message us and we will sort it out.`,
-    };
-  }
+  // ── THE BALANCE IS USD. THE ACCOUNT'S CURRENCY IS NOT THE BALANCE'S ──
+  //
+  // The previous fix anchored the withdrawal to ad_accounts.currency and
+  // closed nothing, because that column is the currency the account is
+  // FUNDED in, not the currency the balance is held in. An ad-account
+  // balance is top_ups.topup_amount, and that column is USD for every
+  // payment currency — utils-pure.ts converts on the way in, the account
+  // sheet prints it with a $, and the test suite asserts it.
+  //
+  // So on a EUR account the two agreed, the guard passed, and the exploit
+  // survived untouched:
+  //
+  //   fund a EUR account with EUR 1,000  ->  $1,139.53 lands on it
+  //   withdraw 1139.53, "comes back as EUR"
+  //   approve  ->  eur_balance += 1139.53
+  //
+  // +13.95% per round trip, repeatable, and still invisible on the
+  // withdrawals screen.
+  //
+  // The balance is USD, so the withdrawal is USD. A customer who wants it
+  // in euros converts it in their wallet afterwards, where a real rate is
+  // applied and recorded — which is the only place in this app that is
+  // allowed to change one currency into another.
+  const fundedIn = (acct.currency ?? "USD").trim().toUpperCase();
+  const accountCurrency = "USD";
   if (input.currency !== accountCurrency) {
     return {
       ok: false,
-      error: `Money on ${acct.name ?? "this account"} is held in ${accountCurrency}, so it comes back as ${accountCurrency}.`,
+      error:
+        fundedIn === "USD"
+          ? `Money on ${acct.name ?? "this account"} is held in USD, so it comes back as USD.`
+          : `${acct.name ?? "This account"} was funded in ${fundedIn}, but the balance on it is held in USD — that is what the platform spends. It comes back as USD; you can exchange it in your wallet afterwards.`,
     };
   }
 

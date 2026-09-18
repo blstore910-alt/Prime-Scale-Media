@@ -11,17 +11,56 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Ad-account top-up types that carry a fee (mirrors the topup form).
 const FEE_APPLICABLE_TYPES = ["top-up", "first-top-up"];
 
-// The advertiser's effective top-up fee is driven by their PLAN
-// (advertiser_plans.topup_fee_pct), then adjusted by any active top-up
-// perk: a topup_fee_waiver zeroes it, a topup_discount subtracts its
-// percent. Resolved server-side so the fee can never be understated by
-// a tampered client payload. Advertisers with no plan and no perk keep
-// the caller-supplied fee (no regression).
+/**
+ * The fee this top-up actually carries.
+ *
+ * PRECEDENCE, MOST SPECIFIC FIRST:
+ *
+ *   1. the AD ACCOUNT's own fee (ad_accounts.fee), when one is set
+ *   2. the advertiser's plan rate (advertiser_plans.topup_fee_pct)
+ *   3. whatever the caller sent (the ad-account type's default)
+ *
+ * then perks adjust the winner: a topup_fee_waiver zeroes it, a
+ * topup_discount subtracts its percent.
+ *
+ * THIS ORDER WAS THE OTHER WAY AROUND, and it cost money. The plan won
+ * unconditionally and the account's own fee was passed in merely as the
+ * fallback for advertisers who had no plan — so an admin who set 4% on one
+ * specific ad account, against a 3% plan, was silently charged 3%. The
+ * account is the more specific statement about this account, and the owner's
+ * rule is that it wins: "acc is 3% fee but ad acc is 4%, of course ad acc
+ * should win with 4%."
+ *
+ * READ FROM THE DATABASE, never from the payload. That is what keeps the
+ * anti-tampering property the old order was built for: ad_accounts.fee is a
+ * value an admin stored, not something a browser can claim. The caller's
+ * `fee` is still only a last resort.
+ *
+ * A ZERO ON THE ACCOUNT IS TREATED AS "NOT SET". ad_accounts.fee is not
+ * nullable everywhere, and a column defaulting to 0 across a live table
+ * would otherwise silently drop every planned customer to a 0% fee the
+ * moment this shipped — a much worse fault than the one being fixed. A
+ * deliberate 0% for one customer is expressed with a topup_fee_waiver perk,
+ * which already exists and is auditable.
+ */
 async function resolveEffectiveFeePct(
   supabase: SupabaseClient,
   advertiserId: string,
   fallbackPct: number,
+  adAccountId?: string | null,
 ): Promise<{ applied: boolean; pct: number }> {
+  let accountPct: number | null = null;
+  if (adAccountId) {
+    const { data: acct } = await supabase
+      .from("ad_accounts")
+      .select("fee")
+      .eq("id", adAccountId)
+      .maybeSingle();
+    const raw = (acct as { fee?: number | string | null } | null)?.fee;
+    const n = raw === null || raw === undefined ? NaN : Number(raw);
+    if (Number.isFinite(n) && n > 0) accountPct = n;
+  }
+
   const { data: plan } = await supabase
     .from("advertiser_plans")
     .select("topup_fee_pct")
@@ -49,10 +88,15 @@ async function resolveEffectiveFeePct(
     .filter((p) => p.kind === "topup_discount")
     .reduce((max, p) => Math.max(max, Number(p.amount) || 0), 0);
 
-  if (!hasPlan && !waiver && discount === 0) {
+  if (accountPct === null && !hasPlan && !waiver && discount === 0) {
     return { applied: false, pct: fallbackPct };
   }
-  const base = hasPlan ? Number(plan!.topup_fee_pct) : fallbackPct;
+  const base =
+    accountPct !== null
+      ? accountPct
+      : hasPlan
+        ? Number(plan!.topup_fee_pct)
+        : fallbackPct;
   const pct = waiver ? 0 : Math.max(0, base - discount);
   return { applied: true, pct };
 }
@@ -237,6 +281,7 @@ export async function createTopupAsAdmin(
       supabase,
       input.advertiser_id,
       fallbackPct,
+      typeof input.account_id === "string" ? input.account_id : null,
     );
 
     // ── The premium platform's two points, applied HERE ────────────────
@@ -435,10 +480,22 @@ export async function bulkCreateTopupsAsAdmin(
       if (!FEE_APPLICABLE_TYPES.includes(row.type)) continue;
       const advId = row.advertiser_id;
       if (typeof advId !== "string" || !advId) continue;
-      if (feeByAdvertiser.has(advId)) continue;
+      // KEYED BY ADVERTISER **AND** ACCOUNT. The plan and the perks are
+      // properties of the advertiser, but the winning fee is now a property
+      // of the ad account — so caching one answer per advertiser would give
+      // every account in a bulk run the first account's fee.
+      const acctId =
+        typeof row.account_id === "string" ? row.account_id : null;
+      const key = advId + "|" + (acctId ?? "");
+      if (feeByAdvertiser.has(key)) continue;
       feeByAdvertiser.set(
-        advId,
-        await resolveEffectiveFeePct(supabase, advId, Number(row.fee) || 0),
+        key,
+        await resolveEffectiveFeePct(
+          supabase,
+          advId,
+          Number(row.fee) || 0,
+          acctId,
+        ),
       );
     }
   }

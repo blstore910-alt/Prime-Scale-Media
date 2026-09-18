@@ -142,20 +142,25 @@ revoke all on function public.affiliate_referral_stats(timestamptz, timestamptz)
 grant execute on function public.affiliate_referral_stats(timestamptz, timestamptz) to authenticated;
 
 -- ── Read back ────────────────────────────────────────────────────────
--- What the split actually looks like on live right now. If paid_rows is 0
--- the two figures will agree today and diverge the first time somebody is
--- paid — which is the point.
+-- What the split looks like on live right now. If paid_rows is 0 the two
+-- figures agree today and diverge the first time somebody is paid — which
+-- is the point.
+--
+-- ::numeric on every sum. referral_commissions.amount is `real`, and
+-- round(real, int) does not exist in Postgres — only round(numeric, int).
+-- (That the column is a float at all is worth a separate look: money in a
+-- float accumulates error. It is not changed here.)
 select
   count(*)                                                   as commission_rows,
   count(*) filter (where coalesce(status,'unpaid') = 'paid') as paid_rows,
-  round(sum(amount) filter (where upper(currency) = 'EUR'), 2)
+  round(coalesce(sum(amount) filter (where upper(currency) = 'EUR'), 0)::numeric, 2)
                                                              as lifetime_eur,
-  round(sum(amount) filter (where upper(currency) = 'EUR'
-                              and coalesce(status,'unpaid') <> 'paid'), 2)
+  round(coalesce(sum(amount) filter (where upper(currency) = 'EUR'
+                              and coalesce(status,'unpaid') <> 'paid'), 0)::numeric, 2)
                                                              as unpaid_eur,
-  round(sum(amount) filter (where upper(currency) = 'USD'), 2)
+  round(coalesce(sum(amount) filter (where upper(currency) = 'USD'), 0)::numeric, 2)
                                                              as lifetime_usd,
-  round(sum(amount) filter (where upper(currency) = 'USD'
-                              and coalesce(status,'unpaid') <> 'paid'), 2)
+  round(coalesce(sum(amount) filter (where upper(currency) = 'USD'
+                              and coalesce(status,'unpaid') <> 'paid'), 0)::numeric, 2)
                                                              as unpaid_usd
   from public.referral_commissions;

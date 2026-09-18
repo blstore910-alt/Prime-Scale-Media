@@ -42,7 +42,14 @@ export default function WithdrawDialog({
   // The dialog then said "Comes back as EUR" while the server, which now
   // reads the currency off the account, refused the mismatch. The customer
   // could not withdraw at all, and the error contradicted the screen.
-  const currency = defaultCurrency;
+  // ALWAYS USD, whatever the account was funded in. The balance on an ad
+  // account is top_ups.topup_amount and that column is USD for every
+  // payment currency — so a EUR account's balance is a USD figure, and
+  // showing "Comes back as EUR" beside it is how the 1:1 exploit survived
+  // the fix that was meant to close it. defaultCurrency is kept only to
+  // tell the customer what they funded with.
+  const currency = "USD";
+  const fundedIn = (defaultCurrency ?? "USD").toUpperCase();
   const [reason, setReason] = useState("");
   // Second step, in the same dialog rather than a dialog on top of a dialog:
   // stacked modals are awkward on a phone and easy to dismiss by accident,
@@ -157,12 +164,11 @@ export default function WithdrawDialog({
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            {/* NOT a choice. The currency is a property of the account
-                the money is sitting on, and offering it as a dropdown let a
-                customer ask for their USD balance back as euros — which the
-                approve path credited 1:1, handing them 16% for free. It is
-                shown so they know what they are getting back, and it comes
-                from the account. */}
+            {/* NOT a choice, and not the funding currency either. The
+                balance on an ad account is held in USD whatever it was
+                funded with, so that is what comes back — offering anything
+                else is what let a customer turn a USD balance into euros
+                1:1 and keep the difference. */}
             <div className="space-y-2">
               <Label htmlFor="wd-cur">Comes back as</Label>
               <div
@@ -171,6 +177,13 @@ export default function WithdrawDialog({
               >
                 {currency}
               </div>
+              {fundedIn !== "USD" ? (
+                <p className="text-xs text-muted-foreground">
+                  You funded this account in {fundedIn}, but the balance on it
+                  is held in USD — that is what the platform spends. You can
+                  exchange it in your wallet afterwards.
+                </p>
+              ) : null}
             </div>
           </div>
 

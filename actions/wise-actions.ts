@@ -342,6 +342,13 @@ export async function rematchWiseDeposits(): Promise<
     // pending" — a permanently armed dead button on the one screen the
     // desk is meant to trust.
     .in("status", ["unmatched", "ambiguous", "received", "suggested"])
+    // ARCHIVED ROWS ARE OUT OF THIS SWEEP. Somebody put them aside on
+    // purpose, and since the claimed-set was added an archived `suggested`
+    // row still SPOKE FOR its top-up — so the live deposit for that top-up
+    // could never be suggested, while the panel hid the archived row from
+    // the confirm list. The desk would see "nothing to confirm" over a
+    // top-up that stays pending for ever.
+    .is("archived_at", null)
     .order("created_at", { ascending: false })
     .limit(200);
   if (dErr) return { ok: false, error: safeErrorMessage(dErr) };
