@@ -42,7 +42,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk0$
 declare
   v_advertiser_id uuid;
   v_link          record;
@@ -175,7 +175,7 @@ begin
 
   return new;
 end;
-$$;
+$blk0$;
 
 -- ── What was missed while the guard was wrong ────────────────────────
 -- Referral links on a percentage type, and the completed top-ups by their

@@ -41,7 +41,7 @@ set search_path = public;
 create or replace function public._invoice_first_subscription_due_date()
 returns trigger
 language plpgsql
-as $$
+as $blk0$
 begin
   -- Only subscription invoices, only when a term was set at all.
   if new.due_date is null then return new; end if;
@@ -62,7 +62,7 @@ begin
 
   return new;
 end;
-$$;
+$blk0$;
 
 drop trigger if exists trg_invoice_first_subscription_due_date on public.invoices;
 create trigger trg_invoice_first_subscription_due_date

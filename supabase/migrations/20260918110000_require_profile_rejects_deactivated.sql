@@ -55,7 +55,7 @@ returns table (
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk0$
 declare
   v_uid uuid;
 begin
@@ -81,7 +81,7 @@ begin
     raise exception 'Forbidden' using errcode = '42501';
   end if;
 end;
-$$;
+$blk0$;
 
 revoke all on function public._require_profile(text) from public;
 grant execute on function public._require_profile(text) to authenticated;

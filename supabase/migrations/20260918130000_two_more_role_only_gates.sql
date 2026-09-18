@@ -41,7 +41,7 @@ language sql
 stable
 security definer           -- so the subquery does not recurse through this policy
 set search_path = public
-as $$
+as $blk0$
   select exists (
     select 1
     from public.user_profiles up
@@ -53,7 +53,7 @@ as $$
       and coalesce(up.is_active, true) = true
       and coalesce(up.status, 'active') <> 'inactive'
   );
-$$;
+$blk0$;
 
 revoke all on function public._psm_admin_of(uuid) from public, anon;
 grant execute on function public._psm_admin_of(uuid) to authenticated;
@@ -70,7 +70,7 @@ create or replace function public.change_subscription_amount(
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk1$
 declare
   v_uid      uuid := auth.uid();
   v_sub      public.subscriptions%rowtype;
@@ -279,7 +279,7 @@ begin
   return jsonb_build_object('action', v_action, 'new_invoice', v_new_inv,
                             'amount', p_new_amount, 'currency', v_cur);
 end;
-$$;
+$blk1$;
 revoke all on function public.change_subscription_amount(uuid, numeric, text, boolean) from public, anon;
 grant execute on function public.change_subscription_amount(uuid, numeric, text, boolean) to authenticated, service_role;
 

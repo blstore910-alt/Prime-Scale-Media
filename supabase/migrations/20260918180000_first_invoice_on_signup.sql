@@ -37,7 +37,7 @@
 
 set search_path = public;
 
-do $$
+do $blk0$
 declare
   v_src text;
 begin
@@ -65,7 +65,7 @@ begin
   );
   raise notice 'First invoice will now be raised on signup.';
 end;
-$$;
+$blk0$;
 
 -- ── Backfill the ones already stuck in the gap ───────────────────────
 with stuck as (

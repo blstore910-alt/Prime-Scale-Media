@@ -52,7 +52,7 @@ create table if not exists public._view_backup_20260918 (
   captured_at timestamptz not null default now()
 );
 
-do $$
+do $blk0$
 declare
   v text;
 begin
@@ -75,12 +75,12 @@ begin
     end if;
   end loop;
 end;
-$$;
+$blk0$;
 
 -- ── 2. The columns ───────────────────────────────────────────────────
 -- Each guarded: a column already numeric is left alone, a column that does
 -- not exist is skipped with a notice rather than failing the batch.
-do $$
+do $blk1$
 declare
   r record;
   targets text[][] := array[
@@ -125,10 +125,10 @@ begin
     end if;
   end loop;
 end;
-$$;
+$blk1$;
 
 -- ── 3. Put the views back, exactly as they were ──────────────────────
-do $$
+do $blk2$
 declare
   r record;
 begin
@@ -140,7 +140,7 @@ begin
     raise notice 'recreated view %', r.view_name;
   end loop;
 end;
-$$;
+$blk2$;
 
 -- ── 4. Read back ─────────────────────────────────────────────────────
 -- still_float must come back EMPTY. If a row appears, that column was in

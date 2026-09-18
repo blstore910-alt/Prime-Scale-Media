@@ -63,7 +63,7 @@ create function public.affiliate_referral_stats(
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk0$
 declare
   v_uid uuid := auth.uid();
   v_aff uuid;
@@ -136,7 +136,7 @@ begin
   where d.affiliate_advertiser_id = v_aff
   order by d.referred_advertiser_name nulls last;
 end;
-$$;
+$blk0$;
 
 revoke all on function public.affiliate_referral_stats(timestamptz, timestamptz) from public;
 grant execute on function public.affiliate_referral_stats(timestamptz, timestamptz) to authenticated;

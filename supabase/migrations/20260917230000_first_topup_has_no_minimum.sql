@@ -38,7 +38,7 @@ returns public.wallet_topups
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk0$
 declare
   v_uid       uuid := auth.uid();
   v_profile   record;
@@ -189,7 +189,7 @@ begin
 
   return v_new;
 end;
-$$;
+$blk0$;
 
 revoke all on function public.wallet_topup_advertiser_create(numeric, text, text) from public;
 grant execute on function public.wallet_topup_advertiser_create(numeric, text, text) to authenticated;

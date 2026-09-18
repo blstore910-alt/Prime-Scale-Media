@@ -40,7 +40,7 @@
 set search_path = public;
 
 -- ── 1. The auto-debit pass ───────────────────────────────────────────
-do $$
+do $blk0$
 declare
   v_src text;
   v_name text;
@@ -64,10 +64,10 @@ begin
     raise notice 'Auto-debit now skips deactivated subscriptions (%).', v_name;
   end if;
 end;
-$$;
+$blk0$;
 
 -- ── 2. The paid trigger ──────────────────────────────────────────────
-do $$
+do $blk1$
 declare
   v_src text;
 begin
@@ -96,7 +96,7 @@ begin
   );
   raise notice 'Paying an invoice no longer reactivates a deactivated plan.';
 end;
-$$;
+$blk1$;
 
 -- ── Read back ────────────────────────────────────────────────────────
 -- Both must be true. still_billable counts invoices that WOULD have been

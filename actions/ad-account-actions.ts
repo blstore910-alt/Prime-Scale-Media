@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { wroteSomething } from "./_shared";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { cookies } from "next/headers";
 import {
   checkVersion,
@@ -312,7 +313,9 @@ export async function rejectAdAccountRequest(
   requestId: string,
   reason: string,
   ifUpdatedAt?: string,
-): Promise<ActionResult> {
+): Promise<
+  ActionResult<{ refunded: number; currency: string; perkRestored: boolean }>
+> {
   if (typeof requestId !== "string" || requestId.length === 0) {
     return { ok: false, error: "Invalid input" };
   }
@@ -341,21 +344,35 @@ export async function rejectAdAccountRequest(
   }
 
   const trimmedReason = typeof reason === "string" ? reason.trim() : "";
-  const { data: rows, error } = await supabase
-    .from("ad_account_requests")
-    .update({
-      status: "rejected",
-      rejection_reason: trimmedReason.length > 0 ? trimmedReason : null,
-    })
-    .eq("id", requestId)
-    .eq("tenant_id", profile.tenant_id)
-    .select("id");
-  if (error) return { ok: false, error: error.message };
-  // A rejection that silently wrote nothing leaves the request sitting in
-  // the queue while the advertiser has been told it was refused.
-  const wrote = wroteSomething(rows);
-  if (!wrote.ok) return wrote;
-  return { ok: true, data: null };
+
+  // REJECTING GIVES THE FEE BACK. Requesting an ad account costs the
+  // customer 50 EUR, taken from their wallet the moment they send it — the
+  // form says exactly that. This used to write `status = 'rejected'` and
+  // nothing else, so PSM declined to provide the thing and kept the money,
+  // with nothing on any screen saying so.
+  //
+  // One RPC, one transaction: the rejection, the refund and the free-request
+  // perk all move together, because two steps is how the second one gets
+  // forgotten — which is what happened.
+  const { data: refund, error: rpcError } = await supabase.rpc(
+    "ad_account_request_reject_refund",
+    { p_request_id: requestId, p_reason: trimmedReason || null },
+  );
+  if (rpcError) return { ok: false, error: safeErrorMessage(rpcError) };
+
+  const paid = refund as {
+    refunded?: number;
+    currency?: string;
+    perk_restored?: boolean;
+  } | null;
+  return {
+    ok: true,
+    data: {
+      refunded: Number(paid?.refunded ?? 0),
+      currency: String(paid?.currency ?? "EUR"),
+      perkRestored: !!paid?.perk_restored,
+    },
+  };
 }
 
 // ─────────────────────────────────────────

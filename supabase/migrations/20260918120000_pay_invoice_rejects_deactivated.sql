@@ -38,7 +38,7 @@ returns public.invoices
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk0$
 declare
   v_uid     uuid := auth.uid();
   v_inv     public.invoices%rowtype;
@@ -121,7 +121,7 @@ begin
   returning * into v_inv;
   return v_inv;
 end;
-$$;
+$blk0$;
 revoke all on function public.invoice_pay_from_wallet(uuid) from public;
 grant execute on function public.invoice_pay_from_wallet(uuid) to authenticated;
 

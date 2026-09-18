@@ -80,7 +80,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $blk0$
   select exists (
     select 1
       from public.subject_members m
@@ -88,7 +88,7 @@ as $$
        and m.subject_id = p_subject
        and m.user_id = auth.uid()
   );
-$$;
+$blk0$;
 
 -- The member's role, or null if they are not a member. Phase 2 uses this
 -- for the writes only an owner may make.
@@ -98,14 +98,14 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $blk1$
   select m.role
     from public.subject_members m
    where m.subject_kind = p_kind
      and m.subject_id = p_subject
      and m.user_id = auth.uid()
    limit 1;
-$$;
+$blk1$;
 
 revoke all on function public._psm_member_of(text, uuid) from public, anon;
 revoke all on function public._psm_member_role(text, uuid) from public, anon;

@@ -45,7 +45,7 @@
 
 set search_path = public;
 
-do $$
+do $blk0$
 declare
   v_type text;
 begin
@@ -79,11 +79,11 @@ begin
   else
     raise exception 'invitations.expires_at is % — not converting blindly. Look at it first.', v_type;
   end if;
-end $$;
+end $blk0$;
 
 -- Same question for created_at, for the same reason: it is what the invite
 -- list sorts and ages by.
-do $$
+do $blk1$
 declare
   v_type text;
 begin
@@ -101,7 +101,7 @@ begin
   else
     raise notice 'invitations.created_at is % — left alone', coalesce(v_type, 'absent');
   end if;
-end $$;
+end $blk1$;
 
 -- Read it back.
 select column_name, data_type, is_nullable, column_default

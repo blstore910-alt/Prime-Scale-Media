@@ -61,7 +61,7 @@ create or replace function public.change_subscription_amount(
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $blk0$
 declare
   v_uid      uuid := auth.uid();
   v_sub      public.subscriptions%rowtype;
@@ -265,7 +265,7 @@ begin
   return jsonb_build_object('action', v_action, 'new_invoice', v_new_inv,
                             'amount', p_new_amount, 'currency', v_cur);
 end;
-$$;
+$blk0$;
 revoke all on function public.change_subscription_amount(uuid, numeric, text, boolean) from public, anon;
 grant execute on function public.change_subscription_amount(uuid, numeric, text, boolean) to authenticated, service_role;
 

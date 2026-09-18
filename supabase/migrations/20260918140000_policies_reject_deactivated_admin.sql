@@ -59,7 +59,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $blk0$
   select exists (
     select 1 from public.user_profiles up
      where up.user_id = auth.uid()
@@ -67,7 +67,7 @@ as $$
        and coalesce(up.is_active, true)
        and coalesce(up.status, 'active') <> 'inactive'
   );
-$$;
+$blk0$;
 
 -- An active admin who owns their own tenant. Used where a table has no
 -- tenant_id at all and the original policy joined tenants to test
@@ -78,7 +78,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $blk1$
   select exists (
     select 1
       from public.user_profiles up
@@ -89,7 +89,7 @@ as $$
        and coalesce(up.is_active, true)
        and coalesce(up.status, 'active') <> 'inactive'
   );
-$$;
+$blk1$;
 
 revoke all on function public._is_active_admin() from public, anon;
 revoke all on function public._is_active_owner() from public, anon;

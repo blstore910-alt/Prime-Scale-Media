@@ -33,7 +33,7 @@
 
 set search_path = public;
 
-do $$
+do $blk0$
 declare
   v_src text;
 begin
@@ -63,7 +63,7 @@ begin
   );
   raise notice 'Billing run will not add a second unpaid invoice.';
 end;
-$$;
+$blk0$;
 
 -- ── Clean up the duplicates that already exist ───────────────────────
 -- For each subscription with MORE THAN ONE unpaid subscription invoice,

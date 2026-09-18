@@ -48,7 +48,7 @@ language sql
 stable
 security definer           -- so the subquery does not recurse through this policy
 set search_path = public
-as $$
+as $blk0$
   select exists (
     select 1
     from public.user_profiles up
@@ -56,7 +56,7 @@ as $$
       and up.tenant_id = p_tenant
       and up.role = 'admin'
   );
-$$;
+$blk0$;
 revoke all on function public._psm_admin_of(uuid) from public, anon;
 grant execute on function public._psm_admin_of(uuid) to authenticated;
 

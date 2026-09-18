@@ -123,10 +123,28 @@ export default function PsmRequests() {
       );
       const result = await rejectAdAccountRequest(requestToReject.id, reason);
       if (!result.ok) throw new Error(result.error);
-      toast.success("Ad account request rejected.");
+      // SAY WHAT HAPPENED TO THE MONEY. The customer paid 50 for this and
+      // is getting it back; an admin who does not know that will field the
+      // "where is my fee" email without an answer.
+      const back = result.data?.refunded ?? 0;
+      toast.success("Ad account request rejected.", {
+        description:
+          back > 0
+            ? `${result.data?.currency === "USD" ? "$" : "€"}${back.toFixed(
+                2,
+              )} returned to their wallet.${
+                result.data?.perkRestored
+                  ? " Their free-request credit was given back too."
+                  : ""
+              }`
+            : result.data?.perkRestored
+              ? "Their free-request credit was given back."
+              : "No fee was charged for this one, so there is nothing to refund.",
+      });
       await queryClient.invalidateQueries({
         queryKey: ["ad-account-request-details", requestToReject.id],
       });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
       setRequestToReject(null);
       await refetch();
     } catch (err) {

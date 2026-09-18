@@ -32,7 +32,7 @@
 
 set search_path = public;
 
-do $$
+do $blk0$
 declare
   v_src text;
   v_new text;
@@ -77,7 +77,7 @@ begin
   execute v_new;
   raise notice 'Orphan-void scope restored.';
 end;
-$$;
+$blk0$;
 
 -- ── Read back ────────────────────────────────────────────────────────
 -- scoped_now must be true. orphans_outstanding is how many unpaid
