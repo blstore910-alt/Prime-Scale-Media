@@ -2,7 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, versionMatches, type ActionResult, wroteSomething } from "./_shared";
+import {
+  maintenanceGuard,
+  resolveUserContext,
+  type ActionResult,
+  versionMatches,
+  wroteSomething,
+} from "./_shared";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
@@ -675,14 +681,25 @@ export async function bulkCreateTopupsAsAdmin(
 // ─────────────────────────────────────────
 // top_ups: admin partial update
 // ─────────────────────────────────────────
+// THE MONEY COLUMNS ARE NOT EDITABLE HERE, AND THAT IS THE THIRD TIME.
+//
+// The create path recomputes fee, fee_amount, topup_amount and amount_usd
+// from resolveEffectiveFeePct; the bulk path was fixed to do the same;
+// and verifying below the resolved rate is owner-only. This action was
+// never revisited, so it still wrote all four straight from the payload
+// with no recompute, no floor and no owner check: post
+// {fee: 0, fee_amount: 0, status: "completed"} for a EUR 10,000 top-up
+// on a 4% account and the row genuinely reads 0% — fee_amount is the
+// only column the fee and profit reports read, so they agree with it.
+//
+// Dropping them is better than adding a fourth copy of the rule. A
+// top-up's figures come from the amount and the resolved percentage,
+// full stop; repricing goes through verifyAdTopup, which has the floor.
+// `currency` and `amount_received` go too, because changing either
+// without recomputing leaves the derived columns describing a different
+// payment.
 const TOPUP_UPDATE_ALLOWED = [
   "type",
-  "currency",
-  "amount_received",
-  "amount_usd",
-  "topup_amount",
-  "fee",
-  "fee_amount",
   "notes",
   "status",
   "is_deleted",
@@ -885,4 +902,65 @@ export async function verifyAdTopup(
   });
 
   return { ok: true, data };
+}
+
+/**
+ * What a top-up on this ad account will actually cost, resolved by the
+ * server's own rule.
+ *
+ * WHY THIS EXISTS. The customer's top-up dialog read
+ * `ad_accounts.fee` and nothing else, so it could not see the plan's
+ * rate, a fee waiver, a discount perk or the Meta-EU-Premium two points
+ * — the four other inputs resolveEffectiveFeePct consults. An account
+ * whose own fee column is 0 made the dialog hide the fee line entirely
+ * and promise that the full amount lands, while the plan's percentage
+ * was charged.
+ *
+ * It returns the PERCENTAGE ONLY. No plan name, no perk name, no
+ * supplier anything — the customer is entitled to know what they are
+ * charged, not how we arrived at it.
+ *
+ * Scoped to the caller's own advertiser, server-side. An account id is
+ * accepted, an advertiser id is not.
+ */
+export async function quoteTopupFeePct(
+  accountId: string,
+): Promise<ActionResult<{ pct: number; resolved: boolean }>> {
+  const auth = await resolveUserContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+
+  if (typeof accountId !== "string" || !accountId) {
+    return { ok: false, error: "Invalid input" };
+  }
+
+  // Their own advertiser, in their own tenant. Nothing from the caller.
+  const { data: adv } = await supabase
+    .from("advertisers")
+    .select("id")
+    .eq("user_id", profile.user_id)
+    .eq("tenant_id", profile.tenant_id)
+    .maybeSingle();
+  if (!adv?.id) return { ok: false, error: "No advertiser for this account." };
+
+  // And the account has to be theirs, or the quote is about somebody
+  // else's arrangement.
+  const { data: acct } = await supabase
+    .from("ad_accounts")
+    .select("id, fee")
+    .eq("id", accountId)
+    .eq("advertiser_id", adv.id)
+    .maybeSingle();
+  if (!acct) return { ok: false, error: "That ad account is not yours." };
+
+  const resolved = await resolveEffectiveFeePct(
+    supabase,
+    String(adv.id),
+    Number(acct.fee) || 0,
+    accountId,
+  );
+  return {
+    ok: true,
+    data: { pct: resolved.pct, resolved: resolved.applied },
+  };
 }

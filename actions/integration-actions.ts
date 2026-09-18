@@ -409,6 +409,34 @@ export type WiseIngestStatus = {
 };
 
 export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
+  // ── THE GUARD COMES FIRST, AND THE ANSWER IS BUILT AFTER IT ─────────
+  //
+  // This built the configuration flags from the environment and then
+  // spread them onto the REJECTION return — so a caller who had just
+  // been refused still learned webhookConfigured, readTokenConfigured
+  // and autoSettle. The action is imported by a client component, so its
+  // id ships in a public chunk and a POST with that id from any session,
+  // or none, got the answer.
+  //
+  // autoSettle is "do incoming bank deposits credit wallets without an
+  // admin looking", which is exactly the reconnaissance somebody wants
+  // before trying a forged reference. A refusal now says nothing about
+  // how this tenant is set up.
+  const ctx = await resolveAdminContext();
+  if (!ctx.ok) {
+    return {
+      ok: false,
+      error: ctx.error,
+      webhookConfigured: false,
+      readTokenConfigured: false,
+      autoSettle: false,
+      total: 0,
+      withReference: 0,
+      newestReceivedAt: null,
+    };
+  }
+  const { supabase } = ctx.ctx;
+
   const empty = {
     webhookConfigured:
       !!process.env.WISE_WEBHOOK_SECRET || !!process.env.WISE_PUBLIC_KEY,
@@ -420,10 +448,6 @@ export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
     withReference: 0,
     newestReceivedAt: null,
   };
-
-  const ctx = await resolveAdminContext();
-  if (!ctx.ok) return { ok: false, error: ctx.error, ...empty };
-  const { supabase } = ctx.ctx;
 
   const [totalRes, refRes, newestRes] = await Promise.all([
     supabase

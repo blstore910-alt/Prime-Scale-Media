@@ -6,6 +6,7 @@ import { syncSupplierPool } from "@/lib/integrations/sync-pool";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
 import { processIntegrationJobs } from "@/lib/integrations/worker";
+import { isCronAuthorised } from "@/lib/cron-auth";
 
 // Vercel Cron target. Runs on a 1-minute schedule (vercel.json). Two
 // auth paths accepted:
@@ -22,13 +23,6 @@ export const runtime = "nodejs";
 // Cron routes should never be cached.
 export const dynamic = "force-dynamic";
 
-function isAuthorised(req: NextRequest): boolean {
-  if (req.headers.get("x-vercel-cron")) return true;
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
-}
 
 const LOW_BALANCE_THRESHOLD = 8000;
 
@@ -270,7 +264,7 @@ async function checkRateLimitAbuse(
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorised(req)) {
+  if (!isCronAuthorised(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

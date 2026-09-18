@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isMaintenanceMode } from "@/actions/_shared";
+import { isCronAuthorised } from "@/lib/cron-auth";
 
 // Daily Vercel Cron target (vercel.json). Generates due subscription
 // invoices, auto-debits the ones past their 7-day grace, and marks
@@ -14,16 +15,9 @@ import { isMaintenanceMode } from "@/actions/_shared";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function isAuthorised(req: NextRequest): boolean {
-  if (req.headers.get("x-vercel-cron")) return true;
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
-}
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorised(req)) {
+  if (!isCronAuthorised(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
