@@ -495,13 +495,17 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn{
     gap:6px;padding:7px 6px;font-size:.72rem;letter-spacing:-.01em
   }
-  /* Measured on the live card: the track is 94px, the icon and its gap
-     take 19 and the padding 8, which leaves 67 for a word — and
-     "Commission" wants 66. One pixel of clearance is not a margin, it is
-     a coincidence, and it ellipsised the moment anything rounded the other
-     way. Three pixels come back off the gap and the padding. */
+  /* Measured twice on the live card. The track settled at 89px: padding
+     takes 6, the icon and its gap 19, leaving 64 for a word — and
+     "Commission" wanted 66 at .7rem. Two pixels short, so it ellipsised.
+     Taking pixels off the padding is what produced that margin last time
+     and it was not enough; the word itself has to be smaller. At .64rem it
+     measures about 60, which is clearance rather than a coincidence. */
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn{
-    gap:4px;padding:7px 3px;font-size:.7rem;letter-spacing:-.015em
+    gap:4px;padding:7px 3px;font-size:.64rem;letter-spacing:-.02em
+  }
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn svg{
+    width:13px;height:13px
   }
   /* AFTER the rule above, or it loses to it — which is how the one control
      with no label to widen it ended up the narrowest thing on the card, at
@@ -512,9 +516,7 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(3)) .btn svg{
     width:14px;height:14px
   }
-  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .btn svg{
-    width:14px;height:14px
-  }
+
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) .alab{
     max-width:100%;overflow:hidden;text-overflow:ellipsis
   }
