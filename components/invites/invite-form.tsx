@@ -115,6 +115,53 @@ export default function InviteForm() {
     },
   });
 
+  // WHICH OF THEM ALREADY REFER SOMEBODY. The picker listed every
+  // advertiser in client-code order, so the handful who actually earn
+  // commission were scattered through a list of everyone — and the person
+  // setting a referrer is looking for exactly those. They go first.
+  const { data: affiliateIds } = useQuery<string[]>({
+    queryKey: ["invite-referrer-affiliates", tenant?.id],
+    enabled: state.inviteUserOpen && isSuperAdmin && !!tenant?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("referral_links")
+        .select("affiliate_advertiser_id")
+        .eq("tenant_id", tenant!.id)
+        .not("affiliate_advertiser_id", "is", null);
+      if (error) throw error;
+      return Array.from(
+        new Set(
+          (data ?? [])
+            .map(
+              (r) =>
+                (r as { affiliate_advertiser_id: string | null })
+                  .affiliate_advertiser_id,
+            )
+            .filter((v): v is string => !!v),
+        ),
+      );
+    },
+  });
+
+  // Typing narrows the list. With more than a handful of customers,
+  // finding one by scrolling is the slowest part of sending an invite.
+  const [referrerQuery, setReferrerQuery] = useState("");
+  const referrerOptions = (() => {
+    const isAff = new Set(affiliateIds ?? []);
+    const needle = referrerQuery.trim().toLowerCase();
+    const matches = (a: AdvertiserOption) =>
+      !needle ||
+      `${a.tenant_client_code ?? ""} ${advName(a.profile) ?? ""}`
+        .toLowerCase()
+        .includes(needle);
+    const all = (advertisers ?? []).filter(matches);
+    return {
+      affiliates: all.filter((a) => isAff.has(a.id)),
+      rest: all.filter((a) => !isAff.has(a.id)),
+      total: all.length,
+    };
+  })();
+
   const form = useForm<InviteFormInput, unknown, InviteFormValues>({
     resolver: zodResolver(inviteBaseSchema),
     defaultValues: {
@@ -548,13 +595,54 @@ export default function InviteForm() {
                             <SelectValue placeholder="No referrer" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(advertisers ?? []).map((a) => (
+                            {/* stopPropagation: Radix Select has its own
+                                type-ahead, which otherwise swallows every
+                                keystroke meant for this box and jumps the
+                                highlight around instead of filtering. */}
+                            <div className="sticky top-0 z-10 bg-popover p-1">
+                              <Input
+                                autoFocus
+                                value={referrerQuery}
+                                onChange={(e) =>
+                                  setReferrerQuery(e.target.value)
+                                }
+                                onKeyDown={(e) => e.stopPropagation()}
+                                placeholder="Search code or name…"
+                                className="h-8"
+                              />
+                            </div>
+                            {referrerOptions.affiliates.length > 0 && (
+                              <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Already affiliates
+                              </div>
+                            )}
+                            {referrerOptions.affiliates.map((a) => (
                               <SelectItem key={a.id} value={a.id}>
                                 {(a.tenant_client_code ?? "—") +
                                   " · " +
                                   (advName(a.profile) ?? "—")}
                               </SelectItem>
                             ))}
+                            {referrerOptions.rest.length > 0 &&
+                              referrerOptions.affiliates.length > 0 && (
+                                <div className="px-2 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Everyone else
+                                </div>
+                              )}
+                            {referrerOptions.rest.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {(a.tenant_client_code ?? "—") +
+                                  " · " +
+                                  (advName(a.profile) ?? "—")}
+                              </SelectItem>
+                            ))}
+                            {referrerOptions.total === 0 && (
+                              <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                                {referrerQuery.trim()
+                                  ? `Nobody matches “${referrerQuery.trim()}”.`
+                                  : "No advertisers to pick from yet."}
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                       )}
