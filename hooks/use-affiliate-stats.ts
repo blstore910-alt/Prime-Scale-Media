@@ -15,6 +15,22 @@ export type AffiliateReferralStat = {
   topup_count: number;
   earnings_usd: number;
   earnings_eur: number;
+  /**
+   * WHAT IS STILL OWED, as opposed to what was ever earned.
+   *
+   * Migration 20260918160000 added these to the RPC precisely so a payout
+   * stops asking for money that has already been paid, and nothing in
+   * the app ever read them: an affiliate paid EUR 500 on /commissions
+   * still saw EUR 500 as their balance and the payout mail asked for it
+   * a second time.
+   *
+   * OPTIONAL, because the RPC on live may predate the migration — and a
+   * missing field must not silently become 0, which would read as
+   * "nothing owed". Where they are absent, the screen falls back to the
+   * lifetime figure and says which one it is showing.
+   */
+  unpaid_usd?: number | null;
+  unpaid_eur?: number | null;
 };
 
 export type UseAffiliateStatsParams = {
@@ -55,10 +71,45 @@ export default function useAffiliateStats(params: UseAffiliateStatsParams = {}) 
       acc.earnings_usd += Number(r.earnings_usd) || 0;
       acc.earnings_eur += Number(r.earnings_eur) || 0;
       acc.topups += Number(r.topup_count) || 0;
+      // Only counted when the field is genuinely present. `?? 0` here
+      // would turn "this RPC does not report unpaid" into "nothing is
+      // owed", which is the difference between a payout request and
+      // silence.
+      if (r.unpaid_usd !== undefined && r.unpaid_usd !== null) {
+        acc.unpaid_usd += Number(r.unpaid_usd) || 0;
+        acc.hasUnpaid = true;
+      }
+      if (r.unpaid_eur !== undefined && r.unpaid_eur !== null) {
+        acc.unpaid_eur += Number(r.unpaid_eur) || 0;
+        acc.hasUnpaid = true;
+      }
       return acc;
     },
-    { spend_usd: 0, spend_eur: 0, earnings_usd: 0, earnings_eur: 0, topups: 0 },
+    {
+      spend_usd: 0,
+      spend_eur: 0,
+      earnings_usd: 0,
+      earnings_eur: 0,
+      unpaid_usd: 0,
+      unpaid_eur: 0,
+      /** False when the RPC does not report unpaid at all. */
+      hasUnpaid: false,
+      topups: 0,
+    },
   );
 
-  return { rows, totals, isLoading, isError, error, refetch };
+  /**
+   * WHAT A PAYOUT SHOULD ASK FOR.
+   *
+   * The unpaid figure when the RPC reports one, the lifetime figure when
+   * it does not — and `isLifetime` says which, so the screen can label it
+   * honestly rather than implying a precision it does not have.
+   */
+  const payable = {
+    usd: totals.hasUnpaid ? totals.unpaid_usd : totals.earnings_usd,
+    eur: totals.hasUnpaid ? totals.unpaid_eur : totals.earnings_eur,
+    isLifetime: !totals.hasUnpaid,
+  };
+
+  return { rows, totals, payable, isLoading, isError, error, refetch };
 }
