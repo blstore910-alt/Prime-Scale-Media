@@ -501,8 +501,20 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)){
     grid-template-columns:1fr 1fr 1fr auto;gap:6px
   }
-  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4) .alab{
+  /* ...EXCEPT WHERE THE CONTROL IS DESTRUCTIVE. The comment above
+     concedes the trade and then takes it anyway: on these cards the
+     fourth control is Deactivate — the one that switches a paying
+     customer off — and it ended up as a bare glyph 6px from
+     "Commission", identified only by a title attribute, which a phone never
+     shows. An unnamed icon is exactly wrong there.
+     The keeplab class opts a control out; the other three still lose
+     theirs. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)) > :nth-child(4):not(.keeplab) .alab{
     display:none
+  }
+  /* And it gets the room back, since it is now carrying a word. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)):has(.keeplab){
+    grid-template-columns:1fr 1fr;gap:6px
   }
   /* THREE fit beside their icons; FOUR do not. At 400px a third of the
      card is about 105px — icon, gap and padding take 36 of it and leave 69

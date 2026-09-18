@@ -778,7 +778,15 @@ function AdvertiserRow({
               failed to render. Tinted, it reads as the stop control, which
               is what it is. Activating is not destructive and stays plain. */}
           <button
-            className={"btn ghost sm" + (isActive ? " danger" : "")}
+            /* keeplab: the card layout hides the fourth control's label
+               to fit four on a phone, and this is the fourth — so the one
+               button that switches a paying customer off was a bare glyph
+               beside three named ones, identified only by a title a phone
+               never shows. It keeps its word; the other three give theirs
+               up. */
+            className={
+              "btn ghost sm keeplab" + (isActive ? " danger" : "")
+            }
             disabled={isPending}
             onClick={stop(askToggle)}
             title={isActive ? "Deactivate" : "Activate"}

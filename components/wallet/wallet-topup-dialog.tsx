@@ -497,7 +497,28 @@ export default function WalletTopupDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      {/* ── THE BUTTON THAT STARTS THE PAYMENT WAS INSIDE A SCROLLER
+              THAT COULD NOT SCROLL ─────────────────────────────────────
+
+          Every step's action lived inside `<ScrollArea max-h-[70dvh]>`:
+          Continue, "I have made the transfer", Submit, Close. A
+          max-height on an auto-height ScrollArea Root means the
+          viewport's `height:100%` resolves to `auto`, so the viewport
+          never becomes a scrollport — the Root's `overflow:hidden`
+          simply CUTS the form at about 450px, with no scrollbar and
+          nothing to grab. On the charitable reading it does scroll, and
+          then it is a scroller inside the sheet's own scroller, which on
+          iOS loses the fling.
+
+          Either way, on a 375px phone the customer could not reach the
+          button that starts a bank transfer.
+
+          The sibling ad-account top-up form was fixed for exactly this
+          and its comment names THIS dialog while doing it. The shape
+          that works is the one the bulk dialog uses: a flex column that
+          owns the height, a `flex-1 min-h-0` scroller for the fields,
+          and the actions outside it. */}
+      <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {step === STEPS.SUCCESS
@@ -505,7 +526,7 @@ export default function WalletTopupDialog({
               : "Request Wallet Topup"}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[70dvh] pr-2">
+        <ScrollArea className="flex-1 min-h-0 pr-2">
           <div className="px-1 py-2">
             {/* STEP 1: SELECTION */}
             {step === STEPS.SELECTION && (

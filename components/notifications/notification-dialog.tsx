@@ -10,7 +10,8 @@ import { Notification } from "@/lib/types/notification";
 import { Topup } from "@/lib/types/topup";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, Bell, CheckCircle2, Loader2 } from "lucide-react";
+import { getNotificationCopy } from "./notification-utils";
 import {
   getTopupIdFromNotification,
   parseNotificationPayload,
@@ -111,17 +112,36 @@ export default function NotificationDialog({
       v,
     );
 
+  // ── THIS DIALOG ONLY KNOWS HOW TO SHOW A TOP-UP ─────────────────────
+  //
+  // The notifications page falls through to it for ANY type it has no
+  // special case for — and for a non-top-up it rendered a green success
+  // tick, "Status: completed" in green (the default when the row carries
+  // none) and "$0.00", because every figure it prints comes from a
+  // top-up it never fetched. So a subscription-past-due notification
+  // opened as a cheerful zero-dollar success. The page has no role guard
+  // either, so a customer could reach it.
+  //
+  // Anything that is not a top-up now gets its own words, from the same
+  // copy map the list itself uses.
+  const isTopupNotification = notification?.type === "topup_completed";
+  const copy = getNotificationCopy(notification);
+
   return (
     <Dialog open={open} onOpenChange={onCreateOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
-          </div>
+          {isTopupNotification ? (
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+            </div>
+          ) : (
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
+              <Bell className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
           <DialogTitle className="text-center text-xl">
-            {notification.type === "topup_completed"
-              ? "Top-up Successful"
-              : "Notification"}
+            {isTopupNotification ? "Top-up Successful" : copy.title}
           </DialogTitle>
           <DialogDescription className="text-center">
             {format(new Date(notification.created_at), "PPP p")}
@@ -142,6 +162,13 @@ export default function NotificationDialog({
             </div>
           )}
 
+          {!isTopupNotification && (
+            <p className="text-center text-sm text-muted-foreground px-2">
+              {copy.description}
+            </p>
+          )}
+
+          {isTopupNotification && (
           <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-3">
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Status</span>
@@ -202,6 +229,7 @@ export default function NotificationDialog({
               )}
             </div>
           </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

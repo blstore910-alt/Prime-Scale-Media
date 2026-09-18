@@ -122,6 +122,45 @@ export function getNotificationCopy(notification: Notification): {
           "The supplier's inventory changed — open the pool to see what is free to allocate.",
       };
     }
+    // ── THE THREE THE CUSTOMER GETS MOST ──────────────────────────────
+    //
+    // This function is what the live customer shells render
+    // (adv-app and aff-app both call it), and it had no case for any of
+    // the billing types — so "we couldn't collect your subscription"
+    // arrived as "New Notification / You have a new notification." under
+    // an empty state promising that billing updates would appear here.
+    // The PUSH copy for these has been right all along; the in-app copy
+    // was the default.
+    case "subscription_invoice":
+      return {
+        title: "New subscription invoice",
+        description:
+          "Your monthly invoice is ready. You can pay it from your wallet whenever suits you.",
+      };
+    case "subscription_past_due":
+      return {
+        title: "Subscription past due",
+        description:
+          "We couldn't collect your subscription from your wallet. Top up and it will be taken automatically.",
+      };
+    case "subscription_changed":
+      return {
+        title: "Subscription updated",
+        description:
+          "The amount on your subscription has changed. Open billing to see what is due.",
+      };
+    case "integration_failure": {
+      // Admin-facing. The payload names the service; saying which one is
+      // the entire difference between acting and ignoring it.
+      const p = (notification.payload ?? {}) as { source?: string };
+      const source = typeof p.source === "string" && p.source ? p.source : null;
+      return {
+        title: "Connection failing",
+        description: source
+          ? `A connection to ${source} is failing. The manual fallback still works.`
+          : "A connection to an external service is failing. The manual fallback still works.",
+      };
+    }
     case "rate_limit_abuse":
       return {
         title: "Suspicious activity",

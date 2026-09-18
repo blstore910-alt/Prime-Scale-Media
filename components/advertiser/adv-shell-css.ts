@@ -688,10 +688,34 @@ export const ADV_CSS = `
     display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
     gap:8px;align-items:center
   }
-  /* MOVED OUT OF THE 640px BLOCK. These rules lived inside it, so the
-     "your money is on its way" card — the one that tells a customer
-     their transfer has been received and is being checked — rendered
-     with no card, no amber and no progress bar on every desktop. */
+    /* THREE fit, if they are told to. auto-fit with a 96px minimum
+       resolves to two tracks in a 299px cell (375px phone), so Pay now
+       / View / Download came out 2 + 1 — and only at 375px, which is
+       why it read as intermittent. Same rule the admin shell already
+       uses. */
+    .tbl.wide tr td:last-child .actrow:has(> :nth-child(3)){grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .tbl.wide tr td:last-child .actrow:has(> :nth-child(3)) .btn{padding:7px 6px;font-size:.72rem}
+    .tbl.wide tr td:last-child .actrow .btn{
+      width:100%;min-width:0;justify-content:center;padding:7px 8px;
+      font-size:.8rem;gap:5px
+    }
+    .tbl.wide tr td:last-child .actrow .btn svg{flex:0 0 auto}
+    .tbl.wide tr td:last-child .actrow .alab{
+      min-width:0;overflow:hidden;text-overflow:ellipsis
+    }
+    .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
+    .tbl.wide td[colspan]::before{display:none}
+    .tbl.wide td[colspan]{border-top:0;margin-top:0}
+  }
+
+
+  /* OUT OF THE 640px BLOCK — this time actually out of it.
+     A previous pass wrote that comment and left the rules where they
+     were: the @media (max-width:640px) block opened 80 lines above them
+     and did not close until 50 lines below, so above 640px the "your
+     money is on its way" card — the one telling a customer their
+     transfer has arrived and is being checked — still rendered with no
+     card, no amber and no progress bar. A comment is not a change. */
   .ptup{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
     padding:13px 14px;border-radius:15px;border:1px solid #f3e3c2;
     background:linear-gradient(180deg,#fffdf8,#fff8ea);margin-top:12px}
@@ -723,26 +747,6 @@ export const ADV_CSS = `
     .ptup .bar i{width:100%;animation:none;opacity:.5}
     .ptup .ico{animation:none}
   }
-    /* THREE fit, if they are told to. auto-fit with a 96px minimum
-       resolves to two tracks in a 299px cell (375px phone), so Pay now
-       / View / Download came out 2 + 1 — and only at 375px, which is
-       why it read as intermittent. Same rule the admin shell already
-       uses. */
-    .tbl.wide tr td:last-child .actrow:has(> :nth-child(3)){grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-    .tbl.wide tr td:last-child .actrow:has(> :nth-child(3)) .btn{padding:7px 6px;font-size:.72rem}
-    .tbl.wide tr td:last-child .actrow .btn{
-      width:100%;min-width:0;justify-content:center;padding:7px 8px;
-      font-size:.8rem;gap:5px
-    }
-    .tbl.wide tr td:last-child .actrow .btn svg{flex:0 0 auto}
-    .tbl.wide tr td:last-child .actrow .alab{
-      min-width:0;overflow:hidden;text-overflow:ellipsis
-    }
-    .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
-    .tbl.wide td[colspan]::before{display:none}
-    .tbl.wide td[colspan]{border-top:0;margin-top:0}
-  }
-
 
   /* ── The two bars ──────────────────────────────────────────────────
      These frame every screen a customer sees. Both were correct and

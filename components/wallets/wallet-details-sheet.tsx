@@ -73,7 +73,16 @@ export default function WalletDetailsSheet({
           <div className="flex items-center justify-between gap-2">
             <SheetTitle>Wallet details</SheetTitle>
             <div className="flex items-center gap-2">
-              <SheetClose>
+              {/* A 10x10 target, not a bare 20-24px glyph. These sheets are
+                  passed w-full, so at 375px they cover the overlay
+                  completely and tapping outside no longer closes anything
+                  — this X is the only way out, and on the customer-facing
+                  ones it was the smallest control on the screen. The size
+                  matches .uds-x, which the user sheet already uses. */}
+              <SheetClose
+                aria-label="Close"
+                className="-mr-1 inline-grid h-10 w-10 shrink-0 place-items-center rounded-md opacity-70 transition hover:bg-muted hover:opacity-100"
+              >
                 <XIcon size={20} />
               </SheetClose>
             </div>
