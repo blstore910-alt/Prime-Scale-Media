@@ -13,6 +13,7 @@ import { DateRange } from "react-day-picker";
 import CommissionStatusAction from "./commission-status-action";
 import CommissionsFilters from "./commissions-filters";
 import useCommissions from "./use-commissions";
+import { emptyRow } from "@/components/ui/empty-row";
 
 dayjs.extend(utc);
 
@@ -307,7 +308,24 @@ export default function CommissionsTable() {
                           </tr>
                         );
                       })
-                    : stateRow(colCount, "No commissions found.")}
+                    : emptyRow(colCount, {
+                        noun: "commissions",
+                        search: debouncedSearch,
+                        // Compared against NO FILTER, not against the
+                        // value the URL arrived with. Landing on
+                        // ?currency=EUR would otherwise count as unfiltered
+                        // — which is the exact blindness this replaces.
+                        filtered:
+                          currency !== "all" ||
+                          commissionType !== "all" ||
+                          !!dateRange?.from,
+                        onClear: () => {
+                          setSearch("");
+                          setCurrency("all");
+                          setCommissionType("all");
+                          setDateRange(undefined);
+                        },
+                      })}
             </tbody>
           </table>
         </div>

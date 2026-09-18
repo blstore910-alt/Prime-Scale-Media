@@ -34,6 +34,7 @@ import { Button } from "../ui/button";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { emptyRow } from "@/components/ui/empty-row";
 
 function getStatusClassName(status: string | null) {
   if (!status) return "border-slate-300 text-slate-700";
@@ -265,14 +266,11 @@ export default function AdAccountRequestsTable() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columnCount}
-                    className="text-center py-6 text-sm text-muted-foreground"
-                  >
-                    No ad account requests found.
-                  </TableCell>
-                </TableRow>
+                emptyRow(columnCount, {
+                  noun: "ad-account requests",
+                  search: debouncedSearch,
+                  onClear: () => setSearch(""),
+                })
               )}
             </TableBody>
           </Table>

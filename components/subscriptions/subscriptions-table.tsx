@@ -22,6 +22,7 @@ import SubscriptionsFilters from "./subscriptions-filters";
 import { Subscription, SubscriptionStatus } from "./types";
 import useSubscriptions from "./use-subscriptions";
 import useUpdateSubscriptionStatus from "./use-update-subscription-status";
+import { emptyRow } from "@/components/ui/empty-row";
 
 const PER_PAGE = 20;
 
@@ -220,11 +221,14 @@ export default function SubscriptionsTable() {
                   />
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                    No subscriptions found.
-                  </TableCell>
-                </TableRow>
+                emptyRow(6, {
+                  noun: "subscriptions",
+                  filtered: status !== "all" || !!date,
+                  onClear: () => {
+                    setStatus("all");
+                    setDate("");
+                  },
+                })
               )}
             </TableBody>
           </Table>

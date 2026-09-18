@@ -35,6 +35,7 @@ import UserRow from "./user-row";
 import TablePagination from "@/components/ui/table-pagination";
 import UserCard from "./user-card";
 import { useIsTablet } from "@/hooks/use-is-tablet";
+import { emptyRow } from "@/components/ui/empty-row";
 
 export interface Profile extends UserProfile {
   advertiser: Advertiser[];
@@ -281,14 +282,17 @@ export default function UserTable() {
                   />
                 ))
               ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-6 text-sm text-muted-foreground"
-                  >
-                    No users found
-                  </TableCell>
-                </TableRow>
+                emptyRow(7, {
+                  noun: "users",
+                  search: debouncedSearch,
+                  // "all" is no filter — initialStatus is whatever the URL
+                  // carried, which may itself be a filter.
+                  filtered: active !== "all",
+                  onClear: () => {
+                    setSearch("");
+                    setActive("all");
+                  },
+                })
               )}
             </TableBody>
           </Table>

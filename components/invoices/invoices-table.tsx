@@ -5,6 +5,7 @@ import { invoiceNumber } from "@/lib/payment-reference";
 import CustomerName from "@/components/psm/customer-name";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
+import { emptyRow } from "@/components/ui/empty-row";
 import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -409,7 +410,11 @@ export default function InvoicesTable() {
                           </tr>
                         );
                       })
-                    : stateRow(colCount, "No invoices found.")}
+                    : emptyRow(colCount, {
+                        noun: "invoices",
+                        search: debouncedSearch,
+                        onClear: () => setSearch(""),
+                      })}
             </tbody>
           </table>
         </div>
