@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import Link from "next/link";
 import CreateSubscriptionDialog from "@/components/subscriptions/create-subscription-dialog";
@@ -41,8 +43,20 @@ import { csvSafe } from "@/lib/csv-safe";
 // create-subscription + commission-setup dialogs + the updateUserProfile
 // mutation hook (activate/deactivate) — presentation only.
 export default function PsmAdvertisers() {
-  const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
+// ── A LINK CAN ARRIVE WITH A CUSTOMER ALREADY IN MIND ───────────────
+//
+// The subscriptions list, the requests queue and the accounts table all
+// link here with ?q=PSM0005, because "show me this customer" is the
+// question every one of those screens ends on. Without this the code in
+// the URL was ignored and the admin retyped, by hand, the code they had
+// just clicked.
+//
+// Read ONCE, as the initial state: after that the box belongs to
+// whoever is typing in it, and re-syncing on every render would fight
+// them.
+  const initialQuery = useSearchParams().get("q") ?? "";
+  const [search, setSearch] = useState(initialQuery);
+  const [debounced, setDebounced] = useState(initialQuery);
   const [sort, setSort] = useState("newest");
   const [active, setActive] = useState("all"); // all | yes | no
   const [page, setPage] = useState(1);

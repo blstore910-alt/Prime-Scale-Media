@@ -18,9 +18,29 @@ export type SubscriptionAdvertiserProfile = {
   email: string | null;
 } | null;
 
+/**
+ * The plan an advertiser is on, two hops away: advertiser_plans holds
+ * the plan_id, plans holds the name. Optional throughout, because
+ * advertiser_plans is a migration that may not be on the database yet
+ * and the list asks for it tolerantly.
+ *
+ * PostgREST returns a to-one embed as an object, but a view or a
+ * relationship it reads as to-many comes back as an array — so both
+ * shapes are accepted and the reader takes the first.
+ */
+export type SubscriptionPlanRef =
+  | { name: string | null; kind?: string | null }
+  | null;
+
+export type SubscriptionAdvertiserPlan =
+  | { plan: SubscriptionPlanRef | SubscriptionPlanRef[] }
+  | { plan: SubscriptionPlanRef | SubscriptionPlanRef[] }[]
+  | null;
+
 export type SubscriptionAdvertiser = {
   tenant_client_code: string | null;
   profile: SubscriptionAdvertiserProfile;
+  plan?: SubscriptionAdvertiserPlan;
 } | null;
 
 export type Subscription = {

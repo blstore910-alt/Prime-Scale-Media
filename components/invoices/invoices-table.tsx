@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+
 import { setInvoicePaidStatus } from "@/actions/invoice-actions";
 import { invoiceNumber } from "@/lib/payment-reference";
 import CustomerName from "@/components/psm/customer-name";
@@ -71,8 +73,20 @@ const stateRow = (colSpan: number, msg: string, danger = false) => (
 // search and action preserved.
 export default function InvoicesTable() {
   const [status, setStatus] = useState("all");
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+// ── A LINK CAN ARRIVE WITH A CUSTOMER ALREADY IN MIND ───────────────
+//
+// The subscriptions list, the requests queue and the accounts table all
+// link here with ?q=PSM0005, because "show me this customer" is the
+// question every one of those screens ends on. Without this the code in
+// the URL was ignored and the admin retyped, by hand, the code they had
+// just clicked.
+//
+// Read ONCE, as the initial state: after that the box belongs to
+// whoever is typing in it, and re-syncing on every render would fight
+// them.
+  const initialQuery = useSearchParams().get("q") ?? "";
+  const [search, setSearch] = useState(initialQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
   const [page, setPage] = useState(1);
   const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | null>(
     null,

@@ -7,14 +7,17 @@ import CustomerName from "@/components/psm/customer-name";
 import { formatCurrency } from "@/lib/utils";
 import dayjs from "dayjs";
 import {
+  ArrowRight,
   Loader2,
   MinusCircle,
   PauseCircle,
   Pencil,
   PlayCircle,
   Plus,
+  ReceiptText,
   Search,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -33,6 +36,24 @@ const advName = (s: Subscription) => s.advertiser?.profile?.full_name || "—";
 const initial = (s: Subscription) =>
   (s.advertiser?.profile?.full_name || "?").trim().charAt(0).toUpperCase() ||
   "?";
+
+// ── WHICH PLAN, NOT JUST HOW MUCH ────────────────────────────────────
+//
+// The list showed an amount and nothing else, so "EUR 5.00" and
+// "EUR 150.00" were the only way to tell a Prime customer from a
+// starter one — and two customers on the same price are
+// indistinguishable. PostgREST hands a to-one embed back as an object
+// and a to-many as an array, and which of the two this relationship
+// reads as depends on how the FK is declared on live; both are
+// accepted here rather than betting on one.
+const planName = (s: Subscription): string | null => {
+  const holder = s.advertiser?.plan;
+  const row = Array.isArray(holder) ? holder[0] : holder;
+  const plan = row?.plan;
+  const one = Array.isArray(plan) ? plan[0] : plan;
+  const name = String(one?.name ?? "").trim();
+  return name || null;
+};
 
 const statusCls = (s: SubscriptionStatus) => {
   if (s === "active") return "ok";
@@ -171,6 +192,25 @@ export default function PsmSubscriptions() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <style>{`
+        .planpill{display:inline-block;padding:3px 10px;border-radius:999px;
+          border:1px solid var(--line-2);background:var(--primary-tint);
+          color:var(--primary-600);font-weight:700;font-size:.78rem;
+          white-space:nowrap}
+        .permo{margin-left:4px;color:var(--faint);font-weight:600;
+          font-size:.74rem}
+        /* One line: started, arrow, next due. The arrow is what makes
+           the pair read as a period rather than as two dates. */
+        .billrange{display:inline-flex;align-items:center;gap:7px;
+          white-space:nowrap;font-variant-numeric:tabular-nums}
+        .billrange svg{width:13px;height:13px;color:var(--faint);
+          flex:0 0 auto}
+        .billrange b{font-weight:800}
+        .custlink{display:block;text-decoration:none;color:inherit;
+          border-radius:10px}
+        .custlink:hover{color:var(--primary-600)}
+      `}</style>
+
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Subscriptions</h1>
@@ -269,9 +309,13 @@ export default function PsmSubscriptions() {
               <thead>
                 <tr>
                   <th>Advertiser</th>
+                  <th>Plan</th>
                   <th className="r">Amount</th>
-                  <th>Start date</th>
-                  <th>Next payment on</th>
+                  {/* Started and next-due on ONE line. They are two ends
+                      of the same fact and they were two stacked rows on
+                      a phone, which pushed the status and every button
+                      below the fold. */}
+                  <th>Billing period</th>
                   <th>Status</th>
                   <th className="r">Actions</th>
                 </tr>
@@ -307,24 +351,57 @@ export default function PsmSubscriptions() {
                           {/* Code first, name beneath — the desk works in
                               client codes, and this list was the other way
                               round. */}
-                          <CustomerName
-                            clientCode={s.advertiser?.tenant_client_code}
-                            name={advName(s)}
-                            full
-                          />
+                          {/* The code is a link. An admin looking at a
+                              plan almost always wants the customer
+                              behind it, and this list was a dead end —
+                              they had to go to Users and type the code
+                              they were already looking at. */}
+                          {s.advertiser?.tenant_client_code ? (
+                            <Link
+                              href={`/users?q=${encodeURIComponent(
+                                s.advertiser.tenant_client_code,
+                              )}`}
+                              className="custlink"
+                            >
+                              <CustomerName
+                                clientCode={s.advertiser.tenant_client_code}
+                                name={advName(s)}
+                                full
+                              />
+                            </Link>
+                          ) : (
+                            <CustomerName
+                              clientCode={s.advertiser?.tenant_client_code}
+                              name={advName(s)}
+                              full
+                            />
+                          )}
                         </div>
+                      </td>
+                      <td data-label="Plan">
+                        {planName(s) ? (
+                          <span className="planpill">{planName(s)}</span>
+                        ) : (
+                          <span className="muted">No plan set</span>
+                        )}
                       </td>
                       <td data-label="Amount" className="r mono">
                         {formatCurrency(
                           Number(s.amount ?? 0),
                           s.currency || "EUR",
                         )}
+                        <span className="permo">/mo</span>
                       </td>
-                      <td data-label="Start date">{formatSubscriptionDate(s.start_date)}</td>
-                      <td data-label="Next payment on">
-                        {s.next_payment_date
-                          ? dayjs(s.next_payment_date).format(DATE_FORMAT)
-                          : "—"}
+                      <td data-label="Billing period">
+                        <span className="billrange">
+                          <span>{formatSubscriptionDate(s.start_date)}</span>
+                          <ArrowRight />
+                          <b>
+                            {s.next_payment_date
+                              ? dayjs(s.next_payment_date).format(DATE_FORMAT)
+                              : "—"}
+                          </b>
+                        </span>
                       </td>
                       <td data-label="Status">
                         <span
@@ -340,6 +417,21 @@ export default function PsmSubscriptions() {
                           subscription in the list. */}
                       <td data-label="Actions" className="r fullcell">
                         <div className="actrow">
+                          {/* The plan's own history. Every question that
+                              starts "did they pay" ends on the invoices
+                              list filtered to this customer, and there
+                              was no way there from here. */}
+                          {s.advertiser?.tenant_client_code && (
+                            <Link
+                              className="btn ghost sm"
+                              href={`/invoices?q=${encodeURIComponent(
+                                s.advertiser.tenant_client_code,
+                              )}`}
+                            >
+                              <ReceiptText />{" "}
+                              <span className="alab">Invoices</span>
+                            </Link>
+                          )}
                           {isSuperAdmin && (
                             <button
                               className="btn ghost sm"
