@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCurrency } from "@/lib/utils-pure";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -567,14 +568,23 @@ function TopupHistory({ account }: { account: AdAccount }) {
         // history WITHOUT the filter rather than showing nothing. A
         // filter that makes a list more correct must not be able to take
         // the list away.
-        .not("is_deleted", "is", true);
+        .not("is_deleted", "is", true)
+        // NEWEST FIRST. There was no order at all, so a money history
+        // came back in whatever order Postgres happened to return —
+        // which changes between reads. A dated column that is not in
+        // date order reads as a mistake, and the top of the list is the
+        // part anybody actually looks at.
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
       if (error) {
         const retry = await supabase
           .from("top_ups")
           .select(
             "id, created_at, amount_received, currency, topup_amount, fee, fee_amount, status",
           )
-          .eq("account_id", account.id);
+          .eq("account_id", account.id)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false });
         if (retry.error) throw retry.error;
         return retry.data;
       }
@@ -637,16 +647,24 @@ function TopupHistory({ account }: { account: AdAccount }) {
                 <TableCell>
                   {dayjs(topup.created_at).format(DATE_FORMAT)}
                 </TableCell>
+                {/* Through a formatter. These printed the raw column, so
+                    a value still stored as `real` rendered as
+                    1139.5300292968750 on the customer's own funding
+                    history, and 10,000 as "10000". */}
                 <TableCell>
-                  {CURRENCY_SYMBOLS[topup.currency]}&nbsp;
-                  {topup.amount_received}
+                  {formatCurrency(
+                    Number(topup.amount_received),
+                    topup.currency ?? "EUR",
+                  )}
                 </TableCell>
                 {/* topup_amount is a USD figure by construction —
                     calculateTopupAmount divides the received amount by the
                     rate and subtracts the fee (lib/utils-pure.ts). Labelling
                     it with the PAYMENT currency's symbol turned $1,139.53
                     into "€1,139.53", a ~16% misstatement on a money screen. */}
-                <TableCell>$&nbsp;{topup.topup_amount}</TableCell>
+                <TableCell>
+                  {formatCurrency(Number(topup.topup_amount), "USD")}
+                </TableCell>
                 <TableCell>{topup.fee}%</TableCell>
                 <TableCell className="capitalize">
                   <Badge variant={"outline"}>

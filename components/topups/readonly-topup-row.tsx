@@ -1,4 +1,5 @@
 import { TableCell, TableRow } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/utils-pure";
 import { CURRENCY_SYMBOLS, DATE_FORMAT, TOPUP_TYPES } from "@/lib/constants";
 import dayjs from "dayjs";
 import React from "react";
@@ -30,28 +31,36 @@ export default function ReadonlyTopupRow({
       <TableCell data-label="Type:">
         {TOPUP_TYPES.find((t) => t.value === topup.type)?.label}
       </TableCell>
+      {/* ── THROUGH A FORMATTER ────────────────────────────────────────
+          These five money cells printed the raw column. On values still
+          stored as `real` that is 1139.5300292968750 on a customer's own
+          history, and EUR 10,000 renders as "10000" where the rest of
+          the app says EUR 10,000.00. CURRENCY_SYMBOLS[code] also returns
+          NOTHING for an unmapped or lowercase code, so a money cell
+          could appear with no symbol at all — this same file guards that
+          correctly further down. */}
       <TableCell data-label="Received:">
-        {CURRENCY_SYMBOLS[topup.currency]}&nbsp;
-        {topup.amount_received}
+        {formatCurrency(Number(topup.amount_received), topup.currency ?? "EUR")}
       </TableCell>
       <TableCell data-label="USD value:">
-        {CURRENCY_SYMBOLS["USD"]}&nbsp;
-        {topup.amount_usd}
+        {formatCurrency(Number(topup.amount_usd), "USD")}
       </TableCell>
       <TableCell data-label="$ Top up:">
-        {CURRENCY_SYMBOLS[topup.topup_currency || "USD"]}&nbsp;
-        {topup.topup_amount}
+        {formatCurrency(
+          Number(topup.topup_amount),
+          topup.topup_currency || "USD",
+        )}
       </TableCell>
       <TableCell data-label="EU values:">
         {topup.platform === "eu-meta-premium" ? (
           <span className="font-bold">
-            €{topup.eur_value}
+            {formatCurrency(Number(topup.eur_value), "EUR")}
             <br />
             <span className="text-muted-foreground text-xs">
               {/* EUR. The column is eur_topup and the line above it is
                   drawn with a euro sign; this one had a dollar, so the
                   same figure appeared twice under two symbols. */}
-              €{topup.eur_topup}
+              {formatCurrency(Number(topup.eur_topup), "EUR")}
             </span>
           </span>
         ) : (
