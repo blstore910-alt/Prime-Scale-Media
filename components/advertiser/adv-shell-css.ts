@@ -293,6 +293,11 @@ export const ADV_CSS = `
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}
 
+  /* The plan's own name, above the price. Small caps, spaced, at the
+     card's own opacity — a label for the figure under it, not a second
+     headline competing with it. */
+  .sub-card .plan-name{font-family:var(--hd);font-weight:800;font-size:.76rem;
+    letter-spacing:.14em;text-transform:uppercase;opacity:.72;margin:14px 0 2px}
   .sub-card{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2),#151d3f);box-shadow:0 22px 46px -26px rgba(20,30,80,.8)}
   .sub-card .ring{position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(91,141,255,.18),transparent 30%,rgba(139,92,246,.18),transparent 60%);animation:spin 24s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -538,6 +543,11 @@ export const ADV_CSS = `
   .duerow .ai{width:30px;height:30px;border-radius:9px;background:var(--warn-soft);display:grid;
     place-items:center;color:#a9740b;flex:0 0 auto}
   .duerow .ai svg{width:16px;height:16px}
+  /* Nothing outstanding: same row, no alarm. The rail and the tile drop
+     to the page's own blue, which reads as "here is a fact" rather than
+     "here is a bill". */
+  .duerow.calm::before{background:linear-gradient(180deg,var(--primary),#7c5cff)}
+  .duerow.calm .ai{background:var(--primary-tint);color:var(--primary-600)}
   .duerow .dtx{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--txt-2);line-height:1.3;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* Let THIS one wrap. The row is otherwise a single line by design,

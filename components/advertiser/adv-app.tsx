@@ -1854,7 +1854,15 @@ export default function AdvertiserApp() {
                  in it. Nothing here is wrong yet — the fee is simply due —
                  and a notice that shouts competes with the balances directly
                  above it, which is what people actually came to see. */
-              <div className="duerow">
+              /* ── AND IT MUST NOT LOOK LIKE A WARNING EITHER ───────
+                 Amber rail, amber clock: that is the styling for "this
+                 needs you". With nothing outstanding the row is simply
+                 telling them what is coming, and dressing that as an
+                 alert is the visual half of the same fib the words were
+                 telling. A plain comment, not a JSX one: this sits
+                 INSIDE the && parens, where a second child is a syntax
+                 error. */
+              <div className={`duerow${dueSubInvoice ? "" : " calm"}`}>
                 <span className="ai">
                   <Ic name="i-clock" />
                 </span>
@@ -2747,6 +2755,17 @@ export default function AdvertiserApp() {
                       ? "Couldn't load"
                       : "No plan"}
                 </span>
+                {/* THE NAME FIRST. This card was a price and a date:
+                    "EUR 5.00 / month". A customer knows what they bought
+                    by its NAME — Prime, Starter, whatever they were sold —
+                    and the price is what it costs, not what it is. The
+                    name has been available on this screen all along; the
+                    invoice row a few hundred lines down already uses it.
+                    The plan card, which is the one place it belongs, did
+                    not. */}
+                {planName && (
+                  <div className="plan-name">{planName}</div>
+                )}
                 <div className="plan">
                   {subscription && Number(subscription.amount ?? 0) > 0
                     ? `${planMoney(subscription.amount)} / month`
