@@ -3373,6 +3373,7 @@ export default function AdvertiserApp() {
         accountsUnknown={accountsError || accountsLoading}
       />
       <WalletExchangeDialog
+        initialFrom={exchangeFrom}
         open={exchangeOpen}
         onOpenChange={setExchangeOpen}
         walletId={wallet?.id ?? null}

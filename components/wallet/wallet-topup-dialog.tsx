@@ -365,7 +365,7 @@ export default function WalletTopupDialog({
         reset();
       }, 300);
     }
-  }, [open, reset]);
+  }, [open, reset, initialCurrency]);
 
   useEffect(() => {
     return () => {

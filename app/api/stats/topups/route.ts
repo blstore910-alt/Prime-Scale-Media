@@ -1,10 +1,7 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  pageAllRows,
-  pageAllRowsTolerant,
-} from "@/lib/page-all-rows";
+import { pageAllRowsTolerant } from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
