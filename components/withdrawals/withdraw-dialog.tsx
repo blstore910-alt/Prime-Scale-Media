@@ -85,9 +85,17 @@ export default function WithdrawDialog({
   const numeric = Number(amount);
   const valid = Number.isFinite(numeric) && numeric > 0;
   const formatted = valid
-    ? new Intl.NumberFormat(undefined, {
+    ? // "en-US", like every other formatter in this app. `undefined`
+      // uses the BROWSER's locale, so this one dialog rendered
+      // 1.234,56 EUR on a Dutch or German browser while the wallet card
+      // behind it rendered EUR 1,234.56 — the same money, two
+      // conventions, decided by the customer's machine, on a money
+      // confirmation.
+      new Intl.NumberFormat("en-US", {
         style: "currency",
         currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
       }).format(numeric)
     : "";
 

@@ -380,6 +380,18 @@ export async function assignSupplierAdAccount(input: {
       // Non-nullable in lib/types/account.ts and required by the ad-account
       // form; the sibling createAdAccountAsAdmin defaults it the same way.
       start_date: new Date().toISOString(),
+      // ── A STATUS, HERE TOO ──────────────────────────────────────────
+      //
+      // createAdAccountAsAdmin was fixed for this and its comment names
+      // the path that was not: the pool allocation. isAccountLocked(null)
+      // is true, so an allocated account was born unfundable — the
+      // customer's picker drops it, both top-up paths refuse it, a
+      // withdrawal refuses it — while releaseSupplierAdAccount reads
+      // (status ?? "active") and therefore calls the SAME row still
+      // running and refuses the release. Two guards contradicting each
+      // other on one row, and the only cure was to open the edit form
+      // and save.
+      status: "active",
       fee,
       created_by: profile.user_id,
       // NOTHING about the supplier goes on this row. The advertiser reads

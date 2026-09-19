@@ -237,7 +237,7 @@ export function AccountDetailsSheet({
                     <span className="font-medium text-muted-foreground block">
                       Fee:
                     </span>
-                    {data.fee}%
+                    {data.fee == null || Number(data.fee) === 0 ? "Set by your plan" : `${Number(data.fee)}%`}
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground block">

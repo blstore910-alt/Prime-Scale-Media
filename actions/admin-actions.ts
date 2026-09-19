@@ -274,7 +274,18 @@ export async function updateUserProfile(
         .from("subscriptions")
         .update({ status: "inactive" })
         .in("advertiser_id", advertiserIds)
-        .or("status.is.null,status.neq.inactive");
+        // ── DO NOT FLATTEN THE TERMINAL ONES ─────────────────────────
+        //
+        // This matched `cancelled` and `paused` too and rewrote them to
+        // `inactive`. The reactivate branch below then turns every
+        // `inactive` row back on — and the comment there says cancelled
+        // "is a decision somebody made about the plan itself and is not
+        // ours to undo here", which was true and unreachable, because
+        // this line had already destroyed the distinction.
+        //
+        // A customer who cancelled in July, was deactivated in
+        // September and switched back on in October got billed again.
+        .not("status", "in", "(inactive,cancelled,paused)");
       if (subError) return { ok: false, error: subError.message };
     }
     if (advertiserIds.length > 0 && shouldReactivateSubscriptions) {

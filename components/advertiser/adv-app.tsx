@@ -1503,8 +1503,16 @@ export default function AdvertiserApp() {
           </span>
         </div>
         <div className="kv">
+          {/* NOT THE FEE CHARGED. ad_accounts.fee is one of five
+              inputs: resolveEffectiveFeePct treats 0 as NOT SET
+              and falls through to the plan rate, then subtracts
+              two points for a premium type, then applies any
+              waiver or discount perk. So this printed "Fee 0%"
+              beside a Top up button that charges 5%. The
+              funding dialog asks the server for the real
+              number; a card cannot, so it must not state one. */}
           <span>Fee</span>
-          <b>{Number(a.fee ?? 0)}%</b>
+          <b>{a.fee == null || Number(a.fee) === 0 ? "Set by your plan" : `${Number(a.fee)}%`}</b>
         </div>
         <div className="kv">
           <span>Currency</span>
@@ -3385,9 +3393,14 @@ export default function AdvertiserApp() {
                     className="btn ghost sm invmore"
                     onClick={() => setShowAllInvoices((v) => !v)}
                   >
+                    {/* The query is .limit(30), so "View all 80" was never
+                        on offer — a customer with eighty invoices was told
+                        they had thirty. Say what it actually shows. */}
                     {showAllInvoices
                       ? "Show fewer"
-                      : `View all ${(invoices ?? []).length} invoices`}
+                      : (invoices ?? []).length >= 30
+                        ? "View your 30 most recent invoices"
+                        : `View all ${(invoices ?? []).length} invoices`}
                     <Ic name="i-chev" />
                   </button>
                 )}
