@@ -287,10 +287,18 @@ export const AFF_CSS = `
   .bcur{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;position:relative}
   .cchip{font-size:.8rem;font-weight:700;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:5px 11px;border-radius:99px;font-family:ui-monospace,monospace}
   .bpots{display:flex;gap:10px;margin:8px 0 2px;position:relative;flex-wrap:wrap}
-  .bpot{flex:1;min-width:118px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);border-radius:15px;padding:13px 15px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.22);transition:.15s}
+  /* flex-basis, not a min-width that defeats shrinking. Inside
+     .balance{overflow:hidden}, a 118px floor meant any balance over
+     1,000 was clipped mid-digit at 375px — silently, on the screen whose
+     whole job is to say what you are owed. */
+  .bpot{flex:1 1 118px;min-width:0;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);border-radius:15px;padding:13px 15px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.22);transition:.15s}
   .bpot:hover{background:rgba(255,255,255,.22);transform:translateY(-1px)}
   .bpot .pl{display:block;font-size:.64rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.85)}
-  .bpot b{font-family:var(--font-sora);font-weight:800;font-size:1.72rem;letter-spacing:-.02em;display:block;margin-top:4px}
+  .bpot b{font-family:var(--font-sora);font-weight:800;
+    /* clamp, so a five-figure balance shrinks instead of being cut off,
+       and tabular figures so a column of them lines up. */
+    font-size:clamp(1.15rem,6.4vw,1.72rem);font-variant-numeric:tabular-nums;
+    overflow-wrap:anywhere;letter-spacing:-.02em;display:block;margin-top:4px}
   .balance .sub b{font-weight:800}
   .bactions{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;position:relative}
   .bactions .btn.gold{margin-top:0}.bactions .payin{margin-top:0}

@@ -118,7 +118,14 @@ export default function WithdrawDialog({
           <DialogDescription>
             {confirming
               ? "Check the details below. Nothing moves until an admin approves it."
-              : `Ask for balance on ${adAccountName ?? "this ad account"} to be returned to your wallet. This is a request — an admin reviews it first.`}
+              : // "What is left of what we funded", not "balance". These
+                // accounts are funded by hand and there is no API to read
+                // a live balance from — so the only figure that exists is
+                // what we put on minus what has come back off. Promising
+                // a balance invites the customer to ask us for one.
+                `Ask for what is left of the budget we funded on ${
+                  adAccountName ?? "this ad account"
+                } to come back to your wallet. This is a request — an admin reviews it first.`}
           </DialogDescription>
         </DialogHeader>
 

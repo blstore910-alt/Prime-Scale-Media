@@ -962,6 +962,17 @@ export default function AdvertiserApp() {
     const days = dayjs(d).diff(dayjs(), "day");
     return days <= 7;
   })();
+  // ── WHAT WE ACTUALLY CHARGED LAST TIME ──────────────────────────────
+  //
+  // subscriptions.amount is the LIST price. The billing run applies a
+  // subscription_discount perk to the invoice and never writes it back,
+  // so a customer on a perk sees their list price on every screen that
+  // describes what they pay, and a different figure leaves their wallet.
+  // The last paid subscription invoice is what they were actually
+  // charged, and it is already loaded for the billing table.
+  const lastChargedAmount = (invoices ?? []).find(
+    (i) => i.type === "subscription" && i.status === "paid",
+  )?.total;
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -1989,7 +2000,11 @@ export default function AdvertiserApp() {
                     due" next to Pay is a demand. */}
                 <span className="dtx">
                   {dueSubInvoice ? "Outstanding" : "Next payment"}{" "}
-                  <b>{dueSubInvoice ? dueBillAmount : planMoney(subscription.amount)}</b>
+                  <b>
+                    {dueSubInvoice
+                      ? dueBillAmount
+                      : planMoney(lastChargedAmount ?? subscription.amount)}
+                  </b>
                   {/* ── ONLY WHEN THE DATE MATTERS ────────────────────
                       This row is a single line by design, so "Next
                       payment €5.00 · on 18 Oct" was being cut to "on 18
@@ -3008,7 +3023,15 @@ export default function AdvertiserApp() {
                 )}
                 <div className="plan">
                   {subscription && Number(subscription.amount ?? 0) > 0
-                    ? `${planMoney(subscription.amount)} / month`
+                    ? // THE INVOICE'S FIGURE WHERE THERE IS ONE. The
+                      // billing run applies a subscription_discount perk
+                      // to the invoice and leaves subscriptions.amount at
+                      // list price, so a discounted customer read EUR 200
+                      // a month on the card that describes what they pay
+                      // while EUR 5 was taken. The outstanding branch was
+                      // fixed for exactly this; the three branches with
+                      // no unpaid invoice were not.
+                      `${planMoney(lastChargedAmount ?? subscription.amount)} / month`
                     : "Subscription"}
                 </div>
                 <div className="meta">
@@ -3112,7 +3135,7 @@ export default function AdvertiserApp() {
                                   : "Due date not set"
                               } · ${dueBillAmount}`
                             : subscription.next_payment_date
-                              ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · ${planMoney2(subscription.amount)}`
+                              ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · ${planMoney2(lastChargedAmount ?? subscription.amount)}`
                               : "We'll tell you when the next one is ready"}
                         </div>
                       </div>

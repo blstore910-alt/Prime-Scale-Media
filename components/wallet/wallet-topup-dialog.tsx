@@ -694,15 +694,38 @@ export default function WalletTopupDialog({
                     "Minimum Amount: 300" with the money already gone and no
                     way to file the claim. The server half of that trap was
                     fixed; the order of the screen re-created it. */}
-                {minTopupAmount > 0 && (
-                  <p className="text-sm font-medium">
-                    Transfer at least{" "}
-                    <strong>
-                      {currency} {minTopupAmount.toLocaleString("en-US")}
-                    </strong>
-                    . A smaller amount cannot be filed as a top-up.
-                  </p>
-                )}
+                {/* ── THE SAME FLOOR STEP 2 STATES ──────────────────────
+                    This said "Transfer at least EUR 300" using the WALLET
+                    currency, which is the exact trap step 2 carries a
+                    comment about: send GBP 300 against a EUR 300 floor
+                    and you are a fifth short. Step 1 is where the
+                    customer decides, so it is the worse place to get it
+                    wrong. Same conversion, rounded up the same way. */}
+                {minTopupAmount > 0 &&
+                  (() => {
+                    const inTransfer =
+                      transferCurrency === currency
+                        ? minTopupAmount
+                        : convertWalletToTransfer(
+                            minTopupAmount,
+                            currency,
+                            transferCurrency,
+                            rate,
+                          );
+                    const shown = inTransfer
+                      ? Math.ceil(inTransfer)
+                      : minTopupAmount;
+                    const cur = inTransfer ? transferCurrency : currency;
+                    return (
+                      <p className="text-sm font-medium">
+                        Transfer at least{" "}
+                        <strong>
+                          {cur} {shown.toLocaleString("en-US")}
+                        </strong>
+                        . A smaller amount cannot be filed as a top-up.
+                      </p>
+                    );
+                  })()}
 
                 <Button className="w-full mt-4" onClick={handleNextStep}>
                   Continue
