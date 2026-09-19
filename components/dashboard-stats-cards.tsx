@@ -7,10 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
-  Monitor,
   Percent,
-  Scale,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -58,6 +55,10 @@ interface StatsResponse {
   ad_accounts: {
     total: number;
     active: number;
+  };
+  subscriptions: {
+    /** active + past_due — the two the nightly run actually collects. */
+    billing: number;
   };
   advertisers_affiliates: {
     advertisers: {
@@ -116,6 +117,28 @@ const STATS_CSS = `
 .psm-stats .stepbtn svg{width:16px;height:16px}
 
 /* Section sub-labels with a trailing hairline — separates period vs all-time. */
+/* ── The activity panel ────────────────────────────────────────────────
+   One object instead of two labelled sections. The period selector sits
+   inside its head, where it visibly governs what is under it, and the
+   all-time totals sit below a rule as the panel's footing rather than as
+   a second block with its own heading. */
+.psm-stats .statpanel{border:1px solid var(--line);border-radius:18px;
+  background:var(--panel);padding:14px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px -1px rgba(20,30,80,.14),
+             0 18px 38px -28px rgba(20,30,80,.5)}
+.psm-stats .statpanel-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.psm-stats .statpanel-head .statctl{margin-left:auto}
+/* A rule with the label sitting ON it, so the footing reads as part of
+   the panel rather than as the next section down. */
+.psm-stats .statpanel-rule{display:flex;align-items:center;gap:10px;margin-top:2px}
+.psm-stats .statpanel-rule::after{content:"";flex:1 1 auto;height:1px;
+  background:linear-gradient(90deg,var(--line),transparent)}
+.psm-stats .statpanel-rule span{font-size:.67rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint);flex:0 0 auto}
+@media(max-width:520px){
+  .psm-stats .statpanel{padding:12px;border-radius:16px}
+  .psm-stats .statpanel-head .statctl{margin-left:0;width:100%}
+}
 .psm-stats .slab{display:flex;align-items:center;gap:10px;margin-top:2px;font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .psm-stats .slab::after{content:"";flex:1;height:1px;background:var(--line)}
 
@@ -397,7 +420,37 @@ export function DashboardStatsCards() {
                   ? formatCurrency(stats.revenue_profit.total_profit, "EUR")
                   : "…"}
             </div>
+            {/* ── THE LIVE STATE OF THE BUSINESS ────────────────────
+                Three figures the owner wants at a glance: how many
+                plans are billing, how many accounts are running, how
+                many customers there are. Topups came off — the amount
+                is in the All-time footing below and a bare count beside
+                it was the same fact twice.
+
+                Whatever sits here does NOT appear again in the grid
+                underneath. That duplication is what made the screen
+                read as the same numbers twice. */}
             <div className="prow">
+              <div className="b">
+                <span>Subscriptions</span>
+                <b>
+                  {stats
+                    ? formatNumber(stats.subscriptions.billing)
+                    : isStatsError
+                      ? "—"
+                      : "…"}
+                </b>
+              </div>
+              <div className="b">
+                <span>Ad accounts</span>
+                <b>
+                  {stats
+                    ? formatNumber(stats.ad_accounts.active)
+                    : isStatsError
+                      ? "—"
+                      : "…"}
+                </b>
+              </div>
               <div className="b">
                 <span>Advertisers</span>
                 <b>
@@ -408,47 +461,50 @@ export function DashboardStatsCards() {
                       : "…"}
                 </b>
               </div>
-              <div className="b">
-                <span>Ad accounts</span>
-                <b>
-                  {stats
-                    ? formatNumber(stats.ad_accounts.total)
-                    : isStatsError
-                      ? "—"
-                      : "…"}
-                </b>
-              </div>
-              <div className="b">
-                <span>Topups</span>
-                <b>
-                  {stats
-                    ? formatNumber(stats.total_topups.count)
-                    : isStatsError
-                      ? "—"
-                      : "…"}
-                </b>
-              </div>
             </div>
           </div>
 
           {periodControl}
 
-          {/* Period-scoped activity, limited to the metrics that are NOT
-              already surfaced by the profit-hero + the "All time" totals.
-              Topups, Fees and Profit were removed from here: the hero and the
-              all-time tiles are the single source for those figures, so showing
-              period cards for them repeated the same stat blocks (de-duplicated
-              per feedback). The cards that remain are unique to this section. */}
-          <div className="slab">This period</div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 *:data-[slot=card]:shadow-xs">
-            <AffiliateCommissionsStatsCard period={period} dateRange={dateRange} />
-            <SubscriptionsStatsCard period={period} dateRange={dateRange} />
-            <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
-            <RegistrationsStatsCard period={period} dateRange={dateRange} />
-          </div>
+          {/* ── ONE BLOCK, NOT TWO ─────────────────────────────────────
+              These were two labelled sections stacked on one screen —
+              "This period" with four cards, then "All time" with five
+              tiles — and the only thing telling them apart was a small
+              grey word. So the page read as the same numbers twice and
+              the owner had to work out which block a figure belonged to.
 
-          <div className="slab">All time</div>
+              It is one panel now: the period selector sits INSIDE it, at
+              the top, where it visibly governs what is under it; the
+              period cards follow; and the all-time totals sit below a
+              rule as the footing of the same panel rather than as a
+              second section. Same figures, one object.
+
+              Period-scoped activity here is limited to what the hero and
+              the all-time footing do NOT already carry — topups, fees and
+              profit were taken out because showing them twice is what
+              made the screen feel duplicated in the first place. */}
+          <div className="statpanel">
+            <div className="statpanel-head">
+              <span className="slab">Activity</span>
+              {periodControl}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 *:data-[slot=card]:shadow-xs">
+              <AffiliateCommissionsStatsCard period={period} dateRange={dateRange} />
+              <SubscriptionsStatsCard period={period} dateRange={dateRange} />
+              <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
+              <RegistrationsStatsCard period={period} dateRange={dateRange} />
+            </div>
+
+            <div className="statpanel-rule">
+              <span>All time</span>
+            </div>
           <div className="mgrid">
+            {/* Total Profit, Total Ad Accounts and Total Advertisers
+                used to sit here. All three are on the hero card above —
+                profit as its headline, the other two as tiles — and
+                printing them again four centimetres lower is what made
+                this screen read as the same numbers twice. What is on
+                the card is not repeated in the grid. */}
             <SummaryStatCard
               title="Total Topups"
               icon={Coins}
@@ -483,41 +539,7 @@ export function DashboardStatsCards() {
               isLoading={isStatsLoading}
               isError={isStatsError}
             />
-            <SummaryStatCard
-              title="Total Profit"
-              icon={Scale}
-              ci="p"
-              value={
-                stats
-                  ? `${formatCurrency(stats.revenue_profit.total_profit, "EUR")}`
-                  : ""
-              }
-              description=""
-              isLoading={isStatsLoading}
-              isError={isStatsError}
-            />
-            <SummaryStatCard
-              title="Total Ad Accounts"
-              icon={Monitor}
-              ci="b"
-              value={stats ? `${formatNumber(stats.ad_accounts.total)}` : ""}
-              description={` ${stats ? formatNumber(stats.ad_accounts.active) : 0} active `}
-              isLoading={isStatsLoading}
-              isError={isStatsError}
-            />
-            <SummaryStatCard
-              title="Total Advertisers"
-              icon={Users}
-              ci="w"
-              value={
-                stats
-                  ? `${formatNumber(stats.advertisers_affiliates.advertisers.total)}`
-                  : ""
-              }
-              description={`${stats ? formatNumber(stats.advertisers_affiliates.advertisers.active) : 0} active`}
-              isLoading={isStatsLoading}
-              isError={isStatsError}
-            />
+            </div>
           </div>
         </>
       )}

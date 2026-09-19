@@ -93,6 +93,7 @@ export async function GET() {
     topupsResult,
     adAccountsTotalResult,
     activeAdAccountsResult,
+    billingSubscriptionsResult,
     advertisersTotalResult,
     advertisersStatusesResult,
     invoiceRevenueResult,
@@ -148,6 +149,15 @@ export async function GET() {
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", profile.tenant_id)
       .eq("status", "active"),
+    // Subscriptions actually billing. `active` and `past_due` are the two
+    // the nightly run collects — a past_due plan is still a customer who
+    // owes us every month, so leaving it out would understate the book.
+    // head:true, so this is a number and no rows.
+    supabase
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", profile.tenant_id)
+      .in("status", ["active", "past_due"]),
     supabase
       .from("advertisers")
       .select("id", { count: "exact", head: true })
@@ -214,6 +224,7 @@ export async function GET() {
     topupsResult.error,
     adAccountsTotalResult.error,
     activeAdAccountsResult.error,
+    billingSubscriptionsResult.error,
     advertisersTotalResult.error,
     advertisersStatusesResult.error,
     invoiceRevenueResult.error,
@@ -359,6 +370,9 @@ export async function GET() {
     ad_accounts: {
       total: adAccountsTotalResult.count || 0,
       active: activeAdAccountsResult.count || 0,
+    },
+    subscriptions: {
+      billing: billingSubscriptionsResult.count || 0,
     },
     advertisers_affiliates: {
       advertisers: {
