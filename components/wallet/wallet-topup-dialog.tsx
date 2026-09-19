@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { banksForAccountTypes } from "@/lib/bank-routing";
 import { copyText } from "@/lib/copy-text";
+import { DEFAULT_MIN_TOPUP } from "@/lib/min-topup";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import {
   Select,
@@ -238,7 +239,16 @@ export default function WalletTopupDialog({
   // ?? not ||. The caller derives this now, and 0 is a real answer meaning
   // "no minimum yet" — `|| 300` read that as unset and put the floor back,
   // which is the exact bug the derivation was written to remove.
-  const minTopupAmount = minTopup ?? 300;
+  // ── NOT A LITERAL ───────────────────────────────────────────────────
+  //
+  // The floor is per advertiser and per community: wallets.min_topup is
+  // an admin's decision about one customer and wins outright, NSA has
+  // its own figure, and before the plan is paid there is no floor at
+  // all. All of that lives in lib/min-topup.ts, which the caller has
+  // already run — this is only the value to use if the prop never
+  // arrives, and writing 300 here a second time means two places to
+  // change and one of them will be missed.
+  const minTopupAmount = minTopup ?? DEFAULT_MIN_TOPUP;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
   // Their own client code, for the payment reference below.
@@ -762,6 +772,7 @@ export default function WalletTopupDialog({
                     return (
                       <p className="pt-2 text-sm font-medium">
                         At least {cur} {shown.toLocaleString("en-US")}.
+                        Anything less cannot be filed.
                       </p>
                     );
                   })()}
