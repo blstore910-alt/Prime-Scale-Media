@@ -34,7 +34,20 @@ export async function signOutCompletely() {
   // must not leave somebody stuck signed in.
   try {
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.ready;
+      // `ready` NEVER SETTLES when no worker is registered for this
+      // scope — it does not reject either, so the catch below is no
+      // help. /sw.js is registered by the push manager, which only
+      // mounts inside the three app shells. On /complete-profile, which
+      // is outside them, a newly invited advertiser pressing Log out got
+      // a spinner that never stopped and stayed signed in. The idle
+      // auto-logout hangs the same way if registration ever fails.
+      //
+      // Unsubscribing from push is best-effort; staying signed in is not.
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+      ]);
+      if (!registration) throw new Error("no service worker");
       const sub = await registration.pushManager.getSubscription();
       if (sub) {
         await fetch("/api/push/subscribe", {

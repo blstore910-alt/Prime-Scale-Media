@@ -656,6 +656,12 @@ export default function AdvertiserApp() {
     !!advertiserId && (walletLoading || accountsLoading || companyLoading);
 
   const eurText = walletError ? "—" : walletLoading ? "…" : eur(eurBal);
+  // The hero sits above both wallets and belongs to neither, so its Top
+  // up and Exchange need a currency of their own. Whichever one they
+  // actually hold; EUR when they hold both or nothing, because that is
+  // what every RPC on the server falls back to.
+  const heroCurrency: "EUR" | "USD" =
+    eurBal <= 0 && usdBal > 0 ? "USD" : "EUR";
   const usdText = walletError ? "—" : walletLoading ? "…" : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
   // Company details are what an invoice is built from, so nothing that costs
@@ -706,7 +712,13 @@ export default function AdvertiserApp() {
   // [] too, so the wallet card said "Available to spend" over money that
   // was on its way — the same half-fix the accounts prop avoided by
   // taking both.
-  const pendingUnknown = activityError || activityLoading;
+  // ...and a DISABLED query is a third unknown. This one is
+  // `enabled: !!wallet?.id`, so while the wallet read is in flight
+  // react-query v5 reports isPending true, isFetching false, therefore
+  // isLoading FALSE and isError false. pendingUnknown was then false
+  // over an empty list. The dash view is covered by the booting gate;
+  // the wallet view is not, and ?view=wallet lands straight on it.
+  const pendingUnknown = activityError || activityLoading || !wallet?.id;
   const pendingTopups = (activity ?? []).filter(
     (t) =>
       t.status !== "completed" &&
@@ -1737,8 +1749,14 @@ export default function AdvertiserApp() {
               firstName={firstName}
               eurText={eurText}
               usdText={usdText}
-              onTopup={() => setTopupOpen(true)}
-              onExchange={() => setExchangeOpen(true)}
+              // openTopup/openExchange, not the raw setters: the two
+              // dialogs now remember which currency they were last
+              // opened for. Press Top up inside the USD card, close it,
+              // then press Top up on the hero and the raw setter reopens
+              // it as a USD top-up. Exchange is worse — it would convert
+              // in the wrong direction, at 0.6% plus spread.
+              onTopup={() => openTopup(heroCurrency)}
+              onExchange={() => openExchange(heroCurrency)}
               onOpenWallet={() => go("wallet")}
               onOpenAccounts={() => go("accounts")}
               disabled={!wallet || (!companyComplete && !companyUnknown)}

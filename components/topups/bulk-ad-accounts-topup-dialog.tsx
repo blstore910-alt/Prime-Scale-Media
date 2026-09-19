@@ -255,7 +255,7 @@ export default function BulkTopupAdAccountsDialog({
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<BulkTopupFormValues>({
     defaultValues: {
       rows: defaultRows,
@@ -289,7 +289,34 @@ export default function BulkTopupAdAccountsDialog({
     null,
   );
 
+  // ── THE BUSY STATE HAD TO BE OUR OWN ────────────────────────────────
+  //
+  // When the confirmation was added, the real work moved OUT of
+  // react-hook-form's submit: onSubmit became a synchronous
+  // `setConfirming(values)`, so `isSubmitting` is true for one microtask
+  // and false for the whole run, which happens later in onConfirm. Every
+  // guard hung off it therefore did nothing — the confirm button was
+  // never disabled, never said "Sending…", ConfirmModal's own close-guard
+  // never engaged, and the Submit button behind it stayed live reading
+  // "Submit Bulk Topup" while up to two hundred top-ups inserted.
+  //
+  // So the admin confirms, the modal vanishes, nothing on screen changes
+  // for several seconds, and they press Submit again. The wallet is
+  // debited twice for the same two hundred accounts, and money on an ad
+  // account only comes back through a withdrawal we have to approve.
+  const [running, setRunning] = useState(false);
+
   const handleBulkTopup = async (values: BulkTopupFormValues) => {
+    if (running) return;
+    setRunning(true);
+    try {
+      await runBulkTopup(values);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const runBulkTopup = async (values: BulkTopupFormValues) => {
     const filteredValues = values.rows.filter((row) => row.enabled);
     // useExchangeRates returns the raw array, which is [] (truthy) when no
     // active rate exists — guard on length AND the first row so we never
@@ -612,8 +639,8 @@ export default function BulkTopupAdAccountsDialog({
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" size="sm" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting…" : "Submit Bulk Topup"}
+            <Button type="submit" size="sm" disabled={running}>
+              {running ? "Sending…" : "Submit Bulk Topup"}
             </Button>
           </div>
         </form>
@@ -622,17 +649,20 @@ export default function BulkTopupAdAccountsDialog({
       <ConfirmModal
         open={!!confirming}
         onOpenChange={(next) => {
-          if (!next) setConfirming(null);
+          if (!next && !running) setConfirming(null);
         }}
         title="Move this money to these ad accounts?"
         lead="It leaves the wallet now, for every account listed. Money on an ad account can only come back through a withdrawal request, which we have to approve — so this is as final as the single top-up, times the number of rows."
         cta="Yes, top them all up"
-        busy={isSubmitting}
+        busy={running}
         busyLabel="Sending…"
         onConfirm={() => {
+          // Keep the modal up while it runs. Clearing `confirming` first
+          // closed it instantly and put the admin back on a screen that
+          // looked idle — which is half of why the run got fired twice.
           const values = confirming;
-          setConfirming(null);
-          if (values) void handleBulkTopup(values);
+          if (!values) return;
+          void handleBulkTopup(values).finally(() => setConfirming(null));
         }}
       >
         <ConfirmFact

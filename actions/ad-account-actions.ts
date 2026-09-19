@@ -127,8 +127,15 @@ export async function getAdAccountCosts(): Promise<
   return { ok: true, data: out };
 }
 
+// `status` belongs here. Without it every account this form creates is
+// born with status NULL, and isAccountLocked(null) is true — so the admin
+// top-up refuses it, the bulk run refuses it, and the customer's picker
+// silently leaves it out. An account nobody can put money on, with no
+// sign of why. The only cure was to open Update Ad Account and save,
+// because THAT form defaults status to "active".
 const AD_ACCOUNT_INSERT_ALLOWED = [
   "name",
+  "status",
   "bm_id",
   "fee",
   "advertiser_id",
