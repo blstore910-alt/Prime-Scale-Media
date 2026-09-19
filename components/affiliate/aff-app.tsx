@@ -1029,23 +1029,38 @@ export default function AffiliateApp() {
                     <Ic name="i-trophy" /> {statsUnavailable ? "—" : tier.name}
                   </span>
                 </div>
-                <div className="l">Commission earned</div>
+                {/* ── STILL OWED, NOT EARNED EVER ────────────────────
+                    This card is headed "Commission wallet" and printed
+                    LIFETIME GROSS — so an affiliate paid EUR 600 of EUR
+                    1,000 read EUR 1,000.00 here and EUR 400.00 in the
+                    payout modal one tap away, with neither figure
+                    derivable from the other on screen. A wallet says
+                    what is in it. The hook already computes `payable`
+                    for exactly this and it was used only in the modal;
+                    lifetime keeps its own line underneath. */}
+                <div className="l">Still owed to you</div>
                 <div className="bpots">
                   {/* The button below is already disabled when the balance
                       is unknown, for exactly this reason — but the two
                       figures it is disabled ABOUT were printed as a
                       confident EUR 0 and $0. */}
                   <div className="bpot">
-                    <span className="pl">EUR earnings</span>
-                    <b>
-                      {statsUnavailable ? dash : eur(all.totals.earnings_eur)}
-                    </b>
+                    <span className="pl">EUR</span>
+                    <b>{statsUnavailable ? dash : eur(all.payable.eur)}</b>
+                    <small className="pn">
+                      {statsUnavailable
+                        ? ""
+                        : `${eur(all.totals.earnings_eur)} earned in total`}
+                    </small>
                   </div>
                   <div className="bpot">
-                    <span className="pl">USD earnings</span>
-                    <b>
-                      {statsUnavailable ? dash : usd(all.totals.earnings_usd)}
-                    </b>
+                    <span className="pl">USD</span>
+                    <b>{statsUnavailable ? dash : usd(all.payable.usd)}</b>
+                    <small className="pn">
+                      {statsUnavailable
+                        ? ""
+                        : `${usd(all.totals.earnings_usd)} earned in total`}
+                    </small>
                   </div>
                 </div>
                 <div className="sub">

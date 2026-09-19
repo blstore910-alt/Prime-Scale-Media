@@ -294,6 +294,10 @@ export const AFF_CSS = `
   .bpot{flex:1 1 118px;min-width:0;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);border-radius:15px;padding:13px 15px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.22);transition:.15s}
   .bpot:hover{background:rgba(255,255,255,.22);transform:translateY(-1px)}
   .bpot .pl{display:block;font-size:.64rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.85)}
+  /* The lifetime figure under the payable one: present, and visibly the
+     smaller fact. */
+  .bpot .pn{display:block;margin-top:3px;font-size:.68rem;line-height:1.3;
+    color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums}
   .bpot b{font-family:var(--font-sora);font-weight:800;
     /* clamp, so a five-figure balance shrinks instead of being cut off,
        and tabular figures so a column of them lines up. */
