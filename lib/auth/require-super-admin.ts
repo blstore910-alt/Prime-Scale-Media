@@ -14,6 +14,16 @@ type TenantRecord = {
   owner_id: string | null;
 };
 
+/**
+ * ⚠️ DEACTIVATED KEEPS THE ROLE AND LOSES THE ACCESS.
+ *
+ * This guard tested ownership and nothing else, while require-admin.ts
+ * eight lines away tests is_active and status, and apiRequireAdmin does
+ * too. So a deactivated OWNER kept /audit, /reconciliation, /commissions,
+ * /activity-logs, /invites, /admins, /affiliates and all of /settings —
+ * every write was refused downstream, and the reads were not. The audit
+ * log and the books are exactly what you take away first.
+ */
 export async function requireSuperAdmin(redirectTo = "/dashboard") {
   // Cached per render, so this is free when the (app) layout already ran it.
   // See lib/auth/session.ts.
@@ -45,6 +55,14 @@ export async function requireSuperAdmin(redirectTo = "/dashboard") {
 
   if (!profile?.tenant_id || profile.role !== "admin") {
     redirect(redirectTo);
+  }
+
+  // The check this guard did not have. See the note on the function.
+  if (
+    (profile as { is_active?: boolean | null }).is_active === false ||
+    ((profile as { status?: string | null }).status ?? "active") === "inactive"
+  ) {
+    redirect("/inactive");
   }
 
   const supabase = await createClient();

@@ -695,7 +695,13 @@ export default function AccountsTable() {
                   <th>Platform</th>
                   <th className="r">Fee</th>
                   <th>Currency</th>
-                  <th className="r nw">Spend</th>
+                  {/* "Funded", not "Spend". This is the money PUT ON the
+                      account minus what has been withdrawn from it — it
+                      has nothing to do with what was spent on ads, which
+                      we do not hold. Calling it Spend made an admin read
+                      it as the customer's advertising, when the question
+                      it actually answers is "is there anything on here". */}
+                  <th className="r nw">Funded (USD)</th>
                   <th>Status</th>
                   <th className="r">Actions</th>
                 </tr>
@@ -1002,9 +1008,13 @@ function PsmAdminAccountRow({
                     ? `, last on ${new Date(spend.lastAt).toLocaleDateString()}`
                     : ""
                 }`
-              : "No completed top-ups on this account yet."
+              : "Nothing funded on this account yet."
         }
       >
+        {/* USD, always, and said so in the heading. top_ups.topup_amount
+            is stored in USD by construction whatever the customer paid
+            in — so a dollar figure beside "CURRENCY EUR" is correct and
+            reads as a mistake unless the column says which it is. */}
         {spendUnknown ? "—" : `$${(spend?.usd ?? 0).toFixed(2)}`}
       </td>
       <td data-label="Status" className="nw">

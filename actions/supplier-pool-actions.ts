@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { syncSupplierPool } from "@/lib/integrations/sync-pool";
 import { cookies } from "next/headers";
 import { checkVersion, maintenanceGuard, type ActionResult } from "./_shared";
+import { isSupplier1Live } from "@/lib/integrations/autopush";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { safeErrorMessage } from "@/lib/pure-error";
 import type { SupplierAdAccount } from "@/lib/types/supplier-ad-account";
@@ -90,6 +91,33 @@ export async function syncSupplierAdAccounts(): Promise<
   const ctx = await requireAdminCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
+
+  // ── NOT FROM THE MOCK. NOT INTO THE REAL POOL. ─────────────────────
+  //
+  // getSupplier1Adapter() falls back to mockSupplier1Adapter whenever
+  // SUPPLIER1_MODE is not "live", and those variables are set on Preview
+  // only — so on production this button was pulling a fixed made-up
+  // dataset and UPSERTING it into supplier_ad_accounts, with status
+  // "active", which is the status the allocator accepts. Then it toasted
+  // "Synced 2 ad account(s) from the supplier."
+  //
+  // An admin allocates supplier1-mock-001 to a real customer. The
+  // customer funds it. The money leaves their wallet, the push goes to
+  // an account that does not exist, and there is nothing on any screen
+  // that looks wrong.
+  //
+  // Reading a mock is harmless; writing one into the pool the allocator
+  // draws from is not. So the refusal is here, at the write, rather than
+  // in the adapter — the same mock is still what the worker and the
+  // tests read.
+  if (!isSupplier1Live()) {
+    return {
+      ok: false,
+      error:
+        "The supplier connection isn't configured on this environment, so there is nothing real to sync. Syncing here would put made-up accounts into the pool.",
+      code: "invalid",
+    };
+  }
 
   // The work itself lives in lib/integrations/sync-pool.ts so the scheduled
   // run and this button do exactly the same thing. They used to diverge: the
