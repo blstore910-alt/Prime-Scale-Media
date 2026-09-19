@@ -21,7 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
-import { Loader2, RotateCcw, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TIMEZONES } from "@/lib/constants";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";

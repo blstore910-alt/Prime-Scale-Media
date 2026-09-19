@@ -21,7 +21,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useCreateAdAccountRequest } from "@/hooks/use-create-ad-account-request";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
-import { RotateCcw, X } from "lucide-react";
 
 const validations = z
   .object({

@@ -15,7 +15,6 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import useAdAccountRequests from "./use-ad-account-requests";
-import { ScrollArea } from "../ui/scroll-area";
 
 function formatMetadataKey(key: string) {
   return key

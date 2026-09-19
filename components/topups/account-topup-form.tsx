@@ -19,7 +19,6 @@ import { Button } from "../ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { ScrollArea } from "../ui/scroll-area";
 import { Skeleton } from "../ui/skeleton";
 import { useCreateAccountTopup } from "./use-create-account-topup";
 import { quoteTopupFeePct } from "@/actions/topup-actions";

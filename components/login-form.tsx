@@ -25,7 +25,27 @@ function Rocket() {
 const STALE_RELOAD_KEY = "psm-login-stale-reload";
 
 export function LoginForm() {
-  const [email, setEmail] = useState("");
+  // Set just before the one automatic reload below, read once here.
+  const [email, setEmail] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return sessionStorage.getItem(STALE_RELOAD_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [wasReloaded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const had = sessionStorage.getItem(STALE_RELOAD_KEY) !== null;
+      // Cleared now, so a genuine second failure shows the error rather
+      // than reloading round and round.
+      sessionStorage.removeItem(STALE_RELOAD_KEY);
+      return had;
+    } catch {
+      return false;
+    }
+  });
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -120,6 +140,33 @@ export function LoginForm() {
         // form (the launch CSS fades it to opacity:0) and show a retryable
         // error instead of a dead, faded screen.
         shell?.removeAttribute("data-launching");
+
+        // ── ALMOST ALWAYS A STALE BUILD, NOT A NETWORK PROBLEM ─────────
+        //
+        // loginUser is a server action, and a server action's id changes
+        // with every deployment. A tab that has been sitting on the login
+        // screen — which is exactly what the 30-minute idle sign-out
+        // leaves behind — still holds the id from the build it loaded
+        // with. Post it to a newer deployment and it is simply not there,
+        // the action transport throws, and we land here.
+        //
+        // "Please try again" is the one thing that cannot work: pressing
+        // the same dead button harder. The cure is a reload, which the
+        // customer has to guess at. So do it for them, once, and keep
+        // their email so only the password has to be typed again.
+        if (
+          typeof window !== "undefined" &&
+          !sessionStorage.getItem(STALE_RELOAD_KEY)
+        ) {
+          try {
+            sessionStorage.setItem(STALE_RELOAD_KEY, email);
+          } catch {
+            // Private window, storage blocked. Reload anyway — the reload
+            // is the part that fixes it; the email is a convenience.
+          }
+          window.location.reload();
+          return;
+        }
         setError("We couldn't sign you in. Please try again.");
       }
     });
@@ -136,6 +183,12 @@ export function LoginForm() {
       <p className="lede">Welcome back to Prime Scale Media.</p>
 
       {reasonMessage && <div className="note">{reasonMessage}</div>}
+      {wasReloaded && !reasonMessage && (
+        <div className="note">
+          We updated the page to the latest version. Your email is still
+          there — enter your password and sign in.
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="field">

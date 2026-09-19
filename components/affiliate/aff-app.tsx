@@ -582,7 +582,9 @@ export default function AffiliateApp() {
                   <>
                     <h1 className="jackpot" onClick={() => go("pay")}>
                       <span className="cur">€</span>
-                      {Math.round(lifetimeEur).toLocaleString("en-US")}
+                      {/* Whole units here and only here: this is the
+                          lifetime headline, not a figure anyone acts on. */}
+                      {eurWhole(lifetimeEur).replace("€", "")}
                     </h1>
                     <div className="hero-tiles">
                       <div className="ht" onClick={() => go("refs")}>
