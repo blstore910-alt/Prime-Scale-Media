@@ -29,7 +29,13 @@ export const ADV_CSS = `
   .navlink:hover{background:var(--panel-2);color:var(--ink)}.navlink.on{background:var(--primary-tint);color:var(--primary-600)}
   .navlink svg{width:19px;height:19px}.navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center}
   .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  .side-foot .avatar{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.85rem;color:#fff;background:var(--brand)}
+  /* NO BLUE BEHIND THE AVATAR. This box was a rounded SQUARE filled with
+     the brand colour, from when it held two initials — and PsmAvatar
+     draws a CIRCLE, so what you saw was a blue tile with a disc on it,
+     blue in all four corners. The box now only positions and clips; the
+     drawing paints itself. */
+  .side-foot .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
+  .side-foot .avatar svg{width:100%;height:100%;display:block}
   .side-foot .who{font-size:.85rem;font-weight:700;line-height:1.2}.side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -54,7 +60,11 @@ export const ADV_CSS = `
   .tool.ic-btn{padding:7px 11px}
   .badge-n{position:absolute;top:0;right:2px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;border:2px solid var(--panel)}
   .tool.ava-btn{padding:4px 8px 4px 4px}
-  .tool.ava-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.8rem;color:#fff;background:var(--brand);position:relative}
+  /* Same: no brand fill behind a circular drawing, and the 36-unit SVG is
+     sized to the box instead of overflowing it. The green presence dot
+     stays. */
+  .tool.ava-btn .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:none;position:relative}
+  .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
   .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
   .tool.ava-btn svg{width:15px}
   .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer}
@@ -544,6 +554,26 @@ export const ADV_CSS = `
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   /* Same height as the collapsed card it is standing in for, so the page
      does not jump when the real one takes its place. */
+  /* ── The dashboard's first paint ──────────────────────────────────
+     Same blocks, same order, same heights as the finished view, so the
+     swap moves nothing. One shimmer keyframe shared with .onb-skel. */
+  .dash-skel{display:flex;flex-direction:column;gap:16px}
+  .dash-skel>*, .dash-skel .ds-card, .dash-skel .ds-stat{
+    border-radius:var(--r,16px);
+    background:linear-gradient(90deg,var(--panel),var(--panel-2),var(--panel));
+    background-size:200% 100%;animation:advskel 1.15s ease-in-out infinite}
+  .dash-skel .ds-hero{min-height:150px}
+  .dash-skel .ds-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:none;animation:none}
+  .dash-skel .ds-card{min-height:118px}
+  .dash-skel .ds-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:none;animation:none}
+  .dash-skel .ds-stat{min-height:86px}
+  .dash-skel .ds-block{min-height:180px}
+  @media (max-width:640px){
+    .dash-skel .ds-stats{grid-template-columns:1fr 1fr}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .dash-skel>*, .dash-skel .ds-card, .dash-skel .ds-stat{animation:none}
+  }
   .onb-skel{min-height:74px;padding:0;
     background:linear-gradient(90deg,var(--panel),var(--panel-2),var(--panel));
     background-size:200% 100%;animation:advskel 1.15s ease-in-out infinite}
@@ -898,7 +928,7 @@ export const ADV_CSS = `
      rhythm shows most. On a phone a tappable avatar tile is already
      understood to open a menu. */
   .advapp .toolbar .ava-btn{display:grid;place-items:center;width:36px;height:36px;padding:0;gap:0}
-  .advapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:8px;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
+  .advapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:50%;overflow:hidden}
   .advapp .toolbar .ava-btn svg{display:none}
   /* Duplicates the one inside that menu. */
   .advapp .topbar .so-btn{display:none}

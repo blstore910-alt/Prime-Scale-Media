@@ -53,7 +53,9 @@ export const PSM_APP_CSS = `
 .psmapp .navlink .n.unknown{background:var(--panel-2);color:var(--faint);border:1px solid var(--line-2);font-weight:800}
 .psmapp .navlink.aff{color:var(--purple)}.psmapp .navlink.aff svg{color:var(--purple)}.psmapp .navlink .n.new{background:var(--purple)}
 .psmapp .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
-.psmapp .side-foot .avatar{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.85rem;color:#fff;background:var(--brand)}
+/* No brand fill behind a circular drawing - see the advertiser shell. */
+.psmapp .side-foot .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
+.psmapp .side-foot .avatar svg{width:100%;height:100%;display:block}
 .psmapp .side-foot .who{font-size:.85rem;font-weight:700;line-height:1.2}
 .psmapp .side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
@@ -84,7 +86,8 @@ export const PSM_APP_CSS = `
 .psmapp .tool.ic-btn:hover,.psmapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
 .psmapp .tool.ic-btn{padding:7px 11px}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
-.psmapp .tool.ava-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--hd);font-weight:700;font-size:.8rem;color:#fff;background:var(--brand);position:relative}
+.psmapp .tool.ava-btn .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:none;position:relative}
+.psmapp .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
 .psmapp .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
 .psmapp .tool.ava-btn svg{width:15px}
 .psmapp .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer}

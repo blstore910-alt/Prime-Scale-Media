@@ -25,8 +25,12 @@ export default function AdvertiserLayout({
   return (
     <AppProvider user={user} profile={profile}>
       <QueryClientProvider client={queryClient}>
-        <PushNotificationManager />
         {children}
+        {/* AFTER the app, not before it. In the flow above {children} it
+            rendered at the very top of the page and pushed the entire
+            dashboard down when it appeared; it is a fixed overlay now, so
+            its place in the tree only decides paint order. */}
+        <PushNotificationManager />
         <Toaster position="top-right" />
       </QueryClientProvider>
     </AppProvider>

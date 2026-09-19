@@ -603,6 +603,19 @@ export default function AdvertiserApp() {
   // corrected itself a moment later — the customer's own balance, wrong,
   // on first paint and on every return to the tab. A dash says "not yet"
   // and does not have to take anything back.
+  // Everything the dashboard's first screenful derives from. isPending /
+  // isLoading is true only while there is no data at all, so this is a
+  // FIRST-LOAD gate and not a refetch gate: a background refresh never
+  // takes the page away again.
+  //
+  // AND IT HAS TO BE ABLE TO END. walletLoading is `isPending`, which
+  // stays TRUE for ever on a query that is disabled — and all three are
+  // `enabled: !!advertiserId`. Somebody without an advertiser row would
+  // otherwise sit on a skeleton that never resolves, which is worse than
+  // any flash. So: no advertiser, nothing to wait for.
+  const booting =
+    !!advertiserId && (walletLoading || accountsLoading || companyLoading);
+
   const eurText = walletError ? "—" : walletLoading ? "…" : eur(eurBal);
   const usdText = walletError ? "—" : walletLoading ? "…" : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
@@ -1524,6 +1537,30 @@ export default function AdvertiserApp() {
         <div className="content">
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
+            {/* ── ONE SKELETON, NOT A CASCADE ──────────────────────────
+                The dashboard used to paint itself immediately with every
+                query still in flight: an empty hero, then the wallet
+                figures, then the stat tiles, then the onboarding card
+                appearing and pushing everything down, then swapping to a
+                different card when the last read landed. Four reflows in
+                about a second, which reads as the page fighting itself.
+                And `.view.on` carries a fade animation, so each of those
+                steps animated in.
+
+                The fix is not a spinner — a spinner is a blank screen with
+                a reason. It is to hold the SHAPE of the finished page,
+                once, until the three reads the whole view derives from
+                have settled, and then draw the real thing. Nothing moves
+                afterwards because nothing arrives afterwards.
+
+                isPending/isLoading only, never isError: a failed read must
+                fall through to the real view, which says so per card. A
+                skeleton that waits for an answer that is never coming is
+                the worst of both. */}
+            {booting ? (
+              <DashSkeleton />
+            ) : (
+            <>
             <OnboardingChecklist
               /* WAIT FOR THE ANSWERS, not just for localStorage. The ticks
                  come from three separate queries — company, wallet,
@@ -1770,6 +1807,8 @@ export default function AdvertiserApp() {
             {/* "Your wallets" used to repeat both balances and both actions
                 here, a screen below the two stat tiles that already showed
                 them. The hero at the top of this view is that section now. */}
+            </>
+            )}
           </div>
 
           {/* AFFILIATE PROGRAM (advertiser-as-affiliate) */}
@@ -3360,6 +3399,35 @@ export default function AdvertiserApp() {
 }
 
 // Small logout glyph reused by the account menu + sign-out modal.
+/**
+ * The dashboard's shape, before it has any content.
+ *
+ * Deliberately the same BLOCKS in the same order and at the same heights
+ * as the finished view — hero, two wallet cards, a stat row, a card — so
+ * the moment the data lands nothing moves. A skeleton that is a different
+ * size from what replaces it is just a second flash.
+ *
+ * aria-hidden and no text: a screen reader should hear the real page when
+ * it exists, not a description of a placeholder.
+ */
+function DashSkeleton() {
+  return (
+    <div className="dash-skel" aria-hidden="true">
+      <div className="ds-hero" />
+      <div className="ds-row">
+        <div className="ds-card" />
+        <div className="ds-card" />
+      </div>
+      <div className="ds-stats">
+        <div className="ds-stat" />
+        <div className="ds-stat" />
+        <div className="ds-stat" />
+      </div>
+      <div className="ds-block" />
+    </div>
+  );
+}
+
 function LogoutGlyph() {
   return (
     <svg

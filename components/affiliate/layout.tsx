@@ -29,8 +29,8 @@ export default function AffiliateLayout({
             affiliate could never turn push on — while the preferences dialog
             still offered them the toggles. Admins and advertisers have had
             it all along. */}
-        <PushNotificationManager />
         {children}
+        <PushNotificationManager />
         <Toaster position="top-right" />
       </QueryClientProvider>
     </AppProvider>

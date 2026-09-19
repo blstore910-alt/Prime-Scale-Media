@@ -25,8 +25,8 @@ export default function AdminLayout({
     <AppProvider user={user} profile={profile}>
       <QueryClientProvider client={queryClient}>
         <AdminShell>
-          <PushNotificationManager />
-          {children}
+            {children}
+        <PushNotificationManager />
           <InviteForm />
         </AdminShell>
         <Toaster position="top-right" />

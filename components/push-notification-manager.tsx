@@ -11,7 +11,19 @@ export default function PushNotificationManager() {
   const [subscription, setSubscription] = useState<PushSubscription | null>(
     null,
   );
+  // Read synchronously, before the first paint. It used to be checked
+  // inside the effect, so somebody who had already dismissed this still
+  // got a render pass with it mounted — one more thing appearing and
+  // disappearing while the page settles.
   const [isVisible, setIsVisible] = useState(false);
+  const [dismissedBefore] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("push-notification-dismissed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -31,8 +43,7 @@ export default function PushNotificationManager() {
     const checkStatus = async () => {
       if (!isSupported) return;
 
-      const dismissed = localStorage.getItem("push-notification-dismissed");
-      if (dismissed) {
+      if (dismissedBefore) {
         setIsVisible(false);
         return;
       }
@@ -43,7 +54,11 @@ export default function PushNotificationManager() {
         setSubscription(sub);
 
         if (!sub && Notification.permission !== "denied") {
-          timer = setTimeout(() => setIsVisible(true), 1200);
+          // Late enough that the dashboard has finished settling. It no
+          // longer reflows anything, so there is no cost to waiting, and
+          // arriving in the middle of the first paint is what made it
+          // feel like part of the loading.
+          timer = setTimeout(() => setIsVisible(true), 3500);
         } else {
           setIsVisible(false);
         }
@@ -57,7 +72,7 @@ export default function PushNotificationManager() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isSupported]);
+  }, [isSupported, dismissedBefore]);
 
   async function registerServiceWorker() {
     try {
@@ -123,13 +138,28 @@ export default function PushNotificationManager() {
     localStorage.setItem("push-notification-dismissed", "true");
   };
 
-  if (!isSupported || !isVisible || subscription) {
+  if (!isSupported || !isVisible || subscription || dismissedBefore) {
     return null;
   }
 
   return (
-    <div className="w-full px-4 py-2">
-      <div className="relative rounded-xl border bg-card text-card-foreground shadow-sm">
+    // ── IT NO LONGER PUSHES THE PAGE DOWN ───────────────────────────
+    //
+    // This rendered ABOVE the whole app, in the layout's normal flow, and
+    // appeared 1.2 seconds after load — so the first thing an advertiser
+    // saw was the dashboard jumping down by the height of a card they had
+    // not asked for. It was also a bare shadcn card in the middle of a
+    // shell that looks nothing like one.
+    //
+    // Fixed to the bottom instead: it floats over the content, above the
+    // mobile thumb bar and inside the safe area, and moves nothing when
+    // it arrives or leaves. Narrow, so on a desktop it reads as a prompt
+    // rather than a banner.
+    <div
+      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
+      style={{ bottom: "calc(84px + env(safe-area-inset-bottom))" }}
+    >
+      <div className="pointer-events-auto relative w-full max-w-md rounded-2xl border bg-card text-card-foreground shadow-lg">
         <button
           type="button"
           onClick={dismissBanner}
@@ -139,7 +169,7 @@ export default function PushNotificationManager() {
           <X className="h-4 w-4" />
         </button>
 
-        <div className="flex flex-col gap-4 p-4 pr-10 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 p-4 pr-10">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Bell className="h-5 w-5" />

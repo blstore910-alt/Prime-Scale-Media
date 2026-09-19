@@ -26,7 +26,10 @@ export const AFF_CSS = `
   .navlink:hover{background:var(--panel-2);color:var(--ink)}.navlink.on{background:var(--primary-tint);color:var(--primary-600)}
   .navlink svg{width:19px;height:19px}.navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center}
   .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  .side-foot .avatar{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-family:var(--font-sora);font-weight:700;font-size:.85rem;color:#fff;background:linear-gradient(135deg,#2f66d8,var(--primary))}
+  /* The drawing is a circle and paints its own background; a square
+     gradient tile behind it showed as colour in all four corners. */
+  .side-foot .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
+  .side-foot .avatar svg{width:100%;height:100%;display:block}
   .side-foot .who{font-size:.85rem;font-weight:600;line-height:1.2}.side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -48,7 +51,8 @@ export const AFF_CSS = `
   .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer;position:relative;transition:.15s}.iconbtn:hover{color:var(--ink);border-color:var(--line-2)}
   .badge-n{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;border:2px solid var(--panel)}
   .who-btn{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 5px;border:1px solid var(--line);border-radius:12px;background:var(--panel);cursor:pointer}.who-btn:hover{border-color:var(--line-2)}
-  .who-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--font-sora);font-weight:700;font-size:.8rem;color:#fff;background:linear-gradient(135deg,#2f66d8,var(--primary));position:relative}
+  .who-btn .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
+  .who-btn .avatar svg{width:100%;height:100%;display:block}
   .who-btn .avatar::after{content:"";position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
   .who-btn .nm{font-size:.84rem;font-weight:600;line-height:1}.who-btn svg{width:15px;height:15px;color:var(--faint)}
   .tb-spacer{flex:1}
@@ -63,7 +67,8 @@ export const AFF_CSS = `
   .tool.ic-btn,.tool.ava-btn{background:var(--panel);border:1px solid var(--line)}.tool.ic-btn:hover,.tool.ava-btn:hover{background:var(--panel-2)}
   .tool.ic-btn{padding:7px 11px}.tool .badge-n{top:0;right:2px}
   .tool.ava-btn{padding:4px 8px 4px 4px}
-  .tool.ava-btn .avatar{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-family:var(--font-sora);font-weight:700;font-size:.8rem;color:#fff;background:linear-gradient(135deg,#2f66d8,var(--primary));overflow:hidden;position:relative}
+  .tool.ava-btn .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:none;overflow:hidden;position:relative}
+  .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
   .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
   .tool.ava-btn svg{width:15px;height:15px}
   .tdiv{display:none}
