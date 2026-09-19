@@ -237,7 +237,22 @@ export async function updateUserProfile(
   }
 
   const shouldDeactivateSubscriptions = cleaned.status === "inactive";
-  if (shouldDeactivateSubscriptions) {
+  // ── AND THE WAY BACK ────────────────────────────────────────────────
+  //
+  // Deactivating wrote every subscription to inactive. Activating wrote
+  // only the profile. subscription_billing_run selects status in
+  // ('active','past_due'), so a customer switched back on was never
+  // invoiced again — they sign in, top up, spend, and are billed
+  // nothing, for ever. Nothing on screen said so either: the confirm
+  // step treats reactivation as harmless and skips itself.
+  //
+  // Only `inactive` goes back. `cancelled` is a decision somebody made
+  // about the plan itself and is not ours to undo here, and `paused` is
+  // a state the admin set deliberately on the subscriptions screen.
+  // That distinction is already in the data; it just was not used.
+  const shouldReactivateSubscriptions = cleaned.status === "active";
+
+  if (shouldDeactivateSubscriptions || shouldReactivateSubscriptions) {
     const { data: advertisers, error: advertisersError } = await supabase
       .from("advertisers")
       .select("id")
@@ -246,17 +261,52 @@ export async function updateUserProfile(
       return { ok: false, error: advertisersError.message };
     }
     const advertiserIds = (advertisers ?? []).map((a) => a.id);
-    if (advertiserIds.length > 0) {
+    if (advertiserIds.length > 0 && shouldDeactivateSubscriptions) {
       // No row count here ON PURPOSE. This is a bulk "make sure none of
       // their subscriptions are still running", and an advertiser with no
       // active subscription legitimately matches nothing. A guard would turn
       // the ordinary case into an error.
+      //
+      // .not(col,"is",...) rather than .neq: PostgREST's neq DROPS NULL
+      // rows, so a subscription whose status was never set stayed
+      // running after its owner was switched off.
       const { error: subError } = await supabase
         .from("subscriptions")
         .update({ status: "inactive" })
         .in("advertiser_id", advertiserIds)
-        .neq("status", "inactive");
+        .or("status.is.null,status.neq.inactive");
       if (subError) return { ok: false, error: subError.message };
+    }
+    if (advertiserIds.length > 0 && shouldReactivateSubscriptions) {
+      const { data: dormant, error: dormantError } = await supabase
+        .from("subscriptions")
+        .select("id, next_payment_date")
+        .in("advertiser_id", advertiserIds)
+        .eq("status", "inactive");
+      if (dormantError) return { ok: false, error: dormantError.message };
+
+      // NOT BACK-BILLED FOR THE TIME THEY WERE SWITCHED OFF. If
+      // next_payment_date is still months in the past, the nightly run
+      // raises an invoice for that old period, the paid-trigger rolls it
+      // forward one month, and the next night raises another — a queue of
+      // invoices for months during which the customer could not use the
+      // account. Billing resumes from today.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (const row of dormant ?? []) {
+        const prev = row.next_payment_date
+          ? new Date(row.next_payment_date as string)
+          : null;
+        const next = prev && prev > today ? prev : today;
+        const { error: onError } = await supabase
+          .from("subscriptions")
+          .update({
+            status: "active",
+            next_payment_date: next.toISOString(),
+          })
+          .eq("id", row.id);
+        if (onError) return { ok: false, error: onError.message };
+      }
     }
   }
 

@@ -69,11 +69,11 @@ begin
      order by i.created_at
   loop
     v := v || format('%s · %s · %s %s · gemaakt %s · klant %s. ',
-                     coalesce(r.number, r.id::text),
+                     coalesce(r.number::text, r.id::text),
                      case when r.period_start is null
                           then 'geen periode' else 'geen vervaldatum' end,
                      upper(coalesce(r.currency, 'EUR')), r.total::text,
-                     r.gemaakt, coalesce(r.klant, 'onbekend'));
+                     r.gemaakt::text, coalesce(r.klant, 'onbekend'));
   end loop;
   perform public._log(1, 'Wat er weg gaat',
     case when v = '' then 'niets — er is geen losse factuur (meer)' else v end);
