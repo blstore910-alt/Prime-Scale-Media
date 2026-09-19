@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ export default function AdminCredentialsDialog({
 }) {
   const handleCopy = async (value: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(value);
+      if (!(await copyText(value))) throw new Error("copy refused");
       toast.success(`${label} copied.`);
     } catch (error) {
       toast.error("Failed to copy.", {

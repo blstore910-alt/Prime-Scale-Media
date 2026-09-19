@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -393,7 +394,7 @@ export default function InviteForm() {
                   size="sm"
                   onClick={async () => {
                     try {
-                      await navigator.clipboard.writeText(createdLink);
+                      if (!(await copyText(createdLink))) throw new Error("copy refused");
                       toast.success("Link copied");
                     } catch {
                       toast.error("Couldn't copy — select manually");

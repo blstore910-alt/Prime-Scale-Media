@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -40,7 +41,7 @@ export default function Copyable({
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (!(await copyText(text))) throw new Error("copy refused");
       setState("done");
     } catch {
       // Blocked: an insecure context, a denied permission, or a browser that

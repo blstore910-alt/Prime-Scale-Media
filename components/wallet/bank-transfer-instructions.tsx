@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,39 +82,62 @@ export function BankTransferInstructions({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <p className="text-sm font-medium leading-relaxed">
-          {detail.description}
-        </p>
+    /* ── ONE SHEET OF BANK DETAILS, NOT A STACK OF LABELS ─────────────
+       This was a column of floating label/value pairs with a copy icon
+       that only appeared on hover, three uppercase micro-headings and a
+       yellow warning box at the end — a form to be filled rather than a
+       thing to be read off and typed into a banking app.
+
+       It is now one bordered sheet, the way a bank prints its own
+       details: hairline-separated rows, the label small and quiet on the
+       left, the value the thing your eye lands on, and the copy control
+       always visible because that is the whole reason anyone opens this
+       step. An account number, an IBAN and a BIC are set in the mono
+       face, so a 6 and an 8 and a B and an 8 are distinguishable —
+       which is the difference between a transfer arriving and a week of
+       tracing it. */
+    <div className="space-y-3">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {detail.description}
+      </p>
+
+      <div className="overflow-hidden rounded-xl border bg-[color:var(--panel,#fff)] shadow-[0_1px_2px_-1px_rgba(20,30,80,.14)]">
+        {detail.sections.map((section, idx) => (
+          <div key={idx}>
+            <p className="border-b bg-muted/40 px-3.5 py-2 text-[10px] font-bold uppercase tracking-[.09em] text-muted-foreground">
+              {section.title}
+            </p>
+            <div className="divide-y">
+              {section.items.map((item) => (
+                <InstructionItem
+                  key={item.label}
+                  label={item.label}
+                  value={item.value}
+                  copyable={item.copyable}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {detail.sections.map((section, idx) => (
-        <div key={idx} className="space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 border-b pb-1">
-            {section.title}
-          </p>
-          <div className="grid gap-3">
-            {section.items.map((item) => (
-              <InstructionItem
-                key={item.label}
-                label={item.label}
-                value={item.value}
-                copyable={item.copyable}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-      <div className="rounded-md bg-yellow-50 border border-yellow-600 p-3 ">
-        <p className="text-yellow-600">
-          Note: Please use the exact account name or your deposit may be
-          rejected.
-        </p>
-      </div>
+      {/* The one sentence that stops a deposit being rejected, said once
+          and quietly. A full-width yellow panel at the end of the block
+          reads as an error on a screen where nothing has gone wrong. */}
+      <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+        <span
+          aria-hidden
+          className="mt-[3px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+        />
+        Use the exact account name shown above — a deposit under a
+        different name can be rejected by the bank.
+      </p>
     </div>
   );
 }
+
+/** Values that have to be read character by character. */
+const MONO_LABELS = /iban|bic|swift|account number|routing|sort code|reference/i;
 
 function InstructionItem({
   label,
@@ -143,7 +167,7 @@ function InstructionItem({
   const handleCopy = async () => {
     const cleanValue = value.split("\n(")[0];
     try {
-      await navigator.clipboard.writeText(cleanValue);
+      if (!(await copyText(cleanValue))) throw new Error("copy refused");
       setCopied(true);
       toast.success(label + " copied");
       setTimeout(() => setCopied(false), 2000);
@@ -157,11 +181,16 @@ function InstructionItem({
   };
 
   return (
-    <div className="group relative grid gap-1 pr-10">
-      <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+    <div className="relative flex items-start gap-3 px-3.5 py-2.5">
+      <span className="mt-[3px] w-[104px] shrink-0 text-[10px] font-semibold uppercase leading-tight tracking-[.07em] text-muted-foreground">
         {label}
       </span>
-      <span className="text-sm text-foreground whitespace-pre-wrap leading-snug font-medium">
+      <span
+        className={cn(
+          "min-w-0 flex-1 whitespace-pre-wrap break-words text-sm font-semibold leading-snug text-foreground",
+          MONO_LABELS.test(label) && "font-mono tracking-[.01em]",
+        )}
+      >
         {value}
       </span>
       {copyable && (
@@ -169,18 +198,23 @@ function InstructionItem({
           type="button"
           variant="ghost"
           size="icon"
+          /* ALWAYS VISIBLE. This was opacity-0 until hover on large
+             screens — on the one control the whole step exists for, and
+             on a phone there is no hover at all, so it depended on the
+             icon being rendered invisible and tapped anyway. */
           className={cn(
-            "absolute top-0 right-0 h-8 w-8 transition-all",
+            "-mr-1 h-8 w-8 shrink-0 transition-colors",
             copied
-              ? "text-green-500"
-              : "text-muted-foreground hover:text-foreground lg:opacity-0 lg:group-hover:opacity-100",
+              ? "text-emerald-600"
+              : "text-muted-foreground/70 hover:text-foreground",
           )}
           onClick={handleCopy}
+          aria-label={`Copy ${label}`}
         >
           {copied ? (
-            <Check className="h-3.5 w-3.5" />
+            <Check className="h-4 w-4" />
           ) : (
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-4 w-4" />
           )}
         </Button>
       )}

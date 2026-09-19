@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
@@ -280,7 +281,7 @@ export default function AffiliateApp() {
       return;
     }
     try {
-      await navigator.clipboard.writeText(referralLink);
+      if (!(await copyText(referralLink))) throw new Error("copy refused");
       toast.success("Referral link copied.");
     } catch {
       toast.error("Couldn't copy the link.");
@@ -320,7 +321,7 @@ export default function AffiliateApp() {
       return;
     }
     try {
-      await navigator.clipboard.writeText(referralLink);
+      if (!(await copyText(referralLink))) throw new Error("copy refused");
       toast.success("Link copied — paste it into any QR generator.");
     } catch {
       toast.error("Couldn't copy the link.");

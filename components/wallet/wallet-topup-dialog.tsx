@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { banksForAccountTypes } from "@/lib/bank-routing";
+import { copyText } from "@/lib/copy-text";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import {
   Select,
@@ -249,15 +250,18 @@ export default function WalletTopupDialog({
   const copyReference = async () => {
     const ref = formatPaymentReference(clientCode, referenceNo);
     if (!ref) return;
-    try {
-      await navigator.clipboard.writeText(ref);
+    // copyText falls back to the legacy route when the Clipboard API is
+    // unavailable or refused — which it is in an in-app browser, in an
+    // iframe without clipboard-write, and on any non-secure origin. This
+    // was reporting failure in all of those while the fallback would
+    // have worked, on the one control that exists to stop a customer
+    // retyping a payment reference by hand.
+    if (await copyText(ref)) {
       setRefCopied(true);
       setTimeout(() => setRefCopied(false), 1800);
-    } catch {
-      // Blocked clipboard (insecure context, denied permission). Say so
-      // rather than showing a tick for something that did not happen.
-      toast.error("Couldn't copy — select the reference and copy it by hand.");
+      return;
     }
+    toast.error("Couldn't copy — select the reference and copy it by hand.");
   };
 
   // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the

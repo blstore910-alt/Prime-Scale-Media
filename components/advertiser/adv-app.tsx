@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { dmSans, jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
@@ -658,7 +659,7 @@ export default function AdvertiserApp() {
   const copyReferral = async () => {
     if (!referralLink) return;
     try {
-      await navigator.clipboard.writeText(referralLink);
+      if (!(await copyText(referralLink))) throw new Error("copy refused");
       toast.success("Referral link copied.");
     } catch {
       toast.error("Couldn't copy the link.");
@@ -4028,13 +4029,11 @@ function CopyRef({ value }: { value: string }) {
         // clipboard is unavailable over plain http and in some embedded
         // webviews, and it REJECTS rather than throwing synchronously.
         // A failed copy must not look like a successful one.
-        navigator.clipboard
-          ?.writeText(value)
-          .then(() => {
-            setDone(true);
-            setTimeout(() => setDone(false), 1600);
-          })
-          .catch(() => {});
+        void copyText(value).then((ok) => {
+          if (!ok) return;
+          setDone(true);
+          setTimeout(() => setDone(false), 1600);
+        });
       }}
     >
       <span>{value}</span>

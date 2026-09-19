@@ -86,7 +86,13 @@ const DialogContent = React.forwardRef<
           Nothing to grab on a desktop, where it is a centred card. */}
       <div
         aria-hidden
-        className="sticky top-0 z-10 -mt-1.5 mb-0.5 h-1.5 w-11 shrink-0 justify-self-center rounded-full bg-[color:var(--line-2,rgba(20,30,80,.18))] sm:hidden"
+        /* mx-auto, NOT justify-self-center. justify-self only does anything
+            in a grid, and DialogContent's base display is grid — but any
+            call site that overrides it to `flex flex-col` (the wallet
+            top-up, the ad-account request, the fund form) silently loses
+            the centring, and the handle drops to the left edge of the
+            sheet. An auto margin centres it under both. */
+          className="sticky top-0 z-10 mx-auto -mt-1.5 mb-0.5 h-1.5 w-11 shrink-0 rounded-full bg-[color:var(--line-2,rgba(20,30,80,.18))] sm:hidden"
       />
       {children}
       {/* 36px, not 32: this is the control people reach for by mistake

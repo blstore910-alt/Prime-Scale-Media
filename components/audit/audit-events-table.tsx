@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { useState, useEffect } from "react";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
@@ -299,7 +300,7 @@ export default function AuditEventsTable() {
                             aria-label="Copy row id"
                             onClick={async () => {
                               try {
-                                await navigator.clipboard.writeText(ev.row_id!);
+                                if (!(await copyText(ev.row_id!))) throw new Error("copy refused");
                                 toast.success("Copied");
                               } catch {
                                 toast.error("Clipboard blocked");

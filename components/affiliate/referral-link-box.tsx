@@ -1,5 +1,6 @@
 "use client";
 
+import { copyText } from "@/lib/copy-text";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppContext } from "@/context/app-provider";
@@ -28,7 +29,7 @@ export default function ReferralLinkBox() {
   const handleCopy = async () => {
     if (!referralLink) return;
     try {
-      await navigator.clipboard.writeText(referralLink);
+      if (!(await copyText(referralLink))) throw new Error("copy refused");
       toast.success("Referral link copied.");
     } catch (error) {
       toast.error("Failed to copy referral link.", {
