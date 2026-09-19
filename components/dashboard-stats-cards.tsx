@@ -586,7 +586,17 @@ function SummaryStatCard({
         </>
       ) : (
         <>
-          <div className="v">{value || "0"}</div>
+          {/* ── AN EMPTY VALUE IS NOT A ZERO ─────────────────────────
+              `value || "0"` printed a confident 0 whenever the caller
+              passed "" — which is what every one of them does while the
+              read is still in flight OR after it failed. react-query v5
+              makes a DISABLED query isPending true and isFetching false,
+              so isLoading is false and isError is false, and both guards
+              above fall straight through to here. Meanwhile the period
+              cards on the same screen print "Failed to load" in that
+              exact window. Two blocks, one screen, disagreeing about
+              whether anything is wrong. */}
+          <div className="v">{value === "" ? "—" : value}</div>
           <div className="sub">{description}</div>
         </>
       )}

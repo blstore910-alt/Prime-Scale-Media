@@ -902,7 +902,45 @@ export default function AdvertiserApp() {
   // the current period, and the count below says plainly when more than one
   // is open — being asked for two is a fact the customer needs, not
   // something to hide behind a single number.
-  const unpaidSubInvoices = (invoices ?? [])
+  // ── FROM ITS OWN READ, NOT FROM THE FIRST THIRTY ROWS ───────────────
+  //
+  // `invoices` is .limit(30) across ALL types. A customer who asks for
+  // six ad accounts in a month raises six ad_account_fee invoices, plus
+  // top-up receipts and one-offs — so an unpaid subscription invoice
+  // from five weeks ago falls off the end of that window. The billing
+  // card then reads "Nothing owed right now", the plan pill reads
+  // Active, and there is no Pay button; seven days after the due date
+  // the cron takes it anyway.
+  //
+  // `planPaid` was given its own dedicated query for exactly this
+  // hazard. dueSubInvoice was not.
+  // Every unpaid subscription invoice, however old, and nothing else.
+  // Small by construction: one customer holds at most a handful.
+  const { data: dueInvoices } = useQuery<
+    (InvoiceWithRelations & { due_date?: string | null })[]
+  >({
+    queryKey: ["adv-due-sub-invoices", tenantId, advertiserId],
+    enabled: !!tenantId && !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("invoices")
+        .select(
+          "id, number, total, status, paid_at, created_at, due_date, items, type, currency",
+        )
+        .eq("tenant_id", tenantId)
+        .eq("advertiser_id", advertiserId)
+        .eq("type", "subscription")
+        .not("status", "in", "(paid,void)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as (InvoiceWithRelations & {
+        due_date?: string | null;
+      })[];
+    },
+  });
+
+  const unpaidSubInvoices = (dueInvoices ?? [])
     .filter((i) => i.status !== "paid" && i.status !== "void" && i.type === "subscription")
     .sort(
       (a, b) =>
@@ -1253,6 +1291,13 @@ export default function AdvertiserApp() {
       if (error) throw error;
       toast.success("Invoice paid from your wallet.");
       queryClient.invalidateQueries({ queryKey: ["adv-invoices"], exact: false });
+      // The due-invoice read is its own query now, so it needs its own
+      // line here — paying an invoice that does not disappear from the
+      // billing card is the whole reason this list is invalidated.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-due-sub-invoices"],
+        exact: false,
+      });
       // ── AND THE PLAN-PAID CACHE ────────────────────────────────────
       //
       // `adv-plan-paid` is read nowhere else and was invalidated nowhere
