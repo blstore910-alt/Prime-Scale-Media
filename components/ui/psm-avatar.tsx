@@ -31,7 +31,17 @@ export default function PsmAvatar({
   email,
   role = "unknown",
   size = 32,
-  style = "beam",
+  // MONOGRAM, not the face. "beam" draws two dots and a mouth, and at
+  // 30px in a toolbar that reads as a placeholder somebody forgot to
+  // replace — a smiley next to a wallet balance. Initials on the seed's
+  // own two-tone ground is what a person recognises as themselves, it
+  // carries the brand colours, and it stays legible down to 24px where a
+  // face turns to mush.
+  //
+  // The ten styles and the picker for them are still here; nothing has
+  // ever wired the picker up, so until something does, this is what
+  // everyone sees.
+  style = "mono",
   ring,
   className,
   title,

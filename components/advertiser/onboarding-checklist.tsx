@@ -18,6 +18,17 @@ type Props = {
   eurBalance: number;
   usdBalance: number;
   accountsCount: number;
+  /**
+   * Has a wallet top-up EVER completed for this advertiser?
+   *
+   * The tick used to be `eurBalance > 0 || usdBalance > 0`, and a balance
+   * is not the thing the step describes. Top up your wallet is something
+   * you DID; the money then leaves again — the first €5 top-up goes
+   * straight out to the €5 monthly plan — and the moment it does, the
+   * list unticks the step, says "2 steps left" and tells the customer to
+   * fund a wallet they have already funded.
+   */
+  hasToppedUp?: boolean;
   /** True while any of the reads behind the ticks is still in flight. */
   loading?: boolean;
   /**
@@ -93,6 +104,7 @@ export default function OnboardingChecklist({
   eurBalance,
   usdBalance,
   accountsCount,
+  hasToppedUp = false,
   loading = false,
   unavailable = false,
   onNavigate,
@@ -161,7 +173,8 @@ export default function OnboardingChecklist({
       icon: "i-wallet",
       cta: "Top up",
       view: "wallet",
-      auto: eurBalance > 0 || usdBalance > 0,
+      // A balance OR a completed transfer. Either one proves the step.
+      auto: hasToppedUp || eurBalance > 0 || usdBalance > 0,
     },
     {
       id: "account",

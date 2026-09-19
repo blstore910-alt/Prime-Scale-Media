@@ -366,9 +366,17 @@ ${s} .tbl .cust{max-width:190px}
    is nested; an h2 with no icon is unaffected by the svg rules. */
 ${s} .card h2{display:flex;align-items:center;gap:10px;font-size:1.06rem;min-width:0}
 ${s} .card h2>span{display:inline-flex;align-items:center;gap:10px;min-width:0}
+/* ── ONE BADGE SIZE ─────────────────────────────────────────────────────
+   There were four: 28px on the checklist, 31px on a card heading, 38px on
+   a list row and 38px on the pending-transfer notice. On the Billing card
+   a 31px clock sits a few pixels above a 38px tick, so the two read as
+   different kinds of object when they are the same kind of object. Every
+   decorative icon badge is 34px with an 18px glyph from here on; the
+   checklist tick stays smaller because a checkbox is a control, not a
+   badge. */
 ${s} .card h2 svg{
-  box-sizing:content-box;width:17px;height:17px;padding:7px;flex:0 0 auto;
-  border-radius:10px;color:var(--primary-600);background:var(--primary-tint);
+  box-sizing:content-box;width:18px;height:18px;padding:8px;flex:0 0 auto;
+  border-radius:11px;color:var(--primary-600);background:var(--primary-tint);
   box-shadow:0 1px 0 #fff inset,0 0 0 1px rgba(58,111,255,.12)}
 
 /* ── Fields ─────────────────────────────────────────────────────────────

@@ -19,7 +19,11 @@ export const ADV_CSS = `
 
   .app{display:flex;min-height:100vh}
   .sidebar{width:var(--sidebar);flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh}
-  .logo{display:flex;align-items:center;gap:11px;padding:6px 8px 18px}
+  .logo{display:flex;align-items:center;gap:11px;padding:6px 8px 18px;
+    background:none;border:0;width:100%;text-align:left;cursor:pointer;
+    font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+  .logo:active .mark,.tb-brand:active .mark{transform:scale(.94)}
+  .logo .mark,.tb-brand .mark{transition:transform .12s}
   .mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;flex:0 0 auto;background:linear-gradient(135deg,var(--navy1),var(--navy2),var(--navy3));box-shadow:0 0 22px rgba(91,141,255,.4),0 0 0 1px rgba(91,141,255,.28)}
   .mark svg{width:20px;height:20px}
   .logo .name{font-family:var(--hd);font-weight:800;letter-spacing:-.025em;font-size:.98rem;line-height:1.1}
@@ -40,7 +44,8 @@ export const ADV_CSS = `
 
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .topbar{display:flex;align-items:center;gap:12px;padding:11px 22px;position:sticky;top:0;z-index:30;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-  .tb-brand{display:flex;align-items:center;gap:10px}.tb-brand .mark{width:34px;height:34px;display:none}/* sidebar shows the logo on desktop */
+  .tb-brand{display:flex;align-items:center;gap:10px;background:none;border:0;
+    padding:0;cursor:pointer;color:inherit;-webkit-tap-highlight-color:transparent}.tb-brand .mark{width:34px;height:34px;display:none}/* sidebar shows the logo on desktop */
   /* The page content renders its own <h1> per view (.phead h1), so the
      topbar title would duplicate it on desktop — hide it everywhere, same
      as the .psmapp shell. On mobile the brand mark shows instead. */
@@ -272,7 +277,8 @@ export const ADV_CSS = `
   @keyframes okpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
 
   .list-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.list-row:first-child{border-top:0}
-  .list-row .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
+  .list-row .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
+  .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}
 
   .sub-card{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2),#151d3f);box-shadow:0 22px 46px -26px rgba(20,30,80,.8)}
@@ -416,14 +422,20 @@ export const ADV_CSS = `
   @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
   .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.mhead h2{font-size:1.15rem}.mhead .iconbtn{width:34px;height:34px;font-size:1.1rem;font-weight:600}
   .mlabel{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
-  /* Onboarding checklist row. The tick (28px), the icon (34px) and the CTA
+  /* Onboarding checklist row. The tick (28px), the icon (28px) and the CTA
      (.btn is white-space:nowrap) can't shrink, so on a narrow screen the text
      absorbed all of it. Below 560px the text takes its own full-width line and
      the CTA drops beneath it instead. */
   /* Tick, icon and title on the first line; description on its own; action
      last. Flat white panels with a 1px line read as unfinished, so each row
      gets a soft vertical wash and lifts a little under the pointer. */
-  .onbrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  /* column-gap and row-gap SEPARATELY. A plain gap:10px on a wrapping
+     flex row applies between the wrapped LINES too, so the description sat 10px
+     below the title on top of its own margin and the button 10px below
+     that — three gaps doing the work of one, and at phone width that is
+     most of the card. The 10px between the tick, the icon and the title
+     is the part that was wanted. */
+  .onbrow{display:flex;align-items:center;column-gap:10px;row-gap:3px;flex-wrap:wrap;
     padding:13px 14px;border:1px solid var(--line);border-radius:14px;
     background:linear-gradient(180deg,#fff,var(--panel-2));
     box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 8px 20px -18px rgba(20,30,80,.5);
@@ -442,8 +454,8 @@ export const ADV_CSS = `
      one-line icon is what made this list look ragged. */
   .onbrow .onb-t{flex:1 1 0;min-width:0;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .onbrow .onb-d{flex:1 1 100%;margin:2px 0 0;padding-left:76px}
-  .onbrow .ocat{flex:1 1 100%;margin:10px 0 0;justify-content:center}
+  .onbrow .onb-d{flex:1 1 100%;margin:0;padding-left:76px;line-height:1.35}
+  .onbrow .ocat{flex:1 1 100%;margin:9px 0 0;justify-content:center}
   @media(min-width:561px){
     .onbrow .onb-d{flex:1 1 100%}
     .onbrow .ocat{flex:0 0 auto;margin-left:auto;margin-top:0;width:auto}
@@ -750,7 +762,7 @@ export const ADV_CSS = `
     padding:13px 14px;border-radius:15px;border:1px solid #f3e3c2;
     background:linear-gradient(180deg,#fffdf8,#fff8ea);margin-top:12px}
   .ptup+.ptup{margin-top:10px}
-  .ptup .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  .ptup .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
     background:#fdf0d5;color:#b07d10;flex:0 0 auto;
     animation:ptup-ring 3s ease-out infinite}
   .ptup .ico svg{width:18px;height:18px}

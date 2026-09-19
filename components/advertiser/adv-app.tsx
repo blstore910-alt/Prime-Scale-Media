@@ -714,6 +714,27 @@ export default function AdvertiserApp() {
     ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
+  // Has a transfer EVER landed? The onboarding tick used to read the
+  // balance, and the first top-up leaves again the moment the plan is
+  // charged — so the list untick­ed itself and told a paying customer to
+  // fund a wallet they had funded. head:true, so it fetches a number and
+  // no rows.
+  const { data: toppedUpCount } = useQuery<number>({
+    queryKey: ["adv-ever-topped-up", wallet?.id],
+    enabled: !!wallet?.id,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from("wallet_topups")
+        .select("id", { count: "exact", head: true })
+        .eq("wallet_id", wallet!.id)
+        .eq("status", "completed");
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   // Everything not yet credited, however far back it goes. Separate from
   // the statement above so a long history can never hide a live transfer.
   const {
@@ -1484,14 +1505,19 @@ export default function AdvertiserApp() {
       />
 
       <aside className={`sidebar${navOpen ? " open" : ""}`}>
-        <div className="logo">
+        <button
+          type="button"
+          className="logo"
+          onClick={() => go("dash")}
+          aria-label="Go to the dashboard"
+        >
           <span className="mark">
             <Ic name="i-rocket" />
           </span>
           <span className="name">
             Prime Scale Media<small>Advertiser</small>
           </span>
-        </div>
+        </button>
         {NAV.map((item) => (
           <button
             key={item.v}
@@ -1548,11 +1574,20 @@ export default function AdvertiserApp() {
             >
               <Ic name="i-menu" />
             </button>
-            <span className="tb-brand">
+            {/* A logo in the top bar is the way back to the start on
+                every site there has ever been, and this one did nothing.
+                It is a button now, not a decoration. */}
+            <button
+              type="button"
+              className="tb-brand"
+              onClick={() => go("dash")}
+              aria-label="Go to the dashboard"
+              title="Dashboard"
+            >
               <span className="mark">
                 <Ic name="i-rocket" />
               </span>
-            </span>
+            </button>
           </div>
           <span className="tb-title">{TITLES[view]}</span>
           <div className="tb-spacer" />
@@ -1726,6 +1761,7 @@ export default function AdvertiserApp() {
                  and when the last one landed it swapped to a different card
                  entirely. That is the flicker: a checklist appearing to
                  undo itself while you read it. */
+              hasToppedUp={(toppedUpCount ?? 0) > 0}
               loading={companyLoading || walletLoading || accountsLoading}
               /* AND WAIT FOR A FAILED READ TOO. `loading` goes false when a
                  query FAILS, and then company is null and both balances are
@@ -1844,11 +1880,24 @@ export default function AdvertiserApp() {
                     "outstanding" is the word the tile directly above uses
                     for the same figure, so the two agree instead of
                     describing one amount two ways. */}
+                {/* ── AND A PAY BUTTON MEANS SOMETHING IS OWED ──────────
+                    This row rendered whenever a paid plan existed, so with
+                    nothing outstanding it read "Monthly fee €5.00 · due
+                    18 Oct" with Pay beside it — while the Billing screen
+                    one tap away said "Nothing owed right now. This month
+                    is paid." The customer is offered a button to pay a
+                    bill they have already settled, and the two screens
+                    contradict each other about their own money.
+
+                    Nothing owed is worth SAYING — what is coming and when
+                    is the useful half — so the row stays and loses the
+                    button. "Next payment" is a statement; "Monthly fee …
+                    due" next to Pay is a demand. */}
                 <span className="dtx">
-                  {dueSubInvoice ? "Outstanding" : "Monthly fee"}{" "}
+                  {dueSubInvoice ? "Outstanding" : "Next payment"}{" "}
                   <b>{dueSubInvoice ? dueBillAmount : planMoney(subscription.amount)}</b>
                   {dueBillDate
-                    ? ` · due ${dayjs(dueBillDate).format("D MMM")}`
+                    ? ` · ${dueSubInvoice ? "due" : "on"} ${dayjs(dueBillDate).format("D MMM")}`
                     : ""}
                 </span>
                 {/* "Pay", not "Pay now". The row must hold one line at phone
@@ -1858,9 +1907,13 @@ export default function AdvertiserApp() {
                 <button
                   className="dlink"
                   onClick={() => go("billing")}
-                  title="Pay this invoice from your wallet"
+                  title={
+                    dueSubInvoice
+                      ? "Pay this invoice from your wallet"
+                      : "See your plan and invoices"
+                  }
                 >
-                  Pay <Ic name="i-arrow" />
+                  {dueSubInvoice ? "Pay" : "View"} <Ic name="i-arrow" />
                 </button>
               </div>
             )}
