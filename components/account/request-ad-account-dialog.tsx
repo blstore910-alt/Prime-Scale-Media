@@ -30,7 +30,12 @@ export default function RequestAdAccountDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      {/* ONE SCROLLPORT. The form inside carries its own
+          overflow-y-auto, and DialogContent's base class is
+          overflow-y-auto too — so the dialog scrolled AND its contents
+          scrolled, two bars side by side, and neither of them moved the
+          whole thing. The outer box holds still; the form scrolls. */}
+      <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Request an ad account</DialogTitle>
           <DialogDescription>

@@ -440,35 +440,12 @@ export default function AccountForm({
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={handleSubmit(handleCreateAccount)}
       >
-        {draft.hasDraft && draft.restoredDraft && (
-          <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
-            <div className="flex-1 text-xs">
-              Unsaved draft from{" "}
-              {new Date(draft.restoredDraft.savedAt).toLocaleString()}
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                reset(draft.restoredDraft!.values);
-                draft.dismissDraft();
-              }}
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Restore
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => void draft.clear()}
-              aria-label="Discard draft"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
+        {/* The "Unsaved draft from ... Restore" strip used to sit here.
+            Taken out at the owner's request: on a form people fill
+            once, it is a second thing to read and dismiss before
+            they can start, and it sat between the fee notice and
+            the first field. use-form-draft still keeps the typing
+            safe across a reload; it simply no longer interrupts. */}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-1">
           <SelectField
             label="Select Platform"

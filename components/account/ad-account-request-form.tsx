@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { isUrlLike } from "@/lib/url-field";
 import { Resolver, useForm, Control, Controller } from "react-hook-form";
 import * as z from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import InputField from "../form/input-field";
 import SelectField from "../form/select-field";
 import TextareaField from "../form/textarea-field";
@@ -392,6 +392,9 @@ export default function AdAccountRequestForm({
   // dialog rather than a second dialog, because a dialog on top of a dialog
   // in a portal is where focus handling goes wrong.
   const [confirming, setConfirming] = useState<FormValues | null>(null);
+  // A ref, because state read out of a closure is the latch that does
+  // not latch. See the note on the confirm handler below.
+  const submitLatch = useRef(false);
 
   const onSubmit = (values: FormValues) => {
     if (!profile) {
@@ -522,35 +525,12 @@ export default function AdAccountRequestForm({
             </>
           )}
         </div>
-        {draft.hasDraft && draft.restoredDraft && (
-          <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 flex items-center gap-2">
-            <div className="flex-1 text-xs">
-              Unsaved draft from{" "}
-              {new Date(draft.restoredDraft.savedAt).toLocaleString()}
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                reset(draft.restoredDraft!.values);
-                draft.dismissDraft();
-              }}
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Restore
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => void draft.clear()}
-              aria-label="Discard draft"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
+        {/* The "Unsaved draft from ... Restore" strip used to sit here.
+            Taken out at the owner's request: on a form people fill
+            once, it is a second thing to read and dismiss before
+            they can start, and it sat between the fee notice and
+            the first field. use-form-draft still keeps the typing
+            safe across a reload; it simply no longer interrupts. */}
         <div className="space-y-6 max-h-[70dvh] overflow-y-auto px-1 py-2">
           {/* Platform Radio Group */}
           <div className="space-y-3">
@@ -736,7 +716,31 @@ export default function AdAccountRequestForm({
         busy={isPending}
         busyLabel="Sending…"
         disabled={!feeEnough}
-        onConfirm={() => void handleSubmit(onSubmit)()}
+        /* ── SHUT THE DOOR BEFORE THE VALIDATION, NOT AFTER ──────────
+           This is the only money confirmation in the app that does not
+           call its mutation directly. handleSubmit is react-hook-form's
+           async wrapper over an async zod resolver, so mutate() — and
+           therefore isPending — is not reached until that promise chain
+           settles. At the instant of the click busy is still false, the
+           button is not disabled, and the handler does not close the
+           dialog: setConfirming(null) only happens in the mutation
+           callbacks. So the confirm button stays live across the whole
+           validation gap, and two presses both reach mutate().
+
+           ad_account_request_create_paid takes a lock on the wallet and
+           then inserts unconditionally — no request key, no unique
+           constraint. Two calls is EUR 100 debited and two pending
+           requests for one ad account.
+
+           A ref, not state: state read out of a closure is exactly the
+           latch that does not latch. */
+        onConfirm={() => {
+          if (submitLatch.current) return;
+          submitLatch.current = true;
+          void handleSubmit(onSubmit)().finally(() => {
+            submitLatch.current = false;
+          });
+        }}
       >
         <ConfirmFact label="Platform" value={PLATFORM_LABEL[confirming?.platform ?? "meta-ads"]} />
         <ConfirmFact label="Currency" value={confirming?.currency ?? ""} />

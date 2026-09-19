@@ -298,10 +298,25 @@ export const ADV_CSS = `
   .copyref:hover{background:var(--panel-2)}
   .copyref:hover svg{opacity:1}
   .copyref:active{transform:scale(.99)}
+  /* "View all" under a truncated list. Full width, quiet, and it turns
+     its chevron over when the list is open — so the control says which
+     way it goes without a second label. */
+  .invmore{width:100%;justify-content:center;margin-top:10px}
+  .invmore svg{width:14px;height:14px;transition:transform .15s}
   .list-row .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}
 
+  /* The status, pinned to the top-right corner. A pill at the start of
+     the card makes the state the headline; the plan and the price are
+     the headline, and the state is a mark on it. */
+  .sub-card .pill.pill-tr{position:absolute;top:16px;right:16px;margin:0;z-index:2}
+  .sub-card .plan-name{margin-top:6px}
+  @media(max-width:420px){
+    /* At phone width the pill and a long plan name meet, so the name
+       starts below it instead of beside it. */
+    .sub-card .plan-name{margin-top:34px}
+  }
   /* The plan's own name, above the price. Small caps, spaced, at the
      card's own opacity — a label for the figure under it, not a second
      headline competing with it. */

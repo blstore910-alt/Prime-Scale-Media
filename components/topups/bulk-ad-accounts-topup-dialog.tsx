@@ -406,7 +406,7 @@ export default function BulkTopupAdAccountsDialog({
     }
     toastResult(
       result,
-      `Successfully topped up ${result.data.inserted} ad accounts.`,
+      `${result.data.inserted} top-ups filed — verify them to move the money.`,
     );
     setOpen(false);
   };
@@ -715,7 +715,7 @@ export default function BulkTopupAdAccountsDialog({
           if (!next && !running) setConfirming(null);
         }}
         title="Move this money to these ad accounts?"
-        lead="It leaves the wallet now, for every account listed. Money on an ad account can only come back through a withdrawal request, which we have to approve — so this is as final as the single top-up, times the number of rows."
+        lead="This files a top-up for every account listed. Nothing leaves the wallet yet — each row still has to be verified on the Pending top-ups desk before the money moves, and once it has moved it only comes back through a withdrawal we approve."
         cta="Yes, top them all up"
         busy={running}
         busyLabel="Sending…"
@@ -747,7 +747,12 @@ export default function BulkTopupAdAccountsDialog({
         ).map(([cur, total]) => (
           <ConfirmFact
             key={cur}
-            label={`Out of the ${cur} wallet`}
+            /* "To be verified", not "Out of the wallet". bulkCreate
+               writes every row as pending and never touches a wallet, so
+               this label promised a debit that had not happened —
+               against a confirmation that also called it as final as the
+               single top-up. */
+            label={`To be verified, ${cur}`}
             value={`${cur} ${total.toFixed(2)}`}
             strong
           />

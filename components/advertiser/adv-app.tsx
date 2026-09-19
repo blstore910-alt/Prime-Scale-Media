@@ -167,6 +167,9 @@ export default function AdvertiserApp() {
   // pressing Top up inside the card labelled "USD wallet" opened a EUR
   // top-up — and somebody who did not re-read the third line wired
   // dollars and filed the claim in euros.
+  // Five is what fits before the card becomes a list you scroll past
+  // rather than a summary you read. The rest are one tap away.
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [applying, setApplying] = useState(false);
   const [affiliateApplied, setAffiliateApplied] = useState(false);
   const [topupCurrency, setTopupCurrency] = useState<"EUR" | "USD">("EUR");
@@ -2804,7 +2807,11 @@ export default function AdvertiserApp() {
             <div className="grid2">
               <div className="sub-card">
                 <div className="ring" />
-                <span className="pill">
+                {/* Top-right, out of the reading order. The status is a
+                    label ON the card, not the first thing to read on it —
+                    the plan name and the price are. It sat above both,
+                    pushing the name down and making a pill the headline. */}
+                <span className="pill pill-tr">
                   <Ic name="i-shield" />{" "}
                   {/* A failed read is not "no plan". Telling a paying
                       customer they have no subscription because a query
@@ -2853,9 +2860,8 @@ export default function AdvertiserApp() {
                       screen where they ask for the change, is the one
                       sentence that decides whether they keep enough in
                       the wallet. */}
-                  A change is charged pro-rata straight away, not next
-                  month. Ask us and we will tell you the exact figure
-                  first.
+                  A change is charged pro-rata straight away. Ask us and
+                  we will tell you the figure first.
                 </div>
               </div>
               <div className="card">
@@ -3051,7 +3057,10 @@ export default function AdvertiserApp() {
                   </thead>
                   <tbody>
                     {(invoices ?? []).length ? (
-                      (invoices ?? []).map((inv) => {
+                      (showAllInvoices
+                        ? (invoices ?? [])
+                        : (invoices ?? []).slice(0, 5)
+                      ).map((inv) => {
                         const paid = inv.status === "paid";
                         const invSt = invoiceStatusView(inv.status, {
                           customer: true,
@@ -3207,6 +3216,17 @@ export default function AdvertiserApp() {
                     )}
                   </tbody>
                 </table>
+                {(invoices ?? []).length > 5 && (
+                  <button
+                    className="btn ghost sm invmore"
+                    onClick={() => setShowAllInvoices((v) => !v)}
+                  >
+                    {showAllInvoices
+                      ? "Show fewer"
+                      : `View all ${(invoices ?? []).length} invoices`}
+                    <Ic name="i-chev" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
