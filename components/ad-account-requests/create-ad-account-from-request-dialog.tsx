@@ -96,14 +96,26 @@ export default function CreateAdAccountFromRequestDialog({
     resolver: zodResolver(schema) as Resolver<FormValues>,
   });
 
+  // ── THE RESET HAS TO CARRY THE DEFAULT FEE TOO ─────────────────────
+  //
+  // This reset fee to 0 on every open, and the auto-fill below only
+  // fires when the platform CHANGES. The dialog is mounted persistently
+  // on /ad-account-requests, so the SECOND request of the same platform
+  // in a session opened showing 0 and saved 0 — and PSM then earns 0% on
+  // every future top-up on that account, for ever, silently.
+  //
+  // assignSupplierAdAccount treats exactly this as a refusal: "a fee we
+  // were not given is a refusal, not a default". This path had no
+  // equivalent, so the reset does the lookup itself.
   useEffect(() => {
     if (!open) return;
+    const slug = mapRequestedPlatform(request?.platform || null);
     form.reset({
       name: "",
-      fee: 0,
-      platform: mapRequestedPlatform(request?.platform || null),
+      fee: Number(slug ? bySlug.get(slug)?.default_fee_pct : 0) || 0,
+      platform: slug,
     });
-  }, [open, request?.id, request?.platform, form]);
+  }, [open, request?.id, request?.platform, form, bySlug]);
 
   // Auto-fill the fee from the selected type's default when the platform
   // changes (still editable). Ref-guarded so mount doesn't clobber.

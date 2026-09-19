@@ -163,6 +163,33 @@ export async function assignAffiliateToAdvertiser(
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
+  // ── OWNER ONLY. THIS SETS WHAT WE PAY. ──────────────────────────────
+  //
+  // "Set referrer" does not merely link two accounts: it copies
+  // commission_type, pct, onetime and monthly onto the referral link and
+  // marks it active. affiliate_commission_rate is SUPER_ADMIN_ONLY in
+  // lib/permissions.ts, and setAdvertiserCommission and
+  // setAffiliateCommission are both owner-gated for exactly that reason.
+  // This was four clicks on a requireAdmin page that went round both of
+  // them, and round the owner-only approve step on /affiliates as well.
+  {
+    const { data: ownerRow } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    if (
+      !ownerRow ||
+      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+    ) {
+      return {
+        ok: false,
+        error:
+          "Only the account owner can set a referrer, because it sets the commission we pay. Ask them to make this change.",
+      };
+    }
+  }
+
   // Both advertisers must be in caller's tenant.
   const { data: rows, error: fetchError } = await supabase
     .from("advertisers")

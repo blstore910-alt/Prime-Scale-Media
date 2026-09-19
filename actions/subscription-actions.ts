@@ -63,6 +63,33 @@ export async function createSubscriptionAsAdmin(
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
+  // ── THE SAME GATE REPRICING HAS ───────────────────────────────────
+  //
+  // changeSubscriptionAmount is owner-only, with a comment saying a
+  // hidden button is not a boundary. These two are the side door round
+  // it: disable the EUR 99 plan (the duplicate guard then no longer
+  // matches), create a new one at EUR 5, activate it. Three calls, all
+  // at requireAdminCtx, and the customer has been repriced by somebody
+  // who is not allowed to reprice. Setting a status also starts and
+  // stops a recurring charge on its own.
+  {
+    const { data: ownerRow } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    if (
+      !ownerRow ||
+      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+    ) {
+      return {
+        ok: false,
+        error:
+          "Only the account owner can start, stop or price a subscription. Ask them to make this change.",
+      };
+    }
+  }
+
   if (
     typeof input.advertiser_id !== "string" ||
     input.advertiser_id.length === 0
@@ -169,6 +196,33 @@ export async function setSubscriptionStatus(
   const ctx = await requireAdminCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
+
+  // ── THE SAME GATE REPRICING HAS ───────────────────────────────────
+  //
+  // changeSubscriptionAmount is owner-only, with a comment saying a
+  // hidden button is not a boundary. These two are the side door round
+  // it: disable the EUR 99 plan (the duplicate guard then no longer
+  // matches), create a new one at EUR 5, activate it. Three calls, all
+  // at requireAdminCtx, and the customer has been repriced by somebody
+  // who is not allowed to reprice. Setting a status also starts and
+  // stops a recurring charge on its own.
+  {
+    const { data: ownerRow } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    if (
+      !ownerRow ||
+      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+    ) {
+      return {
+        ok: false,
+        error:
+          "Only the account owner can start, stop or price a subscription. Ask them to make this change.",
+      };
+    }
+  }
 
   const { data: sub } = await supabase
     .from("subscriptions")
