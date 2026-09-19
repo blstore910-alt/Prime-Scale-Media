@@ -2949,7 +2949,7 @@ export default function AdvertiserApp() {
                 </h2>
               </div>
               <div className="tblwrap">
-                <table className="tbl wide">
+                <table className="tbl wide lead-label">
                   <thead>
                     <tr>
                       <th style={{ paddingLeft: 14 }}>Invoice</th>
@@ -2974,7 +2974,16 @@ export default function AdvertiserApp() {
                             {/* Client code first, same shape as the bank
                                 reference, so an invoice and the payment that
                                 settles it carry the same prefix. */}
-                            <td data-label="Invoice" style={{ fontWeight: 600 }}>
+                            {/* "Reference", not "Invoice". This string is
+                                what you quote when you pay it and what you
+                                quote when you ask us about it — the card
+                                led with it in bold and nothing said what
+                                it was, so it read as a serial number. The
+                                lead-label modifier on the table turns the
+                                card's title label back on for this one
+                                list; everywhere else the first cell is a
+                                name that speaks for itself. */}
+                            <td data-label="Reference" style={{ fontWeight: 600 }}>
                               {formatPaymentReference(referralCode, inv.number)}
                             </td>
                             <td data-label="Date">

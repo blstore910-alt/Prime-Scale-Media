@@ -688,6 +688,15 @@ export const ADV_CSS = `
     .tbl.wide tr td:first-child{display:block;text-align:left;font-family:var(--hd);font-weight:800;
       font-size:1.02rem;letter-spacing:-.01em;padding:0 0 9px;overflow-wrap:anywhere}
     .tbl.wide tr td:first-child::before{display:none}
+    /* ...unless the list asks for it. On the invoices card the title IS
+       the payment reference, and printed bare it reads as a serial
+       number nobody knows what to do with. An eyebrow above it, not a
+       label beside it, so the reference keeps its size. */
+    .tbl.wide.lead-label tr td:first-child{padding-top:1px}
+    .tbl.wide.lead-label tr td:first-child::before{display:block;
+      content:attr(data-label);font-family:var(--bd,inherit);font-size:.68rem;
+      letter-spacing:.07em;text-transform:uppercase;color:var(--txt-2);
+      font-weight:700;margin:0 0 2px}
     /* A trailing action cell carries no label and gets the full width, with
        one rule above it. A small button floating at the right edge of a card
        is hard to hit and reads as an afterthought. */
