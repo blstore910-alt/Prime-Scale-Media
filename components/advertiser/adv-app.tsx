@@ -900,6 +900,14 @@ export default function AdvertiserApp() {
     return eur(eNum);
   };
 
+  // Seven days. Far enough ahead to do something about it, near enough
+  // that it is news.
+  const dueWithinAWeek = (() => {
+    const d = dueSubInvoice?.due_date ?? subscription?.next_payment_date;
+    if (!d) return false;
+    const days = dayjs(d).diff(dayjs(), "day");
+    return days <= 7;
+  })();
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -1904,7 +1912,16 @@ export default function AdvertiserApp() {
                 <span className="dtx">
                   {dueSubInvoice ? "Outstanding" : "Next payment"}{" "}
                   <b>{dueSubInvoice ? dueBillAmount : planMoney(subscription.amount)}</b>
-                  {dueBillDate
+                  {/* ── ONLY WHEN THE DATE MATTERS ────────────────────
+                      This row is a single line by design, so "Next
+                      payment €5.00 · on 18 Oct" was being cut to "on 18
+                      …" — a date truncated mid-number, which is worse
+                      than no date at all. And a renewal a month out is
+                      not what a one-line notice is for. So: the date
+                      appears inside the last week, or whenever something
+                      is actually outstanding, and stays off the rest of
+                      the time. */}
+                  {dueBillDate && (dueSubInvoice || dueWithinAWeek)
                     ? ` · ${dueSubInvoice ? "due" : "on"} ${dayjs(dueBillDate).format("D MMM")}`
                     : ""}
                 </span>
@@ -1976,9 +1993,14 @@ export default function AdvertiserApp() {
                     color: dueSubInvoice ? "var(--warn)" : undefined,
                   }}
                 >
+                  {/* THE NAME, when we have one. "Active" is a state,
+                      and a state is what the sub-line is for; the thing
+                      the customer recognises as the product they bought
+                      is its name. Unpaid still wins over both — that is
+                      the one case where the state IS the headline. */}
                   {dueSubInvoice
                     ? "Unpaid"
-                    : (subscription?.status ?? "—")}
+                    : (planName ?? subscription?.status ?? "—")}
                 </div>
                 <div className="sub">
                   {/* THE INVOICE'S FIGURE, NOT THE PLAN'S. These are not
@@ -1994,7 +2016,12 @@ export default function AdvertiserApp() {
                   {dueSubInvoice
                     ? `${dueBillAmount} outstanding`
                     : subscription?.next_payment_date
-                      ? `Renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
+                      ? `${
+                          planName && subscription?.status
+                            ? subscription.status[0].toUpperCase() +
+                              subscription.status.slice(1) + " · "
+                            : ""
+                        }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
                       : "No subscription"}
                 </div>
               </div>
