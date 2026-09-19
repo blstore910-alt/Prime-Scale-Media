@@ -1857,9 +1857,20 @@ export default function AdvertiserApp() {
                 is not. A free plan would then start showing "Monthly fee €0"
                 with a Pay button beside it on the customer's own dashboard.
                 Same at the two sites below. */}
+            {/* ── ONLY WHEN IT ASKS SOMETHING OF THEM ──────────────────
+                This rendered for every paying customer, every day of the
+                month, whether or not anything was owed. A notice that
+                wants nothing is noise — and the tile directly below
+                already says "Prime · Active · renews 18 Oct", which is
+                the same fact without a rail, an icon and a button around
+                it.
+                So: something outstanding, or the payment is inside the
+                last week. Otherwise the dashboard is quiet, which is what
+                a dashboard should be when nothing is wrong. */}
             {subscription &&
               Number(subscription.amount ?? 0) > 0 &&
-              subscription.next_payment_date && (
+              subscription.next_payment_date &&
+              (dueSubInvoice || dueWithinAWeek) && (
               /* One quiet row, not a filled banner with a solid blue button
                  in it. Nothing here is wrong yet — the fee is simply due —
                  and a notice that shouts competes with the balances directly
