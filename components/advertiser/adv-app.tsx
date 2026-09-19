@@ -723,9 +723,21 @@ export default function AdvertiserApp() {
   // ONE history, in time order. A top-up and an exchange are both "something
   // that happened to my wallet", and two separate tables would make a
   // customer check the date on each to work out what happened first.
+  // ── AND WHAT LEFT IT ────────────────────────────────────────────────
+  //
+  // This listed top-ups and exchanges, which is everything that puts
+  // money IN and nothing that takes it out. So a customer transfers EUR
+  // 5, sees "Credited EUR 5.00", and then a balance of EUR 0.00 with no
+  // line anywhere saying the monthly plan took it. The only honest
+  // reading of that screen is that the money vanished.
+  //
+  // A paid invoice IS a wallet movement — invoice_pay_from_wallet debits
+  // the balance — so it belongs in the same list, in time order, as a
+  // negative. The invoices are already loaded for the billing screen.
   type WalletEvent =
     | { kind: "topup"; id: string; at: string; row: NonNullable<typeof activity>[number] }
-    | { kind: "exchange"; id: string; at: string; row: NonNullable<typeof exchanges>[number] };
+    | { kind: "exchange"; id: string; at: string; row: NonNullable<typeof exchanges>[number] }
+    | { kind: "invoice"; id: string; at: string; row: NonNullable<typeof invoices>[number] };
   const walletEvents: WalletEvent[] = [
     ...(activity ?? []).map(
       (t) => ({ kind: "topup", id: t.id, at: t.created_at, row: t }) as WalletEvent,
@@ -733,6 +745,27 @@ export default function AdvertiserApp() {
     ...(exchanges ?? []).map(
       (x) => ({ kind: "exchange", id: x.id, at: x.created_at, row: x }) as WalletEvent,
     ),
+    // Paid only. An unpaid invoice has not touched the balance, and a
+    // wallet_topup invoice is the RECEIPT for a deposit already listed
+    // above it — showing it here would book the same EUR 5 twice, once
+    // each way, and net the statement to nothing.
+    ...(invoices ?? [])
+      .filter(
+        (i) =>
+          String(i.status) === "paid" &&
+          !["wallet_topup", "topup"].includes(
+            String(i.type ?? "").toLowerCase(),
+          ),
+      )
+      .map(
+        (i) =>
+          ({
+            kind: "invoice",
+            id: i.id,
+            at: String(i.paid_at ?? i.created_at ?? ""),
+            row: i,
+          }) as WalletEvent,
+      ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
   // Has a transfer EVER landed? The onboarding tick used to read the
@@ -2448,6 +2481,48 @@ export default function AdvertiserApp() {
                   <tbody>
                     {walletEvents.length ? (
                       walletEvents.map((ev) => {
+                        if (ev.kind === "invoice") {
+                          const inv = ev.row;
+                          const sym =
+                            String(inv.currency ?? "EUR").toUpperCase() === "USD"
+                              ? "$"
+                              : "€";
+                          return (
+                            <tr key={`i-${inv.id}`}>
+                              <td
+                                data-label="Date"
+                                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              >
+                                {dayjs(ev.at).format("D MMM")}
+                              </td>
+                              <td data-label="Reference" className="mono">
+                                {formatPaymentReference(referralCode, inv.number)}
+                              </td>
+                              <td
+                                data-label="Description"
+                                style={{ color: "var(--txt-2)" }}
+                              >
+                                {invoiceTypeLabel(inv.type)}
+                              </td>
+                              {/* A minus, and the danger colour. Everything
+                                  else in this list is money arriving; the
+                                  one direction that is not has to look
+                                  different at a glance, not read the same
+                                  and start with a character. */}
+                              <td
+                                data-label="Amount"
+                                className="r mono"
+                                style={{ color: "var(--danger)" }}
+                              >
+                                −{sym}
+                                {money2(inv.total)}
+                              </td>
+                              <td data-label="Status" className="r">
+                                <span className="badge muted">Paid</span>
+                              </td>
+                            </tr>
+                          );
+                        }
                         if (ev.kind === "exchange") {
                           const x = ev.row;
                           const sym = (c: string) => (c === "USD" ? "$" : "€");
@@ -2565,7 +2640,7 @@ export default function AdvertiserApp() {
                         >
                           {activityError || exchangesError
                             ? "We couldn't load your wallet activity — this isn't an empty list. Give it a reload."
-                            : "Nothing has moved yet. Your top-ups and exchanges will show up here."}
+                            : "Nothing has moved yet. Top-ups, exchanges and anything paid from your wallet show up here."}
                         </td>
                       </tr>
                     )}
