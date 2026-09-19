@@ -205,7 +205,13 @@ export async function getReconciliation(): Promise<
       .from("bank_ledger_entries")
       .select("destination, currency, direction, amount")
       .eq("tenant_id", profile.tenant_id)
-      .order("entry_date", { ascending: true })
+      // occurred_on, not entry_date. There is no entry_date column
+      // anywhere — the migration, the type, the render and the OTHER
+      // query in this same file all say occurred_on. Getting it wrong
+      // took the whole reconciliation screen down with a raw PostgREST
+      // 42703 printed on the super-admin's page, in the very commit that
+      // set out to make that screen trustworthy.
+      .order("occurred_on", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to),
   );

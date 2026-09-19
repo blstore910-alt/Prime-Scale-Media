@@ -119,8 +119,14 @@ async function syncSupplierPools(
           .select("user_id")
           .eq("tenant_id", tenantId)
           .eq("role", "admin")
-          .neq("is_active", false)
-          .neq("status", "inactive")
+          // .or, not .neq: `NULL <> 'inactive'` is NULL, so a plain neq
+          // DROPS every row whose column is null — and both are nullable
+          // with null meaning active. The same commit that added this
+          // wrote the rule out in another file: "neq on a nullable column
+          // drops the NULL rows, which is nearly all of them." An admin
+          // with a null status would simply have stopped being told.
+          .or("is_active.is.null,is_active.eq.true")
+          .or("status.is.null,status.neq.inactive")
           .limit(20);
         for (const a of (admins ?? []) as Array<{ user_id: string }>) {
           await supabase.from("notifications").insert({

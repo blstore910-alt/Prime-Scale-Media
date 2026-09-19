@@ -124,6 +124,16 @@ export default function AdvertiserApp() {
   const [navOpen, setNavOpen] = useState(false);
 
   const [topupOpen, setTopupOpen] = useState(false);
+  // WHICH wallet the customer pressed Top up on. Both cards called the
+  // same opener with no currency and the dialog hard-defaulted to EUR, so
+  // pressing Top up inside the card labelled "USD wallet" opened a EUR
+  // top-up — and somebody who did not re-read the third line wired
+  // dollars and filed the claim in euros.
+  const [topupCurrency, setTopupCurrency] = useState<"EUR" | "USD">("EUR");
+  const openTopup = (cur: "EUR" | "USD") => {
+    setTopupCurrency(cur);
+    setTopupOpen(true);
+  };
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [acctTopup, setAcctTopup] = useState<AdAccount | null>(null);
   const [acctTopupOpen, setAcctTopupOpen] = useState(false);
@@ -353,7 +363,11 @@ export default function AdvertiserApp() {
   // renders as "No wallet activity yet" to someone whose money moved this
   // morning. It also feeds pendingTopups, so a failure silently makes a
   // pending transfer disappear from the dashboard.
-  const { data: activity, isError: activityError } = useQuery<
+  const {
+    data: activity,
+    isError: activityError,
+    isLoading: activityLoading,
+  } = useQuery<
     {
       id: string;
       created_at: string;
@@ -663,7 +677,11 @@ export default function AdvertiserApp() {
   // which is exactly that. A customer who wired EUR 10,000 this morning
   // is shown "Available to spend" and no pending panel, so they wire it
   // again.
-  const pendingUnknown = activityError;
+  // isError AND isLoading. While the read is in flight `pendingTopups` is
+  // [] too, so the wallet card said "Available to spend" over money that
+  // was on its way — the same half-fix the accounts prop avoided by
+  // taking both.
+  const pendingUnknown = activityError || activityLoading;
   const pendingTopups = (activity ?? []).filter(
     (t) =>
       t.status !== "completed" &&
@@ -2047,7 +2065,7 @@ export default function AdvertiserApp() {
                 value={eurText}
                 pending={pendingByCurrency.EUR}
                 pendingUnknown={pendingUnknown}
-                onTopup={() => setTopupOpen(true)}
+                onTopup={() => openTopup("EUR")}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet || (!companyComplete && !companyUnknown)}
                 /* `!wallet` is true for a tenant with genuinely no wallet
@@ -2071,7 +2089,7 @@ export default function AdvertiserApp() {
                 value={usdText}
                 pending={pendingByCurrency.USD}
                 pendingUnknown={pendingUnknown}
-                onTopup={() => setTopupOpen(true)}
+                onTopup={() => openTopup("USD")}
                 onExchange={() => setExchangeOpen(true)}
                 disabled={!wallet || (!companyComplete && !companyUnknown)}
                 /* `!wallet` is true for a tenant with genuinely no wallet
@@ -2151,7 +2169,18 @@ export default function AdvertiserApp() {
                         {money2(t.amount)}
                       </div>
                       <div className="l2">
-                        Bank transfer · Ref {t.reference_no ?? "—"}
+                        {/* THE SAME STRING THE DIALOG TOLD THEM TO USE.
+                            Step 2 of the top-up shows
+                            formatPaymentReference(clientCode, referenceNo)
+                            — "000005-6164655424" — and every admin screen
+                            shows the composed form too. This printed the
+                            bare number, so the customer copied one string,
+                            wired the money, came back to check, and read a
+                            different one for the payment they had just
+                            made. */}
+                        Bank transfer · Ref{" "}
+                        {formatPaymentReference(referralCode, t.reference_no) ||
+                          (t.reference_no ?? "—")}
                       </div>
                       <div className="l3">
                         <span className="badge pend">Verifying</span>
@@ -2247,7 +2276,11 @@ export default function AdvertiserApp() {
                             {dayjs(t.created_at).format("D MMM")}
                           </td>
                           <td data-label="Reference" className="mono">
-                            {t.reference_no ?? "—"}
+                            {formatPaymentReference(
+                              referralCode,
+                              t.reference_no,
+                            ) ||
+                              (t.reference_no ?? "—")}
                           </td>
                           <td data-label="Description" style={{ color: "var(--txt-2)" }}>
                             {t.description || "Wallet top-up"}
@@ -3086,13 +3119,38 @@ export default function AdvertiserApp() {
                       }
                     />
                     </div>
+                  {/* ── DO NOT SAVE A FORM BUILT FROM A FAILED READ ────
+                      `comp` starts as ten empty strings and is populated
+                      only `if (company)`. So when the company read fails,
+                      this form renders BLANK — and the allowlist on the
+                      server copies every key that is present, so pressing
+                      Save writes ten empty strings over the real row: the
+                      name, the VAT number, the registration number and the
+                      whole address that goes on every invoice. The chip
+                      comes back, Top up and Request grey out, and the
+                      invoice header is gone.
+                      Refusing while the read is unknown costs one reload. */}
                   <button
                     className="btn sm"
                     onClick={saveCompany}
-                    disabled={savingComp}
+                    disabled={savingComp || companyLoading || companyError}
+                    title={
+                      companyError
+                        ? "We couldn't read your company details, so saving now would overwrite them with this blank form. Reload first."
+                        : companyLoading
+                          ? "Loading your company details…"
+                          : undefined
+                    }
                   >
                     {savingComp ? "Saving…" : "Save company"}
                   </button>
+                  {companyError && (
+                    <p className="cap" style={{ marginTop: 8 }}>
+                      We couldn&apos;t load your company details, so this form
+                      is empty — saving it would wipe what is stored. Reload
+                      and try again.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="card">
@@ -3214,6 +3272,7 @@ export default function AdvertiserApp() {
       <WalletTopupDialog
         open={topupOpen}
         onOpenChange={setTopupOpen}
+        initialCurrency={topupCurrency}
         walletId={wallet?.id ?? null}
         referenceNo={wallet?.reference_no ?? null}
         // Not a constant. Before the plan is paid there is NO minimum — that

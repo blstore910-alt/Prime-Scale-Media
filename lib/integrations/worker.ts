@@ -424,7 +424,7 @@ export async function processIntegrationJobs(
           }`,
           next_run_at: new Date(
             (ctx.now?.() ?? new Date()).getTime() +
-              backoffSeconds(job.attempts + 1) * 1000,
+              backoffSeconds(job.attempts) * 1000,
           ).toISOString(),
         })
         .eq("id", job.id);

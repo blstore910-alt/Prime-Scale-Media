@@ -55,6 +55,20 @@ async function resolveEffectiveFeePct(
   advertiserId: string,
   fallbackPct: number,
   adAccountId?: string | null,
+  // ── HAS THE CALLER'S FIGURE ALREADY HAD THE PREMIUM POINTS OFF? ─────
+  //
+  // verifyAdTopup passes the row's STORED fee, which was created with the
+  // two Meta-EU-Premium points already taken off — subtracting them again
+  // put the floor BELOW the row's own rate, so that branch stopped
+  // applying them. But the two CREATE paths pass the ad-account type's
+  // default, which has NOT been discounted, and they inherited the same
+  // branch: the dialog previewed a premium top-up at 3% and the server
+  // stored 5%, crediting the account about $23 less on EUR 1,000 than
+  // the admin had just been shown. That is the exact fault the long note
+  // further down says this arrangement exists to prevent.
+  //
+  // One flag, set by the caller who knows which figure it is holding.
+  fallbackAlreadyDiscounted = false,
 ): Promise<{ applied: boolean; pct: number }> {
   let accountPct: number | null = null;
   // THE PLATFORM DISCOUNT LIVES HERE NOW, not beside one caller.
@@ -127,8 +141,13 @@ async function resolveEffectiveFeePct(
     // line was dropping two points below it.
     //
     // The discount belongs to a rate we resolved, never to one we were
-    // handed.
-    return { applied: false, pct: Math.max(0, fallbackPct) };
+    // handed — UNLESS the caller tells us its figure has not had the
+    // premium points off yet, which is true of both create paths and
+    // false of the verify floor.
+    return {
+      applied: false,
+      pct: Math.max(0, fallbackAlreadyDiscounted ? fallbackPct : fallbackPct - premium),
+    };
   }
   const base =
     accountPct !== null
@@ -1006,6 +1025,8 @@ export async function verifyAdTopup(
         String(row.advertiser_id),
         Number(row.fee) || 0,
         typeof row.account_id === "string" ? row.account_id : null,
+        // The stored fee already has the premium points off.
+        true,
       );
       // GATE ON THE NUMBER, not on `applied`.
       //

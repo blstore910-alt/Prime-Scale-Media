@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isCompanyComplete } from "@/lib/pure-company-complete";
 import CompanyOnboardingForm from "@/components/company/company-onboarding-form";
 import { UserProfile } from "@/lib/types/user";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -72,30 +73,20 @@ export default async function CompleteProfilePage() {
     .eq("advertiser_id", advertiser.id)
     .maybeSingle();
 
-  if (company) {
-    const isCompanyComplete =
-      company.name &&
-      company.official_email &&
-      company.phone &&
-      company.address &&
-      company.country &&
-      company.state &&
-      company.zipcode &&
-      company.registration_no;
-
-    const billing = company.billings?.[0];
-    const isBillingComplete =
-      billing &&
-      billing.address &&
-      billing.state &&
-      billing.country &&
-      billing.zipcode;
-
-    const isVatComplete = !!company?.vat_no || company?.is_not_vat === true;
-
-    if (isCompanyComplete && isVatComplete && isBillingComplete) {
-      redirect("/");
-    }
+  // ── THE SAME PREDICATE THE REST OF THE APP USES ─────────────────────
+  //
+  // This had its own fourth copy of "is the company complete", and it
+  // demanded `registration_no` — a field THIS PAGE'S OWN FORM does not
+  // ask for. The only advertiser-facing input for it is Settings, so
+  // somebody sent here by the dashboard chip could fill in every field on
+  // the screen, press Save, and be sent straight back with "Please
+  // complete them to access the platform" for ever.
+  //
+  // lib/pure-company-complete.ts is the one the gate, the checklist and
+  // the chip all use. A page that redirects on a stricter rule than the
+  // one it is enforcing is a trap.
+  if (company && isCompanyComplete(company as never)) {
+    redirect("/");
   }
 
   const displayName =

@@ -46,7 +46,26 @@ export function useOutstandingPrecharges(topupIds: string[]) {
         .select("source_wallet_topup_id, outstanding, currency, status")
         .in("source_wallet_topup_id", topupIds)
         .eq("status", "outstanding");
-      if (error) throw error;
+      // ── source_wallet_topup_id COMES FROM A MIGRATION ───────────────
+      //
+      // 20260831280000 adds it, and the migrations README says in plain
+      // words that the live database is not in the state that folder
+      // describes. A column that is not there yet does not degrade — it
+      // throws — and the two screens that read this hook then show "we
+      // could not check whether this top-up was already advanced" on
+      // EVERY deposit, for ever. A permanent false alarm on the verify
+      // desk is worse than the gap it warns about.
+      //
+      // So: if the column is missing, there are no advances to report and
+      // the desk is not nagged. The feature stays dark until the
+      // migration lands, which is the rule in CLAUDE.md.
+      if (error) {
+        const msg = `${(error as { code?: string }).code ?? ""} ${error.message ?? ""}`;
+        if (/42703|does not exist|schema cache|PGRST/i.test(msg)) {
+          return {} as Record<string, OutstandingPrecharge>;
+        }
+        throw error;
+      }
       const byTopup: Record<string, OutstandingPrecharge> = {};
       for (const row of data ?? []) {
         const id = String(

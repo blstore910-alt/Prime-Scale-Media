@@ -352,7 +352,7 @@ export default function WalletTopupDialog({
     if (!open) {
       setTimeout(() => {
         setStep(STEPS.SELECTION);
-        setCurrency("EUR");
+        setCurrency(initialCurrency === "USD" ? "USD" : "EUR");
         setBankGroup("turlit");
         setTransferCurrency("EUR");
         setPaymentSlipUrl(null);
@@ -529,8 +529,10 @@ export default function WalletTopupDialog({
           The sibling ad-account top-up form was fixed for exactly this
           and its comment names THIS dialog while doing it. The shape
           that works is the one the bulk dialog uses: a flex column that
-          owns the height, a `flex-1 min-h-0` scroller for the fields,
-          and the actions outside it. */}
+          owns the height and a flex-1 min-h-0 scroller, so the Root has a
+          definite height and the viewport h-full resolves. The per-step
+          actions are still INSIDE that scroller - they are reachable now
+          rather than pinned, which is the part that mattered. */}
       <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -640,6 +642,25 @@ export default function WalletTopupDialog({
                   </p>
                 </div>
 
+                {/* ── SAY THE MINIMUM BEFORE THEY SEND THE MONEY ────────
+                    It existed only as a zod message on step 3 — AFTER the
+                    IBAN, and after a primary button that says "I have made
+                    the transfer". So somebody past their first paid invoice
+                    opened this, got the account details, wired EUR 50,
+                    pressed that button, typed 50, pressed Submit, and read
+                    "Minimum Amount: 300" with the money already gone and no
+                    way to file the claim. The server half of that trap was
+                    fixed; the order of the screen re-created it. */}
+                {minTopupAmount > 0 && (
+                  <p className="text-sm font-medium">
+                    Transfer at least{" "}
+                    <strong>
+                      {currency} {minTopupAmount.toLocaleString("en-US")}
+                    </strong>
+                    . A smaller amount cannot be filed as a top-up.
+                  </p>
+                )}
+
                 <Button className="w-full mt-4" onClick={handleNextStep}>
                   Continue
                 </Button>
@@ -691,6 +712,15 @@ export default function WalletTopupDialog({
                     {refCopied ? "Copied" : "Tap to copy"}
                   </p>
                 </div>
+
+                {/* The last moment before the money leaves their bank. */}
+                {minTopupAmount > 0 && (
+                  <p className="pt-2 text-sm font-medium">
+                    At least {currency}{" "}
+                    {minTopupAmount.toLocaleString("en-US")} — anything less
+                    cannot be filed.
+                  </p>
+                )}
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={handlePrevStep}>

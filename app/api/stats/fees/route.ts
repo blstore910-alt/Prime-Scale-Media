@@ -221,8 +221,11 @@ export async function GET(request: NextRequest) {
 // the whole exchange rate, 16.3% at 0.86. Same bug as the one fixed in
 // app/api/stats/route.ts; this route kept its copy and read no rate at all.
 //
-// Fall back to 1 so an unconfigured tenant renders unconverted figures
-// rather than a 500 — the same choice stats/route.ts makes.
+// NOT a fallback to 1 any more — the comment used to say it was, which is
+// the opposite of what the code does ten lines down. No active rate is a
+// refusal here: unconverted dollars under a euro sign overstate EUR fee
+// revenue by the whole exchange rate, and a tenant that genuinely has no
+// rate has no non-USD money to convert either.
   // ── A RATE WE COULD NOT READ IS NOT A RATE OF 1 ───────────────────
   //
   // This discarded `error` and then fell back to 1, which for the EUR
