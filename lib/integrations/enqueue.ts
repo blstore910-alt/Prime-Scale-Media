@@ -192,6 +192,46 @@ export async function enqueueSupplierTopupPush(
 
     if (jobErr) {
       if ((jobErr as { code?: string }).code === UNIQUE_VIOLATION) {
+        // ── "ALREADY QUEUED" IS NOT ALWAYS TRUE ─────────────────────
+        //
+        // The unique key is topup:<id>, so a job that ran and FAILED
+        // still holds it — and nothing anywhere resets a failed job to
+        // pending. So: verify a top-up (job queued), undo it (the worker
+        // sees the top-up is no longer completed and marks the job
+        // failed, terminally), then re-verify the corrected row. This
+        // branch hit the unique key, reported success, and the money was
+        // collected while the supplier was never told. getAutoPushStatus
+        // counts only `pending`, so the held tile reads 0 as well.
+        //
+        // Read the row that owns the key and say which it is. A failed
+        // job goes back to pending — the worker's own reclaim does the
+        // same for a stale one, and re-pushing is exactly what the
+        // caller is asking for.
+        const { data: existing } = await supabase
+          .from("integration_jobs")
+          .select("id, status")
+          .eq("provider", "supplier1")
+          .eq("operation", "push_topup")
+          .eq("idempotency_key", idempotencyKey)
+          .maybeSingle();
+        const prior = existing as { id: string; status?: string } | null;
+        if (prior && String(prior.status ?? "") === "failed") {
+          const { error: resetErr } = await supabase
+            .from("integration_jobs")
+            .update({ status: "pending", attempts: 0, last_error: null })
+            .eq("id", prior.id);
+          if (resetErr) {
+            return {
+              enqueued: false,
+              reason:
+                "the previous push for this top-up failed and could not be requeued - fund the account by hand",
+            };
+          }
+          return {
+            enqueued: true,
+            reason: "requeued (the previous push had failed)",
+          };
+        }
         return { enqueued: true, reason: "already queued (idempotent)" };
       }
       return { enqueued: false, reason: `queue insert failed: ${safeErrorMessage(jobErr)}` };
