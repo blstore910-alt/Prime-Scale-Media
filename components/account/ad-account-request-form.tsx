@@ -627,20 +627,10 @@ export default function AdAccountRequestForm({
                   value={field.value}
                   className="grid grid-cols-2 gap-4"
                 >
-                  <div>
-                    <RadioGroupItem
-                      value="USD"
-                      id="usd"
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor="usd"
-                      className="flex flex-row items-center justify-center gap-2 rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:bg-primary/5 peer-data-[state=checked]:ring-2 peer-data-[state=checked]:ring-primary cursor-pointer transition-all"
-                    >
-                      <span className="text-xl">$</span>
-                      <span className="font-semibold">USD</span>
-                    </Label>
-                  </div>
+                  {/* EUR FIRST, because EUR is the default. A ticked
+                      option drawn second, behind an unticked USD, reads
+                      as though USD is the main choice and EUR the
+                      afterthought — it is the other way round. */}
                   {selectedPlatform === "meta-ads" && (
                     <div>
                       <RadioGroupItem
@@ -657,6 +647,20 @@ export default function AdAccountRequestForm({
                       </Label>
                     </div>
                   )}
+                  <div>
+                    <RadioGroupItem
+                      value="USD"
+                      id="usd"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="usd"
+                      className="flex flex-row items-center justify-center gap-2 rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:bg-primary/5 peer-data-[state=checked]:ring-2 peer-data-[state=checked]:ring-primary cursor-pointer transition-all"
+                    >
+                      <span className="text-xl">$</span>
+                      <span className="font-semibold">USD</span>
+                    </Label>
+                  </div>
                 </RadioGroup>
               )}
             />

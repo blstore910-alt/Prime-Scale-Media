@@ -2529,21 +2529,30 @@ export default function AdvertiserApp() {
                   Ad accounts is the page title twice. The shorter label
                   is the one that fits beside the heading instead of
                   dropping to its own line. */}
-              {canRequestAccount ? (
-                <RequestAdAccountDialog>
-                  <button className="btn grad">
+              {/* ── ONE CALL TO ACTION, NOT TWO ──────────────────────
+                  With no accounts, the empty state directly below already
+                  carries a Request button, centred, with the sentence
+                  explaining it. A second one floating at the right edge of
+                  the header, a few pixels above the card, is the same
+                  offer twice and the worse-placed of the two. So the
+                  header button appears only once there is a list to sit
+                  above. */}
+              {(accounts ?? []).length > 0 &&
+                (canRequestAccount ? (
+                  <RequestAdAccountDialog>
+                    <button className="btn grad">
+                      <Ic name="i-plus" /> Request one
+                    </button>
+                  </RequestAdAccountDialog>
+                ) : (
+                  <button
+                    className="btn grad"
+                    disabled
+                    title={requestBlockedReason() ?? undefined}
+                  >
                     <Ic name="i-plus" /> Request one
                   </button>
-                </RequestAdAccountDialog>
-              ) : (
-                <button
-                  className="btn grad"
-                  disabled
-                  title={requestBlockedReason() ?? undefined}
-                >
-                  <Ic name="i-plus" /> Request one
-                </button>
-              )}
+                ))}
             </div>
             {(accounts ?? []).length ? (
               <div className="grid3">
@@ -2569,10 +2578,10 @@ export default function AdvertiserApp() {
                     : !canRequestAccount && invError
                       ? "Your invoices didn't load, so we can't tell whether the plan is paid. Reload to try again."
                     : canRequestAccount
-                    ? "Request one and we set it up for you on our verified Business Manager. Your plan covers the accounts it includes; anything beyond that is billed as you go."
+                    ? "We set it up on our verified Business Manager. Your plan covers the first few; extras are billed as you go."
                     : pendingTopups.length > 0
-                      ? "Your transfer is with us and being verified. Once your plan is paid, the ad accounts it includes are yours to request."
-                      : "Your ad accounts come with your plan, so the first step is paying for it. After that the included accounts are yours to request, and extras are billed as you go."}
+                      ? "Your transfer is with us and being verified. Once your plan is paid you can request one."
+                      : "Ad accounts come with your plan, so paying for it is the first step."}
                 </p>
                 {accountsError ? (
                   /* Neither "request one" nor "go to billing" is the right
@@ -2984,7 +2993,18 @@ export default function AdvertiserApp() {
                                 list; everywhere else the first cell is a
                                 name that speaks for itself. */}
                             <td data-label="Reference" style={{ fontWeight: 600 }}>
-                              {formatPaymentReference(referralCode, inv.number)}
+                              {/* One tap copies it. This is a string
+                                  somebody retypes into a bank form or an
+                                  email to us, and retyping a reference by
+                                  hand is how it ends up not matching. The
+                                  top-up dialog already offers this for its
+                                  own reference; the invoice did not. */}
+                              <CopyRef
+                                value={formatPaymentReference(
+                                  referralCode,
+                                  inv.number,
+                                )}
+                              />
                             </td>
                             <td data-label="Date">
                               {dayjs(inv.created_at).format("D MMM YYYY")}
@@ -3831,5 +3851,41 @@ function Toggle({
         aria-label={label}
       />
     </div>
+  );
+}
+
+/**
+ * A reference you can take with you.
+ *
+ * Copy-on-tap, then say so for a moment. Nothing about a reference is
+ * useful if it has to be retyped: the whole job of the string is to match
+ * two records to each other, and a typo in it means a payment nobody can
+ * find.
+ */
+function CopyRef({ value }: { value: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      className="copyref"
+      title="Copy this reference"
+      aria-label={`Copy reference ${value}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        // clipboard is unavailable over plain http and in some embedded
+        // webviews, and it REJECTS rather than throwing synchronously.
+        // A failed copy must not look like a successful one.
+        navigator.clipboard
+          ?.writeText(value)
+          .then(() => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1600);
+          })
+          .catch(() => {});
+      }}
+    >
+      <span>{value}</span>
+      <Ic name={done ? "i-check" : "i-copy"} />
+    </button>
   );
 }

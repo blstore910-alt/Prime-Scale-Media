@@ -277,6 +277,18 @@ export const ADV_CSS = `
   @keyframes okpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
 
   .list-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.list-row:first-child{border-top:0}
+  /* A reference that copies itself. It has to read as the value first
+     and as a control second, so it keeps the cell's type and only picks
+     up an outline and the small glyph. */
+  .copyref{display:inline-flex;align-items:center;gap:7px;max-width:100%;
+    background:none;border:0;padding:2px 6px 2px 0;margin:0;font:inherit;
+    color:inherit;cursor:pointer;border-radius:8px;text-align:left;
+    -webkit-tap-highlight-color:transparent}
+  .copyref span{overflow-wrap:anywhere}
+  .copyref svg{width:14px;height:14px;flex:0 0 auto;opacity:.5;transition:opacity .12s}
+  .copyref:hover{background:var(--panel-2)}
+  .copyref:hover svg{opacity:1}
+  .copyref:active{transform:scale(.99)}
   .list-row .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}
