@@ -370,6 +370,22 @@ export async function financeReportForMe(): Promise<
       .range(from, to),
   )) {
     const paid = String(r.status ?? "") === "paid";
+    // ── A DEPOSIT IS NOT A CHARGE ───────────────────────────────────
+    //
+    // A completed wallet top-up raises its own invoice on live
+    // (trg_create_invoice_on_wallet_topup_completed), marked paid, for
+    // the full amount deposited. It is a receipt for money coming IN.
+    // Booked like every other paid invoice it becomes money going OUT,
+    // so a EUR 5 transfer lands on the statement as +5 and −5 and nets
+    // to nothing — on the document the customer hands their bookkeeper,
+    // while they are holding the 5.
+    //
+    // The row stays, because they should be able to see the invoice
+    // exists and download it. It just does not move the total: the
+    // deposit line already carries that money.
+    const isDepositReceipt = ["wallet_topup", "topup"].includes(
+      String(r.type ?? "").toLowerCase(),
+    );
     lines.push({
       id: `inv-${r.id}`,
       at: String(r.paid_at ?? r.created_at ?? ""),
@@ -378,8 +394,12 @@ export async function financeReportForMe(): Promise<
       // a cancelled invoice money owed, on the customer's own statement.
       // The amount is correctly 0 either way; the words were not.
       label:
-        String(r.type ?? "invoice").replace(/_/g, " ") +
-        (paid
+        (isDepositReceipt
+          ? "wallet top-up receipt"
+          : String(r.type ?? "invoice").replace(/_/g, " ")) +
+        (isDepositReceipt
+          ? ""
+          : paid
           ? ""
           : String(r.status ?? "") === "void"
             ? " (cancelled)"
@@ -393,7 +413,7 @@ export async function financeReportForMe(): Promise<
       // Only a PAID invoice has moved money. An unpaid one belongs on the
       // report — a customer asks about what they owe — but it must not
       // change a total.
-      amount: paid ? -Math.abs(num(r.total)) : 0,
+      amount: paid && !isDepositReceipt ? -Math.abs(num(r.total)) : 0,
       status: String(r.status ?? ""),
     });
   }

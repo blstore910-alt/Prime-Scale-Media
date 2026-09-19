@@ -552,6 +552,7 @@ function AdvertiserRow({
   // billing, and the Activate button that appears next does not undo it.
   // The admins table already asks before its equivalent; this did not.
   const [askDeactivate, setAskDeactivate] = useState(false);
+  const [askActivate, setAskActivate] = useState(false);
 
   const toggleStatus = () => {
     updateUserProfile(
@@ -572,9 +573,14 @@ function AdvertiserRow({
   };
 
   const askToggle = () => {
-    // Reactivating is harmless, so it does not ask.
+    // Reactivating is NOT harmless any more. It used to write only the
+    // profile, which is why it skipped the question — and that was the
+    // bug: the subscriptions stayed inactive and the customer was never
+    // invoiced again. Now it puts them back on, so it restarts a
+    // recurring charge, and that is not something to do on one click
+    // without saying so.
     if (!isActive) {
-      toggleStatus();
+      setAskActivate(true);
       return;
     }
     setAskDeactivate(true);
@@ -846,7 +852,13 @@ function AdvertiserRow({
            Nothing in the app writes `cancelled`, which is the only status
            the billing run treats as terminal. Until that is fixed in SQL,
            the least this screen can do is stop promising the opposite. */
-        lead="They lose access immediately. Their subscriptions are set to inactive, so no NEW invoice is raised — but an invoice already issued is still collected from their wallet on its due date, and a successful collection currently sets the subscription back to active. Check their open invoices before you do this."
+        /* REWRITTEN, because the thing it warned about is fixed. The
+           debit pass now skips a subscription whose owner is switched
+           off, and the paid-invoice trigger no longer turns a terminal
+           subscription back on. Warning an admin off a safe action and
+           sending them to do a check that no longer matters is its own
+           kind of wrong — and it left the one real consequence unsaid. */
+        lead="They lose access immediately, their subscriptions stop, and nothing further is taken from their wallet — an invoice already issued is no longer collected while they are switched off. Switching them back on restarts the monthly charge; it will ask you first."
         cta="Yes, deactivate"
         tone="danger"
         onConfirm={() => {
@@ -859,6 +871,26 @@ function AdvertiserRow({
           value={profile.advertiser?.[0]?.tenant_client_code ?? profile.email ?? "—"}
         />
         <ConfirmFact label="Also stops" value="Their subscriptions" strong />
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={askActivate}
+        onOpenChange={(next) => {
+          if (!next) setAskActivate(false);
+        }}
+        title="Switch this customer back on?"
+        lead="They get access back, and the subscriptions that were stopped when you switched them off start running again. The next invoice is raised from today, not back-dated for the time they were off — they are not charged for the months they could not use the account. A subscription you cancelled or paused deliberately stays as it is."
+        cta="Yes, switch them on"
+        onConfirm={() => {
+          setAskActivate(false);
+          toggleStatus();
+        }}
+      >
+        <ConfirmFact
+          label="Customer"
+          value={profile.advertiser?.[0]?.tenant_client_code ?? profile.email ?? "—"}
+        />
+        <ConfirmFact label="Also restarts" value="Their monthly charge" strong />
       </ConfirmModal>
         </div>
       </td>
