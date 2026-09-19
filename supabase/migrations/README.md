@@ -66,7 +66,7 @@ Een aantal fixes is alleen als los bestand in `supabase/checks/`
 geschreven en nooit een genummerde migratie geworden — dus wie "plak de
 migraties" doet, slaat ze over. Ze zijn allemaal gebundeld in:
 
-    supabase/checks/ALLES-IN-1.sql
+    supabase/checks/ALLES-IN-1-V2.sql
 
 Veilig om twee keer te draaien. Daarin zitten onder meer: row-level
 security op `logs` en `wallet_exchanges` (die hadden nergens een policy),
