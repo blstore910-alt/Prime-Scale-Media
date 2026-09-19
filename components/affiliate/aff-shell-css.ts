@@ -125,6 +125,23 @@ export const AFF_CSS = `
   .stat .v.gold{color:var(--gold-deep)}.stat .v.win{color:var(--win)}.stat .v.blue{color:var(--primary-600)}
 
   .grid{display:grid;grid-template-columns:1.12fr .88fr;gap:16px}
+  /* ── A DISABLED BUTTON HAS TO LOOK DISABLED ─────────────────────────
+     .btn and .btn.grad both set background and box-shadow explicitly,
+     and there was no :disabled rule anywhere in either shell — so
+     "Request one", "New request", "Withdraw to wallet" and the
+     affiliate's "Request payout" rendered at full brand gradient, lifted
+     on hover, swallowed every tap, and carried their reason only in a
+     title attribute, which does not exist on a phone. The customer is
+     left pressing a live-looking button that does nothing and saying
+     nothing. */
+  .btn:disabled,.btn[disabled]{cursor:not-allowed;opacity:.55;
+    background:var(--panel-2)!important;color:var(--txt-2)!important;
+    border-color:var(--line-2)!important;box-shadow:none!important;
+    filter:none!important;transform:none!important}
+  .btn:disabled:hover,.btn[disabled]:hover{transform:none!important;
+    box-shadow:none!important;filter:none!important}
+  .btn:disabled svg,.btn[disabled] svg{opacity:.7}
+
   .card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
   .invite{position:relative;border-radius:20px;padding:24px;overflow:hidden;background:linear-gradient(135deg,rgba(61,123,244,.11),rgba(24,184,206,.09)),var(--panel);border:1px solid var(--line-2);box-shadow:var(--shadow)}
   .invite h2{display:flex;align-items:center;gap:9px}.invite h2 svg{width:20px;height:20px;color:var(--primary)}

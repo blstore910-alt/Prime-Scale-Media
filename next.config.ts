@@ -42,6 +42,23 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // ── SKEW PROTECTION, THE FRAMEWORK HALF ─────────────────────────────
+  //
+  // Turning it on in Vercel is not enough by itself: the platform can
+  // only route a request to the deployment a tab was loaded from if the
+  // tab TELLS it which one that is, and Next only sends that header when
+  // it has been given a deploymentId at build time.
+  //
+  // Without it, a customer with the app open when a deploy lands hits a
+  // deployment-id mismatch on their next navigation or server action and
+  // Next does a hard reload — which loses whatever they had half typed.
+  // Harmless while the app has five testers in it, and not harmless at
+  // two hundred customers.
+  //
+  // VERCEL_DEPLOYMENT_ID is set by the platform during the build. It is
+  // undefined locally, where the value is not wanted anyway: a dev
+  // server has no skew to protect against.
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
   images: {
     remotePatterns: [
       { hostname: "jifolefpyfasbhoqgjsg.supabase.co", pathname: "*/**" },

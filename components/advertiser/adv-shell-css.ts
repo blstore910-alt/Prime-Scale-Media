@@ -82,6 +82,23 @@ export const ADV_CSS = `
   .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
   .phead p{color:var(--txt-2);font-size:.92rem;margin:4px 0 0}
 
+  /* ── A DISABLED BUTTON HAS TO LOOK DISABLED ─────────────────────────
+     .btn and .btn.grad both set background and box-shadow explicitly,
+     and there was no :disabled rule anywhere in either shell — so
+     "Request one", "New request", "Withdraw to wallet" and the
+     affiliate's "Request payout" rendered at full brand gradient, lifted
+     on hover, swallowed every tap, and carried their reason only in a
+     title attribute, which does not exist on a phone. The customer is
+     left pressing a live-looking button that does nothing and saying
+     nothing. */
+  .btn:disabled,.btn[disabled]{cursor:not-allowed;opacity:.55;
+    background:var(--panel-2)!important;color:var(--txt-2)!important;
+    border-color:var(--line-2)!important;box-shadow:none!important;
+    filter:none!important;transform:none!important}
+  .btn:disabled:hover,.btn[disabled]:hover{transform:none!important;
+    box-shadow:none!important;filter:none!important}
+  .btn:disabled svg,.btn[disabled] svg{opacity:.7}
+
   .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow-sm)}
   .btn{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;font-family:var(--bd);font-weight:700;border-radius:11px;padding:11px 16px;background:var(--primary);color:#fff;white-space:nowrap;box-shadow:0 12px 26px -12px rgba(58,111,255,.7);transition:.12s}
   .btn:hover{transform:translateY(-1px);background:var(--primary-600)}.btn svg{width:17px;height:17px}

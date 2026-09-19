@@ -522,7 +522,21 @@ export default function WalletTopupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      /* ── NOT WHILE IT IS WRITING ──────────────────────────────────
+         This was the raw setter. Escape, the X or a click on the
+         overlay during the submit closed the sheet while the insert
+         went through: the row is filed, wallets.reference_no rotates,
+         the draft clears, and setStep(SUCCESS) paints a dialog nobody
+         can see. The customer reopens at step 1, finds no claim, and
+         wires again — and the RPC has no duplicate guard. ConfirmModal
+         has refused this since it was written; this dialog never did. */
+      onOpenChange={(next) => {
+        if (!next && isPending) return;
+        onOpenChange(next);
+      }}
+    >
       {/* ── THE BUTTON THAT STARTS THE PAYMENT WAS INSIDE A SCROLLER
               THAT COULD NOT SCROLL ─────────────────────────────────────
 
@@ -818,13 +832,26 @@ export default function WalletTopupDialog({
 
                 <div className="space-y-4">
                   <div className="grid gap-2">
-                    {/* Ask what they DID, not what we will do. By this step
-                        the transfer has already been made — the previous
-                        button says "I have made the transfer" — so the
-                        question is how much went out, and the consequence
-                        goes underneath. "Amount to credit" reads like a
-                        request for something we have not agreed to. */}
-                    <Label htmlFor="amount">How much did you transfer?</Label>
+                    {/* ── ASK FOR THE FIGURE THAT IS ACTUALLY WRITTEN ──
+                        This said "How much did you transfer?" with the
+                        WALLET symbol in front of the box, under a line
+                        reading "Transferring to TURLIT LLC (GBP)". The
+                        helper then said both things at once: "this is
+                        what we will credit to your EUR wallet" AND
+                        "enter the exact amount you sent". Somebody who
+                        wires GBP 2,150 and does what the sentence tells
+                        them files a claim for EUR 2,150 — about a fifth
+                        out, on every transfer in a currency that is not
+                        the wallet's.
+
+                        The RPC takes (p_amount, p_currency) where
+                        p_currency IS the wallet currency, so the number
+                        in this box is, and can only be, the wallet
+                        credit. The question has to be that. What to send
+                        is the line underneath, which already converts. */}
+                    <Label htmlFor="amount">
+                      How much should we credit to your {currency} wallet?
+                    </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                         {currency === "USD" ? "$" : "€"}
@@ -840,9 +867,9 @@ export default function WalletTopupDialog({
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      This is what we will credit to your {currency} wallet
-                      once we see it arrive. Enter the exact amount you sent —
-                      it is what we match your payment against.
+                      {transferCurrency === currency
+                        ? `This is what we credit once we see it arrive, so it should be the exact amount you sent.`
+                        : `This is what we credit once we see your transfer arrive. Your transfer is in ${transferCurrency} — the figure to send is below.`}
                     </p>
                     {errors.amount && (
                       <p className="text-sm text-destructive">
