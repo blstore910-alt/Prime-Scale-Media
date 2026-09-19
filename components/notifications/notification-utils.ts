@@ -161,6 +161,19 @@ export function getNotificationCopy(notification: Notification): {
           : "A connection to an external service is failing. The manual fallback still works.",
       };
     }
+    case "affiliate_application": {
+      const p = parseNotificationPayload(notification) as {
+        applicant_name?: string;
+        client_code?: string | null;
+      };
+      const who = p.applicant_name || "An advertiser";
+      return {
+        title: "Affiliate application",
+        description: `${who}${
+          p.client_code ? ` (${p.client_code})` : ""
+        } wants to join the affiliate program. Set their commission and approve or refuse it.`,
+      };
+    }
     case "rate_limit_abuse":
       return {
         title: "Suspicious activity",

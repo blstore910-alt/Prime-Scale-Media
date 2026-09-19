@@ -17,6 +17,13 @@ export type NotificationCatalogEntry = {
 // always reflects reality instead of dangling dead toggles.
 export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
   {
+    type: "affiliate_application",
+    label: "Affiliate application",
+    description:
+      "When an advertiser asks to join the affiliate program and needs commission terms.",
+    audience: "admin",
+  },
+  {
     type: "topup_completed",
     label: "Top-up completed",
     description: "When one of your top-ups is confirmed and credited.",

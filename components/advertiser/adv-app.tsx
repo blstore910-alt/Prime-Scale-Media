@@ -152,6 +152,8 @@ export default function AdvertiserApp() {
   // pressing Top up inside the card labelled "USD wallet" opened a EUR
   // top-up — and somebody who did not re-read the third line wired
   // dollars and filed the claim in euros.
+  const [applying, setApplying] = useState(false);
+  const [affiliateApplied, setAffiliateApplied] = useState(false);
   const [topupCurrency, setTopupCurrency] = useState<"EUR" | "USD">("EUR");
   const openTopup = (cur: "EUR" | "USD") => {
     setTopupCurrency(cur);
@@ -3432,18 +3434,54 @@ export default function AdvertiserApp() {
                 Bring other advertisers in and earn a commission on what they
                   spend. Apply here and we&apos;ll look at it.
               </p>
+              {/* ── NOT A mailto: ─────────────────────────────────────
+                  This used to set location.href to a mailto:. On a
+                  machine with no mail client registered — most machines,
+                  and every phone where the customer uses webmail —
+                  that does NOTHING. No error, no tab, no console entry.
+                  They press the only button on the card, watch nothing
+                  happen, and conclude the product is broken. Which, from
+                  where they are standing, it is. */}
               <button
                 className="btn ghost sm"
-                onClick={() => {
-                  window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-                    "Affiliate program application",
-                  )}&body=${encodeURIComponent(
-                    "Hi PSM team, I'd like to join the affiliate program.",
-                  )}`;
+                disabled={applying || affiliateApplied}
+                onClick={async () => {
+                  setApplying(true);
+                  try {
+                    const { applyForAffiliateProgram } = await import(
+                      "@/actions/affiliate-application-actions"
+                    );
+                    const res = await applyForAffiliateProgram();
+                    if (!res.ok) {
+                      toast.error(res.error);
+                      return;
+                    }
+                    setAffiliateApplied(true);
+                    toast.success(
+                      res.data.alreadySent
+                        ? "You've already applied — we're still looking at it."
+                        : "Application sent. We'll set your commission and come back to you.",
+                    );
+                  } catch {
+                    toast.error(
+                      "We couldn't send your application just now. Try again shortly.",
+                    );
+                  } finally {
+                    setApplying(false);
+                  }
                 }}
               >
-                Apply to the affiliate program
+                {applying
+                  ? "Sending…"
+                  : affiliateApplied
+                    ? "Application sent"
+                    : "Apply to the affiliate program"}
               </button>
+              {affiliateApplied && (
+                <p className="cap" style={{ margin: "8px 0 0" }}>
+                  We&apos;ll set your commission and let you know.
+                </p>
+              )}
             </div>
           </div>
 

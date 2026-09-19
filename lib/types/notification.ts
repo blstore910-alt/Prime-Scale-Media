@@ -10,7 +10,8 @@ export type NotificationType =
   | "subscription_changed"
   | "supplier_low_balance"
   | "supplier_pool_changed"
-  | "rate_limit_abuse";
+  | "rate_limit_abuse"
+  | "affiliate_application";
 
 export type NotificationAuthor = {
   id: string;
@@ -76,6 +77,14 @@ export type SupplierPoolChangedNotificationPayload = {
   summary: string;
 };
 
+export type AffiliateApplicationNotificationPayload = {
+  applicant_profile_id: string;
+  applicant_name: string;
+  applicant_email?: string | null;
+  advertiser_id?: string | null;
+  client_code?: string | null;
+};
+
 export interface NotificationPayloadByType {
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
@@ -89,6 +98,7 @@ export interface NotificationPayloadByType {
   supplier_low_balance: SupplierLowBalanceNotificationPayload;
   supplier_pool_changed: SupplierPoolChangedNotificationPayload;
   rate_limit_abuse: RateLimitAbuseNotificationPayload;
+  affiliate_application: AffiliateApplicationNotificationPayload;
 }
 
 export type NotificationPayload =
