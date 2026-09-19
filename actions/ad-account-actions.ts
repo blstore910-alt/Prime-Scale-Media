@@ -558,6 +558,45 @@ export async function createAdAccountFromRequest(
   if (req.status === "completed") {
     return { ok: false, error: "Request already completed" };
   }
+
+  // ── NOT WHILE THE FEE IS STILL UNPAID ───────────────────────────────
+  //
+  // The review dialog offers Create Ad Account on payment_pending, and
+  // this action checked only that the status was not completed or
+  // rejected — never whether the invoice raised for it had been paid. So
+  // the account is delivered, the request is marked completed, and the
+  // EUR 50 invoice is left unpaid and orphaned: on no queue, not
+  // collected by the auto-debit (which only takes invoices carrying a
+  // subscription_id), and on no screen. The account was given away for
+  // nothing and nothing says so.
+  if (req.status === "payment_pending") {
+    const { data: openFees } = await supabase
+      .from("invoices")
+      .select("id, items, status")
+      .eq("advertiser_id", req.advertiser_id)
+      .eq("type", "ad_account_fee")
+      .eq("status", "unpaid")
+      .limit(50);
+    const unpaid = (openFees ?? []).find((inv) => {
+      const items = (inv as { items?: unknown }).items;
+      return (
+        Array.isArray(items) &&
+        items.some(
+          (it) =>
+            (it as { ad_account_request_id?: string })
+              ?.ad_account_request_id === requestId,
+        )
+      );
+    });
+    if (unpaid) {
+      return {
+        ok: false,
+        error:
+          "The fee for this request has not been paid yet. Wait for the invoice to settle, or void it first if you are waiving the fee.",
+      };
+    }
+  }
+
   // A rejected request is not a request any more. Without this, admin B
   // rejecting while admin A has the review dialog open did not stop A from
   // creating the account — the customer then held a rejection AND an
