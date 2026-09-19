@@ -40,6 +40,17 @@ type Row = {
   dirty: boolean;
 };
 
+/**
+ * An empty box is not a zero.
+ *
+ * Number("") is 0, so a cleared field wrote a deliberate zero — a EUR 0
+ * plan from the Add row, which creates no subscription at all. This was
+ * defined inside the Save handler and not used by Add, twenty lines
+ * apart; at module scope there is one of it.
+ */
+const blankOrNumber = (v: string) =>
+  v.trim() === "" ? (undefined as unknown as number) : Number(v);
+
 export default function PlansCard() {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({
@@ -135,8 +146,6 @@ export default function PlansCard() {
         // This is the rule the per-currency price six lines up already
         // states in its own comment. It just was not applied to the
         // fields underneath it.
-        const blankOrNumber = (v: string) =>
-          v.trim() === "" ? (undefined as unknown as number) : Number(v);
 
         const res = await upsertPlan({
           id: r.id,
@@ -167,10 +176,15 @@ export default function PlansCard() {
       const res = await upsertPlan({
         name: nName.trim(),
         kind: nKind,
-        monthly_fee: Number(nMonthly),
+        // blankOrNumber, like the Save path thirty lines up. Number("")
+        // is 0, so a cleared box here minted a EUR 0 plan — and a plan
+        // priced at zero creates no subscription at all, which is the
+        // walkthrough's own known limitation. The helper exists in this
+        // file precisely so a blank arrives as undefined.
+        monthly_fee: blankOrNumber(nMonthly),
         currency: nCurrency,
-        included_ad_accounts: Number(nIncluded),
-        topup_fee_pct: Number(nPct),
+        included_ad_accounts: blankOrNumber(nIncluded),
+        topup_fee_pct: blankOrNumber(nPct),
       });
       if (!res.ok) throw new Error(res.error);
     },

@@ -43,6 +43,16 @@ type EditRow = {
 };
 
 function parsePct(v: string): number | null {
+  // ── AN EMPTY BOX IS NOT ZERO ────────────────────────────────────────
+  //
+  // Number("") is 0, so clearing the Fee % field and pressing Save wrote
+  // 0% over "Saved 1 type(s)" — and a 0 there is read everywhere else as
+  // "not set, use the plan rate", which is a third thing again. The same
+  // bug was found and fixed for plans in plan-actions.ts with a
+  // blankOrNumber helper and a comment saying exactly this; it was never
+  // brought here. null means "leave it alone", which is what the caller
+  // already does with null.
+  if (v.trim() === "") return null;
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0 || n > 100) return null;
   return n;
