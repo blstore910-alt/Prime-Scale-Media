@@ -95,9 +95,6 @@ export const AVATAR_TOPS = [
   "#3A6FFF", "#7C5CFF", "#2C3566", "#1E2A5A", "#5B8DFF", "#4634A8",
 ] as const;
 
-/** Seven heads, drawn in the renderer. Index only. */
-export const AVATAR_HAIR_STYLES = 7;
-
 export const AVATAR_AUTO_STYLES: AvatarStyle[] = ["person"];
 
 /**
