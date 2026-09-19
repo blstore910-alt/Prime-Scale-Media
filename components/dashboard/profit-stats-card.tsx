@@ -102,8 +102,14 @@ export function ProfitStatsCard({
           <CardDescription className="">Total Profit</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            Failed to load profit data
+          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
+            {/* A baseline, not a dashed box repeating the 0.00 above it.
+                A quiet month is the normal state on this dashboard, and
+                seven dashed rectangles made it look like seven faults. */}
+            <div className="h-px w-full bg-border" />
+            <span className="text-[11px] leading-none text-muted-foreground/70">
+              Failed to load profit data
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -115,10 +121,15 @@ export function ProfitStatsCard({
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
-        <CardDescription className="font-semibold text-lg text-card-foreground">
+        {/* ── THE FIGURE IS THE HEADLINE ──────────────────────────
+            The label was text-lg semibold in the card's own ink, above a
+            figure at text-xl — so the two competed and the card read as
+            a heading with a number under it rather than as a number.
+            Small, quiet label; the figure carries the weight. */}
+        <CardDescription className="text-[11px] font-bold uppercase tracking-[.08em] text-muted-foreground">
           Profit
         </CardDescription>
-        <CardTitle className=" text-xl font-semibold tabular-nums">
+        <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           {formatCurrency(data.totals.profit, "EUR")}
         </CardTitle>
       </CardHeader>
@@ -194,8 +205,14 @@ export function ProfitStatsCard({
             </ChartContainer>
           </div>
         ) : (
-          <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            No profit data in the selected period
+          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
+            {/* A baseline, not a dashed box repeating the 0.00 above it.
+                A quiet month is the normal state on this dashboard, and
+                seven dashed rectangles made it look like seven faults. */}
+            <div className="h-px w-full bg-border" />
+            <span className="text-[11px] leading-none text-muted-foreground/70">
+              No profit data in the selected period
+            </span>
           </div>
         )}
       </CardContent>

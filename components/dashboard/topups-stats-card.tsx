@@ -97,8 +97,14 @@ export function TopupsStatsCard({
           <CardDescription className="">Total Topups</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            Failed to load topups data
+          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
+            {/* A baseline, not a dashed box repeating the 0.00 above it.
+                A quiet month is the normal state on this dashboard, and
+                seven dashed rectangles made it look like seven faults. */}
+            <div className="h-px w-full bg-border" />
+            <span className="text-[11px] leading-none text-muted-foreground/70">
+              Failed to load topups data
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -110,10 +116,15 @@ export function TopupsStatsCard({
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
-        <CardDescription className="font-semibold text-lg text-card-foreground">
+        {/* ── THE FIGURE IS THE HEADLINE ──────────────────────────
+            The label was text-lg semibold in the card's own ink, above a
+            figure at text-xl — so the two competed and the card read as
+            a heading with a number under it rather than as a number.
+            Small, quiet label; the figure carries the weight. */}
+        <CardDescription className="text-[11px] font-bold uppercase tracking-[.08em] text-muted-foreground">
           Topups <span>({formatNumber(data.totals.count)})</span>
         </CardDescription>
-        <CardTitle className=" text-xl font-semibold tabular-nums">
+        <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>
           <span className="mx-2">/</span>
           <span>{formatCurrency(data.totals.eur.amount, "EUR")}</span>
@@ -207,8 +218,14 @@ export function TopupsStatsCard({
             </ChartContainer>
           </div>
         ) : (
-          <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            No topups made in the selected period
+          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
+            {/* A baseline, not a dashed box repeating the 0.00 above it.
+                A quiet month is the normal state on this dashboard, and
+                seven dashed rectangles made it look like seven faults. */}
+            <div className="h-px w-full bg-border" />
+            <span className="text-[11px] leading-none text-muted-foreground/70">
+              No topups made in the selected period
+            </span>
           </div>
         )}
       </CardContent>

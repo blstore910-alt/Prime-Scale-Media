@@ -97,8 +97,14 @@ export function SubscriptionsStatsCard({
           <CardDescription className="">Subscriptions</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            Failed to load subscriptions data
+          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
+            {/* A baseline, not a dashed box repeating the 0.00 above it.
+                A quiet month is the normal state on this dashboard, and
+                seven dashed rectangles made it look like seven faults. */}
+            <div className="h-px w-full bg-border" />
+            <span className="text-[11px] leading-none text-muted-foreground/70">
+              Failed to load subscriptions data
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -113,7 +119,7 @@ export function SubscriptionsStatsCard({
         <CardDescription className="font-semibold text-lg  text-card-foreground">
           Subscriptions <span>({formatNumber(data.totals.count)})</span>
         </CardDescription>
-        <CardTitle className=" text-xl font-semibold tabular-nums">
+        <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>
           <span className="mx-2">/</span>
           <span>{formatCurrency(data.totals.eur.amount, "EUR")}</span>
@@ -204,8 +210,14 @@ export function SubscriptionsStatsCard({
             </ChartContainer>
           </div>
         ) : (
-          <div className="flex h-[72px] items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            No subscriptions made in the selected period
+          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
+            {/* A baseline, not a dashed box repeating the 0.00 above it.
+                A quiet month is the normal state on this dashboard, and
+                seven dashed rectangles made it look like seven faults. */}
+            <div className="h-px w-full bg-border" />
+            <span className="text-[11px] leading-none text-muted-foreground/70">
+              No subscriptions made in the selected period
+            </span>
           </div>
         )}
       </CardContent>
