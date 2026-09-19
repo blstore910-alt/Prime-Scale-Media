@@ -139,6 +139,7 @@ export default function WalletTopupDialog({
   referenceNo,
   minTopup,
   accountTypeSlugs = [],
+  initialCurrency = null,
   accountsUnknown = false,
 }: {
   open: boolean;
@@ -148,6 +149,8 @@ export default function WalletTopupDialog({
   minTopup: number | null;
   /** Type slugs of the advertiser's own ad accounts, to route the transfer. */
   accountTypeSlugs?: string[];
+  /** Which wallet the customer pressed Top up on. */
+  initialCurrency?: CurrencyCode | null;
   /**
    * The ad-accounts read did not come back — it failed, or it is still in
    * flight. NOT the same as "this advertiser has no accounts", and the
@@ -156,7 +159,17 @@ export default function WalletTopupDialog({
   accountsUnknown?: boolean;
 }) {
   const [step, setStep] = useState(STEPS.SELECTION);
-  const [currency, setCurrency] = useState<CurrencyCode>("EUR");
+  // ── OPEN ON THE WALLET THEY PRESSED ────────────────────────────────
+  //
+  // Both wallet cards called the same setTopupOpen(true) with no
+  // currency, and this hard-defaulted to EUR. So somebody pressing Top up
+  // INSIDE the card labelled "USD wallet" got "Wallet to fund: EUR —
+  // Euro wallet" three lines down, did not re-read it, wired $5,000 and
+  // filed the claim as EUR 5,000. Only the admin comparing against the
+  // slip would catch it, and only if they looked.
+  const [currency, setCurrency] = useState<CurrencyCode>(
+    initialCurrency === "USD" ? "USD" : "EUR",
+  );
   // Which beneficiary bank the transfer routes to.
   const [bankGroup, setBankGroup] = useState<BankGroup>("turlit");
   // TWO DIFFERENT SITUATIONS, and collapsing them sent money to the wrong

@@ -908,10 +908,49 @@ export default function AdvertiserApp() {
   // treat unknown as "let them through and let the server decide" —
   // because the server is the real boundary and it is never wrong about
   // its own state.
-  const gateUnknown = companyError || planPaidError || subError || invError;
+  // ── ONE FLAG FOR FOUR UNRELATED READS WAS TOO BLUNT ─────────────────
+  //
+  // `companyError || planPaidError || subError || invError` gated TWO
+  // different rules, in opposite directions, off whichever of the four
+  // happened to fail. So a failed INVOICES read — a query that names
+  // `due_date`, which the migrations README still lists this table
+  // without — did both of these at once:
+  //
+  //   * unlocked Top up, Exchange and Request one for an advertiser with
+  //     NO companies row at all. Neither wallet_topup_advertiser_create
+  //     nor ad_account_request_create_paid has a company gate, so a real
+  //     bank transfer arrives and EUR 50 is debited for somebody no
+  //     invoice can ever be raised for.
+  //   * forced planActive true, which puts the EUR 300 floor back on a
+  //     first top-up that the server would have accepted at EUR 5 — and
+  //     the customer only learns that after they have wired the money.
+  //
+  // Split, so each rule is unknown only when the read BEHIND THAT RULE
+  // failed. The company question is answered by the company read.
+  const companyUnknown = companyError;
+  const planUnknown = planPaidError || subError || invError;
+  // WHY the Request button is dead, in the customer's words. It always
+  // blamed the plan — "Your plan has to be active first" — and
+  // canRequestAccount fails on EITHER leg, so somebody whose plan is paid
+  // and shows Active on the same page read an explanation they could see
+  // was untrue. The usual real cause is the billing address, which lives
+  // on a different form.
+  const requestBlockedReason = (): string | null => {
+    if (canRequestAccount) return null;
+    if (!companyComplete && !companyUnknown) {
+      return companyMissing.length && companyMissing.length <= 2
+        ? `Still needed first: ${companyMissing.join(" and ")}`
+        : "Add your company details first — including the billing address";
+    }
+    if (!planActive && !planUnknown) {
+      return "Your plan has to be active first — that is what your included ad accounts come from";
+    }
+    return "We couldn't check your plan just now — reload and try again";
+  };
+
   const canRequestAccount =
-    (companyComplete || gateUnknown) &&
-    (planActive || gateUnknown || (accounts ?? []).length > 0);
+    (companyComplete || companyUnknown) &&
+    (planActive || planUnknown || (accounts ?? []).length > 0);
 
   // ── Deep links ──────────────────────────────────────────────────────
   // The views were pure state, so nothing outside this component could
@@ -1595,7 +1634,7 @@ export default function AdvertiserApp() {
                 go(v as View);
               }}
             />
-            {!companyComplete && !gateUnknown && (
+            {!companyComplete && !companyUnknown && (
               /* The app no longer blocks the door with this form, so it has
                  to say plainly why the buttons are quiet — otherwise "you can
                  look but nothing works" is just a broken app. */
@@ -1639,7 +1678,7 @@ export default function AdvertiserApp() {
               onExchange={() => setExchangeOpen(true)}
               onOpenWallet={() => go("wallet")}
               onOpenAccounts={() => go("accounts")}
-              disabled={!wallet || (!companyComplete && !gateUnknown)}
+              disabled={!wallet || (!companyComplete && !companyUnknown)}
               loading={walletLoading}
             />
             {/* Number(), not truthiness. subscriptions.amount is moving from
@@ -2010,7 +2049,7 @@ export default function AdvertiserApp() {
                 pendingUnknown={pendingUnknown}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
-                disabled={!wallet || (!companyComplete && !gateUnknown)}
+                disabled={!wallet || (!companyComplete && !companyUnknown)}
                 /* `!wallet` is true for a tenant with genuinely no wallet
                    row AND for a read that failed, and the second one left
                    both buttons dead with nothing said — beside balances
@@ -2034,7 +2073,7 @@ export default function AdvertiserApp() {
                 pendingUnknown={pendingUnknown}
                 onTopup={() => setTopupOpen(true)}
                 onExchange={() => setExchangeOpen(true)}
-                disabled={!wallet || (!companyComplete && !gateUnknown)}
+                disabled={!wallet || (!companyComplete && !companyUnknown)}
                 /* `!wallet` is true for a tenant with genuinely no wallet
                    row AND for a read that failed, and the second one left
                    both buttons dead with nothing said — beside balances
@@ -2060,7 +2099,7 @@ export default function AdvertiserApp() {
                 slip only — there is no server-side gate — so the money
                 arrives for somebody no invoice can be raised for. A
                 disabled button on one screen is not a rule. */}
-            {!companyComplete && !gateUnknown && (
+            {!companyComplete && !companyUnknown && (
               <div className="duerow msg" style={{ marginTop: 12 }}>
                 <span className="ai">
                   <Ic name="i-building" />
@@ -2292,7 +2331,7 @@ export default function AdvertiserApp() {
                 <button
                   className="btn grad"
                   disabled
-                  title="Your plan has to be active first — that is what your included ad accounts come from"
+                  title={requestBlockedReason() ?? undefined}
                 >
                   <Ic name="i-plus" /> Request one
                 </button>
@@ -2314,9 +2353,7 @@ export default function AdvertiserApp() {
                     ? "Couldn't load your ad accounts"
                     : canRequestAccount
                       ? "No ad accounts yet"
-                      : invError
-                        ? "We couldn't check your plan"
-                        : "Activate your plan first"}
+                      : (requestBlockedReason() ?? "Nothing here yet")}
                 </h3>
                 <p>
                   {accountsError
@@ -2393,7 +2430,7 @@ export default function AdvertiserApp() {
                 <button
                   className="btn grad"
                   disabled
-                  title="Your plan has to be active first — that is what your included ad accounts come from"
+                  title={requestBlockedReason() ?? undefined}
                 >
                   <Ic name="i-plus" /> New request
                 </button>
@@ -3200,7 +3237,11 @@ export default function AdvertiserApp() {
         // it is a transfer that has to be sent back.
         minTopup={effectiveMinTopup({
           walletMin: wallet?.min_topup as number | null | undefined,
-          planActive: planActive || !!gateUnknown,
+          // planUnknown, not gateUnknown: a failed COMPANY read says
+          // nothing about whether their plan is running, and using it
+          // here put the EUR 300 floor on a first top-up the server would
+          // have taken at EUR 5.
+          planActive: planActive || !!planUnknown,
           community,
         })}
         // Their own accounts decide where the transfer goes, so the dialog

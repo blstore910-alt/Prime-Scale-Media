@@ -86,7 +86,6 @@ function saveState(advertiserId: string | null, state: Persisted) {
   }
 }
 
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 export default function OnboardingChecklist({
   advertiserId,

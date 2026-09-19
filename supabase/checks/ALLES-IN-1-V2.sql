@@ -1073,7 +1073,10 @@ select
   from public.invoices i
   join public.subscriptions s on s.id = i.subscription_id
   join public.advertisers a on a.id = i.advertiser_id
-  left join public.user_profiles up on up.id = a.user_profile_id
+  -- user_id, NIET user_profile_id: die kolom bestaat niet op advertisers.
+  left join public.user_profiles up
+         on up.user_id = a.user_id
+        and up.tenant_id = a.tenant_id
  where i.status = 'unpaid'
    and (s.status in ('inactive', 'paused')
         or coalesce(up.is_active, true) = false
