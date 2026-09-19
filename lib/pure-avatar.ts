@@ -48,6 +48,47 @@ export const AVATAR_STYLES = [
 
 export type AvatarStyle = (typeof AVATAR_STYLES)[number];
 
+/**
+ * The styles a person can be given automatically.
+ *
+ * Not all ten. `beam` is two dots and a mouth, which at 30px in a
+ * toolbar reads as a placeholder nobody replaced; `mono` and `slab` are
+ * initials, which is tidy and is the same treatment for everybody. The
+ * seven left are pictures: an identicon, cut glass, soft blobs, a
+ * Bauhaus grid, concentric arcs, a disc with a moon, stacked waves.
+ *
+ * Seven is also enough that two people in a list are unlikely to share a
+ * look — and where they do, the palette is already keyed to the seed, so
+ * they will not share a colour as well.
+ */
+export const AVATAR_AUTO_STYLES: AvatarStyle[] = [
+  "shard",
+  "marble",
+  "orbit",
+  "bauhaus",
+  "pixel",
+  "rings",
+  "wave",
+];
+
+/**
+ * Which picture this person gets, from their seed alone.
+ *
+ * Deterministic, so the same person is the same mark on every screen and
+ * in every list, and nothing has to be stored for it. A DIFFERENT hash
+ * seed from the colour one, or the two would move together and the seven
+ * styles would only ever appear in seven colours.
+ */
+export function autoAvatarStyle(seed: string): AvatarStyle {
+  const s = String(seed ?? "");
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return AVATAR_AUTO_STYLES[Math.abs(h) % AVATAR_AUTO_STYLES.length];
+}
+
 /** What each one is called on the picker. */
 export const AVATAR_STYLE_LABELS: Record<AvatarStyle, string> = {
   beam: "Beam",

@@ -734,34 +734,37 @@ export default function WalletTopupDialog({
 
                 {/* The last moment before the money leaves their bank. */}
                 {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
-                    This said "At least EUR 300" while the customer was
-                    looking at a British account and a GBP IBAN, on the
-                    last screen before the transfer leaves their bank.
-                    Somebody sending GBP 300 against a EUR 300 floor is
-                    short by a fifth and gets the deposit refused. The
-                    converter for this is in this file already — it was
-                    used for the amount and not for the minimum. */}
-                {minTopupAmount > 0 && (
-                  <p className="pt-2 text-sm font-medium">
-                    At least {currency}{" "}
-                    {minTopupAmount.toLocaleString("en-US")}
-                    {(() => {
-                      if (transferCurrency === currency) return null;
-                      const inTransfer = convertWalletToTransfer(
-                        minTopupAmount,
-                        currency,
-                        transferCurrency,
-                        rate,
-                      );
-                      return inTransfer
-                        ? ` — about ${transferCurrency} ${Math.ceil(
-                            inTransfer,
-                          ).toLocaleString("en-US")} at today's rate`
-                        : null;
-                    })()}
-                    . Anything less cannot be filed.
-                  </p>
-                )}
+                    One figure, in the currency on the screen. This said
+                    "At least EUR 300" while the customer was looking at
+                    a British account and a GBP IBAN — send GBP 300
+                    against a EUR 300 floor and you are a fifth short and
+                    the deposit is refused. Then it said both, which is
+                    two numbers to reconcile on the last screen before
+                    the money leaves their bank. The wallet currency is
+                    not their problem here; what to type into the bank is. */}
+                {minTopupAmount > 0 &&
+                  (() => {
+                    const inTransfer =
+                      transferCurrency === currency
+                        ? minTopupAmount
+                        : convertWalletToTransfer(
+                            minTopupAmount,
+                            currency,
+                            transferCurrency,
+                            rate,
+                          );
+                    // Round UP. A floor rounded down is a transfer that
+                    // arrives a cent under the minimum.
+                    const shown = inTransfer
+                      ? Math.ceil(inTransfer)
+                      : minTopupAmount;
+                    const cur = inTransfer ? transferCurrency : currency;
+                    return (
+                      <p className="pt-2 text-sm font-medium">
+                        At least {cur} {shown.toLocaleString("en-US")}.
+                      </p>
+                    );
+                  })()}
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={handlePrevStep}>

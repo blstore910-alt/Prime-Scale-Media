@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import {
+  autoAvatarStyle,
   avatarFor,
   mouthPath,
   type AvatarRole,
@@ -32,17 +33,22 @@ export default function PsmAvatar({
   email,
   role = "unknown",
   size = 32,
-  // MONOGRAM, not the face. "beam" draws two dots and a mouth, and at
-  // 30px in a toolbar that reads as a placeholder somebody forgot to
-  // replace — a smiley next to a wallet balance. Initials on the seed's
-  // own two-tone ground is what a person recognises as themselves, it
-  // carries the brand colours, and it stays legible down to 24px where a
-  // face turns to mush.
+  // ── A PICTURE, AND NOT THE SAME ONE FOR EVERYBODY ───────────────────
   //
-  // The ten styles and the picker for them are still here; nothing has
-  // ever wired the picker up, so until something does, this is what
-  // everyone sees.
-  style = "mono",
+  // This was "beam" — two dots and a mouth, which at 30px in a toolbar
+  // reads as a placeholder somebody forgot to replace. Then it was
+  // "mono", initials, which is tidy and gives every person in a list the
+  // identical treatment: a grid of two-letter tiles.
+  //
+  // There are ten styles in lib/pure-avatar.ts and a picker for them
+  // that nothing has ever been wired to. So rather than choose one for
+  // everyone, the seed chooses: seven picture styles, deterministic per
+  // person, so the same customer is the same mark on every screen and in
+  // every list — and an admin scanning a queue recognises them by shape
+  // and colour before reading the name. Nothing is stored for it.
+  //
+  // An explicit `style` still wins, for a picker when one is built.
+  style,
   ring,
   className,
   title,
@@ -52,6 +58,7 @@ export default function PsmAvatar({
   email?: string | null;
   role?: AvatarRole;
   size?: number;
+  /** Leave unset to let the seed choose. */
   style?: AvatarStyle;
   /** A coloured ring, for marking state (e.g. a customer who is overdue). */
   ring?: string;
@@ -105,7 +112,7 @@ export default function PsmAvatar({
       </defs>
 
       <g clipPath={`url(#${uid}c)`}>
-        <Style style={style} a={a} uid={uid} />
+        <Style style={style ?? autoAvatarStyle(seed)} a={a} uid={uid} />
       </g>
 
       {ring ? (
