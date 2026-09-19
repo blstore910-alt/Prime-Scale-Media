@@ -168,7 +168,13 @@ export default function AdvertiserAdAccountRequestsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="min-h-0 flex-1">
+        {/* A plain scrollport. Radix's ScrollArea sets its Viewport to
+            h-full and its inner wrapper to display:table, so against a
+            parent whose height is a max-height or a flex-1 the height
+            never resolves — the Root clips at overflow:hidden and
+            nothing scrolls at all. See the long note in
+            components/wallet/wallet-topup-dialog.tsx. */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
           <div className="space-y-3 pr-1">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, idx) => (
@@ -191,7 +197,7 @@ export default function AdvertiserAdAccountRequestsDialog({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

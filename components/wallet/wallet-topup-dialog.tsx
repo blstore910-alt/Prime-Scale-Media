@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { banksForAccountTypes } from "@/lib/bank-routing";
 import { formatPaymentReference } from "@/lib/payment-reference";
@@ -534,14 +533,30 @@ export default function WalletTopupDialog({
           actions are still INSIDE that scroller - they are reachable now
           rather than pinned, which is the part that mattered. */}
       <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-md">
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {step === STEPS.SUCCESS
               ? "Topup Requested"
               : "Request Wallet Topup"}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0 pr-2">
+        {/* ── A PLAIN SCROLLPORT, NOT A ScrollArea ───────────────────
+            Radix's ScrollArea puts an inner wrapper at `display:table`
+            and its Viewport at `h-full`, and inside a flex child whose
+            height comes from `flex-1` against a max-height, that height
+            does not resolve — so the Root clips at `overflow:hidden` and
+            nothing scrolls. The bank details on step 2 are the longest
+            thing in this dialog, and they were simply cut off at the
+            bottom of the sheet with no way to reach them: an IBAN you
+            cannot read is the whole point of the screen.
+
+            An ordinary overflow-y-auto div has none of that. It also
+            keeps the header and the close button out of the scroll,
+            which is why the outer box stays overflow-hidden.
+
+            overscroll-contain so flicking past the end scrolls the
+            dialog, not the page behind it. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
           <div className="px-1 py-2">
             {/* STEP 1: SELECTION */}
             {step === STEPS.SELECTION && (
@@ -959,7 +974,7 @@ export default function WalletTopupDialog({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -368,7 +368,13 @@ export default function AccountTopupForm({
           and on iOS the outer one steals the fling that would reveal the
           submit button at the bottom of this one. The wallet top-up dialog
           already uses 70dvh; this is the same. */}
-      <ScrollArea className="max-h-[62dvh] sm:max-h-[66dvh] pr-2">
+      {/* A plain scrollport. Radix's ScrollArea sets its Viewport to
+            h-full and its inner wrapper to display:table, so against a
+            parent whose height is a max-height or a flex-1 the height
+            never resolves — the Root clips at overflow:hidden and
+            nothing scrolls at all. See the long note in
+            components/wallet/wallet-topup-dialog.tsx. */}
+          <div className="max-h-[62dvh] overflow-y-auto overscroll-contain pr-2 sm:max-h-[66dvh]">
         <div className="px-1 space-y-4">
           <SelectField
             label="Ad Account"
@@ -482,7 +488,7 @@ export default function AccountTopupForm({
           )}
 
         </div>
-      </ScrollArea>
+      </div>
 
       {/* OUTSIDE the scroller. It used to sit at the bottom of a nested
           scroll area, so reaching it meant scrolling the inner one to its
