@@ -54,7 +54,7 @@ export const PSM_APP_CSS = `
 .psmapp .navlink.aff{color:var(--purple)}.psmapp .navlink.aff svg{color:var(--purple)}.psmapp .navlink .n.new{background:var(--purple)}
 .psmapp .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
 /* No brand fill behind a circular drawing - see the advertiser shell. */
-.psmapp .side-foot .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
+.psmapp .side-foot .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
 .psmapp .side-foot .avatar svg{width:100%;height:100%;display:block}
 .psmapp .side-foot .who{font-size:.85rem;font-weight:700;line-height:1.2}
 .psmapp .side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
@@ -86,7 +86,7 @@ export const PSM_APP_CSS = `
 .psmapp .tool.ic-btn:hover,.psmapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
 .psmapp .tool.ic-btn{padding:7px 11px}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
-.psmapp .tool.ava-btn .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:none;position:relative}
+.psmapp .tool.ava-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
 .psmapp .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
 .psmapp .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
 .psmapp .tool.ava-btn svg{width:15px}
@@ -1022,7 +1022,13 @@ export const PSM_APP_CSS = `
     display:grid;place-items:center;
     width:36px;height:36px;padding:0;gap:0;
   }
-  .psmapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:8px;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
+  /* ── ONE AVATAR, ONE SHAPE ────────────────────────────────────────
+     This mobile rule squared the topbar avatar off at 8px and shrank it
+     to 30px, while the sidebar drew a 36px circle and the account menu a
+     34px one. Three treatments of the same person on one screen, and the
+     square one read as a dark blob rather than as a face or a monogram.
+     Same size, same circle, everywhere. */
+  .psmapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
   .psmapp .toolbar .ava-btn svg{display:none}
   /* The standalone sign-out duplicates the one inside that menu. */
   .psmapp .topbar .so-btn{display:none}

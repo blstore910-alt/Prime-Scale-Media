@@ -38,7 +38,7 @@ export const ADV_CSS = `
      draws a CIRCLE, so what you saw was a blue tile with a disc on it,
      blue in all four corners. The box now only positions and clips; the
      drawing paints itself. */
-  .side-foot .avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
+  .side-foot .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:none;overflow:hidden}
   .side-foot .avatar svg{width:100%;height:100%;display:block}
   .side-foot .who{font-size:.85rem;font-weight:700;line-height:1.2}.side-foot .who small{display:block;color:var(--faint);font-weight:500;font-size:.72rem}
 
@@ -68,7 +68,7 @@ export const ADV_CSS = `
   /* Same: no brand fill behind a circular drawing, and the 36-unit SVG is
      sized to the box instead of overflowing it. The green presence dot
      stays. */
-  .tool.ava-btn .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:none;position:relative}
+  .tool.ava-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative}
   .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
   .tool.ava-btn .avatar::after{content:"";position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--win);border:2px solid var(--panel)}
   .tool.ava-btn svg{width:15px}
@@ -1055,7 +1055,7 @@ export const ADV_CSS = `
      rhythm shows most. On a phone a tappable avatar tile is already
      understood to open a menu. */
   .advapp .toolbar .ava-btn{display:grid;place-items:center;width:40px;height:40px;padding:0;gap:0}
-  .advapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:50%;overflow:hidden}
+  .advapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;overflow:hidden}
   .advapp .toolbar .ava-btn svg{display:none}
   /* Duplicates the one inside that menu. */
   .advapp .topbar .so-btn{display:none}
