@@ -520,6 +520,50 @@ export async function releaseSupplierAdAccount(
   }
 
   if (pool.ad_account_id) {
+    // ── EMPTY IT FIRST ────────────────────────────────────────────────
+    //
+    // This guard reads the STATUS and not the balance, so a supplier
+    // account could be handed back to the pool — and on to the next
+    // advertiser — with the previous one's money still on it. The only
+    // trace was a negative Funded column on a row nobody looks at again.
+    //
+    // Funded is completed top-ups minus approved withdrawals, in USD,
+    // which is the same figure /accounts shows. Above zero means there
+    // is something on the account to get out first.
+    {
+      const { data: tops } = await supabase
+        .from("top_ups")
+        .select("topup_amount")
+        .eq("account_id", pool.ad_account_id)
+        .eq("status", "completed")
+        .not("is_deleted", "is", true)
+        .limit(1000);
+      const { data: wds } = await supabase
+        .from("ad_account_withdrawals")
+        .select("amount")
+        .eq("ad_account_id", pool.ad_account_id)
+        .eq("status", "approved")
+        .limit(1000);
+      const funded =
+        (tops ?? []).reduce(
+          (a, t) => a + (Number((t as { topup_amount?: unknown }).topup_amount) || 0),
+          0,
+        ) -
+        (wds ?? []).reduce(
+          (a, w) => a + (Number((w as { amount?: unknown }).amount) || 0),
+          0,
+        );
+      if (funded > 0.005) {
+        return {
+          ok: false,
+          error: `This account still holds about $${funded.toFixed(
+            2,
+          )}. Withdraw it back to the advertiser's wallet first — once it is released, that money goes with it to whoever gets the account next.`,
+          code: "invalid",
+        };
+      }
+    }
+
     const { data: acct } = await supabase
       .from("ad_accounts")
       .select("id, name, status")

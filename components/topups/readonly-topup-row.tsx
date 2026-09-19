@@ -1,6 +1,6 @@
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils-pure";
-import { CURRENCY_SYMBOLS, DATE_FORMAT, TOPUP_TYPES } from "@/lib/constants";
+import { DATE_FORMAT, TOPUP_TYPES } from "@/lib/constants";
 import dayjs from "dayjs";
 import React from "react";
 import { Badge } from "../ui/badge";

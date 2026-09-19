@@ -101,7 +101,25 @@ export async function requestAdAccountWithdrawal(input: {
   // the status either.
   //
   // An unknown status counts as locked. See lib/pure-account-status.
-  if (isAccountLocked((acct as { status?: string | null }).status)) {
+  // ── DISABLED HAS TO STAY EMPTIABLE ──────────────────────────────────
+  //
+  // `disabled` is the admin's own off-switch, and it is also what the
+  // pool-release guard REQUIRES before a supplier account can be handed
+  // back. Treating it as a reason to refuse a withdrawal closed the only
+  // door the money has: switch the account off to release it, and the
+  // balance is now stranded on it — the release then happens anyway,
+  // because that guard reads the status and not the balance, and the
+  // next advertiser gets the row with somebody else's money on it.
+  //
+  // So the rule is the other way round: you empty it FIRST and release
+  // it after. A withdrawal off a disabled account is exactly that step.
+  //
+  // banned and closed stay refused: those are the platform's word, not
+  // ours, and the money is not ours to move on our own say-so.
+  const acctStatus = String(
+    (acct as { status?: string | null }).status ?? "",
+  ).toLowerCase();
+  if (acctStatus === "banned" || acctStatus === "closed") {
     return {
       ok: false,
       error:
