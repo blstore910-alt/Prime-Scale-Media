@@ -320,6 +320,32 @@ export const ADV_CSS = `
      way it goes without a second label. */
   .invmore{width:100%;justify-content:center;margin-top:10px}
   .invmore svg{width:14px;height:14px;transition:transform .15s}
+  /* ── The affiliate invitation ───────────────────────────────────────
+     The one screen in the customer app that is selling something, so it
+     gets the dark ground the balance hero has: everything else here is a
+     white card, and a white card is what "another section" looks like. */
+  .joinhero{position:relative;overflow:hidden;border-radius:20px;padding:26px 22px 24px;
+    color:#fff;text-align:center;
+    background:linear-gradient(150deg,var(--navy1),var(--navy2) 55%,#1b2450);
+    box-shadow:0 24px 50px -28px rgba(20,30,80,.85)}
+  .joinhero::after{content:"";position:absolute;inset:-40% -20% auto;height:70%;
+    background:radial-gradient(60% 100% at 50% 0,rgba(124,92,255,.5),transparent 70%);
+    pointer-events:none}
+  .joinhero>*{position:relative}
+  .jh-ic{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 14px;
+    border-radius:16px;background:rgba(255,255,255,.13);
+    box-shadow:0 0 0 1px rgba(255,255,255,.18) inset}
+  .jh-ic svg{width:24px;height:24px}
+  .joinhero h2{font-size:1.35rem;line-height:1.2;margin:0 0 8px;color:#fff}
+  .joinhero p{margin:0 auto 16px;max-width:34ch;font-size:.88rem;line-height:1.55;
+    color:rgba(255,255,255,.76)}
+  .jh-list{list-style:none;margin:0 auto 20px;padding:0;display:grid;gap:9px;
+    max-width:30ch;text-align:left}
+  .jh-list li{display:flex;align-items:flex-start;gap:9px;font-size:.85rem;
+    line-height:1.4;color:rgba(255,255,255,.9)}
+  .jh-list svg{width:15px;height:15px;flex:0 0 auto;margin-top:2px;color:#6ee7b7}
+  .joinhero .btn.grad{width:100%;max-width:19rem;justify-content:center}
+  .jh-note{display:block;margin-top:11px;font-size:.76rem;color:rgba(255,255,255,.55)}
   .list-row .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}

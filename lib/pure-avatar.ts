@@ -34,6 +34,7 @@ export type AvatarRole = "advertiser" | "affiliate" | "admin" | "unknown";
  * same person is the same picture everywhere in the app.
  */
 export const AVATAR_STYLES = [
+  "person",   // an illustrated head: skin, hair, shoulders
   "beam",     // a face: two eyes and a mouth, tilted
   "marble",   // soft overlapping blobs, organic
   "bauhaus",  // circle, bar and square on a grid
@@ -49,27 +50,46 @@ export const AVATAR_STYLES = [
 export type AvatarStyle = (typeof AVATAR_STYLES)[number];
 
 /**
- * The styles a person can be given automatically.
+ * What a person is given when nothing has been chosen for them.
  *
- * Not all ten. `beam` is two dots and a mouth, which at 30px in a
- * toolbar reads as a placeholder nobody replaced; `mono` and `slab` are
- * initials, which is tidy and is the same treatment for everybody. The
- * seven left are pictures: an identicon, cut glass, soft blobs, a
- * Bauhaus grid, concentric arcs, a disc with a moon, stacked waves.
+ * A PORTRAIT. The abstracts — cut glass, soft blobs, a Bauhaus grid —
+ * are handsome and they are wallpaper: a list of them tells you nothing
+ * about who is in it, and at 28px in a sidebar a dark disc of concentric
+ * rings reads as a loading state. Every dashboard people actually use
+ * puts a face there, because a face is the thing the eye finds in a list
+ * without reading.
  *
- * Seven is also enough that two people in a list are unlikely to share a
- * look — and where they do, the palette is already keyed to the seed, so
- * they will not share a colour as well.
+ * The other nine styles stay available by name for a picker.
  */
-export const AVATAR_AUTO_STYLES: AvatarStyle[] = [
-  "shard",
-  "marble",
-  "orbit",
-  "bauhaus",
-  "pixel",
-  "rings",
-  "wave",
-];
+/**
+ * The pieces a face is built from.
+ *
+ * Drawn here rather than fetched, same as everything else in this file:
+ * no request, no third party holding a hash of a customer's email, and
+ * nothing to add to the content-security policy.
+ *
+ * The sets are small on purpose. Six skins, seven hairs, six hair
+ * colours and six tops is 1,512 combinations before the background
+ * gradient, which is far more than a tenant will ever hold — and each
+ * set is small enough that every member can be checked by eye at 28px,
+ * which is the size that actually matters.
+ */
+export const AVATAR_SKINS = [
+  "#F2D3B8", "#E8BE9B", "#D19C73", "#A8714B", "#7A4E32", "#523425",
+] as const;
+
+export const AVATAR_HAIRS = [
+  "#2B2118", "#4A3423", "#7A5233", "#B9834B", "#D9C08A", "#8C8C94", "#3B2A4A",
+] as const;
+
+export const AVATAR_TOPS = [
+  "#3A6FFF", "#7C5CFF", "#0E9D9D", "#E07A3F", "#2F9E6B", "#D2456B",
+] as const;
+
+/** Seven heads, drawn in the renderer. Index only. */
+export const AVATAR_HAIR_STYLES = 7;
+
+export const AVATAR_AUTO_STYLES: AvatarStyle[] = ["person"];
 
 /**
  * Which picture this person gets, from their seed alone.
@@ -91,6 +111,7 @@ export function autoAvatarStyle(seed: string): AvatarStyle {
 
 /** What each one is called on the picker. */
 export const AVATAR_STYLE_LABELS: Record<AvatarStyle, string> = {
+  person: "Portrait",
   beam: "Beam",
   marble: "Marble",
   bauhaus: "Bauhaus",

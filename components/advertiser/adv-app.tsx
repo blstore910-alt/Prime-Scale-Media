@@ -2133,6 +2133,86 @@ export default function AdvertiserApp() {
                 <p>Earn from the people you bring in.</p>
               </div>
             </div>
+            {/* ── NOT JOINED YET: AN INVITATION ───────────────────────
+                This screen opened with "Your referral link isn't set up
+                yet — ask an admin to enable the affiliate program for
+                your account", over Referred 0, Active 0, Commission
+                €0.00, Spend driven €0.00. To somebody who has never
+                joined, that is a broken version of a thing they do not
+                have, and it points them at a control that does not
+                exist: no screen in the app has an enable switch.
+
+                So the whole screen is the offer until they are in. The
+                figures come back the moment there is something to put in
+                them. */}
+            {!isAffiliate && !affiliateUnknown ? (
+              <div className="joinhero">
+                <span className="jh-ic">
+                  <Ic name="i-gift" />
+                </span>
+                <h2>Get paid for the people you bring in</h2>
+                <p>
+                  Share one link. Anyone who signs up through it is yours and
+                  stays yours, and you earn a percentage of every wallet
+                  top-up they make — for as long as they keep spending.
+                </p>
+                <ul className="jh-list">
+                  <li>
+                    <Ic name="i-check" /> One link, yours for good
+                  </li>
+                  <li>
+                    <Ic name="i-check" /> Paid on every top-up, not just the
+                    first
+                  </li>
+                  <li>
+                    <Ic name="i-check" /> Your rate agreed with us before you
+                    start
+                  </li>
+                </ul>
+                <button
+                  className="btn grad"
+                  disabled={applying || affiliateApplied}
+                  onClick={async () => {
+                    setApplying(true);
+                    try {
+                      const { applyForAffiliateProgram } = await import(
+                        "@/actions/affiliate-application-actions"
+                      );
+                      const res = await applyForAffiliateProgram();
+                      if (!res.ok) {
+                        toast.error(res.error);
+                        return;
+                      }
+                      setAffiliateApplied(true);
+                      toast.success(
+                        res.data.alreadySent
+                          ? "You've already applied — we're still looking at it."
+                          : "Application sent. We'll set your rate and come back to you.",
+                      );
+                    } catch {
+                      toast.error(
+                        "We couldn't send your application just now. Try again shortly.",
+                      );
+                    } finally {
+                      setApplying(false);
+                    }
+                  }}
+                >
+                  <Ic name="i-gift" />{" "}
+                  {applying
+                    ? "Sending…"
+                    : affiliateApplied
+                      ? "Application sent"
+                      : "Join the affiliate program"}
+                </button>
+                <span className="jh-note">
+                  {affiliateApplied
+                    ? "We'll set your rate and let you know."
+                    : "We'll agree your rate with you before anything starts."}
+                </span>
+              </div>
+            ) : (
+              <>
             <div className="card">
               <h2>
                   <Ic name="i-gift" /> Your referral link
@@ -2301,6 +2381,8 @@ export default function AdvertiserApp() {
                 </table>
               </div>
             </div>
+              </>
+            )}
           </div>
 
           {/* WALLET */}

@@ -2,6 +2,10 @@
 
 import { useId } from "react";
 import {
+  AVATAR_HAIRS,
+  AVATAR_HAIR_STYLES,
+  AVATAR_SKINS,
+  AVATAR_TOPS,
   autoAvatarStyle,
   avatarFor,
   mouthPath,
@@ -137,6 +141,97 @@ function Style({
   const grad = `url(#${uid}g)`;
 
   switch (style) {
+    // ── A head, shoulders and hair. ───────────────────────────────────
+    //
+    // Built to read at 28px, which is where it spends most of its life:
+    // bold shapes, no outlines, no gradient inside the figure, and the
+    // hair silhouette carrying nearly all of the difference between one
+    // person and the next. Features are two dots and a short line —
+    // anything more turns to mush at that size and to a cartoon at 96.
+    //
+    // Every choice comes off a different slice of the same hash, so skin
+    // does not move with hair and hair does not move with the shirt.
+    case "person": {
+      const skin = AVATAR_SKINS[Math.floor(a.k[0] * AVATAR_SKINS.length) % AVATAR_SKINS.length];
+      const hair = AVATAR_HAIRS[Math.floor(a.k[1] * AVATAR_HAIRS.length) % AVATAR_HAIRS.length];
+      const top = AVATAR_TOPS[Math.floor(a.k[2] * AVATAR_TOPS.length) % AVATAR_TOPS.length];
+      const cut = Math.floor(a.k[3] * AVATAR_HAIR_STYLES) % AVATAR_HAIR_STYLES;
+      const eyeY = 16.4;
+      const eyeDx = 3.1;
+      return (
+        <>
+          <rect width="36" height="36" fill={grad} />
+          {/* Shoulders. A wide, flat-topped shape rather than a circle:
+              a circle reads as a second head under the first. */}
+          <path
+            d="M4.5 36c0-6.2 6-10.2 13.5-10.2S31.5 29.8 31.5 36z"
+            fill={top}
+          />
+          {/* Neck, behind the head so no join shows. */}
+          <rect x="15.6" y="20" width="4.8" height="6" rx="2.2" fill={skin} />
+          <circle cx="18" cy="15.6" r="7.4" fill={skin} />
+          {/* Ears, only on the cuts that do not cover them. */}
+          {(cut === 0 || cut === 3 || cut === 5) && (
+            <>
+              <circle cx="10.5" cy="16.4" r="1.5" fill={skin} />
+              <circle cx="25.5" cy="16.4" r="1.5" fill={skin} />
+            </>
+          )}
+          {cut === 0 && (
+            /* Short, with a side part. */
+            <path d="M10.8 14.6c.4-5 3.6-7.4 7.2-7.4 3.9 0 7 2.6 7.2 7.4-1.6-2.2-3.4-3.2-5.2-3.4-2.6-.3-3.6 1.1-6.2 1.6-1.2.2-2.2.6-3 1.8z" fill={hair} />
+          )}
+          {cut === 1 && (
+            /* A bob, past the jaw. */
+            <path d="M9.9 17.4c0-6.6 3.4-10.2 8.1-10.2s8.1 3.6 8.1 10.2v4.2h-2.6v-7.9c-2 .9-4.1 1.3-5.5 1.3-2 0-3.9-.4-5.5-1.3v7.9H9.9z" fill={hair} />
+          )}
+          {cut === 2 && (
+            /* A high bun. */
+            <>
+              <circle cx="18" cy="6.1" r="3" fill={hair} />
+              <path d="M10.8 15.2c0-5.2 3.2-8 7.2-8s7.2 2.8 7.2 8c-1.4-3.2-4-4.6-7.2-4.6s-5.8 1.4-7.2 4.6z" fill={hair} />
+            </>
+          )}
+          {cut === 3 && (
+            /* Cropped, straight fringe. */
+            <path d="M10.7 13.8c.5-4.4 3.6-6.6 7.3-6.6s6.8 2.2 7.3 6.6c-.3-1.3-1-2-2.1-2.2-3.2-.6-7.2-.6-10.4 0-1.1.2-1.8.9-2.1 2.2z" fill={hair} />
+          )}
+          {cut === 4 && (
+            /* Long, falling behind the shoulders. */
+            <path d="M9.6 26.4V16.2c0-6 3.6-9 8.4-9s8.4 3 8.4 9v10.2h-3V15c-1.9 1.1-3.8 1.6-5.4 1.6s-3.5-.5-5.4-1.6v11.4z" fill={hair} />
+          )}
+          {cut === 5 && (
+            /* Coils, close to the head. */
+            <>
+              <circle cx="12.6" cy="11.4" r="2.6" fill={hair} />
+              <circle cx="18" cy="9.4" r="3" fill={hair} />
+              <circle cx="23.4" cy="11.4" r="2.6" fill={hair} />
+              <circle cx="10.9" cy="15" r="2.1" fill={hair} />
+              <circle cx="25.1" cy="15" r="2.1" fill={hair} />
+            </>
+          )}
+          {cut === 6 && (
+            /* Receding, with a short beard. */
+            <>
+              <path d="M11.4 12.9c1.1-3.8 3.6-5.7 6.6-5.7s5.5 1.9 6.6 5.7c-1.6-1.6-3.8-2.4-6.6-2.4s-5 .8-6.6 2.4z" fill={hair} />
+              <path d="M11.3 16.8c.6 4.2 3.4 6.4 6.7 6.4s6.1-2.2 6.7-6.4c.5 6-2.4 9.4-6.7 9.4s-7.2-3.4-6.7-9.4z" fill={hair} opacity="0.92" />
+            </>
+          )}
+          {/* The face, last, so no cut can cover it. */}
+          <circle cx={18 - eyeDx} cy={eyeY} r="0.95" fill="#2A2118" />
+          <circle cx={18 + eyeDx} cy={eyeY} r="0.95" fill="#2A2118" />
+          <path
+            d={`M${18 - 2} 19.4 Q18 ${19.4 + 1.5 + a.smile} ${18 + 2} 19.4`}
+            stroke="#2A2118"
+            strokeWidth="0.95"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.85"
+          />
+        </>
+      );
+    }
+
     // ── A face. Two eyes and a mouth, tilted, on a soft gradient. ─────
     case "beam":
       return (
