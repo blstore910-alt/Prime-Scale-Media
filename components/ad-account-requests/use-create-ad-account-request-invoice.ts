@@ -34,7 +34,47 @@ export default function useCreateAdAccountRequestInvoice() {
         throw new Error("Company not found for selected advertiser.");
       }
 
+      // ── DO NOT MINT A SECOND ONE ────────────────────────────────
+      //
+      // This is two writes with no transaction: the invoice, then the
+      // request status. A throw on the second surfaced as "Failed to
+      // create invoice" while the invoice was already live with a Pay
+      // now button on the customer's billing page — so pressing the
+      // button again minted a SECOND payable EUR 50 ad_account_fee
+      // invoice for the same request.
+      //
+      // There is no unique constraint to lean on, so the check is here:
+      // an unpaid ad_account_fee invoice already carrying this request
+      // id means the first attempt got through and only the status
+      // write failed. Fix the status, keep the invoice.
       const amount = Number(values.amount);
+      const { data: already } = await supabase
+        .from("invoices")
+        .select("id, items")
+        .eq("advertiser_id", values.advertiser_id)
+        .eq("type", "ad_account_fee")
+        .eq("status", "unpaid")
+        .limit(50);
+      const existing = (already ?? []).find((inv) => {
+        const items = (inv as { items?: unknown }).items;
+        return (
+          Array.isArray(items) &&
+          items.some(
+            (it) =>
+              (it as { ad_account_request_id?: string })
+                ?.ad_account_request_id === values.ad_account_request_id,
+          )
+        );
+      });
+      if (existing) {
+        const fix = await setAdAccountRequestStatus(
+          values.ad_account_request_id,
+          "payment_pending",
+        );
+        if (!fix.ok) throw new Error(fix.error);
+        return { id: String((existing as { id: string }).id) };
+      }
+
       const result = await createInvoiceAsAdmin({
         company_id: company.id,
         advertiser_id: values.advertiser_id,

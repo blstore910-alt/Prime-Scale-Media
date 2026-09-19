@@ -61,6 +61,32 @@ export async function ensureInitialExchangeRates(): Promise<
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
+  // ── SEEDING IS THE OWNER'S, TOO ─────────────────────────────────────
+  //
+  // Every real write in this file is resolveOwnerContext, with a comment
+  // saying "the UI said owner-only; nothing behind it agreed". The
+  // SEEDER was left at admin level — and app-provider calls
+  // ensureTenantBootstrap once per session from every shell. So on a
+  // tenant with no rate row yet, whichever employee admin opened the app
+  // first set the rate that calculateTopupAmount divides by, from an
+  // unauthenticated CDN, by loading a page.
+  //
+  // It is a no-op when a rate already exists, so gating it costs nothing
+  // in the normal case and closes the one case that matters.
+  {
+    const { data: ownerRow } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    if (
+      !ownerRow ||
+      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+    ) {
+      return { ok: false, error: "Forbidden" };
+    }
+  }
+
   // ── The guard has to survive the state it is guarding against ──────
   // This was .maybeSingle(), whose ERROR was discarded — and maybeSingle
   // ERRORS when two or more rows match. So the moment a tenant ended up
