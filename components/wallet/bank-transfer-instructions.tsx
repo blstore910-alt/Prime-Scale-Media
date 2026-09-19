@@ -109,7 +109,7 @@ export function BankTransferInstructions({
                 objects; a small label on the sheet's own ground, with a
                 rule under it, groups them without competing with the
                 values. */}
-            <p className="border-b px-3.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground/75">
+            <p className="border-b px-3.5 pb-1.5 pt-2.5 text-[10px] font-bold uppercase leading-none tracking-[.1em] text-muted-foreground/75">
               {section.title}
             </p>
             <div className="divide-y">
@@ -134,7 +134,7 @@ export function BankTransferInstructions({
           aria-hidden
           className="mt-[3px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
         />
-        Use the exact account name shown above — a deposit under a
+        Use the exact account holder name shown above — a deposit under a
         different name can be rejected by the bank.
       </p>
     </div>
@@ -192,13 +192,17 @@ function InstructionItem({
        two lines, mid-number. An IBAN that wraps is an IBAN somebody
        copies wrong. The label goes above it now and the value spans the
        sheet, so every one of these fits on one line at phone width. */
-    <div className="relative grid grid-cols-[1fr_auto] items-center gap-x-2 px-3.5 py-2.5">
-      <span className="col-start-1 text-[10px] font-semibold uppercase leading-tight tracking-[.08em] text-muted-foreground/75">
+    /* py-2 and a 32px button, so neither the padding nor the control
+       drives the row height — the two lines of text do. With a 36px
+       button spanning both rows and items-center, the rows stretched to
+       the button and left a band of dead space under every value. */
+    <div className="relative grid grid-cols-[1fr_auto] items-center gap-x-2 px-3.5 py-2">
+      <span className="col-start-1 text-[10px] font-semibold uppercase leading-none tracking-[.08em] text-muted-foreground/75">
         {label}
       </span>
       <span
         className={cn(
-          "col-start-1 mt-0.5 min-w-0 whitespace-pre-wrap break-words text-[15px] font-semibold leading-snug text-foreground",
+          "col-start-1 mt-1 min-w-0 whitespace-pre-wrap break-words text-[15px] font-semibold leading-[1.25] text-foreground",
           MONO_LABELS.test(label) &&
             "font-mono text-[14.5px] tracking-[-.01em] tabular-nums",
         )}
@@ -215,7 +219,7 @@ function InstructionItem({
              on a phone there is no hover at all, so it depended on the
              icon being rendered invisible and tapped anyway. */
           className={cn(
-            "col-start-2 row-span-2 -mr-1 h-9 w-9 shrink-0 self-center transition-colors",
+            "col-start-2 row-span-2 -mr-1 h-8 w-8 shrink-0 self-center transition-colors",
             copied
               ? "text-emerald-600"
               : "text-muted-foreground/70 hover:text-foreground",
