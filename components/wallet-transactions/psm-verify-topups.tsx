@@ -240,6 +240,18 @@ export default function PsmVerifyTopups({
       queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
+      // AND the hook the VERIFY dialog reads. Its key is
+      // ["outstanding-precharges", <ids>] and nothing invalidated it —
+      // while `selected` is never reset to null, so that dialog stays
+      // mounted and its query stays "fresh" for the rest of the session.
+      // So: open Verify (cache says no advance), close it, press
+      // Precharge, then Verify again — and the dialog still says "this
+      // credits exactly the figure below" over a credit that nets to
+      // zero. Exactly the failure that hook was written to prevent.
+      queryClient.invalidateQueries({
+        queryKey: ["outstanding-precharges"],
+        exact: false,
+      });
     } catch (e) {
       toast.error("Precharge failed", {
         description: e instanceof Error ? e.message : undefined,

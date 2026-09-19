@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
 import { cn, formatCurrency } from "@/lib/utils";
+import { isAccountLocked } from "@/lib/pure-account-status";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +32,15 @@ type CurrencyCode = "USD" | "EUR";
 
 type AccountRecord = Pick<
   AdAccount,
-  "id" | "name" | "fee" | "advertiser_id" | "tenant_id" | "platform" | "currency" | 'min_topup'
+  | "id"
+  | "name"
+  | "fee"
+  | "advertiser_id"
+  | "tenant_id"
+  | "platform"
+  | "currency"
+  | "min_topup"
+  | "status"
 > & {
   advertiser?: { tenant_client_code?: string | null } | null;
 };
@@ -105,6 +114,21 @@ export default function AccountTopupForm({
 
   const accountOptions = useMemo(() => {
     return accounts
+      // ── A LOCKED ACCOUNT IS NOT A DESTINATION ──────────────────────
+      //
+      // The dashboard hides Top up on a locked card, but that hides the
+      // ENTRY POINT, not the picker inside the dialog — so a customer
+      // opened the dialog from a healthy account, changed the dropdown to
+      // a banned one and funded it. Money on an ad account only comes
+      // back through a withdrawal, and withdrawals are refused on a
+      // locked account by both the button and the server. So it goes in
+      // and it cannot come out.
+      //
+      // Both ADMIN funding paths were given this guard and the comment
+      // there says why; the customer's path does not go through a server
+      // action, so it inherited neither. isAccountLocked is the app's
+      // single source of truth for unusable.
+      .filter((a) => !isAccountLocked(a.status))
 
       .sort((a, b) => {
         const aCode = a.advertiser?.tenant_client_code ?? "";
@@ -472,6 +496,10 @@ export default function AccountTopupForm({
             !hasWallet ||
             !selectedAccount ||
             !selectedAccountCurrency ||
+            // The picker filters these out, but this dialog can also be
+            // opened WITH an account already chosen, from the card. A
+            // locked one must not be fundable from either door.
+            isAccountLocked(selectedAccount.status) ||
             // Never open the confirmation on a fee we have not resolved
             // yet. It is one round-trip, and the whole point of that
             // dialog is that the figures in it are the real ones. A

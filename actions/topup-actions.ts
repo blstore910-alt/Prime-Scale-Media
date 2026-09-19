@@ -459,14 +459,27 @@ export async function createTopupAsAdmin(
 
   // Created already-paid → the supplier has to fund the account. No-op unless
   // the auto-push gate is armed; never fails the top-up. See lib/integrations/autopush.
+  //
+  // ── AND THE REFUSAL IS NOT SWALLOWED ────────────────────────────────
+  //
+  // enqueue returns a reason for every refusal and all four call sites
+  // threw it away. The gate being shut is the ordinary case and stays
+  // silent. Every other refusal means the gate WAS armed, the money has
+  // moved, and the supplier was not told — so the top-up sat green in
+  // the queue while the ad account was never funded. That belongs on the
+  // screen of whoever just pressed the button.
+  let pushWarning: string | undefined;
   if (requested === "completed") {
-    await enqueueSupplierTopupPush(supabase, {
+    const push = await enqueueSupplierTopupPush(supabase, {
       topupId: inserted.id,
       tenantId: profile.tenant_id,
     });
+    if (!push.enqueued && !push.heldByGate) {
+      pushWarning = `The top-up was created, but the supplier was NOT told: ${push.reason}. Fund the account by hand.`;
+    }
   }
 
-  return { ok: true, data: { id: inserted.id } };
+  return { ok: true, data: { id: inserted.id }, warning: pushWarning };
 }
 
 // ─────────────────────────────────────────
@@ -757,15 +770,25 @@ export async function bulkCreateTopupsAsAdmin(
   // on purpose: a bulk run is at most 200 rows and each enqueue is two small
   // reads plus an insert — hammering the DB in parallel here buys nothing and
   // makes a partial failure harder to read. No-op unless the gate is armed.
+  const notTold: string[] = [];
   for (const row of (insertedRows ?? []) as Array<{ id: string; status: string }>) {
     if (row.status !== "completed") continue;
-    await enqueueSupplierTopupPush(supabase, {
+    const push = await enqueueSupplierTopupPush(supabase, {
       topupId: row.id,
       tenantId: profile.tenant_id,
     });
+    if (!push.enqueued && !push.heldByGate) notTold.push(push.reason);
   }
 
-  return { ok: true, data: { inserted: payload.length } };
+  return {
+    ok: true,
+    data: { inserted: payload.length },
+    // One line however many rows: a bulk run that funded nothing is the
+    // case where silence costs the most.
+    warning: notTold.length
+      ? `${notTold.length} of ${payload.length} were created but the supplier was NOT told (${notTold[0]}). Fund those accounts by hand.`
+      : undefined,
+  };
 }
 
 // ─────────────────────────────────────────
@@ -896,14 +919,20 @@ export async function updateTopupAsAdmin(
   // Marked paid → queue the supplier push. Enqueue is idempotent on the
   // top-up id, so re-saving an already-completed row can't double-fund.
   // No-op unless the auto-push gate is armed. See lib/integrations/autopush.
+  let pushWarning: string | undefined;
   if (cleaned.status === "completed" && payload.is_deleted !== true) {
-    await enqueueSupplierTopupPush(supabase, {
+    const push = await enqueueSupplierTopupPush(supabase, {
       topupId,
       tenantId: profile.tenant_id,
     });
+    // See createTopupAsAdmin: a refusal that is NOT the gate means the
+    // money moved and the supplier was not told.
+    if (!push.enqueued && !push.heldByGate) {
+      pushWarning = `Saved, but the supplier was NOT told: ${push.reason}. Fund the account by hand.`;
+    }
   }
 
-  return { ok: true, data: null };
+  return { ok: true, data: null, warning: pushWarning };
 }
 
 // ─────────────────────────────────────────
@@ -1065,12 +1094,23 @@ export async function verifyAdTopup(
   // Idempotent on the top-up id, and a no-op unless BOTH auto-push switches
   // are armed — so this cannot fund anything while the gate is shut, and
   // re-verifying cannot fund it twice.
-  await enqueueSupplierTopupPush(supabase, {
+  const push = await enqueueSupplierTopupPush(supabase, {
     topupId,
     tenantId: profile.tenant_id,
   });
 
-  return { ok: true, data };
+  return {
+    ok: true,
+    data,
+    // Verifying is the moment we learn the money is ours and the
+    // supplier should be funded. If that could not be queued for any
+    // reason other than the gate being shut, the admin needs to know
+    // now — not when the customer asks why their account is empty.
+    warning:
+      !push.enqueued && !push.heldByGate
+        ? `Verified, but the supplier was NOT told: ${push.reason}. Fund the account by hand.`
+        : undefined,
+  };
 }
 
 /**

@@ -268,12 +268,26 @@ export default function PrechargePanel() {
                     {formatCurrency(Number(r.outstanding), r.currency)}
                   </TableCell>
                   <TableCell data-label="Status:">
+                    {/* THE LABEL WAS FIXED AND THE BADGE WAS NOT. This
+                        was a two-way branch — outstanding is amber,
+                        EVERYTHING ELSE is the green of a settled advance
+                        — so a CANCELLED one, where the payment never
+                        arrived and the credit was taken back out, wore
+                        the same success colour as one that was paid.
+                        Colour reads faster than the word next to it. */}
                     <Badge
                       className={`border-transparent capitalize ${
                         r.status === "outstanding"
                           ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                          : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          : r.status === "cancelled"
+                            ? "bg-muted text-muted-foreground line-through"
+                            : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                       }`}
+                      title={
+                        r.status === "cancelled"
+                          ? "The payment never arrived — the credit was taken back out"
+                          : undefined
+                      }
                     >
                       {r.status}
                     </Badge>

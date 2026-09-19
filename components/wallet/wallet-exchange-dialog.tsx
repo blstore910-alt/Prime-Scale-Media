@@ -39,12 +39,15 @@ export default function WalletExchangeDialog({
   open,
   onOpenChange,
   walletId,
+  initialFrom = "USD",
   usdBalance,
   eurBalance,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletId: string | null;
+  /** Which wallet the customer pressed Exchange on. */
+  initialFrom?: Currency;
   usdBalance: number;
   eurBalance: number;
 }) {
@@ -66,7 +69,16 @@ export default function WalletExchangeDialog({
     setValue,
   } = useForm<FormValues>({
     defaultValues: {
-      from_currency: "USD",
+      // ── OPEN ON THE WALLET THEY PRESSED ──────────────────────────
+      //
+      // All three Exchange buttons called the opener with no currency
+      // and this hard-defaulted to converting FROM USD. So a customer
+      // holding both balances, pressing Exchange inside the card headed
+      // "EUR wallet", got a USD -> EUR conversion whose every figure was
+      // internally consistent and in the wrong direction. Reversing it
+      // costs the 0.6% again plus the spread. Top up was fixed for this
+      // exact fault; Exchange was not.
+      from_currency: initialFrom === "EUR" ? "EUR" : "USD",
       from_amount: 0,
     },
   });
@@ -103,12 +115,19 @@ export default function WalletExchangeDialog({
 
   useEffect(() => {
     if (!open) return;
-    if (hasUsd && !hasEur) {
+    // The wallet they pressed comes first. Only when that side is empty
+    // does the single-balance override step in — converting from a
+    // balance of zero is the one thing worse than the wrong direction.
+    const wanted: Currency = initialFrom === "EUR" ? "EUR" : "USD";
+    const wantedHasMoney = wanted === "USD" ? hasUsd : hasEur;
+    if (wantedHasMoney) {
+      setValue("from_currency", wanted, { shouldDirty: true });
+    } else if (hasUsd && !hasEur) {
       setValue("from_currency", "USD", { shouldDirty: true });
     } else if (!hasUsd && hasEur) {
       setValue("from_currency", "EUR", { shouldDirty: true });
     }
-  }, [open, hasUsd, hasEur, setValue]);
+  }, [open, hasUsd, hasEur, setValue, initialFrom]);
 
   const { mutate, isPending } = useMutation({
     mutationKey: ["wallet-exchange", walletId],

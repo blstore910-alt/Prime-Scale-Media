@@ -32,6 +32,19 @@ export type EnqueueResult = {
   /** Always populated — why it did or didn't queue. Safe to log. */
   reason: string;
   jobId?: string;
+  /**
+   * True when nothing was queued because the AUTO-PUSH GATE is shut.
+   *
+   * That is the ordinary state and nobody needs telling. Every OTHER
+   * refusal is the dangerous one: the gate was armed, the customer's
+   * money has moved, and the supplier was NOT told — because the
+   * currencies disagree, the account is not supplier-managed, or the
+   * denomination of topup_amount is ambiguous. Those reasons were
+   * returned faithfully and then discarded at all four call sites, so a
+   * wallet was debited, the queue showed the top-up green, and the ad
+   * account was never funded, with nothing anywhere saying so.
+   */
+  heldByGate?: boolean;
 };
 
 // Postgres unique_violation. Hitting it means the job is already queued,
@@ -52,7 +65,7 @@ export async function enqueueSupplierTopupPush(
   const gate = autoPushGate(env);
   if (!gate.enabled) {
     // No row is written at all. Nothing to drain later if the flag flips.
-    return { enqueued: false, reason: gate.reason };
+    return { enqueued: false, reason: gate.reason, heldByGate: true };
   }
 
   try {

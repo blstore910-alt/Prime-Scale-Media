@@ -96,6 +96,10 @@ export default function PsmVerifyAdTopups() {
                 { value: "all", label: "All statuses" },
                 { value: "pending", label: "Pending" },
                 { value: "completed", label: "Completed" },
+                // There was no way to list the rejected ones at all, so
+                // they sat in "All statuses" — until a moment ago wearing
+                // the same green as a verified payment.
+                { value: "rejected", label: "Rejected" },
               ],
             },
           ]}
@@ -137,7 +141,15 @@ export default function PsmVerifyAdTopups() {
                     </div>
                   </div>
                   <span
-                    className={`badge ${pend ? "pend" : "ok"}`}
+                    className={`badge ${
+                        pend
+                          ? "pend"
+                          : t.status === "rejected" || t.status === "failed"
+                            ? "due"
+                            : t.status === "completed"
+                              ? "ok"
+                              : ""
+                      }`}
                     style={{ marginLeft: "auto", textTransform: "capitalize" }}
                   >
                     {t.status}

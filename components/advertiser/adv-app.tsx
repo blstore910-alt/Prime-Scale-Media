@@ -111,7 +111,17 @@ const statusBadge = (st: string | null) => {
   if (v === "disabled") return { cls: "due", label: "Switched off" };
   if (v === "suspended") return { cls: "due", label: "Suspended" };
   if (v === "inactive") return { cls: "muted", label: "Inactive" };
-  if (!v) return { cls: "ok", label: "Active" };
+  // ── AN EMPTY STATUS IS NOT "ACTIVE" ─────────────────────────────────
+  //
+  // isAccountLocked("") returns TRUE, so the same card said "Active" in
+  // green and "This account isn't taking top-ups right now" underneath —
+  // and the admin table calls it "Unknown". Three answers for one row,
+  // and createAdAccountAsAdmin never sets a status, so this is the state
+  // of every account it creates.
+  //
+  // The lock is the one that decides what the customer can DO, so the
+  // label follows it rather than contradicting it.
+  if (!v) return { cls: "pend", label: "Being set up" };
   return { cls: "pend", label: v.charAt(0).toUpperCase() + v.slice(1) };
 };
 
@@ -133,6 +143,21 @@ export default function AdvertiserApp() {
   const openTopup = (cur: "EUR" | "USD") => {
     setTopupCurrency(cur);
     setTopupOpen(true);
+  };
+  // ── AND THE SAME FOR EXCHANGE ───────────────────────────────────────
+  //
+  // Top up was fixed for this and Exchange was not, nine lines apart in
+  // the same file. All three Exchange buttons called the opener with no
+  // currency, and the dialog hard-defaults to converting FROM USD —
+  // overriding only when exactly one balance is non-zero. So a customer
+  // holding both, pressing Exchange inside the card headed "EUR wallet",
+  // got a USD -> EUR conversion whose every figure was internally
+  // consistent and in the wrong direction. Reversing it costs the 0.6%
+  // again plus the spread.
+  const [exchangeFrom, setExchangeFrom] = useState<"EUR" | "USD">("USD");
+  const openExchange = (cur: "EUR" | "USD") => {
+    setExchangeFrom(cur);
+    setExchangeOpen(true);
   };
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [acctTopup, setAcctTopup] = useState<AdAccount | null>(null);
@@ -1073,6 +1098,26 @@ export default function AdvertiserApp() {
       if (error) throw error;
       toast.success("Invoice paid from your wallet.");
       queryClient.invalidateQueries({ queryKey: ["adv-invoices"], exact: false });
+      // ── AND THE PLAN-PAID CACHE ────────────────────────────────────
+      //
+      // `adv-plan-paid` is read nowhere else and was invalidated nowhere
+      // at all. This app is one component holding `view` in state, so
+      // the observer never remounts, and a 30-second staleTime with
+      // refetch-on-focus off means the stale `false` survives until a
+      // full page reload.
+      //
+      // That one missing key re-armed the minimum-top-up trap the moment
+      // somebody paid their first invoice: planActive stayed false, so
+      // the top-up dialog showed NO minimum, printed the IBAN and took
+      // the transfer — and the server, re-deriving the same three facts
+      // from the database, refused with "Minimum top-up is 300 EUR"
+      // after the money had left their bank. That is the incident
+      // 20260917230000 exists for, arriving through a cache instead of
+      // through SQL.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-plan-paid"],
+        exact: false,
+      });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
       return true;
     } catch (e) {
@@ -2066,7 +2111,7 @@ export default function AdvertiserApp() {
                 pending={pendingByCurrency.EUR}
                 pendingUnknown={pendingUnknown}
                 onTopup={() => openTopup("EUR")}
-                onExchange={() => setExchangeOpen(true)}
+                onExchange={() => openExchange("EUR")}
                 disabled={!wallet || (!companyComplete && !companyUnknown)}
                 /* `!wallet` is true for a tenant with genuinely no wallet
                    row AND for a read that failed, and the second one left
@@ -2090,7 +2135,7 @@ export default function AdvertiserApp() {
                 pending={pendingByCurrency.USD}
                 pendingUnknown={pendingUnknown}
                 onTopup={() => openTopup("USD")}
-                onExchange={() => setExchangeOpen(true)}
+                onExchange={() => openExchange("USD")}
                 disabled={!wallet || (!companyComplete && !companyUnknown)}
                 /* `!wallet` is true for a tenant with genuinely no wallet
                    row AND for a read that failed, and the second one left
