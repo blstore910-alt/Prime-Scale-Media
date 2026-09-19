@@ -3647,8 +3647,8 @@ export default function AdvertiserApp() {
                 </span>
               </h2>
               <p className="cap">
-                Bring other advertisers in and earn a commission on what they
-                  spend. Apply here and we&apos;ll look at it.
+                Share one link and earn a percentage of every wallet top-up
+                they make — for as long as they keep spending.
               </p>
               {/* ── NOT A mailto: ─────────────────────────────────────
                   This used to set location.href to a mailto:. On a
@@ -3691,7 +3691,7 @@ export default function AdvertiserApp() {
                   ? "Sending…"
                   : affiliateApplied
                     ? "Application sent"
-                    : "Apply to the affiliate program"}
+                    : "Join the affiliate program"}
               </button>
               {affiliateApplied && (
                 <p className="cap" style={{ margin: "8px 0 0" }}>
