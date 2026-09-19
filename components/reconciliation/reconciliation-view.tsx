@@ -1,5 +1,6 @@
 "use client";
 
+import { shortDate } from "@/lib/pure-finance-range";
 import {
   addLedgerEntry,
   getReconciliation,
@@ -21,10 +22,17 @@ const CURRENCIES: LedgerCurrency[] = ["EUR", "USD"];
 const SYMB: Record<LedgerCurrency, string> = { EUR: "€", USD: "$" };
 
 function fmt(v: number, c: LedgerCurrency) {
-  return `${SYMB[c]}${new Intl.NumberFormat("en-US", {
+  // ── THE SIGN GOES BEFORE THE SYMBOL ─────────────────────────────────
+  //
+  // Intl puts it inside, so this rendered €-1,234.00 while the rest of
+  // the app writes −€1,234.00. On the one screen whose job is to make a
+  // column of money add up, a sign in the wrong place is a column that
+  // reads wrong at a glance.
+  const n = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(v)}`;
+  }).format(Math.abs(v));
+  return `${v < 0 ? "−" : ""}${SYMB[c]}${n}`;
 }
 
 // Scoped styles for the mockup-only classes (.recon-hero, .check, .field,
@@ -387,7 +395,12 @@ export default function ReconciliationView() {
               <tbody>
                 {(entriesQ.data ?? []).map((e) => (
                   <tr key={e.id}>
-                    <td data-label="Date" style={{ whiteSpace: "nowrap" }}>{e.occurred_on}</td>
+                    {/* A date, not the raw ISO string. Every other screen
+                        in the app writes "18 Sep 2026"; this one printed
+                        2026-09-18 straight out of the column. */}
+                    <td data-label="Date" style={{ whiteSpace: "nowrap" }}>
+                      {shortDate(e.occurred_on)}
+                    </td>
                     <td data-label="Destination">{DESTINATION_LABELS[e.destination]}</td>
                     <td data-label="Direction">
                       <span
@@ -398,7 +411,17 @@ export default function ReconciliationView() {
                         {e.direction === "deposit" ? "in" : "out"}
                       </span>
                     </td>
-                    <td data-label="Amount" className="r mono">{fmt(e.amount, e.currency)}</td>
+                    {/* ── SIGNED, SO THE COLUMN ADDS UP ────────────────
+                        Both directions printed unsigned, while the
+                        Bank-destinations card above is the SIGNED
+                        running balance — so a reader adding this column
+                        got deposits plus withdrawals and could not
+                        reconcile it against the figure it is meant to
+                        explain. */}
+                    <td data-label="Amount" className="r mono">
+                      {e.direction === "withdrawal" ? "−" : "+"}
+                      {fmt(Math.abs(e.amount), e.currency)}
+                    </td>
                     <td
                       data-label="Note"
                       className="muted"
