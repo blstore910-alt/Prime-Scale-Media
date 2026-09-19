@@ -138,6 +138,21 @@ const statusBadge = (st: string | null) => {
   return { cls: "pend", label: v.charAt(0).toUpperCase() + v.slice(1) };
 };
 
+/**
+ * A subscription status in the words a customer uses.
+ *
+ * Three screens printed `status[0].toUpperCase() + status.slice(1)` on a
+ * value the query deliberately allows to be `past_due` — so a customer
+ * behind on a payment read "Past_due", underscore and all, on their own
+ * dashboard, in the topbar pill and on the billing card.
+ */
+function subStatusLabel(status: string | null | undefined): string {
+  const s = String(status ?? "").trim();
+  if (!s) return "—";
+  if (s === "past_due") return "Payment due";
+  return s[0].toUpperCase() + s.slice(1).replace(/_/g, " ");
+}
+
 export default function AdvertiserApp() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -1633,8 +1648,7 @@ export default function AdvertiserApp() {
                 title="Subscription"
               >
                 <Ic name="i-shield" />{" "}
-                {subscription.status[0].toUpperCase() +
-                  subscription.status.slice(1)}
+                {subStatusLabel(subscription.status)}
               </button>
             )}
             <button
@@ -2031,8 +2045,7 @@ export default function AdvertiserApp() {
                     : subscription?.next_payment_date
                       ? `${
                           planName && subscription?.status
-                            ? subscription.status[0].toUpperCase() +
-                              subscription.status.slice(1) + " · "
+                            ? subStatusLabel(subscription.status) + " · "
                             : ""
                         }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
                       : "No subscription"}
@@ -2120,13 +2133,13 @@ export default function AdvertiserApp() {
                    it — the read failed. Telling an approved affiliate to go
                    and ask for something they already have sends them to
                    support about an account that works. */
-                <p className="muted" style={{ margin: 0 }}>
+                <p className="cap" style={{ margin: 0 }}>
                   We couldn&apos;t check your referral link just now. This
                   does not mean you don&apos;t have one — reload and it should
                   appear.
                 </p>
               ) : (
-                <p className="muted" style={{ margin: 0 }}>
+                <p className="cap" style={{ margin: 0 }}>
                   Your referral link isn&apos;t set up yet — ask an admin to
                   enable the affiliate program for your account, or apply via
                   Settings.
@@ -2715,12 +2728,21 @@ export default function AdvertiserApp() {
                     <tbody>
                       {myRequests.map((r) => {
                         const st = (r.status ?? "pending").toLowerCase();
+                        // GREEN MEANS DONE. This read "rejected or
+                        // declined -> red, pending or in_review ->
+                        // amber, ANYTHING ELSE -> green", and the real
+                        // statuses are pending, payment_pending,
+                        // in_progress, completed, rejected and
+                        // cancelled. So a request blocked on money, one
+                        // still being built and one that was cancelled
+                        // all rendered as completed. in_review is not a
+                        // status anywhere; that branch was dead.
                         const cls =
-                          st === "rejected" || st === "declined"
-                            ? "due"
-                            : st === "pending" || st === "in_review"
-                              ? "pend"
-                              : "ok";
+                          st === "completed"
+                            ? "ok"
+                            : st === "rejected" || st === "cancelled"
+                              ? "due"
+                              : "pend";
                         return (
                           <tr key={r.id}>
                             <td
@@ -2789,8 +2811,7 @@ export default function AdvertiserApp() {
                       dropped is the worst kind of wrong: it is their own
                       screen, so there is nowhere else for them to check. */}
                   {subscription?.status
-                    ? subscription.status[0].toUpperCase() +
-                      subscription.status.slice(1)
+                    ? subStatusLabel(subscription.status)
                     : subError
                       ? "Couldn't load"
                       : "No plan"}
@@ -2997,7 +3018,7 @@ export default function AdvertiserApp() {
                     We couldn&apos;t read your plan just now, so we can&apos;t
                     show what&apos;s due.{" "}
                     <button
-                      className="linkbtn"
+                      className="linkish"
                       onClick={() => window.location.reload()}
                     >
                       Reload
@@ -3887,7 +3908,14 @@ function WalletCard({
           <>
             <b>
               {sym}
-              {Math.round(pending).toLocaleString("en-US")}
+              {/* Two decimals, like the panel directly under it. This
+                  printed a rounded "EUR 1,235 awaiting verification"
+                  above a row reading EUR 1,234.50 — the same money,
+                  twice, on one screen. */}
+              {(Number(pending) || 0).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </b>{" "}
             awaiting verification
           </>

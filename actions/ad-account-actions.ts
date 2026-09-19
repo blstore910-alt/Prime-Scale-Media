@@ -136,6 +136,7 @@ export async function getAdAccountCosts(): Promise<
 const AD_ACCOUNT_INSERT_ALLOWED = [
   "name",
   "status",
+  "min_topup",
   "bm_id",
   "fee",
   "advertiser_id",
@@ -188,6 +189,30 @@ export async function createAdAccountAsAdmin(
   cleaned.created_by = profile.user_id;
   if (cleaned.start_date == null) {
     cleaned.start_date = new Date().toISOString();
+  }
+  // ── A STATUS, ALWAYS ────────────────────────────────────────────────
+  //
+  // Adding "status" to the allowlist above changed nothing, because none
+  // of the three creation paths sends one — not the create-from-request
+  // dialog, not the quick-create form, not the pool allocation. And
+  // isAccountLocked(null) is TRUE, so every account this action makes
+  // was born unfundable: the customer's picker drops it, the admin
+  // top-up refuses it, the bulk run refuses it, a withdrawal refuses it.
+  // The card just reads "Being set up" for ever. The only cure was to
+  // open Update Ad Account and press save, because THAT form defaults
+  // status to active.
+  //
+  // The customer has paid EUR 50 by this point. The account has to work.
+  if (cleaned.status == null || cleaned.status === "") {
+    cleaned.status = "active";
+  }
+  // Same story for the funding floor. min_topup was not in the allowlist
+  // at all, so no path set it, and the form falls back to 300 — in
+  // whatever currency is being paid. "Put 1 in and confirm the figure
+  // that lands" is the first step of the ad-account journey and it was
+  // refused with "Minimum Amount: 300".
+  if (cleaned.min_topup == null) {
+    cleaned.min_topup = 0;
   }
 
   const { data: inserted, error: insertError } = await supabase
@@ -437,6 +462,33 @@ export async function setAdAccountRequestStatus(
   status: RequestStatus,
   ifUpdatedAt?: string,
 ): Promise<ActionResult> {
+  // ── COMPLETED IS THE END ────────────────────────────────────────────
+  //
+  // The list above deliberately excludes rejected and cancelled, with a
+  // note that a door nobody walks through is still a door. `completed`
+  // was left in, and it is the same door: set a completed request back
+  // to pending and createAdAccountFromRequest's two guards — the status
+  // check and the compare-and-swap on it — both pass again. A SECOND ad
+  // account gets created against ONE EUR 50 fee, and the allowance
+  // counter that decides whether the next request is free is then wrong
+  // too.
+  //
+  // Nothing in the UI offers this; it is reachable by calling the action.
+  if (status !== "completed") {
+    const supabaseCheck = await createClient();
+    const { data: current } = await supabaseCheck
+      .from("ad_account_requests")
+      .select("status")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (current && String(current.status) === "completed") {
+      return {
+        ok: false,
+        error:
+          "This request is already completed. Create a new request rather than reopening this one.",
+      };
+    }
+  }
   if (typeof requestId !== "string" || requestId.length === 0) {
     return { ok: false, error: "Invalid input" };
   }

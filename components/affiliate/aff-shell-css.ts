@@ -44,7 +44,7 @@ export const AFF_CSS = `
   .search svg{width:17px;height:17px}.search input{border:0;background:none;outline:0;font-family:var(--font-outfit);font-size:.9rem;color:var(--ink);width:100%}
   .epill{display:flex;align-items:center;gap:9px;background:var(--win-soft);border:1px solid rgba(16,185,129,.25);border-radius:12px;padding:6px 12px;cursor:pointer;transition:.14s}
   .epill:hover{transform:translateY(-1px);filter:brightness(1.02)}
-  .stat[data-v]{cursor:pointer;transition:.14s}.stat[data-v]:hover{border-color:var(--primary);transform:translateY(-2px)}
+  .stat{cursor:pointer;transition:.14s}.stat:hover{border-color:var(--primary);transform:translateY(-2px)}
   .epill .lbl{font-size:.64rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--win);line-height:1}
   .epill .num{font-family:var(--font-sora);font-weight:800;font-size:.98rem;color:#0e9e6e;line-height:1.15}.epill svg{width:16px;height:16px;color:var(--win)}
   .tier{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:99px;font-weight:700;font-size:.76rem;color:var(--gold-deep);background:linear-gradient(135deg,var(--gold-soft),#fff5db);border:1px solid #f2d9a3;box-shadow:0 6px 18px -8px rgba(239,176,44,.55)}.tier svg{width:15px;height:15px;stroke-width:2.2}
@@ -108,11 +108,15 @@ export const AFF_CSS = `
   .ht .hti{width:17px;height:17px;color:rgba(255,255,255,.6);margin-bottom:5px}.ht.win .hti{color:#63f0c1}.ht.gold .hti{color:#ffcf6a}
   .ht .v{font-family:var(--font-sora);font-weight:800;font-size:1.8rem;line-height:1;color:#9db8ff}.ht.win .v{color:#63f0c1}.ht.gold .v{color:#ffd98a}
   .ht .l{font-size:.68rem;font-weight:700;color:rgba(255,255,255,.62);letter-spacing:.08em;text-transform:uppercase;margin-top:5px}
-  [data-v]{cursor:pointer}
-  .ht:hover{background:var(--panel-2)}
+  .stat,.ht,.rise-pill,.jackpot{cursor:pointer}
+  /* deleted: .ht:hover{background:var(--panel-2)} — --panel-2 is #f1f4fb,
+     a SURFACE token, and .ht lives inside .hero, which is near-black. It
+     overrode the correct rgba(255,255,255,.07) five lines above it at
+     the same specificity, so hovering a hero tile flashed a solid white
+     block under white text. */
   @media(max-width:480px){.ht{padding:13px 20px}.ht .v{font-size:1.45rem}}
-  .rise-pill{transition:.14s}.rise-pill[data-v]:hover{transform:translateY(-1px);filter:brightness(1.03)}
-  .jackpot[data-v]{transition:.15s}.jackpot[data-v]:hover{filter:brightness(1.05)}
+  .rise-pill{transition:.14s}.rise-pill:hover{transform:translateY(-1px);filter:brightness(1.03)}
+  .jackpot[data-v]{transition:.15s}.jackpot:hover{filter:brightness(1.05)}
 
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-sm)}
@@ -459,7 +463,15 @@ export const AFF_CSS = `
     .mhead .iconbtn,
     .actrow .btn,
     .btn.sm{position:relative}
-    .sw::after,
+    /* ::before for the switch, NOT ::after. .sw::after IS the white
+       knob — this block re-declared the same pseudo-element at the same
+       specificity, later in the file, and overrode its top, left and
+       height without resetting width:20px, background:#fff or
+       border-radius:50%. So on every touch device the knob became a
+       20px-wide, 44px-tall white capsule pinned to the left, hanging
+       9px out of a 26px track, and .sw.on::after still slid it. Every
+       settings toggle in both apps, on every phone. */
+    .sw::before,
     .chip::after,
     .seg2 button::after,
     .mhead .iconbtn::after,
@@ -470,7 +482,10 @@ export const AFF_CSS = `
     }
   }
 
-  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  /* Scoped. Every other rule in this file is; this one was not, so it
+     froze animation across the whole document — toasts, the push
+     prompt, every portal. */
+  @media (prefers-reduced-motion:reduce){.affapp *{animation:none!important;transition:none!important}}
 
 /* ── The iOS zoom trap ────────────────────────────────────────────────
    Mobile Safari ZOOMS THE PAGE whenever a focused input is styled below

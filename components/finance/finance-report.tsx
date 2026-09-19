@@ -433,6 +433,14 @@ const CSS = `
   /* Let the chips bleed to the edges so it reads as a scrolling strip
      rather than a row that happens to be cut off. */
   .fr-chips{margin:0 -14px;padding-left:14px;padding-right:14px}
+  /* In / Out / Net stacked, not three columns of 106px. At 375px a
+     figure like $1,234,567.89 does not fit and .fr-nums b ellipsises
+     it — the three headline totals of a financial report, truncated,
+     with nothing saying so. */
+  .fr-nums{grid-template-columns:1fr;gap:4px}
+  .fr-nums>div{display:flex;justify-content:space-between;align-items:baseline}
+  .fr-nums small{margin:0}
+  .fr-nums b{overflow:visible;text-overflow:clip}
   .fr-export{margin-left:0;width:100%;justify-content:center}
   .fr-row{grid-template-columns:1fr auto;row-gap:2px}
   .fr-when{grid-column:1/-1;order:-1}

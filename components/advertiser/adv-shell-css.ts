@@ -96,7 +96,10 @@ export const ADV_CSS = `
   @media(max-width:480px){.alert{flex-wrap:wrap}.alert .atx{flex:1 1 auto}.alert>.btn{margin-left:auto;margin-top:4px}}
   .alert .btn{margin-left:auto;flex:0 0 auto}
   .stat,.acard{transition:transform .16s,box-shadow .16s}.stat:hover,.acard:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-  [data-v]{cursor:pointer}
+  /* The markup never sets data-v — grep returns zero. Every one of these
+     cards has an onClick and rendered with the default arrow cursor and
+     no hover feedback. The class is what is actually there. */
+  .stat,.acard,.list-row[role="button"]{cursor:pointer}
   .wallet{transition:transform .16s}.wallet:hover{transform:translateY(-3px)}
   .wallet::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.16) 50%,transparent 66%);transform:translateX(-120%);animation:sweep 7s ease-in-out infinite;pointer-events:none}
   @keyframes sweep{0%,58%{transform:translateX(-120%)}82%,100%{transform:translateX(120%)}}
@@ -258,6 +261,12 @@ export const ADV_CSS = `
   .tblwrap{overflow-x:auto}
   .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;font-size:.72rem;font-weight:700;white-space:nowrap}
   .badge.ok{background:var(--win-soft);color:#0e8f66}.badge.pend{background:var(--warn-soft);color:#8a5a00}.badge.due{background:var(--danger-soft);color:#c0392b}.badge.info{background:var(--primary-tint);color:var(--primary-600)}
+  /* lib/invoice-status.ts declares four tones and this file had three.
+     "muted" is what a cancelled, refunded or draft invoice gets, and a
+     badge with no background rule renders as body text in a transparent
+     pill — so the one status that means "this is not live" looked like
+     no status at all. */
+  .badge.muted{background:var(--panel-2);color:var(--txt-2);box-shadow:0 0 0 1px var(--line-2) inset}
   .plat{display:inline-flex;align-items:center;gap:8px;font-weight:700}
   .pfi{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#fff;border:1px solid var(--line-2);flex:0 0 auto}
   .pfi svg{width:19px;height:19px}.pfi.tt{background:#000;border-color:#000}
@@ -267,7 +276,7 @@ export const ADV_CSS = `
   .acard .nm{font-weight:700}.acard .sub{color:var(--faint);font-size:.78rem}
   .acard .kv{display:flex;justify-content:space-between;font-size:.85rem}.acard .kv span{color:var(--faint)}.acard .kv b{font-weight:700}
   .acard .acts{display:flex;gap:8px;margin-top:2px}
-  .acard[data-acct]{cursor:pointer}.acard[data-acct]:hover{border-color:var(--primary)}
+  .acard:hover{border-color:var(--primary)}
   .acard.banned{opacity:.94}.acard.banned:hover{border-color:#f3c9c9}
   .lockmsg{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;color:var(--txt-2);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:9px 11px;width:100%}
   .lockmsg svg{width:15px;height:15px;flex:0 0 auto;color:var(--faint)}
@@ -898,7 +907,15 @@ export const ADV_CSS = `
     .mhead .iconbtn,
     .actrow .btn,
     .btn.sm{position:relative}
-    .sw::after,
+    /* ::before for the switch, NOT ::after. .sw::after IS the white
+       knob — this block re-declared the same pseudo-element at the same
+       specificity, later in the file, and overrode its top, left and
+       height without resetting width:20px, background:#fff or
+       border-radius:50%. So on every touch device the knob became a
+       20px-wide, 44px-tall white capsule pinned to the left, hanging
+       9px out of a 26px track, and .sw.on::after still slid it. Every
+       settings toggle in both apps, on every phone. */
+    .sw::before,
     .chip::after,
     .seg2 button::after,
     .mhead .iconbtn::after,
@@ -909,7 +926,10 @@ export const ADV_CSS = `
     }
   }
 
-  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  /* Scoped. Every other rule in this file is; this one was not, so it
+     froze animation across the whole document — toasts, the push
+     prompt, every portal. */
+  @media (prefers-reduced-motion:reduce){.advapp *{animation:none!important;transition:none!important}}
 
 /* ── The iOS zoom trap ────────────────────────────────────────────────
    Mobile Safari ZOOMS THE PAGE whenever a focused input is styled below
@@ -947,9 +967,15 @@ export const ADV_CSS = `
      place-items:center is load-bearing — .tool is an inline-flex with
      gap:8px and no justify-content, so in a zero-padding 36px box the line
      starts at the left edge and every icon sits 8px left of centre. */
-  .advapp .toolbar .tool{height:36px;padding:0 9px;border-radius:10px}
+  /* 40, not 36. Eighty lines up this file argues that a thumb needs 44px
+     "and these are 26 to 37" — and then set the hamburger, the bell and
+     the avatar, the three controls on every screen, to 36. .tool is not
+     in the pointer:coarse overlay either, so nothing was making up the
+     difference. The one-square rhythm is worth keeping; the square is
+     40. */
+  .advapp .toolbar .tool{height:40px;padding:0 9px;border-radius:10px}
   .advapp .toolbar .ic-btn,
-  .advapp .tb-left .ham{display:grid;place-items:center;width:36px;height:36px;padding:0;gap:0}
+  .advapp .tb-left .ham{display:grid;place-items:center;width:40px;height:40px;padding:0;gap:0}
   /* Optical sizing, not box sizing. Lucide draws each glyph to a different
      fraction of its 24-unit viewBox, so at a uniform 18px the actual INK
      came out hamburger 10.5px, bell 16.5, rocket 16.1, logout 15.0 — the
@@ -963,14 +989,14 @@ export const ADV_CSS = `
   /* The brand tile is a control-sized square too, so the left cluster keeps
      the same rhythm as the right instead of a 30px tile beside a 36px one. */
   .advapp .tb-left .tb-brand{display:inline-flex;align-items:center}
-  .advapp .tb-left .mark{display:grid;place-items:center;width:36px;height:36px;border-radius:10px}
+  .advapp .tb-left .mark{display:grid;place-items:center;width:40px;height:40px;border-radius:11px}
   .advapp .tb-left .mark svg{width:18px;height:18px;display:block}
 
   /* The avatar kept its chevron and came out 58px — the one odd size, sitting
      in the middle of the right-hand cluster, which is exactly where a broken
      rhythm shows most. On a phone a tappable avatar tile is already
      understood to open a menu. */
-  .advapp .toolbar .ava-btn{display:grid;place-items:center;width:36px;height:36px;padding:0;gap:0}
+  .advapp .toolbar .ava-btn{display:grid;place-items:center;width:40px;height:40px;padding:0;gap:0}
   .advapp .toolbar .ava-btn .avatar{width:30px;height:30px;border-radius:50%;overflow:hidden}
   .advapp .toolbar .ava-btn svg{display:none}
   /* Duplicates the one inside that menu. */
