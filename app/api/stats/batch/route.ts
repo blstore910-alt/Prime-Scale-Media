@@ -8,6 +8,7 @@ import { GET as profitGET } from "../profit/route";
 import { GET as registrationsGET } from "../registrations/route";
 import { GET as subscriptionsGET } from "../subscriptions/route";
 import { GET as topupsGET } from "../topups/route";
+import { GET as walletGET } from "../wallet/route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,11 +44,14 @@ const HANDLERS: Record<
   registrations: (r) => registrationsGET(r),
   "extra-ad-accounts": (r) => extraAdAccountsGET(r),
   "affiliate-commissions": (r) => affiliateCommissionsGET(r),
+  wallet: (r) => walletGET(r),
 };
 
 // A ceiling so a crafted URL cannot ask for the same expensive dataset a
 // hundred times in one invocation.
-const MAX_DATASETS = 8;
+// Nine datasets exist and the owner dashboard mounts eight of them at
+// once, so a cap of 8 silently dropped the last card in the grid.
+const MAX_DATASETS = 12;
 
 export async function GET(request: NextRequest) {
   const requested = (request.nextUrl.searchParams.get("datasets") ?? "")

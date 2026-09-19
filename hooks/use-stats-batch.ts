@@ -16,20 +16,27 @@ type Slice = { ok: true; data: unknown } | { ok: false; status: number };
  * and every card on a given dashboard must ask for the SAME list or they stop
  * sharing a cache entry and the batching is undone.
  */
-const ADMIN_DATASETS = [
+// A CARD THAT ASKS FOR A DATASET NOT ON ITS LIST GETS NOTHING BACK, and
+// useStatsDataset reads a missing slice as a failure — so the card says
+// "Failed to load", on a dashboard where nothing is wrong. That is
+// exactly what happened the moment the owner's grid gained a Topups
+// tile: `topups` was on the admin list and not on this one.
+//
+// So the rule is: these lists are the cards on that dashboard. Both
+// dashboards now render the same six period tiles, so both lists carry
+// the same six datasets and the owner's adds the hero summary.
+const PERIOD_DATASETS = [
   "topups",
+  "wallet",
   "subscriptions",
   "extra-ad-accounts",
+  "affiliate-commissions",
   "registrations",
 ] as const;
 
-const SUPER_ADMIN_DATASETS = [
-  "summary",
-  "affiliate-commissions",
-  "subscriptions",
-  "extra-ad-accounts",
-  "registrations",
-] as const;
+const ADMIN_DATASETS = PERIOD_DATASETS;
+
+const SUPER_ADMIN_DATASETS = ["summary", ...PERIOD_DATASETS] as const;
 
 async function fetchStatsBatch(
   datasets: readonly string[],

@@ -1,11 +1,21 @@
 "use client";
 
 import { PLATFORMS } from "@/lib/constants";
+import { platformFamily, platformLabel } from "@/lib/pure-platform-badge";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { Clock, Eye, Search, Undo2 } from "lucide-react";
+import {
+  Chrome,
+  Clock,
+  Eye,
+  Infinity as InfinityIcon,
+  Megaphone,
+  Music2,
+  Search,
+  Undo2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import useAdAccountRequests from "./use-ad-account-requests";
@@ -16,8 +26,33 @@ import CreateAdAccountFromRequestDialog from "./create-ad-account-from-request-d
 import CreateAdAccountRequestInvoiceDialog from "./create-ad-account-request-invoice-dialog";
 import TablePagination from "../ui/table-pagination";
 
-const platformLabel = (p: string | null) =>
-  PLATFORMS.find((x) => x.value === p)?.label ?? p ?? "—";
+// The request's own `platform` is a family choice the CUSTOMER made, in
+// whichever vocabulary their form used — "meta-ads" on the rows this
+// screen was printing raw. PLATFORMS still wins when the slug is one of
+// ours, because the owner named those; otherwise the family name.
+const platformText = (p: string | null) =>
+  platformLabel(p, PLATFORMS.find((x) => x.value === p)?.label ?? null);
+
+const PlatformMark = ({ platform }: { platform: string | null }) => {
+  const family = platformFamily(platform);
+  // Lucide has no brand marks and we are not shipping other people's
+  // logos into an admin queue. These read as the platform at 14px,
+  // which is the whole job.
+  const Icon =
+    family === "meta"
+      ? InfinityIcon
+      : family === "google"
+        ? Chrome
+        : family === "tiktok"
+          ? Music2
+          : Megaphone;
+  return (
+    <span className={`pmark ${family}`}>
+      <Icon />
+      {platformText(platform)}
+    </span>
+  );
+};
 
 const advName = (r: AdAccountRequest) => {
   const a = r.advertiser as
@@ -161,6 +196,17 @@ export default function PsmRequests() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <style>{`
+        .pmark{display:inline-flex;align-items:center;gap:6px;
+          padding:4px 10px 4px 7px;border-radius:999px;
+          border:1px solid var(--line);background:var(--panel-2);
+          font-weight:700;font-size:.78rem;color:var(--ink)}
+        .pmark svg{width:14px;height:14px}
+        .pmark.meta{border-color:#c9d9ff;background:#eef3ff;color:#2f4fb3}
+        .pmark.google{border-color:#cfe6d6;background:#eefaf1;color:#1f7a45}
+        .pmark.tiktok{border-color:#e2d3f5;background:#f6efff;color:#6b3fb5}
+      `}</style>
+
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>Account Requests</h1>
@@ -230,11 +276,35 @@ export default function PsmRequests() {
                   marginBottom: 8,
                 }}
               >
+                {/* ── THE PSM NUMBER IS THE NAME ──────────────────
+                    Two customers can be called Test Advertiser; only one
+                    is PSM0005. It is what the owner searches by, what
+                    the bank reference carries and what every other
+                    screen leads with — this queue did not show it at
+                    all, so an admin had to open Details to find out
+                    whose request they were about to approve. */}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700 }}>{advName(r)}</div>
-                  <div style={{ color: "var(--faint)", fontSize: ".8rem" }}>
-                    {platformLabel(r.platform)} ·{" "}
-                    {dayjs(r.created_at).format("D MMM")}
+                  <div
+                    style={{
+                      fontFamily: "var(--font-jakarta)",
+                      fontWeight: 800,
+                      fontSize: "1.05rem",
+                      letterSpacing: "-.01em",
+                    }}
+                  >
+                    {r.advertiser?.tenant_client_code || "No PSM number"}
+                  </div>
+                  <div
+                    style={{
+                      color: "var(--txt-2)",
+                      fontSize: ".85rem",
+                      fontWeight: 600,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {advName(r)}
                   </div>
                 </div>
                 <span
@@ -244,6 +314,21 @@ export default function PsmRequests() {
                   {(r.status ?? "pending").replace(/_/g, " ")}
                 </span>
               </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <PlatformMark platform={r.platform} />
+                <span style={{ color: "var(--faint)", fontSize: ".8rem" }}>
+                  {dayjs(r.created_at).format("D MMM")}
+                </span>
+              </div>
+
               <div
                 style={{
                   display: "flex",

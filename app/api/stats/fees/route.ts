@@ -298,8 +298,8 @@ export async function GET(request: NextRequest) {
       // fallback read below keeps created_at, so a database without
       // verified_at still answers instead of throwing.
       .or(
-        `and(verified_at.gte.${periodStart},verified_at.lt.${periodEnd}),` +
-          `and(verified_at.is.null,created_at.gte.${periodStart},created_at.lt.${periodEnd})`,
+        `and(verified_at.gte."${periodStart}",verified_at.lt."${periodEnd}"),` +
+          `and(verified_at.is.null,created_at.gte."${periodStart}",created_at.lt."${periodEnd}")`,
       )
       .eq("status", "completed")
       .order("created_at", { ascending: true })

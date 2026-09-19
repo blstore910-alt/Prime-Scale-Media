@@ -11,6 +11,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AffiliateCommissionsStatsCard } from "@/components/dashboard/affiliate-commissions-stats-card";
 import { ExtraAdAccountsStatsCard } from "@/components/dashboard/extra-ad-accounts-stats-card";
 import { FeesStatsCard } from "@/components/dashboard/fees-stats-card";
+import {
+  WalletExchangesStatsCard,
+  WalletTopupsStatsCard,
+} from "@/components/dashboard/wallet-stats-cards";
 import { RegistrationsStatsCard } from "@/components/dashboard/registrations-stats-card";
 import { SubscriptionsStatsCard } from "@/components/dashboard/subscriptions-stats-card";
 import { TopupsStatsCard } from "@/components/dashboard/topups-stats-card";
@@ -160,13 +164,25 @@ const STATS_CSS = `
    like a metric label (faint), the amount like a metric value (bold). */
 .psm-stats [data-slot=card]{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:transform .16s,box-shadow .16s}
 .psm-stats [data-slot=card]:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-/* The label row: chip + words, and a RESERVED height of two lines.
-   Without it, a label that wraps ("Affiliate commissions (0)") pushed
-   its figure a line lower than the card beside it, and a grid of
-   identical $0.00s looked misaligned because it was. */
-.psm-stats [data-slot=card-description]{display:flex;align-items:flex-start;gap:8px;min-height:38px;font-family:var(--hd);font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-.psm-stats [data-slot=card-description]>span:last-child{padding-top:5px;min-width:0}
-.psm-stats [data-slot=card-description] .ci{margin-top:0}
+/* ONE ROW. The chip, then the words, then the edge of the card. A
+   label that does not fit is clipped with an ellipsis and keeps its
+   full text in the title attribute — it is never folded onto a second
+   line, because that is what pushed each figure to a different height
+   and made six identical $0.00s look like six different cards. */
+.psm-stats [data-slot=card-description]{display:flex;align-items:center;gap:8px;height:28px;font-family:var(--hd);font-weight:700;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+.psm-stats [data-slot=card-description]>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* The figure: one line, and it shrinks rather than breaks. */
+.psm-stats [data-slot=card-title]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:clamp(1rem,4.4vw,1.3rem);letter-spacing:-.02em}
+
+/* Six rectangles of one size. grid-auto-rows:1fr is what makes a row
+   as tall as its tallest card and every card in it that tall; the
+   cards stretch into it, and their content column pushes the footer
+   to the bottom so the baselines line up across the row. */
+.psm-stats .statgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;grid-auto-rows:1fr}
+.psm-stats .statgrid>*{min-width:0}
+.psm-stats [data-slot=card]{height:100%;display:flex;flex-direction:column}
+.psm-stats [data-slot=card-content]{flex:1 1 auto;display:flex;flex-direction:column;justify-content:flex-end}
+@media(min-width:1100px){.psm-stats .statgrid{grid-template-columns:repeat(3,1fr)}}
 .psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;font-size:1.28rem;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
 
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
@@ -389,9 +405,15 @@ export function DashboardStatsCards() {
               <span className="slab">Activity</span>
               {periodControl}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
+            <div className="statgrid">
+              {/* Money IN first, then what we charged for it, then
+                  what leaves for the ad accounts — the order the money
+                  actually travels in. Wallet in and Exchanges were on no
+                  tile at all before this. */}
+              <WalletTopupsStatsCard period={period} dateRange={dateRange} />
               <TopupsStatsCard period={period} dateRange={dateRange} />
               <FeesStatsCard period={period} dateRange={dateRange} />
+              <WalletExchangesStatsCard period={period} dateRange={dateRange} />
               <SubscriptionsStatsCard period={period} dateRange={dateRange} />
               <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
               <AffiliateCommissionsStatsCard
@@ -467,8 +489,6 @@ export function DashboardStatsCards() {
             </div>
           </div>
 
-          {periodControl}
-
           {/* ── ONE BLOCK, NOT TWO ─────────────────────────────────────
               These were two labelled sections stacked on one screen —
               "This period" with four cards, then "All time" with five
@@ -504,9 +524,15 @@ export function DashboardStatsCards() {
               <span className="slab">Activity</span>
               {periodControl}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
+            <div className="statgrid">
+              {/* Money IN first, then what we charged for it, then
+                  what leaves for the ad accounts — the order the money
+                  actually travels in. Wallet in and Exchanges were on no
+                  tile at all before this. */}
+              <WalletTopupsStatsCard period={period} dateRange={dateRange} />
               <TopupsStatsCard period={period} dateRange={dateRange} />
               <FeesStatsCard period={period} dateRange={dateRange} />
+              <WalletExchangesStatsCard period={period} dateRange={dateRange} />
               <SubscriptionsStatsCard period={period} dateRange={dateRange} />
               <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
               <AffiliateCommissionsStatsCard

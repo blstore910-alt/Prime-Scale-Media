@@ -96,7 +96,7 @@ export function RegistrationsStatsCard({
           <span className="ci i">
             <UserPlus />
           </span>
-          <span>Advertisers / Affiliates</span>
+          <span title="New advertisers / new affiliates">Sign-ups</span>
         </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -128,7 +128,7 @@ export function RegistrationsStatsCard({
           <span className="ci i">
             <UserPlus />
           </span>
-          <span>Advertisers / Affiliates</span>
+          <span title="New advertisers / new affiliates">Sign-ups</span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatNumber(data.totals.advertisers)}</span>

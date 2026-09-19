@@ -125,6 +125,24 @@ export default function PsmAvatar({
   );
 }
 
+/**
+ * A colour moved towards white, for the lit side of the disc.
+ *
+ * The mirror of `darken` in lib/pure-avatar.ts, which already gives us
+ * the shaded side. Hex in, hex out; anything it cannot parse comes back
+ * unchanged rather than as black.
+ */
+function lighten(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex ?? "").trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 /** The ten drawings. Each takes the same spec and paints the whole disc. */
 function Style({
   style,
@@ -320,27 +338,101 @@ function Style({
         </>
       );
 
-    // ── Initials on a two-tone ground. The quiet one. ─────────────────
+    // -- INITIALS, AS A POLISHED TOKEN ---------------------------------
+    //
+    // This was a flat disc with a diagonal wedge across it and two
+    // letters on top, and beside a brand built on a glowing rocket it
+    // read as the placeholder you get before a picture loads. The owner
+    // has called it ugly on the toolbar and again in the advertiser
+    // list, which is where it is seen most.
+    //
+    // Same idea -- initials, one treatment for everybody, colour off the
+    // seed so a list stays scannable -- drawn as an object rather than a
+    // swatch: light falling from the top left, a darker pool bottom
+    // right, a specular sweep across the upper third, and a hairline rim
+    // so it sits ON the surface instead of in it. The letters carry a
+    // soft shadow, which is what stops white-on-mid-blue going muddy at
+    // 28px.
+    //
+    // Everything comes from the seed's own two colours, so an advertiser,
+    // an affiliate and an admin each keep their own family and nothing
+    // here has to be told what the brand palette is.
     case "mono":
       return (
         <>
-          <rect width="36" height="36" fill={grad} />
-          <path d="M0 36 L36 0 L36 36 Z" fill={c1} opacity="0.35" />
+          <defs>
+            {/* The body: the seed colour lifted towards white where the
+                light hits, dropping to its own dark end in the corner. */}
+            <radialGradient id={`${uid}s`} cx="0.32" cy="0.26" r="0.92">
+              <stop offset="0" stopColor={lighten(a.bg, 0.34)} />
+              <stop offset="0.52" stopColor={a.bg} />
+              <stop offset="1" stopColor={a.bg2} />
+            </radialGradient>
+            {/* The sweep. Opaque at the top, gone by the middle -- a
+                highlight that reaches the bottom reads as fog. */}
+            <linearGradient id={`${uid}h`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.42" />
+              <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.06" />
+              <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          <rect width="36" height="36" fill={`url(#${uid}s)`} />
+          {/* A wash of the next palette colour, bottom right, so two
+              people on neighbouring rows differ by more than hue. */}
+          <circle cx="30" cy="31" r="14" fill={c1} opacity="0.22" />
+          <path d="M0 0 H36 V15 C27 21 9 21 0 15 Z" fill={`url(#${uid}h)`} />
           <text
             x="18"
-            y="18.5"
+            y="19"
             textAnchor="middle"
             dominantBaseline="central"
-            fill={a.ink}
-            fontSize="13"
+            fill="#0B1020"
+            fillOpacity="0.32"
+            fontSize="14.5"
             fontWeight="800"
             fontFamily="var(--hd, system-ui), system-ui, sans-serif"
-            letterSpacing="0.3"
+            letterSpacing="0.6"
           >
             {a.initials}
           </text>
+          <text
+            x="18"
+            y="18.2"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill={a.ink}
+            fontSize="14.5"
+            fontWeight="800"
+            fontFamily="var(--hd, system-ui), system-ui, sans-serif"
+            letterSpacing="0.6"
+          >
+            {a.initials}
+          </text>
+          {/* The rim, drawn INSIDE the clip so it is never clipped away:
+              bright where the light is, a darker line outside it to seat
+              the disc on a pale panel. */}
+          <circle
+            cx="18"
+            cy="18"
+            r="17.2"
+            fill="none"
+            stroke="#FFFFFF"
+            strokeOpacity="0.34"
+            strokeWidth="1.1"
+          />
+          <circle
+            cx="18"
+            cy="18"
+            r="17.9"
+            fill="none"
+            stroke="#0B1020"
+            strokeOpacity="0.18"
+            strokeWidth="1.4"
+          />
         </>
       );
+
 
     // ── One big letter with a colour block offset behind it. ──────────
     case "slab":

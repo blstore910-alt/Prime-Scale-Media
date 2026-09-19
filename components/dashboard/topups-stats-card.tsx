@@ -100,7 +100,7 @@ export function TopupsStatsCard({
           <span className="ci t">
             <Coins />
           </span>
-          <span>Topups</span>
+          <span title="Wallet to ad account">Ad topups</span>
         </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -132,7 +132,7 @@ export function TopupsStatsCard({
           <span className="ci t">
             <Coins />
           </span>
-          <span>Topups <span>({formatNumber(data.totals.count)})</span></span>
+          <span title="Wallet to ad account">Ad topups <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>

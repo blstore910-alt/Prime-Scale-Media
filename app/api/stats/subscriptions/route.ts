@@ -243,8 +243,8 @@ export async function GET(request: NextRequest) {
       // note above the reducer. paid_at is null on rows that predate
       // the column, and those keep their created_at.
       .or(
-        `and(paid_at.gte.${periodStart},paid_at.lt.${periodEnd}),` +
-          `and(paid_at.is.null,created_at.gte.${periodStart},created_at.lt.${periodEnd})`,
+        `and(paid_at.gte."${periodStart}",paid_at.lt."${periodEnd}"),` +
+          `and(paid_at.is.null,created_at.gte."${periodStart}",created_at.lt."${periodEnd}")`,
       )
       .order("created_at", { ascending: true })
       // A unique tiebreaker: rows created in the same transaction
