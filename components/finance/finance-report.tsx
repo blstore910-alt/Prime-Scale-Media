@@ -7,6 +7,13 @@ import {
   affiliateFinanceReportForMe,
 } from "@/actions/finance-report-actions";
 import {
+  RANGE_LABELS,
+  describeRange,
+  rangeToDates,
+  shortDate,
+  type RangeKey,
+} from "@/lib/pure-finance-range";
+import {
   filterLines,
   summarise,
   toCsv,
@@ -57,6 +64,14 @@ export default function FinanceReport({
 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [range, setRange] = useState<RangeKey>("all");
+  const pickRange = (key: RangeKey) => {
+    setRange(key);
+    if (key === "custom") return; // keep whatever they already typed
+    const r = rangeToDates(key);
+    setFrom(r.from);
+    setTo(r.to);
+  };
   const [kind, setKind] = useState<"" | FinanceKind>("");
   const [currency, setCurrency] = useState("");
   const [account, setAccount] = useState("");
@@ -123,22 +138,52 @@ export default function FinanceReport({
       ) : null}
 
       {/* ── Filters, one row ─────────────────────────────────────────── */}
+      {/* The period, on its own line and above everything else: it is
+          the filter that changes every figure under it, and the one
+          people reach for first. */}
+      <div className="fr-when-bar">
+        <div className="fr-chips" role="group" aria-label="Period">
+          {(
+            ["all", "7d", "30d", "mtd", "lastm", "custom"] as RangeKey[]
+          ).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={`fr-chip${range === k ? " on" : ""}`}
+              aria-pressed={range === k}
+              onClick={() => pickRange(k)}
+            >
+              {RANGE_LABELS[k]}
+            </button>
+          ))}
+        </div>
+        {/* What is actually being shown, in words. A row of chips tells
+            you which button is pressed; it does not tell you which days
+            you are looking at, and that is the thing you check before you
+            trust a total. */}
+        <span className="fr-when-says">{describeRange(from, to)}</span>
+      </div>
+      {range === "custom" ? (
+        <div className="fr-custom">
+          <input
+            type="date"
+            value={from}
+            max={to || undefined}
+            onChange={(e) => setFrom(e.target.value)}
+            aria-label="From"
+          />
+          <span className="fr-dash">–</span>
+          <input
+            type="date"
+            value={to}
+            min={from || undefined}
+            onChange={(e) => setTo(e.target.value)}
+            aria-label="To"
+          />
+        </div>
+      ) : null}
+
       <div className="fr-bar">
-        <input
-          type="date"
-          value={from}
-          max={to || undefined}
-          onChange={(e) => setFrom(e.target.value)}
-          aria-label="From"
-        />
-        <span className="fr-dash">–</span>
-        <input
-          type="date"
-          value={to}
-          min={from || undefined}
-          onChange={(e) => setTo(e.target.value)}
-          aria-label="To"
-        />
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value as "" | FinanceKind)}
@@ -270,13 +315,11 @@ function Line({
   const zero = l.amount === 0;
   return (
     <div className="fr-row">
-      <div className="fr-when">
-        {new Date(l.at).toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "2-digit",
-        })}
-      </div>
+      {/* Same three-letter months as the range above it. The locale
+          formatter renders September as "Sept" and every other month in
+          three, so one row in the column was a character wider than the
+          rest — and which you get depends on the browser version. */}
+      <div className="fr-when">{shortDate(l.at)}</div>
       <div className="fr-what">
         <b>{l.label}</b>
         <small>
@@ -312,6 +355,33 @@ const CSS = `
 .fr-warn{padding:10px 13px;border-radius:12px;font-size:.82rem;line-height:1.5;
   background:var(--warn-tint,rgba(245,165,36,.12));
   border:1px solid rgba(245,165,36,.35)}
+
+/* ── The period ───────────────────────────────────────────────────────
+   Chips, then the range in words. On a phone the chips scroll sideways
+   rather than wrapping to three lines: a filter bar that is taller than
+   the first row of results pushes the answer off the screen. */
+.fr-when-bar{display:flex;flex-direction:column;gap:7px}
+.fr-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;
+  scrollbar-width:none;-ms-overflow-style:none;scroll-snap-type:x proximity}
+.fr-chips::-webkit-scrollbar{display:none}
+.fr-chip{flex:0 0 auto;scroll-snap-align:start;font-family:var(--bd);
+  font-size:.79rem;font-weight:650;white-space:nowrap;cursor:pointer;
+  padding:7px 13px;border-radius:999px;border:1px solid var(--line-2);
+  background:var(--panel);color:var(--txt-2);
+  transition:background .12s,border-color .12s,color .12s,box-shadow .12s;
+  -webkit-tap-highlight-color:transparent}
+.fr-chip:hover{border-color:var(--primary);color:var(--ink)}
+/* The selected one is filled, not merely outlined. At a glance across six
+   chips, a heavier border is not a difference; a solid ground is. */
+.fr-chip.on{background:var(--primary);border-color:var(--primary);color:#fff;
+  box-shadow:0 6px 14px -8px rgba(58,111,255,.75)}
+.fr-chip:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.fr-when-says{font-family:var(--hd);font-weight:800;font-size:1.02rem;
+  letter-spacing:-.01em;color:var(--ink)}
+.fr-custom{display:flex;align-items:center;gap:8px}
+.fr-custom input{flex:1 1 0;min-width:0;font-family:var(--bd);font-size:.82rem;
+  border:1px solid var(--line-2);border-radius:10px;padding:9px 10px;
+  background:var(--panel);color:var(--ink)}
 
 /* One row, wrapping only when it truly cannot fit. */
 .fr-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -360,6 +430,9 @@ const CSS = `
 
 @media(max-width:560px){
   .fr-bar input[type=date]{flex:1 1 calc(50% - 14px)}
+  /* Let the chips bleed to the edges so it reads as a scrolling strip
+     rather than a row that happens to be cut off. */
+  .fr-chips{margin:0 -14px;padding-left:14px;padding-right:14px}
   .fr-export{margin-left:0;width:100%;justify-content:center}
   .fr-row{grid-template-columns:1fr auto;row-gap:2px}
   .fr-when{grid-column:1/-1;order:-1}
