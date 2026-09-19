@@ -1,3 +1,6 @@
+/** Where a customer writes when the app cannot help them. */
+export const SUPPORT_EMAIL = "contact@primescalemedia.com";
+
 export const DATE_FORMAT = "DD-MM-YYYY";
 export const DATE_TIME_FORMAT = "DD-MM-YYYY HH:mm";
 

@@ -10,7 +10,32 @@ type PageProps = {
 export default async function AcceptInvite({ searchParams }: PageProps) {
   const { token } = await searchParams;
 
-  if (!token) throw new Error("Invalid or missing invite token.");
+  // ── DO NOT THROW ON A PUBLIC URL ──────────────────────────────────
+  //
+  // This is reachable by anyone typing /invite/accept, and a throw here
+  // escalates to the root boundary and blanks the document. It is also
+  // the FIRST screen a new customer ever sees, from a link in an email
+  // that a mail client may well have mangled.
+  if (!token) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-muted/30 p-6">
+        <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-sm">
+          <h1 className="text-lg font-bold">That invite link is incomplete</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            The link needs the full address from your invitation email —
+            some mail apps cut it short. Open it from the email again, or
+            ask whoever invited you to send it once more.
+          </p>
+          <a
+            className="mt-5 inline-block rounded-lg bg-muted px-4 py-2 text-sm font-semibold"
+            href="/auth/login"
+          >
+            Go to sign in
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   const supabase = await createClient();
 

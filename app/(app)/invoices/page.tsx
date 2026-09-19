@@ -23,9 +23,15 @@ export default async function Page() {
 
   if (!profiles?.length) redirect("/onboard");
 
-  const profile = existingProfile
-    ? profiles.find((p) => p.id === existingProfile)
-    : profiles[0];
+  // ?? profiles[0], like every other route. The profile_id cookie is
+  // httpOnly and survives a sign-out, so a browser a previous user has
+  // been signed into hands the next one an id that is not theirs —
+  // find() then returns undefined and a legitimate advertiser is sent to
+  // /onboard to be told their account is not set up. /dashboard carries
+  // a comment explaining exactly this; these two routes dropped it.
+  const profile =
+    (existingProfile ? profiles.find((p) => p.id === existingProfile) : null) ??
+    profiles[0];
 
   if (!profile) redirect("/onboard");
 

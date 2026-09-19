@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isCompanyComplete } from "@/lib/pure-company-complete";
@@ -63,7 +64,44 @@ export default async function CompleteProfilePage() {
     : profile.advertiser;
 
   if (!advertiser) {
-    return <div>Error loading advertiser profile.</div>;
+    // ── NOT A BARE DIV ────────────────────────────────────────────────
+    //
+    // This returned an unstyled sentence, with no shell and no
+    // navigation, and it returned BEFORE the header that carries the
+    // Log out button — so somebody whose advertisers row never got
+    // created (signup can fail after the invite is consumed) landed on
+    // a white page with one line on it and no way off except Back.
+    //
+    // Three places in the advertiser app send people here.
+    return (
+      <main className="grid min-h-dvh place-items-center bg-muted/30 p-6">
+        <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-sm">
+          <h1 className="text-lg font-bold">We can&apos;t open your account</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Your sign-up finished but the account behind it was not fully
+            created, so there is nothing here to fill in. This is on our
+            side and we can fix it quickly — send us a message and we will
+            sort it out.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <a
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                "My account did not finish setting up",
+              )}`}
+            >
+              Message support
+            </a>
+            <a
+              className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold"
+              href="/dashboard"
+            >
+              Back to the dashboard
+            </a>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   // Fetch company with billings
