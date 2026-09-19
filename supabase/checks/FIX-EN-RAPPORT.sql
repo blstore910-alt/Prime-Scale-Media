@@ -16,6 +16,10 @@
 -- terug.
 --
 -- Veilig om twee keer te draaien.
+--
+-- HOE DRAAI JE DIT. Plakken in de Supabase SQL editor en Run. Geen rol
+-- wisselen, geen instelling aanzetten: de editor draait als `postgres`,
+-- dat is de eigenaar, en row-level security geldt niet voor die rol.
 -- =====================================================================
 
 set search_path = public;
