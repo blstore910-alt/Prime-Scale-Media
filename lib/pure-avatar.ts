@@ -82,8 +82,17 @@ export const AVATAR_HAIRS = [
   "#2B2118", "#4A3423", "#7A5233", "#B9834B", "#D9C08A", "#8C8C94", "#3B2A4A",
 ] as const;
 
+/**
+ * Shirts, from OUR palette.
+ *
+ * These were six unrelated hues — a teal, an orange, a pink — which is
+ * what a stock avatar library looks like. A row of colleagues in a
+ * customer list should read as one company, so they come from the brand
+ * blue and purple and the two neutrals that sit either side of them.
+ * The variety is carried by the hair and the skin, where it belongs.
+ */
 export const AVATAR_TOPS = [
-  "#3A6FFF", "#7C5CFF", "#0E9D9D", "#E07A3F", "#2F9E6B", "#D2456B",
+  "#3A6FFF", "#7C5CFF", "#2C3566", "#1E2A5A", "#5B8DFF", "#4634A8",
 ] as const;
 
 /** Seven heads, drawn in the renderer. Index only. */

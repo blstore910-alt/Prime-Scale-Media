@@ -144,6 +144,18 @@ export default function WalletExchangeDialog({
       });
 
       if (error) throw error;
+      // ── READ THE ANSWER ───────────────────────────────────────────
+      //
+      // Only a thrown `error` used to stop this. A null row, or a row
+      // carrying a refusal, resolved happily and the customer was told
+      // "Exchange completed — your wallet balances have been updated"
+      // over balances that had not moved. On a conversion their only
+      // recourse is to compare two numbers afterwards and work it out.
+      if (!data) {
+        throw new Error(
+          "The exchange did not go through. Your balances are unchanged.",
+        );
+      }
       return data;
     },
     onSuccess: () => {

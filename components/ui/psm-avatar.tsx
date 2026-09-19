@@ -217,7 +217,9 @@ function Style({
               <path d="M11.3 16.8c.6 4.2 3.4 6.4 6.7 6.4s6.1-2.2 6.7-6.4c.5 6-2.4 9.4-6.7 9.4s-7.2-3.4-6.7-9.4z" fill={hair} opacity="0.92" />
             </>
           )}
-          {/* The face, last, so no cut can cover it. */}
+          {/* The face, before the headset, so the band sits over the
+              hair and the boom arm passes in front of the cheek — which
+              is the way round a headset is actually worn. */}
           <circle cx={18 - eyeDx} cy={eyeY} r="0.95" fill="#2A2118" />
           <circle cx={18 + eyeDx} cy={eyeY} r="0.95" fill="#2A2118" />
           <path
@@ -228,6 +230,41 @@ function Style({
             fill="none"
             opacity="0.85"
           />
+
+          {/* ── THE HEADSET ────────────────────────────────────────────
+              What the owner asked for, and it earns its place: it is the
+              one element every portrait shares, so a row of these reads
+              as one set rather than eight unrelated drawings — and it
+              does the job the hair cannot, which is to make a 28px
+              silhouette recognisable as a person at all.
+
+              Band first, then the cups over the ends of it, then the
+              boom in front of the cheek. Charcoal rather than black:
+              pure black against the dark hair colours loses the shape
+              entirely. */}
+          <path
+            d="M9.9 15.8a8.1 8.1 0 0 1 16.2 0"
+            fill="none"
+            stroke="#2E3346"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+          <rect x="8.2" y="14.2" width="3.4" height="5.4" rx="1.7" fill="#2E3346" />
+          <rect x="24.4" y="14.2" width="3.4" height="5.4" rx="1.7" fill="#2E3346" />
+          {/* A sliver of the accent on each cup, so the headset is part
+              of the same picture as the shirt rather than a grey lump. */}
+          <rect x="9.1" y="15.5" width="1.6" height="2.8" rx="0.8" fill={top} opacity="0.9" />
+          <rect x="25.3" y="15.5" width="1.6" height="2.8" rx="0.8" fill={top} opacity="0.9" />
+          {/* The boom. It stops short of the mouth — drawn to it, the
+              two shapes merge at small sizes and it reads as a beard. */}
+          <path
+            d="M9.9 19.2c0 2.6 1.6 4.1 3.4 4.6"
+            fill="none"
+            stroke="#2E3346"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+          />
+          <circle cx="13.7" cy="23.9" r="1.05" fill="#2E3346" />
         </>
       );
     }

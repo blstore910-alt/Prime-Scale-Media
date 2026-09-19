@@ -122,12 +122,25 @@ export default function FinanceReport({
     const blob = new Blob([toCsv(shown)], {
       type: "text/csv;charset=utf-8",
     });
+    // ── APPEND IT, CLICK IT, THEN LET GO ────────────────────────────
+    //
+    // The anchor was never added to the document, and the object URL was
+    // revoked on the very next line. Firefox ignores a click on a
+    // detached anchor outright, and revoking synchronously races the
+    // download in every browser — so "Export CSV" did nothing at all,
+    // silently, on the one control whose entire job is to hand the
+    // customer their own figures.
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `financial-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.style.display = "none";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    // A tick, not the next line: the browser needs the URL to survive
+    // long enough to start reading from it.
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
   const money = (n: number, cur: string) =>
