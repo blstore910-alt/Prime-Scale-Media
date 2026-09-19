@@ -21,10 +21,10 @@ export default function CreateTopupDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Request New Topup</DialogTitle>
+          <DialogTitle>Fund this ad account</DialogTitle>
           {account?.name && (
             <DialogDescription>
-              Request new topup for account: <b>{account?.name}</b>
+              Money moves from your wallet to: <b>{account?.name}</b>
             </DialogDescription>
           )}
         </DialogHeader>

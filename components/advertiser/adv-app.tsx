@@ -3454,7 +3454,13 @@ export default function AdvertiserApp() {
                 />
               </div>
             </div>
-            <div className="card">
+            {/* Not for people who already are one. isAffiliate was read
+                once in this whole file, to build the referral link, and
+                never to decide whether to show this card — so somebody
+                with a live approved referral link was being invited, in
+                their own settings, to apply for the thing they already
+                have. */}
+            <div className="card" hidden={isAffiliate}>
               <h2>
                 <span
                   style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
@@ -3539,9 +3545,13 @@ export default function AdvertiserApp() {
                   </div>
                   <div>
                     <div className="q">How fast do accounts go live?</div>
+                    {/* A question about SPEED, answered with a place —
+                        and the answer was a copy of the sentence already
+                        used in the ad-accounts empty state and in the
+                        request dialog. */}
                     <div className="a">
-                      Set up on our verified
-                      Business Manager.
+                      Usually within one working day of approval. You get a
+                      notification the moment it is live.
                     </div>
                   </div>
                   <div>

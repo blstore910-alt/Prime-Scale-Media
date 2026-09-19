@@ -35,7 +35,13 @@ export function useCreateAccountTopup({
       return data;
     },
     onSuccess: async () => {
-      toast.success("Topup requested successfully");
+      toast.success(// NOT "requested". There is no approval step on this one: the money
+      // is out of the wallet by the time this toast renders, and it only
+      // comes back through a withdrawal WE have to approve. The
+      // confirmation inside the same dialog says so plainly; the title,
+      // the description and this toast all promised an approval that
+      // does not exist.
+      "Sent to your ad account");
       queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
       onSuccess();

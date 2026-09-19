@@ -41,10 +41,23 @@ const TIERS = [
   { key: "plat", name: "Legend", min: 2500 },
 ];
 
-const eur = (n: number) =>
+// TWO DECIMALS. Math.round here meant the payout modal printed "still
+// owed to you: EUR 1,250" and the button beside it mailed a request for
+// EUR 1,249.55 — the handler defines its own exact() with a comment
+// about "45 cents of invented money inside a payment instruction", and
+// then the sentence above it rounded anyway. The advertiser app removed
+// the same rounding from its balances for the same reason.
+const money2 = (sym: string, n: number) =>
+  sym +
+  (Number(n) || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+const eur = (n: number) => money2("€", n);
+const usd = (n: number) => money2("$", n);
+/** Whole units, for the hero headline only — never for a payable. */
+const eurWhole = (n: number) =>
   "€" + Math.round(Number(n) || 0).toLocaleString("en-US");
-const usd = (n: number) =>
-  "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
 
 function initials(name?: string | null) {
   if (!name) return "PS";
@@ -652,10 +665,17 @@ export default function AffiliateApp() {
                 <Ic name="i-gift" /> Share your link
               </h2>
               <p className="cap">
+                {/* ── ONE MECHANISM, NOT THREE ────────────────────────
+                    The only accrual in the database fires on a WALLET
+                    top-up and pays a percentage of it. There is no
+                    one-time accrual and no monthly-fee accrual anywhere;
+                    a referral set to either of those earns nothing, for
+                    ever, with no error. The admin-side helper says this
+                    plainly to the admin. The affiliate's own screen said
+                    the opposite. */}
                 Advertisers who join through your link are linked to you. You
-                earn on what they pay PSM — the terms are set per referral: a
-                one-time bonus, a % of their monthly fee, and/or a % of each
-                ad-account top-up.
+                earn a percentage of every wallet top-up they make. The rate
+                is agreed per referral.
               </p>
               <div className="linkrow">
                 <div className="linkbox">
@@ -1463,10 +1483,9 @@ export default function AffiliateApp() {
                     <div className="q">How do I earn?</div>
                     <div className="a">
                       Share your link. When an advertiser signs up through it,
-                      they&apos;re linked to you. Your commission terms are
-                      agreed per referral — a one-time bonus, a percentage of
-                      their monthly fee, and/or a percentage of each ad-account
-                      top-up.
+                      they&apos;re linked to you, and you earn a percentage of
+                      every wallet top-up they make. The rate is agreed per
+                      referral.
                     </div>
                   </div>
                   <div>

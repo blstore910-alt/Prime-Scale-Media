@@ -334,11 +334,26 @@ export default function OnboardingChecklist({
                 <button
                   className="onb-tick"
                   onClick={() => toggle(s)}
-                  disabled={s.auto}
+                  /* ── ONLY THE INFORMATIONAL STEP TAKES A TICK ────────
+                     `auto` IS the "have they actually done it" flag, so
+                     `disabled={s.auto}` left the tick ENABLED on every
+                     step that was still outstanding. One tap on "Add
+                     your company details" set it manually, allDone went
+                     true, and the card swapped to "You're all set —
+                     everything is in place" on a dashboard still showing
+                     the red chip telling them to add company details,
+                     with Top up, Exchange and Request all dead. The
+                     comment at the top of this file says it exists to
+                     prevent exactly that.
+
+                     The affiliate invitation is the one step that has
+                     nothing to detect, so it is the one that can be
+                     ticked by hand. */
+                  disabled={!s.removeWhenDone}
                   aria-label={
-                    s.auto
-                      ? `${s.title} — completed automatically once done`
-                      : `Mark "${s.title}" complete`
+                    s.removeWhenDone
+                      ? `Dismiss "${s.title}"`
+                      : `${s.title} — ticks itself once you have done it`
                   }
                 />
                 <span className="onb-ic">
