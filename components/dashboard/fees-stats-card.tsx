@@ -1,5 +1,7 @@
 "use client";
 
+import { Percent } from "lucide-react";
+
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid } from "recharts";
 
@@ -111,7 +113,12 @@ export function FeesStatsCard({
     return (
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription className="">Total Fees</CardDescription>
+          <CardDescription className="psm-cardlbl">
+          <span className="ci g">
+            <Percent />
+          </span>
+          <span>Fees</span>
+        </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
@@ -138,8 +145,11 @@ export function FeesStatsCard({
             figure at text-xl — so the two competed and the card read as
             a heading with a number under it rather than as a number.
             Small, quiet label; the figure carries the weight. */}
-        <CardDescription className="text-[11px] font-bold uppercase tracking-[.08em] text-muted-foreground">
-          Fees <span>({formatNumber(data.totals.count)})</span>
+        <CardDescription className="psm-cardlbl">
+          <span className="ci g">
+            <Percent />
+          </span>
+          <span>Fees <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>

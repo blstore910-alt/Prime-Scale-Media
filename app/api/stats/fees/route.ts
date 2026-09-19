@@ -13,6 +13,8 @@ type BucketMode = "hour" | "day" | "week" | "month";
 
 type FeeRow = {
   created_at: string;
+  /** When an admin verified it. Absent on the created_at fallback read. */
+  verified_at?: string | null;
   currency: string | null;
   fee_amount: number | string | null;
 };
@@ -286,10 +288,19 @@ export async function GET(request: NextRequest) {
     (from, to) =>
     supabase
       .from("top_ups")
-      .select("created_at, currency, fee_amount")
+      .select("created_at, verified_at, currency, fee_amount")
       .eq("tenant_id", profile.tenant_id)
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd)
+      // ── DATED BY WHEN THE MONEY ARRIVED ──────────────────────────
+      // This gates on status = completed and then dated the row by
+      // when the CUSTOMER filed it. A top-up filed on the 30th and
+      // verified on the 2nd counted in the wrong month, and last
+      // month's card grew days after the owner had read it. The
+      // fallback read below keeps created_at, so a database without
+      // verified_at still answers instead of throwing.
+      .or(
+        `and(verified_at.gte.${periodStart},verified_at.lt.${periodEnd}),` +
+          `and(verified_at.is.null,created_at.gte.${periodStart},created_at.lt.${periodEnd})`,
+      )
       .eq("status", "completed")
       .order("created_at", { ascending: true })
       // A unique tiebreaker: a bulk insert shares one now(), and Postgres
@@ -335,7 +346,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const rows = paged.rows;
+  // Re-date each row to when it was verified; everything downstream
+  // reads `created_at`. The fallback read has no verified_at, so those
+  // rows keep the date they already had.
+  const rows = paged.rows.map((row) => ({
+    ...row,
+    created_at: row.verified_at ?? row.created_at,
+  }));
   const series = buildSeries(rows, periodStart, periodEnd, granularity, usdToEurRate);
 
   const totals = rows.reduce(

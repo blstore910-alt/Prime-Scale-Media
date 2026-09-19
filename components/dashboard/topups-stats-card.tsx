@@ -1,5 +1,7 @@
 "use client";
 
+import { Coins } from "lucide-react";
+
 import { useStatsDataset } from "@/hooks/use-stats-batch";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
@@ -94,7 +96,12 @@ export function TopupsStatsCard({
     return (
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription className="">Total Topups</CardDescription>
+          <CardDescription className="psm-cardlbl">
+          <span className="ci t">
+            <Coins />
+          </span>
+          <span>Topups</span>
+        </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
@@ -121,8 +128,11 @@ export function TopupsStatsCard({
             figure at text-xl — so the two competed and the card read as
             a heading with a number under it rather than as a number.
             Small, quiet label; the figure carries the weight. */}
-        <CardDescription className="text-[11px] font-bold uppercase tracking-[.08em] text-muted-foreground">
-          Topups <span>({formatNumber(data.totals.count)})</span>
+        <CardDescription className="psm-cardlbl">
+          <span className="ci t">
+            <Coins />
+          </span>
+          <span>Topups <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>
@@ -192,7 +202,6 @@ export function TopupsStatsCard({
                                   ({formatNumber(count)})
                                 </span>
                               </div>
-                              s
                             </div>
                           );
                         }}

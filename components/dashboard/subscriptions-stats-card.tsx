@@ -1,5 +1,7 @@
 "use client";
 
+import { Repeat } from "lucide-react";
+
 import { useStatsDataset } from "@/hooks/use-stats-batch";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
@@ -94,7 +96,12 @@ export function SubscriptionsStatsCard({
     return (
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription className="">Subscriptions</CardDescription>
+          <CardDescription className="psm-cardlbl">
+          <span className="ci b">
+            <Repeat />
+          </span>
+          <span>Subscriptions</span>
+        </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
@@ -116,8 +123,11 @@ export function SubscriptionsStatsCard({
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
-        <CardDescription className="font-semibold text-lg  text-card-foreground">
-          Subscriptions <span>({formatNumber(data.totals.count)})</span>
+        <CardDescription className="psm-cardlbl">
+          <span className="ci b">
+            <Repeat />
+          </span>
+          <span>Subscriptions <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>

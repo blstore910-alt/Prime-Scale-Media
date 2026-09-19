@@ -13,6 +13,8 @@ type BucketMode = "hour" | "day" | "week" | "month";
 
 type InvoiceRow = {
   created_at: string;
+  /** When the money actually arrived. Null on rows older than the column. */
+  paid_at?: string | null;
   currency: string | null;
   total: number | string | null;
 };
@@ -230,15 +232,20 @@ export async function GET(request: NextRequest) {
   const paged = await pageAllRows<InvoiceRow>((from, to) =>
   supabase
       .from("invoices")
-      .select("created_at, currency, total")
+      .select("created_at, paid_at, currency, total")
       .eq("tenant_id", profile.tenant_id)
       // an extra ad account is invoiced as ad_account_fee, not manual_invoice:
         // the total-profit tile was fixed for exactly this and the card
         // beside it never was, so 20 paid EUR 50 invoices read as zero.
         .in("type", ["ad_account_fee"])
       .eq("status", "paid")
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd)
+      // Dated by when it was PAID, not when it was raised — see the
+      // note above the reducer. paid_at is null on rows that predate
+      // the column, and those keep their created_at.
+      .or(
+        `and(paid_at.gte.${periodStart},paid_at.lt.${periodEnd}),` +
+          `and(paid_at.is.null,created_at.gte.${periodStart},created_at.lt.${periodEnd})`,
+      )
       .order("created_at", { ascending: true })
       // A unique tiebreaker: rows created in the same transaction
       // share one now(), and Postgres gives no stable order among
@@ -261,7 +268,13 @@ export async function GET(request: NextRequest) {
 
   }
 
-  const rows = paged.rows;
+  // Re-date each row to when it settled. Everything downstream — the
+  // buckets and the totals — reads `created_at`, so doing it here keeps
+  // one definition of "in this period" instead of two that can drift.
+  const rows = paged.rows.map((row) => ({
+    ...row,
+    created_at: row.paid_at ?? row.created_at,
+  }));
   const series = buildSeries(rows, periodStart, periodEnd, granularity);
 
   const totals = rows.reduce(

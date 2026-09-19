@@ -95,6 +95,7 @@ export async function GET() {
     activeAdAccountsResult,
     billingSubscriptionsResult,
     advertisersTotalResult,
+    affiliatesTotalResult,
     advertisersStatusesResult,
     invoiceRevenueResult,
     referralCommissionsResult,
@@ -162,6 +163,13 @@ export async function GET() {
       .from("advertisers")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", profile.tenant_id),
+    // Affiliates. The hero named advertisers and stopped, so the owner
+    // could not see the other half of the book from the dashboard at
+    // all — and affiliates go live on day one alongside them.
+    supabase
+      .from("affiliates")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", profile.tenant_id),
     supabase
       .from("advertisers")
       .select("id, profile:user_profiles(status)")
@@ -226,6 +234,7 @@ export async function GET() {
     activeAdAccountsResult.error,
     billingSubscriptionsResult.error,
     advertisersTotalResult.error,
+    affiliatesTotalResult.error,
     advertisersStatusesResult.error,
     invoiceRevenueResult.error,
     referralCommissionsResult.error,
@@ -378,6 +387,9 @@ export async function GET() {
       advertisers: {
         total: advertisersTotalResult.count || 0,
         active: activeAdvertisersCount,
+      },
+      affiliates: {
+        total: affiliatesTotalResult.count || 0,
       },
     },
   });

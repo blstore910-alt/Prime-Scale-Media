@@ -2,14 +2,7 @@
 
 import { useStatsDataset } from "@/hooks/use-stats-batch";
 import dayjs from "dayjs";
-import {
-  CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Coins,
-  Percent,
-  type LucideIcon,
-} from "lucide-react";
+import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 
@@ -17,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 import { AffiliateCommissionsStatsCard } from "@/components/dashboard/affiliate-commissions-stats-card";
 import { ExtraAdAccountsStatsCard } from "@/components/dashboard/extra-ad-accounts-stats-card";
+import { FeesStatsCard } from "@/components/dashboard/fees-stats-card";
 import { RegistrationsStatsCard } from "@/components/dashboard/registrations-stats-card";
 import { SubscriptionsStatsCard } from "@/components/dashboard/subscriptions-stats-card";
 import { TopupsStatsCard } from "@/components/dashboard/topups-stats-card";
@@ -36,22 +30,8 @@ import {
 import { useAppContext } from "@/context/app-provider";
 import { DATE_FORMAT } from "@/lib/constants";
 import { DashboardPeriod } from "@/lib/dashboard-period";
-import { formatCurrency } from "@/lib/utils";
 
 interface StatsResponse {
-  total_topups: {
-    count: number;
-    usd_amount: number;
-    eur_amount: number;
-  };
-  total_fees: {
-    count: number;
-    usd_amount: number;
-    eur_amount: number;
-  };
-  revenue_profit: {
-    total_profit: number;
-  };
   ad_accounts: {
     total: number;
     active: number;
@@ -64,6 +44,9 @@ interface StatsResponse {
     advertisers: {
       total: number;
       active: number;
+    };
+    affiliates: {
+      total: number;
     };
   };
 }
@@ -169,6 +152,7 @@ const STATS_CSS = `
 .psm-stats .ci.p{background:var(--purple-tint);color:var(--purple)}
 .psm-stats .ci.w{background:var(--win-soft);color:var(--win)}
 .psm-stats .ci.d{background:var(--danger-soft);color:var(--danger)}
+.psm-stats .ci.i{background:#e5e9ff;color:#4a5bd0}
 .psm-stats .skel{display:inline-block;height:1.1em;width:130px;max-width:100%;border-radius:6px;background:var(--panel-2)}
 
 /* "This period" cards (shadcn Card) restyled to the SAME premium panel look
@@ -176,7 +160,13 @@ const STATS_CSS = `
    like a metric label (faint), the amount like a metric value (bold). */
 .psm-stats [data-slot=card]{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:transform .16s,box-shadow .16s}
 .psm-stats [data-slot=card]:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-.psm-stats [data-slot=card-description]{font-family:var(--hd);font-weight:700;font-size:.86rem;color:var(--faint);letter-spacing:.01em}
+/* The label row: chip + words, and a RESERVED height of two lines.
+   Without it, a label that wraps ("Affiliate commissions (0)") pushed
+   its figure a line lower than the card beside it, and a grid of
+   identical $0.00s looked misaligned because it was. */
+.psm-stats [data-slot=card-description]{display:flex;align-items:flex-start;gap:8px;min-height:38px;font-family:var(--hd);font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.psm-stats [data-slot=card-description]>span:last-child{padding-top:5px;min-width:0}
+.psm-stats [data-slot=card-description] .ci{margin-top:0}
 .psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;font-size:1.28rem;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
 
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
@@ -213,11 +203,8 @@ export function DashboardStatsCards() {
 
   // Rides the same batched request as the period cards below, so the whole
   // dashboard costs one round trip instead of five.
-  const {
-    data: stats,
-    isLoading: isStatsLoading,
-    isError: isStatsError,
-  } = useStatsDataset<StatsResponse>("summary", period, dateRange);
+  const { data: stats, isError: isStatsError } =
+    useStatsDataset<StatsResponse>("summary", period, dateRange);
 
   const isMobile = useIsMobile();
 
@@ -395,13 +382,24 @@ export function DashboardStatsCards() {
 
       {isAdminDashboard ? (
         <>
-          {periodControl}
-          <div className="slab">This period</div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:shadow-xs">
-            <TopupsStatsCard period={period} dateRange={dateRange} />
-            <SubscriptionsStatsCard period={period} dateRange={dateRange} />
-            <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
-            <RegistrationsStatsCard period={period} dateRange={dateRange} />
+          {/* Same panel as the owner sees, without the hero — an admin
+              has no business-wide profit view. */}
+          <div className="statpanel">
+            <div className="statpanel-head">
+              <span className="slab">Activity</span>
+              {periodControl}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
+              <TopupsStatsCard period={period} dateRange={dateRange} />
+              <FeesStatsCard period={period} dateRange={dateRange} />
+              <SubscriptionsStatsCard period={period} dateRange={dateRange} />
+              <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
+              <AffiliateCommissionsStatsCard
+                period={period}
+                dateRange={dateRange}
+              />
+              <RegistrationsStatsCard period={period} dateRange={dateRange} />
+            </div>
           </div>
         </>
       ) : (
@@ -412,12 +410,17 @@ export function DashboardStatsCards() {
             <div className="hclip">
               <div className="ring" />
             </div>
-            <div className="pl">Total profit · all time</div>
+            {/* ── SUBSCRIPTIONS, NOT ALL-TIME PROFIT ──────────────
+                All-time profit is a number that barely moves and that
+                the finance report already carries in full. What the
+                owner checks on opening the dashboard is how many plans
+                are billing — that is the book. */}
+            <div className="pl">Subscriptions · billing now</div>
             <div className="pv">
               {isStatsError
                 ? "—"
                 : stats
-                  ? formatCurrency(stats.revenue_profit.total_profit, "EUR")
+                  ? formatNumber(stats.subscriptions.billing)
                   : "…"}
             </div>
             {/* ── THE LIVE STATE OF THE BUSINESS ────────────────────
@@ -431,16 +434,6 @@ export function DashboardStatsCards() {
                 underneath. That duplication is what made the screen
                 read as the same numbers twice. */}
             <div className="prow">
-              <div className="b">
-                <span>Subscriptions</span>
-                <b>
-                  {stats
-                    ? formatNumber(stats.subscriptions.billing)
-                    : isStatsError
-                      ? "—"
-                      : "…"}
-                </b>
-              </div>
               <div className="b">
                 <span>Ad accounts</span>
                 <b>
@@ -456,6 +449,16 @@ export function DashboardStatsCards() {
                 <b>
                   {stats
                     ? formatNumber(stats.advertisers_affiliates.advertisers.total)
+                    : isStatsError
+                      ? "—"
+                      : "…"}
+                </b>
+              </div>
+              <div className="b">
+                <span>Affiliates</span>
+                <b>
+                  {stats
+                    ? formatNumber(stats.advertisers_affiliates.affiliates.total)
                     : isStatsError
                       ? "—"
                       : "…"}
@@ -483,121 +486,36 @@ export function DashboardStatsCards() {
               the all-time footing do NOT already carry — topups, fees and
               profit were taken out because showing them twice is what
               made the screen feel duplicated in the first place. */}
+          {/* ── ONE PANEL, ONE PERIOD ──────────────────────────────────
+              This was a panel of period cards with a second "All time"
+              block bolted underneath it, and the only thing telling the
+              two apart was a small grey word. Topups and Fees sat in
+              that footing as lifetime totals while every figure beside
+              them answered to the selector at the top — so two cards on
+              one screen meant something different from the other four.
+
+              The footing is gone. Everything in here answers to the
+              period control in its head, Topups and Fees included, and
+              every tile carries the same chip so the grid reads as one
+              set. Lifetime figures live on the finance report, which is
+              where a lifetime figure belongs. */}
           <div className="statpanel">
             <div className="statpanel-head">
               <span className="slab">Activity</span>
               {periodControl}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 *:data-[slot=card]:shadow-xs">
-              <AffiliateCommissionsStatsCard period={period} dateRange={dateRange} />
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3 *:data-[slot=card]:shadow-xs">
+              <TopupsStatsCard period={period} dateRange={dateRange} />
+              <FeesStatsCard period={period} dateRange={dateRange} />
               <SubscriptionsStatsCard period={period} dateRange={dateRange} />
               <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
+              <AffiliateCommissionsStatsCard
+                period={period}
+                dateRange={dateRange}
+              />
               <RegistrationsStatsCard period={period} dateRange={dateRange} />
             </div>
-
-            <div className="statpanel-rule">
-              <span>All time</span>
-            </div>
-          <div className="mgrid">
-            {/* Total Profit, Total Ad Accounts and Total Advertisers
-                used to sit here. All three are on the hero card above —
-                profit as its headline, the other two as tiles — and
-                printing them again four centimetres lower is what made
-                this screen read as the same numbers twice. What is on
-                the card is not repeated in the grid. */}
-            <SummaryStatCard
-              title="Total Topups"
-              icon={Coins}
-              ci="t"
-              value={
-                stats
-                  ? `${formatCurrency(stats.total_topups.usd_amount, "USD")} / ${formatCurrency(stats.total_topups.eur_amount, "EUR")}`
-                  : ""
-              }
-              description={
-                stats
-                  ? `From ${formatNumber(stats.total_topups.count)} topups`
-                  : ""
-              }
-              isLoading={isStatsLoading}
-              isError={isStatsError}
-            />
-            <SummaryStatCard
-              title="Total Fees"
-              icon={Percent}
-              ci="g"
-              value={
-                stats
-                  ? `${formatCurrency(stats.total_fees.usd_amount, "USD")} / ${formatCurrency(stats.total_fees.eur_amount, "EUR")}`
-                  : ""
-              }
-              description={
-                stats
-                  ? `From ${formatNumber(stats.total_fees.count)} topups`
-                  : ""
-              }
-              isLoading={isStatsLoading}
-              isError={isStatsError}
-            />
-            </div>
           </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function SummaryStatCard({
-  title,
-  value,
-  description,
-  isLoading,
-  isError,
-  icon: Icon,
-  ci,
-}: {
-  title: string;
-  value: string;
-  description: string;
-  isLoading: boolean;
-  isError: boolean;
-  icon: LucideIcon;
-  ci: string;
-}) {
-  return (
-    <div className="metric">
-      <div className="k">
-        <span className={`ci ${ci}`}>
-          <Icon />
-        </span>
-        {title}
-      </div>
-      {isLoading ? (
-        <>
-          <div className="v">
-            <span className="skel" />
-          </div>
-          <div className="sub" />
-        </>
-      ) : isError ? (
-        <>
-          <div className="v err">Failed to load</div>
-          <div className="sub" />
-        </>
-      ) : (
-        <>
-          {/* ── AN EMPTY VALUE IS NOT A ZERO ─────────────────────────
-              `value || "0"` printed a confident 0 whenever the caller
-              passed "" — which is what every one of them does while the
-              read is still in flight OR after it failed. react-query v5
-              makes a DISABLED query isPending true and isFetching false,
-              so isLoading is false and isError is false, and both guards
-              above fall straight through to here. Meanwhile the period
-              cards on the same screen print "Failed to load" in that
-              exact window. Two blocks, one screen, disagreeing about
-              whether anything is wrong. */}
-          <div className="v">{value === "" ? "—" : value}</div>
-          <div className="sub">{description}</div>
         </>
       )}
     </div>
