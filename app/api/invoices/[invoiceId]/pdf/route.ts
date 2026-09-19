@@ -732,7 +732,12 @@ export async function GET(
 
     const { data: profiles, error: profileError } = await supabase
       .from("user_profiles")
-      .select("id, tenant_id, role")
+      // is_active and status TOO. Every other guard in the app tests
+    // them — require-admin.ts:50, api-require-admin.ts:62,
+    // audit-actions.ts:49 — and this one selected role alone, so a
+    // DEACTIVATED admin with a live cookie could still pull any invoice
+    // PDF in the tenant: company name, address, VAT number, amounts.
+    .select("id, tenant_id, role, is_active, status")
       .eq("user_id", auth.user.id);
 
     if (profileError) throw profileError;

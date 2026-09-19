@@ -1146,7 +1146,13 @@ export default function AdvertiserApp() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const wanted = new URLSearchParams(window.location.search).get("view");
-    if (wanted && wanted in TITLES) setView(wanted as View);
+    // Object.hasOwn, NOT `in`. The `in` operator walks the prototype
+    // chain, so "__proto__" in TITLES is true — setView("__proto__")
+    // then makes TITLES[view] evaluate to Object.prototype, which React
+    // refuses to render ("Objects are not valid as a React child"), so
+    // ?view=__proto__ crashes the customer's own dashboard.
+    // ?view=toString matches no view div and leaves them on a blank page.
+    if (wanted && Object.hasOwn(TITLES, wanted)) setView(wanted as View);
     // Mount only. Later changes come from go(), which writes the URL itself.
   }, []);
 

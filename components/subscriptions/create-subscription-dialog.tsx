@@ -201,7 +201,16 @@ export default function CreateSubscriptionDialog({
   const onSubmit = (values: SubscriptionFormValues) => {
     createSubscription(values, {
       onSuccess: () => {
-        toast.success("Subscription created successfully.");
+        // It is created INACTIVE - subscription-actions.ts writes
+        // status:"inactive", and its own comment says the billing run
+        // only collects active and past_due. So "created successfully"
+        // over a row showing the amount in bold read as a running plan
+        // that bills nothing, indefinitely, until somebody opened
+        // /subscriptions and activated it.
+        toast.success("Subscription created - not billing yet", {
+          description:
+            "It starts inactive. Activate it on the Subscriptions screen to begin invoicing.",
+        });
         reset(getDefaultValues());
         setPlanId("");
         onOpenChange(false);

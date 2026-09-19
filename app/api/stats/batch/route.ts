@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
   const requested = (request.nextUrl.searchParams.get("datasets") ?? "")
     .split(",")
     .map((name) => name.trim())
-    .filter((name) => name in HANDLERS);
+    .filter((name) => Object.hasOwn(HANDLERS, name));
 
   const datasets = [...new Set(requested)].slice(0, MAX_DATASETS);
 

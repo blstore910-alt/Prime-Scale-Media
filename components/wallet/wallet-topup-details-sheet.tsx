@@ -82,6 +82,21 @@ export default function WalletTopupDetailsSheet({
     isLoading: prechargeLoading,
   } = useOutstandingPrecharges(topupId ? [topupId] : []);
   const advance = topupId ? precharges[topupId] : undefined;
+  // ── HOW MUCH IT ACTUALLY MOVES ──────────────────────────────────────
+  //
+  // The confirmation hard-coded 0.00 on any truthy advance. But the
+  // settlement trigger credits the FULL amount and then takes back only
+  // what is still OUTSTANDING, and partial settlement is supported — so
+  // on a 1,000 advance with 400 already settled the balance moves by
+  // 600 while this sheet promises nothing will move. The admin then
+  // "corrects" a movement that was right, and the customer ends up
+  // ahead. The hook has returned the real outstanding figure all along;
+  // this sheet used only its truthiness.
+  const advanceOutstanding = Number(advance?.outstanding ?? 0) || 0;
+  const netMove = Math.max(
+    (Number(topup?.amount ?? 0) || 0) - advanceOutstanding,
+    0,
+  );
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
@@ -249,7 +264,9 @@ export default function WalletTopupDetailsSheet({
         {advance && (
           <ConfirmFact
             label="Wallet changes by"
-            value={`${topup?.currency?.toUpperCase() ?? ""} 0.00`}
+            value={`${topup?.currency?.toUpperCase() ?? ""} ${formatAmount(
+              netMove,
+            )}`}
             strong
           />
         )}

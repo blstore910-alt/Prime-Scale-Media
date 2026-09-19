@@ -554,6 +554,12 @@ export default function PsmVerifyTopups({
                         </button>
                         <button
                           className="btn ghost sm"
+                          disabled={!!queueAdvances[t.id]}
+                          title={
+                            queueAdvances[t.id]
+                              ? "Cancel the advance on the Advances tab first - rejecting would leave it outstanding."
+                              : undefined
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelected(t);

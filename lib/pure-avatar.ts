@@ -95,7 +95,12 @@ export const AVATAR_TOPS = [
   "#3A6FFF", "#7C5CFF", "#2C3566", "#1E2A5A", "#5B8DFF", "#4634A8",
 ] as const;
 
-export const AVATAR_AUTO_STYLES: AvatarStyle[] = ["person"];
+// INITIALS. The owner's call, after seeing the drawn figure: a name is
+// what you are looking for in a list, and two letters say it without a
+// picture standing in for it. The portrait, the headset and the nine
+// abstracts all stay in the file and are all reachable by name — this
+// is only what somebody gets when nothing has been chosen.
+export const AVATAR_AUTO_STYLES: AvatarStyle[] = ["mono"];
 
 /**
  * Which picture this person gets, from their seed alone.
