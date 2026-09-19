@@ -22,6 +22,8 @@ function Rocket() {
   );
 }
 
+const STALE_RELOAD_KEY = "psm-login-stale-reload";
+
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

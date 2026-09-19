@@ -1,5 +1,7 @@
 "use client";
 
+import { userFacingErrorMessage } from "@/lib/pure-error";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,8 +70,17 @@ export default function WalletTopupDetailsSheet({
   // sheet is the worse of the two — it shows neither a matched bank
   // deposit nor an advance — and it is reachable from /wallets without
   // going near the verify queue at all.
-  const { precharges, isError: prechargeUnreadable } =
-    useOutstandingPrecharges(topupId ? [topupId] : []);
+  // isLoading TOO. Its sibling dialog takes it and disables the confirm
+  // on it; this one did not, so pressing Verify inside the first
+  // round-trip showed the "Only do this once you have seen the money
+  // arrive" copy over a top-up that WAS advanced, with a live "Yes,
+  // credit it" underneath. Unknown read as no-advance, which is the one
+  // thing this hook exists to prevent.
+  const {
+    precharges,
+    isError: prechargeUnreadable,
+    isLoading: prechargeLoading,
+  } = useOutstandingPrecharges(topupId ? [topupId] : []);
   const advance = topupId ? precharges[topupId] : undefined;
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
@@ -93,9 +104,25 @@ export default function WalletTopupDetailsSheet({
           queryKey: ["wallet-details", topup.wallet_id],
         });
       }
+      // The same six keys use-update-transaction invalidates. Without
+      // them, crediting from /wallets leaves /wallet-topups listing the
+      // card as Pending with Verify, Reject and Precharge all armed —
+      // and Precharge on a settled payment advances credit a second
+      // time. The wallets table keeps the old balance too.
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
+      queryClient.invalidateQueries({ queryKey: ["wise-incoming"] });
+      queryClient.invalidateQueries({ queryKey: ["matched-deposits"] });
     },
     onError: (err: Error) => {
-      toast.error("Failed to verify topup", { description: err.message });
+      toast.error("Failed to verify topup", {
+        description: userFacingErrorMessage(
+          err,
+          "The deposit was not credited. Reload and try again.",
+        ),
+      });
     },
   });
 
@@ -130,7 +157,12 @@ export default function WalletTopupDetailsSheet({
         {isError && (
           <div className="mt-4 flex items-center gap-2 text-destructive">
             <AlertCircle className="h-4 w-4" />
-            <span>{(error as Error)?.message}</span>
+            <span>
+              {userFacingErrorMessage(
+                error,
+                "We couldn't load this deposit. Reload to try again.",
+              )}
+            </span>
           </div>
         )}
 
@@ -199,6 +231,7 @@ export default function WalletTopupDetailsSheet({
         }
         cta="Yes, credit it"
         busy={isVerifying}
+        disabled={prechargeLoading}
         busyLabel="Crediting…"
         onConfirm={() => {
           setConfirming(false);

@@ -1,5 +1,8 @@
 "use client";
 
+import { useOutstandingPrecharges } from "@/hooks/use-outstanding-precharges";
+import { userFacingErrorMessage } from "@/lib/pure-error";
+
 import { useUpdateTransaction } from "@/hooks/use-update-transaction";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { prechargeTopup } from "@/actions/precharge-actions";
@@ -254,7 +257,10 @@ export default function PsmVerifyTopups({
       });
     } catch (e) {
       toast.error("Precharge failed", {
-        description: e instanceof Error ? e.message : undefined,
+        description: userFacingErrorMessage(
+          e,
+          "Nothing was credited. Reload and try again.",
+        ),
       });
     } finally {
       setPrechargingId(null);
@@ -290,6 +296,18 @@ export default function PsmVerifyTopups({
     isError: depositsUnreadable,
     isLoading: depositsLoading,
   } = useMatchedDeposits(transactions.map((t) => t.id));
+
+  // ── AND WHETHER EACH ONE IS ALREADY ADVANCED ────────────────────────
+  //
+  // The Verify dialog consults this; the card behind it did not. So
+  // Precharge stayed live on a top-up that already carries an advance,
+  // and its confirmation asserted "Credited now €5,000" for something
+  // wallet_precharge_from_topup refuses outright with "This top-up is
+  // already precharged". Enabled-then-refused, with a money figure
+  // stated in between — on the desk where money is released.
+  const { precharges: queueAdvances } = useOutstandingPrecharges(
+    transactions.map((t) => t.id),
+  );
 
   const confirmApprove = () =>
     updateTransaction(
@@ -546,14 +564,21 @@ export default function PsmVerifyTopups({
                         </button>
                         <button
                           className="btn ghost sm"
-                          disabled={prechargingId === t.id}
-                          title="Advance-credit the wallet now; settles on verify"
+                          disabled={
+                            prechargingId === t.id || !!queueAdvances[t.id]
+                          }
+                          title={
+                            queueAdvances[t.id]
+                              ? "Already advanced — verify it to settle"
+                              : "Advance-credit the wallet now; settles on verify"
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             setPrechargeAsk(t);
                           }}
                         >
-                          <Zap /> Precharge
+                          <Zap />{" "}
+                          {queueAdvances[t.id] ? "Advanced" : "Precharge"}
                         </button>
                       </>
                     )}

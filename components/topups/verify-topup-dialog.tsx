@@ -1,3 +1,4 @@
+import { toastResult } from "@/lib/action-warning";
 import { Button } from "@/components/ui/button";
 import { verifyAdTopup } from "@/actions/topup-actions";
 import {
@@ -161,10 +162,13 @@ function VerifyTopupInvoice({
       // same step. Calling the RPC from here skipped that silently.
       const res = await verifyAdTopup(vars.topupId, vars.newFeePercent);
       if (!res.ok) throw new Error(res.error);
-      return res.data;
+      // The whole result, not just data — the caller has to see
+      // `warning`, which is how "verified, but the supplier was NOT
+      // told; fund the account by hand" reaches the admin.
+      return res;
     },
-    onSuccess: (_data, vars) => {
-      toast.success("Topup verified successfully");
+    onSuccess: (res, vars) => {
+      toastResult(res, "Topup verified successfully");
       queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
       // AND THE ROW'S OWN DETAIL CACHE.

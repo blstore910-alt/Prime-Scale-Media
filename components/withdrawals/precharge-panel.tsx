@@ -116,6 +116,15 @@ export default function PrechargePanel() {
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      // ["outstanding-precharges"] TOO. The verify dialog caches whether
+      // this top-up carries an advance, and it never remounts — `selected`
+      // is not reset to null and the query has no refetch interval. So
+      // after settling or cancelling here, Verify one tab across still
+      // says "the balance will NOT go up again — it is already there"
+      // and prints "Wallet changes by 0.00". It goes up by the full
+      // amount, and an admin who then corrects the missing movement by
+      // hand leaves the customer a whole top-up ahead.
+      queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
     },
     onError: (e: Error) =>
       toast.error("Couldn't cancel that advance", { description: e.message }),
@@ -132,6 +141,8 @@ export default function PrechargePanel() {
       setSettling(null);
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
     },
     onError: (e: Error) =>
       toast.error("Settle failed", { description: e.message }),

@@ -158,7 +158,12 @@ export default function AffiliatesTable() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const loadingState = isLoading || (!!tenantId && !referralLinksData);
+  // isError FIRST. On a failed read isLoading is false and the data is
+  // undefined, so the old shape was true for ever and the isError branch
+  // below was unreachable — a permanent "Loading…" over a screen that
+  // knows perfectly well it failed.
+  const loadingState =
+    isLoading || (!isError && !!tenantId && !referralLinksData);
 
   if (!profile) {
     return (

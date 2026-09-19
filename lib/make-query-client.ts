@@ -1,6 +1,6 @@
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { safeErrorMessage } from "@/lib/pure-error";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 
 // Shared React Query defaults for every role shell.
 //
@@ -44,8 +44,21 @@ export function makeQueryClient() {
         if (now - last < TOAST_WINDOW_MS) return;
         lastToastAt.set(key, now);
 
+        // safeErrorMessage is the LOG-safe helper — its own docblock says
+        // so. It strips Supabase's details/hint/row before they reach a log
+        // file; it does nothing about the message itself. So this handler,
+        // which fires for every failed query in every role shell, was
+        // putting "column plans_1.features does not exist" and "permission
+        // denied for table wallets" straight in front of the customer.
+        //
+        // That is almost certainly how a customer read a PostgREST error
+        // "across their own dashboard": not one screen, this one line,
+        // once per query key.
         toast.error("Couldn't load some data", {
-          description: `${safeErrorMessage(error)} — what you see may be incomplete. Reload to retry.`,
+          description: userFacingErrorMessage(
+            error,
+            "We couldn't load part of this page. Reload to try again.",
+          ),
         });
       },
     }),

@@ -114,7 +114,14 @@ export default async function AppLayout({
     }
   }
 
-  const Layout = ROLE_LAYOUTS[profile.role as UserRole] || React.Fragment;
+  // No Fragment fallback. The comment above records what it cost: a role
+  // outside the three known ones rendered every page with NO providers,
+  // so the first react-query hook threw "No QueryClient set" into the
+  // error boundary — which is what broke the affiliate area after signup.
+  // /dashboard already redirects in this case; the rest of the group did
+  // not. Send them where the role gets decided.
+  const Layout = ROLE_LAYOUTS[profile.role as UserRole];
+  if (!Layout) redirect("/onboard");
 
   return (
     <Layout user={data.user} profile={profile}>

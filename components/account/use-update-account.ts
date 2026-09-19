@@ -1,3 +1,4 @@
+import { toastResult } from "@/lib/action-warning";
 import { updateAdAccountAsAdmin } from "@/actions/ad-account-actions";
 import { AdAccount } from "@/lib/types/account";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,9 +22,15 @@ export default function useUpdateAccount() {
     mutationFn: async ({ id, payload }: UpdateAccountArgs) => {
       const result = await updateAdAccountAsAdmin(id, payload);
       if (!result.ok) throw new Error(result.error);
-      return null;
+      return { warning: result.warning };
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: (res, vars) => {
+      // The supplier-fee warnings were dropped here. They say what could
+      // not be kept in step on the supplier side, which nobody can act on
+      // if they never see it.
+      if (res?.warning) {
+        toastResult(res, "Ad account updated");
+      }
       queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
       // AND THE ROW'S OWN DETAIL CACHE, here rather than at each caller.
       //

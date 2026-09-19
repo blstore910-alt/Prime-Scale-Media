@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
+import { quoteTopupFeePct } from "@/actions/topup-actions";
+import { toastResult } from "@/lib/action-warning";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
 import { toast } from "sonner";
@@ -244,11 +247,44 @@ export default function BulkTopupAdAccountsDialog({
             : String(account.currency ?? "").toUpperCase() === "USD"
               ? "USD"
               : null,
+        // The account's own column is the SEED only. What the server
+        // actually charges is resolveEffectiveFeePct: account fee, else
+        // the plan rate, else the caller's, then perks and the
+        // Meta-EU-Premium two points. With fee = 0 on the row and a 5%
+        // plan, every box here read 0, the confirmation showed only the
+        // wallet total, and the server took 5% of each row — on up to
+        // two hundred rows, which is real money nobody was shown. The
+        // quote below replaces this as soon as it lands.
         fee: String(account.fee ?? 0),
         min_topup: account.min_topup ?? 0,
       })),
     [accounts],
   );
+
+  // One server-side quote per account, same call the single-account form
+  // makes. Returns the percentage only — no plan name, no perk name,
+  // nothing about where the rate comes from.
+  const accountIds = useMemo(
+    () => accounts.map((a) => a.id).filter(Boolean),
+    [accounts],
+  );
+  const feeQuotes = useQuery({
+    queryKey: ["bulk-topup-fee-quotes", accountIds.join(",")],
+    enabled: accountIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const out: Record<string, number> = {};
+      const results = await Promise.all(
+        accountIds.map(async (id) => {
+          const res = await quoteTopupFeePct(id);
+          return res.ok ? ([id, res.data.pct] as const) : null;
+        }),
+      );
+      for (const r of results) if (r) out[r[0]] = r[1];
+      return out;
+    },
+  });
+  const feesSettled = accountIds.length === 0 || feeQuotes.isSuccess;
 
   const {
     control,
@@ -306,6 +342,21 @@ export default function BulkTopupAdAccountsDialog({
   // account only comes back through a withdrawal we have to approve.
   const [running, setRunning] = useState(false);
 
+  // Rewrite the seeded fee boxes with the real rate the moment it
+  // arrives, so what the admin reads is what the server will charge.
+  const quoted = feeQuotes.data;
+  useEffect(() => {
+    if (!quoted) return;
+    reset((prev) => ({
+      ...prev,
+      rows: prev.rows.map((r) =>
+        quoted[r.account_id] == null
+          ? r
+          : { ...r, fee: String(quoted[r.account_id]) },
+      ),
+    }));
+  }, [quoted, reset]);
+
   const handleBulkTopup = async (values: BulkTopupFormValues) => {
     if (running) return;
     setRunning(true);
@@ -353,7 +404,8 @@ export default function BulkTopupAdAccountsDialog({
       toast.error(result.error);
       return;
     }
-    toast.success(
+    toastResult(
+      result,
       `Successfully topped up ${result.data.inserted} ad accounts.`,
     );
     setOpen(false);
@@ -639,8 +691,19 @@ export default function BulkTopupAdAccountsDialog({
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" size="sm" disabled={running}>
-              {running ? "Sending…" : "Submit Bulk Topup"}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={running || !feesSettled}
+              title={
+                feesSettled ? undefined : "Working out the fee for each account"
+              }
+            >
+              {running
+                ? "Sending…"
+                : feesSettled
+                  ? "Submit Bulk Topup"
+                  : "Checking fees…"}
             </Button>
           </div>
         </form>

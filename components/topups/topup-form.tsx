@@ -1,5 +1,7 @@
 "use client";
 
+import { toastResult } from "@/lib/action-warning";
+
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createTopupAsAdmin } from "@/actions/topup-actions";
 import { useAppContext } from "@/context/app-provider";
@@ -93,7 +95,7 @@ export const createTopup = async (
     }),
   });
   if (!result.ok) throw new Error(result.error);
-  return { id: result.data.id };
+  return { id: result.data.id, warning: result.warning };
 };
 
 export default function TopupForm({
@@ -198,11 +200,11 @@ export default function TopupForm({
       );
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       // The create audit row is written inside createTopupAsAdmin (server).
       const description =
         "Your payment has been sent for approval. Please wait until it gets approved from the team.";
-      toast.success("Topup requested successfully", {
+      toastResult(res, "Topup requested successfully", {
         description,
       });
       setOpen(false);

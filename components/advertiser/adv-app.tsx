@@ -77,10 +77,23 @@ const TITLES: Record<View, string> = {
   help: "Get help",
 };
 
+// A BALANCE IS NOT A ROUNDED FIGURE either. These print the wallet
+// tiles and the header, and Math.round showed 1,234.49 as "1,234" and
+// 1,234.50 as "1,235" — while the top-up dialog's "Wallet afterwards"
+// and the ad-account form's "Current balance" both print two decimals.
+// Two screens, up to fifty cents apart, about the same money.
 const eur = (n: number | string | null | undefined) =>
-  "€" + Math.round(Number(n) || 0).toLocaleString("en-US");
+  "€" +
+  (Number(n) || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 const usd = (n: number | string | null | undefined) =>
-  "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
+  "$" +
+  (Number(n) || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 const money2 = (n: number | string | null | undefined) =>
   new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
@@ -701,6 +714,36 @@ export default function AdvertiserApp() {
     ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
+  // Everything not yet credited, however far back it goes. Separate from
+  // the statement above so a long history can never hide a live transfer.
+  const {
+    data: pendingRows,
+    isError: pendingError,
+  } = useQuery<
+    {
+      id: string;
+      created_at: string;
+      currency: string | null;
+      amount: number | null;
+      status: string | null;
+      reference_no: string | null;
+    }[]
+  >({
+    queryKey: ["adv-pending-topups", wallet?.id],
+    enabled: !!wallet?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallet_topups")
+        .select("id, created_at, currency, amount, status, reference_no")
+        .eq("wallet_id", wallet!.id)
+        .not("status", "in", "(completed,failed,rejected)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   // A FAILED ACTIVITY READ IS NOT "NOTHING IS PENDING". The comment on
   // the query above says this in its own words — "a failure silently
   // makes a pending transfer disappear from the dashboard" — and then
@@ -718,27 +761,27 @@ export default function AdvertiserApp() {
   // isLoading FALSE and isError false. pendingUnknown was then false
   // over an empty list. The dash view is covered by the booting gate;
   // the wallet view is not, and ?view=wallet lands straight on it.
-  const pendingUnknown = activityError || activityLoading || !wallet?.id;
-  const pendingTopups = (activity ?? []).filter(
-    (t) =>
-      t.status !== "completed" &&
-      t.status !== "failed" &&
-      t.status !== "rejected",
-  );
+  const pendingUnknown =
+    activityError || activityLoading || !wallet?.id || pendingError;
+  // ── AND IT MUST NOT COME OUT OF A TRUNCATED LIST ────────────────────
+  //
+  // `activity` is fetched with .limit(30) because it renders a recent
+  // statement. Pending transfers were being derived from that same list,
+  // so past thirty wallet rows a transfer that is genuinely on its way
+  // silently dropped off the dashboard — which is the exact failure the
+  // paragraph above says it is guarding against, arrived by a different
+  // road. The customer wires it again.
+  //
+  // Pending is its own read, unbounded on purpose: there are never many,
+  // and a floor presented as a total is worse than a slow query.
+  const pendingTopups = pendingRows ?? [];
   // What is on its way but not yet credited, per currency. The wallet cards
   // used to print the balance twice — "€0" and then "€0 available" — which
   // told a customer nothing the first line had not. Money sitting in a
   // transfer we have not verified yet is the thing they actually want to see
   // on that second line, because it explains a balance that looks too low.
-  const pendingByCurrency = (activity ?? []).reduce(
+  const pendingByCurrency = (pendingRows ?? []).reduce(
     (acc, t) => {
-      if (
-        t.status === "completed" ||
-        t.status === "failed" ||
-        t.status === "rejected"
-      ) {
-        return acc;
-      }
       const cur = String(t.currency ?? "").toUpperCase();
       if (cur === "EUR" || cur === "USD") {
         acc[cur] += Number(t.amount ?? 0) || 0;

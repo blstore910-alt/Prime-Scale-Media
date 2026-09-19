@@ -67,6 +67,7 @@ export default function WalletTransactionRow({
       queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
+      queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
     } catch (e) {
       toast.error("Precharge failed", {
         description: e instanceof Error ? e.message : undefined,

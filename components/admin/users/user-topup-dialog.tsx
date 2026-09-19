@@ -1,3 +1,4 @@
+import { toastResult } from "@/lib/action-warning";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createTopupAsAdmin } from "@/actions/topup-actions";
 import InputField from "@/components/form/input-field";
@@ -116,10 +117,10 @@ function TopupForm({
         mark_paid: values.mark_paid,
       });
       if (!result.ok) throw new Error(result.error);
-      return result.data;
+      return { ...result.data, warning: result.warning };
     },
-    onSuccess: () => {
-      toast.success("Topup added successfully", {
+    onSuccess: (res) => {
+      toastResult(res, "Topup added successfully", {
         description: `Topup added for ${profile.full_name}`,
       });
       setOpen(false);
