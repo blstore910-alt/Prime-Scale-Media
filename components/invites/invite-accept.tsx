@@ -81,8 +81,13 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
             {"You’ve been invited!"}
           </h2>
           <p className="text-muted-foreground text-center">
-            <b>{sender?.full_name}</b> invited you to join this organization on
-            PSM Logbook as <b>{invite.role}</b>.
+            {/* NOT "PSM Logbook". That is a different product, and this is
+                the very first screen of J1 — the first thing anybody ever
+                reads about us. The tenant's own name is on the card right
+                below, so the sentence only needs to say what they are
+                joining as. */}
+            <b>{sender?.full_name}</b> invited you to join{" "}
+            <b>{tenantName}</b> on Prime Scale Media as <b>{invite.role}</b>.
           </p>
         </CardHeader>
         <CardContent className="text-center space-y-4">

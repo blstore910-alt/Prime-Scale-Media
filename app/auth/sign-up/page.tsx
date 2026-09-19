@@ -58,6 +58,20 @@ export default async function Page({ searchParams }: PageProps) {
     expires_at: string;
   };
 
+  // Status as well as expiry — see the note in app/invite/accept/page.tsx.
+  // A cancelled or already-used token rendered the whole signup form and
+  // refused only on submit, after the password had been chosen.
+  const inviteStatus = String(
+    (invite as { status?: unknown }).status ?? "pending",
+  ).toLowerCase();
+  if (inviteStatus !== "pending") {
+    return (
+      <Suspense fallback={null}>
+        <InviteExpired />
+      </Suspense>
+    );
+  }
+
   if (new Date(invite.expires_at) < new Date()) {
     return (
       <Suspense fallback={null}>

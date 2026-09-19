@@ -562,8 +562,22 @@ function TopupHistory({ account }: { account: AdAccount }) {
         // A deleted top-up is not history. This sheet is shown to the
         // ADVERTISER as well as the admin, so a struck-out row read as a
         // funding they never received.
+        //
+        // ...and if that column is not on this database yet, show the
+        // history WITHOUT the filter rather than showing nothing. A
+        // filter that makes a list more correct must not be able to take
+        // the list away.
         .not("is_deleted", "is", true);
-      if (error) throw error;
+      if (error) {
+        const retry = await supabase
+          .from("top_ups")
+          .select(
+            "id, created_at, amount_received, currency, topup_amount, fee, fee_amount, status",
+          )
+          .eq("account_id", account.id);
+        if (retry.error) throw retry.error;
+        return retry.data;
+      }
       return data;
     },
   });

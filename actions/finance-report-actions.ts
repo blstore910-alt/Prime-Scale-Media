@@ -1,7 +1,7 @@
 "use server";
 
 import { resolveUserContextForRead, type ActionResult } from "./_shared";
-import { pageAllRows } from "@/lib/page-all-rows";
+import { isMissingColumn, pageAllRows } from "@/lib/page-all-rows";
 import type { FinanceLine } from "@/lib/pure-finance-report";
 import { sortLines } from "@/lib/pure-finance-report";
 import { safeErrorMessage } from "@/lib/pure-error";
@@ -59,6 +59,40 @@ export async function financeReportForMe(): Promise<
 
   const failed: string[] = [];
   let truncated = false;
+
+  /**
+   * The same, with a narrower query to fall back on when the first one
+   * fails ONLY because a column is not there yet. `top_ups.is_deleted` is
+   * the case this exists for: filtering it out is right, and the live
+   * schema is hand-authored, so without a fallback a missing column would
+   * drop every ad-account funding line off the customer's own statement.
+   */
+  async function sourceTolerant(
+    name: string,
+    strict: (from: number, to: number) => PromiseLike<{
+      data: Row[] | null;
+      error: { message: string } | null;
+    }>,
+    fallback: (from: number, to: number) => PromiseLike<{
+      data: Row[] | null;
+      error: { message: string } | null;
+    }>,
+  ): Promise<Row[]> {
+    try {
+      const res = await pageAllRows<Row>(strict);
+      if (res.error && isMissingColumn(res.error)) {
+        return source(name, fallback);
+      }
+      if (res.error) {
+        failed.push(name);
+        return [];
+      }
+      if (res.truncated) truncated = true;
+      return res.rows;
+    } catch {
+      return source(name, fallback);
+    }
+  }
 
   /**
    * One source. Never throws; records its own failure by name.
@@ -211,23 +245,37 @@ export async function financeReportForMe(): Promise<
   // construction; `currency` is what the customer paid in, and
   // amount_received is what actually left their wallet. See the note in
   // the loop for why that distinction decides the whole report.
-  for (const r of await source("ad account funding", (from, to) =>
-    supabase
-      .from("top_ups")
-      .select(
-        "id, account_id, topup_amount, fee_amount, amount_received, currency, status, created_at, type",
-      )
-      .eq("advertiser_id", advertiserId)
-      // A DELETED TOP-UP IS NOT A DEBIT. `is_deleted` is the only way to
-      // strike out a completed top-up, and this statement showed the
-      // struck-out ones as money that left the wallet — so a customer's
-      // own report carried a phantom debit and its Net disagreed with
-      // their actual balance by exactly that amount, with nothing on the
-      // screen to explain it. They hand this CSV to a bookkeeper.
-      .not("is_deleted", "is", true)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, to),
+  const TOPUP_COLS =
+    "id, account_id, topup_amount, fee_amount, amount_received, currency, status, created_at, type";
+  for (const r of await sourceTolerant(
+    "ad account funding",
+    // A DELETED TOP-UP IS NOT A DEBIT. `is_deleted` is the only way to
+    // strike out a completed top-up, and this statement showed the
+    // struck-out ones as money that left the wallet — so a customer's own
+    // report carried a phantom debit and its Net disagreed with their
+    // actual balance by exactly that amount. They hand this CSV to a
+    // bookkeeper.
+    (from, to) =>
+      supabase
+        .from("top_ups")
+        .select(TOPUP_COLS)
+        .eq("advertiser_id", advertiserId)
+        .not("is_deleted", "is", true)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    // ...and the same read without it, for a database where that column
+    // has not been added yet. Losing the filter costs accuracy on struck
+    // rows; losing the SOURCE would drop every funding line off the
+    // customer's statement.
+    (from, to) =>
+      supabase
+        .from("top_ups")
+        .select(TOPUP_COLS)
+        .eq("advertiser_id", advertiserId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
   )) {
     const done = String(r.status ?? "") === "completed";
     const acct = r.account_id ? accountName.get(String(r.account_id)) ?? null : null;

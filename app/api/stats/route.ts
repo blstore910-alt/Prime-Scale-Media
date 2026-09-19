@@ -1,7 +1,10 @@
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { pageAllRows } from "@/lib/page-all-rows";
+import {
+  pageAllRows,
+  pageAllRowsTolerant,
+} from "@/lib/page-all-rows";
 
 type CurrencyKey = "usd" | "eur";
 
@@ -102,7 +105,8 @@ export async function GET() {
     // ever after — no error, just a smaller number on the owner's
     // dashboard. Ordered oldest-first so the pages are stable while we
     // walk them. See lib/page-all-rows.ts.
-    pageAllRows<TopupRow>((from, to) =>
+    pageAllRowsTolerant<TopupRow>(
+    (from, to) =>
       supabase
         .from("top_ups")
         .select("topup_amount, fee_amount, currency")
@@ -122,6 +126,18 @@ export async function GET() {
         // column drops the NULL rows, which is nearly all of them.
         .not("is_deleted", "is", true)
         .range(from, to),
+    // Fallback: the same read without the filter, for a
+    // database where that column has not been added yet.
+    (from, to) =>
+      supabase
+        .from("top_ups")
+        .select("topup_amount, fee_amount, currency")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("status", "completed")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+  
     ),
     supabase
       .from("ad_accounts")

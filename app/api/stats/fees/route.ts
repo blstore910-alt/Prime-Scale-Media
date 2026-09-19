@@ -1,7 +1,10 @@
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { pageAllRows } from "@/lib/page-all-rows";
+import {
+  pageAllRows,
+  pageAllRowsTolerant,
+} from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -282,7 +285,8 @@ export async function GET(request: NextRequest) {
   // top-ups report a third of the fee revenue, with no warning. There was
   // no .order() either, so WHICH thousand came back was unspecified and
   // changed between refreshes.
-  const paged = await pageAllRows<FeeRow>((from, to) =>
+  const paged = await pageAllRowsTolerant<FeeRow>(
+    (from, to) =>
     supabase
       .from("top_ups")
       .select("created_at, currency, fee_amount")
@@ -307,6 +311,23 @@ export async function GET(request: NextRequest) {
       // column drops the NULL rows, which is nearly all of them.
       .not("is_deleted", "is", true)
       .range(from, to),
+    // Fallback: the same read without the filter, for a
+    // database where that column has not been added yet.
+    (from, to) =>
+    supabase
+      .from("top_ups")
+      .select("created_at, currency, fee_amount")
+      .eq("tenant_id", profile.tenant_id)
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .eq("status", "completed")
+      .order("created_at", { ascending: true })
+      // A unique tiebreaker: a bulk insert shares one now(), and Postgres
+      // gives no stable order among ties, so a row on a page boundary
+      // could be counted twice or skipped.
+      .order("id", { ascending: true })
+      .range(from, to),
+  
   );
   // AN ERROR IS NOT AN EMPTY PERIOD. `const { data } = ...` discarded it,
   // so a failed read rendered a confident zero on a financial dashboard.

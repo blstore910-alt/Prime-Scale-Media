@@ -39,7 +39,17 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     redirect("/dashboard");
   }
 
-  if (new Date(data.expires_at) < new Date()) {
+  // ── EXPIRED IS NOT THE ONLY WAY AN INVITE IS OVER ───────────────────
+  //
+  // This checked `expires_at` and nothing else, so a CANCELLED or an
+  // ALREADY-ACCEPTED invitation rendered the full "You've been invited!"
+  // card — and the person only found out on submit, from
+  // "This invitation is no longer valid". The accept route does the
+  // status check properly with a compare-and-swap; the screen in front of
+  // it did not, so the refusal arrived after they had committed.
+  const invalidStatus =
+    String(data.status ?? "pending").toLowerCase() !== "pending";
+  if (invalidStatus || new Date(data.expires_at) < new Date()) {
     return (
       <Suspense fallback={null}>
         <InviteExpired />

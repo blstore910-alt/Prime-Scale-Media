@@ -2294,20 +2294,36 @@ export default function AdvertiserApp() {
                             {money2(t.amount)}
                           </td>
                           <td data-label="Status" className="r">
+                            {/* `failed` fell through the else and rendered
+                                "Pending" — so a top-up that will never be
+                                credited sat on the customer's statement
+                                looking like one still being checked, and
+                                it is also excluded from the pending panel
+                                above, so nothing else contradicted it.
+                                Every value the column can hold gets its
+                                own word now, and an unknown one says so
+                                rather than claiming to be in progress. */}
                             <span
                               className={`badge ${
                                 t.status === "completed"
                                   ? "ok"
-                                  : t.status === "rejected"
+                                  : t.status === "rejected" ||
+                                      t.status === "failed"
                                     ? "due"
-                                    : "pend"
+                                    : t.status === "pending"
+                                      ? "pend"
+                                      : ""
                               }`}
                             >
                               {t.status === "completed"
                                 ? "Credited"
                                 : t.status === "rejected"
                                   ? "Rejected"
-                                  : "Pending"}
+                                  : t.status === "failed"
+                                    ? "Failed"
+                                    : t.status === "pending"
+                                      ? "Pending"
+                                      : (t.status ?? "Unknown")}
                             </span>
                           </td>
                         </tr>

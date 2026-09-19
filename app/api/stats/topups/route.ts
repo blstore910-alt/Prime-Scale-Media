@@ -1,7 +1,10 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { pageAllRows } from "@/lib/page-all-rows";
+import {
+  pageAllRows,
+  pageAllRowsTolerant,
+} from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -287,7 +290,8 @@ export async function GET(request: NextRequest) {
   // rows sharing one now(), and Postgres gives no stable order among
   // ties — without the tiebreaker a row on a page boundary can be counted
   // twice or skipped.
-  const paged = await pageAllRows<TopupRow>((from, to) =>
+  const paged = await pageAllRowsTolerant<TopupRow>(
+    (from, to) =>
     supabase
       .from("top_ups")
       .select("created_at, currency, topup_amount")
@@ -309,6 +313,20 @@ export async function GET(request: NextRequest) {
       // column drops the NULL rows, which is nearly all of them.
       .not("is_deleted", "is", true)
       .range(from, to),
+    // Fallback: the same read without the filter, for a
+    // database where that column has not been added yet.
+    (from, to) =>
+    supabase
+      .from("top_ups")
+      .select("created_at, currency, topup_amount")
+      .eq("tenant_id", profile.tenant_id)
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .eq("status", "completed")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  
   );
   if (paged.error) {
     return NextResponse.json(
