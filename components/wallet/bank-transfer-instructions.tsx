@@ -104,7 +104,12 @@ export function BankTransferInstructions({
       <div className="overflow-hidden rounded-xl border bg-[color:var(--panel,#fff)] shadow-[0_1px_2px_-1px_rgba(20,30,80,.14)]">
         {detail.sections.map((section, idx) => (
           <div key={idx}>
-            <p className="border-b bg-muted/40 px-3.5 py-2 text-[10px] font-bold uppercase tracking-[.09em] text-muted-foreground">
+            {/* A heading, not a ribbon. A filled band across the sheet
+                for every group turned three short lists into six visual
+                objects; a small label on the sheet's own ground, with a
+                rule under it, groups them without competing with the
+                values. */}
+            <p className="border-b px-3.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground/75">
               {section.title}
             </p>
             <div className="divide-y">
@@ -181,14 +186,21 @@ function InstructionItem({
   };
 
   return (
-    <div className="relative flex items-start gap-3 px-3.5 py-2.5">
-      <span className="mt-[3px] w-[104px] shrink-0 text-[10px] font-semibold uppercase leading-tight tracking-[.07em] text-muted-foreground">
+    /* ── THE VALUE GETS THE WHOLE ROW ──────────────────────────────────
+       The label sat in a 104px column beside the value, which left an
+       IBAN about 180px to live in — so BE86967511906550 broke across
+       two lines, mid-number. An IBAN that wraps is an IBAN somebody
+       copies wrong. The label goes above it now and the value spans the
+       sheet, so every one of these fits on one line at phone width. */
+    <div className="relative grid grid-cols-[1fr_auto] items-center gap-x-2 px-3.5 py-2.5">
+      <span className="col-start-1 text-[10px] font-semibold uppercase leading-tight tracking-[.08em] text-muted-foreground/75">
         {label}
       </span>
       <span
         className={cn(
-          "min-w-0 flex-1 whitespace-pre-wrap break-words text-sm font-semibold leading-snug text-foreground",
-          MONO_LABELS.test(label) && "font-mono tracking-[.01em]",
+          "col-start-1 mt-0.5 min-w-0 whitespace-pre-wrap break-words text-[15px] font-semibold leading-snug text-foreground",
+          MONO_LABELS.test(label) &&
+            "font-mono text-[14.5px] tracking-[-.01em] tabular-nums",
         )}
       >
         {value}
@@ -203,7 +215,7 @@ function InstructionItem({
              on a phone there is no hover at all, so it depended on the
              icon being rendered invisible and tapped anyway. */
           className={cn(
-            "-mr-1 h-8 w-8 shrink-0 transition-colors",
+            "col-start-2 row-span-2 -mr-1 h-9 w-9 shrink-0 self-center transition-colors",
             copied
               ? "text-emerald-600"
               : "text-muted-foreground/70 hover:text-foreground",

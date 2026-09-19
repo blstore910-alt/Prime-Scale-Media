@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import {
   avatarFor,
   mouthPath,
@@ -58,10 +59,25 @@ export default function PsmAvatar({
   title?: string;
 }) {
   const a = avatarFor(seed, { role, name, email });
-  // A gradient id must be unique on the page AND identical on the server
-  // and in the browser, or React reports a mismatch — so it comes from the
-  // seed, not from a counter and certainly not from Math.random().
-  const uid = `av${Math.abs(
+  // ── UNIQUE PER INSTANCE, NOT PER SEED ───────────────────────────────
+  //
+  // The id used to be a hash of the seed alone. Stable across server and
+  // browser, which is what the hydration warning needed — and NOT unique,
+  // which is what SVG needs. The same person's avatar is drawn twice on
+  // every advertiser screen (the sidebar and the toolbar), so both SVGs
+  // declared <clipPath id="av647272945c"> and both referenced
+  // url(#av647272945c). A url() reference resolves to the FIRST element
+  // with that id in the document — the sidebar's — and on a phone the
+  // sidebar is off-canvas. A clip-path pointing at a hidden element is an
+  // EMPTY clip, so the toolbar avatar was clipped away entirely: present
+  // in the DOM, 30px, opacity 1, visibility visible, painting nothing.
+  // That is why the topbar showed a bell and a blank space.
+  //
+  // useId is unique per instance and identical on both sides of the
+  // render, which is both halves of the problem. The seed hash stays on
+  // the end so the ids are still readable in dev tools.
+  const instance = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const uid = `av${instance}${Math.abs(
     seed.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7),
   )}`;
 

@@ -733,11 +733,33 @@ export default function WalletTopupDialog({
                 </div>
 
                 {/* The last moment before the money leaves their bank. */}
+                {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
+                    This said "At least EUR 300" while the customer was
+                    looking at a British account and a GBP IBAN, on the
+                    last screen before the transfer leaves their bank.
+                    Somebody sending GBP 300 against a EUR 300 floor is
+                    short by a fifth and gets the deposit refused. The
+                    converter for this is in this file already — it was
+                    used for the amount and not for the minimum. */}
                 {minTopupAmount > 0 && (
                   <p className="pt-2 text-sm font-medium">
                     At least {currency}{" "}
-                    {minTopupAmount.toLocaleString("en-US")} — anything less
-                    cannot be filed.
+                    {minTopupAmount.toLocaleString("en-US")}
+                    {(() => {
+                      if (transferCurrency === currency) return null;
+                      const inTransfer = convertWalletToTransfer(
+                        minTopupAmount,
+                        currency,
+                        transferCurrency,
+                        rate,
+                      );
+                      return inTransfer
+                        ? ` — about ${transferCurrency} ${Math.ceil(
+                            inTransfer,
+                          ).toLocaleString("en-US")} at today's rate`
+                        : null;
+                    })()}
+                    . Anything less cannot be filed.
                   </p>
                 )}
 
