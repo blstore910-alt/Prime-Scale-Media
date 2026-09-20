@@ -753,11 +753,44 @@ export default function AdvertiserApp() {
     try {
       const res = await updateOwnProfileAndCompany({ company: comp });
       if (!res.ok) throw new Error(res.error);
-      toast.success("Company saved");
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ["adv-company"],
         exact: false,
       });
+      // ── "SAVED" IS NOT THE SAME AS "DONE" ─────────────────────────
+      //
+      // This form writes `companies` and never `billings` -- only
+      // /complete-profile writes both -- and isCompanyComplete needs
+      // four fields that live on billings. So a customer could fill in
+      // everything on this card, be told "Company saved", and watch
+      // nothing unlock: Top up and Exchange still greyed, Request one
+      // still disabled, the red chip still there. They had done what
+      // they were told and been told they had done it.
+      //
+      // The invalidate is awaited so the check below reads what was
+      // actually written rather than the cache it replaced.
+      const after = queryClient.getQueryData<Record<string, unknown> | null>([
+        "adv-company",
+        advertiserId,
+      ]);
+      const stillMissing = missingCompanyFields(after ?? comp);
+      if (stillMissing.length > 0) {
+        toast.warning("Saved — but not complete yet", {
+          description:
+            "Still needed: " +
+            stillMissing.join(", ") +
+            ". The billing address is on the full form.",
+          duration: 12_000,
+          action: {
+            label: "Finish it",
+            onClick: () => {
+              window.location.href = "/complete-profile";
+            },
+          },
+        });
+      } else {
+        toast.success("Company saved");
+      }
     } catch (e) {
       toast.error("Couldn't save company", {
         description: e instanceof Error ? e.message : undefined,
