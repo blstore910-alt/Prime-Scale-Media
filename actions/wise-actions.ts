@@ -503,7 +503,21 @@ export async function rematchWiseDeposits(): Promise<
       .eq("id", d.id)
       .eq("status", "suggested")
       .select("id");
-    if ((cleared ?? []).length > 0) stale += 1;
+    if ((cleared ?? []).length > 0) {
+      stale += 1;
+      // ── AND SAY SO IN THE SNAPSHOT WE ARE ABOUT TO READ ──────────
+      //
+      // The comment above says this clears a stale suggestion "so the
+      // same deposit can be re-matched to something that IS pending in
+      // this very sweep". It did not: the loop below reads d.status
+      // from the same in-memory array, still sees "suggested", and
+      // `continue`s. The row was only re-matched on a LATER sweep --
+      // so a deposit whose claim was completed another way sat in the
+      // queue looking matched, and pressing Re-check appeared to do
+      // nothing at all.
+      d.status = "unmatched";
+      d.suggested_topup_id = null;
+    }
   }
 
   for (const row of deposits) {
