@@ -491,6 +491,82 @@ export default function AdvertiserApp() {
   // shown NOWHERE — the only component that rendered wallet_exchanges was on
   // no route. Money left one balance and arrived in another with nothing to
   // point at afterwards.
+  // ── THE BIGGEST DEBIT THERE IS, AND IT HAD NO LINE ─────────────────
+  //
+  // Wallet activity was built from wallet_topups, wallet_exchanges and
+  // paid invoices. Funding an ad account is none of those -- it is a
+  // row in top_ups -- so a customer who deposited EUR 10,000 and put
+  // EUR 5,000 onto an account saw ONE line, "+EUR 10,000 Credited",
+  // above a balance of 5,000. The statement did not net to the balance
+  // and the largest thing they do with the product was missing from it.
+  // The empty state even promised "anything paid from your wallet shows
+  // up here".
+  //
+  // Money coming BACK off an account is the same gap pointing the other
+  // way, so both are here.
+  //
+  // Amounts: amount_usd is what LEFT the wallet in dollars, and
+  // topup_amount is what landed after the fee. The wallet is debited
+  // the full amount, so that is the figure on a wallet statement.
+  const { data: accountFundings, isError: fundingsError } = useQuery<
+    {
+      id: string;
+      created_at: string;
+      number: number | null;
+      currency: string | null;
+      amount_received: number | string | null;
+      amount_usd: number | string | null;
+      topup_amount: number | string | null;
+      fee_amount: number | string | null;
+      account_name: string | null;
+      status: string | null;
+    }[]
+  >({
+    queryKey: ["adv-account-fundings", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("top_ups_view")
+        .select(
+          "id, created_at, number, currency, amount_received, amount_usd, topup_amount, fee_amount, account_name, status",
+        )
+        .eq("advertiser_id", advertiserId!)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as never;
+    },
+  });
+
+  const { data: accountReturns, isError: returnsError } = useQuery<
+    {
+      id: string;
+      created_at: string;
+      amount: number | string | null;
+      currency: string | null;
+      status: string | null;
+    }[]
+  >({
+    queryKey: ["adv-account-returns", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      // Approved only. A pending request has not moved anything, and
+      // showing it as a credit would overstate the balance on the one
+      // screen that is supposed to explain it.
+      const { data, error } = await supabase
+        .from("ad_account_withdrawals")
+        .select("id, created_at, amount, currency, status")
+        .eq("advertiser_id", advertiserId!)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as never;
+    },
+  });
+
   const { data: exchanges, isError: exchangesError } = useQuery<
     {
       id: string;
@@ -739,7 +815,19 @@ export default function AdvertiserApp() {
   type WalletEvent =
     | { kind: "topup"; id: string; at: string; row: NonNullable<typeof activity>[number] }
     | { kind: "exchange"; id: string; at: string; row: NonNullable<typeof exchanges>[number] }
-    | { kind: "invoice"; id: string; at: string; row: NonNullable<typeof invoices>[number] };
+    | { kind: "invoice"; id: string; at: string; row: NonNullable<typeof invoices>[number] }
+    | {
+        kind: "funding";
+        id: string;
+        at: string;
+        row: NonNullable<typeof accountFundings>[number];
+      }
+    | {
+        kind: "return";
+        id: string;
+        at: string;
+        row: NonNullable<typeof accountReturns>[number];
+      };
   const walletEvents: WalletEvent[] = [
     ...(activity ?? []).map(
       (t) => ({ kind: "topup", id: t.id, at: t.created_at, row: t }) as WalletEvent,
@@ -768,6 +856,18 @@ export default function AdvertiserApp() {
             row: i,
           }) as WalletEvent,
       ),
+    // Only what actually left the wallet. A pending or rejected
+    // funding has not moved a cent.
+    ...(accountFundings ?? [])
+      .filter((t) => String(t.status ?? "").toLowerCase() === "completed")
+      .map(
+        (t) =>
+          ({ kind: "funding", id: t.id, at: t.created_at, row: t }) as WalletEvent,
+      ),
+    ...(accountReturns ?? []).map(
+      (w) =>
+        ({ kind: "return", id: w.id, at: w.created_at, row: w }) as WalletEvent,
+    ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
   // Has a transfer EVER landed? The onboarding tick used to read the
@@ -2681,6 +2781,88 @@ export default function AdvertiserApp() {
                             </tr>
                           );
                         }
+                        if (ev.kind === "funding") {
+                          const t = ev.row;
+                          // amount_received is in the currency the
+                          // customer's wallet was debited in; every
+                          // other figure on this row is USD by
+                          // construction. Printing the wallet-side one
+                          // is the only honest choice on a WALLET
+                          // statement.
+                          const sym =
+                            String(t.currency ?? "EUR").toUpperCase() === "USD"
+                              ? "$"
+                              : "€";
+                          return (
+                            <tr key={`f-${t.id}`}>
+                              <td
+                                data-label="Date"
+                                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              >
+                                {dayjs(ev.at).format("D MMM")}
+                              </td>
+                              <td data-label="Reference" className="mono">
+                                {t.number
+                                  ? `#${String(t.number).padStart(6, "0")}`
+                                  : "—"}
+                              </td>
+                              <td
+                                data-label="Description"
+                                style={{ color: "var(--txt-2)" }}
+                              >
+                                Funded {t.account_name || "an ad account"}
+                              </td>
+                              <td
+                                data-label="Amount"
+                                className="r mono"
+                                style={{ color: "var(--danger)" }}
+                              >
+                                −{sym}
+                                {money2(t.amount_received)}
+                              </td>
+                              <td data-label="Status" className="r">
+                                <span className="badge muted">Sent</span>
+                              </td>
+                            </tr>
+                          );
+                        }
+                        if (ev.kind === "return") {
+                          const w = ev.row;
+                          const sym =
+                            String(w.currency ?? "USD").toUpperCase() === "EUR"
+                              ? "€"
+                              : "$";
+                          return (
+                            <tr key={`w-${w.id}`}>
+                              <td
+                                data-label="Date"
+                                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              >
+                                {dayjs(ev.at).format("D MMM")}
+                              </td>
+                              <td data-label="Reference" className="mono">
+                                —
+                              </td>
+                              <td
+                                data-label="Description"
+                                style={{ color: "var(--txt-2)" }}
+                              >
+                                Returned from an ad account
+                              </td>
+                              <td
+                                data-label="Amount"
+                                className="r mono"
+                                style={{ fontWeight: 700 }}
+                              >
+                                {sym}
+                                {money2(w.amount)}
+                              </td>
+                              <td data-label="Status" className="r">
+                                <span className="badge ok">Credited</span>
+                              </td>
+                            </tr>
+                          );
+                        }
                         if (ev.kind === "exchange") {
                           const x = ev.row;
                           const sym = (c: string) => (c === "USD" ? "$" : "€");
@@ -2796,9 +2978,21 @@ export default function AdvertiserApp() {
                             color: "var(--faint)",
                           }}
                         >
-                          {activityError || exchangesError
-                            ? "We couldn't load your wallet activity — this isn't an empty list. Give it a reload."
-                            : "Nothing has moved yet. Top-ups, exchanges and anything paid from your wallet show up here."}
+                          {/* EVERY read, not two of the five. The
+                              invoices read has its own flag and was
+                              never consulted, so a failed invoices
+                              query turned a statement with debits into
+                              one with only credits — or into "Nothing
+                              has moved yet" — with no notice. The two
+                              reads added here would have had the same
+                              hole on day one. */}
+                          {activityError ||
+                          exchangesError ||
+                          invError ||
+                          fundingsError ||
+                          returnsError
+                            ? "We couldn't load all of your wallet activity — this isn't an empty list. Give it a reload."
+                            : "Nothing has moved yet. Top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
                         </td>
                       </tr>
                     )}
