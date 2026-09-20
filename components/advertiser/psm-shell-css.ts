@@ -1028,7 +1028,7 @@ export const PSM_APP_CSS = `
      34px one. Three treatments of the same person on one screen, and the
      square one read as a dark blob rather than as a face or a monogram.
      Same size, same circle, everywhere. */
-  .psmapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
+  .psmapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;overflow:hidden}
   /* ── THE CHEVRON, NOT THE AVATAR ──────────────────────────────────
      This was ".ava-btn svg", which is every svg in the button — and the
      avatar IS an svg, nested one level down in .avatar. So on a phone

@@ -1685,7 +1685,7 @@ export default function AdvertiserApp() {
               name={name}
               email={profile?.email}
               role="advertiser"
-              size={36}
+              size={34}
             />
           </span>
           <div className="who">
@@ -1787,7 +1787,7 @@ export default function AdvertiserApp() {
               name={name}
               email={profile?.email}
               role="advertiser"
-              size={36}
+              size={34}
             />
           </span>
                 <Ic name="i-chev" />

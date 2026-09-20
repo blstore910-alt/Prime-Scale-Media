@@ -389,10 +389,12 @@ function Style({
             dominantBaseline="central"
             fill="#0B1020"
             fillOpacity="0.32"
-            fontSize="14.5"
-            fontWeight="800"
-            fontFamily="var(--hd, system-ui), system-ui, sans-serif"
-            letterSpacing="0.6"
+            style={{
+              fontSize: "14.5px",
+              fontWeight: 800,
+              fontFamily: "var(--hd, system-ui), system-ui, sans-serif",
+              letterSpacing: "0.6px",
+            }}
           >
             {a.initials}
           </text>
@@ -402,10 +404,12 @@ function Style({
             textAnchor="middle"
             dominantBaseline="central"
             fill={a.ink}
-            fontSize="14.5"
-            fontWeight="800"
-            fontFamily="var(--hd, system-ui), system-ui, sans-serif"
-            letterSpacing="0.6"
+            style={{
+              fontSize: "14.5px",
+              fontWeight: 800,
+              fontFamily: "var(--hd, system-ui), system-ui, sans-serif",
+              letterSpacing: "0.6px",
+            }}
           >
             {a.initials}
           </text>
@@ -453,9 +457,11 @@ function Style({
             textAnchor="middle"
             dominantBaseline="central"
             fill={a.ink}
-            fontSize="21"
-            fontWeight="800"
-            fontFamily="var(--hd, system-ui), system-ui, sans-serif"
+            style={{
+              fontSize: "21px",
+              fontWeight: 800,
+              fontFamily: "var(--hd, system-ui), system-ui, sans-serif",
+            }}
           >
             {a.initials.slice(0, 1)}
           </text>

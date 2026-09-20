@@ -34,14 +34,32 @@ type ActionResult<T = null> =
  * and the answer comes back to the customer straight away.
  *
  * NO NEW TABLE. `notifications` already carries a type and a JSON
- * payload, and a migration for one column would sit unapplied for days
- * while this stayed broken — CLAUDE.md is explicit that code reaches
- * production in minutes and migrations do not.
+ * payload.
+ *
+ * ── AND IT STILL COULD NOT WRITE ────────────────────────────────────
+ *
+ * The first version of this did all of it from the customer's own
+ * session, and RLS refused it twice over:
+ *
+ *   * `notifications` has RLS on with a select policy and an
+ *     update-self policy and NO insert policy, so the insert came back
+ *     42501; and
+ *   * the recipient lookup reads `user_profiles`, whose select policy
+ *     is self-or-tenant-admin. An advertiser matches neither, so it
+ *     returned zero rows with NO error and the action answered "There's
+ *     nobody available to review applications right now."
+ *
+ * Every advertiser, every time. A dead button replaced by a button that
+ * always apologised.
+ *
+ * So the work is a SECURITY DEFINER function
+ * (supabase/migrations/20260920130000_affiliate_application_rpc.sql),
+ * which is the pattern the schema already uses for a fan-out
+ * notification. It resolves the recipients and builds the payload
+ * ITSELF, so this action cannot address a notification to anyone or put
+ * anything of the caller's choosing in it.
  */
 const APPLY_TYPE = "affiliate_application";
-
-/** How long one application holds before they can send another. */
-const COOLDOWN_DAYS = 7;
 
 export async function applyForAffiliateProgram(): Promise<
   ActionResult<{ alreadySent: boolean }>
@@ -54,162 +72,53 @@ export async function applyForAffiliateProgram(): Promise<
   if (userError || !userData.user) {
     return { ok: false, error: "Please sign in and try again." };
   }
-  const uid = userData.user.id;
 
-  // The caller's own profile, chosen the same way every other action
-  // chooses it — a person can hold more than one.
+  // Which of the caller's profiles they are acting as. The function
+  // treats this as a CHOICE among the profiles that are already theirs —
+  // it matches on auth.uid() regardless — so passing it cannot reach
+  // somebody else's account.
   const cookieStore = await cookies();
-  const chosen = cookieStore.get("profile_id")?.value;
-  const { data: profiles } = await supabase
-    .from("user_profiles")
-    .select("id, role, tenant_id, user_id, full_name, email, is_active, status")
-    .eq("user_id", uid);
-  if (!profiles?.length) {
-    return { ok: false, error: "We couldn't find your account." };
-  }
-  const profile =
-    (chosen ? profiles.find((p) => p.id === chosen) : undefined) ?? profiles[0];
+  const chosen = cookieStore.get("profile_id")?.value ?? null;
 
-  if (!profile.tenant_id) {
-    return { ok: false, error: "We couldn't find your account." };
-  }
-  if (
-    profile.is_active === false ||
-    (profile.status ?? "active") === "inactive"
-  ) {
-    return { ok: false, error: "This account is inactive." };
-  }
+  const { data, error } = await supabase.rpc("affiliate_application_submit", {
+    p_profile_id: chosen,
+  });
 
-  const { data: advertiser } = await supabase
-    .from("advertisers")
-    .select("id, tenant_client_code")
-    .eq("user_id", uid)
-    .eq("tenant_id", profile.tenant_id)
-    .limit(1)
-    .maybeSingle();
-
-  // Already one of ours. Saying so is better than filing a request that
-  // an admin then has to work out is redundant.
-  if (advertiser?.id) {
-    const { data: link } = await supabase
-      .from("referral_links")
-      .select("id")
-      .eq("affiliate_advertiser_id", advertiser.id)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    if (link?.id) {
+  if (error) {
+    // A function the migration has not added yet answers PGRST202 /
+    // "Could not find the function". Say that plainly instead of
+    // "try again shortly", which sends the customer back to press a
+    // button that cannot work yet.
+    const message = String(error.message ?? "");
+    if (/PGRST202|could not find the function|does not exist/i.test(message)) {
       return {
         ok: false,
-        error: "You're already on the affiliate program.",
+        error:
+          "Applications aren't switched on yet — message us and we'll set you up.",
       };
     }
-  }
-
-  // One application per COOLDOWN_DAYS. Not a rate limit against abuse —
-  // a guard against the customer pressing twice because the first press
-  // gave them nothing, which is the exact habit the old button taught.
-  const since = new Date(
-    Date.now() - COOLDOWN_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const { data: recent } = await supabase
-    .from("notifications")
-    .select("id")
-    .eq("tenant_id", profile.tenant_id)
-    .eq("type", APPLY_TYPE)
-    .contains("payload", { applicant_profile_id: profile.id })
-    .gte("created_at", since)
-    .limit(1);
-  if (recent?.length) {
-    return { ok: true, data: { alreadySent: true } };
-  }
-
-  // ── THE OWNER, NOT EVERY ADMIN ──────────────────────────────────────
-  //
-  // Commission terms are the owner's decision: the dialog that sets them
-  // is super-admin-only and the server gates it the same way. Sending
-  // this to every admin would put a request in front of people who
-  // cannot answer it, and the one person who can would see it as one
-  // notification among theirs rather than as something addressed to
-  // them.
-  //
-  // The super-admin IS the tenant-owning admin — see lib/permissions.ts
-  // and the owner_id check inside change_subscription_amount.
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", profile.tenant_id)
-    .maybeSingle();
-
-  let recipients: string[] = [];
-  if (tenant?.owner_id) {
-    const { data: owner } = await supabase
-      .from("user_profiles")
-      .select("user_id, is_active, status")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("user_id", tenant.owner_id)
-      .limit(1)
-      .maybeSingle();
-    if (
-      owner?.user_id &&
-      owner.is_active !== false &&
-      (owner.status ?? "active") !== "inactive"
-    ) {
-      recipients = [owner.user_id as string];
-    }
-  }
-
-  // Fall back to the active admins if the owner cannot be resolved or has
-  // been switched off. A request nobody receives is the failure this
-  // whole change exists to stop, so it must not depend on one row being
-  // right.
-  if (recipients.length === 0) {
-    const { data: admins } = await supabase
-      .from("user_profiles")
-      .select("user_id, is_active, status")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("role", "admin");
-    recipients = (admins ?? [])
-      .filter(
-        (a) =>
-          a.is_active !== false &&
-          (a.status ?? "active") !== "inactive" &&
-          a.user_id,
-      )
-      .map((a) => a.user_id as string);
-  }
-
-  if (recipients.length === 0) {
-    return {
-      ok: false,
-      error:
-        "There's nobody available to review applications right now. Please contact us directly.",
-    };
-  }
-
-  const payload = {
-    applicant_profile_id: profile.id,
-    applicant_name: profile.full_name ?? profile.email ?? "An advertiser",
-    applicant_email: profile.email ?? null,
-    advertiser_id: advertiser?.id ?? null,
-    client_code: advertiser?.tenant_client_code ?? null,
-  };
-
-  const { error: insertError } = await supabase.from("notifications").insert(
-    recipients.map((rid) => ({
-      recipient_user_id: rid,
-      tenant_id: profile.tenant_id,
-      type: APPLY_TYPE,
-      payload,
-      is_read: false,
-    })),
-  );
-  if (insertError) {
     return {
       ok: false,
       error: "We couldn't send your application just now. Try again shortly.",
     };
   }
 
-  return { ok: true, data: { alreadySent: false } };
+  const result = (Array.isArray(data) ? data[0] : data) as
+    | { ok?: boolean; error?: string; already_sent?: boolean }
+    | null;
+
+  // A jsonb result and no error is still not a success. The function
+  // answers {ok:false, error} for "you are already an affiliate" and for
+  // "there is nobody to review this", and reporting those as sent is the
+  // fake success this whole file exists to remove.
+  if (!result || result.ok !== true) {
+    return {
+      ok: false,
+      error:
+        result?.error ??
+        "We couldn't send your application just now. Try again shortly.",
+    };
+  }
+
+  return { ok: true, data: { alreadySent: result.already_sent === true } };
 }

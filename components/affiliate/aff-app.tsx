@@ -415,7 +415,7 @@ export default function AffiliateApp() {
               name={name}
               email={profile?.email}
               role="affiliate"
-              size={36}
+              size={34}
             />
           </div>
           <div className="who">
@@ -488,7 +488,7 @@ export default function AffiliateApp() {
               name={name}
               email={profile?.email}
               role="affiliate"
-              size={36}
+              size={34}
             />
           </span>
                 <Ic name="i-chev" />

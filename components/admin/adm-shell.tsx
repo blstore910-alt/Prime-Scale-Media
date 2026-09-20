@@ -286,7 +286,7 @@ export default function AdminShell({
               name={name}
               email={profile?.email}
               role="admin"
-              size={36}
+              size={34}
             />
           </span>
           <div className="who">
@@ -340,7 +340,7 @@ export default function AdminShell({
               name={name}
               email={profile?.email}
               role="admin"
-              size={36}
+              size={34}
             />
           </span>
                 <ChevronDown />
