@@ -83,10 +83,46 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     // by anyone holding the link, and naming the recipient would hand
     // them an address they may not have. The signed-in one is theirs
     // already.
-    redirect(
-      `/dashboard?invite=wrong-account&as=${encodeURIComponent(
-        userData.user.email ?? "",
-      )}`,
+    // ── SAY IT HERE, BECAUSE NOTHING READS THE QUERY STRING ─────────
+    //
+    // This used to redirect to /dashboard?invite=wrong-account&as=...
+    // and nothing in the app reads either parameter -- the dashboard
+    // page takes no searchParams at all. So the person landed silently
+    // on their own dashboard, which is exactly the "the link is
+    // broken" experience the note above says it was written to fix.
+    // The page they are already on can simply tell them.
+    return (
+      <main className="mx-auto flex min-h-screen max-w-md items-center p-6">
+        <div className="w-full rounded-xl border bg-card p-6 text-card-foreground">
+          <h1 className="text-xl font-semibold">
+            This invitation is for a different address
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            You are signed in as{" "}
+            <span className="font-medium text-foreground">
+              {userData.user.email}
+            </span>
+            , and this invitation was sent to someone else. Sign out, then
+            open the link again from the inbox it arrived in.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <form action="/api/auth/sign-out" method="post">
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+              >
+                Sign out
+              </button>
+            </form>
+            <a
+              href="/dashboard"
+              className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium"
+            >
+              Back to my dashboard
+            </a>
+          </div>
+        </div>
+      </main>
     );
   }
 

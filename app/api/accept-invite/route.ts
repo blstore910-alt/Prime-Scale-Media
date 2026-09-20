@@ -141,14 +141,62 @@ export async function POST(request: NextRequest) {
   // there, so a retried accept never leaves duplicate memberships.
   const { data: existingProfile } = await supabase
     .from("user_profiles")
-    .select("id")
+    .select("id, role")
     .eq("user_id", userData.user.id)
     .eq("tenant_id", invitation.tenant_id)
     .maybeSingle();
 
+  // ── A SECOND ROLE IN THE SAME TENANT IS NOT SOMETHING WE CAN DO ───
+  //
+  // send-invite only blocks a duplicate on (email, tenant, role), so an
+  // existing advertiser CAN be invited as an affiliate in the same
+  // tenant. This route then found the existing profile, reused it,
+  // never applied the role, marked the invitation accepted and returned
+  // "Invite accepted and user profile created". The admin's Invites
+  // screen said accepted and nothing had changed -- and
+  // trg_one_profile_per_tenant makes that permanent.
+  //
+  // Refusing here says the true thing and leaves the invitation alone,
+  // so somebody can still decide what to do with it.
+  if (
+    existingProfile &&
+    String(existingProfile.role ?? "").toLowerCase() !==
+      String(invitation.role ?? "").toLowerCase()
+  ) {
+    await admin
+      .from("invitations")
+      .update({ status: "pending" })
+      .eq("id", invite_id)
+      .eq("status", "accepted");
+    return NextResponse.json(
+      {
+        success: false,
+        message: `You are already in this organisation as ${existingProfile.role}. One person holds one role per organisation, so this ${invitation.role} invitation cannot be accepted on this account — ask us to change your role instead.`,
+      },
+      { status: 409 },
+    );
+  }
+
   let profileData = existingProfile;
   if (!profileData) {
-    const { data: inserted, error: profileError } = await supabase
+    // ── THE SERVICE ROLE WRITES THIS ROW, LIKE THE SIBLING ROUTE ────
+    //
+    // This insert ran on the CALLER's RLS-bound client, so auth.uid()
+    // was set — and `_guard_user_profile_role` allows a profile INSERT
+    // only when the role is null or 'advertiser', unless the caller is
+    // tenants.owner_id. So an AFFILIATE invitation could never be
+    // accepted by somebody who already had an account: 42501, "Only
+    // the tenant owner can set/change a profile role", every time, for
+    // ever. The invitation is put back and the next press fails
+    // identically; no other screen creates that profile.
+    //
+    // /api/accept-invite/signup does the same insert on
+    // createAdminClient(), which is why the SAME invitation works for a
+    // brand-new user. Nothing is loosened here: the invitation was
+    // matched to this caller's own email above, the tenant and role
+    // come from that row and never from the request body, and an
+    // existing membership is reused rather than duplicated.
+    const { data: inserted, error: profileError } = await admin
       .from("user_profiles")
       .insert({
         user_id: userData.user.id,
@@ -160,8 +208,14 @@ export async function POST(request: NextRequest) {
           userData.user.email ||
           null,
         email: userData.user.email,
+        // The signup route writes these three and this one did not, so
+        // an existing user accepting an invitation that carries an
+        // affiliate_id never got referral_status='referred' -- which is
+        // what the customer's own details sheet renders.
+        referral_status: invitation.affiliate_id ? "referred" : null,
+        referred_by: invitation.affiliate_id ?? null,
       })
-      .select("id")
+      .select("id, role")
       .single();
 
     if (profileError || !inserted) {
@@ -235,11 +289,26 @@ export async function POST(request: NextRequest) {
       "accept-invite advertiser/wallet bootstrap failed:",
       safeErrorMessage(bootstrapError),
     );
+    // ── AND PUT THE INVITATION BACK ─────────────────────────────────
+    //
+    // The profile-insert failure fifty lines up restores the
+    // invitation and this branch did not, so a failed bootstrap left
+    // it `accepted`: /invite/accept then renders InviteExpired and
+    // /invite/list filters it out, while the account has a profile and
+    // no advertisers row and no wallet. ensure_advertiser_and_wallet
+    // has since been revoked from `authenticated`, so nothing short of
+    // the SQL editor could finish it. Restoring the row makes the next
+    // press a real retry.
+    await admin
+      .from("invitations")
+      .update({ status: "pending" })
+      .eq("id", invite_id)
+      .eq("status", "accepted");
     return NextResponse.json(
       {
         success: false,
         message:
-          "Profile created but advertiser setup failed. Please contact support.",
+          "We could not finish setting up your account. Your invitation is still valid — press Accept again.",
       },
       { status: 500 },
     );
