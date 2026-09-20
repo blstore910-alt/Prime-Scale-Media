@@ -9,6 +9,7 @@ export type NotificationType =
   | "subscription_past_due"
   | "subscription_changed"
   | "supplier_low_balance"
+  | "billing_run_failed"
   | "supplier_pool_changed"
   | "rate_limit_abuse"
   | "affiliate_application";
@@ -96,6 +97,13 @@ export interface NotificationPayloadByType {
   subscription_past_due: SubscriptionInvoiceNotificationPayload;
   subscription_changed: SubscriptionChangedNotificationPayload;
   supplier_low_balance: SupplierLowBalanceNotificationPayload;
+  /** The nightly billing run refused. Nobody was invoiced or
+   *  debited that night -- the RPC is one transaction. */
+  billing_run_failed: {
+    code?: string | null;
+    reason?: string | null;
+    at?: string | null;
+  };
   supplier_pool_changed: SupplierPoolChangedNotificationPayload;
   rate_limit_abuse: RateLimitAbuseNotificationPayload;
   affiliate_application: AffiliateApplicationNotificationPayload;

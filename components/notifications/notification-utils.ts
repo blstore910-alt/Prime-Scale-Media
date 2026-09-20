@@ -91,6 +91,12 @@ export function getNotificationCopy(notification: Notification): {
         title: "Wallet Top-up Request",
         description: "A wallet top-up is pending approval.",
       };
+    case "billing_run_failed":
+      return {
+        title: "Billing run failed",
+        description:
+          "Last night's subscription billing did not complete, so nobody was invoiced or debited. It is safe to re-run — but it will not fix itself.",
+      };
     case "supplier_low_balance":
       return {
         title: "Supplier balance low",

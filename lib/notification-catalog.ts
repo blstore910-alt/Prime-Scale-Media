@@ -86,6 +86,13 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    type: "billing_run_failed",
+    label: "Billing run failed",
+    description:
+      "When the nightly subscription billing run did not complete. Nobody was invoiced or debited that night — it is safe to re-run, but it will not fix itself.",
+    audience: "admin",
+  },
+  {
     type: "rate_limit_abuse",
     label: "Suspicious activity (rate limit)",
     description:
