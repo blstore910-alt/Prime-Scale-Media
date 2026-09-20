@@ -34,6 +34,10 @@ export default function InputField<T extends FieldValues>({
         <Field data-invalid={fieldState.invalid}>
           {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
           
+          {/* `disabled` arrives in ...props and was spread onto the DOM
+              node only, so react-hook-form kept the value and submitted
+              it anyway -- which is how a "disabled" fee field still
+              reached the server. */}
           <Input
             {...field}
             id={id}

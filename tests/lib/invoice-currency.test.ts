@@ -53,6 +53,23 @@ test("empty strings are not a currency", () => {
 });
 
 test("the row and the modal can no longer disagree", () => {
+  // This compared invoiceCurrencySymbol against itself, so it could not
+  // fail -- and it was the one test that would have caught the live bug.
+  // The real claim is that the SYMBOL always follows the CODE, and that
+  // the code is the invoice's own column.
+  for (const inv of [
+    { currency: null, items: [{ currency: "USD" }] },
+    { currency: " usd ", items: [{ currency: "EUR" }] },
+    { currency: "ZZZ" },
+  ]) {
+    const code = invoiceCurrencyCode(inv);
+    assert.equal(invoiceCurrencySymbol(inv), currencySymbol(code));
+  }
+  assert.equal(
+    invoiceCurrencyCode({ currency: null, items: [{ currency: "USD" }] }),
+    "EUR",
+  );
+
   for (const inv of [
     { currency: "usd" },
     { currency: null, items: [{ currency: "USD" }] },

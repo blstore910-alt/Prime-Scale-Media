@@ -247,7 +247,11 @@ function buildInvoiceHtml(
   // the terms fixed the no-items case and left this one, where a line
   // item saying USD over a NULL column still printed dollars on a
   // document the customer pays from in euros.
-  const currencyCode = invoice.currency ?? "EUR";
+  // Trimmed and uppercased, like the shared helper. A stored lowercase
+  // "usd" printed "usd 2,000.00" on the document -- which is the exact
+  // failure lib/pure-invoice-currency's own docblock describes.
+  const currencyCode =
+    String(invoice.currency ?? "").trim().toUpperCase() || "EUR";
   const currencySymbol = getCurrencySymbol(currencyCode);
 
   const computedTax = items.reduce((sum, item) => sum + toNumber(item.tax), 0);

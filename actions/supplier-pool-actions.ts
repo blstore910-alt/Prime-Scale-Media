@@ -1,5 +1,6 @@
 "use server";
 
+import { feeIsAPrice, isTenantOwner } from "@/actions/_fee-is-a-price";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 
 import { isAccountLocked } from "@/lib/pure-account-status";
@@ -323,6 +324,28 @@ export async function assignSupplierAdAccount(input: {
   const fee = Number(input.fee);
   if (!Number.isFinite(fee) || fee < 0 || fee > 100) {
     return { ok: false, error: "Fee must be between 0 and 100", code: "invalid" };
+  }
+  // ── THE SAME RULE AS BOTH OTHER WRITERS OF ad_accounts.fee ─────────
+  //
+  // This inserts `fee` straight into ad_accounts, bypassing
+  // createAdAccountAsAdmin and therefore the gate that was put on it --
+  // and the pool's own "Fee % we charge" box had no disabled either. So
+  // the price rule, which exists because ad_accounts.fee outranks the
+  // plan on every future top-up, was fully open on this screen.
+  if (
+    (await feeIsAPrice(supabase, {
+      advertiserId: input.advertiserId,
+      platform: typeof input.platform === "string" ? input.platform : null,
+      fee,
+    })) &&
+    !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
+  ) {
+    return {
+      ok: false,
+      error:
+        "That fee is not this customer's agreed rate, and only the super-admin can set a different one. Leave it blank to use their plan rate.",
+      code: "forbidden",
+    };
   }
 
   // What WE pay the supplier. Seeded from the supplier's own reported figure

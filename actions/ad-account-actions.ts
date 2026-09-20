@@ -1,5 +1,6 @@
 "use server";
 
+import { feeIsAPrice, isTenantOwner } from "@/actions/_fee-is-a-price";
 import { createClient } from "@/lib/supabase/server";
 import { wroteSomething } from "./_shared";
 import { safeErrorMessage } from "@/lib/pure-error";
@@ -181,23 +182,28 @@ export async function createAdAccountAsAdmin(
     if (!Number.isFinite(fee) || fee < 0 || fee > 100) {
       return { ok: false, error: "Fee must be between 0 and 100" };
     }
-    // Same rule as the update path: setting what a customer is charged
-    // is the owner's, because ad_accounts.fee outranks the plan.
-    // A zero means "use the plan", so it is not a price and is allowed.
-    if (fee > 0) {
-      const { data: feeTenant } = await supabase
-        .from("tenants")
-        .select("owner_id")
-        .eq("id", profile.tenant_id)
-        .maybeSingle();
-      if (!feeTenant || feeTenant.owner_id !== profile.user_id) {
-        return {
-          ok: false,
-          error:
-            "Only the super-admin can set what a customer is charged on top-ups. Leave the fee blank to use their plan rate.",
-          code: "forbidden",
-        };
-      }
+    // Same rule as the update path, and it asks whether this is a PRICE
+    // rather than whether a fee was sent at all. Both create dialogs
+    // auto-fill one -- Quick Create from the type's default, the
+    // create-from-request dialog from the plan rate -- and a disabled
+    // input still submits its value, so "any fee needs the owner" meant
+    // an employee admin could no longer create ANY ad account, with an
+    // error telling them to leave a box blank that the form refills.
+    // See actions/_fee-is-a-price.
+    if (
+      (await feeIsAPrice(supabase, {
+        advertiserId,
+        platform: typeof input.platform === "string" ? input.platform : null,
+        fee: feeRaw,
+      })) &&
+      !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
+    ) {
+      return {
+        ok: false,
+        error:
+          "That fee is not this customer's agreed rate, and only the super-admin can set a different one. Leave it at their plan rate, or ask the owner.",
+        code: "forbidden",
+      };
     }
   }
   const cleaned: Record<string, unknown> = {};
@@ -316,7 +322,7 @@ export async function updateAdAccountAsAdmin(
 
   const { data: existing } = await supabase
     .from("ad_accounts")
-    .select("id, tenant_id, updated_at, fee")
+    .select("id, tenant_id, updated_at, fee, advertiser_id, platform")
     .eq("id", accountId)
     .maybeSingle();
   if (!existing) return { ok: false, error: "Ad account not found", code: "not_found" };
@@ -356,25 +362,37 @@ export async function updateAdAccountAsAdmin(
   // ...and ONLY when it actually moves. A disabled input still submits
   // its current value, so gating on "fee is in the payload" would refuse
   // an employee admin editing the NAME of any account that has a fee.
+  //
+  // NULL and 0 are the SAME state -- both mean "use the plan rate" -- and
+  // treating them as different refused an employee admin renaming any
+  // account whose fee had never been set: update-account-form sends
+  // `fee: account.fee ?? 0`, so null -> 0 read as a price change.
+  const asRate = (v: unknown): number => {
+    const n = Number(v ?? 0);
+    return Number.isFinite(n) ? Math.round((n + Number.EPSILON) * 100) / 100 : 0;
+  };
   const feeChanges =
     "fee" in cleaned &&
-    Number(cleaned.fee ?? NaN) !==
-      Number((existing as { fee?: unknown }).fee ?? NaN) &&
-    !(cleaned.fee == null && (existing as { fee?: unknown }).fee == null);
-  if (feeChanges) {
-    const { data: feeTenant } = await supabase
-      .from("tenants")
-      .select("owner_id")
-      .eq("id", profile.tenant_id)
-      .maybeSingle();
-    if (!feeTenant || feeTenant.owner_id !== profile.user_id) {
-      return {
-        ok: false,
-        error:
-          "Only the super-admin can change what a customer is charged on top-ups.",
-        code: "forbidden",
-      };
-    }
+    asRate(cleaned.fee) !== asRate((existing as { fee?: unknown }).fee);
+  if (
+    feeChanges &&
+    (await feeIsAPrice(supabase, {
+      advertiserId: String(
+        (cleaned.advertiser_id ??
+          (existing as { advertiser_id?: unknown }).advertiser_id) ?? "",
+      ) || null,
+      platform:
+        typeof cleaned.platform === "string" ? cleaned.platform : null,
+      fee: cleaned.fee,
+    })) &&
+    !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
+  ) {
+    return {
+      ok: false,
+      error:
+        "That fee is not this customer's agreed rate, and only the super-admin can set a different one.",
+      code: "forbidden",
+    };
   }
   // The cost row is its own write, so an update that ONLY changes the
   // supplier fee is legitimate and must not trip "No updatable fields".

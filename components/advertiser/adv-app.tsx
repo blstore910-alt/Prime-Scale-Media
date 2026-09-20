@@ -1236,12 +1236,15 @@ export default function AdvertiserApp() {
   // isLoading FALSE and isError false. pendingUnknown was then false
   // over an empty list. The dash view is covered by the booting gate;
   // the wallet view is not, and ?view=wallet lands straight on it.
+  // `!wallet?.id` stays -- with no wallet there is genuinely nothing to
+  // report -- but !pendingLoaded must not outlive a query that can never
+  // run, which is what `enabled: !!wallet?.id` makes it.
   const pendingUnknown =
     activityError ||
     activityLoading ||
     !wallet?.id ||
     pendingError ||
-    !pendingLoaded;
+    (!!wallet?.id && !pendingLoaded);
   // Unknown BECAUSE IT IS STILL COMING, as opposed to unknown because a
   // read failed. Same value on screen, opposite sentence: one is "one
   // moment", the other is "something went wrong". Only the disabled
@@ -1249,7 +1252,7 @@ export default function AdvertiserApp() {
   const pendingChecking =
     !activityError &&
     !pendingError &&
-    (activityLoading || !wallet?.id || !pendingLoaded);
+    (activityLoading || (!!wallet?.id && !pendingLoaded));
   // ── AND IT MUST NOT COME OUT OF A TRUNCATED LIST ────────────────────
   //
   // `activity` is fetched with .limit(30) because it renders a recent
@@ -1396,12 +1399,15 @@ export default function AdvertiserApp() {
   // wallet while euros left the EUR one. The wallet statement's own
   // invoice row a few hundred lines down already uses the column alone,
   // so two rows in this same component disagreed about one invoice.
+  // .trim() as well: lib/pure-invoice-currency trims and this did not,
+  // so " usd " resolved to EUR here and USD there.
   const invCurrency = (inv: {
     currency?: string | null;
     items?: unknown;
   } | null | undefined): "USD" | "EUR" =>
     ((inv?.currency as string | null | undefined) ?? "EUR")
       .toString()
+      .trim()
       .toUpperCase() === "USD"
       ? "USD"
       : "EUR";
@@ -1633,6 +1639,7 @@ export default function AdvertiserApp() {
   //
   // Three states, not two: nothing raised yet, something due, or
   // settled.
+  const advReadsWillRun = !!advertiserId && !!tenantId;
   const awaitingFirstInvoice =
     !!subscription &&
     !planPaid &&
@@ -1661,6 +1668,7 @@ export default function AdvertiserApp() {
     // actually here, which is the state this claim needs.
     planPaidLoaded &&
     dueInvLoaded &&
+    advReadsWillRun &&
     !planPaidError &&
     !subError &&
     !invError &&
@@ -1748,7 +1756,19 @@ export default function AdvertiserApp() {
   // green Paid badge and "Nothing owed right now" -- with no Pay button,
   // because that too is inside the dueSubInvoice branch. Seven days
   // later the auto-debit takes it and dunning can mark them past_due.
-  const dueUnknown = invError || dueInvError || invLoading || !dueInvLoaded;
+  //
+  // ── AND A QUERY THAT WILL NEVER RUN IS SETTLED, NOT LOADING ───────
+  //
+  // react-query v5 reports isPending true and isSuccess FALSE for ever
+  // on a DISABLED query. All of these are `enabled: !!advertiserId`,
+  // and `booting` is explicitly false when there is no advertiser row,
+  // so nothing held the page back -- a profile with no advertiser
+  // (the repo's own check file says two exist today) sat on
+  // "checking…", "Loading…" and "Looking up your plan…" permanently.
+  // Before these guards those screens were wrong-but-settled; a
+  // spinner that never ends is worse.
+  const dueUnknown =
+    advReadsWillRun && (invError || dueInvError || invLoading || !dueInvLoaded);
   // WHY the Request button is dead, in the customer's words. It always
   // blamed the plan — "Your plan has to be active first" — and
   // canRequestAccount fails on EITHER leg, so somebody whose plan is paid
@@ -2002,17 +2022,18 @@ export default function AdvertiserApp() {
     items?: unknown;
     currency?: string | null;
   }) => {
-    // The invoice's own currency first, items[0] only as a fallback, and
-    // EUR last — the same order and the same default as the RPC that takes
-    // the money.
-    const cur =
-      ((inv.currency as string | null | undefined) ??
-        (inv.items as Array<{ currency?: string }> | undefined)?.[0]?.currency ??
-        "EUR")
-        .toString()
-        .toUpperCase() === "USD"
-        ? "USD"
-        : "EUR";
+    // ── THE MODAL, WHICH WAS THE ONE THAT WAS MISSED ────────────────
+    //
+    // The card and the amount column were changed to read the invoice's
+    // own column alone; this -- the confirmation that opens when the
+    // customer presses Pay, and the thing that actually calls
+    // invoice_pay_from_wallet -- still read items[0]. So the button
+    // said EUR 2,000.00 and the dialog it opened said "Straight from
+    // your USD wallet", "Yes, pay $2,000.00", with a USD before/after
+    // row, while EUR 2,000 left the EUR wallet. There is no undo.
+    //
+    // One helper, so the three surfaces cannot drift again.
+    const cur = invCurrency(inv);
     const sym = cur === "USD" ? "$" : "€";
     const isPlan = inv.type === "subscription" && !!planName;
 
@@ -3991,7 +4012,7 @@ export default function AdvertiserApp() {
                         // PRIME at EUR 5.00 a month with four invoices and a
                         // live ad account -- which is what the screen then
                         // flips to. Caught by opening it on production.
-                        !subLoaded
+                        advReadsWillRun && !subLoaded
                         ? "Loading…"
                         : "No plan"}
                 </span>
@@ -4254,7 +4275,7 @@ export default function AdvertiserApp() {
                       Reload
                     </button>
                   </p>
-                ) : !subLoaded ? (
+                ) : advReadsWillRun && !subLoaded ? (
                   /* Still arriving. Saying nothing is the only honest
                      thing there is to say yet -- see the pill above. */
                   <p className="cap" style={{ margin: 0 }}>

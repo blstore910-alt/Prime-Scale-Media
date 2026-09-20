@@ -1000,12 +1000,18 @@ export default function PsmAccountPool() {
               <label className="mlabel" htmlFor={`${uid}-a-fee`}>
                 Fee % <span>we charge</span>
               </label>
+              {/* The customer price, like the cost field beside it, is
+                  the owner's -- and this input is the third writer of
+                  ad_accounts.fee, so leaving it open made the gate on
+                  the other two pointless. Blank uses the plan rate, so
+                  an employee admin can still allocate. */}
               <input
                 id={`${uid}-a-fee`}
                 type="number"
                 min="0"
                 max="100"
                 step="0.01"
+                disabled={!isSuperAdmin}
                 value={feeInput}
                 onChange={(e) => setFeeInput(e.target.value)}
                 placeholder={planFee != null ? String(planFee) : "e.g. 2"}

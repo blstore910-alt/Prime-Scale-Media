@@ -202,7 +202,20 @@ begin
      and coalesce(a.status, '') = 'pending'
      and coalesce(a.currency, '') is not distinct from coalesce(new.currency, '')
      and coalesce(a.delta, 0) = coalesce(new.delta, 0)
-     and coalesce(a.reference, '') is distinct from coalesce(new.reference, '')
+     -- ── AND ONLY WHEN THE NEW ROW HAS NO REFERENCE OF ITS OWN ─────
+     --
+     -- The first draft read `is distinct from`, which is exactly
+     -- backwards: two free-form corrections both carry NULL, so
+     -- '' IS DISTINCT FROM '' is FALSE and the guard never fired for
+     -- the case it was written for -- while a subscription-change row
+     -- (which has a reference, and is already deduped on it) was the
+     -- one thing it DID refuse.
+     --
+     -- The rule is simpler than the test was: this guard is for
+     -- free-form requests. A row that carries a reference has its own
+     -- unique index and is none of our business.
+     and coalesce(new.reference, '') = ''
+     and coalesce(a.reference, '') = ''
      and a.created_at > now() - interval '90 seconds'
    limit 1;
 
@@ -255,7 +268,11 @@ select 4, 'ad-account requests that look like twins (last 30d)',
         select 1 from public.ad_account_requests o
          where o.advertiser_id = r.advertiser_id
            and o.id <> r.id
+           -- The same predicates the trigger uses, or this over-counts
+           -- against a line that says "anything above 0 already happened".
+           and coalesce(o.status, 'pending') = 'pending'
            and coalesce(o.platform, '') is not distinct from coalesce(r.platform, '')
+           and coalesce(o.currency, '') is not distinct from coalesce(r.currency, '')
            and o.created_at between r.created_at - interval '90 seconds'
                                 and r.created_at
       ) and r.created_at > now() - interval '30 days') x)
@@ -267,6 +284,7 @@ select 5, 'precharges that look like twins (last 30d)',
         select 1 from public.wallet_precharges o
          where o.wallet_id = p.wallet_id and o.id <> p.id
            and o.amount = p.amount and o.currency = p.currency
+           and o.status = 'outstanding'
            and o.created_at between p.created_at - interval '90 seconds'
                                 and p.created_at
       ) and p.created_at > now() - interval '30 days') x)

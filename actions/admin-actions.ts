@@ -691,12 +691,35 @@ export async function setAffiliateCommission(
   }
   if ("commission_type" in cleaned && cleaned.commission_type != null) {
     const t = String(cleaned.commission_type).toLowerCase();
-    const KNOWN = ["percentage", "pct", "onetime_pct", "monthly_pct", "flat", "onetime", "monthly"];
+    // ── THE LIST THE DIALOG ACTUALLY OFFERS ───────────────────────
+    //
+    // The first version of this guard invented its own vocabulary: it
+    // included `flat` and `percentage`, which appear in no UI list, and
+    // it OMITTED `none` and `onetime_monthly`, which are two of the
+    // seven the dialog offers. normalizeCommissionType defaults to
+    // "none", and the dialog always sends the field -- so picking
+    // "None" to STOP paying a commission was refused with "Pick one
+    // from the list", about an option that is in the list, and an
+    // advertiser already stored as onetime_monthly could not have any
+    // commission field edited at all.
+    //
+    // `percentage` stays because that is what the accrual trigger
+    // writes on the rows it creates.
+    const KNOWN = [
+      "none",
+      "percentage",
+      "pct",
+      "onetime",
+      "monthly",
+      "onetime_pct",
+      "monthly_pct",
+      "onetime_monthly",
+    ];
     if (!KNOWN.includes(t)) {
       return {
         ok: false,
         error:
-          "That commission type is not one the accrual understands, so it would earn nothing. Pick one from the list.",
+          "That is not a commission type this app knows. Pick one from the list.",
         code: "invalid",
       };
     }
@@ -931,12 +954,35 @@ export async function setAdvertiserCommission(
   }
   if ("commission_type" in cleaned && cleaned.commission_type != null) {
     const t = String(cleaned.commission_type).toLowerCase();
-    const KNOWN = ["percentage", "pct", "onetime_pct", "monthly_pct", "flat", "onetime", "monthly"];
+    // ── THE LIST THE DIALOG ACTUALLY OFFERS ───────────────────────
+    //
+    // The first version of this guard invented its own vocabulary: it
+    // included `flat` and `percentage`, which appear in no UI list, and
+    // it OMITTED `none` and `onetime_monthly`, which are two of the
+    // seven the dialog offers. normalizeCommissionType defaults to
+    // "none", and the dialog always sends the field -- so picking
+    // "None" to STOP paying a commission was refused with "Pick one
+    // from the list", about an option that is in the list, and an
+    // advertiser already stored as onetime_monthly could not have any
+    // commission field edited at all.
+    //
+    // `percentage` stays because that is what the accrual trigger
+    // writes on the rows it creates.
+    const KNOWN = [
+      "none",
+      "percentage",
+      "pct",
+      "onetime",
+      "monthly",
+      "onetime_pct",
+      "monthly_pct",
+      "onetime_monthly",
+    ];
     if (!KNOWN.includes(t)) {
       return {
         ok: false,
         error:
-          "That commission type is not one the accrual understands, so it would earn nothing. Pick one from the list.",
+          "That is not a commission type this app knows. Pick one from the list.",
         code: "invalid",
       };
     }

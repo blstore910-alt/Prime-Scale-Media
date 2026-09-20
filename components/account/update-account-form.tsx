@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppContext } from "@/context/app-provider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   isUrlLike,
@@ -341,6 +342,7 @@ export default function UpdateAccountForm({
     AD_ACCOUNT_STATUS_CHOICES.find((c) => c.value === currentStatus)?.hint ??
     "This is the status the account already has.";
   const queryClient = useQueryClient();
+  const { isSuperAdmin } = useAppContext();
   const { updateAccount, isPending } = useUpdateAccount();
 
   const { options: typeOptions, bySlug } = useAdAccountTypes();
@@ -465,13 +467,24 @@ export default function UpdateAccountForm({
             disabled
           />
 
+          {/* Disabled for an employee admin, like the create form and
+              the inline cell -- this was the one writer of the customer
+              price left open, so they found out by being refused after
+              pressing Save. */}
           <InputField
-            label="Fee (%)"
+            label="Fee (%) — what the customer pays"
             name="fee"
             id="update-fee-percent"
             type="number"
             control={control}
+            disabled={!isSuperAdmin}
           />
+          {!isSuperAdmin && (
+            <p className="text-xs text-muted-foreground">
+              Visible to admins; only the super-admin can change what a
+              customer is charged.
+            </p>
+          )}
 
           {/* Inactive is NOT in this menu on purpose: it is worked out
               from the account's own history (no top-up in 30 days), so
