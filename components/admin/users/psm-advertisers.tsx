@@ -99,7 +99,19 @@ export default function PsmAdvertisers() {
   // does. Whichever heading the table carried, half its cells were wrong —
   // so every affiliate row read "Affiliate — no plan" under a column called
   // PLAN, which is an apology for the column rather than a value in it.
-  const [kind, setKind] = useState<"advertiser" | "affiliate">("advertiser");
+  // ── AND ?role=, for the same reason ?q= is read ────────────────────
+  //
+  // The push notification "Someone wants to join the affiliate
+  // programme" opens /users?role=affiliate. Nothing read it: the tab is
+  // local state, so tapping the notification landed on the Advertisers
+  // tab with the applicant not on screen. Read once, as the initial
+  // state, exactly like the query box -- after that the tab belongs to
+  // whoever is clicking it.
+  const initialKind =
+    (useSearchParams().get("role") ?? "").toLowerCase() === "affiliate"
+      ? "affiliate"
+      : "advertiser";
+  const [kind, setKind] = useState<"advertiser" | "affiliate">(initialKind);
   const isAffiliateTab = kind === "affiliate";
 
   useEffect(() => {

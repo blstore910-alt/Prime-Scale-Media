@@ -378,11 +378,30 @@ export default function AdAccountTypesCard() {
                     advertiser or affiliate surface, in the UI or in the
                     JSON behind it. */}
                 <div className="col-span-2 grid gap-2 sm:col-span-5 sm:grid-cols-[minmax(130px,1fr)_2fr_92px] sm:pb-2">
+                  {/* ── WHEN WE CANNOT READ THESE, WE CANNOT WRITE THEM ──
+                      saveAll omits all three keys while supplierBlind is
+                      true -- correctly, because writing a value we could
+                      not read would overwrite the real one with a blank.
+                      But the boxes stayed editable and Save still said
+                      "Saved 1 type(s)". An admin dismissed the toast,
+                      typed the supplier's percentage -- the figure the
+                      whole margin is computed from -- pressed Save, and
+                      nothing was written. One silent overwrite traded
+                      for a silent no-op on a deliberate edit.
+                      So: disabled, and it says why on the row. */}
+                  {supplierBlind ? (
+                    <p className="col-span-full text-xs text-muted-foreground">
+                      The supplier columns could not be read, so they
+                      cannot be saved either — they are locked until the
+                      read works. Everything else on this row still saves.
+                    </p>
+                  ) : null}
                   <label className="grid gap-1">
                     <span className="text-xs text-muted-foreground">
                       Supplier (admin only)
                     </span>
                     <Input
+                      disabled={supplierBlind}
                       value={row.supplier_label}
                       placeholder={
                         row.api_topup_enabled ? "Funded over the API" : "Who we buy this from"
@@ -397,6 +416,7 @@ export default function AdAccountTypesCard() {
                       Their dashboard (opens from the top-up review)
                     </span>
                     <Input
+                      disabled={supplierBlind}
                       value={row.supplier_url}
                       placeholder="https://..."
                       inputMode="url"
@@ -414,6 +434,7 @@ export default function AdAccountTypesCard() {
                       We pay %
                     </span>
                     <Input
+                      disabled={supplierBlind}
                       type="number"
                       min="0"
                       max="100"

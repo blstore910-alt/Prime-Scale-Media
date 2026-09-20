@@ -84,9 +84,15 @@ export default function NotificationDialog({
   // approved_at and author -- none of the six keys these fall back to.
   const haveTopup = !!topup;
   const currency = (topup?.currency || payload.currency || "USD") as string;
-  const status = haveTopup
-    ? String(topup?.status ?? "")
-    : String(payload.status ?? "");
+  // A `topup_completed` notification with no topup_id gets here with
+  // nothing to read: the payload type declares only topup_id,
+  // approved_at and author, so `payload.status` is undefined and the
+  // receipt printed the word "Status" against an empty green space.
+  // The notification's own TYPE is the answer in that case -- it is
+  // the one fact we do have.
+  const status =
+    (haveTopup ? String(topup?.status ?? "") : String(payload.status ?? "")) ||
+    (notification?.type === "topup_completed" ? "completed" : "");
   const topupNumber =
     topup?.number !== undefined && topup?.number !== null
       ? String(topup.number).padStart(6, "0")

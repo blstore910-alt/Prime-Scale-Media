@@ -112,7 +112,7 @@ export default function CompanyOnboardingForm({
     watch,
     setValue,
     reset,
-    formState: { isSubmitted },
+    formState: { isSubmitted, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(companySchema),
     // ── PREFILLED, BECAUSE BLANK HERE DELETES THINGS ────────────────
@@ -160,13 +160,20 @@ export default function CompanyOnboardingForm({
     userScope: profile.id ?? null,
   });
 
-  // Warn on close/refresh once anything has been typed.
-  const dirty =
-    !!liveValues.name ||
-    !!liveValues.official_email ||
-    !!liveValues.phone ||
-    !!liveValues.address;
-  useUnsavedChangesWarning(dirty && !isSubmitting);
+  // ── TYPED, NOT PREFILLED ──────────────────────────────────────────
+  //
+  // This asked whether the four fields were non-empty. Once the form
+  // started prefilling from the stored company, they are non-empty on
+  // first paint -- and /complete-profile only renders for a company
+  // that is INCOMPLETE, which is exactly the population that already
+  // has some of them stored. So a customer opened the page, decided to
+  // do it later, pressed Back, and got "Leave site? Changes you made
+  // may not be saved" about changes they never made.
+  //
+  // formState.isDirty compares against defaultValues, which is the
+  // prefill -- so it is true only when a person has actually changed
+  // something.
+  useUnsavedChangesWarning(isDirty && !isSubmitting);
 
   const values = watch();
 

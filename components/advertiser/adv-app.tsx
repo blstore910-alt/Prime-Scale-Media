@@ -1237,7 +1237,11 @@ export default function AdvertiserApp() {
   // hazard. dueSubInvoice was not.
   // Every unpaid subscription invoice, however old, and nothing else.
   // Small by construction: one customer holds at most a handful.
-  const { data: dueInvoices, isError: dueInvError } = useQuery<
+  const {
+    data: dueInvoices,
+    isError: dueInvError,
+    isSuccess: dueInvLoaded,
+  } = useQuery<
     (InvoiceWithRelations & { due_date?: string | null })[]
   >({
     queryKey: ["adv-due-sub-invoices", tenantId, advertiserId],
@@ -1463,7 +1467,11 @@ export default function AdvertiserApp() {
   // scans ALL invoices) refuses with "Minimum top-up is 300 EUR" after the
   // transfer has been made. That is the exact trap this morning's
   // migration exists to close, re-armed by a pagination limit.
-  const { data: planPaidRow, isError: planPaidError } = useQuery({
+  const {
+    data: planPaidRow,
+    isError: planPaidError,
+    isSuccess: planPaidLoaded,
+  } = useQuery({
     queryKey: ["adv-plan-paid", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
@@ -1499,8 +1507,30 @@ export default function AdvertiserApp() {
     !!subscription &&
     !planPaid &&
     !dueSubInvoice &&
-    // Not while any of the three reads behind it failed: an
-    // unreadable invoice list must not become "none exists yet".
+    // ── AND NOT WHILE THEY ARE STILL ARRIVING ─────────────────────
+    //
+    // This consulted isError on three queries and the isLoading of
+    // none, and "not an error yet" is also true of "has not answered
+    // yet". These are four independent round trips fired in parallel;
+    // adv-subscription is one row of four columns and lands first
+    // almost every time, so for the width of the two invoice reads
+    // EVERY conjunct held.
+    //
+    // What an existing customer with a EUR 200 invoice due in three
+    // days therefore saw when they opened Billing: "We raise your
+    // first invoice overnight. Nothing has been charged yet, and
+    // nothing is owed until it appears", with a grey "Not yet raised"
+    // badge -- and then it flipped to the truth. On the one screen
+    // that answers "do I owe you money".
+    //
+    // It also wins over invLoading in the sentence chain below, and
+    // invLoading belongs to a THIRD query anyway (the invoice LIST),
+    // not to either of the two that decide this.
+    //
+    // isSuccess, not !isError: it is true only once the data is
+    // actually here, which is the state this claim needs.
+    planPaidLoaded &&
+    dueInvLoaded &&
     !planPaidError &&
     !subError &&
     !invError &&

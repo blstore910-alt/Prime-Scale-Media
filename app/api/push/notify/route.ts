@@ -289,6 +289,14 @@ export async function POST(req: Request) {
       .eq("id", posted.id)
       .maybeSingle();
     if (storedError) {
+      // 500 so the webhook retries -- but say so on the way out, because
+      // the notification row exists, the phone is never buzzed, and
+      // nothing anywhere else in the app would ever mention it.
+      console.warn(
+        "[push] could not re-read notification",
+        posted.id,
+        safeErrorMessage(storedError),
+      );
       return NextResponse.json(
         { error: "Could not read the notification" },
         { status: 500 },
