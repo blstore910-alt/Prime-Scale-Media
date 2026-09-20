@@ -1458,6 +1458,19 @@ export default function AdvertiserApp() {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   const dueSubInvoice = unpaidSubInvoices[0];
+  // ── AND HOW MANY THERE ARE ────────────────────────────────────────
+  //
+  // The comment on unpaidSubInvoices promises "the count below says
+  // plainly when more than one is open". That render site never
+  // existed: `.length` was computed and printed nowhere, so a customer
+  // with two open invoices read the newest one's figure as the whole
+  // amount owed — EUR 5.00 on screen while EUR 205 was due, and the
+  // nightly run collects both.
+  const unpaidSubCount = unpaidSubInvoices.length;
+  const unpaidSubTotal =
+    Math.round(
+      unpaidSubInvoices.reduce((a, i) => a + (Number(i.total) || 0), 0) * 100,
+    ) / 100;
   // invoices.currency first, items[0] only as a fallback — the same order
   // the paying RPC uses. The modal was fixed for this and the CARD and the
   // amount column were not, so one invoice could read €120 on the button
@@ -1540,7 +1553,11 @@ export default function AdvertiserApp() {
   // says why that is the wrong number: a customer on a subscription
   // discount then reads "EUR 200.00 / month" on their plan card while
   // EUR 5.00 leaves their wallet.
-  const { data: lastChargedRow, isError: lastChargedError } = useQuery<{
+  const {
+    data: lastChargedRow,
+    isError: lastChargedError,
+    isSuccess: lastChargedSettled,
+  } = useQuery<{
     total: number | null;
   } | null>({
     queryKey: ["adv-last-charged-sub", advertiserId, tenantId],
@@ -1575,7 +1592,11 @@ export default function AdvertiserApp() {
       (invoices ?? []).find(
         (i) => i.type === "subscription" && i.status === "paid",
       )?.total);
-  const chargedUnknown = lastChargedError;
+  // isError OR not-yet-answered. `lastChargedError` alone left the LIST
+  // price on screen for the whole first paint — and the subscription
+  // row lands first almost every time, so a customer on a discount read
+  // "EUR 200.00 / month" before it corrected itself to EUR 5.00.
+  const chargedUnknown = lastChargedError || !lastChargedSettled;
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -1871,7 +1892,20 @@ export default function AdvertiserApp() {
   // Before these guards those screens were wrong-but-settled; a
   // spinner that never ends is worse.
   const dueUnknown =
-    advReadsWillRun && (invError || dueInvError || invLoading || !dueInvLoaded);
+    advReadsWillRun &&
+    (invError ||
+      dueInvError ||
+      invLoading ||
+      !dueInvLoaded ||
+      // planPaidError was not in here, and "This month is paid" with a
+      // green tick is drawn from that read. So a failed lookup told a
+      // customer who has never paid anything that they had — which is
+      // exactly the day-one case the note further up was written to
+      // stop, reached through the error path instead.
+      planPaidError ||
+      // …and the subscription read, which the dashboard Plan tile turns
+      // into the words "No subscription".
+      subError);
   // WHY the Request button is dead, in the customer's words. It always
   // blamed the plan — "Your plan has to be active first" — and
   // canRequestAccount fails on EITHER leg, so somebody whose plan is paid
@@ -2892,10 +2926,19 @@ export default function AdvertiserApp() {
                     button. "Next payment" is a statement; "Monthly fee …
                     due" next to Pay is a demand. */}
                 <span className="dtx">
-                  {dueSubInvoice ? "Outstanding" : "Next payment"}{" "}
+                  {dueSubInvoice
+                    ? unpaidSubCount > 1
+                      ? `Outstanding (${unpaidSubCount} invoices)`
+                      : "Outstanding"
+                    : "Next payment"}{" "}
                   <b>
+                    {/* The TOTAL when more than one is open. This showed
+                        the newest invoice's figure as the whole amount
+                        owed, so two open months read as one. */}
                     {dueSubInvoice
-                      ? dueBillAmount
+                      ? unpaidSubCount > 1
+                        ? `${dueSubSymbol}${money2(unpaidSubTotal)}`
+                        : dueBillAmount
                       : chargedUnknown
                         ? "—"
                         : planMoney(lastChargedAmount ?? subscription.amount)}
@@ -4677,8 +4720,25 @@ export default function AdvertiserApp() {
                                     settled with its parent invoice, and
                                     offering it separately is what made the
                                     page read as a list of debts. */}
+                                {/* ── EVERY ONE, NOT ONLY THE NEWEST ──
+                                    `inv.id === dueSubInvoice?.id` offered
+                                    Pay on the newest unpaid subscription
+                                    invoice and on nothing else. With two
+                                    open — the plan-change case the note
+                                    above describes, or two missed months
+                                    — the older one rendered "Past due"
+                                    with Download and View beside it and
+                                    NO way to pay it anywhere in the app.
+                                    The nightly run collects every unpaid
+                                    subscription invoice past its due
+                                    date, so it takes that one too; a
+                                    customer who funded the wallet to the
+                                    figure this screen showed them is then
+                                    short, and dunning marks them past
+                                    due. Every unpaid one is payable. */}
                                 {!settled &&
-                                  (inv.id === dueSubInvoice?.id ||
+                                  (inv.type === "subscription" ||
+                                    inv.type === "subscription_adjustment" ||
                                     inv.type === "ad_account_fee" ||
                                     inv.type === "manual_invoice") && (
                                   <button
