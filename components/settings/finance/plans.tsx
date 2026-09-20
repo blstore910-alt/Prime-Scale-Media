@@ -89,8 +89,32 @@ export default function PlansCard() {
       })),
     [data],
   );
+  // ── A REFETCH MUST NOT EAT WHAT SOMEBODY IS TYPING ───────────────
+  //
+  // `useEffect(() => setRows(initial), [initial])` looks harmless and is
+  // not: `initial` is a useMemo over the query's data, so ANY refetch
+  // hands back a new array identity and this blew away every edit in
+  // progress — every typed value and every `dirty` flag — with no
+  // message, leaving "Save changes" disabled again.
+  //
+  // It is reproducible without leaving the screen: edit a fee on an
+  // existing row, then use the Add form at the bottom. The add
+  // succeeds, invalidate() fires, the active query refetches, and the
+  // earlier edit is gone. refetchOnReconnect also defaults to true, so
+  // a network blip does the same. This is the screen that sets what
+  // customers are charged.
+  //
+  // So: rows from the server are adopted only while NOTHING is dirty.
+  // Once somebody is typing, the screen is theirs until they save or
+  // reload — which is the same rule CLAUDE.md states for every long
+  // form in this app ("never lose typing").
   const [rows, setRows] = useState<Row[]>(initial);
-  useEffect(() => setRows(initial), [initial]);
+  useEffect(() => {
+    setRows((current) => {
+      if (current.some((r) => r.dirty)) return current;
+      return initial;
+    });
+  }, [initial]);
 
   const [nName, setNName] = useState("");
   const [nKind, setNKind] = useState<PlanKind>("community");

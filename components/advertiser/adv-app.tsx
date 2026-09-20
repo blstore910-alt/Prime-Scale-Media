@@ -60,6 +60,7 @@ import FinanceReport from "@/components/finance/finance-report";
 import { isAccountLocked } from "@/lib/pure-account-status";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
 import { catalogForRole } from "@/lib/notification-catalog";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 
 dayjs.extend(relativeTime);
 
@@ -109,6 +110,14 @@ const money2 = (n: number | string | null | undefined) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(n ?? 0));
+// A figure whose currency is not fixed by the screen it is on — an ad
+// account has its own, and printing every one of them in dollars is
+// how "Funded to date $97.00" ended up on a euro account.
+const money2sym = (
+  n: number | string | null | undefined,
+  currency: string | null | undefined,
+) =>
+  (String(currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€") + money2(n);
 
 // Support inbox for the "contact us" actions. Change here if it differs.
 const SUPPORT_EMAIL = "contact@primescalemedia.com";
@@ -591,7 +600,7 @@ export default function AdvertiserApp() {
   // because topup_amount is USD by construction for every payment
   // currency.
   const { data: accountTotals, isError: accountTotalsError } = useQuery<
-    Record<string, number>
+    Record<string, { amount: number; currency: string }>
   >({
     queryKey: ["adv-account-totals", advertiserId],
     enabled: !!advertiserId,
@@ -611,10 +620,12 @@ export default function AdvertiserApp() {
       const paged = await pageAllRows<{
         account_id: string | null;
         topup_amount: number | string | null;
+        topup_usd?: number | string | null;
+        currency?: string | null;
       }>((from, to) =>
         supabase
           .from("top_ups_view")
-          .select("account_id, topup_amount, status")
+          .select("account_id, topup_amount, topup_usd, currency, status")
           .eq("advertiser_id", advertiserId!)
           .eq("status", "completed")
           .not("is_deleted", "is", true)
@@ -623,14 +634,35 @@ export default function AdvertiserApp() {
       );
       if (paged.error) throw new Error(paged.error);
       const data = paged.rows;
-      const byAccount: Record<string, number> = {};
+      // ── IN THE ACCOUNT'S OWN MONEY ─────────────────────────────
+      //
+      // This summed topup_amount and the card printed it with usd(), so
+      // a EUR account that had just been funded with EUR 97 read
+      // "Funded to date $97.00" — the right number wearing the wrong
+      // currency, on the customer's own card. topup_amount is the net
+      // in the PAYMENT currency on any row the customer filed, and the
+      // payment currency is the account's; only the admin create paths
+      // store dollars, and they are told apart by topup_usd. See
+      // lib/pure-topup-landed.
+      const byAccount: Record<
+        string,
+        { amount: number; currency: string }
+      > = {};
       for (const row of (data ?? []) as unknown as {
         account_id: string | null;
         topup_amount: number | string | null;
+        topup_usd?: number | string | null;
+        currency?: string | null;
       }[]) {
         const key = String(row.account_id ?? "");
         if (!key) continue;
-        byAccount[key] = (byAccount[key] ?? 0) + (Number(row.topup_amount) || 0);
+        const { amount, currency } = landedOnAccount(row);
+        if (amount === null) continue;
+        const soFar = byAccount[key];
+        byAccount[key] = {
+          amount: Math.round(((soFar?.amount ?? 0) + amount) * 100) / 100,
+          currency: soFar?.currency ?? currency,
+        };
       }
       return byAccount;
     },
@@ -2328,10 +2360,15 @@ export default function AdvertiserApp() {
             <span>Funded to date</span>
             <b>—</b>
           </div>
-        ) : Number(accountTotals?.[a.id] ?? 0) > 0 ? (
+        ) : (accountTotals?.[a.id]?.amount ?? 0) > 0 ? (
           <div className="kv">
             <span>Funded to date</span>
-            <b>{usd(Number(accountTotals?.[a.id] ?? 0))}</b>
+            <b>
+              {money2sym(
+                accountTotals![a.id].amount,
+                accountTotals![a.id].currency,
+              )}
+            </b>
           </div>
         ) : null}
         {locked ? (
