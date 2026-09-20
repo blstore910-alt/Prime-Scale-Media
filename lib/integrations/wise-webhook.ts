@@ -9,6 +9,7 @@ import {
   type PendingTopup,
 } from "./wise-match";
 import { fetchWiseTxnDetail } from "./wise-api";
+import { isMaintenanceMode } from "@/actions/_shared";
 
 type WiseEvent = {
   event_type?: string;
@@ -193,9 +194,24 @@ export async function processWiseWebhook(
   // Safe start: nothing auto-completes. A confident match is stored
   // as a SUGGESTION for an admin to confirm. Flip WISE_AUTO_SETTLE=true
   // once matching is proven and matches will complete on their own.
-  const autoSettle = /^(true|1|yes|on)$/i.test(
-    process.env.WISE_AUTO_SETTLE ?? "",
-  );
+  // ── AND MAINTENANCE_MODE FREEZES THE CREDIT ───────────────────────
+  //
+  // The two webhook routes never call isMaintenanceMode(), and they run
+  // on the service-role client, so FREEZE-MONEY.sql's revoke cannot
+  // reach them either. With auto-settle on, a EUR 5,000 credit landed
+  // in a customer's wallet during a freeze declared BECAUSE wallet
+  // balances were wrong -- straight into the numbers being
+  // investigated.
+  //
+  // The deposit is still RECORDED during a freeze, which is right: a
+  // payment that arrived is a fact, and refusing the webhook would
+  // make Wise retry and eventually give up. What is suspended is the
+  // automatic crediting, so an admin confirms it by hand afterwards --
+  // which is exactly the safe-start behaviour this flag already has an
+  // "off" setting for.
+  const autoSettle =
+    !isMaintenanceMode() &&
+    /^(true|1|yes|on)$/i.test(process.env.WISE_AUTO_SETTLE ?? "");
 
   const { data: settleData, error: settleErr } = await supabase.rpc(
     "wise_record_and_settle",

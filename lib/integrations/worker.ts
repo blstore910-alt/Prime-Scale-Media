@@ -415,19 +415,38 @@ export async function processIntegrationJobs(
       else summary.failed++;
     } catch (err) {
       summary.skipped++;
+      // ── max_attempts BOUNDS THIS PATH TOO ───────────────────────
+      //
+      // This put the job straight back to `pending` and never
+      // consulted max_attempts -- only finaliseJob applies the
+      // terminal test, and finaliseJob is what threw. claimBatch
+      // increments `attempts` on every claim, so the counter climbed
+      // past the limit with nothing reading it, and backoffSeconds
+      // caps at 1800s. A job that throws every pass therefore re-ran
+      // every thirty minutes for ever, status `pending`, invisible as
+      // a failure and counted as "held" by getAutoPushStatus.
+      //
+      // A money job that cannot be made to work has to become visible.
+      const spent = (job.attempts ?? 0) + 1;
+      const giveUp = spent >= job.max_attempts;
       await ctx.supabase
         .from("integration_jobs")
         .update({
-          status: "pending",
+          status: giveUp ? "failed" : "pending",
           last_error: `worker threw: ${
             err instanceof Error ? err.message : "unknown"
           }`,
-          next_run_at: new Date(
-            (ctx.now?.() ?? new Date()).getTime() +
-              backoffSeconds(job.attempts) * 1000,
-          ).toISOString(),
+          ...(giveUp
+            ? { finished_at: new Date((ctx.now?.() ?? new Date())).toISOString() }
+            : {
+                next_run_at: new Date(
+                  (ctx.now?.() ?? new Date()).getTime() +
+                    backoffSeconds(job.attempts) * 1000,
+                ).toISOString(),
+              }),
         })
         .eq("id", job.id);
+      if (giveUp) summary.failed++;
     }
   }
   return summary;

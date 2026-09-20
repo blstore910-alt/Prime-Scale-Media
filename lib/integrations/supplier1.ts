@@ -131,6 +131,37 @@ async function seamxFetch<T>(
       const retryable = res.status >= 500 || res.status === 429;
       return { ok: false, error: String(msg), retryable };
     }
+    // ── A 200 WITH NOTHING IN IT IS NOT A SUCCESS ─────────────────
+    //
+    // A body that is empty or unparseable left json = null and this
+    // returned ok. pushTopup then read res.data?.data?.status =>
+    // undefined => mapMovementStatus(undefined) => "queued", with an
+    // empty external id, and the worker stamped the job succeeded --
+    // because it only rejects status === "failed".
+    //
+    // So a proxy or WAF answering a $2,000 top-up with a 200 HTML
+    // interstitial looked exactly like a funded ad account. The
+    // customer's $2,000 had been collected, nothing in the app
+    // compares our figure to the supplier's, and no screen said
+    // anything. Same for a bare "200 {}".
+    //
+    // Retryable: a gateway that returns an empty 200 is usually
+    // transient, and a genuine no-content endpoint would not be asked
+    // for its payload.
+    if (json === null && text.trim().length > 0) {
+      return {
+        ok: false,
+        error: `SeamX answered ${res.status} with a body that is not JSON: ${text.slice(0, 200)}`,
+        retryable: true,
+      };
+    }
+    if (json === null) {
+      return {
+        ok: false,
+        error: `SeamX answered ${res.status} with an empty body, so nothing can be confirmed.`,
+        retryable: true,
+      };
+    }
     return { ok: true, data: json as T };
   } catch (err) {
     // Never reached the remote (DNS/timeout/network) — safe to retry.
