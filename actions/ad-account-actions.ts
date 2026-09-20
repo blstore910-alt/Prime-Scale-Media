@@ -408,18 +408,44 @@ export async function updateAdAccountAsAdmin(
   // Same shape with advertiser_id and a 25% plan.
   //
   // What the account IS decides what its agreed rate is.
+  //
+  // ── AND A SHIFT OF THE BASIS COUNTS AS A PRICE CHANGE ─────────────
+  //
+  // Gating on the fee moving left a three-call walk-around: point the
+  // account at a type whose default is 25 (no fee change, gate skipped),
+  // write fee 25 (allowed, because the lookup now matches that type),
+  // point it back (no fee change, gate skipped). `platform` and
+  // `advertiser_id` are what DEFINE the agreed rate, so moving either
+  // under a fee that is already set has to justify that fee again.
+  const basisMoves =
+    ("platform" in cleaned &&
+      String(cleaned.platform ?? "") !==
+        String((existing as { platform?: unknown }).platform ?? "")) ||
+    ("advertiser_id" in cleaned &&
+      String(cleaned.advertiser_id ?? "") !==
+        String((existing as { advertiser_id?: unknown }).advertiser_id ?? ""));
+  const feeNow =
+    "fee" in cleaned ? cleaned.fee : (existing as { fee?: unknown }).fee;
   const feeChanges =
-    "fee" in cleaned &&
-    asRate(cleaned.fee) !== asRate((existing as { fee?: unknown }).fee);
+    ("fee" in cleaned &&
+      asRate(cleaned.fee) !== asRate((existing as { fee?: unknown }).fee)) ||
+    (basisMoves && asRate(feeNow) > 0);
   if (feeChanges) {
     const isPrice = await feeIsAPrice(supabase, {
+      // The row as it will STAND after this write: a reassignment is
+      // judged against where it is going, not where it came from.
       advertiserId:
-        String((existing as { advertiser_id?: unknown }).advertiser_id ?? "") ||
-        null,
+        String(
+          cleaned.advertiser_id ??
+            (existing as { advertiser_id?: unknown }).advertiser_id ??
+            "",
+        ) || null,
       platform:
-        String((existing as { platform?: unknown }).platform ?? "") || null,
+        String(
+          cleaned.platform ?? (existing as { platform?: unknown }).platform ?? "",
+        ) || null,
       tenantId: profile.tenant_id,
-      fee: cleaned.fee,
+      fee: feeNow,
     });
     if (isPrice) {
       const owner = await isTenantOwner(

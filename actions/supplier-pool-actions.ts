@@ -342,9 +342,18 @@ export async function assignSupplierAdAccount(input: {
   // tooltip telling them to type a fee they cannot type.
   //
   // The pool row knows its own type. That is the one to ask about.
+  // ── THE POOL ROW FIRST, NOT THE PAYLOAD ───────────────────────────
+  //
+  // `input.platform` won, and a server action's arguments are whatever
+  // the client POSTs -- so an employee admin sending
+  // { fee: 25, platform: "a-type-they-just-made" } had the allowance
+  // looked up against their own value and got 25 through in ONE call.
+  // The pool row knows what this account actually is; the caller's slug
+  // is only used further down, where it IS validated against
+  // ad_account_types for this tenant.
   const resolvedPlatform =
-    (typeof input.platform === "string" && input.platform) ||
     String((pool as { platform?: unknown }).platform ?? "") ||
+    (typeof input.platform === "string" && input.platform) ||
     null;
   if (
     await feeIsAPrice(supabase, {
