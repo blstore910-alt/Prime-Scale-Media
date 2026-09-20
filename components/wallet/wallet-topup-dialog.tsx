@@ -439,24 +439,36 @@ export default function WalletTopupDialog({
     setCurrency(initialCurrency === "USD" ? "USD" : "EUR");
   }, [open, initialCurrency]);
 
-  // Reset state when dialog opens/closes
+  // ── AN UNCANCELLED TIMER OUTLIVES THE CLOSE THAT STARTED IT ────────
+  //
+  // This dialog never unmounts -- it is mounted unconditionally by the
+  // shell -- so a 300ms reset with no clearTimeout keeps running after
+  // the dialog is opened again. Close the EUR top-up and press Top up
+  // inside the USD card within 300ms: the open effect correctly sets
+  // USD, then this fires with the captured initialCurrency and sets it
+  // back to EUR, along with the step, the bank group, the transfer
+  // currency and reset(). That is the "dollars wired, claim filed
+  // against the euro wallet" incident this file documents further up,
+  // still reachable -- and in the ordinary case it silently destroys a
+  // half-finished top-up (typed amount, uploaded slip) on any quick
+  // close-and-reopen.
   useEffect(() => {
-    if (!open) {
-      setTimeout(() => {
-        setStep(STEPS.SELECTION);
-        setCurrency(initialCurrency === "USD" ? "USD" : "EUR");
-        setBankGroup("turlit");
-        setTransferCurrency("EUR");
-        setPaymentSlipUrl(null);
-        setPaymentSlipPreview(null);
-        setPreviewSrc(null);
-        setPaymentSlipError(null);
-        setSlipName(null);
-        setIsUploadingSlip(false);
+    if (open) return;
+    const t = setTimeout(() => {
+      setStep(STEPS.SELECTION);
+      setCurrency(initialCurrency === "USD" ? "USD" : "EUR");
+      setBankGroup("turlit");
+      setTransferCurrency("EUR");
+      setPaymentSlipUrl(null);
+      setPaymentSlipPreview(null);
+      setPreviewSrc(null);
+      setPaymentSlipError(null);
+      setSlipName(null);
+      setIsUploadingSlip(false);
 
-        reset();
-      }, 300);
-    }
+      reset();
+    }, 300);
+    return () => clearTimeout(t);
   }, [open, reset, initialCurrency]);
 
   useEffect(() => {
@@ -979,22 +991,44 @@ export default function WalletTopupDialog({
                       ? "For a NEW transfer, use this reference instead:"
                       : "Put this reference in the description of your transfer, so we can match your payment."}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => copyReference()}
-                    className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    aria-label={`Copy reference ${formatPaymentReference(clientCode, referenceNo)}`}
-                  >
-                    {formatPaymentReference(clientCode, referenceNo)}
-                    {refCopied ? (
-                      <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                    ) : (
-                      <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                  </button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
-                    {refCopied ? "Copied" : "Tap to copy"}
-                  </p>
+                  {/* ── AN EMPTY BOX CAPTIONED "Tap to copy" ──────────
+                      referenceNo is `wallet?.reference_no ?? null` and
+                      nothing gated the flow on it, so when it was null
+                      this rendered an EMPTY box with a copy icon; the
+                      tap hit `if (!ref) return;` and did nothing,
+                      silently. The bank details above it are complete
+                      and correct, so the customer wires the money with
+                      no reference at all -- and an unreferenced deposit
+                      is one nothing can match. 238 of the 258 deposits
+                      on this database already cannot be matched
+                      automatically; this is one way that happens. */}
+                  {formatPaymentReference(clientCode, referenceNo) ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => copyReference()}
+                        className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        aria-label={`Copy reference ${formatPaymentReference(clientCode, referenceNo)}`}
+                      >
+                        {formatPaymentReference(clientCode, referenceNo)}
+                        {refCopied ? (
+                          <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                      </button>
+                      <p className="mt-2 text-center text-xs text-muted-foreground">
+                        {refCopied ? "Copied" : "Tap to copy"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-center text-sm font-medium text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                      We could not produce a reference for this transfer.
+                      Do NOT send the money yet — reload this page, and
+                      tell us if it happens again. A transfer with no
+                      reference cannot be matched to your account.
+                    </p>
+                  )}
                 </div>
 
                 {/* The last moment before the money leaves their bank. */}

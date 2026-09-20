@@ -445,10 +445,24 @@ export default function AdAccountRequestForm({
       },
       {
         onSuccess: async () => {
-          await draft.clear();
-          reset();
+          // ── CLOSE THE CONFIRMATION FIRST ──────────────────────────
+          //
+          // draft.clear() opens IndexedDB and runs a readwrite
+          // transaction. For the whole of that the RPC has committed,
+          // the success toast has fired, isPending is false so the
+          // confirm button has re-enabled with its normal label, and
+          // the submitLatch has already released -- it fires when
+          // handleSubmit resolves, not when the mutation settles.
+          //
+          // So the customer reads "Request sent" over a modal still
+          // asking "Send this request? Cost: EUR 50 from your wallet",
+          // with a live button. A second tap re-enters onSubmit with
+          // `confirming` still truthy and calls mutate() again: a
+          // second EUR 50 debit and a second request.
           setConfirming(null);
           setOpen(false);
+          reset();
+          await draft.clear();
         },
         // ── A RETRY MUST NOT BE ONE TAP AWAY ───────────────────────────
         //
