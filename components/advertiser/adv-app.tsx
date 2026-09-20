@@ -1467,10 +1467,24 @@ export default function AdvertiserApp() {
   // amount owed — EUR 5.00 on screen while EUR 205 was due, and the
   // nightly run collects both.
   const unpaidSubCount = unpaidSubInvoices.length;
-  const unpaidSubTotal =
-    Math.round(
-      unpaidSubInvoices.reduce((a, i) => a + (Number(i.total) || 0), 0) * 100,
-    ) / 100;
+  // ── PER CURRENCY, BECAUSE A SUM ACROSS THEM IS NOT A NUMBER ──────
+  //
+  // My own first pass added these up with one reduce and printed the
+  // newest invoice's symbol on the result: a EUR 200 invoice beside a
+  // USD 500 one came out as "EUR 700.00", a figure that exists in no
+  // currency. And the mixed case is not hypothetical — changing a plan
+  // to another currency is exactly what produces it.
+  const unpaidSubByCurrency = unpaidSubInvoices.reduce<Record<string, number>>(
+    (acc, i) => {
+      const cur = invCurrency(i);
+      acc[cur] = Math.round(((acc[cur] ?? 0) + (Number(i.total) || 0)) * 100) / 100;
+      return acc;
+    },
+    {},
+  );
+  const unpaidSubText = Object.entries(unpaidSubByCurrency)
+    .map(([cur, amt]) => `${cur === "USD" ? "$" : "€"}${money2(amt)}`)
+    .join(" + ");
   // invoices.currency first, items[0] only as a fallback — the same order
   // the paying RPC uses. The modal was fixed for this and the CARD and the
   // amount column were not, so one invoice could read €120 on the button
@@ -1559,6 +1573,7 @@ export default function AdvertiserApp() {
     isSuccess: lastChargedSettled,
   } = useQuery<{
     total: number | null;
+    currency: string | null;
   } | null>({
     queryKey: ["adv-last-charged-sub", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
@@ -1566,7 +1581,14 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("invoices")
-        .select("total")
+        // ── AND ITS CURRENCY ──────────────────────────────────────
+        //
+        // This selected `total` alone and the figure was printed with
+        // `planCur`, which is subscriptions.currency. After a plan
+        // moves to another currency the number comes from one row and
+        // the symbol from another: "$200.00 / month" for a EUR 200
+        // invoice on a USD plan, where neither leg is the price.
+        .select("total, currency")
         .eq("tenant_id", tenantId)
         .eq("advertiser_id", advertiserId)
         .eq("type", "subscription")
@@ -1575,7 +1597,10 @@ export default function AdvertiserApp() {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as { total: number | null } | null;
+      return (data ?? null) as {
+        total: number | null;
+        currency: string | null;
+      } | null;
     },
   });
   // ── AND A FAILED READ IS NOT "NEVER CHARGED" ──────────────────────
@@ -1597,6 +1622,12 @@ export default function AdvertiserApp() {
   // row lands first almost every time, so a customer on a discount read
   // "EUR 200.00 / month" before it corrected itself to EUR 5.00.
   const chargedUnknown = lastChargedError || !lastChargedSettled;
+  // The symbol belongs to the row the figure came from. planCur is
+  // subscriptions.currency, and after a plan moves to another currency
+  // that is a different row entirely.
+  const chargedCur = (lastChargedRow?.currency ?? planCur).toUpperCase();
+  const chargedMoney = (v: number | string | null | undefined) =>
+    (chargedCur === "USD" ? "$" : "€") + money2(v);
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -2937,11 +2968,13 @@ export default function AdvertiserApp() {
                         owed, so two open months read as one. */}
                     {dueSubInvoice
                       ? unpaidSubCount > 1
-                        ? `${dueSubSymbol}${money2(unpaidSubTotal)}`
+                        ? unpaidSubText
                         : dueBillAmount
                       : chargedUnknown
                         ? "—"
-                        : planMoney(lastChargedAmount ?? subscription.amount)}
+                        : lastChargedAmount != null
+                          ? chargedMoney(lastChargedAmount)
+                          : planMoney(subscription.amount)}
                   </b>
                   {/* ── ONLY WHEN THE DATE MATTERS ────────────────────
                       This row is a single line by design, so "Next
@@ -4296,7 +4329,9 @@ export default function AdvertiserApp() {
                       // no unpaid invoice were not.
                       (chargedUnknown
                         ? "Subscription"
-                        : `${planMoney(lastChargedAmount ?? subscription.amount)} / month`)
+                        : lastChargedAmount != null
+                          ? `${chargedMoney(lastChargedAmount)} / month`
+                          : `${planMoney(subscription.amount)} / month`)
                     : "Subscription"}
                 </div>
                 <div className="meta">
@@ -4320,8 +4355,18 @@ export default function AdvertiserApp() {
                       screen where they ask for the change, is the one
                       sentence that decides whether they keep enough in
                       the wallet. */}
-                  A change is charged pro-rata straight away. Ask us and
-                  we will tell you the figure first.
+                  {/* ── NOT PRO-RATA. IT SAYS SO BECAUSE IT IS TRUE ──
+                      change_subscription_amount raises the DIFFERENCE
+                      between the old and the new monthly figure, with
+                      no day count anywhere in it — so a change on the
+                      28th charges a whole month's difference for two
+                      days. Telling a customer it is pro-rata on the one
+                      screen where they decide is the sentence that
+                      makes them keep the wrong amount in the wallet. */}
+                  A change is charged straight away, as the difference
+                  between the old and the new monthly amount — not split
+                  by the days left in the month. Ask us and we will tell
+                  you the figure first.
                 </div>
               </div>
               <div className="card">
@@ -4419,7 +4464,11 @@ export default function AdvertiserApp() {
                               ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}${
                                   chargedUnknown
                                     ? ""
-                                    : ` · ${planMoney2(lastChargedAmount ?? subscription.amount)}`
+                                    : ` · ${
+                                        lastChargedAmount != null
+                                          ? chargedMoney(lastChargedAmount)
+                                          : planMoney2(subscription.amount)
+                                      }`
                                 }`
                               : "We'll tell you when the next one is ready"}
                         </div>
