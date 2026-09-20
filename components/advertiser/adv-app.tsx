@@ -2928,8 +2928,9 @@ export default function AdvertiserApp() {
                                     String(t.status ?? "").toLowerCase() ===
                                     "completed"
                                       ? "muted"
-                                      : String(t.status ?? "").toLowerCase() ===
-                                          "rejected"
+                                      : ["rejected", "failed"].includes(
+                                            String(t.status ?? "").toLowerCase(),
+                                          )
                                         ? "due"
                                         : "pend"
                                   }`}
@@ -2937,8 +2938,18 @@ export default function AdvertiserApp() {
                                   {String(t.status ?? "").toLowerCase() ===
                                   "completed"
                                     ? "On the account"
-                                    : String(t.status ?? "").toLowerCase() ===
-                                        "rejected"
+                                    : /* FAILED IS NOT ON ITS WAY. The
+                                         badge special-cased completed and
+                                         rejected and let everything else
+                                         fall through, so a `failed`
+                                         funding -- a real status, handled
+                                         as failure everywhere else --
+                                         told the customer their money was
+                                         en route to an account it will
+                                         never reach. */
+                                      ["rejected", "failed"].includes(
+                                          String(t.status ?? "").toLowerCase(),
+                                        )
                                       ? "Refused"
                                       : "On its way"}
                                 </span>

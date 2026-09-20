@@ -218,6 +218,10 @@ export async function assignSupplierAdAccount(input: {
   /** What WE pay the supplier. Defaults to the supplier's own reported fee. */
   supplierFeePct?: number | null;
   name?: string;
+  /** An ad-account TYPE slug. Without it the family's only active type
+   *  is used, and a family with several is left unresolved rather than
+   *  guessed -- the slug decides which bank the customer is told to pay. */
+  platform?: string;
 }): Promise<ActionResult<{ ad_account_id: string }>> {
   const ctx = await requireAdminCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
@@ -374,9 +378,47 @@ export async function assignSupplierAdAccount(input: {
   // an active type of that family, by sort order, and fall back to the
   // family name only when the tenant has none — a wrong-looking slug is
   // better than a null one, and the settings screen can correct it.
+  // ── A GUESS IS WORSE THAN "UNKNOWN" HERE ──────────────────────────
+  //
+  // This resolved the family to "the first active type by sort_order",
+  // and called it the tenant's default. There is no default: sort_order
+  // is a display order, and the seed ships hk-meta-premium at 1 and
+  // eu-meta-psm at 5. So every pool-allocated Meta account -- EU ones
+  // included -- was stamped hk-meta-premium.
+  //
+  // That is not a cosmetic mislabel. BANK_BY_TYPE_SLUG routes
+  // eu-meta-psm-gh to one beneficiary and the HK types to another, so a
+  // wrong slug tells the customer to wire real money to the wrong
+  // company. It also shows the admin a confident supplier pill pointing
+  // at the wrong dashboard for a manual top-up.
+  //
+  // So: take the type the caller chose; otherwise use the family's only
+  // active type when there IS only one; otherwise leave the family name
+  // in place and say so. A family name matches no bank rule, so the
+  // customer's top-up screen says it cannot name a beneficiary yet --
+  // which is true, and sends them to ask rather than to pay the wrong
+  // account.
   const family = platformGroupFromSlug(String(pool.platform ?? ""));
   let typeSlug = String(pool.platform ?? "");
-  if (family) {
+  let typeUnresolved = false;
+
+  const chosen = String(input.platform ?? "").trim();
+  if (chosen) {
+    const { data: picked } = await supabase
+      .from("ad_account_types")
+      .select("slug")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("slug", chosen)
+      .maybeSingle();
+    if (!picked) {
+      return {
+        ok: false,
+        error: `"${chosen}" is not an ad-account type on this tenant.`,
+        code: "invalid",
+      };
+    }
+    typeSlug = chosen;
+  } else if (family) {
     const { data: types } = await supabase
       .from("ad_account_types")
       .select("slug, platform_group, is_active, sort_order")
@@ -384,9 +426,13 @@ export async function assignSupplierAdAccount(input: {
       .eq("platform_group", family)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
-      .limit(1);
-    const match = (types ?? [])[0] as { slug?: string } | undefined;
-    if (match?.slug) typeSlug = match.slug;
+      .limit(5);
+    const list = (types ?? []) as { slug?: string }[];
+    if (list.length === 1 && list[0]?.slug) {
+      typeSlug = list[0].slug;
+    } else if (list.length > 1) {
+      typeUnresolved = true;
+    }
   }
 
   const { data: created, error: createError } = await supabase
@@ -521,6 +567,10 @@ export async function assignSupplierAdAccount(input: {
     // missing link costs us the provenance trail. Neither undoes the
     // allocation, which already holds.
     warning = `Allocated, but the supplier fee and provenance were not saved: ${costError.message}`;
+  }
+  if (typeUnresolved) {
+    const note = `This tenant has several active ${family} types, so the account was created against "${typeSlug}" rather than a guess. Set its type on the account before the customer tops it up -- the type decides which bank they are told to pay.`;
+    warning = warning ? `${warning} ${note}` : note;
   }
 
   return { ok: true, data: { ad_account_id: created.id }, warning };

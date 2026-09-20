@@ -28,7 +28,7 @@ import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Button } from "@/components/ui/button";
 import { CURRENCIES } from "@/lib/constants";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { AdAccount } from "@/lib/types/account";
 import {
   Table,
@@ -217,6 +217,36 @@ export default function BulkTopupAdAccountsDialog({
     () => buildBulkTopupSchema(isAdvertiser),
     [isAdvertiser],
   );
+  // One server-side quote per account, same call the single-account form
+  // makes. Returns the percentage only — no plan name, no perk name,
+  // nothing about where the rate comes from.
+  const accountIds = useMemo(
+    () => accounts.map((a) => a.id).filter(Boolean),
+    [accounts],
+  );
+  const feeQuotes = useQuery({
+    queryKey: ["bulk-topup-fee-quotes", accountIds.join(",")],
+    enabled: accountIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const out: Record<string, number> = {};
+      const results = await Promise.all(
+        accountIds.map(async (id) => {
+          const res = await quoteTopupFeePct(id);
+          return res.ok ? ([id, res.data.pct] as const) : null;
+        }),
+      );
+      for (const r of results) if (r) out[r[0]] = r[1];
+      return out;
+    },
+  });
+  const feesSettled = accountIds.length === 0 || feeQuotes.isSuccess;
+  // A quote that ERRORED (network, not a refused single id -- those are
+  // swallowed per-id) used to leave submit disabled for ever behind
+  // "Working out the fee for each account", with nothing on screen
+  // saying why. Fail closed, but say so and offer the retry.
+  const feesFailed = accountIds.length > 0 && feeQuotes.isError;
+
   const defaultRows = useMemo<BulkTopupRow[]>(
     () =>
       accounts.map((account) => ({
@@ -255,36 +285,15 @@ export default function BulkTopupAdAccountsDialog({
         // wallet total, and the server took 5% of each row — on up to
         // two hundred rows, which is real money nobody was shown. The
         // quote below replaces this as soon as it lands.
-        fee: String(account.fee ?? 0),
+        // Seeded from the quote when it has already landed, so opening
+        // the dialog shows the real rate from the first frame rather
+        // than 0 followed by a flicker.
+        fee: String(feeQuotes.data?.[account.id] ?? account.fee ?? 0),
         min_topup: account.min_topup ?? 0,
       })),
-    [accounts],
+    [accounts, feeQuotes.data],
   );
 
-  // One server-side quote per account, same call the single-account form
-  // makes. Returns the percentage only — no plan name, no perk name,
-  // nothing about where the rate comes from.
-  const accountIds = useMemo(
-    () => accounts.map((a) => a.id).filter(Boolean),
-    [accounts],
-  );
-  const feeQuotes = useQuery({
-    queryKey: ["bulk-topup-fee-quotes", accountIds.join(",")],
-    enabled: accountIds.length > 0,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const out: Record<string, number> = {};
-      const results = await Promise.all(
-        accountIds.map(async (id) => {
-          const res = await quoteTopupFeePct(id);
-          return res.ok ? ([id, res.data.pct] as const) : null;
-        }),
-      );
-      for (const r of results) if (r) out[r[0]] = r[1];
-      return out;
-    },
-  });
-  const feesSettled = accountIds.length === 0 || feeQuotes.isSuccess;
 
   const {
     control,
@@ -306,11 +315,39 @@ export default function BulkTopupAdAccountsDialog({
 
   const rows = watch("rows");
 
+  // ── SEEDING ON OPEN MUST NOT UNDO THE QUOTE ──────────────────────
+  //
+  // Two effects both called reset, and the wrong one won. The quote
+  // query is enabled on accountIds.length, NOT on `open`, so it fires
+  // when the parent table mounts this component -- long before anybody
+  // clicks Bulk Topup. Its result was written into a form nobody had
+  // seen; then opening the dialog reset every row back to
+  // String(account.fee ?? 0); and the quote effect never re-ran,
+  // because `quoted` keeps its identity for staleTime and `reset` is
+  // stable.
+  //
+  // So every box read the seed -- 0% on an account with no fee column
+  // -- while bulkCreateTopupsAsAdmin passes that box only as a FALLBACK
+  // to resolveEffectiveFeePct, which then charges the plan's 5%. The
+  // admin reads 0 and the wallet is debited 5. On EUR 50,000 across
+  // twenty rows that is about EUR 2,900 nobody was shown.
+  //
+  // It was intermittently right, which is worse: open the dialog before
+  // the quote settles and the ordering reverses.
+  //
+  // Fixed by seeding on the OPEN TRANSITION only, from a ref, so a late
+  // quote cannot trigger a full reset that would wipe amounts the admin
+  // has already typed. The quote effect below still runs and touches
+  // nothing but `fee`.
+  const latestDefaults = useRef(defaultRows);
+  latestDefaults.current = defaultRows;
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (open) {
-      reset({ rows: defaultRows });
+    if (open && !wasOpen.current) {
+      reset({ rows: latestDefaults.current });
     }
-  }, [open, reset, defaultRows]);
+    wasOpen.current = open;
+  }, [open, reset]);
 
   // ── N IRREVERSIBLE MOVEMENTS ON ONE CLICK, WITH NO CONFIRMATION ────
   //
@@ -696,16 +733,41 @@ export default function BulkTopupAdAccountsDialog({
               size="sm"
               disabled={running || !feesSettled}
               title={
-                feesSettled ? undefined : "Working out the fee for each account"
+                feesSettled
+                  ? undefined
+                  : feesFailed
+                    ? "We could not work out the fee for these accounts"
+                    : "Working out the fee for each account"
               }
             >
               {running
                 ? "Sending…"
                 : feesSettled
                   ? "Submit Bulk Topup"
-                  : "Checking fees…"}
+                  : feesFailed
+                    ? "Fees unavailable"
+                    : "Checking fees…"}
             </Button>
           </div>
+          {/* FAIL CLOSED, BUT SAY SO. Submitting on the seeded rate
+              would charge the plan's percentage while the boxes read 0,
+              so this stays disabled -- but it used to sit there for
+              ever behind "Working out the fee", with nothing on screen
+              explaining it and no way forward. */}
+          {feesFailed ? (
+            <p className="text-sm text-destructive" role="alert">
+              We couldn&apos;t work out the fee for these accounts, so this is
+              held rather than charging a rate we cannot show you.{" "}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => feeQuotes.refetch()}
+              >
+                Try again
+              </button>
+              .
+            </p>
+          ) : null}
         </form>
       </DialogContent>
 

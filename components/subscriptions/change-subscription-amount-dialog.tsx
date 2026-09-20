@@ -152,10 +152,15 @@ export default function ChangeSubscriptionAmountDialog({
         <DialogHeader>
           <DialogTitle>Change subscription amount</DialogTitle>
           <DialogDescription>
-            An unpaid invoice for the current period is re-issued at the new
-            amount. If it was already paid, a higher price raises an invoice
-            for the difference — and a lower price only pays anything back if
-            you ask it to below.
+            {/* THIS PROMISED A CHOICE THAT NO LONGER EXISTS. The
+                refund pill is gone, the action forces p_refund: false,
+                and the note sixty lines below already said "nothing is
+                paid back" -- but the description renders first and is
+                what an admin reads before typing a lower number. */}
+            Raising the price charges the new, higher amount now and again
+            next period. Lowering it pays nothing back, and an invoice
+            already issued stands at the old amount — the lower price
+            starts at the next period.
           </DialogDescription>
         </DialogHeader>
 
