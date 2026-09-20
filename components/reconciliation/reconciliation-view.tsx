@@ -181,8 +181,21 @@ export default function ReconciliationView() {
       <div className="phead">
         <div>
           <h1>Bank Balances &amp; Reconciliation</h1>
+          {/* ── SAY WHAT IT ACTUALLY COMPARES ────────────────────────
+              "Banks against wallets" is not what this does, and the
+              difference matters. It sums completed wallet_topups against
+              bank_ledger_entries. It never reads `wallets` at all, and
+              seven things can legitimately move a balance -- exchanges,
+              ad-account funding, withdrawals, invoices, precharges,
+              refunds and admin adjustments -- none of which are on
+              either side of this comparison.
+              So a gap here means "what we credited does not match what
+              the bank shows", which is the useful question. It does NOT
+              mean the wallets are right, and a screen that implies it
+              does makes a blind spot look like a clean bill. */}
           <p>
-            Banks against wallets.
+            What we credited to wallets, against what the bank actually
+            received. It does not check the wallet balances themselves.
           </p>
         </div>
       </div>
