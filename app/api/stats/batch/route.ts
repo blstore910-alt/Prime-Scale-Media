@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
+
 import { GET as summaryGET } from "../route";
 import { GET as affiliateCommissionsGET } from "../affiliate-commissions/route";
 import { GET as extraAdAccountsGET } from "../extra-ad-accounts/route";
@@ -54,6 +56,26 @@ const HANDLERS: Record<
 const MAX_DATASETS = 12;
 
 export async function GET(request: NextRequest) {
+  // ── THE BOUNDARY REFUSES, NOT ONLY THE DELEGATES ──────────────────
+  //
+  // This was the one /api/stats route with no guard of its own. Each
+  // delegate does refuse — but the loop below catches that refusal and
+  // returns HTTP 200 with {"profit":{"ok":false,"status":403}}, which
+  // is per-dataset reporting doing exactly what it was written for and
+  // turning an authorisation failure into a successful response.
+  //
+  // Today's only consumer maps !ok to isError, so nothing renders a
+  // fabricated zero. That is the consumer being careful, not the route
+  // being safe: the next caller to read `.data` without checking `ok`
+  // gets {} where it should get a refusal, and an advertiser can
+  // already call this URL and watch it answer 200.
+  //
+  // Admin here, not owner: four of the nine datasets are admin-level
+  // and refusing the whole batch at owner level would break the admin
+  // dashboard. The owner-only delegates still refuse individually.
+  const { error: authError } = await apiRequireAdmin();
+  if (authError) return authError;
+
   const requested = (request.nextUrl.searchParams.get("datasets") ?? "")
     .split(",")
     .map((name) => name.trim())

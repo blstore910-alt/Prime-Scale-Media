@@ -125,7 +125,7 @@ const WITHDRAWAL: RejectTemplate[] = [
   },
   {
     short: "Duplicate",
-    text: "A request for the same amount on this ad account is already in progress, so this one has been refused rather than returning it twice.",
+    text: "You already have a request for the same amount on this ad account in progress, so this one has been refused rather than returning the money twice.",
   },
 ];
 

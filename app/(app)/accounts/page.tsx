@@ -1,5 +1,5 @@
 import AccountsRouter from "@/components/account/accounts-router";
-import { createClient } from "@/lib/supabase/server";
+import { resolveActiveProfile } from "@/lib/active-profile";
 import { redirect } from "next/navigation";
 
 /**
@@ -19,18 +19,24 @@ import { redirect } from "next/navigation";
  * else goes home.
  */
 export default async function Page() {
-  const supabase = await createClient();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData?.user) redirect("/auth/login");
+  // ── THE ACTIVE PROFILE, NOT ANY PROFILE ───────────────────────────
+  //
+  // This built a list of every role the account holds and asked
+  // `roles.some(r => r === "admin")`. Somebody who is an admin in one
+  // tenant and an advertiser in another -- with the advertiser profile
+  // ACTIVE -- passed as an admin, skipped the redirect below, and was
+  // served the admin table. AccountsRouter then read the active profile
+  // from AppContext, saw "advertiser", returned null and did a
+  // client-side replace to /dashboard: the blank screen and the wrong
+  // destination this page's own comment says it removed.
+  //
+  // Every other guard in the app honours the profile_id cookie.
+  const { userId, profile } = await resolveActiveProfile();
+  if (!userId) redirect("/auth/login");
+  if (!profile) redirect("/onboard");
 
-  const { data: profiles } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("user_id", userData.user.id);
-
-  const roles = (profiles ?? []).map((p) => (p.role ?? "").toLowerCase());
-  const allowed = roles.some((r) => r === "admin" || r === "advertiser");
-  if (!allowed) redirect("/dashboard");
+  const role = (profile.role ?? "").toLowerCase();
+  if (role !== "admin" && role !== "advertiser") redirect("/dashboard");
 
   // ── AN ADVERTISER GETS SENT HOME HERE, ON THE SERVER ──────────────
   //
@@ -44,8 +50,7 @@ export default async function Page() {
   //
   // /my-referrals already solved exactly this, server-side and with a
   // named view. Same here.
-  const isAdmin = roles.some((r) => r === "admin");
-  if (!isAdmin) redirect("/dashboard?view=accounts");
+  if (role !== "admin") redirect("/dashboard?view=accounts");
 
   return (
     <div className="flex flex-1 flex-col">

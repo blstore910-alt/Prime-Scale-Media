@@ -1,5 +1,5 @@
 import { isMaintenanceMode } from "@/actions/_shared";
-import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
+import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { firstName } from "@/lib/display-name";
 import { sendEmail } from "@/lib/email-sender";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
@@ -47,7 +47,17 @@ export async function POST(request: NextRequest) {
   }
   try {
     const supabase = await createClient();
-    const { profile, error: authError } = await apiRequireAdmin();
+    // ── OWNER, LIKE EVERY DOOR IN FRONT OF IT ─────────────────────
+    //
+    // The "Invite" button is gated on isSuperAdmin and /invites is
+    // requireSuperAdmin — and this route, the only thing that actually
+    // creates an invitation, was apiRequireAdmin. So an employee admin
+    // could POST here directly and mint a tenant member, with no screen
+    // anywhere on which to see, resend or cancel what they had created.
+    // The commission and plan fields were already dropped for a
+    // non-owner, which says the boundary was known and moved one field
+    // at a time instead of once.
+    const { profile, error: authError } = await apiRequireOwner();
     if (authError) return authError;
 
     const allowed = await rateLimitCheck(

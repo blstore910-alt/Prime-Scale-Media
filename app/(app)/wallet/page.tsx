@@ -36,5 +36,10 @@ export default async function Page() {
     (existingProfile ? profiles.find((p) => p.id === existingProfile) : null) ??
     profiles[0];
 
-  redirect(profile?.role === "advertiser" ? "/dashboard" : "/wallets");
+  // ?view=wallet, not the bare dashboard. /accounts, /billing and
+  // /my-referrals were all given a named view so an old link lands where
+  // it pointed; this one and /my-subscription were missed, so an
+  // advertiser following a bookmark to their wallet arrived on the
+  // Dashboard and had to find it again.
+  redirect(profile?.role === "advertiser" ? "/dashboard?view=wallet" : "/wallets");
 }

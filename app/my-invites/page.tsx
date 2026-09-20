@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
-import { InvitationStatus, UserInvitation } from "@/lib/types/invite";
+import { InvitationStatus } from "@/lib/types/invite";
 import dayjs from "dayjs";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -35,9 +35,45 @@ export default async function MyInvites() {
   await redirectCustomersToTheirShell("notif");
 
   const supabase = await createClient();
+  // ── YOUR OWN INVITATIONS, AND NOT THE TOKEN ───────────────────────
+  //
+  // `select("*")` with no filter returned every invitation RLS lets the
+  // caller see -- and invitations_select_admin grants SELECT to every
+  // ADMIN of the tenant, not just the owner. So an employee admin
+  // opening this URL got the owner-only invite list, and because this
+  // component is "use client" every column was serialised into the RSC
+  // payload, `token` included.
+  //
+  // A pending token is the anonymous authorisation at
+  // /auth/sign-up?token=... and at POST /api/accept-invite/signup,
+  // whose only other check is that the submitted email matches the
+  // invitation's. Reading one is enough to create that person's account
+  // with a password of your choosing before they ever sign up.
+  //
+  // This page is "invitations addressed to ME" -- it is how somebody
+  // chooses which organisation to join. So it asks for exactly that.
+  // It also fixes the thing the comment above describes: the Accept and
+  // Decline buttons on somebody else's invitation answered "This
+  // invitation is not for you" every time, because those rows had no
+  // business being listed.
+  const { data: auth } = await supabase.auth.getUser();
+  const myEmail = auth?.user?.email?.trim().toLowerCase() ?? "";
+  if (!myEmail) {
+    return (
+      <main className="max-w-lg mx-auto p-6">
+        <p className="text-sm text-destructive">
+          We could not confirm who you are signed in as. Reload and try
+          again.
+        </p>
+      </main>
+    );
+  }
   const { data: invites, error } = await supabase
     .from("invitations")
-    .select("*, tenant:tenants(*, profile:user_profiles(*))");
+    .select(
+      "id, tenant_id, role, status, email, created_at, expires_at, tenant:tenants(id, name)",
+    )
+    .ilike("email", myEmail);
 
   // A thrown error here is a shell-less Next error page on a route a
   // customer can reach. Say it in words instead.
@@ -55,9 +91,19 @@ export default async function MyInvites() {
   const pendingInvites = invites?.filter(
     (invite) => invite.status === "pending"
   );
+  const pendingIds = new Set((pendingInvites ?? []).map((i) => String(i.id)));
   const acceptedInvites = invites?.filter(
     (invite) => invite.status === "accepted"
   );
+
+  // PostgREST types an embedded table as an array unless generated types
+  // say otherwise; there is at most one tenant per invitation.
+  const forList = (invites ?? []).map((i) => ({
+    id: String(i.id),
+    tenant_id: i.tenant_id as string | null,
+    role: i.role as string | null,
+    tenant: Array.isArray(i.tenant) ? (i.tenant[0] ?? null) : (i.tenant ?? null),
+  }));
 
   return (
     <main className="max-w-5xl mx-auto mt-40">
@@ -69,16 +115,41 @@ export default async function MyInvites() {
           </Link>
         </Button>
       </div>
-      {pendingInvites?.length ? <InvitesList invites={pendingInvites} /> : null}
+      {pendingInvites?.length ? <InvitesList invites={forList.filter((i) => pendingIds.has(i.id))} /> : null}
 
       {acceptedInvites?.length ? (
-        <InvitesTable invites={acceptedInvites} />
+        <InvitesTable
+          invites={(acceptedInvites ?? []).map((i) => ({
+            id: String(i.id),
+            status: i.status as string | null,
+            created_at: i.created_at as string | null,
+            tenant: Array.isArray(i.tenant)
+              ? (i.tenant[0] ?? null)
+              : (i.tenant ?? null),
+          }))}
+        />
       ) : null}
     </main>
   );
 }
 
-function InvitesTable({ invites }: { invites: UserInvitation[] }) {
+// ── NO SENDER COLUMN ANY MORE ───────────────────────────────────────
+//
+// It came from `tenant:tenants(*, profile:user_profiles(*))`, which
+// embeds EVERY user profile of the organisation and then printed
+// `profile[0]` as "the sender" -- so the name shown was whichever
+// profile came back first, not the person who sent the invitation, and
+// the payload carried the whole staff list of a tenant the recipient
+// has not joined yet. The organisation, the date and the status are
+// what this table is for.
+type AcceptedInvite = {
+  id: string;
+  status?: string | null;
+  created_at?: string | null;
+  tenant?: { id?: string | null; name?: string | null } | null;
+};
+
+function InvitesTable({ invites }: { invites: AcceptedInvite[] }) {
   return (
     <div className=" border p-6 rounded-xl">
       <h3 className="text-lg font-semibold mb-4">Recent Invites</h3>
@@ -86,7 +157,6 @@ function InvitesTable({ invites }: { invites: UserInvitation[] }) {
         <Table>
           <TableHeader>
             <TableRow className="bg-background">
-              <TableHead>Sender</TableHead>
               <TableHead>Organization</TableHead>
               <TableHead>Date Sent</TableHead>
               <TableHead>Status</TableHead>
@@ -95,16 +165,6 @@ function InvitesTable({ invites }: { invites: UserInvitation[] }) {
           <TableBody>
             {invites.map((invite) => (
               <TableRow key={invite.id}>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {invite.tenant?.profile?.full_name || "Unknown Sender"}
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      {invite.tenant?.profile?.email || "No email"}
-                    </span>
-                  </div>
-                </TableCell>
                 <TableCell>{invite.tenant?.name ?? "—"}</TableCell>
 
                 <TableCell>

@@ -16,5 +16,12 @@ export default async function Page() {
   const { profile } = await resolveActiveProfile();
 
   if (!profile) redirect("/onboard");
-  redirect(profile.role === "advertiser" ? "/dashboard" : "/subscriptions");
+  // ?view=billing, not the bare dashboard. app/api/push/notify/route.ts
+  // already asserts in a comment that "/my-subscription is a redirect to
+  // the single-page app, which now accepts ?view=" -- it did not, so
+  // every push notification about a subscription landed an advertiser on
+  // the Dashboard.
+  redirect(
+    profile.role === "advertiser" ? "/dashboard?view=billing" : "/subscriptions",
+  );
 }

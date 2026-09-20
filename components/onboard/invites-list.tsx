@@ -1,5 +1,5 @@
 "use client";
-import { InvitationStatus, UserInvitation } from "@/lib/types/invite";
+import { InvitationStatus } from "@/lib/types/invite";
 import React, { useState } from "react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { getInitials } from "@/lib/utils";
@@ -8,10 +8,25 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
+// ── ONLY WHAT THIS LIST ACTUALLY READS ──────────────────────────────
+//
+// It used to take a whole UserInvitation, which is how `select("*")`
+// ended up on the two pages that feed it -- and since this file is
+// "use client", every column of every row was serialised into the RSC
+// payload, `token` among them. A token is the anonymous authorisation
+// for signing that person's account up. Naming the four fields here is
+// what stops the next `select("*")`.
+export type InviteToChoose = {
+  id: string;
+  tenant_id?: string | null;
+  role?: string | null;
+  tenant?: { id?: string | null; name?: string | null } | null;
+};
+
 export default function InvitesList({
   invites,
 }: {
-  invites: UserInvitation[];
+  invites: InviteToChoose[];
 }) {
   return (
     <div className="bg-card text-card-foreground rounded-lgp-6">
@@ -28,7 +43,7 @@ export default function InvitesList({
   );
 }
 
-function InviteCard({ invite }: { invite: UserInvitation }) {
+function InviteCard({ invite }: { invite: InviteToChoose }) {
   // The invitee isn't a tenant member yet, so RLS can leave the embedded
   // `tenant` null. Id lives on the invitation row; name is display-only.
   const tenant = invite.tenant;
