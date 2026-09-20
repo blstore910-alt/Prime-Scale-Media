@@ -49,6 +49,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useAppContext } from "@/context/app-provider";
+import AmountPills from "@/components/ui/amount-pills";
 
 type CurrencyCode = "USD" | "EUR";
 
@@ -1224,6 +1225,15 @@ export default function WalletTopupDialog({
                         {...register("amount", { valueAsNumber: true })}
                       />
                     </div>
+                    <AmountPills
+                      currency={currency}
+                      onPick={(v) =>
+                        setValue("amount", v, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                    />
                     <p className="text-xs text-muted-foreground">
                       {transferCurrency === currency
                         ? `This is what we credit once we see it arrive, so it should be the exact amount you sent.`

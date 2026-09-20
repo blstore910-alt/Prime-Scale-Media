@@ -23,6 +23,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Skeleton } from "../ui/skeleton";
 import { useCreateAccountTopup } from "./use-create-account-topup";
 import { quoteTopupFeePct } from "@/actions/topup-actions";
+import AmountPills from "@/components/ui/amount-pills";
 import {
   AD_ACCOUNT_CUSTOMER_COLUMNS,
   AD_ACCOUNT_CORE_COLUMNS,
@@ -529,6 +530,22 @@ export default function AccountTopupForm({
                 step={0.01}
               description={amountDescription}
             />
+            {/* The amounts people actually move, one tap. A pill above
+                the wallet balance is greyed rather than hidden: a row
+                that changes length as the balance moves is harder to
+                aim at, and "greyed" says why it cannot be pressed. */}
+            {hasWallet && selectedBalance > 0 ? (
+              <AmountPills
+                currency={selectedCurrency}
+                max={selectedBalance}
+                onPick={(v) =>
+                  setValue("amount", v, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+              />
+            ) : null}
           </div>
 
           {walletLoading ? (
