@@ -21,6 +21,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 
 // Maps an invitation status to a mockup badge variant + label. Kept
 // local so the shared InvitationStatusBadge (used outside the admin
@@ -54,7 +55,16 @@ export default function InvitesTable() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["invites", page, perPage],
+    // ── THE TENANT BELONGS IN THE KEY ──────────────────────────────
+    //
+    // Every sibling keys by tenant; this one did not, while the query
+    // itself filters .eq("tenant_id", ...). The QueryClient is a module
+    // singleton with a 30s staleTime and switchToProfile ends in a soft
+    // redirect, so a consultant moving from tenant A to tenant B read
+    // TENANT A's invitations -- recipient emails and all -- under
+    // tenant B's header. Cancel then went to the right row id, so they
+    // revoked a tenant-A invitation from a screen labelled B.
+    queryKey: ["invites", profile?.tenant_id, page, perPage],
     queryFn: async () => {
       const start = (page - 1) * perPage;
       const end = start + perPage - 1;
@@ -166,7 +176,13 @@ export default function InvitesTable() {
     return (
       <div className="card">
         <p className="muted" style={{ margin: 0 }}>
-          Error loading invites. {error.message}
+          Error loading invites. {/* userFacingErrorMessage, per CLAUDE.md. make-query-client already
+                routes the TOAST for this same query through it; the card
+                underneath printed the unsanitised original, so one
+                failure gave two different messages and the raw one
+                carried PostgREST's details/hint. */}
+          {" "}
+          {userFacingErrorMessage(error, "Give it a reload.")}
         </p>
       </div>
     );
@@ -200,9 +216,26 @@ export default function InvitesTable() {
             </thead>
             <tbody>
               {invites.map((invite: any) => {
-                const badge =
-                  INVITE_BADGE[invite.status as InvitationStatus] ??
-                  INVITE_BADGE.pending;
+                // ── EXPIRY IS A DATE, NOT A STATUS ────────────────
+                //
+                // The badge was a pure lookup on the stored column, and
+                // NOTHING in this app ever writes status='expired' --
+                // the action allows it, the only call site hardcodes
+                // "cancelled", and there is no sweeper. Expiry IS
+                // enforced, at accept time, at 7 days. So an invite
+                // sent on the 1st read "Pending" on the 20th with a
+                // live Cancel button: the owner did not re-send, the
+                // recipient got "this invitation has expired", and each
+                // blamed the other for twelve days. The date is
+                // rendered two columns away and compared to nothing.
+                const expiredNow =
+                  invite.status === "pending" &&
+                  !!invite.expires_at &&
+                  new Date(invite.expires_at).getTime() < Date.now();
+                const badge = expiredNow
+                  ? INVITE_BADGE.expired
+                  : (INVITE_BADGE[invite.status as InvitationStatus] ??
+                    INVITE_BADGE.pending);
                 const code = invite.email
                   ? codeByEmail?.[String(invite.email).toLowerCase()]
                   : undefined;

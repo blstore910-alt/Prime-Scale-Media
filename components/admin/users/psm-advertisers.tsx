@@ -74,8 +74,11 @@ export default function PsmAdvertisers() {
   // Affiliate earnings, keyed by email — the only identifier a standalone
   // affiliate and an advertiser-as-affiliate both carry.
   const { profile: me } = useAppContext();
-  const { byEmail: earningsByEmail, isError: earningsError } =
+  const { byEmail: earningsByEmail, isError: earningsBroken, isLoading: earningsLoading } =
     useAffiliateEarnings(me?.tenant_id);
+  // One flag for the cell below: a dash covers both "the read failed"
+  // and "it has not answered yet", because a zero is wrong in both.
+  const earningsError = earningsBroken || earningsLoading;
 
   const narrowed = !!search.trim() || active !== "all";
   const resetFilters = () => {
@@ -337,7 +340,20 @@ export default function PsmAdvertisers() {
           .eq("tenant_id", me?.tenant_id ?? "")
           .neq("role", "admin")
           .eq("role", kind);
-        if (active !== undefined) q = q.eq("is_active", active);
+        // ── "all" IS A STRING, AND IT IS THE DEFAULT ────────────────
+        //
+        // `active` is "all" | "yes" | "no", so `active !== undefined`
+        // always passed and sent is_active=eq.all -> "invalid input
+        // syntax for type boolean" -> "Unable to export users".
+        // Postgres happens to accept 'yes' and 'no', so the two
+        // filtered cases worked and the state the screen ALWAYS OPENS
+        // IN did not. The live list already maps this to a real boolean
+        // before it queries; the export did not.
+        if (active === "yes") q = q.eq("is_active", true);
+        else if (active === "no") q = q.eq("is_active", false);
+        // ...and the same row the table hides. The list excludes the
+        // person doing the looking; the file carried them.
+        if (me?.user_id) q = q.neq("user_id", me.user_id);
         if (debounced && debounced.trim().length > 0) {
           const term = safeIlikeTerm(debounced);
           if (term.length > 0) {

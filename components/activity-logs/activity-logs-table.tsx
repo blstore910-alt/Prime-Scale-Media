@@ -14,6 +14,7 @@ import ActivityLogDetailsSheet from "./activity-log-details-sheet";
 import TablePagination from "@/components/ui/table-pagination";
 import { ActivityLog } from "@/lib/types/activity-log";
 import { formatActionLabel } from "./utils";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 
 const actionOptions = [
   { label: "All Actions", value: "all" },
@@ -195,7 +196,12 @@ export default function ActivityLogsTable() {
           <div role="alert" aria-live="assertive">
             <p className="muted" style={{ margin: 0 }}>
               Failed to load activity logs.{" "}
-              {(error as Error)?.message ?? String(error)}
+              {/* userFacingErrorMessage, per CLAUDE.md. make-query-client already
+                routes the TOAST for this same query through it; the card
+                underneath printed the unsanitised original, so one
+                failure gave two different messages and the raw one
+                carried PostgREST's details/hint. */}
+              {userFacingErrorMessage(error, "Give it a reload.")}
             </p>
           </div>
         </div>

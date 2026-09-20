@@ -491,7 +491,20 @@ export default function InvoicesTable() {
                     : emptyRow(colCount, {
                         noun: "invoices",
                         search: debouncedSearch,
-                        onClear: () => setSearch(""),
+                        // `filtered` was never passed, so EmptyState
+                        // computed "narrowed" from the search box alone.
+                        // Status = Overdue with an empty box therefore
+                        // printed "No invoices yet." -- and no Clear
+                        // button -- two hundred pixels under a header
+                        // promising "Issued, paid and overdue". Eleven
+                        // customers forty days late, and the dunning run
+                        // skipped. The subscriptions table gets this
+                        // right; this one missed it.
+                        filtered: status !== "all",
+                        onClear: () => {
+                          setSearch("");
+                          setStatus("all");
+                        },
                       })}
             </tbody>
           </table>

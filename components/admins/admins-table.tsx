@@ -10,6 +10,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import AdminCredentialsDialog from "./admin-credentials-dialog";
 import CreateAdminDialog from "./create-admin-dialog";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 
 type AdminProfile = {
   id: string;
@@ -136,7 +137,13 @@ export default function AdminsTable() {
       ) : isError ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            Failed to load admins. {(error as Error)?.message ?? String(error)}
+            Failed to load admins. {/* userFacingErrorMessage, per CLAUDE.md. make-query-client already
+                routes the TOAST for this same query through it; the card
+                underneath printed the unsanitised original, so one
+                failure gave two different messages and the raw one
+                carried PostgREST's details/hint. */}
+            {" "}
+            {userFacingErrorMessage(error, "Give it a reload.")}
           </p>
         </div>
       ) : admins.length ? (

@@ -71,7 +71,12 @@ export default function UserWalletTopups({
                 <TableBody>
                   {completedTopups.map((topup, index) => (
                     <TableRow key={index}>
-                      <TableCell>{topup.amount}</TableCell>
+                      <TableCell>
+                        {formatCurrency(
+                          Number(topup.amount) || 0,
+                          String(topup.currency ?? "EUR"),
+                        )}
+                      </TableCell>
                       <TableCell>{topup.currency}</TableCell>
                       <TableCell className="capitalize">
                         {topup.status}
@@ -82,10 +87,16 @@ export default function UserWalletTopups({
                 <TableFooter>
                   <TableRow>
                     <TableCell colSpan={2} className="font-medium">
-                      Total EUR: {totals.eur}
+                      {/* The raw `+=` result. Six lines up the SAME two
+                          values are formatted with formatCurrency, so
+                          the dialog showed EUR 1,172.83 at the top and
+                          "Total EUR: 1172.8300000000002" in its own
+                          footer. An admin reconciling against a bank
+                          statement cannot copy that into a ledger. */}
+                      Total EUR: {formatCurrency(totals.eur, "EUR")}
                     </TableCell>
                     <TableCell className="font-medium">
-                      Total USD: {totals.usd}
+                      Total USD: {formatCurrency(totals.usd, "USD")}
                     </TableCell>
                   </TableRow>
                 </TableFooter>

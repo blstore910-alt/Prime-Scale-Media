@@ -17,6 +17,7 @@ import TablePagination from "@/components/ui/table-pagination";
 import { Copy, Download, Eye, RefreshCw, Search, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 
 const AUDITED_TABLES = [
   "wallets",
@@ -253,10 +254,13 @@ export default function AuditEventsTable() {
                 the failure and the empty state looked identical on the
                 screen you open when money is missing. Always lead with
                 the sentence; append the reason when there is one. */}
-            Failed to load audit events.
-            {(error as Error)?.message
-              ? ` ${(error as Error).message}`
-              : ""}
+            Failed to load audit events. {/* userFacingErrorMessage, per CLAUDE.md. make-query-client already
+                routes the TOAST for this same query through it; the card
+                underneath printed the unsanitised original, so one
+                failure gave two different messages and the raw one
+                carried PostgREST's details/hint. */}
+            {" "}
+            {userFacingErrorMessage(error, "Give it a reload.")}
           </p>
         </div>
       ) : events.length ? (

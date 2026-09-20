@@ -180,9 +180,21 @@ export default function AccountsTable() {
 
   // What is on each account, and when it last moved. One query for the
   // whole page rather than one per row.
-  const { byAccount: spendByAccount, isError: spendError } = useAccountSpend(
-    profile?.tenant_id,
-  );
+  // isLoading as well. The spend query pages top_ups AND
+  // ad_account_withdrawals, so it is always slower than the accounts
+  // list -- and for those one to four seconds an account holding
+  // $48,500 read "Funded (USD) $0.00" with the tooltip "Nothing funded
+  // on this account yet", indistinguishable from an empty account, on
+  // the only balance figure an admin reads before approving a
+  // withdrawal. It also drives the Status badge, which without it
+  // declares every account opened over thirty days ago "Inactive —
+  // never topped up".
+  const {
+    byAccount: spendByAccount,
+    isError: spendBroken,
+    isLoading: spendLoading,
+  } = useAccountSpend(profile?.tenant_id);
+  const spendError = spendBroken || spendLoading;
   // Every row judged against the SAME instant, so a list cannot show two
   // accounts on different sides of the 30-day line because it took a
   // moment to render.

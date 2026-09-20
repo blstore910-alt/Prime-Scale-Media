@@ -24,8 +24,22 @@ export type AffiliateEarnings = { eur: number; usd: number; links: number };
 
 export function useAffiliateEarnings(
   tenantId: string | null | undefined,
-): { byEmail: Record<string, AffiliateEarnings>; isError: boolean } {
-  const { data, isError } = useQuery<Record<string, AffiliateEarnings>>({
+): {
+  byEmail: Record<string, AffiliateEarnings>;
+  isError: boolean;
+  isLoading: boolean;
+} {
+  // ── isLoading TOO ─────────────────────────────────────────────────
+  //
+  // The return type had no loading flag, so the caller fell back to
+  // {eur:0, usd:0} and rendered "EUR 0.00 / $0.00" for the first second
+  // of every load -- to an affiliate who is owed EUR 4,380, in the
+  // column an admin pays from. The docblock at the top of this file
+  // states the rule it made impossible: "an affiliate who has earned
+  // money must never be shown 0.00 because a read failed."
+  const { data, isError, isLoading } = useQuery<
+    Record<string, AffiliateEarnings>
+  >({
     queryKey: ["affiliate-earnings-by-email", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -100,5 +114,5 @@ export function useAffiliateEarnings(
     },
   });
 
-  return { byEmail: data ?? {}, isError };
+  return { byEmail: data ?? {}, isError, isLoading };
 }

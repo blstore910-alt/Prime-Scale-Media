@@ -453,6 +453,7 @@ export default function PsmAccountPool() {
     });
   }, [pool.data, filter, search, source, supplierStatus]);
 
+  const poolBlind = pool.isError || pool.isLoading;
   const counts = useMemo(() => {
     const all = pool.data ?? [];
     return {
@@ -531,13 +532,20 @@ export default function PsmAccountPool() {
                 // saying we could not look.
                 {
                   value: "unassigned",
-                  label: `Unassigned (${pool.isError ? "—" : counts.unassigned})`,
+                  // ...and LOADING, not just error. The error case was
+                  // fixed and the filter bar sits outside the loading
+                  // branch, so the control read "Unassigned (0) /
+                  // Allocated (0) / All (0)" above "Loading the pool…".
+                  // An admin reads that as no free inventory and orders
+                  // more from the supplier, or tells a customer to wait,
+                  // while forty accounts sit unallocated.
+                  label: `Unassigned (${poolBlind ? "—" : counts.unassigned})`,
                 },
                 {
                   value: "assigned",
-                  label: `Allocated (${pool.isError ? "—" : counts.assigned})`,
+                  label: `Allocated (${poolBlind ? "—" : counts.assigned})`,
                 },
-                { value: "all", label: `All (${pool.isError ? "—" : counts.all})` },
+                { value: "all", label: `All (${poolBlind ? "—" : counts.all})` },
               ],
             },
             {
