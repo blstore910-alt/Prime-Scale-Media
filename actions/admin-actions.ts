@@ -250,6 +250,10 @@ export async function updateUserProfile(
   // about the plan itself and is not ours to undo here, and `paused` is
   // a state the admin set deliberately on the subscriptions screen.
   // That distinction is already in the data; it just was not used.
+  // Things that succeeded but that the admin must be told about --
+  // returning ok:false would be a lie, and swallowing them is how a
+  // half-applied action looks like a clean one.
+  const extraWarnings: string[] = [];
   const shouldReactivateSubscriptions = cleaned.status === "active";
 
   if (shouldDeactivateSubscriptions || shouldReactivateSubscriptions) {
@@ -291,10 +295,56 @@ export async function updateUserProfile(
     if (advertiserIds.length > 0 && shouldReactivateSubscriptions) {
       const { data: dormant, error: dormantError } = await supabase
         .from("subscriptions")
-        .select("id, next_payment_date")
+        .select("id, advertiser_id, next_payment_date, created_at")
         .in("advertiser_id", advertiserIds)
-        .eq("status", "inactive");
+        .eq("status", "inactive")
+        .order("created_at", { ascending: false });
       if (dormantError) return { ok: false, error: dormantError.message };
+
+      // ── ONE PLAN PER CUSTOMER, NOT ALL OF THEM ────────────────────
+      //
+      // This switched on EVERY inactive subscription the advertiser
+      // had. Two of them is not exotic: createSubscriptionAsAdmin
+      // inserts `inactive` and its duplicate check only looks at
+      // active/past_due, so a draft left beside a plan that a
+      // deactivation later flattened gives exactly that shape.
+      //
+      // The generate loop keys its duplicate check on subscription_id,
+      // so two active rows raise two invoices for the same month and
+      // the collect loop debits both -- EUR 400 out of the wallet for a
+      // EUR 200 plan, every month, and the customer's own screen reads
+      // the subscription with .limit(1) so it shows one.
+      //
+      // setSubscriptionStatus refuses a second activation for exactly
+      // this reason ("two active plans bill them twice") and is
+      // owner-only; this bulk path had neither guard, and it is open to
+      // any admin. Newest first, one only, and the rest are named in a
+      // warning rather than switched on silently.
+      const byAdvertiser = new Map<string, { id: string; next_payment_date: string | null }[]>();
+      for (const raw of dormant ?? []) {
+        const r = raw as {
+          id: string;
+          advertiser_id: string | null;
+          next_payment_date: string | null;
+        };
+        if (!r.advertiser_id) continue;
+        (byAdvertiser.get(r.advertiser_id) ?? byAdvertiser.set(r.advertiser_id, []).get(r.advertiser_id)!)
+          .push({ id: r.id, next_payment_date: r.next_payment_date });
+      }
+      const toActivate: { id: string; next_payment_date: string | null }[] = [];
+      let leftOff = 0;
+      for (const rows of byAdvertiser.values()) {
+        toActivate.push(rows[0]);
+        leftOff += rows.length - 1;
+      }
+      if (leftOff > 0) {
+        extraWarnings.push(
+          `${leftOff} other dormant subscription${leftOff === 1 ? "" : "s"} ` +
+            "were left switched off — a customer can only have one billable " +
+            "plan, and switching on two bills them twice. Activate the right " +
+            "one from the subscriptions screen if this is not it.",
+        );
+      }
 
       // NOT BACK-BILLED FOR THE TIME THEY WERE SWITCHED OFF. If
       // next_payment_date is still months in the past, the nightly run
@@ -304,7 +354,7 @@ export async function updateUserProfile(
       // account. Billing resumes from today.
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      for (const row of dormant ?? []) {
+      for (const row of toActivate) {
         const prev = row.next_payment_date
           ? new Date(row.next_payment_date as string)
           : null;
@@ -347,7 +397,11 @@ export async function updateUserProfile(
     };
   }
 
-  return { ok: true, data: null };
+  return {
+    ok: true,
+    data: null,
+    warning: extraWarnings.length ? extraWarnings.join(" ") : undefined,
+  };
 }
 
 // ─────────────────────────────────────────

@@ -1088,7 +1088,16 @@ export default function AdvertiserApp() {
         )
         .eq("tenant_id", tenantId)
         .eq("advertiser_id", advertiserId)
-        .eq("type", "subscription")
+        // ── ADJUSTMENTS ARE COLLECTED TOO ────────────────────────────
+        //
+        // This asked only for type='subscription'. The nightly collect
+        // loop filters on subscription_id being present and does NOT
+        // filter by type, so a `subscription_adjustment` -- the EUR 50
+        // raised when a plan goes up mid-month -- is auto-debited on its
+        // due date while this card reads "This month is paid" and
+        // "Nothing owed right now". The row is in the invoice table
+        // below, so the headline contradicted the list underneath it.
+        .in("type", ["subscription", "subscription_adjustment"])
         .not("status", "in", "(paid,void)")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -3506,7 +3515,15 @@ export default function AdvertiserApp() {
                           {invError || dueInvError || invLoading
                             ? "Checking your billing…"
                             : dueSubInvoice
-                              ? "Monthly fee"
+                              ? // An adjustment is not the monthly fee:
+                                // it is the difference raised when a
+                                // plan changed mid-month, and calling it
+                                // "Monthly fee" would have the customer
+                                // looking for a second charge.
+                                String(dueSubInvoice.type ?? "") ===
+                                "subscription_adjustment"
+                                ? "Plan change"
+                                : "Monthly fee"
                               : "This month is paid"}
                         </div>
                         <div

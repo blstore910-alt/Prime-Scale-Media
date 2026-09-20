@@ -281,12 +281,17 @@ export async function voidInvoiceAsAdmin(
   // Ask for it, and on error ask again without it. Then the cancel
   // still works and only the reason has nowhere to live -- which the
   // caller is told about rather than guessing at.
-  const WITH_NOTES = "id, tenant_id, status, total, currency, notes";
-  const WITHOUT = "id, tenant_id, status, total, currency";
+  const WITH_NOTES =
+    "id, tenant_id, status, total, currency, type, subscription_id, notes";
+  const WITHOUT =
+    "id, tenant_id, status, total, currency, type, subscription_id";
   type InvoiceRow = {
     id: string;
     tenant_id: string;
     status: string | null;
+    total?: number | string | null;
+    type?: string | null;
+    subscription_id?: string | null;
     notes?: string | null;
   };
   let canKeepReason = true;
@@ -366,11 +371,55 @@ export async function voidInvoiceAsAdmin(
     };
   }
 
+  // ── CANCELLING BUYS ONE DAY, UNLESS THE PLAN IS CORRECTED TOO ─────
+  //
+  // The nightly run reads subscriptions.amount and
+  // subscriptions.next_payment_date. Cancelling touches NEITHER. So
+  // the sequence this control was built for -- somebody types 2000
+  // instead of 200, the RPC writes 2000 onto the subscription and
+  // issues a 2000 invoice, an admin cancels it -- ends with the run
+  // seeing amount 2000, an unmoved next_payment_date and no invoice
+  // for that period, and raising a FRESH 2000 invoice the same night.
+  // Due in three days, not seven, because the first-invoice rule reads
+  // a void row as "they have never been billed".
+  //
+  // The cancel is still right; it is just not sufficient on its own,
+  // and nothing on the screen said so. Look, and say it.
+  const warnings: string[] = [];
+  if (!canKeepReason) {
+    warnings.push(
+      "The reason could not be saved: this database has no invoices.notes column yet. Record it elsewhere.",
+    );
+  }
+
+  if (invoice.subscription_id) {
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("id, amount, currency, status")
+      .eq("id", invoice.subscription_id)
+      .maybeSingle();
+    const planAmount = Number(sub?.amount ?? NaN);
+    const invoiceAmount = Number(invoice.total ?? NaN);
+    const billable = ["active", "past_due"].includes(
+      String(sub?.status ?? "").toLowerCase(),
+    );
+    if (
+      billable &&
+      Number.isFinite(planAmount) &&
+      Number.isFinite(invoiceAmount) &&
+      Math.abs(planAmount - invoiceAmount) < 0.005
+    ) {
+      warnings.push(
+        `The plan is still set to ${planAmount.toFixed(2)} ${String(
+          sub?.currency ?? "EUR",
+        ).toUpperCase()}, so tonight's billing run will raise this same invoice again. Change the subscription amount before 03:00 if the figure was wrong.`,
+      );
+    }
+  }
+
   return {
     ok: true,
     data: null,
-    warning: canKeepReason
-      ? undefined
-      : "Cancelled, but the reason could not be saved: this database has no invoices.notes column yet. Record it elsewhere.",
+    warning: warnings.length ? warnings.join(" ") : undefined,
   };
 }

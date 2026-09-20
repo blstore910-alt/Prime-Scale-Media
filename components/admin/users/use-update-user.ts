@@ -25,9 +25,21 @@ export default function useUpdateUserProfile() {
     mutationFn: async (payload) => {
       const result = await updateUserProfileAction(payload.userId, payload.data);
       if (!result.ok) throw new Error(result.error);
-      return result.data;
+      // ── A WARNING IS NOT A FAILURE, AND NOT NOTHING ───────────────
+      //
+      // Reactivating a customer with more than one dormant plan now
+      // switches on ONE -- switching on two bills them twice -- and
+      // says which were left off. Dropping that here would leave the
+      // admin believing the whole record was restored.
+      return result.warning ?? null;
     },
-    onSuccess: async () => {
+    onSuccess: async (warning) => {
+      if (typeof warning === "string" && warning) {
+        toast.warning("Done, with one thing to check", {
+          description: warning,
+          duration: 12_000,
+        });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["users"] }),
         queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),

@@ -158,9 +158,20 @@ export default function InvoicesTable() {
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const result = await voidInvoiceAsAdmin(id, reason);
       if (!result.ok) throw new Error(result.error);
+      return result.warning ?? null;
     },
-    onSuccess: async () => {
-      toast.success("Invoice cancelled");
+    onSuccess: async (warning) => {
+      if (typeof warning === "string" && warning) {
+        // Cancelling does not touch subscriptions.amount, so a wrong
+        // figure is raised again the same night. The action looks and
+        // says so rather than leaving the admin to find out.
+        toast.warning("Cancelled — one thing left to do", {
+          description: warning,
+          duration: 14_000,
+        });
+      } else {
+        toast.success("Invoice cancelled");
+      }
       setConfirmVoid(null);
       setVoidReason("");
       await queryClient.invalidateQueries({
@@ -547,7 +558,7 @@ export default function InvoicesTable() {
           }
         }}
         title="Cancel this invoice?"
-        lead="It stops being owed: the customer can no longer pay it and the daily collection will not take it from their wallet. Nothing is deleted — it stays on the record as cancelled, with your reason. If it covered a subscription period, that period can be invoiced again."
+        lead="It stops being owed: the customer can no longer pay it and the daily collection will not take it from their wallet. Nothing is deleted — it stays on the record as cancelled, with your reason. If the amount itself was wrong, change the subscription too: cancelling does not touch the plan, so tonight's run would raise the same figure again."
         cta="Yes, cancel it"
         tone="danger"
         busy={!!updatingInvoiceId}
