@@ -1515,9 +1515,23 @@ function ManualMatch({
         .eq("tenant_id", tenantId)
         .eq("status", "pending")
         .ilike("currency", String(currency))
-        // A cent either way, the same tolerance the automatic matcher uses.
-        .gte("amount", amount - 0.01)
-        .lte("amount", amount + 0.01)
+        // ── A WIDER WINDOW THAN THE MATCHER, ON PURPOSE ─────────────
+        //
+        // One cent either way is right for deciding AUTOMATICALLY that
+        // two things are the same payment. It is wrong as the only
+        // option afterwards: an intermediary bank taking EUR 12 off a
+        // EUR 630 transfer is ordinary for anything that is not SEPA,
+        // and that deposit could then be attached to nothing at all.
+        // The only remaining route was Verify on the top-ups desk,
+        // which credits the FULL claimed EUR 630 for EUR 618 received.
+        //
+        // So the picker offers claims within 15% or EUR 100, whichever
+        // is larger, and the row says how far off each one is. A
+        // human decides; nothing is matched automatically on this
+        // window. Correcting the claim to what actually arrived is one
+        // button on the row.
+        .gte("amount", amount - Math.max(amount * 0.15, 100))
+        .lte("amount", amount + Math.max(amount * 0.15, 100))
         .order("created_at", { ascending: true })
         .limit(25);
       if (error) throw error;
@@ -1634,6 +1648,21 @@ function ManualMatch({
                 })}
                 {c.reference_no ? ` · ref ${c.reference_no}` : " · no ref"} ·{" "}
                 {dayjs(c.created_at).format("D MMM")}
+                {/* HOW FAR OFF, in words. The window is wider than the
+                    cent the matcher uses, so a claim that does not
+                    exactly equal the deposit can appear here -- and an
+                    operator has to see that before choosing it, not
+                    after. */}
+                {Math.abs(Number(c.amount ?? 0) - Number(amountCents) / 100) >
+                0.005
+                  ? ` · ${
+                      Number(c.amount ?? 0) > Number(amountCents) / 100
+                        ? "claim is"
+                        : "deposit is"
+                    } ${Math.abs(
+                      Number(c.amount ?? 0) - Number(amountCents) / 100,
+                    ).toFixed(2)} higher`
+                  : ""}
               </option>
             );
           })}
@@ -1676,7 +1705,7 @@ function ManualMatch({
           if (!next && !saving) setConfirming(false);
         }}
         title="Credit this customer?"
-        lead="This links the bank deposit to their claim and credits their wallet. There is no undo."
+        lead="This links the bank deposit to their claim and credits their wallet by the amount THEY claimed, not the amount the bank sent. There is no undo."
         cta="Yes, credit it"
         busy={saving}
         busyLabel="Crediting…"
@@ -1711,6 +1740,32 @@ function ManualMatch({
                 label="Their reference"
                 value={c?.reference_no ?? "none given"}
               />
+              {/* ── THE DIFFERENCE, AND WHAT WILL ACTUALLY BE CREDITED
+                  The credit is the CLAIM's amount, not the deposit's --
+                  wise_confirm_suggestion settles the top-up, and the
+                  balance trigger adds wallet_topups.amount. So on a
+                  mismatch the wallet moves by a figure this modal was
+                  not showing. Say both, and say which one moves. */}
+              {Math.abs(
+                Number(c?.amount ?? 0) - Number(amountCents) / 100,
+              ) > 0.005 ? (
+                <>
+                  <ConfirmFact
+                    label="The bank sent"
+                    value={money(Number(amountCents) / 100, currency)}
+                  />
+                  <ConfirmFact
+                    label="Difference"
+                    value={money(
+                      Math.abs(
+                        Number(c?.amount ?? 0) - Number(amountCents) / 100,
+                      ),
+                      currency,
+                    )}
+                    strong
+                  />
+                </>
+              ) : null}
             </>
           );
         })()}
