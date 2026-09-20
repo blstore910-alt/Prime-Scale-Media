@@ -207,13 +207,26 @@ export async function enqueueSupplierTopupPush(
         // job goes back to pending — the worker's own reclaim does the
         // same for a stale one, and re-pushing is exactly what the
         // caller is asking for.
-        const { data: existing } = await supabase
+        const { data: existing, error: readErr } = await supabase
           .from("integration_jobs")
           .select("id, status")
           .eq("provider", "supplier1")
           .eq("operation", "push_topup")
           .eq("idempotency_key", idempotencyKey)
           .maybeSingle();
+        // A READ WE COULD NOT MAKE IS NOT "ALREADY QUEUED". This fell
+        // through to the idempotent-success return, which is the exact
+        // false success this branch was written to remove: the money is
+        // collected, the supplier is never told, and the desk is shown
+        // a tick. It fails closed now — an admin funding it by hand is
+        // recoverable; believing it was done is not.
+        if (readErr) {
+          return {
+            enqueued: false,
+            reason:
+              "we could not check whether this top-up was already sent to the supplier - fund the account by hand",
+          };
+        }
         const prior = existing as { id: string; status?: string } | null;
         if (prior && String(prior.status ?? "") === "failed") {
           const { error: resetErr } = await supabase

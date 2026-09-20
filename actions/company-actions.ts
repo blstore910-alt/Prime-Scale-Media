@@ -323,10 +323,16 @@ export async function updateOwnProfileAndCompany(input: {
         if (error) return { ok: false, error: error.message };
       }
     } else {
+      // .eq("tenant_id", ...) is not optional: a person can hold a
+      // profile in more than one tenant, maybeSingle() ERRORS on two
+      // rows and returns null data, and the line below then answers
+      // "Advertiser missing" for ever. The same bug was found and fixed
+      // 230 lines up in this file; the second copy was missed.
       const { data: adv } = await supabase
         .from("advertisers")
         .select("id, tenant_id")
         .eq("user_id", userData.user.id)
+        .eq("tenant_id", profileRow.tenant_id)
         .maybeSingle();
       if (!adv) return { ok: false, error: "Advertiser missing" };
       if (adv.tenant_id !== profileRow.tenant_id) {

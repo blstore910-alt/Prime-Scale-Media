@@ -317,8 +317,14 @@ export function TopupDetailsSheet({
                   {new Date(topup.created_at).toLocaleString()}
                 </p>
                 <p>
+                  {/* new Date(null) is 1 January 1970, so an unverified
+                      payment asserted it had already been verified —
+                      dated 1970, directly above the amount the admin is
+                      about to release. */}
                   <span className="font-medium text-foreground">Verified:</span>{" "}
-                  {new Date(topup.verified_at).toLocaleString()}
+                  {topup.verified_at
+                    ? new Date(topup.verified_at).toLocaleString()
+                    : "not yet"}
                 </p>
                 {topup.author && (
                   <p>

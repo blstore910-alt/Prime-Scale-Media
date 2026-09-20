@@ -90,14 +90,45 @@ export const eurFigures = (args: {
   return { eurValue, eurTopup };
 };
 
+// ── AN UNKNOWN CURRENCY CODE THROWS ──────────────────────────────────
+//
+// Intl.NumberFormat with style:"currency" raises a RangeError for any
+// code that is not three letters — including "", which `?? "EUR"` does
+// not catch because "" is not null. top_ups.currency is a free string
+// the server never validates, and one of the three call sites that
+// pass it straight through renders on /inactive, which is the ONLY
+// screen a deactivated customer has left. A throw there takes the whole
+// page to the error boundary.
+//
+// So: format what we can, and print the code beside the number when we
+// cannot, which is still the truth. A blank code prints the bare
+// number rather than a wrong symbol — a euro sign on a pound payment is
+// worse than no sign at all.
+const CURRENCY_CODE = /^[A-Za-z]{3}$/;
+
 export const formatCurrency = (
   value: number,
   currency: string = "USD",
 ): string => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
+  const amount = Number.isFinite(value) ? value : 0;
+  const code = String(currency ?? "").trim().toUpperCase();
+  const plain = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(amount);
+
+  if (!CURRENCY_CODE.test(code)) return plain;
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    // Three letters and still not a currency ("XXX", a typo). The code
+    // is what the row says; printing it is honest and does not crash.
+    return `${code} ${plain}`;
+  }
 };

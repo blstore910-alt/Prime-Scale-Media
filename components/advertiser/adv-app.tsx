@@ -3304,6 +3304,22 @@ export default function AdvertiserApp() {
                         : (invoices ?? []).slice(0, 5)
                       ).map((inv) => {
                         const paid = inv.status === "paid";
+                        // ── A CANCELLED INVOICE IS NOT AN UNPAID ONE ──
+                        //
+                        // "Pay now" rendered on anything that was not
+                        // `paid`, and `void` is not `paid`. So an admin
+                        // waiving a EUR 50 ad-account fee by voiding the
+                        // invoice left the customer a live Pay button on
+                        // it — and invoice_pay_from_wallet short-circuits
+                        // on `paid` only, so pressing it debited the
+                        // wallet and stamped a cancelled invoice paid.
+                        // The badge beside it correctly read "Cancelled"
+                        // the whole time.
+                        const settled =
+                          paid ||
+                          inv.status === "void" ||
+                          inv.status === "cancelled" ||
+                          inv.status === "refunded";
                         const invSt = invoiceStatusView(inv.status, {
                           customer: true,
                         });
@@ -3393,7 +3409,7 @@ export default function AdvertiserApp() {
                                     settled with its parent invoice, and
                                     offering it separately is what made the
                                     page read as a list of debts. */}
-                                {!paid &&
+                                {!settled &&
                                   (inv.id === dueSubInvoice?.id ||
                                     inv.type === "ad_account_fee" ||
                                     inv.type === "manual_invoice") && (

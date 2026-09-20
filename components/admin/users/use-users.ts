@@ -60,9 +60,44 @@ export default function useUsers({
       if (search && search.trim().length > 0) {
         const term = safeIlikeTerm(search);
         if (term.length > 0) {
-          query = query.or(
-            `full_name.ilike."*${term}*",email.ilike."*${term}*"`,
+          // ── THE CLIENT CODE IS WHAT THE DESK SEARCHES BY ────────────
+          //
+          // The comment forty lines down says "Searching by client code
+          // still works". It did not: tenant_client_code sits on the
+          // EMBEDDED advertisers row, and PostgREST cannot filter a
+          // parent by an embedded column from inside .or() — the filter
+          // would narrow the embed instead. So every screen that links
+          // here with ?q=PSM0005 (the subscriptions list, the requests
+          // queue, the accounts table) landed on "No customers match
+          // your current search or filters", which reads as "that
+          // customer does not exist".
+          //
+          // Resolved with one small lookup first: the advertisers whose
+          // code matches, then their user_ids added to the same .or().
+          // A lookup that fails narrows nothing rather than hiding
+          // everybody.
+          const { data: byCode } = await supabase
+            .from("advertisers")
+            .select("user_id")
+            .eq("tenant_id", profile?.tenant_id)
+            .ilike("tenant_client_code", `%${search.trim()}%`)
+            .limit(200);
+          const codeIds = Array.from(
+            new Set(
+              (byCode ?? [])
+                .map((a) => String((a as { user_id?: string }).user_id ?? ""))
+                .filter(Boolean),
+            ),
           );
+
+          const clauses = [
+            `full_name.ilike."*${term}*"`,
+            `email.ilike."*${term}*"`,
+          ];
+          if (codeIds.length > 0) {
+            clauses.push(`user_id.in.(${codeIds.join(",")})`);
+          }
+          query = query.or(clauses.join(","));
         }
       }
 

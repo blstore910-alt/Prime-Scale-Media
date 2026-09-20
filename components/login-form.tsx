@@ -4,7 +4,7 @@ import { loginUser } from "@/actions/user-actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 const REDIRECT_REASONS: Record<string, string> = {
   idle: "You were signed out after 30 minutes of inactivity.",
@@ -37,15 +37,12 @@ export function LoginForm() {
   const [wasReloaded] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
-      return sessionStorage.getItem(STALE_RELOAD_KEY) !== null;
+      if (sessionStorage.getItem(STALE_RELOAD_KEY) !== null) return true;
     } catch {
-      return false;
+      // blocked storage — the window.name marker still answers
     }
+    return window.name === STALE_RELOAD_KEY;
   });
-  // One reload per PAGE, even with no storage to remember it in. The
-  // sessionStorage key survives the reload and this does not, which is
-  // exactly right: together they are "once per tab, once per document".
-  const reloadedRef = useRef(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -128,6 +125,7 @@ export function LoginForm() {
           } catch {
             // Nothing to clean up in a window that has no storage.
           }
+          if (window.name === STALE_RELOAD_KEY) window.name = "";
           const dest = result.redirectTo;
           // The launch animation used to be WAITED for — a flat 1000ms added
           // to every sign-in before the browser was even asked for the next
@@ -176,25 +174,37 @@ export function LoginForm() {
         // successful sign-in, so the second failure says what happened.
         // And the READ is inside the try: blocked storage threw here,
         // inside a catch block, so neither the reload nor the error ran.
-        let alreadyReloaded = true;
-        try {
-          alreadyReloaded = sessionStorage.getItem(STALE_RELOAD_KEY) !== null;
-        } catch {
-          // Storage blocked. Reload once anyway — the reload is the part
-          // that fixes a stale build; without storage we cannot tell a
-          // first failure from a second, and reloadedRef below keeps it
-          // to one attempt per page.
-          alreadyReloaded = reloadedRef.current;
-        }
+        // ── THE MARKER HAS TO SURVIVE THE RELOAD ─────────────────────
+        //
+        // A React ref cannot: window.location.reload() destroys the
+        // document, so the ref is false again on the next mount and the
+        // "one attempt" it was supposed to enforce is one attempt per
+        // press, for ever. Where sessionStorage throws — Safari private
+        // mode, blocked site data, a privacy extension — that was the
+        // ONLY guard, so the loop came straight back and setError below
+        // stayed unreachable.
+        //
+        // window.name does survive a same-document reload, needs no
+        // permission, and is cleared on a successful sign-in with the
+        // storage key. Belt and braces: either one being set is enough
+        // to stop the second reload.
+        const marked = () => {
+          try {
+            if (sessionStorage.getItem(STALE_RELOAD_KEY) !== null) return true;
+          } catch {
+            // fall through to the window.name marker
+          }
+          return window.name === STALE_RELOAD_KEY;
+        };
 
-        if (typeof window !== "undefined" && !alreadyReloaded) {
-          reloadedRef.current = true;
+        if (typeof window !== "undefined" && !marked()) {
           try {
             sessionStorage.setItem(STALE_RELOAD_KEY, email);
           } catch {
-            // Private window, storage blocked. Reload anyway — the reload
-            // is the part that fixes it; the email is a convenience.
+            // Private window, storage blocked. The marker below is what
+            // actually stops the loop; the email is a convenience.
           }
+          window.name = STALE_RELOAD_KEY;
           window.location.reload();
           return;
         }

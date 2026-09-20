@@ -1,7 +1,7 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { pageAllRows } from "@/lib/page-all-rows";
+import { pageAllRowsTolerant } from "@/lib/page-all-rows";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -229,8 +229,15 @@ export async function GET(request: NextRequest) {
   // unspecified and changed between refreshes. lib/page-all-rows.ts
   // exists for this and names two earlier incidents; two of the seven
   // stats routes got it and five did not.
-  const paged = await pageAllRows<InvoiceRow>((from, to) =>
-  supabase
+  // A COLUMN THE LIVE TABLE MAY NOT HAVE. `invoices` is hand-authored
+  // on production and created by no migration in this repo, so naming
+  // paid_at in the select AND the filter would 500 this card for ever
+  // if it is absent -- instead of leaving it on created_at, which is
+  // what it did before. The top-up routes already page tolerantly; this
+  // one did not.
+  const paged = await pageAllRowsTolerant<InvoiceRow>(
+    (from, to) =>
+supabase
       .from("invoices")
       .select("created_at, paid_at, currency, total")
       .eq("tenant_id", profile.tenant_id)
@@ -252,7 +259,26 @@ export async function GET(request: NextRequest) {
       // ties — so a row on a page boundary could be counted twice
       // or skipped, and which it is changes between requests.
       .order("id", { ascending: true })
-      .range(from, to),
+            .range(from, to),
+    (from, to) =>
+supabase
+      .from("invoices")
+      .select("created_at, currency, total")
+      .eq("tenant_id", profile.tenant_id)
+      // an upgrade raises a subscription_adjustment, and it is subscription revenue:
+        // the total-profit tile was fixed for exactly this and the card
+        // beside it never was, so 20 paid EUR 50 invoices read as zero.
+        .in("type", ["subscription", "subscription_adjustment"])
+      .eq("status", "paid")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .order("created_at", { ascending: true })
+      // A unique tiebreaker: rows created in the same transaction
+      // share one now(), and Postgres gives no stable order among
+      // ties — so a row on a page boundary could be counted twice
+      // or skipped, and which it is changes between requests.
+      .order("id", { ascending: true })
+            .range(from, to),
   );
   const readError = paged.error;
 

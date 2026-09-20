@@ -23,19 +23,25 @@ export interface AdAccountType {
   // Auto-topup via the supplier API (Supplier 1) is possible for this type.
   // Only Meta-EU-PSM; every other type is manual.
   api_topup_enabled: boolean;
-  // -- ADMIN-ONLY, AND IT HAS TO STAY THAT WAY ----------------------
+  // -- ADMIN-ONLY, AND ON A DIFFERENT TABLE FOR IT ------------------
   //
-  // Where an admin goes to fund an account of this type by hand, and
-  // what that supplier is called. Only one type tops up over the API,
-  // so this is most of them.
+  // Which supplier services this type, where an admin goes to fund one
+  // by hand, and what we pay them. These live on
+  // ad_account_type_suppliers, NOT on this row: ad_account_types has a
+  // read policy for any member of the tenant -- deliberately, so the
+  // ad-account create form can list the labels -- so a column here is a
+  // column an advertiser can GET over the API. They were on this row
+  // for a few hours and a supplier name was entered in that window;
+  // 20260920140000 moves them.
   //
-  // The supplier's name must never reach an advertiser or an affiliate,
-  // in the UI or in the JSON behind it -- only admin surfaces read
-  // ad_account_types, and nothing that renders for a customer may start
-  // to. Optional because the migration that adds the columns may not be
-  // on the database yet.
+  // Carried here as optional fields because the settings screen edits
+  // them together with the type; the action reads and writes them
+  // against the other table.
   supplier_label?: string | null;
   supplier_url?: string | null;
+  /** What WE pay the supplier, as a percent. COST DATA: owner surfaces
+   *  only. Null means "not recorded", which is not 0. */
+  supplier_fee_pct?: number | null;
   is_active: boolean;
   sort_order: number;
   updated_by: string | null;

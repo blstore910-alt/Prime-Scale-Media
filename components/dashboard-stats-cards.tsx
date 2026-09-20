@@ -183,7 +183,7 @@ const STATS_CSS = `
 .psm-stats [data-slot=card]{height:100%;display:flex;flex-direction:column}
 .psm-stats [data-slot=card-content]{flex:1 1 auto;display:flex;flex-direction:column;justify-content:flex-end}
 @media(min-width:1100px){.psm-stats .statgrid{grid-template-columns:repeat(3,1fr)}}
-.psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;font-size:1.28rem;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
+.psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
 
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
 /* Two columns all the way down: these tiles are a label plus a number,

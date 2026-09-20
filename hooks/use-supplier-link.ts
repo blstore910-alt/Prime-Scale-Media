@@ -40,11 +40,23 @@ export type SupplierLink = {
 };
 
 type TypeRow = {
+  id: string;
   slug: string | null;
   label: string | null;
   api_topup_enabled: boolean | null;
-  supplier_label?: string | null;
-  supplier_url?: string | null;
+};
+
+/**
+ * The supplier side lives on its own table, because ad_account_types is
+ * readable by ANY member of the tenant — deliberately, so the
+ * ad-account create form can list the labels — and a supplier's name,
+ * dashboard and price are not a customer's business. See
+ * 20260920140000_supplier_link_admin_only.sql.
+ */
+type SupplierRow = {
+  ad_account_type_id: string;
+  supplier_label: string | null;
+  supplier_url: string | null;
 };
 
 type AccountRow = {
@@ -72,19 +84,19 @@ export function useSupplierLinks(accountIds: string[]) {
     queryFn: async () => {
       const supabase = createClient();
 
-      // A COLUMN A MIGRATION HAS NOT ADDED YET. supplier_label/_url
-      // arrive with 20260920120000; ask for them and, on error, ask
-      // again without. The pill stays dark until the migration lands
-      // instead of taking the review screen down with it.
-      const BASE = "slug, label, api_topup_enabled";
-      const typeQuery = (cols: string) =>
-        supabase
-          .from("ad_account_types")
-          .select(cols)
-          .eq("tenant_id", tenantId);
+      const types = await supabase
+        .from("ad_account_types")
+        .select("id, slug, label, api_topup_enabled")
+        .eq("tenant_id", tenantId);
 
-      let types = await typeQuery(`${BASE}, supplier_label, supplier_url`);
-      if (types.error) types = await typeQuery(BASE);
+      // A TABLE A MIGRATION HAS NOT CREATED YET. This one is separate
+      // from the types read on purpose: the types ARE the screen, and a
+      // supplier link that cannot be read must leave the queue working.
+      // Its error is swallowed for that reason and only that one.
+      const suppliers = await supabase
+        .from("ad_account_type_suppliers")
+        .select("ad_account_type_id, supplier_label, supplier_url")
+        .eq("tenant_id", tenantId);
 
       const accounts = await supabase
         .from("ad_accounts")
@@ -100,6 +112,11 @@ export function useSupplierLinks(accountIds: string[]) {
         throw types.error ?? accounts.error;
       }
 
+      const supplierByType = new Map<string, SupplierRow>();
+      for (const row of (suppliers.data ?? []) as unknown as SupplierRow[]) {
+        supplierByType.set(String(row.ad_account_type_id), row);
+      }
+
       const bySlug = new Map<string, TypeRow>();
       for (const row of (types.data ?? []) as unknown as TypeRow[]) {
         const slug = String(row.slug ?? "").toLowerCase();
@@ -111,11 +128,12 @@ export function useSupplierLinks(accountIds: string[]) {
         const slug = String(acct.platform ?? "").toLowerCase();
         const type = slug ? bySlug.get(slug) : undefined;
         if (!type) continue;
-        const url = normalizeSupplierUrl(type.supplier_url);
+        const sup = supplierByType.get(String(type.id));
+        const url = normalizeSupplierUrl(sup?.supplier_url);
         byAccount.set(String(acct.id), {
-          label: supplierPillLabel(type.supplier_label, type.label),
+          label: supplierPillLabel(sup?.supplier_label, type.label),
           url,
-          host: supplierUrlHost(type.supplier_url),
+          host: supplierUrlHost(sup?.supplier_url),
           typeLabel: String(type.label ?? "").trim(),
           apiEnabled: type.api_topup_enabled === true,
         });

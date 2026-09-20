@@ -6,6 +6,7 @@ import {
   type AdAccountType,
   type AdAccountTypeOption,
 } from "@/lib/types/ad-account-type";
+import type { createClient } from "@/lib/supabase/server";
 import { isMissingColumn } from "@/lib/page-all-rows";
 import { normalizeSupplierUrl } from "@/lib/pure-supplier-link";
 import {
@@ -27,6 +28,52 @@ function slugify(label: string): string {
     .slice(0, 60);
 }
 
+type SupplierRow = {
+  ad_account_type_id: string;
+  supplier_label: string | null;
+  supplier_url: string | null;
+  supplier_fee_pct: number | string | null;
+};
+
+/**
+ * Write the supplier side of a type.
+ *
+ * Its own table, because ad_account_types is readable by any member of
+ * the tenant and a supplier's name, dashboard and price are not a
+ * customer's business. Returns a warning string when it could not be
+ * written — never throws, because the caller has already saved the
+ * thing the admin actually came for and reporting a clean save over a
+ * half-written one is the fake success this codebase keeps removing.
+ */
+async function writeSupplier(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: {
+    typeId: string;
+    tenantId: string;
+    userId: string;
+    label: string;
+    url: string | null;
+    feePct: number | null;
+  },
+): Promise<string | undefined> {
+  const { error } = await supabase.from("ad_account_type_suppliers").upsert(
+    {
+      ad_account_type_id: args.typeId,
+      tenant_id: args.tenantId,
+      supplier_label: args.label || null,
+      supplier_url: args.url,
+      supplier_fee_pct: args.feePct,
+      updated_by: args.userId,
+    },
+    { onConflict: "ad_account_type_id" },
+  );
+  if (!error) return undefined;
+  if (isMissingColumn(error.message)) {
+    return "The supplier details were not saved: that table is not on the database yet (migration 20260920140000).";
+  }
+  return `The supplier details were not saved: ${error.message}`;
+}
+
 function isValidPct(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
 }
@@ -41,26 +88,48 @@ export async function listAdAccountTypes(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
-  // A COLUMN A MIGRATION HAS NOT ADDED YET. supplier_label/_url arrive
-  // with 20260920120000, and code reaches production in minutes while
-  // migrations are pasted by hand — so ask for them, and on error ask
-  // again without them. The supplier link stays dark until the
-  // migration lands instead of taking the settings screen down.
-  const BASE =
-    "id, tenant_id, label, slug, platform_group, default_fee_pct, api_topup_enabled, is_active, sort_order, updated_by, created_at, updated_at";
-  const query = (cols: string) =>
-    supabase
-      .from("ad_account_types")
-      .select(cols)
-      .eq("tenant_id", profile.tenant_id)
-      .order("sort_order", { ascending: true })
-      .order("label", { ascending: true });
-
-  let { data, error } = await query(`${BASE}, supplier_label, supplier_url`);
-  if (error) ({ data, error } = await query(BASE));
+  const { data, error } = await supabase
+    .from("ad_account_types")
+    .select(
+      "id, tenant_id, label, slug, platform_group, default_fee_pct, api_topup_enabled, is_active, sort_order, updated_by, created_at, updated_at",
+    )
+    .eq("tenant_id", profile.tenant_id)
+    .order("sort_order", { ascending: true })
+    .order("label", { ascending: true });
   if (error) return { ok: false, error: error.message };
 
-  return { ok: true, data: (data ?? []) as unknown as AdAccountType[] };
+  const types = (data ?? []) as unknown as AdAccountType[];
+
+  // ── THE SUPPLIER SIDE, READ SEPARATELY ────────────────────────────
+  //
+  // It is a different table because ad_account_types is readable by any
+  // member of the tenant and a supplier's name is not a customer's
+  // business. A table the migration has not created yet answers with an
+  // error, and that must not take the settings screen down — the types
+  // are the point of it; the supplier link is an extra.
+  const { data: suppliers } = await supabase
+    .from("ad_account_type_suppliers")
+    .select("ad_account_type_id, supplier_label, supplier_url, supplier_fee_pct")
+    .eq("tenant_id", profile.tenant_id);
+
+  const bySupplier = new Map<string, SupplierRow>();
+  for (const row of (suppliers ?? []) as unknown as SupplierRow[]) {
+    bySupplier.set(String(row.ad_account_type_id), row);
+  }
+
+  return {
+    ok: true,
+    data: types.map((t) => {
+      const s = bySupplier.get(String(t.id));
+      return {
+        ...t,
+        supplier_label: s?.supplier_label ?? null,
+        supplier_url: s?.supplier_url ?? null,
+        supplier_fee_pct:
+          s?.supplier_fee_pct == null ? null : Number(s.supplier_fee_pct),
+      };
+    }),
+  };
 }
 
 // ─────────────────────────────────────────
@@ -135,6 +204,7 @@ export async function upsertAdAccountType(input: {
   sort_order?: number;
   supplier_label?: string | null;
   supplier_url?: string | null;
+  supplier_fee_pct?: number | string | null;
   ifUpdatedAt?: string;
 }): Promise<ActionResult<{ id: string }>> {
   // OWNER, not admin. This was enforced only by the settings layout
@@ -170,7 +240,8 @@ export async function upsertAdAccountType(input: {
   // clicks, inside their own session.
   const supplierTouched =
     Object.hasOwn(input, "supplier_label") ||
-    Object.hasOwn(input, "supplier_url");
+    Object.hasOwn(input, "supplier_url") ||
+    Object.hasOwn(input, "supplier_fee_pct");
   const supplierLabel = String(input.supplier_label ?? "").trim().slice(0, 60);
   const rawUrl = String(input.supplier_url ?? "").trim();
   const supplierUrl = rawUrl ? normalizeSupplierUrl(rawUrl) : null;
@@ -179,6 +250,25 @@ export async function upsertAdAccountType(input: {
       ok: false,
       error: "The supplier dashboard link must be an http or https address.",
     };
+  }
+
+  // AN EMPTY BOX IS NOT ZERO. A supplier fee of 0 means "they charge us
+  // nothing" and null means "we have not recorded it" — and the margin
+  // strip on the pool screen refuses to claim a margin it does not
+  // know. Number("") is 0, which would turn every blank box into a
+  // confident claim of 100% margin.
+  const rawFee = input.supplier_fee_pct;
+  const feeText = rawFee == null ? "" : String(rawFee).trim();
+  let supplierFee: number | null = null;
+  if (feeText !== "") {
+    const n = Number(feeText);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      return {
+        ok: false,
+        error: "The supplier fee must be a percent between 0 and 100.",
+      };
+    }
+    supplierFee = n;
   }
 
   // ---- UPDATE ----
@@ -212,46 +302,35 @@ export async function upsertAdAccountType(input: {
     }
     if (typeof input.is_active === "boolean") patch.is_active = input.is_active;
     if (typeof input.sort_order === "number") patch.sort_order = input.sort_order;
-    if (supplierTouched) {
-      patch.supplier_label = supplierLabel || null;
-      patch.supplier_url = supplierUrl;
-    }
 
-    let { data: rows, error } = await supabase
+    const { data: rows, error } = await supabase
       .from("ad_account_types")
       .update(patch)
       .eq("id", input.id)
       .eq("tenant_id", profile.tenant_id)
       .select("id");
-    // Writing a column the migration has not added yet fails the WHOLE
-    // update, so the fee change the admin actually came here for would
-    // be lost too. Drop the supplier fields and write the rest, and say
-    // so rather than reporting a clean save.
-    let supplierDropped = false;
-    if (error && supplierTouched) {
-      delete patch.supplier_label;
-      delete patch.supplier_url;
-      supplierDropped = true;
-      ({ data: rows, error } = await supabase
-        .from("ad_account_types")
-        .update(patch)
-        .eq("id", input.id)
-        .eq("tenant_id", profile.tenant_id)
-        .select("id"));
-    }
     if (error) return { ok: false, error: error.message };
     // An UPDATE that matches nothing is not an error in PostgREST, so this
     // used to report a saved fee change that never happened — and the fee is
     // what every future top-up on that type is charged at.
     const wrote = wroteSomething(rows);
     if (!wrote.ok) return wrote;
-    return {
-      ok: true,
-      data: { id: input.id },
-      warning: supplierDropped
-        ? "Saved, but the supplier link was not: that column is not on the database yet."
-        : undefined,
-    };
+
+    // The supplier side, on its own table. A failure here must NOT lose
+    // the fee change that was the point of the save, so it is written
+    // after and reported as a warning rather than thrown.
+    const supplierWarning = supplierTouched
+      ? await writeSupplier(supabase, {
+          typeId: input.id,
+          tenantId: profile.tenant_id,
+          userId: profile.user_id,
+          label: supplierLabel,
+          url: supplierUrl,
+          feePct: supplierFee,
+        })
+      : undefined;
+
+    return { ok: true, data: { id: input.id }, warning: supplierWarning };
   }
 
   // ---- CREATE ----
@@ -295,25 +374,11 @@ export async function upsertAdAccountType(input: {
     is_active: input.is_active ?? true,
   };
   const withOrder = { ...core, sort_order, updated_by: profile.user_id };
-  const full = supplierTouched
-    ? {
-        ...withOrder,
-        supplier_label: supplierLabel || null,
-        supplier_url: supplierUrl,
-      }
-    : withOrder;
-
   const attempts: Array<{ row: Record<string, unknown>; lost: string | null }> =
-    full === withOrder
-      ? [
-          { row: withOrder, lost: null },
-          { row: core, lost: "sort order" },
-        ]
-      : [
-          { row: full, lost: null },
-          { row: withOrder, lost: "the supplier link" },
-          { row: core, lost: "the supplier link and the sort order" },
-        ];
+    [
+      { row: withOrder, lost: null },
+      { row: core, lost: "sort order" },
+    ];
 
   let lastError = "";
   for (const attempt of attempts) {
@@ -323,12 +388,23 @@ export async function upsertAdAccountType(input: {
       .select("id")
       .single();
     if (!error) {
+      const lost = attempt.lost
+        ? `Type created, but ${attempt.lost} could not be saved: that column is not on the database yet.`
+        : undefined;
+      const supplierWarning = supplierTouched
+        ? await writeSupplier(supabase, {
+            typeId: String(data.id),
+            tenantId: profile.tenant_id,
+            userId: profile.user_id,
+            label: supplierLabel,
+            url: supplierUrl,
+            feePct: supplierFee,
+          })
+        : undefined;
       return {
         ok: true,
         data: { id: data.id },
-        warning: attempt.lost
-          ? `Type created, but ${attempt.lost} could not be saved: that column is not on the database yet.`
-          : undefined,
+        warning: [lost, supplierWarning].filter(Boolean).join(" ") || undefined,
       };
     }
     lastError = error.message;

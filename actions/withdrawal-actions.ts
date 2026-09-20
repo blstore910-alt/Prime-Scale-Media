@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { pageAllRows, pageAllRowsTolerant } from "@/lib/page-all-rows";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { resolveAdminContext, resolveUserContext } from "./_shared";
@@ -61,15 +62,44 @@ async function fundedUsd(
   adAccountId: string,
 ): Promise<{ ok: true; funded: number } | { ok: false; error: string }> {
   const [topups, withdrawals] = await Promise.all([
-    supabase
-      .from("top_ups")
-      .select("topup_amount")
-      .eq("account_id", adAccountId)
-      .eq("status", "completed"),
-    supabase
-      .from("ad_account_withdrawals")
-      .select("amount, status")
-      .eq("ad_account_id", adAccountId),
+    // ── A STRUCK-OUT TOP-UP IS NOT FUNDING ───────────────────────────
+    // is_deleted is the only way to strike out a COMPLETED top-up, and
+    // every other reader of this table honours it. Left out here, a
+    // EUR 10,000 top-up verified onto the wrong account and then struck
+    // out still counted as money ON the account — so it could be
+    // withdrawn to a wallet, which is money out of nothing inside the
+    // guard that exists to stop money out of nothing.
+    //
+    // PAGED, because PostgREST caps a response at 1,000 rows. Missing
+    // top-ups only under-counts (fails closed); missing WITHDRAWALS
+    // inflates the balance, which fails open.
+    pageAllRowsTolerant<{ topup_amount: unknown }>(
+      (from, to) =>
+        supabase
+          .from("top_ups")
+          .select("topup_amount")
+          .eq("account_id", adAccountId)
+          .eq("status", "completed")
+          .not("is_deleted", "is", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      (from, to) =>
+        supabase
+          .from("top_ups")
+          .select("topup_amount")
+          .eq("account_id", adAccountId)
+          .eq("status", "completed")
+          .order("id", { ascending: true })
+          .range(from, to),
+    ),
+    pageAllRows<{ amount: unknown; status: unknown }>((from, to) =>
+      supabase
+        .from("ad_account_withdrawals")
+        .select("amount, status")
+        .eq("ad_account_id", adAccountId)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   if (topups.error) {
@@ -87,13 +117,13 @@ async function fundedUsd(
     };
   }
 
-  const inUsd = (topups.data ?? []).reduce(
-    (sum, r) => sum + (Number((r as { topup_amount?: unknown }).topup_amount) || 0),
+  const inUsd = topups.rows.reduce(
+    (sum, r) => sum + (Number(r.topup_amount) || 0),
     0,
   );
   // Pending counts against the balance too. Two requests for the whole
   // balance are each valid on their own and only one of them is.
-  const outUsd = (withdrawals.data ?? []).reduce((sum, r) => {
+  const outUsd = withdrawals.rows.reduce((sum, r) => {
     const row = r as { amount?: unknown; status?: unknown };
     const status = String(row.status ?? "").toLowerCase();
     if (status === "rejected" || status === "cancelled") return sum;

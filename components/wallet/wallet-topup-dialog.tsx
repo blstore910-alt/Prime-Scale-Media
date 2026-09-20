@@ -360,6 +360,29 @@ export default function WalletTopupDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft.hasDraft, draft.restoredDraft]);
 
+  // ── THE FIX ABOVE NEVER RAN ────────────────────────────────────────
+  //
+  // The comment above describes exactly this incident and the code that
+  // was meant to close it is a useState INITIALISER — evaluated once,
+  // when the shell first renders, at which point the parent's
+  // topupCurrency is still its own default. The dialog is mounted
+  // unconditionally with no key, so it never remounts and that
+  // initialiser never runs again. The only other place the currency is
+  // re-read is inside `if (!open)` below, which applies the currency of
+  // the PREVIOUS opening.
+  //
+  // So pressing Top up inside the USD wallet card opened a dialog that
+  // said "Wallet to fund: EUR", showed a EUR IBAN, asked how much to
+  // credit to the EUR wallet, and sent p_currency: "EUR" to the RPC.
+  // Dollars wired, claim filed against the euro wallet at 1:1.
+  //
+  // The sibling exchange dialog has had this effect all along
+  // (wallet-exchange-dialog.tsx) — this one was written without it.
+  useEffect(() => {
+    if (!open) return;
+    setCurrency(initialCurrency === "USD" ? "USD" : "EUR");
+  }, [open, initialCurrency]);
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (!open) {

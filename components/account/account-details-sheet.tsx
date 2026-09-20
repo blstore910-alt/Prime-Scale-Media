@@ -46,13 +46,24 @@ import WithdrawDialog from "@/components/withdrawals/withdraw-dialog";
 import { useState } from "react";
 import { AD_ACCOUNT_STATUS_CHOICES } from "@/lib/ad-account-status";
 import {
-  isAccountLocked,
   accountLockedReason,
 } from "@/lib/pure-account-status";
 import {
   AD_ACCOUNT_CUSTOMER_COLUMNS,
   AD_ACCOUNT_CORE_COLUMNS,
 } from "@/lib/ad-account-columns";
+
+/**
+ * The statuses a withdrawal is actually refused on, mirroring
+ * requestAdAccountWithdrawal. banned and closed are the platform's
+ * word, not ours, and the money is not ours to move on our own say-so;
+ * everything else — including `disabled`, `paused` and a status we do
+ * not recognise — can be emptied back to the wallet.
+ */
+const withdrawalRefused = (status: string | null | undefined) => {
+  const s = String(status ?? "").toLowerCase();
+  return s === "banned" || s === "closed";
+};
 
 /** What this sheet reads: the account, plus the trimmed advertiser embed. */
 type AccountDetailsRow = Partial<AdAccount> & {
@@ -505,13 +516,29 @@ export function AccountDetailsSheet({
                 {isAdvertiser && (
                   <Button
                     variant="outline"
-                    disabled={isAccountLocked(
+                    /* ── THE ONLY DOOR THE MONEY HAS ──────────────────
+                       isAccountLocked() locks everything that is not
+                       active/approved/live, including `disabled` — and
+                       `disabled` is exactly the state an account is put
+                       into BEFORE it is emptied and released back to
+                       the pool. The server was changed to allow it
+                       (withdrawal-actions.ts: only banned and closed
+                       refuse, because "you empty it FIRST and release
+                       it after") and this button was not, so the one
+                       control that moves that money stayed greyed out
+                       and the balance was stranded. Same rule on both
+                       sides now. */
+                    disabled={withdrawalRefused(
                       (data as { status?: string | null } | null)?.status,
                     )}
                     title={
-                      accountLockedReason(
+                      withdrawalRefused(
                         (data as { status?: string | null } | null)?.status,
-                      ) ?? "Move funds back to your wallet"
+                      )
+                        ? accountLockedReason(
+                            (data as { status?: string | null } | null)?.status,
+                          ) ?? "This account is switched off."
+                        : "Move funds back to your wallet"
                     }
                     onClick={() => setWithdrawOpen(true)}
                   >
