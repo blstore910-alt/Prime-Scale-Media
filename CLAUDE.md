@@ -33,8 +33,14 @@ and promotions, the reconciliation ledger, the GDPR export, bulk
 top-up, precharge, Wise auto-matching and the standalone affiliate role
 are all out of scope for day one unless the owner says otherwise.
 
-An agent sweep is started only when a journey is blocked and the cause
-is not obvious — one agent, on that cause, not four on four classes.
+**Sweeps are per JOURNEY, not per fault class.** That is the whole
+difference: "every fault of kind X in the app" has no end condition,
+but "everything wrong with the wallet top-up journey" does — it is the
+files that journey touches and nothing else. So for each journey, run
+three or four agents at once, each with a different lens (money
+arithmetic, dead ends, loading/empty/error states, permissions), and
+every one of them SCOPED to that journey's screens, actions, hooks and
+RPCs. Then walk it, fix what they found, close it, move on.
 
 ### What a journey being "closed" means
 

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import {
+import { peopleStatusView } from "@/lib/pure-people-status";
   checkVersion,
   maintenanceGuard,
   versionMatches,
@@ -110,7 +111,7 @@ export async function toggleAdminStatus(
 
   const { data: target, error: fetchError } = await supabase
     .from("user_profiles")
-    .select("id, role, tenant_id, status")
+    .select("id, role, tenant_id, status, is_active")
     .eq("id", adminId)
     .maybeSingle();
 
@@ -131,7 +132,21 @@ export async function toggleAdminStatus(
     };
   }
 
-  const nextStatus = target.status === "active" ? "inactive" : "active";
+  // ── ONE PREDICATE, THE SAME ONE THE BUTTON USES ──────────────────
+  //
+  // This read `status` alone while the row button reads
+  // peopleStatusView(status, is_active) -- "off if EITHER column says
+  // off". A row with status NULL and is_active true therefore showed
+  // "Deactivate", and this line computed next = 'active' because NULL
+  // is not 'active', so the admin stayed switched ON and the toast said
+  // "Admin activated." The owner pressed Deactivate and nothing
+  // happened.
+  //
+  // peopleStatusView is the shared helper and it is pure, so the
+  // server can use the button's own rule instead of a third copy.
+  const currentlyOn =
+    peopleStatusView(target.status, target.is_active).tone === "ok";
+  const nextStatus = currentlyOn ? "inactive" : "active";
 
   const { data: adminRows, error: updateError } = await supabase
     .from("user_profiles")

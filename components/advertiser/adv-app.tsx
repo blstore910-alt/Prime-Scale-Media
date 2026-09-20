@@ -649,14 +649,24 @@ export default function AdvertiserApp() {
     enabled: !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
-      // Approved only. A pending request has not moved anything, and
-      // showing it as a credit would overstate the balance on the one
-      // screen that is supposed to explain it.
+      // ── PENDING TOO, JUST NOT AS A CREDIT ────────────────────────
+      //
+      // "Approved only" was right about the balance and wrong about the
+      // customer: a request they had just filed disappeared completely.
+      // Nowhere on their own screens said it existed -- not this table,
+      // not the account sheet, which shows funding history only -- so
+      // the natural next move is to file it again, and the RPC has no
+      // duplicate guard. The withdraw dialog even invalidates this
+      // query to make the new row show up, against a filter that
+      // excluded it.
+      //
+      // Pending rows come back and are rendered as "Requested", with no
+      // amount in the credited column, so the balance still reads true.
       const { data, error } = await supabase
         .from("ad_account_withdrawals")
         .select("id, created_at, amount, currency, status")
         .eq("advertiser_id", advertiserId!)
-        .eq("status", "approved")
+        .in("status", ["approved", "pending"])
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) throw error;
@@ -1488,7 +1498,9 @@ export default function AdvertiserApp() {
   // says why that is the wrong number: a customer on a subscription
   // discount then reads "EUR 200.00 / month" on their plan card while
   // EUR 5.00 leaves their wallet.
-  const { data: lastChargedRow } = useQuery<{ total: number | null } | null>({
+  const { data: lastChargedRow, isError: lastChargedError } = useQuery<{
+    total: number | null;
+  } | null>({
     queryKey: ["adv-last-charged-sub", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
@@ -1507,11 +1519,21 @@ export default function AdvertiserApp() {
       return (data ?? null) as { total: number | null } | null;
     },
   });
-  const lastChargedAmount =
-    lastChargedRow?.total ??
-    (invoices ?? []).find(
-      (i) => i.type === "subscription" && i.status === "paid",
-    )?.total;
+  // ── AND A FAILED READ IS NOT "NEVER CHARGED" ──────────────────────
+  //
+  // On an error this fell through to subscriptions.amount, the LIST
+  // price -- which is the exact number the comment above says is wrong
+  // for a customer on a subscription discount: "EUR 200.00 / month" on
+  // the plan card while EUR 5.00 leaves the wallet. Undefined here means
+  // the three render sites show the plan's own amount only when there
+  // genuinely is no paid invoice; when the read FAILED they say so.
+  const lastChargedAmount = lastChargedError
+    ? undefined
+    : (lastChargedRow?.total ??
+      (invoices ?? []).find(
+        (i) => i.type === "subscription" && i.status === "paid",
+      )?.total);
+  const chargedUnknown = lastChargedError;
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -2827,7 +2849,9 @@ export default function AdvertiserApp() {
                   <b>
                     {dueSubInvoice
                       ? dueBillAmount
-                      : planMoney(lastChargedAmount ?? subscription.amount)}
+                      : chargedUnknown
+                        ? "—"
+                        : planMoney(lastChargedAmount ?? subscription.amount)}
                   </b>
                   {/* ── ONLY WHEN THE DATE MATTERS ────────────────────
                       This row is a single line by design, so "Next
@@ -3651,18 +3675,42 @@ export default function AdvertiserApp() {
                                 data-label="Description"
                                 style={{ color: "var(--txt-2)" }}
                               >
-                                Returned from an ad account
+                                {String(w.status ?? "").toLowerCase() ===
+                                "pending"
+                                  ? "Return requested from an ad account"
+                                  : "Returned from an ad account"}
                               </td>
                               <td
                                 data-label="Amount"
                                 className="r mono"
                                 style={{ fontWeight: 700 }}
                               >
-                                {sym}
-                                {money2(w.amount)}
+                                {/* A pending return has not been credited,
+                                    so it shows the amount asked for, in
+                                    lighter type, and never lands in a
+                                    running total. */}
+                                {String(w.status ?? "").toLowerCase() ===
+                                "pending" ? (
+                                  <span style={{ color: "var(--faint)" }}>
+                                    {sym}
+                                    {money2(w.amount)}
+                                  </span>
+                                ) : (
+                                  <>
+                                    {sym}
+                                    {money2(w.amount)}
+                                  </>
+                                )}
                               </td>
                               <td data-label="Status" className="r">
-                                <span className="badge ok">Credited</span>
+                                {String(w.status ?? "").toLowerCase() ===
+                                "pending" ? (
+                                  <span className="badge pend">
+                                    Requested
+                                  </span>
+                                ) : (
+                                  <span className="badge ok">Credited</span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -4156,7 +4204,9 @@ export default function AdvertiserApp() {
                       // while EUR 5 was taken. The outstanding branch was
                       // fixed for exactly this; the three branches with
                       // no unpaid invoice were not.
-                      `${planMoney(lastChargedAmount ?? subscription.amount)} / month`
+                      (chargedUnknown
+                        ? "Subscription"
+                        : `${planMoney(lastChargedAmount ?? subscription.amount)} / month`)
                     : "Subscription"}
                 </div>
                 <div className="meta">
@@ -4276,7 +4326,11 @@ export default function AdvertiserApp() {
                             : awaitingFirstInvoice
                               ? `${planMoney2(subscription.amount)} · we raise it overnight`
                             : subscription.next_payment_date
-                              ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · ${planMoney2(lastChargedAmount ?? subscription.amount)}`
+                              ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}${
+                                  chargedUnknown
+                                    ? ""
+                                    : ` · ${planMoney2(lastChargedAmount ?? subscription.amount)}`
+                                }`
                               : "We'll tell you when the next one is ready"}
                         </div>
                       </div>
