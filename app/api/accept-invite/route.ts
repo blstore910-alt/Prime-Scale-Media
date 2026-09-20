@@ -185,7 +185,21 @@ export async function POST(request: NextRequest) {
   // not, leaving the advertiser stuck at the wallet page with a null
   // walletId. ensure_advertiser_and_wallet() is idempotent and only
   // acts for role=advertiser — safe to call unconditionally.
-  const { error: bootstrapError } = await supabase.rpc(
+  // ── ON THE SERVICE CLIENT, NOT THE CALLER'S ──────────────────────
+  //
+  // ensure_advertiser_and_wallet is SECURITY DEFINER, takes any
+  // user_profiles.id, and checks NOTHING about who is asking -- it reads
+  // that profile, creates the advertiser and wallet rows in that
+  // profile's tenant, and returns both ids. With execute granted to
+  // `authenticated`, any signed-in advertiser could POST another
+  // tenant's profile id and be handed that advertiser's advertiser_id
+  // and wallet_id: the two parameters nearly every money RPC takes.
+  //
+  // Both routes that legitimately call it are server-side, so it moves
+  // to the service client and the grant to `authenticated` is revoked
+  // (20260920210000). That closes the hole without rewriting a live
+  // function body, which is the part that has gone wrong here before.
+  const { error: bootstrapError } = await admin.rpc(
     "ensure_advertiser_and_wallet",
     { p_profile_id: profileData.id },
   );
@@ -205,7 +219,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Turn the invitation's plan into a subscription (best-effort).
-  const { error: subError } = await supabase.rpc(
+  // Same, and here the service client is also the MORE correct path.
+  // create_subscription_from_invite branches on auth.uid(): with a uid
+  // it resolves the caller's advertiser with no tenant filter at all,
+  // and with none it matches the invite's own email inside the invite's
+  // own tenant. The second branch is the one that cannot be pointed at
+  // somebody else's invite, so running as the service role is both
+  // safer and closer to what this route means.
+  const { error: subError } = await admin.rpc(
     "create_subscription_from_invite",
     { p_invite_id: invite_id },
   );
