@@ -43,13 +43,25 @@ test("the avatar's letters carry their own size, not the wrapper's", () => {
     );
   }
 
-  // And every <text> it draws does set one.
-  const texts = src.match(/<text\b[\s\S]*?>/g) ?? [];
-  assert.ok(texts.length >= 2, "expected the avatar to draw text");
-  for (const tag of texts) {
+  // The avatar people actually get -- style "mono" -- is ONE element
+  // with every visual property set inline, so there is no child for a
+  // selector to reach and no presentation attribute for a stylesheet to
+  // outrank. That is the property being guarded, not the shape it
+  // happens to take today.
+  const at = src.indexOf('if (resolved === "mono")');
+  assert.ok(at > 0, "the mono branch is gone");
+  const mono = src.slice(at, at + 3000);
+  for (const prop of [
+    "fontSize:",
+    "fontWeight:",
+    "letterSpacing:",
+    "fontFamily:",
+    "color:",
+    "borderRadius:",
+  ]) {
     assert.ok(
-      /style=\{\{[\s\S]*fontSize:/.test(tag),
-      "a <text> in the avatar has no inline fontSize",
+      mono.includes(prop),
+      `the mono avatar does not set ${prop} inline, so a wrapper rule can still change it`,
     );
   }
 });

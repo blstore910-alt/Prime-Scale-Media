@@ -93,6 +93,77 @@ export default function PsmAvatar({
 
   const label = name || email || "Account";
 
+  // ── NO SVG, NO CASCADE, NO SECOND AVATAR ────────────────────────────
+  //
+  // The owner reported "two different avatars" perhaps twenty times and
+  // every look at this component found it innocent: one file, one seed,
+  // the same props at all three call sites. The fault was always the
+  // cascade reaching INTO the drawing — first a wrapper rule that
+  // display:none'd the svg on a phone, then a wrapper font-size that
+  // outranked the <text> element's own presentation attribute and drew
+  // the initials at 11px in the toolbar and 14.5px in the menu.
+  //
+  // Both were fixed and the report came back, so the answer is not
+  // another fix: it is to stop presenting a surface. This is one
+  // element whose every visual property is an INLINE style, and an
+  // inline style outranks every stylesheet rule in the app short of
+  // !important. There is no child for a selector to reach, no
+  // presentation attribute to outrank, no id to collide, and nothing
+  // for a `.avatar svg{...}` rule anywhere to match.
+  //
+  // The other styles below are kept for a picker; the seed only ever
+  // chooses "mono", so this is what every avatar in the product is.
+  const resolved = style ?? autoAvatarStyle(seed);
+  if (resolved === "mono") {
+    const px = (n: number) => `${Math.round(size * n)}px`;
+    return (
+      <span
+        className={className}
+        role="img"
+        aria-label={`${label} avatar`}
+        title={title}
+        style={{
+          // Shape
+          width: `${size}px`,
+          height: `${size}px`,
+          minWidth: `${size}px`,
+          borderRadius: "50%",
+          flex: "0 0 auto",
+          display: "inline-grid",
+          placeItems: "center",
+          overflow: "hidden",
+          boxSizing: "border-box",
+          // An object, not a swatch: light from the top left, a darker
+          // pool bottom right, a bright inner rim and a soft seat.
+          background: `radial-gradient(120% 120% at 30% 24%, ${lighten(
+            a.bg,
+            0.36,
+          )} 0%, ${a.bg} 52%, ${a.bg2} 100%)`,
+          boxShadow: ring
+            ? `0 0 0 2px ${ring}`
+            : "inset 0 1px 0 rgba(255,255,255,.42), inset 0 -6px 12px rgba(6,10,26,.22), 0 1px 2px rgba(10,16,32,.28)",
+          // Type. Every one of these is set here so no ancestor rule can
+          // change the letters again.
+          color: "#FFFFFF",
+          fontFamily: "var(--hd, ui-sans-serif), system-ui, sans-serif",
+          fontSize: px(0.4),
+          fontWeight: 800,
+          lineHeight: 1,
+          letterSpacing: px(0.017),
+          textIndent: px(0.017),
+          textTransform: "uppercase",
+          fontVariantNumeric: "normal",
+          fontStyle: "normal",
+          whiteSpace: "nowrap",
+          userSelect: "none",
+          textShadow: "0 1px 1px rgba(6,10,26,.38)",
+        }}
+      >
+        {a.initials}
+      </span>
+    );
+  }
+
   return (
     <svg
       className={className}
@@ -115,7 +186,7 @@ export default function PsmAvatar({
       </defs>
 
       <g clipPath={`url(#${uid}c)`}>
-        <Style style={style ?? autoAvatarStyle(seed)} a={a} uid={uid} />
+        <Style style={resolved} a={a} uid={uid} />
       </g>
 
       {ring ? (

@@ -1172,6 +1172,10 @@ export const PSM_APP_CSS = `
    which a replaced element like <svg> cannot carry itself. The chip's own
    brand background would otherwise show as a square behind a round face,
    so it steps aside when it is holding one. */
+/* The avatar draws itself, inline, in one element. These two rules are
+   from when it was an <svg> child and a colour was inherited into it;
+   kept only so an older cached bundle still renders. Nothing in the
+   current component matches them. */
 .psmapp .avatar:has(> svg){background:none;color:transparent}
 .psmapp .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 `  + refineCss(".psmapp");
