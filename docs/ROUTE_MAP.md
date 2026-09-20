@@ -23,48 +23,113 @@ imported it, which is why a grep for importers said it was alive.
 **An importer is not a route.** Check that the page can actually render the
 component before trusting that a fix in it matters.
 
-| route | renders |
-|---|---|
-| `/dashboard` | `admin/dashboard` (admin) · `advertiser/dashboard` → `advertiser/adv-app` |
-| `/users` | `admin/users/psm-advertisers` |
-| `/accounts` | `account/accounts-router` → `account/accounts-table` |
-| `/account-pool` | `account-pool/psm-account-pool` |
-| `/ad-account-requests` | `ad-account-requests/psm-requests` |
-| `/wallet-topups` | `wallet-transactions/psm-verify-topups` + `wise/wise-review-panel` |
-| `/top-ups` | `topups/psm-verify-ad-topups` |
-| `/wallets` | `wallets/psm-wallets` |
-| `/withdrawals` | `withdrawals/psm-withdrawals` |
-| `/invoices` | `invoices/invoices-table` — **not** a `psm-*` file |
-| `/subscriptions` | `subscriptions/psm-subscriptions` |
-| `/promotions` | `promotions/psm-promotions` |
-| `/admins` | `admins/admins-table` |
-| `/affiliates` | `affiliate/affiliate-table` |
-| `/commissions` | `commissions/commissions-table` |
-| `/invites` | `invites/invites-header` + `invites/invites-table` |
-| `/activity-logs` | `activity-logs/activity-logs-table` |
-| `/audit` | `audit/audit-events-table` |
-| `/reconciliation` | `reconciliation/reconciliation-view` |
-| `/manual` | `admin/admin-manual` |
-| `/settings/finance` | `settings/finance/exchange-rates` |
-| `/settings/banks` | `settings/finance/banks` |
-| `/settings/plans` | `settings/finance/plans` |
-| `/settings/ad-account-types` | `settings/finance/ad-account-types` |
-| `/settings/integrations` | `settings/finance/integration-status` |
-| `/settings/general` | `settings/general` |
-| `/my-referrals` | `affiliate/aff-app` |
-| `/my-subscription` | redirect only — advertisers to `/dashboard`, everyone else to `/subscriptions` |
-| `/wallet` | redirect only — advertisers to `/dashboard`, everyone else to `/wallets` |
-| `/profile` | `profile/profile-form` + `profile/privacy-controls` + `profile/my-activity` |
-| `/notifications` | `notifications/*` |
-| `/complete-profile` | `company/company-onboarding-form` |
+## Regenerated 2026-09-20
 
-Shells: the admin shell is `components/admin/adm-shell.tsx`; the advertiser
-and affiliate single-page apps carry their own. All three inject
-`components/advertiser/psm-shell-css.ts` (or the `adv-`/`aff-` variants) plus
-`components/advertiser/refine-css.ts`.
+Every `app/**/page.tsx` and `app/**/route.ts`, with the guard column
+collected from the file AND from every `layout.tsx` above it — most guards
+live in a layout, so reading only the page says "NONE" for screens that are
+in fact owner-only. `/settings/*` is the clearest example: not one of its
+six pages carries a guard, and `app/(app)/settings/layout.tsx` gates the
+whole group behind `requireSuperAdmin`.
 
-To regenerate:
+"NONE" in the table below therefore means no guard from these five helpers:
+`requireSuperAdmin`, `requireAdmin`, `apiRequireAdmin`, `isCronAuthorised`,
+`redirectCustomersToTheirShell`. Several API routes read NONE and are
+nevertheless guarded — `/api/admins/create`, `/api/wallet-recovery`,
+`/api/audit/export` and `/api/stats` each do their own `auth.getUser()` plus
+an owner check. Verify before treating a NONE as a hole.
 
-```bash
-for p in $(find app -name "page.tsx" | sort); do r=$(echo "$p" | sed 's|app/||; s|/page.tsx||; s|([a-z-]*)/||g'); c=$(grep -o 'from "@/components/[^"]*"' "$p" | sed 's|from "@/components/||; s|"||' | tr '\n' ' '); echo "$r  ->  $c"; done
-```
+Eight routes were missing from the previous version of this file:
+`/billing`, `/help`, `/referrals`, `/organization`, `/onboard`,
+`/my-invites`, `/invite/*` and `/pwa`. And there is no `/system-status`
+route at all — that panel lives inside `/dashboard`, behind a super-admin
+`<details>`.
+
+Regenerate with the walk in `docs/UNREACHABLE.md`, extended to collect
+layout guards.
+
+| route | guard (page + layouts) | rendered by |
+| --- | --- | --- |
+| `/account-pool` | requireAdmin | `account-pool/psm-account-pool` |
+| `/accounts` | requireAdmin | `account/accounts-router` |
+| `/activity-logs` | requireSuperAdmin + requireAdmin | `activity-logs/activity-logs-table` |
+| `/ad-account-requests` | requireAdmin | `ad-account-requests/psm-requests` |
+| `/admins` | requireSuperAdmin + requireAdmin | `admins/admins-table` |
+| `/affiliates` | requireSuperAdmin + requireAdmin | `affiliate/affiliate-table` |
+| `/audit` | requireSuperAdmin + requireAdmin | `audit/audit-events-table` |
+| `/auth/error` | NONE | `ui/card` |
+| `/auth/forgot-password` | NONE | `forgot-password-form` |
+| `/auth/login` | NONE | `login-form` |
+| `/auth/sign-up` | NONE | `invite-sign-up-form` |
+| `/auth/sign-up-success` | NONE | `ui/card` |
+| `/auth/update-password` | NONE | `update-password-form` |
+| `/billing` | requireAdmin | `-` |
+| `/commissions` | requireSuperAdmin + requireAdmin | `commissions/commissions-table` |
+| `/complete-profile` | NONE | `company/company-onboarding-form` |
+| `/dashboard` | requireAdmin | `admin/dashboard` |
+| `/help` | redirectCustomersToTheirShell + requireAdmin | `-` |
+| `/inactive` | NONE | `inactive/inactive-content` |
+| `/invite/accept` | NONE | `invites/invite-accept` |
+| `/invite/list` | NONE | `onboard/invites-list` |
+| `/invites` | requireSuperAdmin + requireAdmin | `invites/invites-header` |
+| `/invoices` | requireAdmin | `invoices/invoices-table` |
+| `/manual` | requireAdmin | `admin/admin-manual` |
+| `/my-invites` | NONE | `invites/invites-table` |
+| `/my-referrals` | requireAdmin | `affiliate/aff-app` |
+| `/my-subscription` | requireAdmin | `-` |
+| `/notifications` | redirectCustomersToTheirShell + requireAdmin | `ad-account-requests/create-ad-account-from-request-dialog` |
+| `/onboard` | NONE | `-` |
+| `/organization` | NONE | `-` |
+| `/organization/new` | NONE | `onboard/organization-form` |
+| `/page.tsx` | NONE | `-` |
+| `/profile` | redirectCustomersToTheirShell + requireAdmin | `ui/separator` |
+| `/promotions` | requireSuperAdmin + requireAdmin | `promotions/psm-promotions` |
+| `/pwa` | NONE | `-` |
+| `/reconciliation` | requireSuperAdmin + requireAdmin | `reconciliation/reconciliation-view` |
+| `/referrals` | requireAdmin | `-` |
+| `/settings/ad-account-types` | requireSuperAdmin + requireAdmin | `settings/finance/ad-account-types` |
+| `/settings/banks` | requireSuperAdmin + requireAdmin | `settings/finance/banks` |
+| `/settings/finance` | requireSuperAdmin + requireAdmin | `settings/finance/exchange-rates` |
+| `/settings/general` | requireSuperAdmin + requireAdmin | `settings/general` |
+| `/settings/integrations` | requireSuperAdmin + requireAdmin | `settings/finance/integration-status` |
+| `/settings/plans` | requireSuperAdmin + requireAdmin | `settings/finance/plans` |
+| `/subscriptions` | requireAdmin | `subscriptions/psm-subscriptions` |
+| `/top-ups` | requireAdmin | `topups/psm-verify-ad-topups` |
+| `/users` | requireAdmin | `admin/users/psm-advertisers` |
+| `/wallet` | requireAdmin | `-` |
+| `/wallet-topups` | requireAdmin | `wallet-transactions/money-in-tabs` |
+| `/wallets` | requireAdmin | `wallets/psm-wallets` |
+| `/withdrawals` | requireAdmin | `withdrawals/psm-withdrawals` |
+
+| API route | guard |
+| --- | --- |
+| `/api/accept-invite` | NONE |
+| `/api/accept-invite/signup` | NONE |
+| `/api/admins/create` | NONE |
+| `/api/audit/export` | NONE |
+| `/api/auth/sign-out` | NONE |
+| `/api/cron/integration-jobs` | isCronAuthorised |
+| `/api/cron/subscription-billing` | isCronAuthorised |
+| `/api/health` | NONE |
+| `/api/heartbeat` | NONE |
+| `/api/invoices/[invoiceId]/pdf` | NONE |
+| `/api/log/client-error` | NONE |
+| `/api/me/export` | NONE |
+| `/api/push/notify` | requireAdmin |
+| `/api/push/subscribe` | NONE |
+| `/api/send-invite` | apiRequireAdmin |
+| `/api/stats` | NONE |
+| `/api/stats/affiliate-commissions` | NONE |
+| `/api/stats/batch` | NONE |
+| `/api/stats/extra-ad-accounts` | apiRequireAdmin |
+| `/api/stats/fees` | NONE |
+| `/api/stats/profit` | NONE |
+| `/api/stats/registrations` | apiRequireAdmin |
+| `/api/stats/subscriptions` | apiRequireAdmin |
+| `/api/stats/topups` | apiRequireAdmin |
+| `/api/stats/wallet` | apiRequireAdmin |
+| `/api/version` | NONE |
+| `/api/wallet-recovery` | NONE |
+| `/api/webhooks/wise` | NONE |
+| `/api/webhooks/wise/[token]` | NONE |
+| `/auth/confirm` | NONE |
