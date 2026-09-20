@@ -104,6 +104,36 @@ export function getNotificationCopy(notification: Notification): {
       };
     }
 
+    case "withdrawal_rejected": {
+      // The type is declared, the payload carries the reason, and the
+      // Settings toggle reads "Withdrawal refused -- The reason is
+      // included" -- and there was no case here, so it fell to the
+      // default: "New Notification / You have a new notification."
+      // The customer's only other withdrawal surface is filtered to
+      // `approved`, so a refusal appeared NOWHERE in the app. They ask
+      // for EUR 8,000 back, we say no with a reason, and every screen
+      // they own is mute.
+      const p = notification.payload as
+        | {
+            amount?: unknown;
+            currency?: string | null;
+            account_name?: string | null;
+            reason?: string | null;
+          }
+        | null;
+      const where = String(p?.account_name ?? "").trim();
+      const why = String(p?.reason ?? "").trim();
+      return {
+        title: "We couldn't make that withdrawal",
+        description: [
+          where
+            ? `What you asked back from ${where} has not been returned.`
+            : "What you asked back from your ad account has not been returned.",
+          why || "Message us and we will explain.",
+        ].join(" "),
+      };
+    }
+
     case "withdrawal_approved": {
       const p = notification.payload as
         | { amount?: unknown; currency?: string | null; account_name?: string | null }

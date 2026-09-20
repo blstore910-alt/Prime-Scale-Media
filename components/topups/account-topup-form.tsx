@@ -178,8 +178,25 @@ export default function AccountTopupForm({
   const eurBalance = parseAmount(wallet?.eur_balance);
   const hasWallet = !!wallet;
 
+  // ── A FLOOR NOTHING ENFORCES ───────────────────────────────────────
+  //
+  // `ad_accounts.min_topup` is read by no RPC, no trigger and no CHECK,
+  // and createAdAccountAsAdmin writes 0 when it is null. So this `?? 300`
+  // was a rule that existed only in this browser: a customer with
+  // EUR 200 in their wallet, on an account whose min_topup is NULL, was
+  // told "Minimum Amount: 300" and could not move their own
+  // already-paid money onto their own ad account -- while
+  // top_up_create_for_advertiser would have accepted it.
+  //
+  // The wallet dialog says the same thing about the other 300 one file
+  // over: "NOT A LITERAL ... writing 300 here a second time means two
+  // places to change".
+  //
+  // A configured minimum is still honoured. An absent one is not
+  // invented.
+  const configuredMin = Number(selectedAccount?.min_topup);
   const minTopupAmount =
-    selectedAccount?.min_topup ?? 300;
+    Number.isFinite(configuredMin) && configuredMin > 0 ? configuredMin : 0;
   const formSchema = useMemo(
     () =>
       z
@@ -188,7 +205,17 @@ export default function AccountTopupForm({
           currency: z.enum(["USD", "EUR"]),
           amount: z.coerce
             .number()
-            .min(minTopupAmount, `Minimum Amount: ${minTopupAmount}`)
+            .min(
+              minTopupAmount,
+              // The currency was missing on a form whose amount box is
+              // prefixed with one. Taken from the ACCOUNT, not from
+              // `selectedCurrency` -- that is derived from watch(),
+              // which is derived from the form this schema builds, and
+              // naming it here made the type circular.
+              `This account has a minimum of ${
+                selectedAccount?.currency ?? "EUR"
+              } ${minTopupAmount.toFixed(2)}`,
+            )
             .positive("Amount is required"),
         })
         .superRefine((values, ctx) => {
@@ -213,7 +240,14 @@ export default function AccountTopupForm({
             });
           }
         }),
-    [usdBalance, eurBalance, hasWallet, selectedAccountCurrency, minTopupAmount],
+    [
+      usdBalance,
+      eurBalance,
+      hasWallet,
+      selectedAccountCurrency,
+      minTopupAmount,
+      selectedAccount?.currency,
+    ],
   );
 
   const { control, handleSubmit, setValue, watch, reset } = useForm<FormValues>(

@@ -77,9 +77,23 @@ export default function TaxRatesDialog({
   const countries = rows.filter((r) => r.country_code !== "**");
   const catchAll = rows.find((r) => r.country_code === "**");
 
-  const pct = (v: number | string) => {
+  // ── TWO DECIMALS, BECAUSE THE COLUMN HAS TWO ──────────────────────
+  //
+  // rate_pct is numeric(5,2) and this printed toFixed(1): 7.25 became
+  // "7.3%", 12.75 became "12.8%", 0.05 became "0.1%". A tax schedule
+  // misstated upward, on the screen a customer opens precisely because
+  // a figure looked wrong.
+  //
+  // And Number(null) is 0, which is finite -- so a rate nobody has set
+  // yet printed "0%", a positive claim that no tax applies, in a
+  // component whose own comment insists a failed read "is not a list of
+  // zeroes".
+  const pct = (v: number | string | null | undefined) => {
+    if (v === null || v === undefined || v === "") return "—";
     const n = Number(v);
-    return Number.isFinite(n) ? `${n % 1 === 0 ? n : n.toFixed(1)}%` : "—";
+    if (!Number.isFinite(n)) return "—";
+    const trimmed = n.toFixed(2).replace(/\.?0+$/, "");
+    return `${trimmed}%`;
   };
 
   return (

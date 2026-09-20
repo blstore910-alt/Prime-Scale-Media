@@ -181,6 +181,13 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/dashboard?view=accounts",
       };
 
+    case "withdrawal_rejected":
+      return {
+        title: "We couldn't make that withdrawal",
+        body: "Open it to see why.",
+        url: "/dashboard?view=notif",
+      };
+
     case "withdrawal_approved":
       return {
         title: "Money is back in your wallet",

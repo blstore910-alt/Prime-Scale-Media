@@ -313,9 +313,19 @@ export default function AdAccountRequestForm({
       const failed = [w, r, plan, reqs, perks].find((res) => res.error);
       if (failed?.error) throw failed.error;
 
+      // ── THE SAME COMPARISON THE SQL MAKES, CASE AND ALL ───────────
+      //
+      // ad_account_request_create_paid counts with
+      // `coalesce(status,'') not in ('rejected','cancelled')` -- no
+      // lower(). This lowercased first, so one request stored as
+      // 'Rejected' made the client count 0 used and print "Included in
+      // your plan - no fee" while the server counted 1 and debited
+      // EUR 50 -- or refused with "Insufficient wallet balance" if the
+      // wallet was short. The screen has to lose that argument, not
+      // win it.
       const used = (reqs.data ?? []).filter(
         (x: { status: string | null }) =>
-          !["rejected", "cancelled"].includes((x.status ?? "").toLowerCase()),
+          !["rejected", "cancelled"].includes(x.status ?? ""),
       ).length;
       const nowMs = new Date().getTime();
       const hasFreePerk = (perks.data ?? []).some(
@@ -517,9 +527,20 @@ export default function AdAccountRequestForm({
             <>
               <div className="font-medium">Included in your plan — no fee</div>
               <div className="text-muted-foreground text-xs mt-0.5">
-                {included - used} of {included} included ad account
-                {included === 1 ? "" : "s"} remaining. Your wallet won&apos;t be
-                charged for this request.
+                {/* The free branch is reached AFTER the allowance is
+                    exhausted -- that is what a free-request perk is for
+                    -- so `included - used` is negative by definition
+                    here, and with no plan row at all `included` is 0
+                    and it read "-4 of 0". Clamped, and the sentence
+                    says which of the two is covering it, because the
+                    server distinguishes plan_included from perk and
+                    this did not. */}
+                {Math.max(0, included - used)} of {included} included ad
+                account{included === 1 ? "" : "s"} left
+                {included - used <= 0
+                  ? " — this one is covered by a free-request perk"
+                  : ""}
+                . Your wallet won&apos;t be charged for this request.
               </div>
             </>
           ) : (
