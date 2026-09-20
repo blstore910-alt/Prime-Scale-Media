@@ -36,7 +36,27 @@ export function peopleStatusView(
   const off = isActive === false || s === "inactive" || s === "disabled";
   if (off) return { label: "Inactive", tone: "off", cls: "badge off" };
 
-  if (s === "active" || isActive === true) {
+  // `is_active` alone is NOT permission to print "Active". The status
+  // column is hand-authored and its default is not in this repo, so a
+  // row can carry "pending", "invited" or "suspended" -- and every one
+  // of those has is_active true until somebody sets it false. Treating
+  // that as Active painted a green pill on a suspended customer AND
+  // flipped their row button to "Deactivate", which is the opposite of
+  // what an admin needs to press.
+  if (s === "active") return { label: "Active", tone: "ok", cls: "badge ok" };
+
+  // A word we do not know is printed as itself, quietly. It is a true
+  // statement, it is visibly not "Active", and it tells whoever is
+  // looking that the database holds something this screen was not
+  // written for -- which is exactly what they need to know.
+  if (s) {
+    const label = s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
+    return { label, tone: "off", cls: "badge pend" };
+  }
+
+  // Nothing at all in the status column. An empty status with is_active
+  // true is the ordinary shape of a freshly-inserted profile.
+  if (isActive === true) {
     return { label: "Active", tone: "ok", cls: "badge ok" };
   }
 

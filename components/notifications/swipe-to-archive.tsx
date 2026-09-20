@@ -39,7 +39,8 @@ export function SwipeToArchive({
   disabled,
 }: {
   children: React.ReactNode;
-  onArchive: () => void;
+  /** May return a promise; the row stays off screen until it settles. */
+  onArchive: () => void | Promise<unknown>;
   /** Already in the archive: the gesture puts it back instead. */
   archived?: boolean;
   /** What is being put aside, for the button's accessible name. */
@@ -59,7 +60,30 @@ export function SwipeToArchive({
       setGone(true);
       // Let the row travel off before the list re-renders without it.
       // A row that vanishes under the finger reads as a mis-tap.
-      window.setTimeout(onArchive, 140);
+      //
+      // ── AND COME BACK IF IT DID NOT TAKE ──────────────────────────
+      //
+      // `gone` translates the row 110% off its own overflow:hidden
+      // container. When the update is refused -- RLS, the row gone, a
+      // zero-row write -- the toast appears and the row stays in the
+      // list, so what was left was an empty grey band reading
+      // "Archive" where an alert used to be. That alert can be "your
+      // top-up was rejected", and it was unreadable until reload.
+      //
+      // onArchive may be sync or async; Promise.resolve covers both,
+      // and a throw is caught rather than becoming unhandled.
+      window.setTimeout(() => {
+        Promise.resolve()
+          .then(() => onArchive())
+          .catch(() => {})
+          .finally(() => {
+            // Only if the parent did NOT remove us. If it did, this
+            // component is unmounted and the setState is a no-op React
+            // ignores.
+            setGone(false);
+            setDx(0);
+          });
+      }, 140);
       return;
     }
     setDx(0);

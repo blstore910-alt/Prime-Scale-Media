@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { maintenanceGuard, type ActionResult, wroteSomething } from "./_shared";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -267,11 +268,50 @@ export async function voidInvoiceAsAdmin(
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
-  const { data: invoice } = await supabase
+  // ── A COLUMN NO MIGRATION HAS ADDED ───────────────────────────────
+  //
+  // `notes` is in INVOICE_INSERT_ALLOWED and nothing has ever written
+  // it: no migration creates it and neither create-invoice caller sends
+  // it. Naming it in a select does not degrade -- PostgREST throws
+  // 42703 -- and because the error was discarded the row came back null
+  // and this action answered "Invoice not found". So the one control
+  // that exists to stop a mistyped EUR 2000 being collected was a
+  // no-op, and its message pointed the admin at the wrong problem.
+  //
+  // Ask for it, and on error ask again without it. Then the cancel
+  // still works and only the reason has nowhere to live -- which the
+  // caller is told about rather than guessing at.
+  const WITH_NOTES = "id, tenant_id, status, total, currency, notes";
+  const WITHOUT = "id, tenant_id, status, total, currency";
+  type InvoiceRow = {
+    id: string;
+    tenant_id: string;
+    status: string | null;
+    notes?: string | null;
+  };
+  let canKeepReason = true;
+  let invoice: InvoiceRow | null = null;
+
+  const first = await supabase
     .from("invoices")
-    .select("id, tenant_id, status, total, currency, notes")
+    .select(WITH_NOTES)
     .eq("id", invoiceId)
     .maybeSingle();
+  if (first.error) {
+    canKeepReason = false;
+    const retry = await supabase
+      .from("invoices")
+      .select(WITHOUT)
+      .eq("id", invoiceId)
+      .maybeSingle();
+    if (retry.error) {
+      return { ok: false, error: safeErrorMessage(retry.error) };
+    }
+    invoice = retry.data as unknown as InvoiceRow | null;
+  } else {
+    invoice = first.data as unknown as InvoiceRow | null;
+  }
+
   if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
   if (invoice.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden", code: "forbidden" };
@@ -292,19 +332,45 @@ export async function voidInvoiceAsAdmin(
   const line = `[${stamp}] Cancelled: ${why}`;
   const notes = invoice.notes ? `${String(invoice.notes)}\n${line}` : line;
 
+  const patch: Record<string, unknown> = { status: "void", period_start: null };
+  if (canKeepReason) patch.notes = notes;
+
   const { data: updated, error: updateError } = await supabase
     .from("invoices")
-    .update({ status: "void", period_start: null, notes })
+    .update(patch)
     .eq("id", invoiceId)
     .eq("tenant_id", profile.tenant_id)
-    // Not .neq("status", "paid"): PostgREST drops NULLs on neq, so an
-    // invoice with no status at all would be excluded and the update
-    // would match nothing while reporting success. The check above is
-    // the guard; this is only the tenant fence.
+    // ── AND STILL NOT PAID AT THE MOMENT OF THE WRITE ───────────────
+    //
+    // The status check above is on the row we read. Between that read
+    // and this write the unattended collection can call
+    // invoice_pay_from_wallet: the wallet is debited, the paid-invoice
+    // trigger rolls the subscription period forward -- and then this
+    // would flip the now-PAID invoice to void and null its
+    // period_start, freeing the unique slot so the same month is
+    // raised again. The customer pays twice for one month.
+    //
+    // .or() rather than .neq(): PostgREST drops NULLs on neq, so an
+    // invoice with no status at all would fall outside the filter and
+    // the update would match nothing while reporting success.
+    .or("status.is.null,status.neq.paid")
     .select("id");
-  if (updateError) return { ok: false, error: updateError.message };
+  if (updateError) return { ok: false, error: safeErrorMessage(updateError) };
   const wrote = wroteSomething(updated);
-  if (!wrote.ok) return wrote;
+  if (!wrote.ok) {
+    return {
+      ok: false,
+      error:
+        "That invoice was paid while this was open, so it has not been cancelled. Reload and look again — a paid invoice needs a refund or a credit note.",
+      code: "conflict",
+    };
+  }
 
-  return { ok: true, data: null };
+  return {
+    ok: true,
+    data: null,
+    warning: canKeepReason
+      ? undefined
+      : "Cancelled, but the reason could not be saved: this database has no invoices.notes column yet. Record it elsewhere.",
+  };
 }

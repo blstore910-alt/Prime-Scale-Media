@@ -4,14 +4,28 @@ import { Notification } from "@/lib/types/notification";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { safeErrorMessage } from "@/lib/pure-error";
-import { useRef } from "react";
+import { useState } from "react";
+
+// Whether THIS database has notifications.archived_at. A fact about the
+// schema, so it outlives any one mount -- see the note where it is read.
+let ARCHIVE_COLUMN_SEEN = false;
 
 export default function useNotifications(
   view: "active" | "archived" = "active",
 ) {
-  // A ref, not state: it must not cause a render of its own, and the
-  // query that sets it re-renders anyway when its data lands.
-  const archiveReady = useRef(false);
+  // ── MODULE SCOPE, NOT A REF ───────────────────────────────────────
+  //
+  // As a useRef this reset to false on every mount, and react-query
+  // serves cached data for staleTime without running queryFn -- so
+  // navigating away and back within 30 seconds remounted the component
+  // with the flag false and NO query run to set it again. The Archive
+  // tab vanished and nothing was swipeable, twenty seconds after both
+  // worked.
+  //
+  // Whether this database has the column is a fact about the database,
+  // not about one mount, so it lives outside the component. useState
+  // seeds from it so a later discovery still triggers a render.
+  const [archiveReady, setArchiveReady] = useState(ARCHIVE_COLUMN_SEEN);
   const supabase = createClient();
   const queryClient = useQueryClient();
   const { user } = useAppContext();
@@ -60,11 +74,29 @@ export default function useNotifications(
         : base().is("archived_at", null));
 
       if (!error) {
-        archiveReady.current = true;
+        ARCHIVE_COLUMN_SEEN = true;
+        setArchiveReady(true);
         return data as Notification[];
       }
 
-      archiveReady.current = false;
+      // ── ONLY A MISSING COLUMN MEANS "NO ARCHIVE HERE" ─────────────
+      //
+      // This treated EVERY error the same: a network blip on the
+      // Archive tab returned [] as a SUCCESS, which reads as "you have
+      // archived nothing" -- a confident zero over a failed read. And
+      // it flipped the flag off, which removed the tab bar while `view`
+      // was still "archived", leaving no way back to the inbox without
+      // reloading the page.
+      //
+      // 42703 is "column does not exist". Anything else is a real
+      // failure and is thrown, so isError renders instead of an empty
+      // list, and the tabs stay where they are.
+      const missingColumn =
+        (error as { code?: string } | null)?.code === "42703";
+      if (!missingColumn) throw error;
+
+      ARCHIVE_COLUMN_SEEN = false;
+      setArchiveReady(false);
       if (view === "archived") return [] as Notification[];
       const { data: plain, error: plainError } = await base();
       if (plainError) throw plainError;
@@ -80,13 +112,25 @@ export default function useNotifications(
     queryKey: ["notifications", userId, "unread-count"],
     enabled: !!userId,
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("recipient_user_id", userId)
-        .eq("is_read", false);
-      if (error) throw error;
-      return count ?? 0;
+      // ── NOT THE ONES ALREADY PUT ASIDE ──────────────────────────
+      //
+      // Archiving an unread alert took it out of the inbox and left it
+      // in this count, so the bell read 3 over a list showing 2 and
+      // nothing on the inbox could clear it.
+      const base = () =>
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_user_id", userId)
+          .eq("is_read", false);
+
+      const { count, error } = await base().is("archived_at", null);
+      if (!error) return count ?? 0;
+      // Same pending-column rule as the list above.
+      if ((error as { code?: string } | null)?.code !== "42703") throw error;
+      const { count: plain, error: plainError } = await base();
+      if (plainError) throw plainError;
+      return plain ?? 0;
     },
   });
 
@@ -223,6 +267,6 @@ export default function useNotifications(
     // False until a read has actually come back with the column in it,
     // so the archive tab and the swipe stay hidden rather than offering
     // something that would fail.
-    canArchive: archiveReady.current,
+    canArchive: archiveReady,
   };
 }

@@ -139,44 +139,24 @@ export const PSM_APP_CSS = `
   gap:2px;margin:0 0 4px}
 .psmapp .seg2.manaud button{padding:9px 6px;text-align:center}
 
-/* ── SWIPE A NOTIFICATION ASIDE ────────────────────────────────────
-   The coloured panel sits behind the row and never moves; the row
-   slides over it, which is why the whole thing needs overflow:hidden
-   and a stacking context of its own. Unscoped as well as scoped: the
-   alerts page is outside .psmapp in the admin shell. */
-.swiperow{position:relative;overflow:hidden;isolation:isolate}
-.swiperow .swipeback{position:absolute;inset:0;display:flex;align-items:center;
-  justify-content:flex-end;gap:8px;padding:0 20px;background:#eef1f8;
-  color:#5b647d;font-size:.78rem;font-weight:800;letter-spacing:.02em;
-  transition:background .12s,color .12s}
-.swiperow .swipeback svg{width:17px;height:17px}
-/* Past the point of no return, so the colour IS the confirmation --
-   there is no undo dialog on a gesture. */
-.swiperow .swipeback.armed{background:#dbe6ff;color:#3a6fff}
-.swiperow .swipefront{position:relative;z-index:1;background:var(--panel,#fff);
-  touch-action:pan-y}
-.swiperow.gone .swipefront{transition:transform .14s ease-in;opacity:.4}
+/* Swipe-to-archive and the Inbox/Archive tabs moved to
+   components/notifications/notifications-css.ts. /notifications is a
+   SHARED route and only the admin shell injects this file, so those
+   rules reached admins and nobody else -- and a customer opening their
+   own alerts got an unstyled, broken layout. The page carries them now.
 
-/* The same action for a keyboard and a screen reader. Quiet until the
-   row is hovered or it is focused, so it is not twenty icons in a list
-   of twenty -- but it is always reachable by Tab. */
-.swiperow .swipebtn{position:absolute;top:50%;right:8px;transform:translateY(-50%);
-  z-index:2;display:grid;place-items:center;width:30px;height:30px;padding:0;
-  border:1px solid transparent;border-radius:9px;background:none;cursor:pointer;
-  color:#8b93a7;opacity:0;transition:opacity .12s,color .12s,border-color .12s}
-.swiperow:hover .swipebtn,.swiperow .swipebtn:focus-visible{opacity:1}
-.swiperow .swipebtn:hover{color:#3a6fff;border-color:#c9d6f5}
-.swiperow .swipebtn svg{width:15px;height:15px}
-@media (hover:none){
-  /* No hover on a phone, and on a phone the swipe is the gesture --
-     so the button would just cover the unread dot. */
-  .swiperow .swipebtn{display:none}
-}
-
-/* Inbox / Archive. */
-.seg2.nfview,.psmapp .seg2.nfview{display:grid;grid-auto-flow:column;
-  grid-auto-columns:1fr;gap:2px;margin:0 0 10px;max-width:280px}
-.seg2.nfview button,.psmapp .seg2.nfview button{padding:8px 6px;text-align:center}
+   A BASE .seg2 though, because PSM_APP_CSS never had one: the rule
+   lives in the advertiser and affiliate shells only, so the manual
+   page's audience switch rendered as plain grey browser buttons with
+   no indication of which one was selected. */
+.psmapp .seg2{display:flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:10px;
+  background:var(--panel-2);border:1px solid var(--line)}
+.psmapp .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;
+  font-size:.82rem;color:var(--txt-2);padding:7px 12px;border-radius:8px;
+  cursor:pointer;transition:.13s;white-space:nowrap}
+.psmapp .seg2 button:hover{color:var(--ink)}
+.psmapp .seg2 button.on{background:var(--panel);color:var(--primary-600);
+  box-shadow:0 1px 3px rgba(20,30,80,.16)}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
 .psmapp .tool.ava-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
 .psmapp .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}

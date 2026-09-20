@@ -2,7 +2,11 @@
 
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createAdminClient } from "@/lib/supabase/server";
-import { resolveAdminContext, wroteSomething } from "./_shared";
+import {
+  resolveAdminContext,
+  wroteSomething,
+  type ActionResult as SharedActionResult,
+} from "./_shared";
 import {
   matchIncomingTransfer,
   normalizeIban,
@@ -15,9 +19,10 @@ import {
   probeWiseStatement,
 } from "@/lib/integrations/wise-api";
 
-type ActionResult<T = null> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
+// The shared shape, not a local copy: the local one had no `code`, so a
+// new action could not tell a caller WHY it refused -- and the callers
+// here already branch on it.
+type ActionResult<T = null> = SharedActionResult<T>;
 
 // Admin confirms a Wise deposit the matcher suggested — completes the
 // suggested topup. Used during the safe-start phase where nothing
@@ -958,4 +963,120 @@ export async function probeWiseDepositLookup(
             : null),
     },
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// The bank sent a different amount than the customer claimed
+// ─────────────────────────────────────────────────────────────────────
+// Tolerance everywhere in this feed is ONE CENT: the matcher, the
+// manual picker, and matchWiseToTopup's own refusal. That is right for
+// deciding whether two things are the same payment, and wrong as the
+// only option afterwards.
+//
+// An intermediary bank taking EUR 12 off a EUR 630 transfer is ordinary
+// for anything that is not SEPA. The deposit that arrives can then be
+// attached to nothing: no screen will match it, and the only remaining
+// route is Verify on the top-ups desk, which credits the FULL claimed
+// EUR 630 for EUR 618 actually received. Twelve euros of somebody
+// else's money, and no record of why.
+//
+// So: set the claim to what actually arrived, with a reason, and then
+// the exact-match path works and credits the true figure. The customer
+// sees the corrected amount and the note on their own statement.
+//
+// Narrow on purpose:
+//   * PENDING only. A completed top-up has already moved money and its
+//     amount is what the balance was built from -- changing it would
+//     make the wallet disagree with its own history.
+//   * The reason is required and is kept.
+//   * The currency is never touched. A EUR claim against a GBP deposit
+//     is not an amount correction, it is a different payment.
+//   * Column-allowlisted: amount and description, nothing else.
+// ─────────────────────────────────────────────────────────────────────
+export async function adjustWalletTopupAmount(
+  topupId: string,
+  newAmount: number,
+  reason: string,
+): Promise<ActionResult<{ amount: number }>> {
+  if (typeof topupId !== "string" || topupId.length === 0) {
+    return { ok: false, error: "Invalid input", code: "invalid" };
+  }
+  const amount = Number(newAmount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false, error: "That is not an amount.", code: "invalid" };
+  }
+  // Two decimals, because this becomes a balance. A figure carrying
+  // sub-cent noise would reconcile against the bank to three decimals
+  // for ever.
+  const rounded = Math.round(amount * 100) / 100;
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (why.length < 3) {
+    return {
+      ok: false,
+      error: "Say why the amount is being changed — the customer sees it.",
+      code: "invalid",
+    };
+  }
+  if (why.length > 500) {
+    return { ok: false, error: "That reason is too long.", code: "invalid" };
+  }
+
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "forbidden" };
+  const { supabase, profile } = auth.ctx;
+
+  const { data: topup } = await supabase
+    .from("wallet_topups")
+    .select("id, amount, currency, status, tenant_id, description")
+    .eq("id", topupId)
+    .maybeSingle();
+  if (!topup) {
+    return { ok: false, error: "Top-up not found", code: "not_found" };
+  }
+  if (topup.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+  if (String(topup.status ?? "").toLowerCase() !== "pending") {
+    return {
+      ok: false,
+      error:
+        "Only a pending top-up can be corrected. This one has already been settled, so the balance was built from its amount — a correction now is an adjustment, not an edit.",
+      code: "invalid",
+    };
+  }
+
+  const was = Number(topup.amount) || 0;
+  if (Math.abs(was - rounded) < 0.005) {
+    return { ok: true, data: { amount: was } };
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const cur = String(topup.currency ?? "EUR").toUpperCase();
+  const line = `[${stamp}] Amount corrected from ${was.toFixed(2)} to ${rounded.toFixed(2)} ${cur}: ${why}`;
+  const description = topup.description
+    ? `${String(topup.description)}\n${line}`
+    : line;
+
+  const { data: updated, error: updateError } = await supabase
+    .from("wallet_topups")
+    .update({ amount: rounded, description })
+    .eq("id", topupId)
+    .eq("tenant_id", profile.tenant_id)
+    // And still pending at the moment of the write. Between the read
+    // above and here, another admin can verify it -- and that would
+    // rewrite the amount a balance was just built from.
+    .eq("status", "pending")
+    .select("id");
+  if (updateError) return { ok: false, error: updateError.message };
+  const wrote = wroteSomething(updated);
+  if (!wrote.ok) {
+    return {
+      ok: false,
+      error:
+        "That top-up is no longer pending — somebody verified or rejected it while this was open. Reload and look again.",
+      code: "conflict",
+    };
+  }
+
+  return { ok: true, data: { amount: rounded } };
 }

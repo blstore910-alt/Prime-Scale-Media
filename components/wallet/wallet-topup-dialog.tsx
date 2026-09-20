@@ -1260,7 +1260,11 @@ export default function WalletTopupDialog({
                     <p className="mt-2 text-center text-xs text-muted-foreground">
                       {refCopied
                         ? "Copied"
-                        : "Tap to copy. You can find it again on your wallet page."}
+                        : /* NOT "find it again on your wallet page": the
+                             whole point of this block is that the
+                             wallet has already rotated to the NEXT
+                             code, so that page shows a different one. */
+                          "Tap to copy — put it on the transfer."}
                     </p>
                   </div>
                 ) : null}

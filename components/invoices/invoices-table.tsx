@@ -451,7 +451,12 @@ export default function InvoicesTable() {
                                     never on one already cancelled. */}
                                 {isAdmin && !isVoid && !isPaid && (
                                   <button
-                                    className="btn ghost sm danger soft"
+                                    /* No `ghost`: .psmapp .btn.ghost.danger
+                                       sits later in the sheet at equal
+                                       specificity and wins with
+                                       border-color:transparent, the
+                                       opposite of what .danger.soft is for. */
+                                    className="btn sm danger soft"
                                     disabled={isUpdatingStatus}
                                     onClick={() => {
                                       setVoidReason("");

@@ -29,6 +29,7 @@ import NotificationActionStatusDialog from "@/components/notifications/notificat
 import ConfirmModal from "@/components/ui/confirm-modal";
 import { SwipeToArchive } from "@/components/notifications/swipe-to-archive";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import { NOTIFICATIONS_CSS } from "@/components/notifications/notifications-css";
 
 export default function NotificationsPage() {
   const router = useRouter();
@@ -342,12 +343,14 @@ export default function NotificationsPage() {
 
       <Separator />
 
+      <style>{NOTIFICATIONS_CSS}</style>
+
       {/* ── THE LIST, AND WHAT YOU HAVE PUT ASIDE ──────────────────
           Only once a read has come back with archived_at in it. Before
           the migration is pasted there is no archive, and offering a tab
           that cannot work is worse than not offering one. */}
       {canArchive ? (
-        <div className="seg2 nfview" role="group" aria-label="Which notifications">
+        <div className="nfview" role="group" aria-label="Which notifications">
           <button
             type="button"
             className={view === "active" ? "on" : ""}
@@ -390,8 +393,10 @@ export default function NotificationsPage() {
               key={notification.id}
               archived={view === "archived"}
               label={getNotificationCopy(notification).title}
+              // mutateAsync, so the row only stays off screen while the
+              // write is in flight and slides back if it is refused.
               onArchive={() =>
-                setArchived.mutate({
+                setArchived.mutateAsync({
                   id: notification.id,
                   archived: view !== "archived",
                 })

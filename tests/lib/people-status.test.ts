@@ -32,7 +32,29 @@ test("knowing nothing prints a dash, not a claim", () => {
 });
 
 test("an unknown word is not treated as permission", () => {
-  assert.equal(peopleStatusView("pending_review", null).label, "\u2014");
+  // The regression this guards: `is_active` alone used to count as
+  // Active, so a suspended customer got a green pill AND their row
+  // button flipped to "Deactivate" -- the opposite of what an admin
+  // needs to press. Only the literal word "active" means active.
+  for (const word of ["pending_review", "invited", "suspended", "banned"]) {
+    const off = peopleStatusView(word, true);
+    assert.notEqual(off.label, "Active", word);
+    assert.equal(off.tone, "off", word);
+  }
+});
+
+test("a word we do not know is printed as itself, not as a dash", () => {
+  // A dash hides that the database holds something this screen was not
+  // written for, which is what the person looking needs to see.
+  assert.equal(peopleStatusView("pending_review", null).label, "Pending review");
+  assert.equal(peopleStatusView("SUSPENDED", null).label, "Suspended");
+});
+
+test("an empty status with is_active true is a fresh profile, and active", () => {
+  // Neither accept-invite route writes `status`, so this is the
+  // ordinary shape of a just-created customer.
+  assert.equal(peopleStatusView(null, true).label, "Active");
+  assert.equal(peopleStatusView("", true).label, "Active");
 });
 
 test("one pill class per state, so no screen can invent its own", () => {
