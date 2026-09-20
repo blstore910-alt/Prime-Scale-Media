@@ -1,7 +1,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
-import { safeIlikeTerm } from "@/lib/utils/search";
+import { advertiserIdsMatching } from "@/lib/search-advertisers";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -109,10 +109,36 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
         } else if (numericOnly) {
           query = query.eq("number", Number(rawTerm));
         } else {
-          const term = safeIlikeTerm(rawTerm);
-          if (term.length > 0) {
-            query = query.or(
-              `advertiser.tenant_client_code.ilike."*${term}*",company.name.ilike."*${term}*"`,
+          // ── IDS FIRST, BECAUSE AN EMBEDDED FILTER DOES NOT NARROW ──
+          //
+          // This put the filter on an embedded column over a
+          // non-!inner embed. PostgREST cannot restrict PARENT rows
+          // that way -- it nulls the embed on rows that do not match
+          // and returns every invoice in the tenant anyway. And the
+          // screen asserts the narrow reading regardless: the box is
+          // filled in, the filter badge says 1 active, and the pager
+          // counts the UNRESTRICTED set.
+          //
+          // /subscriptions puts an Invoices button on every row linking
+          // to /invoices?q=<client code>, which lands exactly here. An
+          // admin sees an unpaid EUR 200 row under what they believe is
+          // PSM0005 and presses Mark paid -- onto somebody else's
+          // invoice. Paid is one-way: paid -> unpaid is refused and a
+          // paid invoice cannot be voided.
+          const ids = await advertiserIdsMatching(
+            supabase,
+            profile?.tenant_id,
+            rawTerm,
+          );
+          if (ids) {
+            // An EMPTY array is "narrowed, and nothing matched". It must
+            // stay narrow -- dropping the filter here is how the whole
+            // ledger came back under one customer's code.
+            query = query.in(
+              "advertiser_id",
+              ids.length > 0
+                ? ids
+                : ["00000000-0000-0000-0000-000000000000"],
             );
           }
         }

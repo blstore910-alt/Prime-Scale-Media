@@ -3,6 +3,7 @@ import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { safeIlikeTerm } from "@/lib/utils/search";
+import { advertiserIdsMatching } from "@/lib/search-advertisers";
 
 export type AdAccountRequestsQueryParams = {
   search?: string | undefined;
@@ -137,14 +138,24 @@ export default function useAdAccountRequests(
         // !inner on the embed, because postgrest-js cannot restrict
         // parent rows by an embedded column without it — the invoices
         // search has been quietly broken for the same reason.
+        // ...and the same fix as /invoices, whose breakage the comment
+        // above names: the embedded arm never narrowed anything, so
+        // searching a client code returned the whole queue while the
+        // screen said it was filtered. Resolve to ids, then filter on
+        // this table's own column.
         const term = safeIlikeTerm(search.trim());
-        if (term.length > 0) {
-          query = query.or(
-            [
-              `email.ilike."*${term}*"`,
-              `advertiser.tenant_client_code.ilike."*${term}*"`,
-            ].join(","),
-          );
+        const ids = await advertiserIdsMatching(
+          supabase,
+          tenantId,
+          search.trim(),
+        );
+        const orParts: string[] = [];
+        if (term.length > 0) orParts.push(`email.ilike."*${term}*"`);
+        if (ids && ids.length > 0) {
+          orParts.push(`advertiser_id.in.(${ids.join(",")})`);
+        }
+        if (orParts.length > 0) {
+          query = query.or(orParts.join(","));
         }
       }
 

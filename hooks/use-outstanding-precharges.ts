@@ -60,8 +60,27 @@ export function useOutstandingPrecharges(topupIds: string[]) {
       // the desk is not nagged. The feature stays dark until the
       // migration lands, which is the rule in CLAUDE.md.
       if (error) {
-        const msg = `${(error as { code?: string }).code ?? ""} ${error.message ?? ""}`;
-        if (/42703|does not exist|schema cache|PGRST/i.test(msg)) {
+        // ── 42703 ONLY, NOT EVERY PGRST CODE ────────────────────────
+        //
+        // /PGRST/ matches the whole family: PGRST301 is an expired JWT,
+        // PGRST302 is anonymous access disabled. So an expired session
+        // or a policy refusal returned {} -- "no advances" -- which is
+        // exactly what the docblock twelve lines up forbids, and
+        // isError stayed false so nothing downstream could tell.
+        //
+        // What that costs, on the verify dialog: a precharged top-up
+        // loses its "the balance will NOT go up again" line and the
+        // dialog goes back to "this credits exactly the figure below"
+        // with "Wallet changes by EUR 1,000.00" instead of 0.00. That
+        // is the double-credit story this hook was written to prevent.
+        //
+        // The sibling, use-matched-deposits, already narrows to 42703.
+        const code = (error as { code?: string }).code ?? "";
+        const msg = String(error.message ?? "");
+        const missingColumn =
+          code === "42703" ||
+          /column .* does not exist|schema cache/i.test(msg);
+        if (missingColumn) {
           return {} as Record<string, OutstandingPrecharge>;
         }
         throw error;

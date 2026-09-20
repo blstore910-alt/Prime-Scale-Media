@@ -618,7 +618,7 @@ export default function WiseReviewPanel() {
         .filter((v): v is string => !!v),
     ),
   ).sort();
-  const { data: matchedTo } = useQuery<
+  const { data: matchedTo, isError: matchedToError, isLoading: matchedToLoading } = useQuery<
     Record<
       string,
       {
@@ -1111,6 +1111,28 @@ Statement tried: ${p.attempts.join(" | ")}`
         </div>
       </div>
 
+      {/* Say it out loud, rather than only taking the buttons away. The
+          claim read is what puts the customer's name, their reference and
+          their amount on every suggested card; without it the card is the
+          same card minus one strip, and an admin would reasonably press on. */}
+      {matchedToError || matchedToLoading ? (
+        <div
+          className="card"
+          style={{ padding: "12px 14px", marginBottom: 10 }}
+        >
+          <span
+            style={{
+              color: matchedToError ? "var(--danger)" : "var(--faint)",
+              fontWeight: 600,
+            }}
+          >
+            {matchedToError
+              ? "We couldn't read the claims these deposits are matched to, so Confirm & credit is off until it loads. This is NOT “no customer”."
+              : "Looking up the claims these deposits are matched to…"}
+          </span>
+        </div>
+      ) : null}
+
       {isLoading ? (
         <div className="card" style={{ padding: 34, textAlign: "center" }}>
           <Loader2
@@ -1182,10 +1204,24 @@ Statement tried: ${p.attempts.join(" | ")}`
             //
             // Unarchive is one click away and right there on the card, so
             // nothing is blocked — it just has to be said out loud first.
+            // ── AND THE CLAIM HAS TO BE READABLE ──────────────────
+            //
+            // The customer strip, the reference comparison and the
+            // "we asked for ..." warning all come from matchedTo, and
+            // its isError/isLoading were not destructured -- the only
+            // read on this panel where that was true. So on a failed
+            // or in-flight claim read, every card looked normal minus
+            // one strip, and Confirm & credit stayed live: the admin
+            // pressed it, saw a dialog whose Customer line was a dash,
+            // and EUR 5,000 landed in a wallet nobody on the screen
+            // had named.
             const ready =
               r.status === "suggested" &&
               !!r.suggested_topup_id &&
-              !r.archived_at;
+              !r.archived_at &&
+              !matchedToError &&
+              !matchedToLoading &&
+              !!matchedTo?.[String(r.suggested_topup_id)];
             const done =
               r.status === "confirmed" ||
               r.status === "completed" ||
@@ -1383,14 +1419,43 @@ Statement tried: ${p.attempts.join(" | ")}`
         }}
         title="Credit this wallet?"
         lead={
-          askConfirm && askTo
-            ? "This completes the top-up and puts the money in their wallet. Check the two references agree before you do."
-            : "This completes the top-up and puts the money in their wallet."
+          askConfirm &&
+          askTo &&
+          Math.abs(
+            Math.round(askTo.amount * 100) -
+              Math.round(Number(askConfirm.amount_cents) || 0),
+          ) > 1
+            ? `The bank sent ${money(askConfirm.currency, askConfirm.amount_cents)} and the claim is for ${currencySymbol(askTo.currency)}${askTo.amount.toFixed(2)}. Crediting moves the CLAIM's amount — correct the claim first if that is not what you mean.`
+            : askConfirm && askTo
+              ? "This completes the top-up and puts the money in their wallet. Check the two references agree before you do."
+              : "This completes the top-up and puts the money in their wallet."
         }
         cta={
-          askConfirm
-            ? `Yes, credit ${money(askConfirm.currency, askConfirm.amount_cents)}`
-            : "Yes, credit"
+          // ── THE CLAIM'S FIGURE, NOT THE BANK'S ──────────────────────
+          //
+          // This printed the DEPOSIT's amount. wise_confirm_suggestion
+          // does no amount comparison at all -- it flips the top-up to
+          // completed and the balance trigger credits
+          // `wallet_topups.amount`. The two are equal when the matcher
+          // suggests, and nothing re-checks afterwards: rematch skips a
+          // row that is already suggested, and "Set the claim to X" on
+          // this same panel rewrites a pending top-up's amount from any
+          // other deposit card.
+          //
+          // So a card reading EUR 630.00 with "Yes, credit EUR 630.00"
+          // could move EUR 618.00. The admin, told 630 went in, posts a
+          // EUR 12 adjustment to "fix" it, and the customer is 12 ahead
+          // on money that never arrived.
+          //
+          // This panel already states the rule for the manual path --
+          // "The credit is the CLAIM's amount, not the deposit's". The
+          // suggested path, which is the one with the primary button,
+          // did not.
+          askTo
+            ? `Yes, credit ${currencySymbol(askTo.currency)}${askTo.amount.toFixed(2)}`
+            : askConfirm
+              ? `Yes, credit ${money(askConfirm.currency, askConfirm.amount_cents)}`
+              : "Yes, credit"
         }
         busy={confirm.isPending}
         busyLabel="Crediting…"
