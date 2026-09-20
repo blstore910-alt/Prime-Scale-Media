@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sameSlug, slugKey } from "../../lib/pure-slug-key.ts";
+import { humanSlug, sameSlug, slugKey } from "../../lib/pure-slug-key.ts";
 
 test("the two real spellings of the premium type are the same type", () => {
   // The seed writes one; slugifying the label "Meta-EU-Premium" writes
@@ -30,4 +30,17 @@ test("the key is stable whatever the separator or case", () => {
   for (const v of ["EU-META-PREMIUM", "meta eu premium", "premium__eu__meta"]) {
     assert.equal(slugKey(v), k, v);
   }
+});
+
+test("humanSlug turns a slug nobody has a label for into words", () => {
+  assert.equal(humanSlug("meta-ads"), "Meta Ads");
+  assert.equal(humanSlug("tiktok-ads"), "TikTok Ads");
+  assert.equal(humanSlug("eu-meta-psm-gh"), "EU Meta PSM GH");
+  assert.equal(humanSlug("google_ads"), "Google Ads");
+});
+
+test("humanSlug gives nothing back for nothing, so the caller can dash it", () => {
+  assert.equal(humanSlug(null), "");
+  assert.equal(humanSlug(""), "");
+  assert.equal(humanSlug("   "), "");
 });

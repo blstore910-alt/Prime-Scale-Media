@@ -52,18 +52,35 @@ export function useMatchedDeposits(topupIds: Array<string | null | undefined>) {
     staleTime: 30_000,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
+      const cols =
+        "suggested_topup_id, amount_cents, currency, sender_name, reference, created_at, status";
+      // A deposit somebody deliberately put aside is not evidence for
+      // anything. Without this, archiving one still painted the green
+      // "Matched with a bank deposit" strip on the top-up card and
+      // flipped the credit dialog's lead to "a bank deposit matching
+      // this claim has arrived".
+      //
+      // ── ASK FOR IT, RETRY WITHOUT IT ──────────────────────────────
+      //
+      // archived_at comes from 20260917250000, and migrations are pasted
+      // by hand -- so it may not be there. A select naming a column that
+      // does not exist THROWS; it does not degrade. Without this retry
+      // the green evidence strip disappeared from EVERY top-up card and
+      // the credit dialog lost its lead, which puts the desk back to
+      // crediting real money on the customer's word -- the exact thing
+      // this hook exists to stop. The review panel beside it already
+      // asks-then-asks-without; this did not.
+      let { data, error } = await supabase
         .from("wise_incoming_transfers")
-        .select(
-          "suggested_topup_id, amount_cents, currency, sender_name, reference, created_at, status",
-        )
+        .select(cols)
         .in("suggested_topup_id", ids)
-        // A deposit somebody deliberately put aside is not evidence for
-        // anything. Without this, archiving one still painted the green
-        // "Matched with a bank deposit" strip on the top-up card and
-        // flipped the credit dialog's lead to "a bank deposit matching
-        // this claim has arrived".
         .is("archived_at", null);
+      if (error && error.code === "42703") {
+        ({ data, error } = await supabase
+          .from("wise_incoming_transfers")
+          .select(cols)
+          .in("suggested_topup_id", ids));
+      }
       if (error) throw error;
 
       const out: Record<string, MatchedDeposit> = {};

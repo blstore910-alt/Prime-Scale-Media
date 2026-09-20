@@ -60,10 +60,19 @@ function useQueueCounts(tenantId: string | null) {
         // returned nothing because the rows were not visible rendered as a
         // confident 0 on a queue that had work in it. That is the one
         // failure this file's own header says tabs must not introduce.
+        // ── .eq() EXCLUDES NULL, AND THIS COLUMN IS NULLABLE ────────
+        //
+        // wise_incoming_transfers.tenant_id is `on delete set null` and
+        // is left NULL on purpose for a deposit nobody could attribute.
+        // Both siblings -- the review panel and integration-actions --
+        // use `.or(tenant_id.eq.X,tenant_id.is.null)` and say why: the
+        // orphan queue is exactly the work that needs doing, and this
+        // badge counted none of it. A confident 0 over a queue with work
+        // in it, beside a panel that can see it.
         supabase
           .from("wise_incoming_transfers")
           .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId)
+          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
           .eq("status", "suggested")
           .is("archived_at", null),
         supabase

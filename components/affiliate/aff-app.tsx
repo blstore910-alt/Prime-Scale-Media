@@ -60,6 +60,29 @@ const money2 = (sym: string, n: number) =>
   });
 const eur = (n: number) => money2("€", n);
 const usd = (n: number) => money2("$", n);
+/**
+ * Both legs, or the one that exists.
+ *
+ * The advertiser-as-affiliate view has had this since it was written
+ * (adv-app's twoLeg). This shell did not, so five figures printed the
+ * EUR leg only -- including "Your commission", which is the headline of
+ * My Referrals and the one number an affiliate opens the page for.
+ *
+ * An affiliate paid entirely in USD therefore read "Your commission
+ * EUR 0.00", "+EUR 0.00" in Recent commission, and "USD 1,400.00" in
+ * the commission wallet -- three answers on one screen. Their own CSV
+ * export carries both columns, so the file contradicted the page it
+ * came from.
+ *
+ * Never added: EUR + USD is not a euro figure and there is no rate here.
+ */
+const twoLeg = (e: number, u: number): string => {
+  const eNum = Number(e) || 0;
+  const uNum = Number(u) || 0;
+  if (eNum && uNum) return `${eur(eNum)} · ${usd(uNum)}`;
+  if (uNum) return usd(uNum);
+  return eur(eNum);
+};
 /** Whole units, for the hero headline only — never for a payable. */
 const eurWhole = (n: number) =>
   "€" + Math.round(Number(n) || 0).toLocaleString("en-US");
@@ -761,7 +784,9 @@ export default function AffiliateApp() {
                   <Ic name="i-trend" /> Spend driven
                 </div>
                 <div className="v gold">
-                  {statsUnavailable ? dash : eur(all.totals.spend_eur)}
+                  {statsUnavailable
+                    ? dash
+                    : twoLeg(all.totals.spend_eur, all.totals.spend_usd)}
                 </div>
               </div>
             </div>
@@ -891,7 +916,9 @@ export default function AffiliateApp() {
                     commission" beside three dashes. The one figure on this
                     row an affiliate actually opens the page for. */}
                 <div className="n win">
-                  {refsUnavailable ? dash : eur(refs.totals.earnings_eur)}
+                  {refsUnavailable
+                    ? dash
+                    : twoLeg(refs.totals.earnings_eur, refs.totals.earnings_usd)}
                 </div>
               </div>
             </div>
@@ -926,7 +953,7 @@ export default function AffiliateApp() {
                       </div>
                     </div>
                     <span className="amt">
-                      {statsUnavailable ? dash : eur(lifetimeEur)}
+                      {statsUnavailable ? dash : twoLeg(lifetimeEur, lifetimeUsd)}
                     </span>
                   </div>
                   <div className="feed-row">
@@ -1359,7 +1386,9 @@ export default function AffiliateApp() {
                         {r.topup_count} top-ups · {eur(r.spend_eur)} spend
                       </div>
                     </div>
-                    <span className="amt">+{eur(r.earnings_eur)}</span>
+                    <span className="amt">
+                      +{twoLeg(r.earnings_eur, r.earnings_usd)}
+                    </span>
                   </div>
                 ))
               ) : statsUnavailable ? (

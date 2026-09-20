@@ -113,10 +113,27 @@ export default function AffiliatesTable() {
       // genuinely absent on an older DB).
       const ids = rows.map((r) => r.id).filter(Boolean);
       if (ids.length > 0) {
-        const { data: statusRows } = await supabase
+        // ── A MISSING COLUMN IS BEST-EFFORT; A FAILED READ IS NOT ──
+        //
+        // This discarded the error completely. use-affiliate-earnings
+        // runs the SAME query and was fixed for exactly this, with that
+        // sentence as its comment; this copy kept the old shape.
+        //
+        // referral_links_with_details does not expose `status` on this
+        // database -- which is why this second read exists -- so on any
+        // failure other than a missing column every row's status is
+        // undefined. ReferralStatusAction renders its buttons only while
+        // the status is "pending", so a pending affiliate shows NO
+        // Approve and NO Reject, on the only screen that can approve
+        // one, with nothing said. The accrual gates on 'active', so they
+        // earn nothing in the meantime.
+        const { data: statusRows, error: statusError } = await supabase
           .from("referral_links")
           .select("id, status")
           .in("id", ids);
+        if (statusError && statusError.code !== "42703") {
+          throw statusError;
+        }
         const byId = new Map(
           (statusRows ?? []).map((s: { id: string; status: string | null }) => [
             s.id,

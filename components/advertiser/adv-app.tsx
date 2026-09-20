@@ -9,6 +9,7 @@ import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
+import { humanSlug, sameSlug } from "@/lib/pure-slug-key";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -110,8 +111,24 @@ const money2 = (n: number | string | null | undefined) =>
 // Support inbox for the "contact us" actions. Change here if it differs.
 const SUPPORT_EMAIL = "contact@primescalemedia.com";
 
-const platformLabel = (p: string | null) =>
-  PLATFORMS.find((x) => x.value === p)?.label ?? p ?? "—";
+// ── A CUSTOMER MUST NEVER READ A DATABASE VALUE ────────────────────
+//
+// This looked the slug up in PLATFORMS and fell back to the slug
+// itself. Two vocabularies reach it: PLATFORMS holds `eu-meta-psm`,
+// while the ad-account REQUEST form writes `meta-ads` / `tiktok-ads` /
+// `google-ads` -- in no list at all. So the Requests screen printed
+// "meta-ads" to the customer, on the row describing the account they
+// asked us for. And /settings/ad-account-types is data-driven, so a
+// type created there is missing from PLATFORMS by construction: the
+// fallback is the NORMAL path for anything new, not an edge case.
+//
+// sameSlug, not ===, for the same reason the fee resolver uses it: the
+// settings screen slugifies from a label and the word order differs.
+const platformLabel = (p: string | null) => {
+  const known = PLATFORMS.find((x) => sameSlug(x.value, p))?.label;
+  if (known) return known;
+  return humanSlug(p) || "—";
+};
 
 
 // Every status an ad account can hold, and NOT an "anything else is fine"
