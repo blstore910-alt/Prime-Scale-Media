@@ -283,7 +283,7 @@ export default function WalletTopupDialog({
   // it -- a code no claim has ever carried, which the matcher can
   // never resolve. So before offering a fresh reference, say plainly
   // that one is already open and print ITS code.
-  const { data: openTopups } = useQuery({
+  const { data: openTopups, isError: openTopupsError } = useQuery({
     queryKey: ["wallet-topup-open", walletId],
     enabled: open && !!walletId,
     staleTime: 15_000,
@@ -915,6 +915,24 @@ export default function WalletTopupDialog({
                     is what sends their payment to manual review. Selecting it
                     by hand on a phone means a long-press and two drag
                     handles, usually catching the sentence above it too. */}
+                {/* A FAILED READ IS NOT "NOTHING IS WAITING". Without
+                    this the amber panel simply did not render, and the
+                    customer wired money against the NEXT reference while
+                    an open claim carried a different one -- the exact
+                    outcome this block exists to prevent. */}
+                {openTopupsError ? (
+                  <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
+                    <p className="text-sm font-semibold">
+                      We couldn&apos;t check for an earlier top-up
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      If you have already filed one and not paid it yet, use
+                      the reference from that one rather than the code below
+                      — money sent against the wrong code has to be matched
+                      by hand.
+                    </p>
+                  </div>
+                ) : null}
                 {openTopup ? (
                   <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
                     <p className="text-sm font-semibold">

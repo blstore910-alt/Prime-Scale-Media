@@ -909,7 +909,7 @@ export default function AdvertiserApp() {
   // and must be written by those two live functions. Until they are,
   // this read comes back refused, the retry drops the columns, and the
   // line simply does not appear -- the screen does not break.
-  const { data: requestCharges } = useQuery<
+  const { data: requestCharges, isError: requestChargesError } = useQuery<
     {
       id: string;
       charged_amount: number | null;
@@ -922,6 +922,7 @@ export default function AdvertiserApp() {
   >({
     queryKey: ["adv-request-charges", advertiserId],
     enabled: !!advertiserId,
+    retry: false,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -933,8 +934,19 @@ export default function AdvertiserApp() {
         .not("charged_at", "is", null)
         .order("charged_at", { ascending: false })
         .limit(50);
-      if (error) return [];
-      return (data ?? []) as never;
+      // ── ASK, THEN ASK WITHOUT ─────────────────────────────────
+      //
+      // `if (error) return []` swallowed everything, so this source
+      // could vanish from the statement with no banner -- and the
+      // statement's failure banner lists five flags and could not
+      // include a sixth that never existed. A missing column is the
+      // one error that should be silent here; the rest belong on
+      // screen. 42703 is "column does not exist".
+      if (!error) return (data ?? []) as never;
+      if ((error as { code?: string } | null)?.code === "42703") {
+        return [] as never;
+      }
+      throw error;
     },
   });
 
@@ -3319,7 +3331,13 @@ export default function AdvertiserApp() {
                           exchangesError ||
                           invError ||
                           fundingsError ||
-                          returnsError
+                          returnsError ||
+                          // The sixth source. The banner listed five and
+                          // could not name this one, because it had no
+                          // flag -- so a EUR 50 request charge could be
+                          // missing from the statement with nothing
+                          // saying anything was missing.
+                          requestChargesError
                             ? "We couldn't load all of your wallet activity — this isn't an empty list. Give it a reload."
                             : "Nothing has moved yet. Top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
                         </td>

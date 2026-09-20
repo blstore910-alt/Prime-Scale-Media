@@ -72,13 +72,28 @@ export default function AdAccountTypesCard() {
     queryFn: async () => {
       const res = await listAdAccountTypes();
       if (!res.ok) throw new Error(res.error);
-      return res.data;
+      // ── BLANK BECAUSE WE COULD NOT LOOK ───────────────────────────
+      //
+      // The supplier read is allowed to fail without taking this screen
+      // down -- the types are the point of it. But the form sends the
+      // supplier fields on EVERY save, so saving while they are blank
+      // upserts supplier_label: null, supplier_url: null,
+      // supplier_fee_pct: null. Editing only the customer-facing Fee %
+      // on a bad day cleared the cost percentage the margin is computed
+      // from, under a toast reading "Saved 1 type(s)".
+      if (res.warning) {
+        toast.warning("Supplier details could not be read", {
+          description: res.warning,
+          duration: 14_000,
+        });
+      }
+      return { rows: res.data, supplierBlind: !!res.warning };
     },
   });
 
   const initial = useMemo<EditRow[]>(
     () =>
-      (data ?? []).map((t: AdAccountType) => ({
+      (data?.rows ?? []).map((t: AdAccountType) => ({
         id: t.id,
         label: t.label,
         platform_group: t.platform_group,

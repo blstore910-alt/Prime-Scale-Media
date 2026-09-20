@@ -107,10 +107,27 @@ export async function listAdAccountTypes(): Promise<
   // business. A table the migration has not created yet answers with an
   // error, and that must not take the settings screen down — the types
   // are the point of it; the supplier link is an extra.
-  const { data: suppliers } = await supabase
+  const { data: suppliers, error: suppliersError } = await supabase
     .from("ad_account_type_suppliers")
     .select("ad_account_type_id, supplier_label, supplier_url, supplier_fee_pct")
     .eq("tenant_id", profile.tenant_id);
+
+  // ── A SWALLOWED READ HERE ERASES THE MARGIN ──────────────────────
+  //
+  // The comment above is right that a missing TABLE must not take the
+  // settings screen down. But every error was swallowed, and the form
+  // sends the supplier fields on every save -- so `supplierTouched` is
+  // always true and writeSupplier upserts supplier_label: null,
+  // supplier_url: null, supplier_fee_pct: null. Editing only the
+  // customer-facing Fee % on a bad day nulled the cost percent the
+  // margin is computed from, under a toast reading "Saved 1 type(s)".
+  //
+  // 42P01 is "relation does not exist" -- the case the comment means.
+  // Anything else is a real failure and the caller is told, so the
+  // screen can refuse to send fields it could not read.
+  const supplierTableMissing =
+    (suppliersError as { code?: string } | null)?.code === "42P01";
+  const supplierReadFailed = !!suppliersError && !supplierTableMissing;
 
   const bySupplier = new Map<string, SupplierRow>();
   for (const row of (suppliers ?? []) as unknown as SupplierRow[]) {
@@ -129,6 +146,13 @@ export async function listAdAccountTypes(): Promise<
           s?.supplier_fee_pct == null ? null : Number(s.supplier_fee_pct),
       };
     }),
+    // The screen shows empty supplier boxes either way. The difference
+    // is whether it may SEND them back: on a failed read the boxes are
+    // empty because we could not look, and saving would overwrite the
+    // real values with nulls.
+    warning: supplierReadFailed
+      ? "We couldn't read the supplier details for these types, so those boxes are blank — not empty. Don't save until this reads again, or the cost values will be cleared."
+      : undefined,
   };
 }
 

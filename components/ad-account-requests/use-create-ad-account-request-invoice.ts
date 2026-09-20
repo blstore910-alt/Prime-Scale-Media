@@ -48,13 +48,33 @@ export default function useCreateAdAccountRequestInvoice() {
       // id means the first attempt got through and only the status
       // write failed. Fix the status, keep the invoice.
       const amount = Number(values.amount);
-      const { data: already } = await supabase
+      const { data: already, error: alreadyError } = await supabase
         .from("invoices")
         .select("id, items")
         .eq("advertiser_id", values.advertiser_id)
         .eq("type", "ad_account_fee")
         .eq("status", "unpaid")
-        .limit(50);
+        // 50 was a cap on the ONLY thing standing between a customer
+        // and two identical invoices. 500 is well past any real
+        // backlog of unpaid fees for one advertiser.
+        .limit(500);
+      // ── A FAILED CHECK IS NOT "NO DUPLICATE" ──────────────────────
+      //
+      // The comment above says this check is the only protection --
+      // "there is no unique constraint to lean on" -- and its error was
+      // discarded. So a refused read made `already` null, `existing`
+      // undefined, and the next line raised a SECOND payable EUR 50
+      // invoice for the same request. The customer's billing page then
+      // shows two, each with a live Pay now that debits their wallet,
+      // and there is no undo.
+      //
+      // Refusing costs one retry. Charging twice costs a refund and an
+      // apology.
+      if (alreadyError) {
+        throw new Error(
+          "We couldn't check whether this request has already been invoiced, so nothing was created. Try again in a moment.",
+        );
+      }
       const existing = (already ?? []).find((inv) => {
         const items = (inv as { items?: unknown }).items;
         return (

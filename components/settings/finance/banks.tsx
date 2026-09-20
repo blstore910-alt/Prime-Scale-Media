@@ -395,7 +395,18 @@ export default function BanksCard() {
           Use this to prepare the destinations; ask an engineer to switch the
           top-up flow over to them. Changes still ask for a double-confirm.
         </CardDescription>
-        {fillable.length > 0 && (
+        {/* ── NOT WHILE THE BANKS READ IS BROKEN ────────────────────
+            bankByKey is built from banksQuery.data ?? [], and `fillable`
+            skips a destination only when that map already has it. So a
+            FAILED banks read made every destination "fillable" -- and
+            this banner sits in the header, outside the isError branch in
+            the body, so it rendered directly above the red error with
+            the promise "existing rows are left alone", computed from the
+            query that failed. runFill passes no ifUpdatedAt, and
+            versionMatches(x, undefined) is true, so the UPDATE is
+            unguarded: a hand-corrected IBAN overwritten by the built-in
+            details, and a toast saying it worked. */}
+        {fillable.length > 0 && !banksQuery.isError && !banksQuery.isLoading && (
           <div className="mt-3 rounded-lg border bg-card p-3 text-sm">
             <p className="m-0">
               <strong>{fillable.length}</strong> destination
