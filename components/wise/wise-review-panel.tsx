@@ -1489,7 +1489,11 @@ function ManualMatch({
   const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { data: candidates = [], isLoading } = useQuery({
+  const {
+    data: candidates = [],
+    isLoading,
+    isError: candidatesError,
+  } = useQuery({
     queryKey: ["wise-match-candidates", transferId, tenantId],
     enabled: open && !!tenantId,
     queryFn: async () => {
@@ -1593,7 +1597,13 @@ function ManualMatch({
             overflowWrap: "anywhere",
           }}
         >
-          Nothing pending matches this amount.
+          {/* A FAILED READ IS NOT "NOTHING MATCHES". The admin is
+              told no claim is expecting this money and the only
+              remaining verb on the row is Archive -- so a real bank
+              deposit gets filed away because a query timed out. */}
+          {candidatesError
+            ? "We couldn't check which top-ups are waiting, so none can be offered here. Reload and try again."
+            : "Nothing pending matches this amount."}
         </span>
       ) : (
         <select

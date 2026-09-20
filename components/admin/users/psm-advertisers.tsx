@@ -108,7 +108,8 @@ export default function PsmAdvertisers() {
   }, [search]);
   useEffect(() => setPage(1), [debounced, sort, active, kind]);
 
-  const { profiles, total, isLoading, isError, error } = useUsers({
+  const { profiles, total, isLoading, isError, error, codeSearchFailed } =
+    useUsers({
     role: kind,
     sort,
     search: debounced,
@@ -573,9 +574,15 @@ export default function PsmAdvertisers() {
            five minutes ago looks exactly like an empty database, and the
            way out of it is not on screen. */
         <div className="card">
+          {/* A FAILED PSM-NUMBER LOOKUP IS NOT "NO SUCH CUSTOMER".
+              Every deep link into this screen carries ?q=PSM0005, and
+              when the client-code half of the search cannot run the
+              name/email half finds nothing -- which rendered as the
+              customer not existing. */}
           <p className="muted" style={{ margin: 0 }}>
-            No {isAffiliateTab ? "affiliates" : "advertisers"} match the
-            current search or filters.
+            {codeSearchFailed
+              ? "We couldn't search by PSM number just now, only by name and email — so this may not be the whole answer."
+              : `No ${isAffiliateTab ? "affiliates" : "advertisers"} match the current search or filters.`}
           </p>
           <button
             className="btn ghost sm"

@@ -35,6 +35,7 @@ export default function useUsers({
   } = useQuery({
     queryKey,
     queryFn: async () => {
+      let codeSearchFailed = false;
       const supabase = createClient();
       const { data: user } = await supabase.auth.getUser();
       let query = supabase
@@ -92,8 +93,14 @@ export default function useUsers({
           // "that customer does not exist" behaviour, so it is not
           // swallowed: the name/email search still runs, and the
           // caller can say the code search did not.
+          // The comment above says "the caller can say the code search
+          // did not" -- and no flag was ever exported, so nothing could.
+          // Every deep link into this screen carries ?q=PSM0005, and a
+          // failed code lookup rendered "No advertisers match the
+          // current search or filters": an existing customer reported
+          // as not existing.
           if (codeError) {
-            console.warn("client-code search unavailable");
+            codeSearchFailed = true;
           }
           const codeIds = Array.from(
             new Set(
@@ -151,9 +158,19 @@ export default function useUsers({
       const { data, count, error } = await query.range(start, end);
       if (error) throw error;
 
-      return { data, count };
+      return { data, count, codeSearchFailed };
     },
   });
 
-  return { profiles, total: profiles?.count ?? 0, isLoading, isError, error };
+  return {
+    profiles,
+    total: profiles?.count ?? 0,
+    isLoading,
+    isError,
+    error,
+    // True when the client-code half of the search could not run, so the
+    // screen can say "we could not search by PSM number" instead of
+    // "that customer does not exist".
+    codeSearchFailed: !!profiles?.codeSearchFailed,
+  };
 }
