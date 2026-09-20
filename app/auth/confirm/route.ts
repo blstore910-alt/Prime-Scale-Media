@@ -169,8 +169,28 @@ async function finalizeAdvertiserSignup(params: {
   }
 
   if (referralAdvertiser) {
+    // ── NULL IS NOT "SWITCHED OFF" ────────────────────────────────
+    //
+    // This was `status === "active"`, a strict comparison, and it is
+    // the ONE strict one in the codebase: every other guard reads
+    // `(status ?? "active") !== "inactive"` — admin-actions,
+    // invite-actions, referral-actions and about fifteen more. And the
+    // profile insert a hundred lines up in THIS file never writes
+    // status, so an affiliate who signed themselves up carries NULL.
+    //
+    // What that cost: the affiliate shares their link, the prospect
+    // signs up and confirms, the profile gets referral_status and
+    // referred_by, the wallet is created, every screen looks normal —
+    // and no referral_links row is written. The affiliate's portal
+    // reads "No referrals yet" for ever, there is nothing for the owner
+    // to approve, and no error is raised anywhere, because the insert
+    // is never attempted and the `if (affiliateError)` below therefore
+    // never fires. Silent, permanent, and it is somebody's commission.
+    //
+    // Only an explicitly switched-off referrer is refused.
     const referralStatus = getReferralStatus(referralAdvertiser.profile);
-    const isReferralActive = referralStatus === "active";
+    const isReferralActive =
+      (referralStatus ?? "active").toLowerCase() !== "inactive";
     if (isReferralActive) {
       const { error: affiliateError } = await admin
         .from("referral_links")
