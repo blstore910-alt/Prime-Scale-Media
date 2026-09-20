@@ -309,19 +309,19 @@ export default function AdminsTable() {
            deactivate" — and pressing it GRANTED access, followed by
            "Admin activated." */
         title={
-          askAdmin?.status === "active"
+          peopleStatusView(askAdmin?.status, askAdmin?.is_active).tone === "ok"
             ? "Take away this admin's access?"
             : "Give this admin access back?"
         }
         lead={
-          askAdmin?.status === "active"
+          peopleStatusView(askAdmin?.status, askAdmin?.is_active).tone === "ok"
             ? "They lose access immediately, including to anything they had open."
             : "They can sign in and work the desk again straight away."
         }
         cta={
-          askAdmin?.status === "active" ? "Yes, deactivate" : "Yes, activate"
+          peopleStatusView(askAdmin?.status, askAdmin?.is_active).tone === "ok" ? "Yes, deactivate" : "Yes, activate"
         }
-        tone={askAdmin?.status === "active" ? "danger" : "default"}
+        tone={peopleStatusView(askAdmin?.status, askAdmin?.is_active).tone === "ok" ? "danger" : "default"}
         busy={!!pendingAdminId}
         busyLabel="Saving…"
         onConfirm={() => {

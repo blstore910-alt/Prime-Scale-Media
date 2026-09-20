@@ -2,8 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import {
 import { peopleStatusView } from "@/lib/pure-people-status";
+import {
   checkVersion,
   maintenanceGuard,
   versionMatches,
