@@ -6,83 +6,70 @@ than none. Update it when patterns change.
 
 ## The plan — do not ask, this is settled
 
-Three tracks, running together until the app is ready for real customers.
-The owner has had to restate this many times; it is written here so nobody
-has to again.
+**Journeys first. Fault-class sweeps are the backlog, not the plan.**
 
-1. **Agents sweep.** Read-only agents in parallel, hunting a class of
-   fault at a time — money arithmetic, client/server rule mismatches,
-   permissions, dead ends per journey, empty/error states, regressions in
-   the day's own diff. Findings get fixed, not filed.
-2. **UI round.** Claude works through the screens; the owner is in the
-   browser and says what looks wrong. Claude fixes and deploys; the owner
-   reloads and looks again.
-3. **The real J1–J8 walkthrough,** together, on production, with real
-   money. The script is `docs/WALKTHROUGH_J1_J8.md`: five test users, the
-   whole test plan A–Z, and a Known-limitations table so a known gap is
-   not reported as a new bug.
+We spent days sweeping by fault class and it did not converge, because
+"find every fault of kind X across the app" has no end condition. Every
+round found something, and none of it was what kept us off live. So the
+order is inverted:
 
-**The goal is to go live cleanly after that** — real customers, nothing
-embarrassing, nothing that quietly takes the wrong money.
+Close these EIGHT journeys, end to end, on production, with the test
+users. A journey is binary — it works or it does not.
 
-### How to run it, without being asked again
+| # | journey | roles |
+|---|---|---|
+| 1 | invite -> signup -> onboarding -> dashboard | advertiser |
+| 2 | wallet top-up: amount, reference, slip, admin verifies, balance right | advertiser + admin |
+| 3 | request an ad account, EUR 50 off the wallet, request visible | advertiser |
+| 4 | fund an ad account from the wallet, fee right, admin verifies | advertiser + admin |
+| 5 | monthly invoice -> Pay now from wallet -> balance and status right | advertiser |
+| 6 | ask money back off an ad account -> admin approves -> wallet | advertiser + admin |
+| 7 | affiliate: link, referral, commission, request a payout | affiliate |
+| 8 | admin queues: verify, reject WITH a reason, everything logged | admin/owner |
 
-The owner should not have to re-send this. Default behaviour in this
-repo, every session:
+**Anything not on one of those eight goes to
+`docs/NEXT_SESSION_FIRST.md` and is NOT fixed before go-live.** Perks
+and promotions, the reconciliation ledger, the GDPR export, bulk
+top-up, precharge, Wise auto-matching and the standalone affiliate role
+are all out of scope for day one unless the owner says otherwise.
 
-- **Keep 4–6 read-only agents running**, each on one class of fault, and
-  start the next round as soon as one reports. Order: the controls used
-  most (advertiser, affiliate, admin, super-admin), then the routes,
-  then the combinations. Findings get FIXED. Keep sweeping until a round
-  comes back near-empty.
-- **Work `docs/WALKTHROUGH_J1_J8.md`** — all four passes. A (every menu
-  item × every role) and C (every figure against SQL) are the exhaustive
-  ones; D (J1–J13) is the scenarios. Walk what you can in the built-in
-  browser yourself; say plainly when a signed-in session is needed.
-- **Preview is the test bench; production is the destination.** The
-  owner cannot walk every screen for me, so I walk them myself. Push the
-  branch, open the preview, and go through it as each role: advertiser,
-  affiliate, admin, super-admin — every account, every button, every
-  journey. Then `git push origin feat/redesign-advertiser:main` and
-  check the same screen renders WITH DATA on app.primescalemedia.com. A
-  broken production blocks everything else.
-  **Preview shares the LIVE Supabase database**, so a write there is a
-  write on real data: use the test users from the walkthrough, never a
-  real customer's row, and never move real money to prove a button
-  works.
-- **Speed is part of the job.** Batch fixes, one gate, one push. Don't
-  stop to narrate. A round that finds ten things fixes ten things before
-  it reports.
+An agent sweep is started only when a journey is blocked and the cause
+is not obvious — one agent, on that cause, not four on four classes.
+
+### What a journey being "closed" means
+
+Walked in the built-in browser, by Claude, on app.primescalemedia.com,
+with a signed-in session for EACH role the journey needs — not read off
+the code. Every figure it produces checked against the database to the
+cent. The result written into `docs/NEXT_SESSION_FIRST.md`.
+
+**Two browser tabs, two roles.** Tab one is the owner; tab two is the
+test advertiser or affiliate. Without the second tab Claude can only
+read, and reading is what did not work. Ask for the login once, by
+name, and then drive the whole loop without asking again.
+
+### How to run it
+
+- **Work one journey at a time until it is closed.** Do not start the
+  next one to avoid a hard step in this one.
+- **Say immediately what could not be verified** and why. No
+  "probably" — read the code or ask for one SQL query.
+- **Migrations** are handed over paste-ready with ONE report table at
+  the end (the SQL editor shows only the last result set) and NAMED
+  dollar tags (`$blk0$`).
 - **Numbers must agree at both ends** — screen against database, to the
   cent. A confident 0 over a failed read is a fault, not a zero.
-- **No "probably".** Read the code, or ask for one SQL query. Say
-  immediately what could NOT be verified.
-- **Migrations**: hand them over paste-ready, with a report table at the
-  end that tests what the migration actually did.
 - **Do not stop to ask permission to continue.** Ask only when the
   answer changes the work.
-- **Report every FIVE rounds**, not every one: what was fixed, what is
-  open, what is needed from the owner — **and a percentage**. Between
-  reports, keep working; a running commentary costs the owner more
-  attention than it gives them.
+- **Report per journey**, not per round: closed / blocked on what /
+  what is needed from the owner.
 
 ### The percentage
 
-Every round ends with "we are at N%". It is not a feeling. Count it,
-and show the four numbers it came from, so the owner can see which
-track is behind:
-
-| track | how it is counted |
-|---|---|
-| **A. Screens** | destinations verified by ACTUALLY OPENING them and seeing data, over 46 (21 owner + 9 advertiser + 6 affiliate + 6 settings tabs + 10 with no menu entry, minus overlap) |
-| **B. Findings** | agent findings fixed, over findings raised. Known limitations count as raised-and-accepted, not as fixed |
-| **C. Numbers** | of the 8 SQL checks in the walkthrough, how many have been run against live and matched the screen |
-| **D. Journeys** | J1–J13, counted as walked only when walked end to end on production |
-
-The headline is the LOWEST of the four, not the average. Three tracks
-at 90% and one at 10% is not 70% — it is a product with a whole side
-nobody has looked at, and that is what the number has to say. Round
-down, and never round up to make it look better.
+The headline is **journeys closed, out of 8**. Nothing else. Screens
+opened, findings fixed and SQL checks are working notes, not the
+number: three of them at 90% while no journey is closed still means no
+customer can get through the app.
 
 ## Deploying — branch, then production, then test live
 
