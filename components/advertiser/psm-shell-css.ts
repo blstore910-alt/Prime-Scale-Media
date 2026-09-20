@@ -98,21 +98,24 @@ export const PSM_APP_CSS = `
    value is the button. A dotted underline is the only hint it needs;
    the confirmation replaces nothing and shifts nothing, because a row
    that jumps as you copy makes you doubt what you copied. */
-.psmapp .copytext{display:inline-flex;align-items:baseline;gap:6px;max-width:100%;
+/* Unscoped twin as well, like the reject chips: a <CopyText> rendered
+   inside a Radix dialog portals OUT of .psmapp and would otherwise be a
+   default browser button with the "Copied" span permanently laid out. */
+.copytext,.psmapp .copytext{display:inline-flex;align-items:baseline;gap:6px;max-width:100%;
   padding:0;border:0;background:none;font:inherit;color:inherit;text-align:left;
   cursor:pointer;border-radius:5px}
-.psmapp .copytext .ct-v{min-width:0;overflow-wrap:anywhere;
+.copytext .ct-v,.psmapp .copytext .ct-v{min-width:0;overflow-wrap:anywhere;
   border-bottom:1px dashed var(--line-2);transition:border-color .12s,color .12s}
-.psmapp .copytext.mono .ct-v{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
+.copytext.mono .ct-v,.psmapp .copytext.mono .ct-v{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
   letter-spacing:.01em}
-.psmapp .copytext:hover .ct-v{border-bottom-color:var(--primary);color:var(--primary-600)}
-.psmapp .copytext:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.psmapp .copytext .ct-f{flex:0 0 auto;font-size:.66rem;font-weight:700;
+.copytext:hover .ct-v,.psmapp .copytext:hover .ct-v{border-bottom-color:var(--primary);color:var(--primary-600)}
+.copytext:focus-visible,.psmapp .copytext:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.copytext .ct-f,.psmapp .copytext .ct-f{flex:0 0 auto;font-size:.66rem;font-weight:700;
   letter-spacing:.03em;color:var(--win);opacity:0;transition:opacity .12s}
-.psmapp .copytext.done .ct-f{opacity:1}
-.psmapp .copytext.done .ct-v{border-bottom-color:var(--win);color:var(--win)}
-.psmapp .copytext.failed .ct-f{opacity:1;color:var(--danger)}
-.psmapp .copytext.failed .ct-v{border-bottom-color:var(--danger)}
+.copytext.done .ct-f,.psmapp .copytext.done .ct-f{opacity:1}
+.copytext.done .ct-v,.psmapp .copytext.done .ct-v{border-bottom-color:var(--win);color:var(--win)}
+.copytext.failed .ct-f,.psmapp .copytext.failed .ct-f{opacity:1;color:var(--danger)}
+.copytext.failed .ct-v,.psmapp .copytext.failed .ct-v{border-bottom-color:var(--danger)}
 
 /* ── STARTING SENTENCES FOR A REFUSAL ──────────────────────────────
    Chips, not a dropdown: a dropdown hides its options behind a click,

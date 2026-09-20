@@ -27,7 +27,20 @@ import {
 } from "@/components/ui/select";
 import { compactRangeLabel } from "@/lib/pure-date-range-label";
 
+// ── EVERY OPTION HERE MATCHED NOTHING ───────────────────────────────
+//
+// The accrual trigger hard-codes `'percentage'` as the commission type
+// on every row it writes -- it is the only value the database has ever
+// held. So both options on this filter returned an empty list, always,
+// and the empty state said "No commissions found" with a clear-filters
+// hint. There was no value that selected the rows that exist.
+//
+// "Percentage" is now first, because it is what the rows are. The other
+// two are kept: a referral CAN be agreed as one-time or monthly on the
+// link, and the day that reaches referral_commissions the filter should
+// already work rather than being discovered missing.
 const COMMISSION_TYPES = [
+  { label: "Percentage", value: "percentage" },
   { label: "One-time", value: "onetime" },
   { label: "Monthly", value: "monthly" },
 ];

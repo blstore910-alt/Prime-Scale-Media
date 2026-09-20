@@ -257,10 +257,30 @@ function buildInvoiceHtml(
   // hundred-and-twenty-one euro invoice, on a document somebody pays
   // from. Net is quantity * rate; amount is net + tax; the two are
   // never mixed again.
-  const computedSubTotal = items.reduce(
-    (sum, item) => sum + toNumber(item.quantity) * toNumber(item.rate),
-    0,
-  );
+  // ── AN ITEM THAT CARRIES ONLY AN AMOUNT ───────────────────────────
+  //
+  // Everything the repo writes sets quantity and rate. But
+  // create_invoice_for_wallet_topup lives only on the live database --
+  // supabase/checks/TOON-WALLETFACTUUR.sql says so, and this file has
+  // dedicated wallet_topup item handling below -- so an item shaped
+  // {name, amount, tax} with no quantity is reachable and cannot be
+  // read from this repo.
+  //
+  // Summing quantity * rate alone would score that item as zero, and
+  // the subtotal would contradict a total the row below it prints from
+  // `amount`. So: net is quantity * rate where those exist, and
+  // amount - tax where they do not. One definition either way, and the
+  // table adds up in both shapes.
+  const itemNet = (item: InvoiceItem) => {
+    const q = toNumber(item.quantity);
+    const r = toNumber(item.rate);
+    if (q > 0 && r > 0) return q * r;
+    const gross = toNumber(item.amount);
+    if (gross > 0) return Math.max(gross - toNumber(item.tax), 0);
+    return q * r;
+  };
+
+  const computedSubTotal = items.reduce((sum, item) => sum + itemNet(item), 0);
 
   // ── A TOTAL THAT ITS OWN LINES DO NOT ADD UP TO ───────────────────
   //
@@ -431,11 +451,16 @@ function buildInvoiceHtml(
       ? billingLines
       : [];
   const lineItems = items.map((item, index) => {
-    const quantity = toNumber(item.quantity);
-    const rate = toNumber(item.rate);
     const tax = toNumber(item.tax);
+    const net = itemNet(item);
+    // An amount-only item printed "0.00 x 0.00 = 5,000.00", which reads
+    // as a mistake in a table somebody is checking. One of something,
+    // priced at its own net, is the true statement.
+    const quantity = toNumber(item.quantity) > 0 ? toNumber(item.quantity) : 1;
+    const rate =
+      toNumber(item.rate) > 0 ? toNumber(item.rate) : quantity > 0 ? net / quantity : net;
     const amount =
-      toNumber(item.amount) > 0 ? toNumber(item.amount) : quantity * rate + tax;
+      toNumber(item.amount) > 0 ? toNumber(item.amount) : net + tax;
     const itemType = compactText(item.name).toLowerCase() || invoiceTypeKey;
     const baseDescription =
       formatLabel(item.name ?? invoiceTypeKey) || "Line item";

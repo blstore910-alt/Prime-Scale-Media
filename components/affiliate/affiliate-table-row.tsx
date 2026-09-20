@@ -102,11 +102,21 @@ export default function AffiliateTableRow({
         )}
       </td>
       <td data-label="Commission Recurring" className="r mono">{formatPercent(referral.commission_pct)}</td>
+      {/* N/A, not 0.00. Neither insert path writes earnings_* -- they
+          are only ever incremented by the accrual trigger -- so a link
+          that has never accrued carries NULL, and formatCurrency turns
+          a null into a confident "$0.00" in a money column. Every other
+          cell in this same row uses formatCommissionAmount, which
+          prints N/A for a value we do not have. */}
       <td data-label="Earnings USD" className="r mono">
-        {formatCurrency(referral.earnings_usd as number, "USD")}
+        {referral.earnings_usd == null
+          ? "N/A"
+          : formatCurrency(referral.earnings_usd as number, "USD")}
       </td>
       <td data-label="Earnings EUR" className="r mono">
-        {formatCurrency(referral.earnings_eur as number, "EUR")}
+        {referral.earnings_eur == null
+          ? "N/A"
+          : formatCurrency(referral.earnings_eur as number, "EUR")}
       </td>
       <td data-label="Status" className="r">
         <ReferralStatusAction

@@ -5,7 +5,7 @@ import { CopyText } from "@/components/ui/copy-text";
 import { platformFamily, platformLabel } from "@/lib/pure-platform-badge";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
   Chrome,
@@ -17,7 +17,7 @@ import {
   Search,
   Undo2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import useAdAccountRequests from "./use-ad-account-requests";
 import AdAccountRequestReviewDialog from "./ad-account-request-review-dialog";
@@ -27,6 +27,7 @@ import CreateAdAccountFromRequestDialog from "./create-ad-account-from-request-d
 import CreateAdAccountRequestInvoiceDialog from "./create-ad-account-request-invoice-dialog";
 import TablePagination from "../ui/table-pagination";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
+import { createClient } from "@/lib/supabase/client";
 
 // The request's own `platform` is a family choice the CUSTOMER made, in
 // whichever vocabulary their form used — "meta-ads" on the rows this
@@ -150,7 +151,67 @@ export default function PsmRequests() {
 
   // Status now filters server-side, so we no longer filter the fetched page
   // client-side (which hid pending requests on unreachable later pages).
-  const rows = requests ?? [];
+  const rows = useMemo(() => requests ?? [], [requests]);
+
+  // ── THE ACCOUNT THIS REQUEST BECAME ──────────────────────────────
+  //
+  // A request has no ad account: that is what it is asking for. Once it
+  // is completed one exists, and the account NAME is what an admin
+  // actually wants on the tile -- it is what they type into a
+  // supplier's dashboard and what the customer refers to on the phone.
+  //
+  // There is no foreign key from a request to the account it produced,
+  // so this matches on the pair that cannot collide in practice: the
+  // customer, and the platform family they asked for. Where a customer
+  // has more than one account of the same family the newest is shown,
+  // because that is the one this request created.
+  //
+  // Read separately and allowed to fail on its own -- a tile without an
+  // account name is fine; a queue that will not render is not.
+  const advertiserIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rows
+            .map((r) => (r.advertiser as { id?: string } | undefined)?.id)
+            .filter((v): v is string => typeof v === "string" && !!v),
+        ),
+      ).slice(0, 120),
+    [rows],
+  );
+
+  const { data: accountsByAdvertiser } = useQuery({
+    queryKey: ["request-accounts", advertiserIds.join(",")],
+    enabled: advertiserIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("ad_accounts")
+        .select("id, name, bm_id, platform, currency, advertiser_id, created_at")
+        .in("advertiser_id", advertiserIds)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const out: Record<string, { name: string; bm_id: string | null }[]> = {};
+      for (const raw of data ?? []) {
+        const a = raw as {
+          advertiser_id?: string;
+          name?: string | null;
+          bm_id?: string | number | null;
+          platform?: string | null;
+        };
+        const key = `${a.advertiser_id ?? ""}|${platformFamily(a.platform ?? null) ?? ""}`;
+        if (!key.startsWith("|")) {
+          (out[key] ??= []).push({
+            name: String(a.name ?? "").trim(),
+            bm_id: a.bm_id == null ? null : String(a.bm_id).trim() || null,
+          });
+        }
+      }
+      return out;
+    },
+  });
 
   // Claim / un-claim a request. Passes the row's updated_at so two admins
   // picking up the same request at once get a conflict instead of one
@@ -400,8 +461,18 @@ export default function PsmRequests() {
                   else's dashboard to set the account up. */}
               {(() => {
                 const ident = requestIdentity(r.platform, r.metadata);
-                const site = String(r.website_url ?? "").trim();
-                if (!ident && !site) return null;
+                const advId = (r.advertiser as { id?: string } | undefined)?.id;
+                const fam = platformFamily(r.platform) ?? "";
+                const made = advId
+                  ? (accountsByAdvertiser?.[`${advId}|${fam}`] ?? [])[0]
+                  : undefined;
+                const acctName = made?.name || "";
+                // The account's own BM id beats the one the customer
+                // typed on the request: it is what the account actually
+                // runs under, and the two can differ.
+                const bm = made?.bm_id || ident?.value || "";
+                const bmLabel = made?.bm_id ? "BM" : ident?.label ?? "BM";
+                if (!acctName && !bm) return null;
                 return (
                   <div
                     style={{
@@ -413,22 +484,17 @@ export default function PsmRequests() {
                       minWidth: 0,
                     }}
                   >
-                    {ident ? (
-                      <div style={{ minWidth: 0 }}>
-                        <span style={{ color: "var(--faint)" }}>
-                          {ident.label}{" "}
-                        </span>
-                        <CopyText
-                          value={ident.value}
-                          what={ident.label}
-                          mono
-                        />
+                    {acctName ? (
+                      <div style={{ minWidth: 0, fontWeight: 600 }}>
+                        <CopyText value={acctName} what="account name" />
                       </div>
                     ) : null}
-                    {site ? (
+                    {bm ? (
                       <div style={{ minWidth: 0 }}>
-                        <span style={{ color: "var(--faint)" }}>Site </span>
-                        <CopyText value={site} what="website" />
+                        <span style={{ color: "var(--faint)" }}>
+                          {bmLabel}{" "}
+                        </span>
+                        <CopyText value={bm} what={bmLabel} mono />
                       </div>
                     ) : null}
                   </div>

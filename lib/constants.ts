@@ -131,6 +131,9 @@ export const PLATFORMS = [
   { label: "Tiktok", value: "tiktok" },
 ];
 export const COMMISSION_TYPE_LABELS: Record<string, string> = {
+  // The only value the accrual trigger writes. Without it the Type
+  // column fell back to printing the raw word "percentage".
+  percentage: "Percentage",
   monthly: "Monthly",
   pct: "Topup %",
   monthly_pct: "Monthly + Topup %",
