@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import InactiveContent from "@/components/inactive/inactive-content";
+import { isLockedOut } from "@/lib/auth/locked-out";
 
 export default async function InactivePage() {
   const supabase = await createClient();
@@ -43,9 +44,13 @@ export default async function InactivePage() {
   // the page — and the page renders the admin top-ups table.
   //
   // A route that is not behind the gate has to carry its own.
-  const isInactive =
-    profile?.is_active === false ||
-    String(profile?.status ?? "active").toLowerCase() !== "active";
+  // ── THE SAME RULE AS THE GATE THAT SENDS PEOPLE HERE ─────────────
+  //
+  // This said `status !== "active"` while the (app) layout locks on a
+  // named list. Any status outside both -- `pending`, `trial`, whatever
+  // a later migration adds -- meant the app worked normally AND this
+  // page told the same person they had been deactivated.
+  const isInactive = isLockedOut(profile);
   if (!isInactive) redirect("/dashboard");
 
   return <InactiveContent user={user} profile={profile} />;

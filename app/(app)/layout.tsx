@@ -6,6 +6,7 @@ import IdleTimeoutManager from "@/components/idle-timeout-manager";
 import MaintenanceBanner from "@/components/maintenance-banner";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfiles, getSessionUser } from "@/lib/auth/session";
+import { isLockedOut } from "@/lib/auth/locked-out";
 import { redirect } from "next/navigation";
 import React from "react";
 
@@ -85,11 +86,8 @@ export default async function AppLayout({
   // recoverable: a status somebody adds later would not lock its holder
   // out until this list is extended. The downside of being wrong in the
   // strict direction is that nobody can sign up.
-  const lockedStatus = ["inactive", "disabled", "suspended", "pending_erasure"];
-  if (
-    profile.is_active === false ||
-    lockedStatus.includes(String(profile.status ?? "").toLowerCase())
-  ) {
+  // Shared with /inactive's own guard -- see lib/auth/locked-out.
+  if (isLockedOut(profile)) {
     redirect("/inactive");
   }
 
