@@ -1,4 +1,18 @@
-# The walkthrough — J1 to J8, A to Z
+# The walkthrough — every screen, every button, then J1 to J13
+
+**Three passes, and only the first one is exhaustive.**
+
+| pass | what it is | how complete |
+|---|---|---|
+| **A. Every menu item** | each navigation entry × each role, ticked off | **exhaustive** — generated from the navigation code, so nothing can be missing from the list |
+| **B. Every button** | per screen, what each control should do | exhaustive per screen |
+| **C. Every number** | each figure on screen, against the SQL that produces it | **exhaustive per figure** |
+| **D. J1–J13** | the journeys: what happens when those controls are used in sequence | the scenarios, not everything |
+
+Pass A answers "did we look at all of it". Pass C answers "is it true".
+Pass D answers "does it work together". Doing D without A is how a
+screen nobody opened reaches a customer; doing D without C is how a
+confident, wrong number does.
 
 This is the script for going through the whole app by hand, on
 production, with real money. It is written to be *worked*: every step says
@@ -112,6 +126,279 @@ Five, because each one proves something the others cannot.
 U5 is the one people skip. Do not skip U5: four capabilities were
 owner-only in the UI and admin-level on the server until today, and the
 only way to be sure is to sit in that seat.
+
+---
+
+## A. Every menu item, every role
+
+Generated from the navigation code on 2026-09-20
+(`components/admin/adm-shell.tsx`, `components/advertiser/adv-app.tsx`,
+`components/affiliate/aff-app.tsx`). If a screen is not on this list, no
+role can reach it from a menu — check `docs/UNREACHABLE.md`.
+
+**How to use it:** open each one, as that role, and tick it when the page
+has RENDERED WITH DATA. Not "it loaded" — a screen showing "Failed to
+load" or a confident 0 over a failed read counts as a fail, and that is
+most of what these passes have found.
+
+### A1. Super-admin / owner — 21 destinations
+
+| # | Menu group | Item | Route | Opened | Notes |
+|---|---|---|---|---|---|
+| 1 | (top) | Dashboard | `/dashboard` | ☐ | hero + Activity grid, 8 tiles |
+| 2 | Customers | Advertisers | `/users` | ☐ | list, details sheet, Affiliates tab |
+| 3 | Customers | Ad Accounts | `/accounts` | ☐ | |
+| 4 | Customers | Account Pool | `/account-pool` | ☐ | owner sees the margin strip |
+| 5 | Customers | Account Requests | `/ad-account-requests` | ☐ | |
+| 6 | Money | Wallet Topups | `/wallet-topups` | ☐ | + the Wise panel (feed is OFF) |
+| 7 | Money | Withdrawals | `/withdrawals` | ☐ | |
+| 8 | Money | Ad-account Topups | `/top-ups` | ☐ | supplier pill lives here |
+| 9 | Money | Wallets | `/wallets` | ☐ | balance edit is owner-only |
+| 10 | Money | Invoices | `/invoices` | ☐ | |
+| 11 | Money | Subscriptions | `/subscriptions` | ☐ | |
+| 12 | Owner | Promotions | `/promotions` | ☐ | owner-only since 2026-09-20 |
+| 13 | Owner | Reconciliation | `/reconciliation` | ☐ | ledger stops at 100 rows |
+| 14 | Owner | Referral Links | `/affiliates` | ☐ | |
+| 15 | Owner | Commissions | `/commissions` | ☐ | |
+| 16 | Owner | Settings | `/settings/finance` | ☐ | see A4 for its own tabs |
+| 17 | Owner | Activity Logs | `/activity-logs` | ☐ | |
+| 18 | Owner | Audit Log | `/audit` | ☐ | export ignores the filters |
+| 19 | Owner | Invites | `/invites` | ☐ | |
+| 20 | Owner | Admins | `/admins` | ☐ | |
+| 21 | More | Manual / Get Help | `/manual`, `/help` | ☐ | |
+
+### A2. Employee admin (U5) — the same list, minus the Owner group
+
+Everything in A1 EXCEPT items 12–20. Two things to check, not one:
+
+- ☐ the Owner group and Promotions are **not in their sidebar**
+- ☐ typing `/settings/finance`, `/promotions`, `/audit`, `/affiliates`,
+  `/commissions`, `/invites`, `/admins`, `/reconciliation` directly is
+  **refused**, not merely unlinked
+- ☐ their Dashboard shows **6** Activity tiles, not 8 — Fees and
+  Commissions are owner-only at the source and were showing two
+  permanent "Failed to load"s until 2026-09-20
+
+### A3. Advertiser — 9 destinations
+
+Sidebar (`NAV`), then the second group (`NAV2`). The phone bar
+(`BOTTOM`) is five of the same nine; open it on a phone too.
+
+| # | Item | View | Opened | Notes |
+|---|---|---|---|---|
+| 1 | Dashboard | `?view=dash` | ☐ | onboarding checklist, plan card |
+| 2 | Wallet | `?view=wallet` | ☐ | both currency cards, activity table |
+| 3 | Ad accounts | `?view=accounts` | ☐ | |
+| 4 | Requests | `?view=requests` | ☐ | |
+| 5 | Billing | `?view=billing` | ☐ | Pay now / Exchange to pay |
+| 6 | Financial report | `?view=report` | ☐ | |
+| 7 | Notifications | `?view=notif` | ☐ | |
+| 8 | Settings | `?view=settings` | ☐ | company, Your data (GDPR), affiliate join |
+| 9 | Get help | `?view=help` | ☐ | |
+| + | Affiliate program | `?view=referrals` | ☐ | only once they are an affiliate |
+
+Also: ☐ `/profile`, `/notifications`, `/help` typed directly all bounce
+into the shell rather than rendering without navigation.
+
+### A4. Affiliate (standalone) — 6 destinations
+
+| # | Item | View | Opened | Notes |
+|---|---|---|---|---|
+| 1 | Dashboard | `?view=dash` | ☐ | jackpot headline shows BOTH currencies |
+| 2 | My Referrals | `?view=refs` | ☐ | range filter, CSV export |
+| 3 | Wallet | `?view=pay` | ☐ | payout request |
+| 4 | Notifications | `?view=notif` | ☐ | nothing writes affiliate notifications yet |
+| 5 | Settings | `?view=set` | ☐ | payout details are NOT stored anywhere |
+| 6 | Get Help | `?view=help` | ☐ | |
+
+### A5. Settings — its own five tabs (owner only)
+
+| # | Tab | Route | Opened |
+|---|---|---|---|
+| 1 | Finance | `/settings/finance` | ☐ |
+| 2 | Banks | `/settings/banks` | ☐ |
+| 3 | Ad-account types | `/settings/ad-account-types` | ☐ |
+| 4 | Plans | `/settings/plans` | ☐ |
+| 5 | Integrations | `/settings/integrations` | ☐ |
+| 6 | General | `/settings/general` | ☐ |
+
+### A6. Screens with no menu entry at all
+
+Reachable only by URL or by being sent there. Each one is somebody's
+worst day, so each one gets opened deliberately:
+
+| # | Screen | How you get there | Opened |
+|---|---|---|---|
+| 1 | `/auth/login` | signed out | ☐ |
+| 2 | `/auth/sign-up?t=…&ref=…` | a referral link | ☐ |
+| 3 | `/invite/accept?token=…` | an invite email | ☐ |
+| 4 | `/auth/confirm?…` | the confirmation email | ☐ |
+| 5 | `/auth/error` | a broken link | ☐ |
+| 6 | `/complete-profile` | company details missing | ☐ |
+| 7 | `/inactive` | after being deactivated | ☐ |
+| 8 | `/onboard` | a user with no profile | ☐ |
+| 9 | the 404 page | any wrong URL | ☐ |
+| 10 | the error boundary | force one, see it is not a blank page | ☐ |
+
+---
+
+## B. Every button, per screen
+
+The rule for each: press it, and check the THREE things that have
+actually gone wrong on this project.
+
+1. **Did it do what the label says?** Not "did a toast appear".
+2. **Could it have said success while writing nothing?** A toast fired
+   without reading the answer; an UPDATE that matched no rows; a
+   `mailto:` that opens nothing.
+3. **Is the money right, in the right currency?** `top_ups.topup_amount`,
+   `amount_usd` and `fee_amount` are ALWAYS USD; `currency` is what the
+   customer paid in.
+
+And one more for every list: **an empty result must say whether it is
+empty or unread.** "No rows" over a failed read is the single most
+common fault found in these sweeps.
+
+Work the screens in the A-list order. For each, write down every control
+you can see before you press anything -- that list is the test, and it is
+shorter than it looks on most screens.
+
+---
+
+## C. The numbers -- screen against database, both ends
+
+"The button works" and "the number is right" are two different tests,
+and only this one catches a figure that is confidently wrong. Every
+sweep on this project has found more faults here than anywhere else:
+a landed figure stated in the wallet's currency, a lifetime total that
+dropped dollars, a month that moved after the fact, a struck-out top-up
+still counted as funding.
+
+**How to run it:** put the screen and the SQL side by side. Not "roughly
+right" -- to the cent. Where they differ, the SQL is the truth and the
+screen is the bug.
+
+### C1. The wallet
+
+```sql
+select a.tenant_client_code, w.eur_balance, w.usd_balance
+  from public.wallets w
+  join public.advertisers a on a.id = w.advertiser_id
+ order by a.tenant_client_code;
+```
+
+- [ ] The customer's own wallet cards match, both currencies.
+- [ ] `/wallets` (admin) matches, same rows.
+- [ ] The wallet statement NETS to the balance: credits minus debits.
+      This is the one that has been wrong twice -- ad-account funding had
+      no line at all, and a paid invoice was drawn as a wallet debit
+      whether or not the wallet paid it.
+
+### C2. Money in
+
+```sql
+select upper(coalesce(currency,'EUR')) as cur,
+       count(*) as aantal, sum(amount) as totaal
+  from public.wallet_topups
+ where status = 'completed'
+ group by 1;
+```
+
+- [ ] Dashboard "Wallet in" for the same period.
+- [ ] `/wallet-topups` list count.
+- [ ] The customer's own statement.
+
+### C3. Money onto ad accounts, and the fee
+
+```sql
+select count(*) as aantal,
+       sum(topup_amount) as landde_usd,
+       sum(fee_amount)   as fee_usd,
+       sum(amount_usd)   as uit_wallet_usd
+  from public.top_ups
+ where status = 'completed'
+   and coalesce(is_deleted,false) = false;
+```
+
+- [ ] Dashboard "Ad topups" and "Fees" for the same period.
+- [ ] Every one of those three is USD on screen. `amount_received` is
+      the only figure in the customer's own currency.
+- [ ] A struck-out (`is_deleted`) top-up counts in NONE of them.
+
+### C4. Invoices
+
+```sql
+select type, status, upper(coalesce(currency,'EUR')) as cur,
+       count(*) as aantal, sum(total) as totaal
+  from public.invoices
+ group by 1,2,3 order by 1,2,3;
+```
+
+- [ ] `/invoices` totals per status.
+- [ ] The customer's Billing list shows the same rows with the same
+      currency symbol -- the symbol comes from `invoices.currency`, not
+      from the plan.
+- [ ] The PDF of one invoice matches its row to the cent, including tax.
+
+### C5. Subscriptions
+
+```sql
+select s.status, upper(coalesce(s.currency,'EUR')) as cur,
+       count(*) as aantal, sum(s.amount) as per_maand
+  from public.subscriptions s group by 1,2;
+```
+
+- [ ] Dashboard hero "Subscriptions - billing now" = active + past_due.
+- [ ] `/subscriptions` list, and each row's next payment date.
+- [ ] The customer's plan card shows what they will be charged NEXT,
+      not what they were charged last.
+
+### C6. Commissions
+
+```sql
+select upper(coalesce(currency,'EUR')) as cur, status,
+       count(*) as aantal, sum(amount) as totaal
+  from public.referral_commissions group by 1,2;
+
+select count(*) as clawbacks, sum(amount) as teruggehaald
+  from public.referral_clawbacks;
+```
+
+- [ ] The affiliate's lifetime headline = commissions minus clawbacks,
+      BOTH currencies.
+- [ ] `/commissions` and `/affiliates` agree with each other and with
+      the affiliate's own screen. These three have disagreed before.
+- [ ] "Still owed" = commissions minus clawbacks minus paid.
+
+### C7. The period boundary
+
+```sql
+select to_char(coalesce(paid_at, created_at),'YYYY-MM') as maand,
+       count(*), sum(total)
+  from public.invoices where status='paid' group by 1 order by 1;
+```
+
+- [ ] A card for "this month" changes when you change the period, and
+      NOT when an old invoice is settled. A figure that moves
+      retroactively is the bug that was fixed on 2026-09-20 -- check it
+      stayed fixed.
+
+### C8. Does the whole thing add up
+
+```sql
+select
+  (select coalesce(sum(amount),0) from public.wallet_topups
+    where status='completed' and upper(coalesce(currency,'EUR'))='EUR') as in_eur,
+  (select coalesce(sum(amount_usd),0) from public.top_ups
+    where status='completed' and coalesce(is_deleted,false)=false) as uit_usd,
+  (select coalesce(sum(total),0) from public.invoices
+    where status='paid') as gefactureerd,
+  (select coalesce(sum(eur_balance),0) from public.wallets) as saldo_eur,
+  (select coalesce(sum(usd_balance),0) from public.wallets) as saldo_usd;
+```
+
+- [ ] `/reconciliation` shows the same picture and says so in words.
+- [ ] Nothing is negative. A negative wallet is money we gave away.
 
 ---
 
@@ -310,6 +597,121 @@ email to money in their wallet without asking us anything.
    open.
    - ✅ Refused. (This is what `20260918110000` and `20260918120000` are
      for.)
+
+---
+
+## J9 — the admin desk, a full day of it
+
+**U5 (employee admin), then U1 (owner).**
+
+1. **Verify a wallet top-up against a slip.** `/wallet-topups` → open
+   one → read the amount and the reference against the slip → Verify.
+   - ✅ The wallet goes up by the amount on the slip, in the currency on
+     the slip.
+   - ✅ A receipt invoice is raised, and it does NOT appear as a debit in
+     the customer's wallet activity.
+2. **Reject one**, with a reason.
+   - ⚠️ The reason is stored and shown on no admin screen. Known.
+3. **Verify an ad-account top-up.** `/top-ups` → the card names the
+   ad account, the customer and the PSM number.
+   - ✅ The supplier pill says where to do it by hand, or "Funded
+     automatically" for the API type.
+   - ✅ The headline figure is USD; "paid" is in the customer's currency.
+4. **Search the queue** for an advertiser's name.
+   - ⚠️ Only the client code and the account name are searched. A miss
+     says so and offers to clear the filters.
+5. **Approve a withdrawal** from an ad account.
+   - ✅ Refused when the account never held that much — the message
+     names what is available.
+6. **Adjust a wallet** (`/wallets`, owner only).
+   - ⚠️ No version guard: two admins correcting the same wallet at once
+     both apply their delta. Known.
+
+## J10 — settings, and what they change downstream
+
+**U1 only. Every one of these is a price.**
+
+1. **Ad-account types** → change a default fee → create an ad account of
+   that type.
+   - ✅ The new account's fee is pre-filled from the type.
+   - ✅ The supplier name and dashboard are on the ADMIN screen only —
+     check the customer's JSON, not just their screen.
+2. **Banks** → add a beneficiary → open the wallet top-up dialog as a
+   customer.
+   - ✅ The right bank for that ad-account family, in the right currency.
+   - ⚠️ A beneficiary cannot be removed from the UI. Known.
+3. **Exchange rates** → save a new rate → check the before/after diff.
+   - ⚠️ On the second save in one session the "before" is stale. Known.
+4. **Plans** → change a plan → invite someone on it (J1).
+5. **Integrations** → the supplier feed.
+   - ✅ Nothing is pushed to the supplier while testing.
+
+## J11 — privacy, audit and the paper trail
+
+**U2 (customer), then U1.**
+
+1. **Download my data.** Customer → Settings → Your data → Download.
+   - ✅ A file arrives, and it contains no commission terms, no supplier
+     name, no margin.
+2. **Request deletion.**
+   - ✅ Registered, and the account is marked rather than deleted.
+   - ✅ The OWNER cannot do this to themselves — the tenant would be
+     left with nobody.
+3. **Sign out all devices.**
+4. **Audit log** (`/audit`) → filter to that customer → Export CSV.
+   - ⚠️ The export ignores the row filter and the time range. Known.
+   - ✅ A cell starting with `=` is not a live formula when opened.
+5. **Activity logs** → the same events, in customer-readable words.
+
+## J12 — the affiliate program, end to end
+
+**U4 (advertiser who is also an affiliate) and U3 (standalone affiliate).**
+
+This is the track that has never completed on production: there were
+**0 referral links on file** on 2026-09-20 because every referral was
+silently discarded before a row was written.
+
+1. **Apply.** U4 → Settings → Join the affiliate program.
+   - ✅ The OWNER gets a notification. (Needs migration 20260920130000.)
+2. **Approve.** U1 → set their commission terms.
+   - ✅ U4 can now see their referral link — without needing an existing
+     referral first.
+3. **Refer someone.** Open the link in a clean browser → sign up →
+   confirm the email.
+   - ✅ A `referral_links` row exists. This is the step that was silently
+     failing; if it still does, nothing downstream can work.
+4. **That customer tops up.**
+   - ✅ Commission accrues, in the currency of the top-up.
+   - ✅ Both the affiliate's screen and the owner's `/affiliates` show
+     the same figure.
+5. **Withdraw from an ad account** → the clawback fires.
+   - ✅ It fires for a EUR customer too. (Needs 20260920150000.)
+6. **Request a payout.**
+   - ⚠️ No payout record is written and no bank details are stored.
+     Known — the owner pays by hand and marks the rows paid.
+
+## J13 — the days nothing goes right
+
+**Every one of these has produced a wrong screen at least once.**
+
+1. **A failed read.** Block the Supabase host in dev tools, then open
+   each dashboard.
+   - ✅ Every tile says it could not load. None of them says 0.
+2. **Two tabs.** Pay an invoice in one; press Pay in the other.
+   - ✅ No second debit, and the second tab does not claim it paid.
+3. **A deactivated customer with a tab still open.**
+   - ✅ They cannot top up, cannot pay, cannot request an account.
+4. **A deactivated admin with a cookie still valid.**
+   - ✅ Refused everywhere, including the invoice PDF route.
+5. **Maintenance mode on.**
+   - ✅ Reads still work; every write says so plainly.
+6. **A currency we cannot convert.** Try a GBP top-up as an admin.
+   - ✅ Refused before anything is written — it used to be stored as
+     $0.00.
+7. **An unknown currency code on an existing row.**
+   - ✅ The screen prints the code beside the number instead of throwing.
+8. **The cron runs twice.**
+   - ✅ No second invoice, no second debit.
 
 ---
 
