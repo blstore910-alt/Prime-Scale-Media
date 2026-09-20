@@ -161,14 +161,24 @@ export default function AffiliatesTable() {
           ]),
         );
         for (const r of rows) {
-          if (statusUnknown) r.status = "unknown";
-          else if (byId.has(r.id)) {
+          if (statusUnknown) {
+            r.status = "unknown";
+          } else if (byId.has(r.id)) {
             r.status = byId.get(r.id) ?? r.status ?? "active";
           } else if (statusError) {
-            // 42703: the column is genuinely not there. That IS the
-            // documented default, and it was never actually applied
-            // because the map is empty on that path.
+            // 42703: the column is genuinely not there, so "active" IS
+            // the documented default -- and it was never actually
+            // applied, because the map is empty on that path.
             r.status = r.status ?? "active";
+          } else {
+            // The read SUCCEEDED and this row was not in it: RLS hides
+            // it on referral_links while the view shows it, or it was
+            // deleted between the two queries. Either way we do not
+            // know its status, and `?? "active"` downstream would paint
+            // a pending affiliate a confident green Active with no
+            // Approve and no Reject -- the exact fault this merge
+            // exists to prevent.
+            r.status = r.status ?? "unknown";
           }
         }
       }

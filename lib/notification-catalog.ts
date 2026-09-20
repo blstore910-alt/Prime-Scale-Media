@@ -100,6 +100,16 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    // The approve path notified and the reject path did not, so a
+    // customer who asked for money back saw nothing either way -- their
+    // only withdrawal surface is filtered to `approved`.
+    type: "withdrawal_rejected",
+    label: "Withdrawal refused",
+    description:
+      "When we cannot return money from an ad account. The reason is included.",
+    audience: "customer",
+  },
+  {
     type: "request_fee_refunded",
     label: "Ad-account request refunded",
     description:

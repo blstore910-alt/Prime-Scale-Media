@@ -160,11 +160,21 @@ export default function useAdAccountRequests(
         // is NULL, which the comment above calls exactly the ones the
         // desk has to notice.
         const term = safeIlikeTerm(search.trim());
-        const ids = await advertiserIdsMatching(
-          supabase,
-          effectiveTenantId,
-          search.trim(),
-        );
+        // Caught, not thrown. This is a SECOND arm on a search box --
+        // if it fails, the email arm still works. Letting it reject
+        // takes the entire Requests queue to isError, which is the
+        // identical "blast radius went from one column to the page"
+        // fault fixed in affiliate-table in the same commit.
+        let ids: string[] | null = null;
+        try {
+          ids = await advertiserIdsMatching(
+            supabase,
+            effectiveTenantId,
+            search.trim(),
+          );
+        } catch {
+          ids = null;
+        }
         const orParts: string[] = [];
         if (term.length > 0) {
           orParts.push(`email.ilike."*${term}*"`);

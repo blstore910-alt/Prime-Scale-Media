@@ -1236,6 +1236,35 @@ export async function verifyAdTopup(
     }
   }
 
+  // ── AND IT IS STILL PENDING, CHECKED HERE ─────────────────────────
+  //
+  // verifyAdTopup read tenant_id and the fee and never looked at
+  // `status`, and top_up_admin_verify is hand-authored on live so
+  // nothing in this repo can say whether IT re-checks. The verify
+  // dialog's own comment describes the consequence -- a dismissed
+  // dialog leaves the queue row reading pending, the admin reopens it
+  // and Verify is live again, "two verifications, two pushes".
+  //
+  // The row is read twice above for other reasons; this is the cheap
+  // guard that makes the question moot either way.
+  {
+    const { data: stateRow } = await supabase
+      .from("top_ups")
+      .select("status")
+      .eq("id", topupId)
+      .maybeSingle();
+    const st = String(
+      (stateRow as { status?: unknown } | null)?.status ?? "pending",
+    ).toLowerCase();
+    if (st !== "pending") {
+      return {
+        ok: false,
+        error: `This top-up is already ${st}. Reload the queue — verifying it twice would fund the account twice.`,
+        code: "conflict",
+      };
+    }
+  }
+
   const { data, error } = await supabase.rpc("top_up_admin_verify", {
     p_top_up_id: topupId,
     p_new_fee_percent: newFeePercent,

@@ -317,9 +317,15 @@ function WithdrawalsSection() {
   });
 
   const reject = useMutation({
-    mutationFn: async (id: string) => {
-      setActingId(id);
-      const res = await rejectAdAccountWithdrawal(id);
+    // ── THE REASON THE RPC STORES, ACTUALLY SENT ──────────────────
+    //
+    // rejectAdAccountWithdrawal takes a reason and the RPC writes it;
+    // this called it with ONE argument, so every refusal was recorded
+    // with no reason and the customer -- who now gets a notification --
+    // would have been told nothing but "no".
+    mutationFn: async (vars: { id: string; reason?: string }) => {
+      setActingId(vars.id);
+      const res = await rejectAdAccountWithdrawal(vars.id, vars.reason);
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
@@ -499,7 +505,8 @@ function WithdrawalsSection() {
                                           ),
                                         ],
                                       ],
-                                      run: () => reject.mutate(w.id),
+                                      run: () =>
+                                        reject.mutate({ id: w.id }),
                                     })
                                   }
                                 >

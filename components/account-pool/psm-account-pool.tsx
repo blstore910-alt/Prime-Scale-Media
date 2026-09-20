@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import PsmSortFilter from "@/components/psm/sort-filter";
@@ -454,6 +455,15 @@ export default function PsmAccountPool() {
   }, [pool.data, filter, search, source, supplierStatus]);
 
   const poolBlind = pool.isError || pool.isLoading;
+  // The account type's own default, which the server accepts from an
+  // employee admin -- see actions/_fee-is-a-price.
+  const { bySlug: typeBySlug } = useAdAccountTypes();
+  const allocTypeDefault = (() => {
+    const slug = String(assigning?.platform ?? "").trim();
+    if (!slug) return null;
+    const n = Number(typeBySlug.get(slug)?.default_fee_pct);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
   const counts = useMemo(() => {
     const all = pool.data ?? [];
     return {
@@ -1098,13 +1108,26 @@ export default function PsmAccountPool() {
               // READ FAILED. Allocating then prices the account from
               // whatever is in the box against a rate nobody could see.
               advertiserPlanError ||
-              (feeInput.trim() === "" && planFee == null)
+              // ── ...OR THE TYPE'S OWN DEFAULT ───────────────────────
+              //
+              // This asked only about the PLAN rate, and the fee box is
+              // super-admin-only -- so for a customer with no
+              // advertiser_plans row (most of the existing estate) an
+              // employee admin got a disabled button whose tooltip told
+              // them to type a fee they could not type. The account
+              // type's default is the third legitimate source, and the
+              // server accepts it.
+              (feeInput.trim() === "" &&
+                planFee == null &&
+                allocTypeDefault == null)
             }
             title={
               advertiserPlanError
                 ? "Their plan rate didn't load. Reload before allocating — otherwise you'd be setting a price without knowing the one they agreed."
-                : feeInput.trim() === "" && planFee == null
-                  ? "This customer has no plan rate, so type the fee to charge them on top-ups."
+                : feeInput.trim() === "" &&
+                    planFee == null &&
+                    allocTypeDefault == null
+                  ? "This customer has no plan rate and this account type has no default, so a fee has to be set — ask the super-admin."
                   : undefined
             }
             onClick={() => assign.mutate()}

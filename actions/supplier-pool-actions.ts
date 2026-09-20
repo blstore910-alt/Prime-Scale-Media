@@ -332,20 +332,49 @@ export async function assignSupplierAdAccount(input: {
   // and the pool's own "Fee % we charge" box had no disabled either. So
   // the price rule, which exists because ad_accounts.fee outranks the
   // plan on every future top-up, was fully open on this screen.
+  // ── THE TYPE THIS ACCOUNT ACTUALLY IS ─────────────────────────────
+  //
+  // Neither caller passes `input.platform`, so the type-default arm of
+  // feeIsAPrice was dead here -- only a plan rate could ever be allowed,
+  // and an advertiser with NO advertiser_plans row (which the phase-4
+  // migration says is most of the existing estate) left an employee
+  // admin with a disabled fee box, a disabled Allocate button, and a
+  // tooltip telling them to type a fee they cannot type.
+  //
+  // The pool row knows its own type. That is the one to ask about.
+  const resolvedPlatform =
+    (typeof input.platform === "string" && input.platform) ||
+    String((pool as { platform?: unknown }).platform ?? "") ||
+    null;
   if (
-    (await feeIsAPrice(supabase, {
+    await feeIsAPrice(supabase, {
       advertiserId: input.advertiserId,
-      platform: typeof input.platform === "string" ? input.platform : null,
+      platform: resolvedPlatform,
+      tenantId: profile.tenant_id,
       fee,
-    })) &&
-    !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
+    })
   ) {
-    return {
-      ok: false,
-      error:
-        "That fee is not this customer's agreed rate, and only the super-admin can set a different one. Leave it blank to use their plan rate.",
-      code: "forbidden",
-    };
+    const owner = await isTenantOwner(
+      supabase,
+      profile.tenant_id,
+      profile.user_id,
+    );
+    if (owner.unreadable) {
+      return {
+        ok: false,
+        error:
+          "We couldn't check who owns this tenant just now, so we'd rather not set a price. Try again in a moment.",
+        code: "conflict",
+      };
+    }
+    if (!owner.owner) {
+      return {
+        ok: false,
+        error:
+          "That fee is not this customer's agreed rate, and only the super-admin can set a different one. Leave it blank to use their plan rate, or ask the owner.",
+        code: "forbidden",
+      };
+    }
   }
 
   // What WE pay the supplier. Seeded from the supplier's own reported figure

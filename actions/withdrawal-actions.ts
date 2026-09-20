@@ -453,10 +453,44 @@ export async function rejectAdAccountWithdrawal(
     return { ok: false, error: "Invalid input" };
   }
   const { supabase } = auth.ctx;
+  // Read it BEFORE the write, while it is still addressable: the RPC
+  // returns nothing and the row's advertiser is what the notification
+  // needs.
+  const { data: wdRow } = await supabase
+    .from("ad_account_withdrawals")
+    .select(
+      "advertiser_id, tenant_id, amount, currency, ad_account:ad_accounts(name)",
+    )
+    .eq("id", withdrawalId)
+    .maybeSingle();
+
   const { error } = await supabase.rpc("ad_account_withdrawal_reject", {
     p_withdrawal_id: withdrawalId,
     p_reason: reason ?? null,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
+
+  // ── AND THE CUSTOMER IS TOLD ───────────────────────────────────────
+  //
+  // The approve path notifies and this one did not, so a customer who
+  // asked for their money back saw nothing when it was pending and
+  // nothing when it was refused -- their only withdrawal surface is
+  // filtered to `approved`. They wait, then ask, and nobody can point
+  // at where it says so, because it does not.
+  await notifyAdvertiser(supabase, {
+    advertiserId: (wdRow as { advertiser_id?: string | null } | null)
+      ?.advertiser_id,
+    tenantId: (wdRow as { tenant_id?: string | null } | null)?.tenant_id ?? null,
+    type: "withdrawal_rejected",
+    payload: {
+      amount: (wdRow as { amount?: unknown } | null)?.amount ?? null,
+      currency:
+        (wdRow as { currency?: string | null } | null)?.currency ?? "USD",
+      account_name:
+        (wdRow as { ad_account?: { name?: string | null } | null } | null)
+          ?.ad_account?.name ?? null,
+      reason: reason ?? null,
+    },
+  });
   return { ok: true, data: null };
 }

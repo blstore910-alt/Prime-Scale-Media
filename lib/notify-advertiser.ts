@@ -26,6 +26,7 @@ export type AdvertiserNotice =
   | "topup_completed"
   | "topup_rejected"
   | "withdrawal_approved"
+  | "withdrawal_rejected"
   | "request_fee_refunded";
 
 /**

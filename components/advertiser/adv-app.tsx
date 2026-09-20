@@ -1249,10 +1249,17 @@ export default function AdvertiserApp() {
   // read failed. Same value on screen, opposite sentence: one is "one
   // moment", the other is "something went wrong". Only the disabled
   // query and the in-flight one are the first kind.
+  // ── AND "NO WALLET YET" IS NEITHER A FAILURE NOR A WAIT ───────────
+  //
+  // Dropping !wallet?.id from here while leaving it in pendingUnknown
+  // swapped a permanent spinner for a permanent "We couldn't check for
+  // pending transfers" -- on both cards, to the newest customers, who
+  // are the ones most likely to have just wired money and be looking
+  // for it. A false failure is not an improvement on a false wait.
   const pendingChecking =
     !activityError &&
     !pendingError &&
-    (activityLoading || (!!wallet?.id && !pendingLoaded));
+    (activityLoading || !wallet?.id || !pendingLoaded);
   // ── AND IT MUST NOT COME OUT OF A TRUNCATED LIST ────────────────────
   //
   // `activity` is fetched with .limit(30) because it renders a recent
@@ -4076,7 +4083,7 @@ export default function AdvertiserApp() {
                 <p className="cap">
                   {invError || dueInvError
                     ? "We couldn't read your invoices just now, so we'd rather not tell you this month is settled."
-                    : !dueInvLoaded
+                    : advReadsWillRun && !dueInvLoaded
                       ? "Looking up this month…"
                     : awaitingFirstInvoice
                       ? "We raise your first invoice overnight. Nothing has been charged yet, and nothing is owed until it appears."

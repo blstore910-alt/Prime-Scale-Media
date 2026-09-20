@@ -12,6 +12,7 @@ export type NotificationType =
   | "billing_run_failed"
   | "topup_rejected"
   | "withdrawal_approved"
+  | "withdrawal_rejected"
   | "request_fee_refunded"
   | "supplier_pool_changed"
   | "rate_limit_abuse"
@@ -114,6 +115,13 @@ export interface NotificationPayloadByType {
     amount?: number | string | null;
     currency?: string | null;
     account_name?: string | null;
+  };
+  /** A withdrawal we could not make. The reason is the customer's. */
+  withdrawal_rejected: {
+    amount?: number | string | null;
+    currency?: string | null;
+    account_name?: string | null;
+    reason?: string | null;
   };
   /** The ad-account request fee, put back after a refusal. */
   request_fee_refunded: {

@@ -42,6 +42,8 @@ export async function feeIsAPrice(
     advertiserId?: string | null;
     /** The ad-account type slug, when the caller knows it. */
     platform?: string | null;
+    /** The tenant, so the type lookup cannot match another one's. */
+    tenantId?: string | null;
     fee: unknown;
   },
 ): Promise<boolean> {
@@ -70,11 +72,20 @@ export async function feeIsAPrice(
   }
 
   if (params.platform) {
-    const { data, error } = await supabase
+    // ── .eq(tenant_id) OR maybeSingle() ERRORS FOR A TWO-TENANT ADMIN ─
+    //
+    // The unique key on ad_account_types is (tenant_id, slug) and the
+    // read policy matches ANY of the caller's profiles -- and this app
+    // explicitly supports one email in two tenants. Two rows come back,
+    // maybeSingle() raises PGRST116, which is neither 42P01 nor 42703,
+    // so it fell to "unreadable, therefore a price" and that admin
+    // could not create an ad account at the TYPE DEFAULT at all.
+    let q = supabase
       .from("ad_account_types")
       .select("default_fee_pct")
-      .eq("slug", params.platform)
-      .maybeSingle();
+      .eq("slug", params.platform);
+    if (params.tenantId) q = q.eq("tenant_id", params.tenantId);
+    const { data, error } = await q.maybeSingle();
     const code = (error as { code?: string } | null)?.code ?? "";
     if (error && code !== "42P01" && code !== "42703") return true;
     const pct = Number(
@@ -93,11 +104,20 @@ export async function isTenantOwner(
   supabase: SupabaseClient,
   tenantId: string,
   userId: string,
-): Promise<boolean> {
-  const { data } = await supabase
+): Promise<{ owner: boolean; unreadable: boolean }> {
+  // The error was discarded, so a transient failure made the OWNER not
+  // the owner -- and the message they then got was "only the
+  // super-admin can set a different one", about themselves. Every
+  // tenant member can read this row, so this is a transient path, not a
+  // structural one; the caller says which it was.
+  const { data, error } = await supabase
     .from("tenants")
     .select("owner_id")
     .eq("id", tenantId)
     .maybeSingle();
-  return !!data && (data as { owner_id?: string }).owner_id === userId;
+  if (error) return { owner: false, unreadable: true };
+  return {
+    owner: !!data && (data as { owner_id?: string }).owner_id === userId,
+    unreadable: false,
+  };
 }

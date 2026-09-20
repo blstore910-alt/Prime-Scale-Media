@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requestAdAccountWithdrawal } from "@/actions/withdrawal-actions";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -50,6 +51,49 @@ export default function WithdrawDialog({
   // tell the customer what they funded with.
   const currency = "USD";
   const fundedIn = (defaultCurrency ?? "USD").toUpperCase();
+
+  // ── THE FIGURE THE SERVER WILL MEASURE THIS AGAINST ────────────────
+  //
+  // This dialog had NO balance query at all: no maximum on the input,
+  // no figure anywhere. The customer typed blind and met the real
+  // number as a rejection toast -- and /accounts and their own
+  // dashboard each compute it a third and fourth way, so nothing on
+  // any screen matched what the guard would allow.
+  //
+  // Same expression the approve guard uses: everything completed and
+  // not struck out, minus every withdrawal that is not rejected or
+  // cancelled -- pending ones included, because they are spoken for.
+  const { data: ceiling, isError: ceilingError } = useQuery<number | null>({
+    queryKey: ["withdraw-ceiling", adAccountId],
+    enabled: open && !!adAccountId,
+    staleTime: 15_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const put = await supabase
+        .from("top_ups")
+        .select("topup_amount")
+        .eq("account_id", adAccountId)
+        .eq("status", "completed")
+        .not("is_deleted", "is", true);
+      if (put.error) throw put.error;
+      const off = await supabase
+        .from("ad_account_withdrawals")
+        .select("amount, status")
+        .eq("ad_account_id", adAccountId);
+      if (off.error) throw off.error;
+      const onAcct = (put.data ?? []).reduce(
+        (a, r) => a + (Number((r as { topup_amount?: unknown }).topup_amount) || 0),
+        0,
+      );
+      const taken = (off.data ?? [])
+        .filter((r) => {
+          const st = String((r as { status?: unknown }).status ?? "").toLowerCase();
+          return st !== "rejected" && st !== "cancelled";
+        })
+        .reduce((a, r) => a + (Number((r as { amount?: unknown }).amount) || 0), 0);
+      return Math.max(0, Math.round((onAcct - taken) * 100) / 100);
+    },
+  });
   const [reason, setReason] = useState("");
   // Second step, in the same dialog rather than a dialog on top of a dialog:
   // stacked modals are awkward on a phone and easy to dismiss by accident,
@@ -191,12 +235,36 @@ export default function WithdrawDialog({
                 id="wd-amount"
                 type="number"
                 min="0"
+                max={ceiling ?? undefined}
                 step="0.01"
                 inputMode="decimal"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
+              {/* A figure, or an honest dash. Never a 0 over a failed
+                  read -- that would read as "there is nothing here". */}
+              <p className="text-xs text-muted-foreground">
+                {ceilingError ? (
+                  "We couldn't work out what is left on this account just now."
+                ) : ceiling === null || ceiling === undefined ? (
+                  "Checking what is left on this account…"
+                ) : (
+                  <>
+                    Up to{" "}
+                    <button
+                      type="button"
+                      className="underline underline-offset-2"
+                      onClick={() => setAmount(String(ceiling))}
+                    >
+                      ${ceiling.toFixed(2)}
+                    </button>{" "}
+                    — what we funded, less anything already asked back.
+                    Money already spent at the platform is not in that
+                    figure.
+                  </>
+                )}
+              </p>
             </div>
             {/* NOT a choice, and not the funding currency either. The
                 balance on an ad account is held in USD whatever it was

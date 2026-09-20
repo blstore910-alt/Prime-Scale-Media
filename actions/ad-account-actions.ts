@@ -191,19 +191,34 @@ export async function createAdAccountAsAdmin(
     // error telling them to leave a box blank that the form refills.
     // See actions/_fee-is-a-price.
     if (
-      (await feeIsAPrice(supabase, {
+      await feeIsAPrice(supabase, {
         advertiserId,
         platform: typeof input.platform === "string" ? input.platform : null,
-        fee: feeRaw,
-      })) &&
-      !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
+        tenantId: profile.tenant_id,
+        fee,
+      })
     ) {
-      return {
-        ok: false,
-        error:
-          "That fee is not this customer's agreed rate, and only the super-admin can set a different one. Leave it at their plan rate, or ask the owner.",
-        code: "forbidden",
-      };
+      const owner = await isTenantOwner(
+        supabase,
+        profile.tenant_id,
+        profile.user_id,
+      );
+      if (owner.unreadable) {
+        return {
+          ok: false,
+          error:
+            "We couldn't check who owns this tenant just now, so we'd rather not set a price. Try again in a moment.",
+          code: "conflict",
+        };
+      }
+      if (!owner.owner) {
+        return {
+          ok: false,
+          error:
+            "That fee is not this customer's agreed rate, and only the super-admin can set a different one. Leave it at their plan rate, or ask the owner.",
+          code: "forbidden",
+        };
+      }
     }
   }
   const cleaned: Record<string, unknown> = {};
@@ -341,8 +356,16 @@ export async function updateAdAccountAsAdmin(
   for (const col of AD_ACCOUNT_UPDATE_ALLOWED) {
     if (col in payload) cleaned[col] = payload[col];
   }
-  if (typeof cleaned.fee === "number" && (cleaned.fee < 0 || cleaned.fee > 100)) {
-    return { ok: false, error: "Fee must be between 0 and 100" };
+  // Number(), not typeof: the create path coerces and this did not, so
+  // a string "500" skipped the bound entirely and "-5" skipped BOTH the
+  // bound and the owner rule (feeIsAPrice treats <= 0 as "use the
+  // plan"). A negative fee is not a fee.
+  if ("fee" in cleaned && cleaned.fee !== null && cleaned.fee !== "") {
+    const feeNum = Number(cleaned.fee);
+    if (!Number.isFinite(feeNum) || feeNum < 0 || feeNum > 100) {
+      return { ok: false, error: "Fee must be between 0 and 100" };
+    }
+    cleaned.fee = feeNum;
   }
   // ── `fee` IS A PRICE, AND PRICES ARE THE OWNER'S ────────────────────
   //
@@ -371,28 +394,75 @@ export async function updateAdAccountAsAdmin(
     const n = Number(v ?? 0);
     return Number.isFinite(n) ? Math.round((n + Number.EPSILON) * 100) / 100 : 0;
   };
+  //
+  // ── THE ALLOWANCE COMES FROM THE STORED ROW, NEVER THE PAYLOAD ─────
+  //
+  // `platform` and `advertiser_id` are both in the update allowlist, so
+  // taking the allowance from the payload let an employee admin write
+  // any price in two ordinary calls: create a type with
+  // default_fee_pct 25 (types are admin-writable), update the account
+  // with {platform: "that-type", fee: 25} -- allowed, because the
+  // lookup matched the type they had just named -- then update again
+  // with {platform: "eu-meta-psm"}, which is not a fee change, so the
+  // gate never runs. Platform restored, fee 25, nobody asked the owner.
+  // Same shape with advertiser_id and a 25% plan.
+  //
+  // What the account IS decides what its agreed rate is.
   const feeChanges =
     "fee" in cleaned &&
     asRate(cleaned.fee) !== asRate((existing as { fee?: unknown }).fee);
-  if (
-    feeChanges &&
-    (await feeIsAPrice(supabase, {
-      advertiserId: String(
-        (cleaned.advertiser_id ??
-          (existing as { advertiser_id?: unknown }).advertiser_id) ?? "",
-      ) || null,
+  if (feeChanges) {
+    const isPrice = await feeIsAPrice(supabase, {
+      advertiserId:
+        String((existing as { advertiser_id?: unknown }).advertiser_id ?? "") ||
+        null,
       platform:
-        typeof cleaned.platform === "string" ? cleaned.platform : null,
+        String((existing as { platform?: unknown }).platform ?? "") || null,
+      tenantId: profile.tenant_id,
       fee: cleaned.fee,
-    })) &&
-    !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
-  ) {
-    return {
-      ok: false,
-      error:
-        "That fee is not this customer's agreed rate, and only the super-admin can set a different one.",
-      code: "forbidden",
-    };
+    });
+    if (isPrice) {
+      const owner = await isTenantOwner(
+        supabase,
+        profile.tenant_id,
+        profile.user_id,
+      );
+      if (owner.unreadable) {
+        return {
+          ok: false,
+          error:
+            "We couldn't check who owns this tenant just now, so we'd rather not change a price. Try again in a moment.",
+          code: "conflict",
+        };
+      }
+      if (!owner.owner) {
+        return {
+          ok: false,
+          error:
+            "That fee is not this customer's agreed rate, and only the super-admin can set a different one.",
+          code: "forbidden",
+        };
+      }
+    }
+  }
+  // ── AND A REASSIGNMENT HAS TO STAY IN THIS TENANT ──────────────────
+  //
+  // createAdAccountAsAdmin validates advertiser_id against the tenant;
+  // this path only re-checked the ACCOUNT's tenant, so an account could
+  // be handed to an advertiser in another one.
+  if (typeof cleaned.advertiser_id === "string" && cleaned.advertiser_id) {
+    const { data: newOwner } = await supabase
+      .from("advertisers")
+      .select("id, tenant_id")
+      .eq("id", cleaned.advertiser_id)
+      .maybeSingle();
+    if (!newOwner || newOwner.tenant_id !== profile.tenant_id) {
+      return {
+        ok: false,
+        error: "That customer is not in this tenant.",
+        code: "forbidden",
+      };
+    }
   }
   // The cost row is its own write, so an update that ONLY changes the
   // supplier fee is legitimate and must not trip "No updatable fields".
