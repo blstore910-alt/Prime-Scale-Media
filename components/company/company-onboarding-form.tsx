@@ -81,13 +81,28 @@ function RocketMark() {
   );
 }
 
+// Whatever the row holds, as a string a text input can show. null,
+// undefined and a number all have to become "" or the field renders
+// "null" or refuses to be controlled.
+const str = (v: unknown): string =>
+  v === null || v === undefined ? "" : String(v);
+
 export default function CompanyOnboardingForm({
   profile,
   advertiserId,
+  company,
 }: {
   profile: UserProfile;
   advertiserId?: string;
+  /** What is already stored, so the form does not start blank. */
+  company?: Record<string, unknown> | null;
 }) {
+  // billings comes back as an array from the embed.
+  const billing = (() => {
+    const b = (company as { billings?: unknown } | null | undefined)?.billings;
+    const row = Array.isArray(b) ? b[0] : b;
+    return (row ?? null) as Record<string, unknown> | null;
+  })();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,24 +115,39 @@ export default function CompanyOnboardingForm({
     formState: { isSubmitted },
   } = useForm<FormValues>({
     resolver: zodResolver(companySchema),
+    // ── PREFILLED, BECAUSE BLANK HERE DELETES THINGS ────────────────
+    //
+    // This started as eleven empty strings and reset() only ran from
+    // the draft-restore banner, so the commonest real path -- fill
+    // Settings > Company, be told "Still needed: the billing address is
+    // on the full form", press Finish it -- landed on a BLANK form.
+    //
+    // Retyping from blank is not merely tedious. The submit maps
+    // `website_url: data.website_url || null` and
+    // `vat_no: data.is_not_vat ? null : data.vat_no || null`, so an
+    // empty Website box NULLS the website they had just saved, and
+    // ticking "not VAT registered" nulls the VAT number. A form that
+    // does not show what it holds will quietly delete it.
     defaultValues: {
-      name: "",
-      official_email: "",
-      phone: "",
-      website_url: "",
+      name: str(company?.name),
+      official_email: str(company?.official_email),
+      phone: str(company?.phone),
+      website_url: str(company?.website_url),
 
-      vat_no: "",
-      address: "",
-      state: "",
-      country: "",
-      zipcode: "",
-      is_not_vat: false,
+      vat_no: str(company?.vat_no),
+      address: str(company?.address),
+      state: str(company?.state),
+      country: str(company?.country),
+      zipcode: str(company?.zipcode),
+      is_not_vat: company?.is_not_vat === true,
       billing: {
-        same_as_company: true,
-        address: "",
-        state: "",
-        country: "",
-        zipcode: "",
+        // "Same as company" only when there is no separate billing row
+        // yet. Once one exists, showing it is the point.
+        same_as_company: !billing,
+        address: str(billing?.address),
+        state: str(billing?.state),
+        country: str(billing?.country),
+        zipcode: str(billing?.zipcode),
       },
     },
   });

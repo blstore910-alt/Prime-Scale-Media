@@ -176,6 +176,10 @@ export default async function CompleteProfilePage() {
         <CompanyOnboardingForm
           profile={profile as UserProfile}
           advertiserId={advertiser.id}
+          // The row was already read above and thrown away, so the form
+          // started blank -- and an empty Website box nulls the website
+          // on save. Show what is there.
+          company={company as Record<string, unknown> | null}
         />
       </div>
     </div>

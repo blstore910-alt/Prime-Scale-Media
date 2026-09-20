@@ -1250,8 +1250,22 @@ export default function AdvertiserApp() {
     },
   });
 
+  // ── AND THE FILTER HAS TO AGREE WITH THE QUERY ───────────────────
+  //
+  // The query above was widened to include subscription_adjustment,
+  // because the nightly collect loop filters on subscription_id and NOT
+  // on type, so an adjustment is auto-debited. This line then narrowed
+  // it straight back to type === "subscription", which made the whole
+  // widening a no-op: dueSubInvoice could never be an adjustment, the
+  // "Plan change" label was dead code, and the card still read "This
+  // month is paid" over a EUR 50 adjustment due in seven days.
   const unpaidSubInvoices = (dueInvoices ?? [])
-    .filter((i) => i.status !== "paid" && i.status !== "void" && i.type === "subscription")
+    .filter(
+      (i) =>
+        i.status !== "paid" &&
+        i.status !== "void" &&
+        (i.type === "subscription" || i.type === "subscription_adjustment"),
+    )
     .sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
