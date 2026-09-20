@@ -1181,28 +1181,58 @@ export async function quoteTopupFeePct(
     return { ok: false, error: "Invalid input" };
   }
 
-  // Their own advertiser, in their own tenant. Nothing from the caller.
-  const { data: adv } = await supabase
-    .from("advertisers")
-    .select("id")
-    .eq("user_id", profile.user_id)
-    .eq("tenant_id", profile.tenant_id)
-    .maybeSingle();
-  if (!adv?.id) return { ok: false, error: "No advertiser for this account." };
+  // ── AN ADMIN HAS NO ADVERTISERS ROW ───────────────────────────────
+  //
+  // This resolved the caller's own advertiser and refused when there
+  // was none — so for an ADMIN it always failed. The admin bulk top-up
+  // dialog quotes every account through here, got null for all of
+  // them, and kept its seed value of `account.fee ?? 0`. But the query
+  // RESOLVED (empty, not errored), so "Checking fees…" cleared and the
+  // button enabled: twenty accounts with fee 0 on a 5% plan showed 0%
+  // in every box while bulkCreateTopupsAsAdmin charged the plan's 5%.
+  // On EUR 50,000 that is about EUR 2,900 of fee the admin was shown as
+  // zero.
+  //
+  // An admin quoting an account in their own tenant is a legitimate
+  // question with a correct answer, so it is answered. The advertiser
+  // is taken FROM THE ACCOUNT rather than from the caller, and the
+  // ownership test still applies to a customer asking about their own.
+  const isAdmin = profile.role === "admin";
 
-  // And the account has to be theirs, or the quote is about somebody
-  // else's arrangement.
   const { data: acct } = await supabase
     .from("ad_accounts")
-    .select("id, fee")
+    .select("id, fee, advertiser_id, tenant_id")
     .eq("id", accountId)
-    .eq("advertiser_id", adv.id)
+    .eq("tenant_id", profile.tenant_id)
     .maybeSingle();
-  if (!acct) return { ok: false, error: "That ad account is not yours." };
+  if (!acct) return { ok: false, error: "That ad account was not found." };
+
+  let advertiserId = String(acct.advertiser_id ?? "");
+
+  if (!isAdmin) {
+    // Their own advertiser, in their own tenant. Nothing from the caller.
+    const { data: adv } = await supabase
+      .from("advertisers")
+      .select("id")
+      .eq("user_id", profile.user_id)
+      .eq("tenant_id", profile.tenant_id)
+      .maybeSingle();
+    if (!adv?.id) {
+      return { ok: false, error: "No advertiser for this account." };
+    }
+    if (String(acct.advertiser_id ?? "") !== String(adv.id)) {
+      return { ok: false, error: "That ad account is not yours." };
+    }
+    advertiserId = String(adv.id);
+  }
+
+  if (!advertiserId) {
+    return { ok: false, error: "That ad account has no customer on it." };
+  }
 
   const resolved = await resolveEffectiveFeePct(
     supabase,
-    String(adv.id),
+    advertiserId,
     Number(acct.fee) || 0,
     accountId,
   );

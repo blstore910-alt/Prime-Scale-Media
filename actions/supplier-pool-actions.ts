@@ -1,5 +1,7 @@
 "use server";
 
+import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
+
 import { isAccountLocked } from "@/lib/pure-account-status";
 
 import { createClient } from "@/lib/supabase/server";
@@ -367,6 +369,26 @@ export async function assignSupplierAdAccount(input: {
     };
   }
 
+  // The tenant's own type for this platform family. A supplier emits a
+  // family ("meta-ads"); the app works in types ("eu-meta-psm"). Prefer
+  // an active type of that family, by sort order, and fall back to the
+  // family name only when the tenant has none — a wrong-looking slug is
+  // better than a null one, and the settings screen can correct it.
+  const family = platformGroupFromSlug(String(pool.platform ?? ""));
+  let typeSlug = String(pool.platform ?? "");
+  if (family) {
+    const { data: types } = await supabase
+      .from("ad_account_types")
+      .select("slug, platform_group, is_active, sort_order")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("platform_group", family)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .limit(1);
+    const match = (types ?? [])[0] as { slug?: string } | undefined;
+    if (match?.slug) typeSlug = match.slug;
+  }
+
   const { data: created, error: createError } = await supabase
     .from("ad_accounts")
     .insert({
@@ -374,7 +396,27 @@ export async function assignSupplierAdAccount(input: {
       advertiser_id: input.advertiserId,
       tenant_id: profile.tenant_id,
       bm_id: pool.bm_id,
-      platform: pool.platform,
+      // ── A FAMILY IS NOT A TYPE ────────────────────────────────────
+      //
+      // pool.platform is what the supplier adapter emits: "meta-ads",
+      // "tiktok-ads", "google-ads". Every other consumer of
+      // ad_accounts.platform reads it as an ad-account TYPE slug
+      // (eu-meta-psm, hk-meta-premium, …), and none of those three
+      // family names is one. Three features therefore failed silently
+      // on every pool-allocated account:
+      //
+      //   * useSupplierLinks finds no type, so the admin verifying that
+      //     account's top-up is shown NO supplier pill — the exact gap
+      //     that hook exists to close;
+      //   * resolveEffectiveFeePct's premium branch can never be true,
+      //     so the premium discount never applies;
+      //   * BANK_BY_TYPE_SLUG has no entry, so the customer's wallet
+      //     top-up screen cannot name a beneficiary bank.
+      //
+      // Resolved to a real type of the same family, preferring the
+      // tenant's own default for that family. The create-from-request
+      // path already does this; only the pool path did not.
+      platform: typeSlug,
       currency: pool.currency,
       timezone: pool.timezone,
       // Non-nullable in lib/types/account.ts and required by the ad-account
@@ -392,6 +434,15 @@ export async function assignSupplierAdAccount(input: {
       // other on one row, and the only cure was to open the edit form
       // and save.
       status: "active",
+      // ── AND THE FUNDING FLOOR ─────────────────────────────────────
+      //
+      // createAdAccountAsAdmin defaults this to 0 and its comment names
+      // the fault: the top-up form falls back to 300 when min_topup is
+      // null, so the customer's FIRST top-up on a pool-allocated
+      // account was refused with "Minimum Amount: 300" — and "put 1 in
+      // and confirm the figure that lands" is step one of the
+      // ad-account journey. The pool path never set it.
+      min_topup: 0,
       fee,
       created_by: profile.user_id,
       // NOTHING about the supplier goes on this row. The advertiser reads
@@ -516,6 +567,28 @@ export async function releaseSupplierAdAccount(
       ok: false,
       error: "This pool account changed since you loaded it. Reload and retry.",
       code: "conflict",
+    };
+  }
+
+  // ── A NULL LINK IS NOT PERMISSION ────────────────────────────────
+  //
+  // Both guards below — "is the ad account stopped" and "is there still
+  // money on it" — used to sit inside this branch, so a pool row whose
+  // ad_account_id is null was released with NO checks at all. And that
+  // is a state allocation can leave behind: the link write is
+  // best-effort (see "pool link failed" below), so an allocation can
+  // succeed with advertiser_id set and ad_account_id null. Releasing
+  // then hands the row to the next customer while the first customer's
+  // ad_accounts row is still live and fundable — two customers on one
+  // real supplier account, which no per-row guard can ever see.
+  //
+  // An allocated row with no link is refused, and says what to do.
+  if (!pool.ad_account_id && pool.advertiser_id) {
+    return {
+      ok: false,
+      error:
+        "This pool row is allocated but not linked to an ad account, so we cannot check whether it still holds money. Find the customer's ad account, empty it and stop it, then link or remove this row by hand.",
+      code: "invalid",
     };
   }
 
