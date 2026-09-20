@@ -141,7 +141,7 @@ export function getNotificationCopy(notification: Notification): {
       return {
         title: "New subscription invoice",
         description:
-          "Your monthly invoice is ready. You can pay it from your wallet whenever suits you.",
+          "Your monthly invoice is ready. Pay it from your wallet whenever suits you — if it is still open on its due date we take it from your wallet automatically.",
       };
     case "subscription_past_due":
       return {

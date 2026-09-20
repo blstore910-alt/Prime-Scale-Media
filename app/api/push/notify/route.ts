@@ -106,7 +106,11 @@ function buildPushFromRecord(record: NotificationRecord) {
     case "subscription_invoice": {
       return {
         title: "New subscription invoice",
-        body: "Your monthly subscription invoice is ready. Pay from your wallet.",
+        // Says what will happen if they do nothing. "Pay from your
+        // wallet" reads as optional, and seven days later the nightly
+        // run takes it whether they acted or not.
+        body:
+          "Your monthly subscription invoice is ready. We take it from your wallet on the due date if it is still open.",
         url: "/dashboard?view=billing",
       };
     }
@@ -166,6 +170,33 @@ function buildPushFromRecord(record: NotificationRecord) {
       };
     }
 
+    case "billing_run_failed":
+      // ── THE ONE THAT MEANS NOBODY WAS BILLED ────────────────────
+      //
+      // This fell through to "You have a new notification." -- and the
+      // push is the part that arrives at 03:00 and is the entire
+      // reason the alarm exists. A run that fails every night for a
+      // week produced seven identical meaningless buzzes.
+      return {
+        title: "Billing did not run",
+        body: "Last night's subscription billing failed, so nobody was invoiced or debited. It will not fix itself.",
+        url: "/subscriptions",
+      };
+
+    case "affiliate_application":
+      return {
+        title: "Someone wants to join the affiliate programme",
+        body: "Set their commission and approve or refuse it.",
+        url: "/users?role=affiliate",
+      };
+
+    case "supplier_pool_changed":
+      return {
+        title: "The ad-account pool changed",
+        body: "New accounts or status changes came in from the supplier.",
+        url: "/account-pool",
+      };
+
     default:
       return {
         title: "New notification",
@@ -203,13 +234,47 @@ export async function POST(req: Request) {
 
     // 2) Read webhook payload
     const webhook = await req.json();
-    const record = webhook?.record as NotificationRecord | undefined;
-    if (!record) {
+    const posted = webhook?.record as NotificationRecord | undefined;
+    if (!posted) {
       return NextResponse.json(
         { error: "Missing record in webhook payload" },
         { status: 400 },
       );
     }
+
+    // ── THE BODY NAMES A ROW; THE ROW IS THE TRUTH ───────────────────
+    //
+    // This took the recipient, the type AND the payload straight from
+    // the request and never verified that the row exists. Three push
+    // branches interpolate payload text into the notification body, and
+    // the service worker renders it verbatim — so anyone holding the
+    // shared secret could send any sentence to any named user's phone,
+    // PSM-branded, opening the real app. The RUNBOOK documents that
+    // exact curl as a test.
+    //
+    // The webhook fires on an INSERT, so the row is there. Re-read it
+    // by id and use what the database holds; the body is only allowed
+    // to say WHICH row.
+    if (!posted.id) {
+      return NextResponse.json({ ok: true, skipped: "no record id" });
+    }
+    const { data: stored, error: storedError } = await supabase
+      .from("notifications")
+      .select("id, recipient_user_id, tenant_id, type, payload, is_read")
+      .eq("id", posted.id)
+      .maybeSingle();
+    if (storedError) {
+      return NextResponse.json(
+        { error: "Could not read the notification" },
+        { status: 500 },
+      );
+    }
+    if (!stored) {
+      // A body naming a row that does not exist is either a race the
+      // webhook will retry, or someone guessing. Neither gets a push.
+      return NextResponse.json({ ok: true, skipped: "no such notification" });
+    }
+    const record = stored as unknown as NotificationRecord;
 
     // 3) Identify recipient user
     const userId = record.recipient_user_id;
@@ -226,20 +291,33 @@ export async function POST(req: Request) {
     // their phone. This is the last delivery point, so it is the right
     // place to ask.
     {
+      // ── EVERY PROFILE, NOT WHICHEVER ONE POSTGRES PICKED ──────────
+      //
+      // One auth user legitimately holds SEVERAL user_profiles rows --
+      // that is what the profile_id cookie and switchToProfile exist
+      // for. `.limit(1)` with no ORDER BY returned an arbitrary one, so
+      // somebody who is an active advertiser in tenant A and a
+      // deactivated ex-admin in tenant B had their real alerts dropped
+      // on whichever run happened to return the tenant-B row. Silent,
+      // and non-deterministic in both directions.
+      //
+      // Switched off EVERYWHERE is switched off. One live seat is
+      // enough to be told.
       const { data: recipient } = await supabase
         .from("user_profiles")
         .select("is_active, status")
-        .eq("user_id", userId)
-        .limit(1);
-      const p0 = (recipient ?? [])[0] as
-        | { is_active?: boolean | null; status?: string | null }
-        | undefined;
-      if (
-        p0 &&
-        (p0.is_active === false ||
-          (p0.status ?? "active") === "inactive" ||
-          (p0.status ?? "") === "pending_erasure")
-      ) {
+        .eq("user_id", userId);
+      const seats = (recipient ?? []) as Array<{
+        is_active?: boolean | null;
+        status?: string | null;
+      }>;
+      const anyLive = seats.some(
+        (p) =>
+          p.is_active !== false &&
+          (p.status ?? "active") !== "inactive" &&
+          (p.status ?? "") !== "pending_erasure",
+      );
+      if (seats.length > 0 && !anyLive) {
         return NextResponse.json({ ok: true, skipped: "recipient inactive" });
       }
     }
@@ -298,7 +376,21 @@ export async function POST(req: Request) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           const code = err?.statusCode;
-          if (code === 404 || code === 410) deadIds.push(s.id);
+          // ── 403 IS DEAD TOO ─────────────────────────────────────
+          //
+          // 404 and 410 mean "this endpoint is gone". 403 is what a
+          // push service answers when the VAPID key pair no longer
+          // matches the one the subscription was created with -- which
+          // is every existing subscription, the moment those keys are
+          // rotated. Keeping those rows meant retrying each of them on
+          // every notification, for ever, with no failure counter and
+          // nothing that could ever reap them.
+          //
+          // A subscription we are not allowed to push to is not a
+          // subscription. The device re-subscribes on its next visit.
+          if (code === 404 || code === 410 || code === 403) {
+            deadIds.push(s.id);
+          }
           else
             console.error("Push send error:", { code, message: err?.message });
         }

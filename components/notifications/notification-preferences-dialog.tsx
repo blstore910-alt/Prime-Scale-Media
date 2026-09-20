@@ -23,7 +23,12 @@ export default function NotificationPreferencesDialog({
 }) {
   const { profile } = useAppContext();
   const entries = catalogForRole(profile?.role);
-  const { isLoading, isEnabled, setPreference } = useNotificationPreferences();
+  // isError, for the reason the hook's own comment gives: an empty
+  // preference list reads as "nothing is disabled", so every toggle
+  // rendered ON for an admin who had switched one off. They toggle it
+  // again and write a preference that was already there.
+  const { isLoading, isError, isEnabled, setPreference } =
+    useNotificationPreferences();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,13 +62,15 @@ export default function NotificationPreferencesDialog({
                       {entry.label}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      {entry.description}
+                      {isError
+                        ? "We couldn't read your settings just now."
+                        : entry.description}
                     </p>
                   </div>
                   <Switch
                     id={`pref-${entry.type}`}
-                    checked={checked}
-                    disabled={setPreference.isPending}
+                    checked={isError ? false : checked}
+                    disabled={setPreference.isPending || isError}
                     onCheckedChange={(value) =>
                       setPreference.mutate({ type: entry.type, enabled: value })
                     }

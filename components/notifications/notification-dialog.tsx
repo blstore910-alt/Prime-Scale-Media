@@ -72,8 +72,21 @@ export default function NotificationDialog({
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
+  // ── A RECEIPT MUST NOT INVENT ITS OWN FIGURES ─────────────────────
+  //
+  // maybeSingle() returns null WITHOUT an error when the row is missing
+  // or RLS-refused, so isError stayed false and every fallback below
+  // fired: Status "completed" in green, Top-up ID "-", fee $0.00 and
+  // "Landed on the account" $0.00. A receipt stating a status and two
+  // amounts it does not have.
+  //
+  // TopupCompletedNotificationPayload declares only topup_id,
+  // approved_at and author -- none of the six keys these fall back to.
+  const haveTopup = !!topup;
   const currency = (topup?.currency || payload.currency || "USD") as string;
-  const status = String(topup?.status || payload.status || "completed");
+  const status = haveTopup
+    ? String(topup?.status ?? "")
+    : String(payload.status ?? "");
   const topupNumber =
     topup?.number !== undefined && topup?.number !== null
       ? String(topup.number).padStart(6, "0")
@@ -155,10 +168,30 @@ export default function NotificationDialog({
             </div>
           )}
 
+          {/* A ROW THAT CAME BACK NULL IS NOT AN EMPTY RECEIPT.
+              maybeSingle() answers null without an error when the row is
+              missing or refused, so this branch never ran and the
+              figures below fell back to zeroes under a green
+              "completed". Both cases say so now. */}
+          {!isLoading && !isError && shouldFetchTopup && !haveTopup && (
+            <div className="flex items-center gap-2 text-destructive p-4 bg-destructive/10 rounded-md">
+              <AlertCircle className="h-4 w-4" />
+              <span>
+                We couldn&apos;t find this top-up, so there is nothing to show
+                here. Your wallet history is the record.
+              </span>
+            </div>
+          )}
+
           {isError && shouldFetchTopup && (
             <div className="flex items-center gap-2 text-destructive p-4 bg-destructive/10 rounded-md">
               <AlertCircle className="h-4 w-4" />
-              <span>{(error as Error)?.message ?? "Failed to load top-up."}</span>
+              <span>
+                We couldn&apos;t load this top-up.
+                {(error as Error)?.message
+                  ? ` ${(error as Error).message}`
+                  : ""}
+              </span>
             </div>
           )}
 
@@ -168,7 +201,9 @@ export default function NotificationDialog({
             </p>
           )}
 
-          {isTopupNotification && (
+          {/* Only when there is something to print. Without haveTopup
+              the block rendered its own fallbacks as a receipt. */}
+          {isTopupNotification && (haveTopup || !shouldFetchTopup) && (
           <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-3">
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Status</span>

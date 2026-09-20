@@ -93,6 +93,13 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    type: "supplier_pool_changed",
+    label: "Ad-account pool changed",
+    description:
+      "When new accounts or status changes arrive from the supplier. This fires on a 15-minute cycle, so it is the noisiest one here.",
+    audience: "admin",
+  },
+  {
     type: "rate_limit_abuse",
     label: "Suspicious activity (rate limit)",
     description:
