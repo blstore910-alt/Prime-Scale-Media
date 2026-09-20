@@ -6,6 +6,7 @@ import {
   replayBalance,
   type WalletTopupAuditEvent,
 } from "@/lib/wallet-recovery-pure";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -90,20 +91,40 @@ export async function reconstructWalletBalanceFromAudit(
   // Pull every wallet_topups event for topups whose wallet_id
   // matches. We look at the after_data JSON for the completed
   // amount + currency at the moment of the transition.
-  const { data: events, error: eventsError } = await supabase
-    .from("audit_events")
-    .select("action, before_data, after_data")
-    .eq("table_name", "wallet_topups")
-    .eq("tenant_id", wallet.tenant_id)
-    .order("occurred_at", { ascending: true })
-    .limit(50_000);
-
-  if (eventsError) return { ok: false, error: eventsError.message };
-
-  const { usd, eur, eventCount } = replayBalance(
-    (events ?? []) as WalletTopupAuditEvent[],
-    walletId,
+  // ── 50,000 IS NOT A PAGE SIZE ─────────────────────────────────────
+  //
+  // .limit(50_000) does not raise PostgREST's ceiling: the response
+  // still stops at the configured max (1,000 by default) with no error
+  // and no marker. This figure is the drift an owner reads before
+  // deciding whether to correct a balance BY HAND, so computing it from
+  // a truncated event stream is the worst possible place for a silent
+  // cap. pageAllRows walks it properly and says when it ran out.
+  //
+  // The tiebreaker matters here too: Postgres gives no defined order
+  // among rows sharing an occurred_at, and these arrive in batches, so
+  // a row on a page boundary could be counted twice or skipped -- in a
+  // replay, either one moves the answer.
+  const paged = await pageAllRows<WalletTopupAuditEvent>(
+    (from: number, to: number) =>
+      supabase
+        .from("audit_events")
+        .select("action, before_data, after_data")
+        .eq("table_name", "wallet_topups")
+        .eq("tenant_id", wallet.tenant_id!)
+        .order("occurred_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
   );
+  if (paged.error) return { ok: false, error: paged.error };
+  if (paged.truncated) {
+    return {
+      ok: false,
+      error:
+        "There is more history than we can replay in one pass, so this figure would be a floor rather than a total. Do not correct a balance from it.",
+    };
+  }
+
+  const { usd, eur, eventCount } = replayBalance(paged.rows, walletId);
 
   const currentUsd = Number(wallet.usd_balance ?? 0);
   const currentEur = Number(wallet.eur_balance ?? 0);
