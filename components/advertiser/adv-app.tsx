@@ -1681,10 +1681,32 @@ export default function AdvertiserApp() {
     !subError &&
     !invError &&
     !dueInvError;
+  // ── THE SAME PREDICATE THE SERVER USES, TO THE CLAUSE ──────────────
+  //
+  // `dueSubInvoice` deliberately includes subscription_adjustment,
+  // because the auto-debit collects those and the Billing card must not
+  // say "this month is paid" over a EUR 50 adjustment. That is the right
+  // answer to "do you owe us money" and the WRONG one to "is the plan
+  // active", which is what the minimum-top-up floor turns on --
+  // 20260917230000 counts only `type = 'subscription'`:
+  //
+  //   active subscription
+  //   AND a PAID type='subscription' invoice exists
+  //   AND no unpaid, non-void type='subscription' invoice
+  //
+  // With one unpaid adjustment the client said false and the server said
+  // true, so effectiveMinTopup returned 0, the dialog showed no floor,
+  // handed over the IBAN and the reference, took the slip -- and the RPC
+  // refused with "Minimum top-up is 300 EUR" AFTER the bank transfer had
+  // been made. That is the exact incident that migration exists to
+  // prevent, arriving through a second invoice type.
+  const unpaidPlanInvoice = (dueInvoices ?? []).some(
+    (i) => i.type === "subscription" && i.status !== "paid" && i.status !== "void",
+  );
   const planActive =
     !!subscription &&
     subscription.status === "active" &&
-    !dueSubInvoice &&
+    !unpaidPlanInvoice &&
     planPaid;
   // How many accounts the plan includes is NOT on `subscriptions` — asking
   // for it there took the whole subscription query down with
@@ -2197,7 +2219,15 @@ export default function AdvertiserApp() {
     return (
       <div
         className={`acard${a.status === "banned" ? " banned" : ""}`}
+        role="button"
+        tabIndex={0}
         onClick={() => openDetails(a.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openDetails(a.id);
+          }
+        }}
       >
         <div className="top">
           {/* The platform's own mark. Every tile carried the same grey
@@ -2265,6 +2295,29 @@ export default function AdvertiserApp() {
                         ? "Setting up — this account will be ready shortly."
                         : "This account isn't taking top-ups right now."}
             </div>
+            {/* ── AND A WAY TO THE MONEY ON IT ────────────────────────
+                The locked branch rendered the sentence and NO Details
+                button. `locked` is anything that is not active/approved/
+                live -- so paused, disabled, suspended, pending and a
+                blank status all qualify -- while the withdrawal action
+                refuses only `banned` and `closed`. Every one of those
+                accounts CAN be emptied back to the wallet, and Details
+                is the only door to the control that does it.
+
+                So a customer with $4,000 on a paused account read
+                "Paused -- actions are off for now." and nothing else.
+                The card div is clickable, but it carries no role, no
+                tabIndex and no key handler, so a keyboard or
+                screen-reader user could not reach it at all. */}
+            <button
+              className="btn ghost sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                openDetails(a.id);
+              }}
+            >
+              Details
+            </button>
           </div>
         ) : (
           <div className="acts">
