@@ -88,6 +88,35 @@ test("no shell stylesheet reaches inside an avatar", () => {
   }
 });
 
+test("an avatar wrapper's own fill is switched off for any child", () => {
+  // .umenu-av and .side-foot .avatar each carry a brand fill from when
+  // they held two letters rather than a picture. Both were neutralised
+  // with a selector naming an svg CHILD -- which stopped matching the
+  // moment the avatar became a single inline-styled element, and a
+  // purple square came back out behind a round dark disc, in the
+  // account menu only. The rule must not name the element.
+  const SVG_CHILD = ":has(> svg)";
+  const ANY_CHILD = ":has(> *)";
+  for (const path of [...SHELLS, "components/advertiser/refine-css.ts"]) {
+    let css: string;
+    try {
+      css = read(path);
+    } catch {
+      continue;
+    }
+    for (const line of css.split(String.fromCharCode(10))) {
+      if (!line.includes(SVG_CHILD)) continue;
+      // The whole line, not the part before the first "{": these are
+      // template literals and `${s}` carries a brace of its own.
+      assert.ok(
+        line.includes(ANY_CHILD),
+        `${path}: a rule is keyed on an svg child only, so it stops ` +
+          `applying the moment the avatar is not an <svg>: ${line.trim()}`,
+      );
+    }
+  }
+});
+
 test("every avatar in a shell is drawn at the same size", () => {
   // Three shells, three places each: sidebar, toolbar, account menu.
   // When they differ, the wrapper's overflow:hidden shaves the rim off

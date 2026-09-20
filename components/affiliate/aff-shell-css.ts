@@ -539,6 +539,6 @@ export const AFF_CSS = `
    which a replaced element like <svg> cannot carry itself. The chip's own
    brand background would otherwise show as a square behind a round face,
    so it steps aside when it is holding one. */
-  .avatar:has(> svg){background:none;color:transparent}
+  .avatar:has(> svg),.avatar:has(> *){background:none;color:transparent;box-shadow:none}
   .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 `  + refineCss(".affapp");

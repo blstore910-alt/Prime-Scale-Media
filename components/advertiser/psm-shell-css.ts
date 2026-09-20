@@ -1176,6 +1176,6 @@ export const PSM_APP_CSS = `
    from when it was an <svg> child and a colour was inherited into it;
    kept only so an older cached bundle still renders. Nothing in the
    current component matches them. */
-.psmapp .avatar:has(> svg){background:none;color:transparent}
+.psmapp .avatar:has(> svg),.psmapp .avatar:has(> *){background:none;color:transparent;box-shadow:none}
 .psmapp .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 `  + refineCss(".psmapp");

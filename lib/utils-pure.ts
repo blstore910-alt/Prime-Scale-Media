@@ -40,6 +40,19 @@ export const calculateTopupAmount = (
 ): { topupAmount: number; amountUSD: number; feeAmount: number } => {
   if (!exchangeRates) return { topupAmount: 0, amountUSD: 0, feeAmount: 0 };
 
+  // ── A RATE WE DO NOT HOLD IS NOT A RATE OF ZERO ───────────────────
+  //
+  // MinimalRate carries `eur` and nothing else, so `exchangeRates[0].gbp`
+  // is undefined for every other code and this `?? 0` turned it into a
+  // rate of nought. A GBP 1,000 transfer then stored amount_usd 0.00,
+  // fee_amount 0.00 and topup_amount 0.00 — recorded as nothing
+  // arriving, against money we actually hold, and the supplier push
+  // funds $0. The caller's own guard only tested `rate.eur > 0`, which
+  // a GBP top-up passes.
+  //
+  // Zero is still returned — the shape of this function cannot refuse —
+  // but only for a currency we genuinely have no rate for, and
+  // `convertibleCurrency` below lets the caller refuse BEFORE writing.
   const key = currency.toLowerCase() as keyof MinimalRate;
   const rate = currency === "USD" ? 1 : Number(exchangeRates[0]?.[key] ?? 0);
   // The rate is "1 USD = N <currency>" (the same convention the wallet RPCs
@@ -105,6 +118,23 @@ export const eurFigures = (args: {
 // number rather than a wrong symbol — a euro sign on a pound payment is
 // worse than no sign at all.
 const CURRENCY_CODE = /^[A-Za-z]{3}$/;
+
+/**
+ * Whether a top-up in this currency can be converted to USD at all.
+ *
+ * The exchange_rates row this app reads holds ONE column, `eur`. So USD
+ * (rate 1) and EUR (that column) are convertible and nothing else is —
+ * including GBP and HKD, which the bank-transfer instructions still
+ * offer as physical transfer currencies and which `createTopupAsAdmin`
+ * allowlists without validating.
+ *
+ * Refusing is the only safe answer: the alternative is storing the
+ * top-up as zero dollars, which is what happened.
+ */
+export const convertibleCurrency = (currency: string): boolean => {
+  const code = String(currency ?? "").trim().toUpperCase();
+  return code === "USD" || code === "EUR";
+};
 
 export const formatCurrency = (
   value: number,
