@@ -52,11 +52,31 @@ create policy audit_events_no_select_anon
 -- Explicitly refuse INSERT/UPDATE/DELETE from application code. The
 -- trigger below bypasses this because it runs SECURITY DEFINER as the
 -- table owner.
+-- ── SUPERSEDED BY 20260920180000 -- see the note there ──────────────
+--
+-- As written this is PERMISSIVE (no AS clause), so it is OR-ed with the
+-- read policy above and blocks nothing. On production it existed as
+-- RESTRICTIVE, which is AND-ed -- and `for all` includes SELECT, so
+-- every read evaluated to false and the audit log was empty for
+-- everybody, owner included, over 1,553 rows.
+--
+-- It is replaced by one restrictive policy per WRITE command. Writes
+-- were never protected by this anyway: the REVOKE below takes them away
+-- at the grant level, which a policy cannot override, and the trigger
+-- that writes the rows is SECURITY DEFINER.
 drop policy if exists audit_events_no_writes on public.audit_events;
-create policy audit_events_no_writes
-  on public.audit_events for all
-  using (false)
-  with check (false);
+
+drop policy if exists audit_events_no_insert on public.audit_events;
+create policy audit_events_no_insert on public.audit_events
+  as restrictive for insert to public with check (false);
+
+drop policy if exists audit_events_no_update on public.audit_events;
+create policy audit_events_no_update on public.audit_events
+  as restrictive for update to public using (false) with check (false);
+
+drop policy if exists audit_events_no_delete on public.audit_events;
+create policy audit_events_no_delete on public.audit_events
+  as restrictive for delete to public using (false);
 
 revoke insert, update, delete on public.audit_events from public, anon, authenticated;
 
