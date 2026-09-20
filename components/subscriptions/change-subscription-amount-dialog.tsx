@@ -197,46 +197,24 @@ export default function ChangeSubscriptionAmountDialog({
             </div>
           </div>
 
-          {/* Paying cash back is a DECISION. It used to happen on its own,
-              so an admin correcting a typo in a plan amount moved real money
-              and the only way to find out was to read the wallet afterwards.
-              Default: no. */}
+          {/* ── LOWERING A PLAN PAYS NOTHING BACK ─────────────────────
+              This offered the admin a choice: keep it, or refund the
+              difference to the wallet. The owner's rule (2026-09-20) is
+              that there is no choice — a downgrade never returns money,
+              and the new terms apply from the moment it is saved.
+
+              So the pill is gone and `refund` stays false. What still
+              happens, and is worth saying on the screen, is that an
+              adjustment for this period that has NOT been collected is
+              voided: the customer is not billed for a price they are no
+              longer on. That is not a refund; nothing leaves us. */}
           {Number.isFinite(nextAmount) &&
             currency === (subscription?.currency || "EUR") &&
             delta < 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">
-                  If this period was already paid
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRefund(false)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      refund
-                        ? "text-muted-foreground hover:bg-accent/60"
-                        : "border-primary bg-primary/10 text-foreground"
-                    }`}
-                  >
-                    Keep it — no refund
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRefund(true)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      refund
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "text-muted-foreground hover:bg-accent/60"
-                    }`}
-                  >
-                    Refund {formatCurrency(-delta, currency)} to the wallet
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {refund
-                    ? `${formatCurrency(-delta, currency)} goes into their wallet now. Nothing is paid back twice — a repeat of this change pays out nothing further.`
-                    : "Nothing moves. The new price applies from here, and an uncollected adjustment for this period is still voided so they are not billed for it."}
-                </p>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                The new price applies from now. Nothing is paid back — an
+                uncollected adjustment for this period is voided so they
+                are not billed for the old price.
               </div>
             )}
 

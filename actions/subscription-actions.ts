@@ -295,6 +295,16 @@ export async function changeSubscriptionAmount(
   ifUpdatedAt?: string,
   // Paying cash back on a downgrade is a DECISION, not a default. The RPC
   // defaults to false; this parameter is how an admin asks for it.
+  /**
+   * ── KEPT SO CALLERS DO NOT BREAK, AND IGNORED ───────────────────
+   *
+   * The owner's rule (2026-09-20): lowering a plan NEVER returns
+   * money, and the new terms apply from the moment it is saved. The
+   * dialog's refund pill is gone; this parameter is accepted and
+   * forced to false below, because a server action is reachable
+   * without the form and a rule that lives only on a screen is not a
+   * rule.
+   */
   refund?: boolean,
 ): Promise<ActionResult<{ action: string }>> {
   if (typeof subscriptionId !== "string" || subscriptionId.length === 0) {
@@ -374,7 +384,12 @@ export async function changeSubscriptionAmount(
   }
 
   const { data, error } = await supabase.rpc("change_subscription_amount", {
-    p_refund: refund === true,
+    // FALSE, always. See the note on the parameter: a downgrade pays
+    // nothing back. What the RPC still does on this path — voiding an
+    // UNCOLLECTED adjustment for the period, so the customer is not
+    // billed for a price they are no longer on — is not a refund and
+    // is unaffected: nothing leaves us.
+    p_refund: false,
     p_subscription_id: subscriptionId,
     p_new_amount: amount,
     p_new_currency: newCurrency ?? null,
