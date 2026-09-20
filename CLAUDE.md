@@ -25,6 +25,34 @@ has to again.
 **The goal is to go live cleanly after that** — real customers, nothing
 embarrassing, nothing that quietly takes the wrong money.
 
+### How to run it, without being asked again
+
+The owner should not have to re-send this. Default behaviour in this
+repo, every session:
+
+- **Keep 4–6 read-only agents running**, each on one class of fault, and
+  start the next round as soon as one reports. Order: the controls used
+  most (advertiser, affiliate, admin, super-admin), then the routes,
+  then the combinations. Findings get FIXED. Keep sweeping until a round
+  comes back near-empty.
+- **Work `docs/WALKTHROUGH_J1_J8.md`** — all four passes. A (every menu
+  item × every role) and C (every figure against SQL) are the exhaustive
+  ones; D (J1–J13) is the scenarios. Walk what you can in the built-in
+  browser yourself; say plainly when a signed-in session is needed.
+- **Production must keep working.** After each fix: gate, push to main,
+  then open the screen on app.primescalemedia.com and check it renders
+  WITH DATA. A broken production blocks everything else.
+- **Numbers must agree at both ends** — screen against database, to the
+  cent. A confident 0 over a failed read is a fault, not a zero.
+- **No "probably".** Read the code, or ask for one SQL query. Say
+  immediately what could NOT be verified.
+- **Migrations**: hand them over paste-ready, with a report table at the
+  end that tests what the migration actually did.
+- **Do not stop to ask permission to continue.** Ask only when the
+  answer changes the work.
+- **Report after each round**: what was fixed, what is open, what is
+  needed from the owner.
+
 ## Deploying — branch, then production, then test live
 
 `git push origin feat/redesign-advertiser:main` publishes to
