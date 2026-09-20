@@ -88,9 +88,10 @@ c3b as (
 -- amount_received is de ENIGE regel in de valuta van de klant zelf.
 c3c as (
   select 3, 'amount_received per valuta (de klant z''n eigen bedrag)',
-    string_agg(
-      upper(coalesce(currency, 'EUR')) || ' ' ||
-        to_char(t, 'FM999999990.00'), '  |  ' order by c),
+    -- De subquery hieronder geeft de valuta terug als `c`; hier stond
+    -- nog `currency`, dat bestaat op dit niveau niet.
+    string_agg(x.c || ' ' || to_char(x.t, 'FM999999990.00'),
+               '  |  ' order by x.c),
     'c'
   from (
     select upper(coalesce(currency, 'EUR')) as c,
