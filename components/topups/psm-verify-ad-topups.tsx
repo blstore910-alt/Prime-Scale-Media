@@ -11,6 +11,7 @@ import { TopupDetailsSheet } from "./topup-details-sheet";
 import TablePagination from "../ui/table-pagination";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
+import { CopyText } from "@/components/ui/copy-text";
 
 // A two-way map printed everything that was not USD as euros, and
 // calculateTopupAmount accepts GBP and HKD too — so a pound payment was
@@ -38,6 +39,26 @@ const accountName = (t: Topup) => {
   return (
     (flat && String(flat).trim()) || t.account?.name || "Ad account"
   );
+};
+
+// ── THE BM ID, WHEREVER IT HAPPENS TO BE ────────────────────────────
+//
+// This is the screen where an admin funds an account by hand in a
+// supplier's dashboard, so the Business Manager id is the value they
+// carry across -- and it was nowhere on the card. Both shapes are
+// read: top_ups_view is a VIEW whose columns are hand-authored on live
+// and may or may not expose account_bm_id, and the nested object is
+// what the typed query gives. Neither present means the line is simply
+// not drawn -- never a query that can throw on a column that does not
+// exist yet.
+const accountBmId = (t: Topup) => {
+  const flat = (t as unknown as { account_bm_id?: string | number | null })
+    .account_bm_id;
+  const nested = (t.account as unknown as { bm_id?: string | number | null } | undefined)
+    ?.bm_id;
+  const raw = flat ?? nested;
+  const s = raw == null ? "" : String(raw).trim();
+  return s.length > 0 ? s : null;
 };
 
 const advName = (t: Topup) => {
@@ -167,8 +188,18 @@ export default function PsmVerifyAdTopups() {
                           was undefined on every row and this line read
                           "Ad account" for all of them, on the screen where
                           an admin picks WHICH account to fund. */}
-                      {accountName(t)} · #{t.number}
+                      <CopyText
+                        value={accountName(t)}
+                        what="account name"
+                      />{" "}
+                      · #{t.number}
                     </div>
+                    {accountBmId(t) ? (
+                      <div style={{ color: "var(--faint)", fontSize: ".76rem" }}>
+                        BM{" "}
+                        <CopyText value={accountBmId(t)} what="BM ID" mono />
+                      </div>
+                    ) : null}
                   </div>
                   <span
                     className={`badge ${

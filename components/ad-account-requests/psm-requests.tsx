@@ -31,6 +31,45 @@ import TablePagination from "../ui/table-pagination";
 // whichever vocabulary their form used — "meta-ads" on the rows this
 // screen was printing raw. PLATFORMS still wins when the slug is one of
 // ours, because the owner named those; otherwise the family name.
+// ── THE IDENTIFIERS AN ADMIN ACTUALLY RETYPES ────────────────────────
+//
+// A REQUEST has no ad account yet -- that is what it is asking for --
+// so there is no account name or account id to show. What it does
+// carry, in metadata, is the identifier the customer gave us: the
+// Business Manager id for Meta, the Business Center id for TikTok, the
+// account email for Google. That is the value an admin copies into a
+// supplier's dashboard to set the account up, and it was two clicks
+// away in a details sheet.
+//
+// Per platform, because the three are different fields with different
+// names and showing "BM" over a Google email would be worse than
+// showing nothing.
+function requestIdentity(
+  platform: string | null,
+  metadata: unknown,
+): { label: string; value: string } | null {
+  const m = (metadata ?? {}) as Record<string, unknown>;
+  const pick = (k: string) => {
+    const v = m[k];
+    const t = typeof v === "string" ? v.trim() : v == null ? "" : String(v);
+    return t.length > 0 ? t : "";
+  };
+  const fam = platformFamily(platform);
+  if (fam === "meta") {
+    const bm = pick("facebook_business_manager_id");
+    return bm ? { label: "BM", value: bm } : null;
+  }
+  if (fam === "tiktok") {
+    const bc = pick("tiktok_business_center_id");
+    return bc ? { label: "BC", value: bc } : null;
+  }
+  if (fam === "google") {
+    const email = pick("google_email");
+    return email ? { label: "Account", value: email } : null;
+  }
+  return null;
+}
+
 const platformText = (p: string | null) =>
   platformLabel(p, PLATFORMS.find((x) => x.value === p)?.label ?? null);
 
@@ -354,6 +393,46 @@ export default function PsmRequests() {
                   {dayjs(r.created_at).format("D MMM")}
                 </span>
               </div>
+
+              {/* The identifier and the site, both copy-on-click. These
+                  are the two values that get retyped into somebody
+                  else's dashboard to set the account up. */}
+              {(() => {
+                const ident = requestIdentity(r.platform, r.metadata);
+                const site = String(r.website_url ?? "").trim();
+                if (!ident && !site) return null;
+                return (
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 3,
+                      marginBottom: 12,
+                      fontSize: ".78rem",
+                      color: "var(--txt-2)",
+                      minWidth: 0,
+                    }}
+                  >
+                    {ident ? (
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ color: "var(--faint)" }}>
+                          {ident.label}{" "}
+                        </span>
+                        <CopyText
+                          value={ident.value}
+                          what={ident.label}
+                          mono
+                        />
+                      </div>
+                    ) : null}
+                    {site ? (
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ color: "var(--faint)" }}>Site </span>
+                        <CopyText value={site} what="website" />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
 
               <div
                 style={{
