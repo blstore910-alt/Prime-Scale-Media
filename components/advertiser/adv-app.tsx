@@ -1128,6 +1128,30 @@ export default function AdvertiserApp() {
   //
   // A greyed-out button would stop the error and teach them nothing, so
   // the one that cannot pay offers the thing that fixes it instead.
+  // ── THE OTHER WALLET ──────────────────────────────────────────────
+  //
+  // A customer holding $10,000 and nothing in EUR, looking at a EUR 200
+  // invoice, was told "Top up to pay EUR 200.00" and sent to the wallet
+  // to wire money they already have. Nothing anywhere mentioned that
+  // Exchange would settle it in ten seconds. The grace then runs out,
+  // the auto-debit fails, and they are marked past_due holding ten
+  // thousand dollars.
+  //
+  // No rate is held on this screen, so this only asks whether the OTHER
+  // wallet has anything in it at all: enough to be worth offering, and
+  // the exchange dialog does the arithmetic honestly with a real rate.
+  const canExchangeToPay = (
+    inv:
+      | { total?: number | string | null; currency?: string | null; items?: unknown }
+      | null
+      | undefined,
+  ): boolean => {
+    if (!inv || canPayInvoice(inv)) return false;
+    const want = invCurrency(inv);
+    const other = want === "USD" ? eurBal : usdBal;
+    return Number(other) > 0;
+  };
+
   const canPayInvoice = (
     inv:
       | { total?: number | string | null; currency?: string | null; items?: unknown }
@@ -3417,6 +3441,17 @@ export default function AdvertiserApp() {
                           // screen that can change that, rather than into a
                           // confirmation that ends in a refusal.
                           if (!canPayInvoice(dueSubInvoice)) {
+                            // The other wallet can cover it: offer the
+                            // exchange rather than a transfer they do
+                            // not need to make.
+                            if (canExchangeToPay(dueSubInvoice)) {
+                              openExchange(
+                                invCurrency(dueSubInvoice) === "USD"
+                                  ? "EUR"
+                                  : "USD",
+                              );
+                              return;
+                            }
                             go("wallet");
                             return;
                           }
@@ -3428,11 +3463,19 @@ export default function AdvertiserApp() {
                             money out of a wallet, which is what the icon
                             should say. */}
                         <Ic
-                          name={canPayInvoice(dueSubInvoice) ? "i-wallet" : "i-plus"}
+                          name={
+                            canPayInvoice(dueSubInvoice)
+                              ? "i-wallet"
+                              : canExchangeToPay(dueSubInvoice)
+                                ? "i-refresh"
+                                : "i-plus"
+                          }
                         />{" "}
                         {canPayInvoice(dueSubInvoice)
                           ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
-                          : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
+                          : canExchangeToPay(dueSubInvoice)
+                            ? `Exchange to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
+                            : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
                       </button>
                     ) : invError ? (
                       <button
@@ -3613,10 +3656,29 @@ export default function AdvertiserApp() {
                                     title={
                                       canPayInvoice(inv)
                                         ? "Pay this from your wallet"
-                                        : "Your wallet does not cover this yet"
+                                        : canExchangeToPay(inv)
+                                          ? `Your ${
+                                              invCurrency(inv) === "USD"
+                                                ? "EUR"
+                                                : "USD"
+                                            } wallet has money in it — convert enough to settle this`
+                                          : "Your wallet does not cover this yet"
                                     }
                                     onClick={() => {
                                       if (!canPayInvoice(inv)) {
+                                        // Same as the primary button:
+                                        // the other wallet covers it,
+                                        // so offer the exchange rather
+                                        // than a transfer they do not
+                                        // need to make.
+                                        if (canExchangeToPay(inv)) {
+                                          openExchange(
+                                            invCurrency(inv) === "USD"
+                                              ? "EUR"
+                                              : "USD",
+                                          );
+                                          return;
+                                        }
                                         go("wallet");
                                         return;
                                       }
@@ -3631,7 +3693,9 @@ export default function AdvertiserApp() {
                                         ? "Paying…"
                                         : canPayInvoice(inv)
                                           ? "Pay now"
-                                          : "Top up to pay"}
+                                          : canExchangeToPay(inv)
+                                            ? "Exchange to pay"
+                                            : "Top up to pay"}
                                     </span>
                                   </button>
                                 )}
