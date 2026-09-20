@@ -43,6 +43,8 @@ type EditRow = {
   // them — and the review screen had no way to say which supplier.
   supplier_label: string;
   supplier_url: string;
+  /** What WE pay the supplier. Cost data - owner surfaces only. */
+  supplier_fee_str: string;
   updated_at: string;
   dirty: boolean;
 };
@@ -85,6 +87,12 @@ export default function AdAccountTypesCard() {
         is_active: t.is_active,
         supplier_label: t.supplier_label ?? "",
         supplier_url: t.supplier_url ?? "",
+        // "" not "0": an empty box means NOT RECORDED, which is not the
+        // same as "they charge us nothing". The pool screen refuses to
+        // claim a margin it does not know, and that distinction has to
+        // survive a round trip through this form.
+        supplier_fee_str:
+          t.supplier_fee_pct == null ? "" : String(t.supplier_fee_pct),
         updated_at: t.updated_at,
         dirty: false,
       })),
@@ -104,6 +112,7 @@ export default function AdAccountTypesCard() {
   // type already knows.
   const [newSupplier, setNewSupplier] = useState("");
   const [newSupplierUrl, setNewSupplierUrl] = useState("");
+  const [newSupplierFee, setNewSupplierFee] = useState("");
 
   const patchRow = (idx: number, patch: Partial<EditRow>) => {
     setRows((prev) => {
@@ -136,6 +145,7 @@ export default function AdAccountTypesCard() {
           is_active: row.is_active,
           supplier_label: row.supplier_label.trim(),
           supplier_url: row.supplier_url.trim(),
+          supplier_fee_pct: row.supplier_fee_str.trim(),
           ifUpdatedAt: row.updated_at,
         });
         if (!res.ok) throw new Error(res.error);
@@ -173,6 +183,7 @@ export default function AdAccountTypesCard() {
         api_topup_enabled: newApi,
         supplier_label: newSupplier.trim(),
         supplier_url: newSupplierUrl.trim(),
+        supplier_fee_pct: newSupplierFee.trim(),
       });
       if (!res.ok) throw new Error(res.error);
       return res.warning ?? null;
@@ -194,6 +205,7 @@ export default function AdAccountTypesCard() {
       setNewApi(false);
       setNewSupplier("");
       setNewSupplierUrl("");
+      setNewSupplierFee("");
       invalidate();
     },
     onError: (err: Error) =>
@@ -328,7 +340,7 @@ export default function AdAccountTypesCard() {
                     ADMIN-ONLY. The supplier's name never appears on an
                     advertiser or affiliate surface, in the UI or in the
                     JSON behind it. */}
-                <div className="col-span-2 grid gap-2 sm:col-span-5 sm:grid-cols-[minmax(130px,1fr)_2fr] sm:pb-2">
+                <div className="col-span-2 grid gap-2 sm:col-span-5 sm:grid-cols-[minmax(130px,1fr)_2fr_92px] sm:pb-2">
                   <label className="grid gap-1">
                     <span className="text-xs text-muted-foreground">
                       Supplier (admin only)
@@ -353,6 +365,27 @@ export default function AdAccountTypesCard() {
                       inputMode="url"
                       onChange={(e) =>
                         patchRow(idx, { supplier_url: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    {/* COST DATA. The margin on a top-up is this type's
+                        customer fee minus this. It lives on the
+                        admin-only table, never on a row a customer can
+                        read -- see 20260920140000. */}
+                    <span className="text-xs text-muted-foreground">
+                      We pay %
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      className="text-right"
+                      placeholder="not set"
+                      value={row.supplier_fee_str}
+                      onChange={(e) =>
+                        patchRow(idx, { supplier_fee_str: e.target.value })
                       }
                     />
                   </label>
@@ -428,7 +461,7 @@ export default function AdAccountTypesCard() {
               {/* Admin-only, and the person adding a type is the person
                   who knows this. Leaving it blank is fine — the pill on
                   the top-up queue then says so rather than nothing. */}
-              <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
+              <div className="grid gap-2 sm:grid-cols-[1fr_2fr_92px]">
                 <Input
                   value={newSupplier}
                   placeholder="Supplier (admin only)"
@@ -439,6 +472,16 @@ export default function AdAccountTypesCard() {
                   placeholder="Their dashboard, https://..."
                   inputMode="url"
                   onChange={(e) => setNewSupplierUrl(e.target.value)}
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="text-right"
+                  placeholder="We pay %"
+                  value={newSupplierFee}
+                  onChange={(e) => setNewSupplierFee(e.target.value)}
                 />
               </div>
             </div>
