@@ -9,7 +9,11 @@ import {
   versionMatches,
   wroteSomething,
 } from "./_shared";
-import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
+import {
+  calculateTopupAmount,
+  convertibleCurrency,
+  type MinimalRate,
+} from "@/lib/utils-pure";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { isAccountLocked } from "@/lib/pure-account-status";
 import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
@@ -424,6 +428,22 @@ export async function createTopupAsAdmin(
     // actually hold. Saving a new exchange rate stands the old one down
     // FIRST, so "no active rate" is a state this app can genuinely be in
     // for a few seconds, and the only sign of it is a failed save toast.
+    // ── A RATE WE DO NOT HOLD AT ALL ─────────────────────────────────
+    //
+    // The guard below tests rate.eur, which a GBP or HKD top-up passes
+    // while calculateTopupAmount reads exchangeRates[0].gbp — undefined,
+    // so rate 0, so amount_usd 0.00, fee_amount 0.00, topup_amount 0.00.
+    // A GBP 1,000 transfer recorded as nothing arriving, against money
+    // we hold, and the supplier push then funds $0. convertibleCurrency
+    // says which codes we can actually convert; anything else is refused
+    // BEFORE a row is written rather than written as a zero.
+    if (!convertibleCurrency(currency)) {
+      return {
+        ok: false,
+        error: `We can only convert USD and EUR top-ups. ${currency.toUpperCase()} would be stored as zero dollars, so nothing was created — record it in one of those two, or ask us to add a rate for it.`,
+        code: "invalid",
+      };
+    }
     if (currency.toUpperCase() !== "USD" && !(Number(rate?.eur) > 0)) {
       return {
         ok: false,
@@ -631,6 +651,24 @@ export async function bulkCreateTopupsAsAdmin(
         FEE_APPLICABLE_TYPES.includes(r.type) &&
         String(r.currency ?? "USD").toUpperCase() !== "USD",
     );
+    // Same refusal on the bulk path: one unconvertible row would be
+    // stored as zero dollars alongside rows that are correct, which is
+    // worse than refusing the batch.
+    const unconvertible = rows.find(
+      (r) =>
+        typeof r.type === "string" &&
+        FEE_APPLICABLE_TYPES.includes(r.type) &&
+        !convertibleCurrency(String(r.currency ?? "USD")),
+    );
+    if (unconvertible) {
+      return {
+        ok: false,
+        error: `We can only convert USD and EUR top-ups, and one row is in ${String(
+          unconvertible.currency ?? "",
+        ).toUpperCase()}. Nothing was created.`,
+        code: "invalid",
+      };
+    }
     if (needsConversion && !(bulkRate > 0)) {
       return {
         ok: false,

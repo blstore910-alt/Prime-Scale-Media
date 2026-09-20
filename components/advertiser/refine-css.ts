@@ -233,14 +233,24 @@ ${s} .umenu{
   animation:psmpop .16s cubic-bezier(.2,.8,.25,1);
 }
 ${s} .umenu-hd{display:flex;align-items:center;gap:10px;padding:10px 11px 11px;margin-bottom:4px;border-bottom:1px solid var(--line)}
-/* The menu tile holds a generated avatar now, so its own brand fill would
-   sit as a coloured square behind a round face. Same rule the sidebar
-   chip already follows. */
-${s} .umenu-av:has(> svg),${s} .umenu-av:has(> *){background:none;color:transparent;box-shadow:none;border-radius:50%}
-${s} .umenu-av > svg{width:100%;height:100%;border-radius:50%;display:block}
 ${s} .umenu-av{width:34px;height:34px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
   font-family:var(--hd);font-weight:800;font-size:.8rem;letter-spacing:-.02em;color:#fff;background:var(--brand);
   box-shadow:0 6px 14px -8px rgba(124,92,255,.8),inset 0 1px 0 rgba(255,255,255,.3)}
+${s} .umenu-av > svg{width:100%;height:100%;border-radius:50%;display:block}
+/* ── ORDER, NOT A SPECIFICITY TRICK ─────────────────────────────────
+   The menu tile carries a brand fill from when it held two letters
+   rather than a picture, and it has to be switched off when it holds
+   an avatar — which draws its own disc.
+
+   This rule used to sit ABOVE the one it overrides, relying on
+   :has() to outrank it. It does not: a universal selector adds
+   nothing to specificity, so both selectors are (0,2,0)
+   and the later one wins. That is why the purple square survived a
+   commit whose headline was removing it, and why the test that
+   greps for the selector passed while the screen did not change.
+
+   Put after, so nothing has to outrank anything. */
+${s} .umenu-av:has(> svg),${s} .umenu-av:has(> *){background:none;color:transparent;box-shadow:none;border-radius:50%}
 ${s} .umenu-who{min-width:0;display:flex;flex-direction:column;line-height:1.25}
 ${s} .umenu-who .nm,${s} .umenu-hd .nm{font-weight:800;font-family:var(--hd);letter-spacing:-.01em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

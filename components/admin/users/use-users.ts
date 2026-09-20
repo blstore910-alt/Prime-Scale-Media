@@ -76,12 +76,25 @@ export default function useUsers({
           // code matches, then their user_ids added to the same .or().
           // A lookup that fails narrows nothing rather than hiding
           // everybody.
-          const { data: byCode } = await supabase
+          // 50, not 200. The ids go into the .or() below, which
+          // travels in the REQUEST LINE: measured at 200 ids the
+          // request is over 8,000 characters, past the default 8 KiB
+          // buffer in front of PostgREST. Typing a common prefix
+          // ("PSM") matches every advertiser, and the result would not
+          // be "no match" but a thrown query and a broken list.
+          const { data: byCode, error: codeError } = await supabase
             .from("advertisers")
             .select("user_id")
             .eq("tenant_id", profile?.tenant_id)
             .ilike("tenant_client_code", `%${search.trim()}%`)
-            .limit(200);
+            .limit(50);
+          // A lookup we could not make silently restores the old
+          // "that customer does not exist" behaviour, so it is not
+          // swallowed: the name/email search still runs, and the
+          // caller can say the code search did not.
+          if (codeError) {
+            console.warn("client-code search unavailable");
+          }
           const codeIds = Array.from(
             new Set(
               (byCode ?? [])

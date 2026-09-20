@@ -47,16 +47,22 @@ export function useCreateAccountTopup({
       // its return shape cannot be read from the repo. This accepts
       // anything that is not explicitly a refusal, and refuses null —
       // which is the one answer that can never mean "done".
+      // ONLY AN EXPLICIT REFUSAL. The first version of this rejected a
+      // null answer too — and `supabase.rpc()` returns null for a
+      // `returns void` function and an empty array for a set-returning
+      // one with no rows, BOTH of which are what success looks like for
+      // some shapes. top_up_create_for_advertiser exists only on the
+      // live database, so its shape cannot be read here; rejecting null
+      // would have told every customer their top-up failed over a
+      // wallet that had already been debited, and invited the retry
+      // that charges twice. Failing the other way costs one wrong
+      // success message on a refusal the RPC signals in its payload,
+      // which is the smaller of the two.
       const row = (Array.isArray(data) ? data[0] : data) as
         | { ok?: boolean; error?: string; id?: string }
         | null
         | undefined;
-      if (row === null || row === undefined) {
-        throw new Error(
-          "The top-up did not go through. Your wallet is unchanged — try again in a moment.",
-        );
-      }
-      if (typeof row === "object" && row.ok === false) {
+      if (row && typeof row === "object" && row.ok === false) {
         throw new Error(
           row.error ??
             "The top-up did not go through. Your wallet is unchanged.",
@@ -72,6 +78,20 @@ export function useCreateAccountTopup({
       toast.success("Taken from your wallet — we'll put it on the account");
       queryClient.invalidateQueries({ queryKey: ["top-ups"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      // The wallet statement reads this under its own key, and nothing
+      // invalidated it — so the funding that just debited the wallet had
+      // no line until a hard reload, which is exactly the "money
+      // vanished" complaint the statement was extended to answer.
+      // staleTime is 30s and the shell never remounts (its views are CSS
+      // toggles), so without this the query is simply never refetched.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-account-fundings"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["adv-wallet-activity"],
+        exact: false,
+      });
       onSuccess();
     },
     onError: (err: Error) => {

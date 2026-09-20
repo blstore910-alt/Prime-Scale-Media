@@ -108,6 +108,19 @@ test("an avatar wrapper's own fill is switched off for any child", () => {
       if (!line.includes(SVG_CHILD)) continue;
       // The whole line, not the part before the first "{": these are
       // template literals and `${s}` carries a brace of its own.
+      // ORDER, not just presence. `:has(> *)` contributes the
+      // specificity of `*`, which is zero, so a neutralising rule and
+      // the rule it overrides are both (0,2,0) and the LATER one wins.
+      // A version of this test that only looked for the selector passed
+      // over a purple square that was still on screen.
+      const neutralAt = css.indexOf(ANY_CHILD);
+      const fillAt = css.lastIndexOf("background:var(--brand)");
+      if (fillAt >= 0 && neutralAt >= 0) {
+        assert.ok(
+          neutralAt > fillAt,
+          `${path}: the rule that switches an avatar wrapper's own fill off comes BEFORE the rule that sets it, at equal specificity — so it never applies.`,
+        );
+      }
       assert.ok(
         line.includes(ANY_CHILD),
         `${path}: a rule is keyed on an svg child only, so it stops ` +

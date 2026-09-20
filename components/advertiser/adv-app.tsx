@@ -2813,10 +2813,20 @@ export default function AdvertiserApp() {
                           // construction. Printing the wallet-side one
                           // is the only honest choice on a WALLET
                           // statement.
+                          // Not a two-way map: a GBP or HKD payment
+                          // would print a euro sign, which is the fault
+                          // fixed one screen away in psm-verify-ad-topups
+                          // and reintroduced here an hour later. An
+                          // unknown code prints as a code.
+                          const code = String(t.currency ?? "EUR").toUpperCase();
                           const sym =
-                            String(t.currency ?? "EUR").toUpperCase() === "USD"
+                            code === "USD"
                               ? "$"
-                              : "€";
+                              : code === "EUR"
+                                ? "€"
+                                : code === "GBP"
+                                  ? "£"
+                                  : `${code} `;
                           return (
                             <tr key={`f-${t.id}`}>
                               <td

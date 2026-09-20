@@ -498,6 +498,25 @@ export default function WalletTopupDialog({
         },
       );
       if (error) throw error;
+
+      // A jsonb/void answer is not proof. `data` was returned unread, so
+      // a null payload or one carrying a refusal resolved happily: the
+      // customer saw "Request Successful!" and the draft holding their
+      // amount and slip path was destroyed, for a top-up that was never
+      // filed. Both sibling dialogs were hardened for exactly this.
+      //
+      // Only an explicit refusal is rejected — a null row is accepted,
+      // because a `returns void` RPC gives null on SUCCESS and refusing
+      // that would tell every customer their transfer failed.
+      const row = (Array.isArray(data) ? data[0] : data) as
+        | { ok?: boolean; error?: string }
+        | null
+        | undefined;
+      if (row && typeof row === "object" && row.ok === false) {
+        throw new Error(
+          row.error ?? "The top-up was not filed. Nothing has been charged.",
+        );
+      }
       return data;
     },
     onSuccess: async () => {
@@ -515,6 +534,20 @@ export default function WalletTopupDialog({
       // without a full reload.
       queryClient.invalidateQueries({
         queryKey: ["adv-wallet-activity"],
+      });
+      // ── AND THE PENDING PANEL, WHICH HAS ITS OWN KEY ──────────────
+      //
+      // The "Pending wallet top-up" card and the wallet card's second
+      // line read ['adv-pending-topups', walletId] — which none of the
+      // prefixes above cover either, and staleTime is 30s while the
+      // advertiser shell never remounts (its views are CSS toggles), so
+      // that query is simply never refetched. A customer who had just
+      // filed a EUR 5,000 transfer saw no sign of it anywhere on the
+      // card and wired it a second time. The statement underneath DID
+      // update, because that key IS invalidated — so one screen
+      // contradicted itself.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-pending-topups"],
       });
     },
     onError: (err: Error) => {
