@@ -33,7 +33,26 @@ export default function useExchangeRates({
     isError,
     error,
   } = useQuery({
-    queryKey: [activeOnly ? "exchange-rates-active-only" : "exchange-rates"],
+    // ── ONE PREFIX, AND THE TENANT IN THE KEY ───────────────────────
+    //
+    // These were two unrelated keys, "exchange-rates" and
+    // "exchange-rates-active-only", and the settings form invalidates
+    // only the first. React Query matches element-wise, so saving a new
+    // rate never refreshed the ACTIVE one -- the key eleven surfaces
+    // quote from, with staleTime 30s and refetchOnWindowFocus off. The
+    // confirm modal's "before" column came from that stale cache, so an
+    // owner checking 0.86 -> 0.92 saw 0.86 again next time.
+    //
+    // And no tenant_id: the query filters by tenant, the key did not,
+    // so after a profile switch tenant A's rate was served inside
+    // tenant B's top-up and exchange dialogs for the cache's lifetime.
+    // use-usd-to-eur already keys on the tenant; these two disagreed by
+    // construction.
+    queryKey: [
+      "exchange-rates",
+      profile?.tenant_id ?? null,
+      activeOnly ? "active" : "all",
+    ],
     queryFn: async (): Promise<ExchangeRateRow[]> => {
       const supabase = createClient();
       const query = supabase

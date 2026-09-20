@@ -54,7 +54,28 @@ export default async function AppLayout({
 
   if (!profile) redirect("/onboard");
 
-  if (profile.status === "inactive") {
+  // ── is_active AS WELL, AND ANY STATUS THAT IS NOT ACTIVE ──────────
+  //
+  // This tested `status` and only the literal "inactive". Every other
+  // guard in the app tests both columns -- requireAdmin,
+  // requireSuperAdmin, apiRequireAdmin, resolveAdminContext, the
+  // invoice PDF route, the push route. This one did not, and it is the
+  // only lockout the CUSTOMER shells have: an advertiser or affiliate
+  // never passes through requireAdmin.
+  //
+  // Two ways into the gap. requestOwnErasure writes
+  // status: "pending_erasure", is_active: false -- so somebody who
+  // asked to be deleted kept their whole dashboard. And
+  // updateUserProfile allowlists is_active and status as SEPARATE
+  // columns, so an admin can clear is_active and leave status alone.
+  //
+  // Writes were already refused, so this was retained READ access --
+  // wallet balance, ad accounts, invoices, the financial report. For an
+  // erasure request that is still the wrong answer.
+  if (
+    profile.is_active === false ||
+    (profile.status ?? "active") !== "active"
+  ) {
     redirect("/inactive");
   }
 

@@ -40,6 +40,10 @@ export default function NotificationsPage() {
     isLoading,
     isError,
     unreadCount,
+    // A failed COUNT is not "nothing is unread". Both SPA shells already
+    // read this flag; this page, which is the full list, did not -- so
+    // "Mark all read" simply vanished over a visibly unread list.
+    countError,
     markAsRead,
     markAllAsRead,
     deleteRead,
@@ -300,7 +304,7 @@ export default function NotificationsPage() {
             <Settings2 className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Preferences</span>
           </Button>
-          {unreadCount > 0 && (
+          {(unreadCount > 0 || countError) && (
             <Button
               variant="outline"
               size="sm"

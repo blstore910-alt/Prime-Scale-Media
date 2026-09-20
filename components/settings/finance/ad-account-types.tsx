@@ -141,6 +141,11 @@ export default function AdAccountTypesCard() {
     queryClient.invalidateQueries({ queryKey: ["ad-account-types"] });
   };
 
+  // True when the supplier read failed, so the boxes are blank because
+  // we could not look rather than because they are empty. See the note
+  // where it is used.
+  const supplierBlind = !!data?.supplierBlind;
+
   const { mutate: saveAll, isPending: saving } = useMutation({
     mutationFn: async () => {
       const dirty = rows.filter((r) => r.dirty);
@@ -158,9 +163,26 @@ export default function AdAccountTypesCard() {
           default_fee_pct: fee,
           api_topup_enabled: row.api_topup_enabled,
           is_active: row.is_active,
-          supplier_label: row.supplier_label.trim(),
-          supplier_url: row.supplier_url.trim(),
-          supplier_fee_pct: row.supplier_fee_str.trim(),
+          // ── DO NOT SEND WHAT WE COULD NOT READ ──────────────────
+          //
+          // These three go on EVERY save, so supplierTouched is always
+          // true server-side and writeSupplier upserts all three. When
+          // the supplier read failed the boxes are blank because we
+          // could not look, not because they are empty -- so editing
+          // only the customer-facing Fee % nulled supplier_fee_pct, the
+          // cost figure the margin is computed from, under "Saved 1
+          // type(s)".
+          //
+          // supplierBlind was already computed for this and then read
+          // by nothing. Omitting the keys leaves the stored values
+          // alone.
+          ...(supplierBlind
+            ? {}
+            : {
+                supplier_label: row.supplier_label.trim(),
+                supplier_url: row.supplier_url.trim(),
+                supplier_fee_pct: row.supplier_fee_str.trim(),
+              }),
           ifUpdatedAt: row.updated_at,
         });
         if (!res.ok) throw new Error(res.error);
