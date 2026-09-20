@@ -11,6 +11,7 @@ import {
   type ActionResult,
 } from "./_shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyAdvertiser } from "@/lib/notify-advertiser";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -378,7 +379,9 @@ export async function rejectAdAccountRequest(
 
   const { data: req } = await supabase
     .from("ad_account_requests")
-    .select("id, tenant_id, status")
+    // advertiser_id too: the refusal refunds the fee, and the customer
+    // is now told about it.
+    .select("id, tenant_id, status, advertiser_id")
     .eq("id", requestId)
     .maybeSingle();
   if (!req) return { ok: false, error: "Request not found" };
@@ -443,6 +446,27 @@ export async function rejectAdAccountRequest(
     currency?: string;
     perk_restored?: boolean;
   } | null;
+
+  // ── EUR 50 GOING BACK IS NEWS ─────────────────────────────────────
+  //
+  // The fee was taken with no invoice and no wallet line, and putting
+  // it back is just as quiet -- the balance goes up and nothing says
+  // why. That is the same complaint from the other direction, and the
+  // customer is the one who has to reconcile it.
+  if (Number(paid?.refunded ?? 0) > 0) {
+    await notifyAdvertiser(supabase, {
+      advertiserId: (req as { advertiser_id?: string | null } | null)
+        ?.advertiser_id,
+      tenantId: profile.tenant_id,
+      type: "request_fee_refunded",
+      payload: {
+        amount: paid?.refunded ?? null,
+        currency: paid?.currency ?? "EUR",
+        reason: trimmedReason || null,
+      },
+    });
+  }
+
   return {
     ok: true,
     data: {

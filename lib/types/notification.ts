@@ -10,6 +10,9 @@ export type NotificationType =
   | "subscription_changed"
   | "supplier_low_balance"
   | "billing_run_failed"
+  | "topup_rejected"
+  | "withdrawal_approved"
+  | "request_fee_refunded"
   | "supplier_pool_changed"
   | "rate_limit_abuse"
   | "affiliate_application";
@@ -99,6 +102,25 @@ export interface NotificationPayloadByType {
   supplier_low_balance: SupplierLowBalanceNotificationPayload;
   /** The nightly billing run refused. Nobody was invoiced or
    *  debited that night -- the RPC is one transaction. */
+  /** An ad-account top-up we refused. The reason is the customer's. */
+  topup_rejected: {
+    topup_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
+  /** Money returned from an ad account to their wallet. */
+  withdrawal_approved: {
+    amount?: number | string | null;
+    currency?: string | null;
+    account_name?: string | null;
+  };
+  /** The ad-account request fee, put back after a refusal. */
+  request_fee_refunded: {
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
   billing_run_failed: {
     code?: string | null;
     reason?: string | null;

@@ -170,6 +170,31 @@ function buildPushFromRecord(record: NotificationRecord) {
       };
     }
 
+    case "topup_rejected":
+      return {
+        title: "Ad-account top-up refused",
+        body:
+          String(
+            (record.payload as { reason?: string } | null)?.reason ?? "",
+          ).trim() ||
+          "We couldn't put this money on your ad account. Open the app for the reason.",
+        url: "/dashboard?view=accounts",
+      };
+
+    case "withdrawal_approved":
+      return {
+        title: "Money is back in your wallet",
+        body: "What you asked back from your ad account has landed.",
+        url: "/dashboard?view=wallet",
+      };
+
+    case "request_fee_refunded":
+      return {
+        title: "Your request fee is back",
+        body: "We couldn't set that account up, so the fee has been returned to your wallet.",
+        url: "/dashboard?view=wallet",
+      };
+
     case "billing_run_failed":
       // ── THE ONE THAT MEANS NOBODY WAS BILLED ────────────────────
       //

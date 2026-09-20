@@ -91,6 +91,45 @@ export function getNotificationCopy(notification: Notification): {
         title: "Wallet Top-up Request",
         description: "A wallet top-up is pending approval.",
       };
+    case "topup_rejected": {
+      const p = notification.payload as
+        | { reason?: string | null; amount?: unknown; currency?: string | null }
+        | null;
+      const why = String(p?.reason ?? "").trim();
+      return {
+        title: "Ad-account top-up refused",
+        description: why
+          ? `We couldn't put this money on your ad account. ${why}`
+          : "We couldn't put this money on your ad account. Your wallet is unchanged.",
+      };
+    }
+
+    case "withdrawal_approved": {
+      const p = notification.payload as
+        | { amount?: unknown; currency?: string | null; account_name?: string | null }
+        | null;
+      const where = String(p?.account_name ?? "").trim();
+      return {
+        title: "Money is back in your wallet",
+        description: where
+          ? `What you asked back from ${where} has landed in your wallet.`
+          : "What you asked back from your ad account has landed in your wallet.",
+      };
+    }
+
+    case "request_fee_refunded": {
+      const p = notification.payload as
+        | { reason?: string | null }
+        | null;
+      const why = String(p?.reason ?? "").trim();
+      return {
+        title: "Your request fee is back",
+        description: why
+          ? `We couldn't set this account up, so the fee is back in your wallet. ${why}`
+          : "We couldn't set this account up, so the fee is back in your wallet.",
+      };
+    }
+
     case "billing_run_failed":
       return {
         title: "Billing run failed",

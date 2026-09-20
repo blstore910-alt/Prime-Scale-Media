@@ -86,6 +86,27 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    type: "topup_rejected",
+    label: "Ad-account top-up refused",
+    description:
+      "When we cannot put money on one of your ad accounts. The reason is included.",
+    audience: "customer",
+  },
+  {
+    type: "withdrawal_approved",
+    label: "Money returned to your wallet",
+    description:
+      "When money you asked back from an ad account has landed in your wallet.",
+    audience: "customer",
+  },
+  {
+    type: "request_fee_refunded",
+    label: "Ad-account request refunded",
+    description:
+      "When a request we could not fulfil is refunded to your wallet.",
+    audience: "customer",
+  },
+  {
     type: "billing_run_failed",
     label: "Billing run failed",
     description:

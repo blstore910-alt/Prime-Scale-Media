@@ -10,6 +10,7 @@ import {
   isAccountLocked,
   accountLockedReason,
 } from "@/lib/pure-account-status";
+import { notifyAdvertiser } from "@/lib/notify-advertiser";
 
 type ActionResult<T = null> =
   // `warning` is a success that came with something the caller has to be
@@ -341,7 +342,12 @@ export async function approveAdAccountWithdrawal(
   // notice.
   const { data: wd, error: wdErr } = await supabase
     .from("ad_account_withdrawals")
-    .select("id, ad_account_id, amount, status")
+    // advertiser_id, currency and the account's name too: the customer
+    // is told about this now, and a notice that cannot name the account
+    // or the amount is barely a notice.
+    .select(
+      "id, ad_account_id, advertiser_id, amount, currency, status, ad_account:ad_accounts(name)",
+    )
     .eq("id", withdrawalId)
     .maybeSingle();
   if (wdErr) return { ok: false, error: safeErrorMessage(wdErr) };
@@ -378,6 +384,27 @@ export async function approveAdAccountWithdrawal(
     p_withdrawal_id: withdrawalId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
+
+  // ── THE CUSTOMER ASKED FOR THIS MONEY BACK ────────────────────────
+  //
+  // It has just landed in their wallet and nothing told them. Until
+  // now the request itself was invisible on every customer screen, so
+  // the whole journey -- ask, wait, receive -- happened without a
+  // single word reaching them.
+  await notifyAdvertiser(supabase, {
+    advertiserId: (wd as { advertiser_id?: string | null } | null)
+      ?.advertiser_id,
+    tenantId: (wd as { tenant_id?: string | null } | null)?.tenant_id ?? null,
+    type: "withdrawal_approved",
+    payload: {
+      amount: (wd as { amount?: unknown } | null)?.amount ?? null,
+      currency:
+        (wd as { currency?: string | null } | null)?.currency ?? "USD",
+      account_name:
+        (wd as { ad_account?: { name?: string | null } | null } | null)
+          ?.ad_account?.name ?? null,
+    },
+  });
 
   // ── AND TELL THE SUPPLIER TO TAKE IT OFF ──────────────────────────
   //

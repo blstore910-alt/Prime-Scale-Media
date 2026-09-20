@@ -18,6 +18,7 @@ import { safeErrorMessage } from "@/lib/pure-error";
 import { isAccountLocked } from "@/lib/pure-account-status";
 import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyAdvertiser } from "@/lib/notify-advertiser";
 
 // Ad-account top-up types that carry a fee (mirrors the topup form).
 const FEE_APPLICABLE_TYPES = ["top-up", "first-top-up"];
@@ -1158,6 +1159,39 @@ export async function verifyAdTopup(
     topupId,
     tenantId: profile.tenant_id,
   });
+
+  // ── AND TELL THE CUSTOMER ─────────────────────────────────────────
+  //
+  // Not one money action wrote a notification. An admin verifies a
+  // top-up and the customer's phone stays silent -- the only way they
+  // learn their money reached the ad account is by opening the app and
+  // comparing a figure to what they remember. `topup_completed` has a
+  // receipt dialog, a push case, a catalogue entry and a customer
+  // toggle, and nothing has ever written it.
+  //
+  // Best effort by construction: the money has already moved, and an
+  // action that reports failure after a successful verify is far worse
+  // than a customer who was not told.
+  {
+    // The row read above is scoped to the fee-gate block, so read the
+    // one field this needs. It is one small select on a path that has
+    // already moved money.
+    const { data: who } = await supabase
+      .from("top_ups")
+      .select("advertiser_id")
+      .eq("id", topupId)
+      .maybeSingle();
+    await notifyAdvertiser(supabase, {
+      advertiserId: (who as { advertiser_id?: string | null } | null)
+        ?.advertiser_id,
+      tenantId: profile.tenant_id,
+      type: "topup_completed",
+      payload: {
+        topup_id: topupId,
+        approved_at: new Date().toISOString(),
+      },
+    });
+  }
 
   return {
     ok: true,
