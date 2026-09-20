@@ -1,6 +1,9 @@
 "use client";
 
 import TablePagination from "@/components/ui/table-pagination";
+import { formatCurrency } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { useAppContext } from "@/context/app-provider";
 import { COMMISSION_TYPE_LABELS, CURRENCY_SYMBOLS } from "@/lib/constants";
 import { Commission } from "@/lib/types/commission";
@@ -77,6 +80,50 @@ export default function CommissionsTable() {
   const router = useRouter();
   const pathname = usePathname();
   const { profile } = useAppContext();
+
+  // Total clawed back in this tenant, per currency. Read here because
+  // referral_clawbacks had no reader anywhere in the app -- see the
+  // banner below for what that cost.
+  const clawbackQuery = useQuery<{ eur: number; usd: number } | null>({
+    queryKey: ["referral-clawback-totals", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("referral_clawbacks")
+        .select("amount, currency")
+        .eq("tenant_id", profile!.tenant_id);
+      if (error) {
+        // The table arrived in a migration that is pasted by hand, so a
+        // missing relation is "not on this database yet" and stays
+        // quiet. Anything else is a failed read and must say so.
+        const code = (error as { code?: string }).code ?? "";
+        if (code === "42P01" || code === "42703") return null;
+        throw error;
+      }
+      let eur = 0;
+      let usd = 0;
+      for (const r of data ?? []) {
+        const row = r as { amount?: unknown; currency?: unknown };
+        const n = Number(row.amount) || 0;
+        if (String(row.currency ?? "EUR").toUpperCase() === "USD") usd += n;
+        else eur += n;
+      }
+      return { eur, usd };
+    },
+  });
+  const clawbacks = (() => {
+    const d = clawbackQuery.data;
+    const total = (d?.eur ?? 0) + (d?.usd ?? 0);
+    const parts: string[] = [];
+    if (d?.eur) parts.push(formatCurrency(d.eur, "EUR"));
+    if (d?.usd) parts.push(formatCurrency(d.usd, "USD"));
+    return {
+      total,
+      label: parts.join(" and "),
+      unknown: clawbackQuery.isError,
+    };
+  })();
   const isAdmin = profile?.role === "admin";
 
   const initialCurrency = searchParams?.get("currency") ?? "all";
@@ -202,6 +249,47 @@ export default function CommissionsTable() {
           <p>Earnings from referrals.</p>
         </div>
       </div>
+
+      {/* ── WHAT HAS ALREADY BEEN TAKEN BACK ──────────────────────────
+          A clawback writes referral_clawbacks and decrements
+          referral_links.earnings_*. It never touches a
+          referral_commissions row -- deliberately -- and
+          referral_clawbacks had ZERO reads anywhere in this app.
+
+          So: affiliate on 10%, customer funds EUR 10,000, ten EUR 100
+          rows accrue. The customer takes an approved EUR 4,000 refund
+          and EUR 400 is clawed back. This screen still lists ten green
+          EUR 100 rows, each with a live Mark Paid. The owner pays
+          EUR 1,000 against a EUR 600 liability -- and paid -> unpaid is
+          refused, so it cannot be unwound here.
+
+          The rows are not netted, because a clawback is not tied to any
+          one of them. The figure is stated instead, above the button. */}
+      {clawbacks.total > 0 ? (
+        <div className="card" style={{ padding: "12px 14px", marginTop: 10 }}>
+          <span style={{ fontWeight: 600, color: "var(--warn)" }}>
+            {clawbacks.label} has been clawed back and is NOT reflected in
+            the rows below.
+          </span>
+          <div
+            className="muted"
+            style={{ fontSize: ".86rem", marginTop: 4 }}
+          >
+            A clawback reduces what an affiliate is owed without changing
+            any commission row. Check the affiliate&apos;s Earnings on
+            /affiliates before marking rows paid — that figure is net of
+            clawbacks and these are not.
+          </div>
+        </div>
+      ) : clawbacks.unknown ? (
+        <div className="card" style={{ padding: "12px 14px", marginTop: 10 }}>
+          <span className="muted">
+            We couldn&apos;t check for clawbacks, so these rows may
+            overstate what is owed. That is not the same as there being
+            none.
+          </span>
+        </div>
+      ) : null}
 
       <div className="fbar">
         <label className="fsr">

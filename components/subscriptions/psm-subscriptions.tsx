@@ -175,6 +175,21 @@ export default function PsmSubscriptions() {
     );
   };
 
+  // ── THE SEARCH ONLY EVER SAW THE PAGE ──────────────────────────────
+  //
+  // useSubscriptions pages server-side at 20 and the term is not in its
+  // query key, so this filtered the twenty rows already on screen. On a
+  // tenant of 140, typing PSM0042 printed "No subscriptions match
+  // "PSM0042"." with the pager beneath it still reading "Page 1 of 7".
+  //
+  // The owner concludes there is no plan and opens New Subscription --
+  // and createSubscriptionAsAdmin only blocks a duplicate when the
+  // existing row is active or past_due. PSM0042's is PAUSED, so the
+  // insert succeeds: two subscription rows, two invoices a month, two
+  // auto-debits from one wallet.
+  //
+  // Until the term reaches the query, say what this actually is rather
+  // than stating a negative about the whole book.
   const q = search.trim().toLowerCase();
   const rows = subscriptions.filter((s) => {
     if (!q) return true;
@@ -184,6 +199,7 @@ export default function PsmSubscriptions() {
       (s.advertiser?.tenant_client_code ?? "").toLowerCase().includes(q)
     );
   });
+  const searchIsPageOnly = !!q && total > subscriptions.length;
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
@@ -634,11 +650,13 @@ export default function PsmSubscriptions() {
               being charged", which is a sentence nobody should see because
               a status chip was left set. */}
           <p className="muted" style={{ margin: 0 }}>
-            {search
-              ? `No subscriptions match “${search}”.`
-              : status !== "all" || date
-                ? "No subscriptions match the filters you have set."
-                : "No subscriptions yet."}
+            {search && searchIsPageOnly
+              ? `No subscriptions on THIS PAGE match “${search}” — the search only looks at the ${subscriptions.length} rows loaded, and there are ${total}. Page through, or narrow with the status filter first.`
+              : search
+                ? `No subscriptions match “${search}”.`
+                : status !== "all" || date
+                  ? "No subscriptions match the filters you have set."
+                  : "No subscriptions yet."}
           </p>
           {search || status !== "all" || date ? (
             <button
