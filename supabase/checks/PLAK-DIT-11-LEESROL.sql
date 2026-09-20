@@ -54,6 +54,19 @@ begin
 end;
 $blk0$;
 
+-- ── EERST LID WORDEN VAN DE ROL ──────────────────────────────────────
+-- Postgres laat je een object alleen aan een rol geven als je zelf lid
+-- van die rol bent. Zonder dit komt er:
+--   42501: must be able to SET ROLE "psm_readonly"
+do $blk1$
+begin
+  execute format('grant psm_readonly to %I', current_user);
+  raise notice 'psm_readonly toegekend aan %', current_user;
+exception when others then
+  raise notice 'kon psm_readonly niet aan % geven: %', current_user, sqlerrm;
+end;
+$blk1$;
+
 -- Lezen op alles wat er is, en op wat er later bij komt.
 grant usage on schema public to psm_readonly;
 grant select on all tables in schema public to psm_readonly;
@@ -94,11 +107,30 @@ exception when others then
 end;
 $ro$;
 
-alter function public._ro(text) owner to psm_readonly;
-revoke all on function public._ro(text) from public;
-revoke all on function public._ro(text) from anon;
-revoke all on function public._ro(text) from authenticated;
-grant execute on function public._ro(text) to service_role;
+-- ── EIGENDOM IS DE HELE BEVEILIGING ──────────────────────────────────
+--
+-- SECURITY DEFINER betekent: draait als de EIGENAAR. Is dat
+-- `psm_readonly`, dan kan de functie alleen lezen, wat er ook in de
+-- query staat. Blijft hij van `postgres`, dan draait willekeurige SQL
+-- met alle rechten -- precies het tegenovergestelde van wat dit moet
+-- zijn.
+--
+-- Dus: lukt het eigendom niet, dan gaat de functie er weer af. Liever
+-- geen leesroute dan een schrijfroute die eruitziet als een leesroute.
+do $blk2$
+begin
+  execute 'alter function public._ro(text) owner to psm_readonly';
+  execute 'revoke all on function public._ro(text) from public';
+  execute 'revoke all on function public._ro(text) from anon';
+  execute 'revoke all on function public._ro(text) from authenticated';
+  execute 'grant execute on function public._ro(text) to service_role';
+  raise notice '_ro staat op naam van psm_readonly';
+exception when others then
+  execute 'drop function if exists public._ro(text)';
+  raise notice
+    'EIGENDOM MISLUKT (%), functie weer verwijderd -- niets aangelegd', sqlerrm;
+end;
+$blk2$;
 
 -- =====================================================================
 -- Het rapport — de SQL-editor toont alleen dit
@@ -130,8 +162,13 @@ select 4, 'mag psm_readonly ergens schrijven',
   ), 'nee - alleen lezen')
 union all
 -- De proef: eerst een gewone lees, dan een schrijfpoging.
-select 5, 'PROEF lezen', (public._ro('select count(*) as n from public.wallets'))::text
+select 5, 'PROEF lezen',
+  case when to_regprocedure('public._ro(text)') is null
+       then 'functie bestaat niet - zie regel 2'
+       else (public._ro('select count(*) as n from public.wallets'))::text end
 union all
-select 6, 'PROEF schrijven (moet weigeren)',
-  (public._ro('delete from public.notifications where false returning 1'))::text
+select 6, 'PROEF schrijven (MOET weigeren)',
+  case when to_regprocedure('public._ro(text)') is null
+       then 'functie bestaat niet - zie regel 2'
+       else (public._ro('delete from public.notifications where false returning 1'))::text end
 order by nr;
