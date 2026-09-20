@@ -33,12 +33,12 @@ export default function Help() {
           <HelpCard
             icon={ShieldCheck}
             title="How do I keep my account safe?"
-            body="Use a 12+ character password. Enable push notifications so you see admin actions in real time. Sign out from all devices via Profile if you lose a device."
+            body="Use a 12+ character password. Enable push notifications so you see admin actions in real time. If you lose a device, sign out everywhere: Settings for advertisers and affiliates, Profile for admins."
           />
           <HelpCard
             icon={BookOpen}
             title="Where do I see what changed?"
-            body='Profile → "My recent activity" lists your last 20 actions. Super-admins can see everything under Audit Log.'
+            body='Your last 20 actions are listed under Settings (advertisers and affiliates) or Profile (admins). The owner can see everything under Audit Log.'
           />
         </div>
       </section>

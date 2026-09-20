@@ -1,5 +1,6 @@
 "use client";
 
+import MyActivity from "@/components/profile/my-activity";
 import PrivacyControls from "@/components/profile/privacy-controls";
 
 import { copyText } from "@/lib/copy-text";
@@ -1538,6 +1539,18 @@ export default function AffiliateApp() {
                 everywhere, or ask us to delete your account.
               </p>
               <PrivacyControls />
+            </div>
+            {/* ── AND WHAT HAPPENED ON THEIR ACCOUNT ──────────────
+                MyActivity was mounted on /profile and nowhere else,
+                and /profile bounces every customer to their own
+                shell -- so the right to export and the right to be
+                forgotten came across in an earlier fix and the plain
+                "what has been done to my account" list did not. It
+                is the same question a customer asks first when a
+                figure surprises them. */}
+            <div className="card">
+              <h2>Your recent activity</h2>
+              <MyActivity />
             </div>
           </div>
 
