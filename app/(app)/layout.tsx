@@ -72,9 +72,23 @@ export default async function AppLayout({
   // Writes were already refused, so this was retained READ access --
   // wallet balance, ad accounts, invoices, the financial report. For an
   // erasure request that is still the wrong answer.
+  //
+  // NAMED VALUES, NOT "anything that is not active". The first draft of
+  // this locked out every status except "active" -- and neither
+  // accept-invite route sets `status` at all, so a new customer's value
+  // is whatever the column default is, and no `create table` for
+  // user_profiles exists in this repo to read it from. If that default
+  // is any word other than NULL or "active", that version locks out
+  // every single person who accepts an invitation, on a live app.
+  //
+  // The downside of being wrong in the other direction is smaller and
+  // recoverable: a status somebody adds later would not lock its holder
+  // out until this list is extended. The downside of being wrong in the
+  // strict direction is that nobody can sign up.
+  const lockedStatus = ["inactive", "disabled", "suspended", "pending_erasure"];
   if (
     profile.is_active === false ||
-    (profile.status ?? "active") !== "active"
+    lockedStatus.includes(String(profile.status ?? "").toLowerCase())
   ) {
     redirect("/inactive");
   }
