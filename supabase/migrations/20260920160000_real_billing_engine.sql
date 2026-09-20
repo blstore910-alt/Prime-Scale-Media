@@ -44,11 +44,52 @@ set search_path = public;
 -- Everything the old function left NULL, recovered from where it did
 -- put it. Without this the paid-trigger stays dead for every invoice
 -- already raised, and their currency stays NULL.
+--
+-- CAREFULLY, because live already carries
+-- invoices_subscription_period_uq on (subscription_id, period_start)
+-- AND already carries duplicate subscription invoices for one period --
+-- raised by the old function, whose guard was "not invoiced TODAY", so
+-- a run either side of midnight raised a second one. Filling
+-- subscription_id in naively makes those duplicates collide, which is
+-- exactly what happened on the first attempt.
+--
+-- So: period_start first (harmless while subscription_id is still
+-- NULL, since NULLs do not collide), then subscription_id for ONE row
+-- per (subscription, period) -- the earliest -- and only where nothing
+-- already holds that key. The rows left behind are listed at the
+-- bottom; they are genuine duplicates and want voiding by hand, not
+-- merging by a migration.
+
 update public.invoices i
-   set subscription_id = (i.items -> 0 ->> 'subscription_id')::uuid
+   set period_start = i.created_at::date
  where i.type = 'subscription'
-   and i.subscription_id is null
-   and (i.items -> 0 ->> 'subscription_id') is not null;
+   and i.period_start is null;
+
+with cand as (
+  select i.id,
+         (i.items -> 0 ->> 'subscription_id')::uuid as sub,
+         i.period_start,
+         row_number() over (
+           partition by (i.items -> 0 ->> 'subscription_id')::uuid,
+                        i.period_start
+           order by i.created_at, i.id
+         ) as rn
+    from public.invoices i
+   where i.type = 'subscription'
+     and i.subscription_id is null
+     and (i.items -> 0 ->> 'subscription_id') is not null
+)
+update public.invoices i
+   set subscription_id = c.sub
+  from cand c
+ where c.id = i.id
+   and c.rn = 1
+   and not exists (
+     select 1
+       from public.invoices o
+      where o.subscription_id = c.sub
+        and o.period_start is not distinct from c.period_start
+   );
 
 update public.invoices i
    set currency = upper(coalesce(s.currency, 'EUR'))
@@ -57,10 +98,14 @@ update public.invoices i
    and i.type = 'subscription'
    and coalesce(i.currency, '') = '';
 
+-- Anything still without a currency has no subscription to read one
+-- from. EUR is what invoice_pay_from_wallet would have charged anyway,
+-- so this changes no behaviour -- it only stops the column lying about
+-- being unknown.
 update public.invoices i
-   set period_start = i.created_at::date
+   set currency = 'EUR'
  where i.type = 'subscription'
-   and i.period_start is null;
+   and coalesce(i.currency, '') = '';
 
 update public.invoices i
    set due_date = i.created_at + interval '7 days'
@@ -238,6 +283,13 @@ select 'the engine now collects',
          where n.nspname = 'public'
            and p.proname = 'process_recurring_subscriptions' limit 1), '')) > 0
        then 'ja' else 'NEE' end
+union all
+select 'DUBBELE facturen, zelfde plan + periode (handmatig voiden)',
+       (select count(*)::text
+          from public.invoices i
+         where i.type = 'subscription'
+           and i.subscription_id is null
+           and (i.items -> 0 ->> 'subscription_id') is not null)
 union all
 select 'invoice_pay_from_wallet bestaat',
        case when to_regprocedure('public.invoice_pay_from_wallet(uuid)') is not null

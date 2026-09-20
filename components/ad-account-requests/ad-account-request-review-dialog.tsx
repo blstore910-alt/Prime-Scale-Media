@@ -97,8 +97,27 @@ export default function AdAccountRequestReviewDialog({
   //
   // The only sign it had already been paid was `request_fee: 50` in the
   // dialog's raw metadata dump.
+  // ── FREE IS NOT "NOT YET CHARGED" ──────────────────────────────────
+  //
+  // `request_fee > 0` catches a request whose fee was taken from the
+  // wallet. It does NOT catch the one that must never be invoiced at
+  // all: when the customer's plan covers this account, or a perk grants
+  // it, the RPC sets v_fee := 0 and stamps request_fee: 0 with
+  // request_fee_included: true. So `feeAlreadyTaken` was false for
+  // exactly the requests that are free, Create Invoice stayed live, and
+  // the "Fee already paid from their wallet" note was suppressed -- the
+  // only signal left on screen was `Request Fee Included: true` in the
+  // raw metadata dump at the bottom.
+  //
+  // An admin then raises EUR 50 for an account the plan includes, the
+  // customer's billing page renders it with a live Pay now, and
+  // rejecting the request refunds EUR 0 because nothing was ever taken.
   const feeAlreadyTaken = Number(metadata?.request_fee ?? 0) > 0;
-  const showCreateInvoice = statusValue === "pending" && !feeAlreadyTaken;
+  const feeIncludedInPlan =
+    metadata?.request_fee_included === true ||
+    String(metadata?.request_fee_included ?? "").toLowerCase() === "true";
+  const showCreateInvoice =
+    statusValue === "pending" && !feeAlreadyTaken && !feeIncludedInPlan;
   const showCreateAdAccount =
     statusValue === "pending" ||
     statusValue === "payment_pending" ||
@@ -263,6 +282,15 @@ export default function AdAccountRequestReviewDialog({
             {feeAlreadyTaken && statusValue === "pending" ? (
               <span className="self-center text-sm text-muted-foreground">
                 Fee already paid from their wallet
+              </span>
+            ) : null}
+            {/* Said out loud, in the place the Create Invoice button
+                used to be. Without it the admin sees a pending request
+                with one button missing and no reason given, and the
+                only clue is a raw column name further down. */}
+            {feeIncludedInPlan && statusValue === "pending" ? (
+              <span className="self-center text-sm text-muted-foreground">
+                Included in their plan — no fee to invoice
               </span>
             ) : null}
             {showCreateInvoice && (
