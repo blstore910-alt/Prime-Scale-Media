@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 /**
  * What has been put ON each ad account, and when it last happened.
@@ -86,15 +87,41 @@ export function useAccountSpend(tenantId: string | null | undefined): {
       // request.
       const withdrawn: Record<string, number> = {};
       {
-        const { data: wds, error: wErr } = await supabase
-          .from("ad_account_withdrawals")
-          .select("ad_account_id, amount, status")
-          .eq("tenant_id", tenantId)
-          .eq("status", "approved");
+        // ── PAGED, LIKE THE TOP-UPS HALF FORTY LINES ABOVE ──────────
+        //
+        // This was a bare select against the 1,000-row ceiling, sitting
+        // next to a read that is carefully paged with its own comment
+        // about that exact cap. Withdrawals are SUBTRACTED here, so past
+        // a thousand approved withdrawals tenant-wide the subtraction is
+        // short and every account's Spend figure is too HIGH -- which is
+        // the direction actions/withdrawal-actions.ts names out loud as
+        // the one that fails open. The server guard pages this same
+        // table correctly; the screen the admin reads before approving
+        // did not.
+        const wPaged = await pageAllRows<{
+          ad_account_id?: unknown;
+          amount?: unknown;
+          status?: unknown;
+        }>((from, to) =>
+          supabase
+            .from("ad_account_withdrawals")
+            .select("ad_account_id, amount, status")
+            .eq("tenant_id", tenantId)
+            .eq("status", "approved")
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
         // A withdrawals table we cannot read must not quietly become
         // zero withdrawals — that is the direction that overstates the
-        // balance, which is the direction that costs money.
-        if (wErr) throw wErr;
+        // balance, which is the direction that costs money. Same for a
+        // truncated one: a floor presented as a total is the same lie.
+        if (wPaged.error) throw new Error(wPaged.error);
+        if (wPaged.truncated) {
+          throw new Error(
+            "There are more approved withdrawals than this screen can add up, so the spend figures would be too high. Narrow the view or ask for a report.",
+          );
+        }
+        const wds = wPaged.rows;
         for (const w of wds ?? []) {
           const id = String(
             (w as { ad_account_id?: unknown }).ad_account_id ?? "",

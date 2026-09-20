@@ -168,7 +168,12 @@ export default function PsmAccountPool() {
   // right default — an advertiser is on a plan or in a community, and that
   // is where their rate was agreed — where the account's own supplier fee is
   // just what WE pay, which is a different number about a different party.
-  const { data: advertiserPlan } = useQuery<{ topup_fee_pct: number } | null>({
+  // isError, not just data. `planFee === null` is what this holds for a
+  // customer with no plan AND for a read that failed -- and the two lead
+  // the admin to opposite prices. See the hint under the box.
+  const { data: advertiserPlan, isError: advertiserPlanError } = useQuery<{
+    topup_fee_pct: number;
+  } | null>({
     queryKey: ["advertiser-plan", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -998,11 +1003,21 @@ export default function PsmAccountPool() {
                 placeholder={planFee != null ? String(planFee) : "e.g. 2"}
               />
               <p className="feehint">
-                {planFee != null
-                  ? `Their plan rate: ${planFee}%`
-                  : assigning.fee_percentage == null
-                    ? "No plan rate — set one"
-                    : `Account default: ${assigning.fee_percentage}%`}
+                {/* ── A FAILED PLAN READ IS NOT "NO PLAN" ─────────────
+                    Both answers arrive here as planFee === null, and
+                    they point the admin in opposite directions. The
+                    fallback offered below is `fee_percentage`, which is
+                    WHAT WE PAY -- so a customer on a 5% plan whose plan
+                    read failed gets allocated at our own cost, and that
+                    account earns zero margin on every top-up it ever
+                    takes. Nothing on the screen would say why. */}
+                {advertiserPlanError
+                  ? "We couldn't read their plan rate — don't set a fee from this screen until it loads."
+                  : planFee != null
+                    ? `Their plan rate: ${planFee}%`
+                    : assigning.fee_percentage == null
+                      ? "No plan rate — set one"
+                      : `Account default: ${assigning.fee_percentage}%`}
               </p>
             </div>
             <div className="feefield out">
@@ -1065,12 +1080,18 @@ export default function PsmAccountPool() {
             disabled={
               assign.isPending ||
               !advertiserId ||
+              // ...and never while the plan rate is unknown BECAUSE THE
+              // READ FAILED. Allocating then prices the account from
+              // whatever is in the box against a rate nobody could see.
+              advertiserPlanError ||
               (feeInput.trim() === "" && planFee == null)
             }
             title={
-              feeInput.trim() === "" && planFee == null
-                ? "This customer has no plan rate, so type the fee to charge them on top-ups."
-                : undefined
+              advertiserPlanError
+                ? "Their plan rate didn't load. Reload before allocating — otherwise you'd be setting a price without knowing the one they agreed."
+                : feeInput.trim() === "" && planFee == null
+                  ? "This customer has no plan rate, so type the fee to charge them on top-ups."
+                  : undefined
             }
             onClick={() => assign.mutate()}
           >

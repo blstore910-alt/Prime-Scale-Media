@@ -87,11 +87,42 @@ async function resolveEffectiveFeePct(
   // raising it. One rule, in the one function that knows the account.
   let isPremium = false;
   if (adAccountId) {
-    const { data: acct } = await supabase
+    // ── AND THIS READ FAILS LOUDLY TOO ────────────────────────────────
+    //
+    // The plan and perk reads six lines down throw on a real failure,
+    // for the reason written there: "the alternative is charging
+    // somebody a fee they were promised they would not pay." This one
+    // discarded its error, and it is the read that matters MOST --
+    // accountPct wins over the plan and over the fallback, so losing it
+    // does not fall back to the account's rate, it falls THROUGH to the
+    // plan's.
+    //
+    // An account negotiated at 3% whose customer is on a 5% plan is
+    // charged 5% -- EUR 200 over-collected on a EUR 10,000 top-up, on
+    // every top-up of that account, for ever, with nothing on screen.
+    // And isPremium goes false with it, withholding the Meta-EU-Premium
+    // two points as well: another EUR 200 on the same transfer.
+    //
+    // maybeSingle() is the other half: it answers null with NO error for
+    // a row RLS refused or that is simply gone. An ad-account id we were
+    // handed and cannot read is not a reason to price the top-up from
+    // something else -- the quote path already refuses in that case
+    // (see quoteTopupFeePct), and now so does this.
+    const { data: acct, error: acctError } = await supabase
       .from("ad_accounts")
       .select("fee, platform")
       .eq("id", adAccountId)
       .maybeSingle();
+    if (acctError) {
+      throw new Error(
+        `the ad account's own fee could not be read (${safeErrorMessage(acctError)})`,
+      );
+    }
+    if (!acct) {
+      throw new Error(
+        "the ad account this top-up is for could not be read, so its fee is unknown",
+      );
+    }
     const row = acct as
       | { fee?: number | string | null; platform?: string | null }
       | null;

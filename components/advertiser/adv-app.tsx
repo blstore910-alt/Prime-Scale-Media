@@ -8,6 +8,7 @@ import { dmSans, jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
+import { pageAllRows } from "@/lib/page-all-rows";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -563,13 +564,32 @@ export default function AdvertiserApp() {
     enabled: !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("top_ups_view")
-        .select("account_id, topup_amount, status")
-        .eq("advertiser_id", advertiserId!)
-        .eq("status", "completed")
-        .limit(1000);
-      if (error) throw error;
+      // ── .limit(1000) IS THE CEILING, NOT A RAISE OF IT ──────────────
+      //
+      // PostgREST caps a response at 1,000 rows; asking for 1,000 asks
+      // for exactly the cap. Past that, "Funded to date" -- the
+      // customer's own lifetime figure on their own dashboard -- was
+      // silently short, with nothing saying so. Paged, like every other
+      // total in the app.
+      //
+      // And .not("is_deleted") like every other spend reader: a struck-
+      // out top-up is excluded from fundedUsd and from the financial
+      // report, and was counted here.
+      const paged = await pageAllRows<{
+        account_id: string | null;
+        topup_amount: number | string | null;
+      }>((from, to) =>
+        supabase
+          .from("top_ups_view")
+          .select("account_id, topup_amount, status")
+          .eq("advertiser_id", advertiserId!)
+          .eq("status", "completed")
+          .not("is_deleted", "is", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (paged.error) throw new Error(paged.error);
+      const data = paged.rows;
       const byAccount: Record<string, number> = {};
       for (const row of (data ?? []) as unknown as {
         account_id: string | null;
