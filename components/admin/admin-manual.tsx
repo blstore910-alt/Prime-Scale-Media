@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowUpRight,
   BookOpen,
@@ -5,33 +7,26 @@ import {
   Download,
   FileText,
   Gift,
-  type LucideIcon,
   RefreshCw,
   ShieldCheck,
   Upload,
   Users,
   Wallet,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useAppContext } from "@/context/app-provider";
+import {
+  buildManuals,
+  manualsFor,
+  type Audience,
+  type Section,
+} from "./manual-content";
 
 // In-app ADMIN HANDBOOK. Static, presentational how-to reference for the
 // day-to-day admin workflows, rendered inside the admin shell (.psmapp /
 // .psmview) so it uses the same PSM_APP_CSS tokens and classes as the real
 // queues. No data fetching, no mutations — the page-level requireAdmin()
 // guard is the only server work.
-
-type Tone = "ok" | "pend" | "due" | "info";
-
-type Note = { label: string; tone: Tone; text: string };
-
-type Section = {
-  id: string;
-  title: string;
-  icon: LucideIcon;
-  path: string; // where it lives in the sidebar
-  intro: string;
-  steps: string[];
-  notes?: Note[];
-};
 
 const SECTIONS: Section[] = [
   {
@@ -275,6 +270,28 @@ const MANUAL_CSS = `
 `;
 
 export default function AdminManual() {
+  const { isSuperAdmin } = useAppContext();
+
+  // ── FOUR HANDBOOKS, NOT ONE ────────────────────────────────────────
+  //
+  // There was only the admin's. When a customer asks why they were
+  // charged a fee on a top-up, whoever answers needs the page the
+  // customer is looking at -- not a reconstruction of it from the code.
+  //
+  // An employee admin gets the two customer-facing ones too, because
+  // answering that question is their job and neither contains anything
+  // the customer cannot already read. The super-admin handbook holds
+  // pricing, margin and bank routing, so it is owner-only.
+  const manuals = useMemo(
+    () => manualsFor(isSuperAdmin, buildManuals(SECTIONS)),
+    [isSuperAdmin],
+  );
+  const [audience, setAudience] = useState<Audience>("admin");
+  const active =
+    manuals.find((m) => m.key === audience) ?? manuals[0] ?? null;
+
+  if (!active) return null;
+
   return (
     <div
       className="psmview psm-manual"
@@ -284,10 +301,26 @@ export default function AdminManual() {
 
       <div className="phead">
         <div>
-          <h1>Admin handbook</h1>
-          <p>Where each control lives.</p>
+          <h1>{active.heading}</h1>
+          <p>{active.blurb}</p>
         </div>
       </div>
+
+      {manuals.length > 1 ? (
+        <div className="seg2 manaud" role="group" aria-label="Whose handbook">
+          {manuals.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              className={m.key === audience ? "on" : ""}
+              aria-pressed={m.key === audience}
+              onClick={() => setAudience(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {/* Intro + what to expect */}
       <div className="card">
@@ -297,14 +330,7 @@ export default function AdminManual() {
           </span>
           <h2>Before you start</h2>
         </div>
-        <p className="lead">
-          This handbook is the working reference for admins. Each section says
-          where the tool lives in the sidebar, what it does, and the exact steps
-          to run it. Reading data is always safe — but anything that moves money
-          or changes a customer record is logged, so work deliberately. Controls
-          in the Owner group are for the super-admin; the last section covers
-          when to hand something over.
-        </p>
+        <p className="lead">{active.lead}</p>
       </div>
 
       {/* Table of contents / anchor nav */}
@@ -313,7 +339,7 @@ export default function AdminManual() {
           <h2>Jump to a workflow</h2>
         </div>
         <nav className="toc" aria-label="Handbook sections">
-          {SECTIONS.map((s, i) => (
+          {active.sections.map((s, i) => (
             <a key={s.id} href={`#${s.id}`}>
               <span className="num">{i + 1}</span>
               {s.title}
@@ -323,7 +349,7 @@ export default function AdminManual() {
       </div>
 
       {/* Workflow sections */}
-      {SECTIONS.map((s, i) => {
+      {active.sections.map((s, i) => {
         const Icon = s.icon;
         return (
           <section key={s.id} id={s.id}>
@@ -367,7 +393,8 @@ export default function AdminManual() {
         );
       })}
 
-      {/* Golden rules */}
+      {/* Golden rules — written for admins, shown with their handbook. */}
+      {audience === "admin" ? (
       <div className="card">
         <div className="sec-h" style={{ marginBottom: 12 }}>
           <span className="pfi">
@@ -386,6 +413,7 @@ export default function AdminManual() {
           ))}
         </ul>
       </div>
+      ) : null}
     </div>
   );
 }

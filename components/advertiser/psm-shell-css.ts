@@ -131,6 +131,13 @@ export const PSM_APP_CSS = `
 .psmapp .rjchip.on,.rjchip.on{background:var(--primary-tint,#eaf0ff);
   border-color:var(--primary,#5B8DFF);color:var(--primary-600,#3a6fff)}
 .psmapp .rjchip:disabled,.rjchip:disabled{opacity:.5;cursor:default}
+
+/* Whose handbook you are reading. Four options, one row, equal
+   columns -- the same shape as the dashboard period bar, for the same
+   reason: a set of alternatives where exactly one is true. */
+.psmapp .seg2.manaud{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;
+  gap:2px;margin:0 0 4px}
+.psmapp .seg2.manaud button{padding:9px 6px;text-align:center}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
 .psmapp .tool.ava-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
 .psmapp .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
