@@ -109,7 +109,14 @@ export default function ChangeSubscriptionAmountDialog({
         subscription.id,
         nextAmount,
         currency,
-        undefined,
+        // ── THE VERSION, NOT `undefined` ──────────────────────────
+        //
+        // versionMatches(x, undefined) returns TRUE, so passing
+        // undefined here was not "no version available" -- it was
+        // switching the guard off. Repricing a subscription somebody
+        // else has just repriced is the one edit on this screen that
+        // must refuse rather than win.
+        subscription.updated_at ?? undefined,
         refund,
       );
       if (!res.ok) {

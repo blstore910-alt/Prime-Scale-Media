@@ -154,7 +154,13 @@ export default function PsmSubscriptions() {
           `${String(s2.currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€"}${Number(s2.amount ?? 0).toFixed(2)}`,
         ],
       ],
-      run: () => updateStatus(s2.id, nextStatus, words.done),
+      run: () =>
+        updateStatus(
+          s2.id,
+          nextStatus,
+          words.done,
+          (s2 as { updated_at?: string | null }).updated_at,
+        ),
     });
   };
 
@@ -162,9 +168,12 @@ export default function PsmSubscriptions() {
     subscriptionId: string,
     nextStatus: SubscriptionStatus,
     successMessage: string,
+    // The row's updated_at as this screen last read it. Pausing a
+    // subscription somebody else just repriced should refuse, not win.
+    ifUpdatedAt?: string | null,
   ) => {
     updateSubscriptionStatus(
-      { subscriptionId, status: nextStatus },
+      { subscriptionId, status: nextStatus, ifUpdatedAt },
       {
         onSuccess: () => toast.success(successMessage),
         onError: (updateError) =>

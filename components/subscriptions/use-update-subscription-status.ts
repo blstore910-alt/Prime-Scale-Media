@@ -4,9 +4,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { SubscriptionStatus } from "./types";
 
+// ── AND THE VERSION IT WAS READ AT ───────────────────────────────
+//
+// versionMatches(x, undefined) returns TRUE, so an action that accepts
+// ifUpdatedAt and is called without one is not guarded at all -- it is
+// a blind overwrite wearing the shape of a concurrency check. Two
+// admins on the same row, last press wins, nothing said.
 type UpdateSubscriptionStatusInput = {
   subscriptionId: string;
   status: SubscriptionStatus;
+  ifUpdatedAt?: string | null;
 };
 
 export default function useUpdateSubscriptionStatus() {
@@ -18,8 +25,12 @@ export default function useUpdateSubscriptionStatus() {
 
   const mutation = useMutation<unknown, Error, UpdateSubscriptionStatusInput>({
     mutationKey: ["update-subscription-status", profile?.tenant_id],
-    mutationFn: async ({ subscriptionId, status }) => {
-      const result = await setSubscriptionStatus(subscriptionId, status);
+    mutationFn: async ({ subscriptionId, status, ifUpdatedAt }) => {
+      const result = await setSubscriptionStatus(
+        subscriptionId,
+        status,
+        ifUpdatedAt ?? undefined,
+      );
       if (!result.ok) throw new Error(result.error);
       return null;
     },

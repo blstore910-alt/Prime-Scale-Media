@@ -1300,6 +1300,36 @@ export async function verifyAdTopup(
       .select("advertiser_id")
       .eq("id", topupId)
       .maybeSingle();
+
+    // ── ONCE, NOT TWICE ───────────────────────────────────────────
+    //
+    // The live database carries `trg_notify_topup_completed` on
+    // `top_ups` — a hand-authored trigger that is in no migration in
+    // this repo, so nothing here could have known about it. It writes
+    // a `topup_completed` row of its own, and this block was added
+    // later on top of it: the customer got the same "your top-up is
+    // complete" twice, from one press.
+    //
+    // Rather than drop a trigger whose body I have not read, this side
+    // looks first. If the trigger already spoke, we stay quiet; if the
+    // trigger is ever removed, this keeps working.
+    const { data: already } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("type", "topup_completed")
+      .contains("payload", { topup_id: topupId })
+      .limit(1);
+    if ((already ?? []).length > 0) {
+      return {
+        ok: true,
+        data,
+        warning:
+          !push.enqueued && !push.heldByGate
+            ? `Verified, but the supplier was NOT told: ${push.reason}. Fund the account by hand.`
+            : undefined,
+      };
+    }
+
     await notifyAdvertiser(supabase, {
       advertiserId: (who as { advertiser_id?: string | null } | null)
         ?.advertiser_id,

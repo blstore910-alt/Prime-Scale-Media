@@ -122,14 +122,26 @@ export default function InvoicesTable() {
 
   const { mutate: updateInvoiceStatus } = useMutation({
     mutationKey: ["update-invoice-status", profile?.tenant_id],
+// ── AND THE VERSION IT WAS READ AT ───────────────────────────────
+//
+// versionMatches(x, undefined) returns TRUE, so an action that accepts
+// ifUpdatedAt and is called without one is not guarded at all -- it is
+// a blind overwrite wearing the shape of a concurrency check. Two
+// admins on the same row, last press wins, nothing said.
     mutationFn: async ({
       invoiceId,
       status,
+      ifUpdatedAt,
     }: {
       invoiceId: string;
       status: "paid" | "unpaid";
+      ifUpdatedAt?: string | null;
     }) => {
-      const result = await setInvoicePaidStatus(invoiceId, status);
+      const result = await setInvoicePaidStatus(
+        invoiceId,
+        status,
+        ifUpdatedAt ?? undefined,
+      );
       if (!result.ok) throw new Error(result.error);
     },
     onSuccess: async () => {
@@ -196,7 +208,11 @@ export default function InvoicesTable() {
     setUpdatingInvoiceId(invoice.id);
 
     updateInvoiceStatus(
-      { invoiceId: invoice.id, status: nextStatus },
+      {
+        invoiceId: invoice.id,
+        status: nextStatus,
+        ifUpdatedAt: invoice.updated_at ?? undefined,
+      },
       {
         onSuccess: () => {
           toast.success(

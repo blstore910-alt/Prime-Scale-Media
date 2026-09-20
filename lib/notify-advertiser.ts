@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 // ─────────────────────────────────────────────────────────────────────
 // Tell the customer what we just did with their money
@@ -59,14 +60,40 @@ export async function notifyAdvertiser(
     // policy matches on recipient_user_id and the push route skips it.
     if (!userId) return;
 
-    await supabase.from("notifications").insert({
+    // ── THE SERVICE ROLE WRITES IT, AND A FAILURE IS SAID OUT LOUD ──
+    //
+    // This inserted through whatever client the caller handed in --
+    // which on the admin paths is the ADMIN's own session. A
+    // notification addressed to a CUSTOMER is not the admin's row to
+    // insert, and whether RLS lets them is a policy detail nobody was
+    // checking: the catch below swallowed the answer.
+    //
+    // It cost a real one. On 20 Sep a EUR 300 wallet top-up was
+    // verified, the money was credited, the customer was told nothing,
+    // and there was no way to see why from outside the database --
+    // the row simply was not there. The insert now runs as the service
+    // role, like every SQL writer of this table already does, and a
+    // failure is logged with safeErrorMessage instead of vanishing.
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const admin = await createAdminClient();
+    const { error } = await admin.from("notifications").insert({
       recipient_user_id: userId,
       tenant_id: args.tenantId ?? null,
       type: args.type,
       payload: args.payload,
       is_read: false,
     });
-  } catch {
-    // Deliberately silent. See the header.
+    if (error) {
+      console.error(
+        `notifyAdvertiser(${args.type}) could not write the row:`,
+        safeErrorMessage(error),
+      );
+    }
+  } catch (err) {
+    // Still never throws -- the money has already moved. But it says so.
+    console.error(
+      `notifyAdvertiser(${args.type}) threw:`,
+      safeErrorMessage(err),
+    );
   }
 }
