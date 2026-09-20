@@ -22,6 +22,7 @@ import SelectField from "../form/select-field";
 import useExchangeRates from "../settings/finance/use-exchange-rates";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
+import { sameSlug } from "@/lib/pure-slug-key";
 
 type FormValues = {
   type: string;
@@ -43,7 +44,9 @@ export const createTopup = async (
   void _author;
   void _tenant_id;
   const feeApplicableTypes = ["top-up", "first-top-up"];
-  const isEuMetaPremium = account?.platform === "eu-meta-premium";
+  // sameSlug: the settings screen and the seed spell this type two
+  // different ways. See lib/pure-slug-key.
+  const isEuMetaPremium = sameSlug(account?.platform, "eu-meta-premium");
   const feePercent = fee / 100;
   // The PREVIEW only. The server recomputes all of this from the
   // advertiser's plan, their perks and the account's platform — including

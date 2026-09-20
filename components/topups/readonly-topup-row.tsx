@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge";
 import { CheckCircle2, MinusCircle } from "lucide-react";
 import { Topup } from "@/lib/types/topup";
 import { cn } from "@/lib/utils";
+import { sameSlug } from "@/lib/pure-slug-key";
 
 export default function ReadonlyTopupRow({
   topup,
@@ -52,7 +53,8 @@ export default function ReadonlyTopupRow({
         )}
       </TableCell>
       <TableCell data-label="EU values:">
-        {topup.platform === "eu-meta-premium" ? (
+        {/* sameSlug: two spellings, one type. lib/pure-slug-key. */}
+        {sameSlug(topup.platform, "eu-meta-premium") ? (
           <span className="font-bold">
             {formatCurrency(Number(topup.eur_value), "EUR")}
             <br />

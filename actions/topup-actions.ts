@@ -19,6 +19,7 @@ import { isAccountLocked } from "@/lib/pure-account-status";
 import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
+import { sameSlug } from "@/lib/pure-slug-key";
 
 // Ad-account top-up types that carry a fee (mirrors the topup form).
 const FEE_APPLICABLE_TYPES = ["top-up", "first-top-up"];
@@ -97,7 +98,12 @@ async function resolveEffectiveFeePct(
     const raw = row?.fee;
     const n = raw === null || raw === undefined ? NaN : Number(raw);
     if (Number.isFinite(n) && n > 0) accountPct = n;
-    isPremium = row?.platform === "eu-meta-premium";
+    // sameSlug, not ===. A type created through the settings screen
+    // is slugified from its LABEL, so "Meta-EU-Premium" is stored as
+    // `meta-eu-premium` and an exact compare withheld the 2-point
+    // discount for ever -- EUR 200 over-collected on a EUR 10,000
+    // top-up, silently. See lib/pure-slug-key.
+    isPremium = sameSlug(row?.platform, "eu-meta-premium");
   }
 
   const { data: plan, error: planError } = await supabase
