@@ -61,6 +61,8 @@ const usd = (n: number) => money2("$", n);
 /** Whole units, for the hero headline only — never for a payable. */
 const eurWhole = (n: number) =>
   "€" + Math.round(Number(n) || 0).toLocaleString("en-US");
+const usdWhole = (n: number) =>
+  "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
 
 function initials(name?: string | null) {
   if (!name) return "PS";
@@ -582,11 +584,28 @@ export default function AffiliateApp() {
                   </>
                 ) : (
                   <>
+                    {/* ── BOTH LEGS, OR THE HEADLINE IS A LIE ───────
+                        This printed the EUR half under the eyebrow
+                        "Your total earnings" while the tier badge two
+                        inches above it is computed from EUR **plus**
+                        converted USD. An affiliate paid entirely in
+                        dollars read "Your total earnings €0" beside
+                        "Scaler" in their own toolbar, with the stat
+                        tile directly below showing €0.00 · $1,400.00.
+                        One card grid, three answers to one question.
+
+                        Whole units stay — this is the headline, not a
+                        figure anyone acts on — and the dollar leg is
+                        printed beside it when there is one. */}
                     <h1 className="jackpot" onClick={() => go("pay")}>
                       <span className="cur">€</span>
-                      {/* Whole units here and only here: this is the
-                          lifetime headline, not a figure anyone acts on. */}
                       {eurWhole(lifetimeEur).replace("€", "")}
+                      {lifetimeUsd > 0 ? (
+                        <span className="jackpot-usd">
+                          {" · $"}
+                          {usdWhole(lifetimeUsd).replace("$", "")}
+                        </span>
+                      ) : null}
                     </h1>
                     <div className="hero-tiles">
                       <div className="ht" onClick={() => go("refs")}>
@@ -600,8 +619,21 @@ export default function AffiliateApp() {
                         <div className="l">Active now</div>
                       </div>
                     </div>
+                    {/* The one month figure with no guard: it sits in
+                        the !statsUnavailable branch, so it rendered
+                        whenever the ALL-TIME query succeeded. If the
+                        month query alone failed or was in flight, this
+                        said "+€0.00 this month" in green while the
+                        toolbar forty pixels above said "—". Every other
+                        month figure on the screen checks
+                        monthUnavailable; this call site was missed. */}
                     <span className="rise-pill" onClick={() => go("pay")}>
-                      <Ic name="i-trend" /> +{eur(monthEur)} this month
+                      <Ic name="i-trend" />{" "}
+                      {monthUnavailable
+                        ? "this month — not loaded"
+                        : `+${eur(monthEur)}${
+                            monthUsd > 0 ? ` · +${usd(monthUsd)}` : ""
+                          } this month`}
                     </span>
                   </>
                 )}

@@ -98,6 +98,10 @@ export const AFF_CSS = `
   .jackpot{position:relative;display:inline-block;font-family:var(--font-sora);font-weight:800;letter-spacing:-.035em;line-height:.9;font-size:clamp(2.4rem,11vw,7rem);max-width:100%;
     background:linear-gradient(100deg,#e0980f 0%,#ffdf85 28%,#fff7de 42%,#ffdf85 56%,#e0980f 82%);background-size:230% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
     text-shadow:0 0 48px rgba(255,198,64,.42);filter:drop-shadow(0 10px 22px rgba(255,170,40,.32));margin:0;animation:shine 3.8s ease-in-out infinite}
+  /* The dollar leg beside the headline. Smaller, or a $ figure
+     next to a 7rem number reads as part of it. em, so it
+     follows the clamp above rather than fighting it. */
+  .jackpot-usd{font-size:.34em;font-weight:800;letter-spacing:-.01em;opacity:.85}
   @keyframes shine{0%{background-position:185% 0}55%,100%{background-position:-45% 0}}
   .jackpot .cur{font-size:.52em;vertical-align:.12em;margin-right:.04em;-webkit-text-fill-color:#ffcf6a;color:#ffcf6a}
   .hero-sub{color:rgba(255,255,255,.74);margin:14px auto 0;font-size:1.02rem;max-width:30ch}.hero-sub b{color:#fff}
