@@ -113,6 +113,24 @@ export const PSM_APP_CSS = `
 .psmapp .copytext.done .ct-v{border-bottom-color:var(--win);color:var(--win)}
 .psmapp .copytext.failed .ct-f{opacity:1;color:var(--danger)}
 .psmapp .copytext.failed .ct-v{border-bottom-color:var(--danger)}
+
+/* ── STARTING SENTENCES FOR A REFUSAL ──────────────────────────────
+   Chips, not a dropdown: a dropdown hides its options behind a click,
+   and the point is that the admin sees at a glance that there IS a
+   right sentence for this case. They wrap, because the number of
+   cases differs per screen and a horizontal scroller hides exactly
+   the option you wanted. These render inside dialogs, which portal
+   outside .psmapp, so the rules are duplicated unscoped below. */
+.psmapp .rjchips,.rjchips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px}
+.psmapp .rjchip,.rjchip{padding:5px 10px;border-radius:99px;cursor:pointer;
+  font-size:.74rem;font-weight:700;line-height:1.2;
+  border:1px solid var(--line-2,#e3e7f2);background:var(--panel-2,#f4f6fc);
+  color:var(--txt-2,#5b647d);transition:.12s}
+.psmapp .rjchip:hover,.rjchip:hover{border-color:var(--primary,#5B8DFF);
+  color:var(--primary-600,#3a6fff)}
+.psmapp .rjchip.on,.rjchip.on{background:var(--primary-tint,#eaf0ff);
+  border-color:var(--primary,#5B8DFF);color:var(--primary-600,#3a6fff)}
+.psmapp .rjchip:disabled,.rjchip:disabled{opacity:.5;cursor:default}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
 .psmapp .tool.ava-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
 .psmapp .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}

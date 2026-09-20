@@ -9,9 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useMemo, useState } from "react";
+import { RejectReasonField } from "@/components/ui/reject-reason-field";
 
 export default function WalletTransactionRejectDialog({
   open,
@@ -52,20 +51,12 @@ export default function WalletTransactionRejectDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="grid gap-2">
-            <Label htmlFor="rejection-reason">Rejection reason</Label>
-            <Textarea
-              id="rejection-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Why is this being rejected?"
-              rows={4}
-            />
-            <p className="text-xs text-muted-foreground">
-              e.g. &ldquo;the bank shows €4.50, not €5.00 — please send it
-              again for the full amount&rdquo;.
-            </p>
-          </div>
+          <RejectReasonField
+            context="wallet_topup"
+            value={reason}
+            onChange={setReason}
+            disabled={isSubmitting}
+          />
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button

@@ -8,13 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { RejectReasonField } from "@/components/ui/reject-reason-field";
 
 export default function RejectTopupDialog({
   open,
@@ -87,15 +87,12 @@ export default function RejectTopupDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Textarea
-            placeholder="Add rejection reason..."
+          <RejectReasonField
+            context="account_topup"
             value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            rows={4}
+            onChange={setReason}
+            disabled={isPending}
           />
-          <p className="text-xs text-muted-foreground">
-            This reason will be saved with the topup record.
-          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

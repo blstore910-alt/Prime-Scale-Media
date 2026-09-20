@@ -8,9 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useMemo, useState } from "react";
+import { RejectReasonField } from "@/components/ui/reject-reason-field";
 
 export default function AdAccountRequestRejectDialog({
   open,
@@ -42,19 +41,15 @@ export default function AdAccountRequestRejectDialog({
           <DialogTitle>Reject Request</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="grid gap-2">
-            <Label htmlFor="rejection-reason">Rejection reason</Label>
-            <Textarea
-              id="rejection-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Why is this being rejected?"
-              rows={4}
-            />
-            <p className="text-xs text-muted-foreground">
-              This will be visible in the request details.
-            </p>
-          </div>
+          {/* The reason is printed on the customer's screen. The
+              starting sentences are in lib/pure-reject-reasons, where a
+              test refuses any wording that names a supplier. */}
+          <RejectReasonField
+            context="account_request"
+            value={reason}
+            onChange={setReason}
+            disabled={isSubmitting}
+          />
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button
