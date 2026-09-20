@@ -821,9 +821,31 @@ Statement tried: ${p.attempts.join(" | ")}`
   // Archived rows are out of the way, not gone. The toggle brings them
   // back with every field intact.
   const [showArchived, setShowArchived] = useState(false);
+  // ── WHY IT WAS PUT ASIDE ──────────────────────────────────────────
+  //
+  // Archiving wrote one column and nothing else: no reason, no actor.
+  // The three honest answers are different facts -- "this is not our
+  // money", "we returned it to the sender", "the customer paid twice"
+  // -- and with none of them recorded, a deposit put aside is
+  // indistinguishable from one nobody got to. On a desk holding
+  // hundreds of unmatched rows that is the whole difference.
+  const ARCHIVE_REASONS = [
+    "Not our money — nothing to do with PSM",
+    "Returned to the sender",
+    "Duplicate of a payment already credited",
+    "A test payment",
+    "Too old to chase",
+  ];
+  const [archiving, setArchiving] = useState<string | null>(null);
+  const [archiveReason, setArchiveReason] = useState(ARCHIVE_REASONS[0]);
+
   const archive = useMutation({
-    mutationFn: async (v: { id: string; archived: boolean }) => {
-      const res = await setWiseDepositArchived(v.id, v.archived);
+    mutationFn: async (v: {
+      id: string;
+      archived: boolean;
+      reason?: string;
+    }) => {
+      const res = await setWiseDepositArchived(v.id, v.archived, v.reason);
       if (!res.ok) throw new Error(res.error);
       return v;
     },
@@ -1324,9 +1346,16 @@ Statement tried: ${p.attempts.join(" | ")}`
                   <button
                     className="btn ghost"
                     disabled={archive.isPending}
-                    onClick={() =>
-                      archive.mutate({ id: r.id, archived: !r.archived_at })
-                    }
+                    onClick={() => {
+                      // Putting one back needs no explanation; putting
+                      // one aside does.
+                      if (r.archived_at) {
+                        archive.mutate({ id: r.id, archived: false });
+                        return;
+                      }
+                      setArchiveReason(ARCHIVE_REASONS[0]);
+                      setArchiving(r.id);
+                    }}
                     title={
                       r.archived_at
                         ? "Put it back in the queue"
@@ -1458,6 +1487,48 @@ Statement tried: ${p.attempts.join(" | ")}`
           Show fewer
         </button>
       ) : null}
+
+      <ConfirmModal
+        open={!!archiving}
+        onOpenChange={(next) => {
+          if (!next && !archive.isPending) setArchiving(null);
+        }}
+        title="Put this deposit aside?"
+        lead="It leaves the queue and stops being re-checked automatically. Nothing is deleted and you can put it back at any time — but say why, or in a month nobody will know whether it was dealt with or just ignored."
+        cta="Yes, put it aside"
+        busy={archive.isPending}
+        busyLabel="Moving…"
+        onConfirm={() => {
+          if (!archiving) return;
+          archive.mutate({
+            id: archiving,
+            archived: true,
+            reason: archiveReason,
+          });
+          setArchiving(null);
+        }}
+      >
+        <div className="grid gap-2" style={{ marginTop: 6 }}>
+          <label
+            htmlFor="wise-archive-reason"
+            style={{ fontSize: ".8rem", fontWeight: 700 }}
+          >
+            Why?
+          </label>
+          <select
+            id="wise-archive-reason"
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={archiveReason}
+            onChange={(e) => setArchiveReason(e.target.value)}
+          >
+            {ARCHIVE_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }

@@ -626,6 +626,7 @@ export async function rematchWiseDeposits(): Promise<
 export async function setWiseDepositArchived(
   transferId: string,
   archived: boolean,
+  reason?: string,
 ): Promise<ActionResult> {
   const auth = await resolveAdminContext();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -649,10 +650,31 @@ export async function setWiseDepositArchived(
     return { ok: false, error: "Forbidden" };
   }
 
+  // ── AND WHY, AND BY WHOM ──────────────────────────────────────────
+  //
+  // Archiving wrote exactly one column: no reason, no actor, nothing
+  // saying whether this was "not our money", "returned to sender" or
+  // "the customer paid twice". And because the write goes through the
+  // service client, _audit_row_change records auth.uid() as NULL --
+  // so the audit log cannot say who put a deposit aside either.
+  //
+  // The note column is already there and already rendered on the card.
+  // It costs nothing to say what happened, and a deposit put aside
+  // with no explanation is indistinguishable from one nobody got to.
+  const stamp = new Date().toISOString().slice(0, 10);
+  const who = profile.email ?? profile.full_name ?? "an admin";
+  const why = typeof reason === "string" ? reason.trim().slice(0, 300) : "";
+  const note = archived
+    ? `[${stamp}] Put aside by ${who}${why ? `: ${why}` : " (no reason given)"}`
+    : `[${stamp}] Put back in the queue by ${who}`;
+
   const admin = await createAdminClient();
   const { data: rows, error } = await admin
     .from("wise_incoming_transfers")
-    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .update({
+      archived_at: archived ? new Date().toISOString() : null,
+      note,
+    })
     .eq("id", transferId)
     .select("id");
   if (error) return { ok: false, error: safeErrorMessage(error) };
