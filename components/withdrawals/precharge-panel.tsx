@@ -490,7 +490,14 @@ function PrechargeCreateDialog({
   }
   if (!open && primedFor) setPrimedFor(false);
 
-  const { data: advertisers } = useQuery({
+  // ── AN EMPTY DROPDOWN IS NOT "NO CUSTOMERS" ──────────────────────
+  //
+  // isError was not destructured, so a refused read gave an empty list
+  // and a permanently disabled button with no explanation -- on the
+  // control that moves money back to a customer. And .limit(200) is a
+  // silent cap: customer 201 simply could not be chosen, with nothing
+  // saying why.
+  const { data: advertisers, isError: advertisersError } = useQuery({
     queryKey: ["precharge-advertisers", tenantId],
     enabled: !!tenantId && open,
     queryFn: async () => {
@@ -501,7 +508,8 @@ function PrechargeCreateDialog({
           "id, tenant_client_code, profile:user_profiles(full_name, email)",
         )
         .eq("tenant_id", tenantId)
-        .limit(200);
+        .order("tenant_client_code", { ascending: true })
+        .limit(2000);
       if (error) throw error;
       return (data ?? []) as unknown as AdvertiserOption[];
     },
@@ -619,9 +627,23 @@ function PrechargeCreateDialog({
           ) : null}
           <div className="space-y-2">
             <Label>Advertiser</Label>
+            {/* Say it, rather than showing an empty list that reads as
+                "there are no customers". */}
+            {advertisersError ? (
+              <p className="text-sm text-destructive" role="alert">
+                We couldn&apos;t load your customers, so none can be picked
+                here. Reload and try again.
+              </p>
+            ) : null}
             <Select value={advertiserId} onValueChange={setAdvertiserId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select advertiser" />
+                <SelectValue
+                  placeholder={
+                    advertisersError
+                      ? "Couldn't load customers"
+                      : "Select advertiser"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {(advertisers ?? []).map((a) => (
