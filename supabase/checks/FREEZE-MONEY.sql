@@ -61,7 +61,32 @@ declare
     'wallet_precharge_settle',
     'wallet_precharge_cancel',
     'wallet_refund_request',
-    'wallet_adjustment_request'
+    'wallet_adjustment_request',
+    -- ── THREE THAT WERE MISSING, AND ALL THREE MOVE MONEY ───────────
+    --
+    -- The documented emergency procedure is "set MAINTENANCE_MODE, then
+    -- run this". maintenanceGuard is pure TypeScript reading an env var
+    -- -- it has no database side at all -- so every RPC the browser
+    -- calls straight through PostgREST keeps working, and this list was
+    -- the only thing that actually froze them. These three were not on
+    -- it:
+    --
+    --   wise_confirm_suggestion    completes a top-up, which fires the
+    --                              balance trigger and credits a wallet
+    --   change_subscription_amount writes wallets.eur_balance /
+    --                              usd_balance directly
+    --   ad_account_request_create_paid  debits EUR 50 from the wallet
+    --
+    -- So a freeze declared during an incident left three wallet-moving
+    -- doors open, on the one procedure that exists for exactly that.
+    'wise_confirm_suggestion',
+    'change_subscription_amount',
+    'ad_account_request_create_paid',
+    -- ...and the engine itself. If it is executable by `authenticated`
+    -- -- which one check script says it was found to be -- then a
+    -- freeze that leaves it open lets anybody run the billing run.
+    'subscription_billing_run',
+    'process_recurring_subscriptions'
   ];
   r     record;
   v_n   int := 0;

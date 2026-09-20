@@ -11,7 +11,7 @@
 -- NEW helper, `_psm_admin_of`, for the user_profiles UPDATE policy --
 -- renamed only because create-or-replace cannot rename a parameter --
 -- and copied the OLD, unchecked body into it. The hardening was never
--- carried across, and that file's header says APPLIED ON LIVE
+-- carried across, and that file header says APPLIED ON LIVE
 -- 2026-09-17.
 --
 -- So: the owner dismisses an employee admin on /admins. Their Supabase
@@ -19,7 +19,7 @@
 --
 --     supabase.from('user_profiles')
 --       .update({ is_active: false, status: 'inactive' })
---       .eq('id', '<the owner's profile id>')
+--       .eq(id, THE OWNERS PROFILE ID)
 --
 -- user_profiles_update passes, because _psm_admin_of only asks "role =
 -- admin, same tenant". _guard_user_profile_role fires only on a `role`
@@ -184,7 +184,7 @@ select 6, 'deactivated admins who still hold a live session risk',
 union all
 -- What user_profiles.status actually holds, which no file in the repo
 -- can answer -- there is no `create table user_profiles` in it. The
--- app's lockout names four values; anything else here means a customer
+-- app lockout names four values; anything else here means a customer
 -- is treated as active by the app and as deactivated by /inactive.
 select 7, 'user_profiles.status values in use',
   coalesce((
