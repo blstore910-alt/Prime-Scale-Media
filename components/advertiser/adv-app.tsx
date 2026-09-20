@@ -1686,11 +1686,33 @@ export default function AdvertiserApp() {
     setPayingId(id);
     try {
       const supabase = createClient();
-      const { error } = await supabase.rpc("invoice_pay_from_wallet", {
+      const { data, error } = await supabase.rpc("invoice_pay_from_wallet", {
         p_invoice_id: id,
       });
       if (error) throw error;
-      toast.success("Invoice paid from your wallet.");
+      // ── "PAID" ONLY IF SOMETHING MOVED ─────────────────────────────
+      //
+      // The RPC is idempotent: it takes `for update`, and if the
+      // invoice is already paid it returns the row having moved
+      // nothing. This discarded `data` and said "Invoice paid from
+      // your wallet" either way -- so pressing Pay on an invoice the
+      // nightly run had already collected an hour earlier told the
+      // customer their wallet had just been debited again.
+      const row = (Array.isArray(data) ? data[0] : data) as
+        | { status?: string | null; paid_at?: string | null }
+        | null
+        | undefined;
+      const alreadyPaid =
+        !!row?.paid_at &&
+        Date.now() - new Date(row.paid_at).getTime() > 60_000;
+      if (alreadyPaid) {
+        toast.info("That invoice was already settled", {
+          description:
+            "Nothing was taken from your wallet just now — it had already been paid.",
+        });
+      } else {
+        toast.success("Invoice paid from your wallet.");
+      }
       queryClient.invalidateQueries({ queryKey: ["adv-invoices"], exact: false });
       // The due-invoice read is its own query now, so it needs its own
       // line here — paying an invoice that does not disappear from the
@@ -2604,8 +2626,16 @@ export default function AdvertiserApp() {
                   </p>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>
-                    No ad accounts yet. Ask for your first one whenever
-                  you&apos;re ready.
+                    {/* This invited an action the app refuses. It never
+                        consulted canRequestAccount, so a customer who
+                        cannot request one -- no company, or an invoice
+                        not yet raised -- was told to ask whenever they
+                        were ready, and found the button dead one tab
+                        away. The Accounts tab's own empty state already
+                        gets this right; the dashboard did not. */}
+                    {requestBlockedReason()
+                      ? `No ad accounts yet. ${requestBlockedReason()}.`
+                      : "No ad accounts yet. Ask for your first one whenever you're ready."}
                   </p>
                 )}
               </div>

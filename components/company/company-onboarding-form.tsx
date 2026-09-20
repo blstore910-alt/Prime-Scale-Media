@@ -266,8 +266,17 @@ export default function CompanyOnboardingForm({
         <CardHeader>
           <CardTitle>Complete Your Company Profile</CardTitle>
           <CardDescription>
-            We need your company details and VAT number to issue your invoices.
-            Please complete them to access the platform.
+            {/* NOT "to access the platform". The (app) layout computes
+                that completeness rule and then deliberately DISCARDS it
+                -- browsing is allowed. What is actually gated is being
+                invoiced, topping up and requesting an ad account. This
+                page's only other control is Log out, so telling
+                somebody who wanted a look round that they must finish
+                twelve fields or sign out is both untrue and a dead
+                end. */}
+            We need these to put your company on your invoices. You can look
+            round without them — but topping up, requesting an ad account and
+            being invoiced all wait until they are filled in.
           </CardDescription>
         </CardHeader>
         <CardContent>
