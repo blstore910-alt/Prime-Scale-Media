@@ -26,6 +26,9 @@ import { toast } from "sonner";
 import CreateInvoiceDialog from "./create-invoice-dialog";
 import useInvoices from "./use-invoices";
 import PsmSortFilter from "@/components/psm/sort-filter";
+import { voidInvoiceAsAdmin } from "@/actions/invoice-actions";
+import { Textarea } from "@/components/ui/textarea";
+import { Ban } from "lucide-react";
 
 const formatInvoiceType = (type: string | null) => {
   if (!type) return "—";
@@ -133,6 +136,39 @@ export default function InvoicesTable() {
         queryKey: ["invoices", profile?.tenant_id],
       });
     },
+  });
+
+  // ── CANCELLING ONE THAT SHOULD NEVER HAVE BEEN ISSUED ────────────
+  //
+  // A subscription change always works in our favour, so lowering a
+  // price pays nothing back and an invoice already issued stands at the
+  // old amount. Right for a renegotiation, wrong for a typo: 2000
+  // instead of 200 is also a lowering, so the customer is left owing
+  // 2000 and the billing run takes it out of their wallet on the due
+  // date. Nothing in the app could stop that -- "Mark unpaid" is
+  // refused for a paid invoice and does nothing for an open one, so the
+  // only way out was hand-written SQL.
+  const [confirmVoid, setConfirmVoid] =
+    useState<InvoiceWithRelations | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+
+  const { mutate: voidInvoice } = useMutation({
+    mutationKey: ["void-invoice", profile?.tenant_id],
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const result = await voidInvoiceAsAdmin(id, reason);
+      if (!result.ok) throw new Error(result.error);
+    },
+    onSuccess: async () => {
+      toast.success("Invoice cancelled");
+      setConfirmVoid(null);
+      setVoidReason("");
+      await queryClient.invalidateQueries({
+        queryKey: ["invoices", profile?.tenant_id],
+      });
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't cancel it", { description: e.message }),
+    onSettled: () => setUpdatingInvoiceId(null),
   });
 
   // Marking an invoice paid is a statement about money that did or did not
@@ -407,6 +443,24 @@ export default function InvoicesTable() {
                                     then finding it again — on the screen an
                                     admin opens precisely to check a figure
                                     somebody has just asked about. */}
+                                {/* Only where it can succeed: never on a
+                                    paid invoice (the money has moved --
+                                    that is a refund or a credit note) and
+                                    never on one already cancelled. */}
+                                {isAdmin && !isVoid && !isPaid && (
+                                  <button
+                                    className="btn ghost sm danger soft"
+                                    disabled={isUpdatingStatus}
+                                    onClick={() => {
+                                      setVoidReason("");
+                                      setConfirmVoid(invoice);
+                                    }}
+                                    title="Cancel this invoice"
+                                  >
+                                    <Ban />
+                                    <span className="alab">Cancel</span>
+                                  </button>
+                                )}
                                 <InvoiceDocButtons
                                   invoiceId={invoice.id}
                                   fileLabel={invoiceNumber(invoice)}
@@ -475,6 +529,60 @@ export default function InvoicesTable() {
           }
           strong
         />
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={!!confirmVoid}
+        onOpenChange={(next) => {
+          if (!next && !updatingInvoiceId) {
+            setConfirmVoid(null);
+            setVoidReason("");
+          }
+        }}
+        title="Cancel this invoice?"
+        lead="It stops being owed: the customer can no longer pay it and the daily collection will not take it from their wallet. Nothing is deleted — it stays on the record as cancelled, with your reason. If it covered a subscription period, that period can be invoiced again."
+        cta="Yes, cancel it"
+        tone="danger"
+        busy={!!updatingInvoiceId}
+        busyLabel="Cancelling…"
+        disabled={voidReason.trim().length < 3}
+        onConfirm={() => {
+          if (!confirmVoid || voidReason.trim().length < 3) return;
+          setUpdatingInvoiceId(confirmVoid.id);
+          voidInvoice({ id: confirmVoid.id, reason: voidReason.trim() });
+        }}
+      >
+        <ConfirmFact
+          label="Invoice"
+          value={confirmVoid ? invoiceNumber(confirmVoid) : ""}
+        />
+        <ConfirmFact
+          label="Customer"
+          value={confirmVoid?.advertiser?.tenant_client_code ?? "—"}
+        />
+        <ConfirmFact
+          label="Amount"
+          value={
+            confirmVoid
+              ? `${CURRENCY_SYMBOLS[((confirmVoid.currency ?? confirmVoid.items?.[0]?.currency ?? "EUR") as string).toUpperCase() as keyof typeof CURRENCY_SYMBOLS] ?? "€"}${formatAmount(confirmVoid.total)}`
+              : ""
+          }
+          strong
+        />
+        {/* Required, and kept. A cancelled invoice with no explanation
+            is indistinguishable from a mistake six months later. */}
+        <div className="grid gap-2" style={{ marginTop: 10 }}>
+          <label htmlFor="void-reason" style={{ fontSize: ".8rem", fontWeight: 700 }}>
+            Why is it being cancelled?
+          </label>
+          <Textarea
+            id="void-reason"
+            rows={3}
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            placeholder="e.g. issued at 2000 instead of 200 — reissued correctly"
+          />
+        </div>
       </ConfirmModal>
     </div>
   );

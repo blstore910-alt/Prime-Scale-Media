@@ -215,3 +215,96 @@ export async function setInvoicePaidStatus(
 
   return { ok: true, data: null };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// invoice: cancel one that should never have been issued
+// ─────────────────────────────────────────────────────────────────────
+// This exists because of the rule above it in the business: a change to
+// a subscription always works in our favour, so LOWERING a price pays
+// nothing back and leaves an invoice already issued standing at the old
+// amount.
+//
+// That is right for a renegotiation and wrong for a typo. Type 2000
+// instead of 200 and the correction is also a lowering -- so the
+// customer is left owing 2000, the daily billing run will take it out
+// of their wallet on its due date, and until now there was NO control
+// anywhere in the app that could stop it. "Mark unpaid" is refused for
+// paid invoices and does nothing for open ones. The only way out was
+// hand-written SQL.
+//
+// Deliberately narrow:
+//   * a PAID invoice is never touched. The money has moved, and undoing
+//     that is a refund or a credit note, not a status change -- the same
+//     reasoning that made paid→unpaid unconditional;
+//   * the reason is required and is written into the record, because a
+//     cancelled invoice with no explanation is indistinguishable from a
+//     mistake six months later;
+//   * period_start is cleared, so the billing run can raise that period
+//     again at the right amount. Leaving it set would let the unique
+//     index on (subscription_id, period_start) block the reissue, and
+//     the customer would simply never be billed for that month.
+// ─────────────────────────────────────────────────────────────────────
+export async function voidInvoiceAsAdmin(
+  invoiceId: string,
+  reason: string,
+): Promise<ActionResult> {
+  if (typeof invoiceId !== "string" || invoiceId.length === 0) {
+    return { ok: false, error: "Invalid input", code: "invalid" };
+  }
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (why.length < 3) {
+    return {
+      ok: false,
+      error: "Say why this invoice is being cancelled — it stays on the record.",
+      code: "invalid",
+    };
+  }
+  if (why.length > 500) {
+    return { ok: false, error: "That reason is too long.", code: "invalid" };
+  }
+
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
+  const { supabase, profile } = ctx;
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("id, tenant_id, status, total, currency, notes")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
+  if (invoice.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden", code: "forbidden" };
+  }
+
+  const status = String(invoice.status ?? "").toLowerCase();
+  if (status === "paid") {
+    return {
+      ok: false,
+      error:
+        "This invoice has been paid, so it cannot be cancelled — the money has already moved. Issue a refund or a credit note instead.",
+      code: "invalid",
+    };
+  }
+  if (status === "void") return { ok: true, data: null };
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const line = `[${stamp}] Cancelled: ${why}`;
+  const notes = invoice.notes ? `${String(invoice.notes)}\n${line}` : line;
+
+  const { data: updated, error: updateError } = await supabase
+    .from("invoices")
+    .update({ status: "void", period_start: null, notes })
+    .eq("id", invoiceId)
+    .eq("tenant_id", profile.tenant_id)
+    // Not .neq("status", "paid"): PostgREST drops NULLs on neq, so an
+    // invoice with no status at all would be excluded and the update
+    // would match nothing while reporting success. The check above is
+    // the guard; this is only the tenant fence.
+    .select("id");
+  if (updateError) return { ok: false, error: updateError.message };
+  const wrote = wroteSomething(updated);
+  if (!wrote.ok) return wrote;
+
+  return { ok: true, data: null };
+}
