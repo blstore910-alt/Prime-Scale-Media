@@ -454,10 +454,14 @@ export default function AccountTopupForm({
             )}
           />
 
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-              {selectedCurrency === "USD" ? "$" : "€"}
-            </span>
+          {/* ── THE SYMBOL WAS CENTRED ON THE WRONG BOX ──────────────
+              `top-1/2 -translate-y-1/2` centred it on the RELATIVE
+              wrapper -- which holds the label, the input AND the
+              description -- so it sat well below the input's own centre
+              and overlapped the first digit. The currency goes in the
+              label instead: always aligned, nothing to position, and
+              the same shape as the withdrawal dialog. */}
+          <div>
             <InputField
               name="amount"
               id="topup-amount"
@@ -466,12 +470,12 @@ export default function AccountTopupForm({
               // a box labelled just "Amount" over a summary that lists
               // the fee separately reads as though the two add up. They
               // do not: this IS the total.
-              label="Amount to take from your wallet"
+              label={`Amount to take from your wallet (${selectedCurrency})`}
               control={control}
               type="number"
               min={0}
               max={hasWallet ? selectedBalance : undefined}
-              className="pl-7"
+              className="tabular-nums"
               disabled={!hasWallet}
               // 0.01, not 0.1. A step of a tenth makes the browser refuse any exact
                 // cent amount — 100.25 fails the step check and the form will not
@@ -775,9 +779,11 @@ function BalanceSummary({
     hint?: React.ReactNode;
     tone?: "muted" | "danger" | "strong";
   }) => (
-    <div className="flex items-start justify-between gap-4 text-sm">
-      <span className="min-w-0 text-muted-foreground">{label}</span>
-      <span className="shrink-0 text-right">
+    // grid, not flex: with justify-between a long value squeezed the
+    // label until "Wallet afterwards" read "Wallet".
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right">
         <span
           className={cn(
             "font-medium tabular-nums",

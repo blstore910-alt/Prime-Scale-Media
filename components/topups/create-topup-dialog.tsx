@@ -31,20 +31,15 @@ export default function CreateTopupDialog({
       <DialogContent className="flex flex-col overflow-hidden gap-0">
         <DialogHeader className="space-y-1 pb-1">
           <DialogTitle>Fund this ad account</DialogTitle>
-          {account?.name ? (
-            <DialogDescription asChild>
-              {/* The name is a code, so it must not break mid-code --
-                  "AA-" on one line and "PSM0005-EU-01" on the next is
-                  how it read. A chip keeps it whole and makes it the
-                  thing the sentence is about. */}
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <span>Money moves from your wallet to</span>
-                <span className="inline-flex max-w-full items-center rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[0.78rem] font-semibold tracking-tight text-foreground">
-                  <span className="truncate">{account.name}</span>
-                </span>
-              </div>
-            </DialogDescription>
-          ) : null}
+          {/* ── THE NAME BELONGS IN ONE PLACE ────────────────────────
+              It was here AND in the "Ad Account" picker directly below,
+              which is also where you change it -- so the code was on
+              screen twice, two lines apart, and the header was the copy
+              you could not act on. The picker keeps it; the header says
+              what the dialog does. */}
+          <DialogDescription>
+            Money moves out of your wallet and onto the ad account below.
+          </DialogDescription>
         </DialogHeader>
 
         {open && (

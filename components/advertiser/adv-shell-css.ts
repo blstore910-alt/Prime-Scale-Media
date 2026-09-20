@@ -84,7 +84,22 @@ export const ADV_CSS = `
   .content{padding:24px 26px 70px;max-width:1060px;width:100%;margin:0 auto}
   .view{display:none;flex-direction:column;gap:16px}.view.on{display:flex;animation:fade .3s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+  /* flex-START, not flex-end: the action belongs beside the TITLE, and
+     aligning to the bottom pinned it to whatever depth the subtitle
+     happened to be -- two lines of subtitle pushed it down and, once it
+     wrapped, under the heading entirely. And the text block shrinks
+     rather than forcing the wrap. */
+  .phead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px 16px;flex-wrap:wrap}
+  .phead>div:first-child{flex:1 1 220px;min-width:0}
+  .phead-actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-left:auto;flex:0 0 auto}
+  .phead-why{flex:0 0 100%;text-align:right;color:var(--faint);font-size:.78rem}
+  @media(max-width:560px){
+    /* On a phone the actions sit under the title, full width, in the
+       order you would press them. */
+    .phead-actions{width:100%;justify-content:stretch}
+    .phead-actions .btn{flex:1 1 0;justify-content:center}
+    .phead-why{text-align:left}
+  }
   .phead h1{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
   .phead p{color:var(--txt-2);font-size:.92rem;margin:4px 0 0}
 
@@ -308,6 +323,9 @@ export const ADV_CSS = `
   .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:13px}
   .acard .top{display:flex;align-items:flex-start;gap:11px}
   .acard .top .pfi{flex:0 0 auto}
+  /* The brand mark fills the tile rather than sitting in it as a 15px
+     stroke icon, and it keeps its own colour where it has one. */
+  .pfi .pmark{width:20px;height:20px}
   .acard .nm{font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
   .acard .sub{color:var(--faint);font-size:.76rem;margin-top:1px}
   /* The figures, as one block with hairlines between rather than four

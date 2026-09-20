@@ -7,6 +7,7 @@ import { copyText } from "@/lib/copy-text";
 import { dmSans, jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
+import PlatformMark from "@/components/psm/platform-mark";
 import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { humanSlug, sameSlug } from "@/lib/pure-slug-key";
@@ -2199,8 +2200,12 @@ export default function AdvertiserApp() {
         onClick={() => openDetails(a.id)}
       >
         <div className="top">
+          {/* The platform's own mark. Every tile carried the same grey
+              monitor, so a list of accounts gave the eye nothing to sort
+              by and the only thing naming the platform was a small grey
+              line of text. */}
           <span className="pfi">
-            <Ic name="i-ad" />
+            <PlatformMark slug={a.platform} className="pmark" />
           </span>
           <div style={{ minWidth: 0 }}>
             <div className="nm">{a.name || "Ad account"}</div>
@@ -3732,15 +3737,7 @@ export default function AdvertiserApp() {
             <div className="phead">
               <div>
                 <h1>Ad accounts</h1>
-                <p>
-                  Where your budget does its work.{" "}
-                  {/* The question a customer asks when a figure is lower
-                      than they expected. Answering it before they ask is
-                      cheaper than answering it afterwards. */}
-                  <button className="linkish" onClick={() => setTaxOpen(true)}>
-                    Tax rates by country
-                  </button>
-                </p>
+                <p>Where your budget does its work.</p>
               </div>
               {/* "Request ad account" under a heading that already says
                   Ad accounts is the page title twice. The shorter label
@@ -3754,22 +3751,40 @@ export default function AdvertiserApp() {
                   offer twice and the worse-placed of the two. So the
                   header button appears only once there is a list to sit
                   above. */}
-              {(accounts ?? []).length > 0 &&
-                (canRequestAccount ? (
-                  <RequestAdAccountDialog>
-                    <button className="btn grad">
-                      <Ic name="i-plus" /> Request one
-                    </button>
-                  </RequestAdAccountDialog>
-                ) : (
-                  <button
-                    className="btn grad"
-                    disabled
-                    title={requestBlockedReason() ?? undefined}
-                  >
-                    <Ic name="i-plus" /> Request one
-                  </button>
-                ))}
+              {/* ── THE ACTIONS, TOGETHER, TOP RIGHT ──────────────────
+                  "Tax rates by country" was a raw blue underline inside
+                  the subtitle, which made the left block two lines tall
+                  -- and .phead wraps, so Request one dropped onto its own
+                  row and floated under the heading instead of beside it.
+                  Both are actions; both belong in the action slot. */}
+              <div className="phead-actions">
+                <button className="btn ghost" onClick={() => setTaxOpen(true)}>
+                  <Ic name="i-help" /> Tax rates
+                </button>
+                {(accounts ?? []).length > 0 &&
+                  (canRequestAccount ? (
+                    <RequestAdAccountDialog>
+                      <button className="btn grad">
+                        <Ic name="i-plus" /> Request one
+                      </button>
+                    </RequestAdAccountDialog>
+                  ) : (
+                    <>
+                      <button className="btn grad" disabled>
+                        <Ic name="i-plus" /> Request one
+                      </button>
+                      {/* A title does not fire on a disabled control, so
+                          the reason it is dead has to be said out loud --
+                          this file makes that point about the Requests
+                          tab and the Accounts header was missed. */}
+                      {requestBlockedReason() ? (
+                        <span className="phead-why">
+                          {requestBlockedReason()}
+                        </span>
+                      ) : null}
+                    </>
+                  ))}
+              </div>
             </div>
             {(accounts ?? []).length ? (
               <div className="grid3">
