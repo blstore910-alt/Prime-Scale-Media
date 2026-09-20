@@ -675,6 +675,16 @@ export default function AdvertiserApp() {
     // approvals. The hook exports isError for exactly this, and neither
     // app was asking for it.
     isError: notifsError,
+    // ── COUNTED SERVER-SIDE, NOT OFF A CAPPED LIST ──────────────────
+    //
+    // The badge was notifs.filter(!is_read).length over a list capped
+    // at 50 rows. The hook computes this count with a head:true query
+    // SPECIFICALLY so it stays honest past that cap -- and exports
+    // countError so a failed count can show as a dot rather than
+    // disappearing, which is the difference between "nothing new" and
+    // "we could not ask".
+    unreadCount,
+    countError: notifsCountError,
   } = useNotifications();
 
   const {
@@ -2046,11 +2056,19 @@ export default function AdvertiserApp() {
               aria-pressed={view === "notif"}
             >
               <Ic name="i-bell" />
-              {notifs.filter((n) => !n.is_read).length > 0 && (
-                <span className="badge-n">
-                  {notifs.filter((n) => !n.is_read).length}
+              {/* A dot when we could not count, a number when we could.
+                  Counting off the list undercounts past its 50-row cap,
+                  and a failed count used to remove the badge entirely --
+                  which reads as "nothing new". */}
+              {notifsCountError ? (
+                <span className="badge-n" title="We couldn't check">
+                  ·
                 </span>
-              )}
+              ) : unreadCount > 0 ? (
+                <span className="badge-n">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              ) : null}
             </button>
             <div className="usermenu" ref={menuRef}>
               <button
@@ -3754,9 +3772,43 @@ export default function AdvertiserApp() {
                     </button>
                   </p>
                 ) : (
-                  <p className="cap" style={{ margin: 0 }}>
-                    Nothing to pay right now.
-                  </p>
+                  /* ── NO PLAN IS A DEAD END, NOT A CLEAN SLATE ───────
+                     Three screens used to close a loop here. The Accounts
+                     empty state says "your plan has to be active first —
+                     ad accounts come with your plan, so paying for it is
+                     the first step" and sends you to Billing. Billing
+                     said "Nothing to pay right now." and offered nothing
+                     at all: no button, no explanation, no way to ask.
+                     An advertiser invited without a plan, or one whose
+                     subscription was cancelled, arrives here and stops.
+
+                     Only a person can actually resolve it -- a plan is
+                     priced by the owner -- so the honest answer is to
+                     say why there is nothing to pay and give them the
+                     way to ask. */
+                  <>
+                    <p className="cap" style={{ margin: 0 }}>
+                      Nothing to pay right now — there is no plan on your
+                      account yet, so nothing is being charged.
+                    </p>
+                    <p
+                      className="cap"
+                      style={{ margin: "6px 0 0", color: "var(--faint)" }}
+                    >
+                      Ad accounts come with a plan, so you will need one
+                      before you can request an account. Ask us to set it
+                      up and we will price it with you.
+                    </p>
+                    <a
+                      className="btn block ghost"
+                      style={{ marginTop: 14 }}
+                      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                        "Plan for " + (referralCode || "my account"),
+                      )}`}
+                    >
+                      <Ic name="i-mail" /> Ask us to set up a plan
+                    </a>
+                  </>
                 )}
               </div>
             </div>

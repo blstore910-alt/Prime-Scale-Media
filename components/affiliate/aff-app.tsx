@@ -132,6 +132,9 @@ export default function AffiliateApp() {
     // reassurance: these carry commission and payout updates. The hook
     // exports isError for exactly this.
     isError: notifsError,
+    // Counted server-side so the badge stays honest past the 50-row cap.
+    unreadCount,
+    countError: notifsCountError,
   } = useNotifications();
 
   const lifetimeEur = all.totals.earnings_eur;
@@ -469,11 +472,19 @@ export default function AffiliateApp() {
               aria-label="Notifications"
             >
               <Ic name="i-bell" />
-              {notifs.filter((n) => !n.is_read).length > 0 && (
-                <span className="badge-n">
-                  {notifs.filter((n) => !n.is_read).length}
+              {/* Server-counted, like the advertiser shell: counting off
+                  the list undercounts past its 50-row cap, and a failed
+                  count used to remove the badge entirely, which reads as
+                  "nothing new". */}
+              {notifsCountError ? (
+                <span className="badge-n" title="We couldn't check">
+                  ·
                 </span>
-              )}
+              ) : unreadCount > 0 ? (
+                <span className="badge-n">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              ) : null}
             </button>
             <div className="usermenu" ref={menuRef}>
               <button
