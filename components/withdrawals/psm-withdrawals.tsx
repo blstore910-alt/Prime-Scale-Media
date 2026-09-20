@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
+import { usePendingCounts } from "@/hooks/use-pending-counts";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -156,8 +157,24 @@ const loadingRow = (colSpan: number) => (
   </tr>
 );
 
+/** A tab's own queue length. A dash, never a 0, for a count we could
+ *  not read -- that is the difference between "nothing waiting" and
+ *  "we could not ask". */
+function QueueCount({ n }: { n: number | null }) {
+  if (n === null) {
+    return (
+      <span className="badge pend" title="We couldn't read this queue">
+        —
+      </span>
+    );
+  }
+  if (n <= 0) return null;
+  return <span className="badge due">{n}</span>;
+}
+
 export default function PsmWithdrawals() {
   const [tab, setTab] = useState<Tab>("withdrawals");
+  const pendingCounts = usePendingCounts();
 
   return (
     <div
@@ -177,17 +194,28 @@ export default function PsmWithdrawals() {
         role="tablist"
         style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
       >
+        {/* ── EVERY TAB CARRIES ITS OWN COUNT ─────────────────────
+            The sibling screen's tab bar says the rule out loud: "a tab
+            that hides a queue with work in it is the only way this
+            change could make things worse." These three carried none,
+            and only the ACTIVE panel showed a badge -- so the screen
+            opened on Withdrawals reading "1 pending" while the
+            dashboard card, which sums all three tables, said 4. An
+            admin concludes the dashboard is stale, or that the queue is
+            done. A dash, never a 0, when a count could not be read. */}
         <SegBtn active={tab === "withdrawals"} onClick={() => setTab("withdrawals")}>
-          <ArrowDownToLine /> Withdrawals
+          <ArrowDownToLine /> Withdrawals{" "}
+          <QueueCount n={pendingCounts.adAccountWithdrawals} />
         </SegBtn>
         <SegBtn active={tab === "refunds"} onClick={() => setTab("refunds")}>
-          <RotateCcw /> Refunds
+          <RotateCcw /> Refunds <QueueCount n={pendingCounts.walletRefunds} />
         </SegBtn>
         <SegBtn
           active={tab === "adjustments"}
           onClick={() => setTab("adjustments")}
         >
-          <SlidersHorizontal /> Adjustments
+          <SlidersHorizontal /> Adjustments{" "}
+          <QueueCount n={pendingCounts.walletAdjustments} />
         </SegBtn>
       </div>
 

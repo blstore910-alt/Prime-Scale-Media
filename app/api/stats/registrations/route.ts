@@ -1,3 +1,4 @@
+import { pageAllRows } from "@/lib/page-all-rows";
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
@@ -174,25 +175,41 @@ export async function GET(request: NextRequest) {
   const periodEnd = end.toISOString();
   const granularity = resolveBucketMode(start, end);
 
+  // ── PAGED, BECAUSE THIS IS THE ONE STATS ROUTE THAT WAS NOT ───────
+  //
+  // Both reads were plain selects against PostgREST's 1,000-row cap,
+  // and `totals` is `rows.length`. So the Sign-ups tile read exactly
+  // 1,000 / 1,000 for any period holding more, with no marker -- and
+  // the series underneath it was built from the same truncated list, so
+  // the chart flattened too. Every other stats route pages; this one
+  // was missed.
   const [advertisersResult, affiliatesResult] = await Promise.all([
-    supabase
-      .from("advertisers")
-      .select("created_at")
-      .eq("tenant_id", profile.tenant_id)
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd),
+    pageAllRows<RegistrationRow>((from, to) =>
+      supabase
+        .from("advertisers")
+        .select("created_at")
+        .eq("tenant_id", profile.tenant_id)
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    ),
     // The SIGN-UPS tile counted the `affiliates` table, which nothing
     // populates on the paths in use — so the affiliate half of this
     // figure has always been 0, however many signed up. An affiliate is
     // a user_profiles row with role 'affiliate', which is what /users
     // counts and what the owner recognises.
-    supabase
-      .from("user_profiles")
-      .select("created_at")
-      .eq("tenant_id", profile.tenant_id)
-      .eq("role", "affiliate")
-      .gte("created_at", periodStart)
-      .lt("created_at", periodEnd),
+    pageAllRows<RegistrationRow>((from, to) =>
+      supabase
+        .from("user_profiles")
+        .select("created_at")
+        .eq("tenant_id", profile.tenant_id)
+        .eq("role", "affiliate")
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   // AN ERROR IS NOT AN EMPTY PERIOD. Both errors were discarded, so a
@@ -206,8 +223,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const advertisers = (advertisersResult.data || []) as RegistrationRow[];
-  const affiliates = (affiliatesResult.data || []) as RegistrationRow[];
+  const advertisers = advertisersResult.rows;
+  const affiliates = affiliatesResult.rows;
+  // A floor presented as a total reads exactly like a total. The flag
+  // travels with the figure so the card can say so.
+  const incomplete =
+    advertisersResult.truncated === true || affiliatesResult.truncated === true;
 
   const series = buildSeries(
     advertisers,
@@ -227,6 +248,7 @@ export async function GET(request: NextRequest) {
       advertisers: advertisers.length,
       affiliates: affiliates.length,
     },
+    incomplete,
     series,
   });
 }

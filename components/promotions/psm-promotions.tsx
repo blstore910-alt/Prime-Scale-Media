@@ -252,7 +252,19 @@ export default function PsmPromotions() {
 
   const q = search.trim().toLowerCase();
   const rows = perks.filter((p) => {
-    if (statusFilter === "active" && !p.active) return false;
+    // ── THE SAME TEST THE BADGE USES ───────────────────────────────
+    //
+    // The filter asked only about the `active` column while the badge
+    // beside it runs the four-part perkWhyNot. So selecting Active in
+    // October returned five perks with active=true and expires_at in
+    // September, each rendering an orange "Expired" badge -- a 100%
+    // waiver and a 50% discount listed as active promotions months
+    // after they stopped applying. The owner either overstates the
+    // discounted revenue or grants a replacement the customer appears
+    // to already hold.
+    if (statusFilter === "active" && (!p.active || perkWhyNot(p) !== null)) {
+      return false;
+    }
     if (statusFilter === "revoked" && p.active) return false;
     if (kindFilter !== "all" && p.kind !== kindFilter) return false;
     if (!q) return true;

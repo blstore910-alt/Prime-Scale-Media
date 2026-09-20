@@ -5,8 +5,21 @@ import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
 export type PendingCounts = {
-  /** null means UNKNOWN — the count could not be read. Never render it as 0. */
+  /**
+   * null means UNKNOWN — the count could not be read. Never render it as 0.
+   *
+   * Counts ALL THREE queues on /wallet-topups: wallet top-ups, bank
+   * deposits waiting to be confirmed, and outstanding precharges. The
+   * card that renders it points at that screen, and metering one of
+   * three meant a "0" read as "nothing at that address" while
+   * suggested deposits sat there.
+   */
   walletTopups: number | null;
+  /** The three tables behind /withdrawals, per tab, so each can label
+      its own. null for any that could not be read. */
+  adAccountWithdrawals: number | null;
+  walletRefunds: number | null;
+  walletAdjustments: number | null;
   topUps: number | null;
   adAccountRequests: number | null;
   /**
@@ -35,6 +48,9 @@ export function usePendingCounts(): PendingCounts {
 
   const { data, isError, isLoading } = useQuery<{
     walletTopups: number | null;
+    adAccountWithdrawals: number | null;
+    walletRefunds: number | null;
+    walletAdjustments: number | null;
     topUps: number | null;
     adAccountRequests: number | null;
     withdrawals: number | null;
@@ -58,6 +74,8 @@ export function usePendingCounts(): PendingCounts {
         adAccountWithdrawals,
         walletRefunds,
         walletAdjustments,
+        bankDeposits,
+        outstandingPrecharges,
       ] = await Promise.all([
         supabase
           .from("wallet_topups")
@@ -81,6 +99,21 @@ export function usePendingCounts(): PendingCounts {
         pendingIn("ad_account_withdrawals"),
         pendingIn("wallet_refunds"),
         pendingIn("wallet_adjustments"),
+        // The other two queues on /wallet-topups. `.or` with the null
+        // arm like the panel and the tab badge: that column is nullable
+        // on purpose for a deposit nobody could attribute, and those
+        // are exactly the ones that need working.
+        supabase
+          .from("wise_incoming_transfers")
+          .select("id", { count: "exact", head: true })
+          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+          .eq("status", "suggested")
+          .is("archived_at", null),
+        supabase
+          .from("wallet_precharges")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("status", "outstanding"),
       ]);
 
       // A swallowed error here is the worst kind: `count ?? 0` turned an
@@ -104,17 +137,40 @@ export function usePendingCounts(): PendingCounts {
         ? null
         : parts.reduce((a: number, b) => a + (b as number), 0);
 
+      // The /wallet-topups card points at a screen with THREE queues --
+      // wallet top-ups, bank deposits waiting to be confirmed, and
+      // outstanding precharges -- and it metered one. A "0" was read as
+      // "nothing at that address" while suggested deposits sat there.
+      // Same shape as the Withdrawals card, which already sums its own
+      // three: one unreadable table makes the figure unknown rather
+      // than short.
+      const moneyInParts = [
+        walletTopups,
+        bankDeposits,
+        outstandingPrecharges,
+      ].map(one);
+      const moneyIn = moneyInParts.some((p) => p === null)
+        ? null
+        : moneyInParts.reduce((a: number, b) => a + (b as number), 0);
+
       return {
-        walletTopups: one(walletTopups),
+        walletTopups: moneyIn,
         topUps: one(topUps),
         adAccountRequests: one(adAccountRequests),
         withdrawals,
+        // Per tab, so /withdrawals can label its own three.
+        adAccountWithdrawals: one(adAccountWithdrawals),
+        walletRefunds: one(walletRefunds),
+        walletAdjustments: one(walletAdjustments),
       };
     },
   });
 
   const counts = data ?? {
     walletTopups: null,
+    adAccountWithdrawals: null,
+    walletRefunds: null,
+    walletAdjustments: null,
     topUps: null,
     adAccountRequests: null,
     withdrawals: null,

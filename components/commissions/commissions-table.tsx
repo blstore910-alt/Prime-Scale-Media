@@ -133,8 +133,17 @@ export default function CommissionsTable() {
   const initialStartDate = searchParams?.get("startDate");
   const initialEndDate = searchParams?.get("endDate");
   const initialPage = parseInt(searchParams?.get("page") ?? "1", 10) || 1;
-  const initialPerPage =
-    parseInt(searchParams?.get("perPage") ?? "10", 10) || 10;
+  // ── CLAMPED ──────────────────────────────────────────────────────
+  //
+  // ?perPage=5000 asks PostgREST for .range(0,4999) and gets its 1,000
+  // -- while Math.ceil(total / 5000) is 1, so TablePagination returns
+  // null and the screen shows a thousand rows with NO pager, no row
+  // count and no notice. Somebody works the list to the bottom and
+  // reports the ledger settled with two thousand rows untouched.
+  const initialPerPage = Math.min(
+    100,
+    Math.max(5, parseInt(searchParams?.get("perPage") ?? "10", 10) || 10),
+  );
   const initialFrom = parseDateParam(initialStartDate);
   const initialTo = parseDateParam(initialEndDate);
 
