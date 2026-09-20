@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useAppContext } from "@/context/app-provider";
+import useUsdToEur from "@/hooks/use-usd-to-eur";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
@@ -276,6 +277,21 @@ export default function AccountTopupForm({
   // rate. Three lines below its own comment saying never to open the
   // confirmation on a fee we have not resolved.
   const feeUnresolved = !!accountId && (feeQuote.isLoading || feeQuote.isError);
+
+  // ── THE RATE, WHICH THIS SCREEN NEVER ASKED FOR ────────────────────
+  //
+  // The two admin creation paths both REFUSE a non-USD top-up when
+  // there is no active exchange rate, and say why: "a 1,000 EUR
+  // transfer recorded as nothing arriving… and the supplier push then
+  // funds $0". The customer's own path read exchange_rates nowhere --
+  // and saving a new rate stands the old one down first, so "no active
+  // rate" is a real state, not a theoretical one.
+  const { rate: usdRate, isError: rateReadFailed, isLoading: rateLoading } =
+    useUsdToEur();
+  const rateUnknown = rateReadFailed || rateLoading;
+  // Only for a non-USD wallet: a USD top-up needs no conversion.
+  const blockedByRate =
+    selectedCurrency !== "USD" && !rateLoading && !usdRate;
   useEffect(() => {
     if (account?.id) {
       setValue("account_id", account.id);
@@ -483,6 +499,8 @@ export default function AccountTopupForm({
               remaining={remainingBalance}
               feePending={feeUnresolved}
               feeFailed={feeQuote.isError}
+              usdRate={usdRate}
+              rateUnknown={rateUnknown}
             />
           )}
 
@@ -510,14 +528,24 @@ export default function AccountTopupForm({
             // dialog is that the figures in it are the real ones. A
             // FAILED quote counts: the fallback is the account's own
             // column, which is the wrong number for anyone on a plan.
-            feeUnresolved
+            feeUnresolved ||
+            // ── AND NOT WITHOUT A RATE ──────────────────────────────
+            //
+            // Both admin creation paths refuse a non-USD top-up when
+            // there is no active exchange rate, and say why: the money
+            // leaves the wallet and nothing lands. The customer's own
+            // path had no such guard, and saving a new rate stands the
+            // old one down first -- so the window is real.
+            blockedByRate
           }
           title={
-            feeQuote.isError
-              ? "We could not check this account's rate — reload and try again"
-              : feeQuote.isLoading
-                ? "Checking the fee on this account…"
-                : undefined
+            blockedByRate
+              ? "We can't read today's exchange rate, so we can't say what would land on the account. Try again in a moment."
+              : feeQuote.isError
+                ? "We could not check this account's rate — reload and try again"
+                : feeQuote.isLoading
+                  ? "Checking the fee on this account…"
+                  : undefined
           }
         >
           {(isPending || feeQuote.isLoading) && (
@@ -585,14 +613,14 @@ export default function AccountTopupForm({
             either side of it. */}
         <ConfirmFact
           label="Lands on the account"
-          value={
-            selectedCurrency === "USD"
-              ? formatCurrency(
-                  parseAmount(amount) - (parseAmount(amount) * fee) / 100,
-                  "USD",
-                )
-              : "in USD, converted at today's rate"
-          }
+          value={(() => {
+            const net = parseAmount(amount) - (parseAmount(amount) * fee) / 100;
+            if (selectedCurrency === "USD") return formatCurrency(net, "USD");
+            if (usdRate && usdRate > 0) {
+              return `${formatCurrency(net / usdRate, "USD")} — at ${usdRate} EUR per USD`;
+            }
+            return "in USD, converted at today's rate";
+          })()}
           strong
         />
         <ConfirmFact
@@ -669,6 +697,8 @@ function BalanceSummary({
   fee_pct,
   feePending,
   feeFailed = false,
+  usdRate = null,
+  rateUnknown = false,
 }: {
   currency: CurrencyCode;
   balance: number;
@@ -682,6 +712,9 @@ function BalanceSummary({
   feePending: boolean;
   /** …and it failed rather than being still in flight. */
   feeFailed?: boolean;
+  /** EUR per 1 USD, or null when it could not be read. */
+  usdRate?: number | null;
+  rateUnknown?: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
@@ -710,13 +743,26 @@ function BalanceSummary({
             We do not hold the rate here, so no converted figure is
             invented: the wallet-side numbers are exact and the
             conversion is named. A USD wallet is unaffected — rate 1. */}
+        {/* ── AND NOW WE DO HOLD THE RATE ─────────────────────────
+            The comment above was true when it was written: this screen
+            had no rate, so it named the conversion instead of inventing
+            a figure. But the rate IS readable by the customer --
+            use-usd-to-eur exists, its RLS allows any tenant profile,
+            and it returns null rather than guessing -- and the result
+            was that somebody pressed "Yes, top it up" on EUR 4,000
+            without ever seeing $4,511.63 or the rate it came from. The
+            headline number on a money confirmation was a sentence. */}
         <span className="text-muted-foreground">Lands on the account</span>
         <span className="font-medium">
           {feePending
             ? "—"
             : currency === "USD"
               ? formatCurrency(amount, "USD")
-              : "in USD, at today's rate"}
+              : usdRate && usdRate > 0
+                ? `${formatCurrency(amount / usdRate, "USD")} (at ${usdRate} EUR per USD)`
+                : rateUnknown
+                  ? "we can't read today's rate — reload before you confirm"
+                  : "in USD, at today's rate"}
         </span>
       </div>
       <div className="flex items-center justify-between text-sm">

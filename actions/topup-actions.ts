@@ -1196,7 +1196,26 @@ export async function verifyAdTopup(
       // carrying fee = 5 could be verified at 0 by any admin, and the
       // row would then genuinely read 0% so the fee report agreed with
       // it.
-      if (newFeePercent + 0.0001 < effective.pct) {
+      // ── AND A CEILING, WHICH THERE WAS NOT ─────────────────────────
+      //
+      // The floor was guarded and raising was left open, with the
+      // comment "it cannot cost us anything". That is true of us and
+      // false of the customer: they were quoted 3% and committed
+      // EUR 10,000, and any employee admin could type 100 at
+      // verification. grossUsd then re-splits to fee $11,627.91 / net
+      // $0.00 -- the customer paid EUR 10,000 and NOTHING lands on the
+      // account. The row afterwards genuinely reads 100%, so the fee
+      // and profit reports agree with it, and the receipt the customer
+      // opens re-reads the row and shows them the 100% as a fact.
+      //
+      // Raising is the same override as lowering, pointing the other
+      // way, so it gets the same rule. A small upward correction --
+      // a rounding fix, a rate that moved -- is still allowed.
+      const CORRECTION_HEADROOM_PCT = 1;
+      const belowFloor = newFeePercent + 0.0001 < effective.pct;
+      const aboveCeiling =
+        newFeePercent > effective.pct + CORRECTION_HEADROOM_PCT + 0.0001;
+      if (belowFloor || aboveCeiling) {
         const { data: tenant } = await supabase
           .from("tenants")
           .select("owner_id")
@@ -1205,7 +1224,11 @@ export async function verifyAdTopup(
         if (!tenant || tenant.owner_id !== profile.user_id) {
           return {
             ok: false,
-            error: `This account's rate is ${effective.pct}%. Only the super-admin can verify below it — ask them, or use a fee waiver so the reason is recorded.`,
+            error: belowFloor
+              ? `This account's rate is ${effective.pct}%. Only the super-admin can verify below it — ask them, or use a fee waiver so the reason is recorded.`
+              : `This customer was quoted ${effective.pct}%. Verifying above ${
+                  effective.pct + CORRECTION_HEADROOM_PCT
+                }% is the super-admin's — a higher fee is money the customer did not agree to, and it comes straight off what lands on their account.`,
             code: "forbidden",
           };
         }

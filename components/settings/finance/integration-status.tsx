@@ -113,6 +113,26 @@ function AutoPushRow() {
                 : " Held — nothing is sent while auto-push is off."}
             </div>
           )}
+          {/* ── THE ONES THAT GAVE UP ──────────────────────────────
+              This screen counted only `pending`, and nothing anywhere
+              else in the app read a failed job. So a push that burned
+              its five attempts against a supplier outage left the tile
+              reading 0 — with the customer's money already taken, the
+              top-up green in the queue, and the ad account never
+              funded. A failure has to be louder than a queue. */}
+          {status.failed > 0 && (
+            <div
+              className="mt-1 font-medium"
+              style={{ color: "var(--danger, #b91c1c)" }}
+            >
+              {status.failed} push job{status.failed === 1 ? "" : "s"} GAVE UP
+              {status.lastFailureAt
+                ? `, most recently ${new Date(status.lastFailureAt).toLocaleString()}`
+                : ""}
+              . The money was taken and the account was NOT funded — fund
+              those by hand, or re-verify the top-up to queue it again.
+            </div>
+          )}
         </div>
       </div>
     </div>

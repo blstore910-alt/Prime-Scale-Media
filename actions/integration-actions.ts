@@ -43,6 +43,20 @@ export type AutoPushStatus = {
   mode: string;
   /** Number of push jobs currently waiting, if any are held. */
   held: number;
+  /**
+   * Push jobs that have EXHAUSTED their attempts.
+   *
+   * Nothing in app/, components/, actions/ or hooks/ read a `failed`
+   * integration job -- integration_jobs had exactly one reader outside
+   * the worker and it counted `pending` only. So: the customer's wallet
+   * is already down EUR 10,000, the top-up is green in the queue, the
+   * push burns five attempts against a supplier outage and lands on
+   * `failed`, and the "N push jobs waiting" tile reads 0. The ad
+   * account is never funded and no screen says so.
+   */
+  failed: number;
+  /** When the newest failure happened, so "3 failed" has an age. */
+  lastFailureAt: string | null;
 };
 
 // Whether the app is allowed to fund ad accounts at the supplier by itself.
@@ -69,7 +83,29 @@ export async function getAutoPushStatus(): Promise<
     .eq("status", "pending");
   held = count ?? 0;
 
-  return { armed: gate.enabled, reason: gate.reason, mode: gate.mode, held };
+  // ...and the ones that gave up. See the type above for what a 0 here
+  // was hiding.
+  const { data: failedRows, count: failedCount } = await supabase
+    .from("integration_jobs")
+    .select("finished_at", { count: "exact" })
+    .eq("tenant_id", profile.tenant_id)
+    .eq("provider", "supplier1")
+    .in("operation", ["push_topup", "push_withdraw"])
+    .eq("status", "failed")
+    .order("finished_at", { ascending: false })
+    .limit(1);
+  const lastFailureAt =
+    (failedRows?.[0] as { finished_at?: string | null } | undefined)
+      ?.finished_at ?? null;
+
+  return {
+    armed: gate.enabled,
+    reason: gate.reason,
+    mode: gate.mode,
+    held,
+    failed: failedCount ?? 0,
+    lastFailureAt,
+  };
 }
 
 export type SupplierAccountProbe =
