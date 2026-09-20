@@ -99,18 +99,40 @@ async function resolveEffectiveFeePct(
     isPremium = row?.platform === "eu-meta-premium";
   }
 
-  const { data: plan } = await supabase
+  const { data: plan, error: planError } = await supabase
     .from("advertiser_plans")
     .select("topup_fee_pct")
     .eq("advertiser_id", advertiserId)
     .maybeSingle();
 
-  const { data: perks } = await supabase
+  const { data: perks, error: perksError } = await supabase
     .from("advertiser_perks")
     .select("kind, amount, starts_at, expires_at")
     .eq("advertiser_id", advertiserId)
     .eq("active", true)
     .in("kind", ["topup_fee_waiver", "topup_discount"]);
+
+  // ── A FAILED PERK READ IS NOT "THEY HAVE NO PERKS" ────────────────
+  //
+  // Both errors were discarded, so a refused read was indistinguishable
+  // from a customer with nothing granted -- and a customer sitting on a
+  // 100% top-up fee WAIVER was charged the full fee, silently, on the
+  // screen that quotes it and again on the server that takes it.
+  //
+  // A missing table is the one case that legitimately means "no perks
+  // here yet": 42P01 is "relation does not exist", 42703 is a missing
+  // column. Anything else is a real failure and the caller has to know,
+  // because the alternative is charging somebody a fee they were
+  // promised they would not pay.
+  const softCodes = new Set(["42P01", "42703"]);
+  const hardError = [planError, perksError].find(
+    (e) => e && !softCodes.has(String((e as { code?: string }).code ?? "")),
+  );
+  if (hardError) {
+    throw new Error(
+      "We couldn't read this customer's plan and perks, so the fee cannot be worked out. Nothing has been charged.",
+    );
+  }
 
   const now = Date.now();
   const activePerks = (perks ?? []).filter((p) => {
@@ -1230,14 +1252,26 @@ export async function quoteTopupFeePct(
     return { ok: false, error: "That ad account has no customer on it." };
   }
 
-  const resolved = await resolveEffectiveFeePct(
-    supabase,
-    advertiserId,
-    Number(acct.fee) || 0,
-    accountId,
-  );
-  return {
-    ok: true,
-    data: { pct: resolved.pct, resolved: resolved.applied },
-  };
+  // The resolver throws when it could not read the plan or the perks,
+  // because a silent fall-through charges a customer a fee they were
+  // told they would not pay. A quote that cannot be made is refused,
+  // and both top-up forms already refuse to submit on an unresolved
+  // fee and say why.
+  try {
+    const resolved = await resolveEffectiveFeePct(
+      supabase,
+      advertiserId,
+      Number(acct.fee) || 0,
+      accountId,
+    );
+    return {
+      ok: true,
+      data: { pct: resolved.pct, resolved: resolved.applied },
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "The fee could not be worked out.",
+    };
+  }
 }
