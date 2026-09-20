@@ -197,3 +197,46 @@ test("refunds count as money out, adjustments either way", () => {
   assert.equal(eur.in, 25);
   assert.equal(eur.net, -485);
 });
+
+test("a partial export says so IN the file, not only on the screen", () => {
+  const lines = [
+    {
+      id: "l1",
+      at: "2026-08-01",
+      kind: "topup" as const,
+      label: "Wallet top-up",
+      reference: null,
+      account: null,
+      counterparty: null,
+      status: "completed",
+      currency: "EUR",
+      amount: 100,
+    },
+  ] as unknown as Parameters<typeof toCsv>[0];
+
+  const plain = toCsv(lines);
+  assert.ok(!plain.startsWith("#"), "a complete file carries no caveat");
+
+  const partial = toCsv(lines, {
+    failed: ["wallet_topups"],
+    truncated: true,
+    filters: "Aug 2026",
+  });
+  // The reason this exists: a report that lost wallet_topups exported
+  // with no income rows and nothing saying so.
+  assert.ok(partial.includes("INCOMPLETE"), partial.slice(0, 200));
+  assert.ok(partial.includes("wallet_topups"));
+  assert.ok(partial.includes("PARTIAL"));
+  assert.ok(partial.includes("Aug 2026"));
+  // The data still parses: caveats are comment rows above the header,
+  // and the header row is still there.
+  assert.ok(partial.includes("Wallet top-up"));
+});
+
+test("a caveat line cannot break out of its own cell", () => {
+  const out = toCsv([], { failed: ['a,b"c\nd'] });
+  const first = out.split("\n")[0];
+  // One cell: the injected comma and quote stay inside the quotes.
+  assert.ok(first.startsWith('"#'), first);
+  assert.equal(first.split("\n").length, 1);
+});

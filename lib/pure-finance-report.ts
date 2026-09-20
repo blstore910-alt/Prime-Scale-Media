@@ -233,8 +233,49 @@ function own(v: unknown): string {
   return quote(String(v ?? ""));
 }
 
-export function toCsv(lines: FinanceLine[]): string {
-  const rows = [CSV_HEADER.map(own).join(",")];
+/**
+ * What the screen knows that the file did not say.
+ *
+ * The report shows two warnings -- "these totals are incomplete, we
+ * couldn't read X" and "showing the most recent movements" -- and the
+ * CSV emitted nine columns and nothing else. So a report that lost the
+ * wallet_topups source exported a file with NO income rows at all and
+ * nothing saying so, and the customer handed it to a bookkeeper.
+ *
+ * The audit export already does this right: a -PARTIAL filename plus a
+ * header. A CSV has no headers, so it goes in the file, above the
+ * column row, as comment lines -- which every spreadsheet imports as
+ * text rather than dropping.
+ */
+export interface CsvCaveats {
+  /** Sources that could not be read, e.g. ["wallet_topups"]. */
+  failed?: string[];
+  /** True when the history was cut short. */
+  truncated?: boolean;
+  /** Human description of the filters applied, e.g. "1 Aug - 31 Aug". */
+  filters?: string;
+}
+
+export function toCsv(lines: FinanceLine[], caveats?: CsvCaveats): string {
+  const rows: string[] = [];
+  if (caveats?.filters) {
+    rows.push(own("# Filtered: " + caveats.filters));
+  }
+  if (caveats?.failed?.length) {
+    rows.push(
+      own(
+        "# INCOMPLETE: we could not read " +
+          caveats.failed.join(", ") +
+          ". Rows from those sources are MISSING from this file.",
+      ),
+    );
+  }
+  if (caveats?.truncated) {
+    rows.push(
+      own("# PARTIAL: only the most recent movements are included."),
+    );
+  }
+  rows.push(CSV_HEADER.map(own).join(","));
   for (const l of lines) {
     rows.push(
       [

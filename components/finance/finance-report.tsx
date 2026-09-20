@@ -25,6 +25,7 @@ import {
   type FinanceLine,
 } from "@/lib/pure-finance-report";
 import { downloadBlob } from "@/lib/download-blob";
+import { compactRangeLabel } from "@/lib/pure-date-range-label";
 
 /**
  * The financial report.
@@ -120,7 +121,25 @@ export default function FinanceReport({
     // Built and handed over in the browser: the rows are already here, so
     // a round trip would only be a second chance to disagree with what is
     // on screen.
-    const blob = new Blob([toCsv(shown)], {
+    // The two warnings the SCREEN shows go into the FILE. Without them
+    // a report that lost the wallet_topups source exported with no
+    // income rows at all and nothing saying so -- and it is the
+    // customer's bookkeeper who reads it, not the person who saw the
+    // banner.
+    const csv = toCsv(shown, {
+      failed: data?.failed ?? [],
+      truncated: !!data?.truncated,
+      filters: [
+        from || to ? compactRangeLabel(from, to) : "",
+        kind ? `kind: ${kind}` : "",
+        currency ? `currency: ${currency}` : "",
+        account ? `account: ${account}` : "",
+        search ? `search: ${search}` : "",
+      ]
+        .filter(Boolean)
+        .join("; "),
+    });
+    const blob = new Blob([csv], {
       type: "text/csv;charset=utf-8",
     });
     // ── APPEND IT, CLICK IT, THEN LET GO ────────────────────────────
@@ -135,7 +154,9 @@ export default function FinanceReport({
     // getting wrong in exactly the way described above.
     downloadBlob(
       blob,
-      `financial-report-${new Date().toISOString().slice(0, 10)}.csv`,
+      `financial-report-${new Date().toISOString().slice(0, 10)}${
+        (data?.failed?.length ?? 0) > 0 || data?.truncated ? "-PARTIAL" : ""
+      }.csv`,
     );
   };
 
