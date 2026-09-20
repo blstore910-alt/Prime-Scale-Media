@@ -51,7 +51,25 @@ repo, every session:
 - **Do not stop to ask permission to continue.** Ask only when the
   answer changes the work.
 - **Report after each round**: what was fixed, what is open, what is
-  needed from the owner.
+  needed from the owner — **and a percentage**.
+
+### The percentage
+
+Every round ends with "we are at N%". It is not a feeling. Count it,
+and show the four numbers it came from, so the owner can see which
+track is behind:
+
+| track | how it is counted |
+|---|---|
+| **A. Screens** | destinations verified by ACTUALLY OPENING them and seeing data, over 46 (21 owner + 9 advertiser + 6 affiliate + 6 settings tabs + 10 with no menu entry, minus overlap) |
+| **B. Findings** | agent findings fixed, over findings raised. Known limitations count as raised-and-accepted, not as fixed |
+| **C. Numbers** | of the 8 SQL checks in the walkthrough, how many have been run against live and matched the screen |
+| **D. Journeys** | J1–J13, counted as walked only when walked end to end on production |
+
+The headline is the LOWEST of the four, not the average. Three tracks
+at 90% and one at 10% is not 70% — it is a product with a whole side
+nobody has looked at, and that is what the number has to say. Round
+down, and never round up to make it look better.
 
 ## Deploying — branch, then production, then test live
 
