@@ -590,7 +590,9 @@ export default function AdvertiserApp() {
   // "nothing" is the least interesting true thing about it. USD,
   // because topup_amount is USD by construction for every payment
   // currency.
-  const { data: accountTotals } = useQuery<Record<string, number>>({
+  const { data: accountTotals, isError: accountTotalsError } = useQuery<
+    Record<string, number>
+  >({
     queryKey: ["adv-account-totals", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
@@ -722,6 +724,13 @@ export default function AdvertiserApp() {
   // Advertiser-as-affiliate: their referral book (empty for a plain
   // advertiser). Shown under the "Affiliate program" view.
   const aff = useAffiliateStats({ enabled: !!advertiserId });
+  // Error OR not yet answered. aff-app.tsx calls the same thing
+  // statsUnavailable; this file was testing only isError, so every
+  // figure on the Affiliate-program tab printed 0 for the seconds
+  // before the answer arrived -- and for ever on a profile with no
+  // advertiser row, where the query is disabled and react-query v5
+  // reports isPending true and isSuccess false permanently.
+  const affUnavailable = aff.isError || aff.isLoading;
   const {
     notifications: rawNotifs,
     markAsRead,
@@ -2273,13 +2282,22 @@ export default function AdvertiserApp() {
         </div>
         {/* Only once there IS a figure. A brand-new account showing
             "Funded $0.00" reads as a fault; saying nothing reads as
-            new, which is what it is. */}
-        {Number(accountTotals?.[a.id] ?? 0) > 0 && (
+            new, which is what it is.
+
+            But a FAILED read is not a new account either, and the row
+            simply vanishing said exactly that. On an error the line
+            stays and shows a dash. */}
+        {accountTotalsError ? (
+          <div className="kv">
+            <span>Funded to date</span>
+            <b>—</b>
+          </div>
+        ) : Number(accountTotals?.[a.id] ?? 0) > 0 ? (
           <div className="kv">
             <span>Funded to date</span>
             <b>{usd(Number(accountTotals?.[a.id] ?? 0))}</b>
           </div>
-        )}
+        ) : null}
         {locked ? (
           <div className="acts">
             {/* A sentence per state, and nothing falls through to
@@ -3123,8 +3141,16 @@ export default function AdvertiserApp() {
                     €0 and Spend €0 — four figures it could not vouch for,
                     on the page where an advertiser checks what their
                     referrals earned them. The wallet block eight lines up
-                    already does this correctly. */}
-                <div className="v">{aff.isError ? "—" : aff.rows.length}</div>
+                    already does this correctly.
+
+                    isLoading belongs in the same test and was missing
+                    from the whole file: with retry:1 and backoff, the
+                    window between mount and answer is seconds, and for
+                    a profile with no advertiser row the query is
+                    DISABLED, which in react-query v5 means isPending
+                    true and isSuccess false FOR EVER. aff-app.tsx
+                    computes exactly this as statsUnavailable. */}
+                <div className="v">{affUnavailable ? "—" : aff.rows.length}</div>
               </div>
               <div className="stat">
                 <div className="k">
@@ -3134,7 +3160,7 @@ export default function AdvertiserApp() {
                   Active
                 </div>
                 <div className="v">
-                  {aff.isError
+                  {affUnavailable
                     ? "—"
                     : aff.rows.filter((r) => Number(r.topup_count) > 0).length}
                 </div>
@@ -3147,7 +3173,7 @@ export default function AdvertiserApp() {
                   Commission
                 </div>
                 <div className="v">
-                  {aff.isError
+                  {affUnavailable
                     ? "—"
                     : twoLeg(aff.totals.earnings_eur, aff.totals.earnings_usd)}
                 </div>
@@ -3160,7 +3186,7 @@ export default function AdvertiserApp() {
                   Spend driven
                 </div>
                 <div className="v">
-                  {aff.isError
+                  {affUnavailable
                     ? "—"
                     : twoLeg(aff.totals.spend_eur, aff.totals.spend_usd)}
                 </div>
@@ -3220,7 +3246,9 @@ export default function AdvertiserApp() {
                         >
                           {aff.isError
                             ? "We couldn't read your referrals just now — this is not a zero. Reload to try again."
-                            : "No referrals yet."}
+                            : aff.isLoading
+                              ? "Loading your referrals…"
+                              : "No referrals yet."}
                         </td>
                       </tr>
                     )}

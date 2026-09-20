@@ -345,8 +345,13 @@ export async function approveAdAccountWithdrawal(
     // advertiser_id, currency and the account's name too: the customer
     // is told about this now, and a notice that cannot name the account
     // or the amount is barely a notice.
+    // tenant_id too: it was NOT in this list and `wd.tenant_id` is
+    // handed to notifyAdvertiser further down, so every
+    // withdrawal_approved notification was written with tenant_id NULL
+    // -- an orphan row in a financial-notification table. The sibling
+    // rejectAdAccountWithdrawal selects it and gets it right.
     .select(
-      "id, ad_account_id, advertiser_id, amount, currency, status, ad_account:ad_accounts(name)",
+      "id, ad_account_id, advertiser_id, tenant_id, amount, currency, status, ad_account:ad_accounts(name)",
     )
     .eq("id", withdrawalId)
     .maybeSingle();

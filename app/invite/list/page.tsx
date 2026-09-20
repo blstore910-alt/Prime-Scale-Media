@@ -64,7 +64,17 @@ export default async function Page() {
     .select(
       "id, tenant_id, role, status, email, created_at, expires_at, tenant:tenants(id, name)",
     )
-    .ilike("email", myEmail);
+    .ilike("email", myEmail)
+    // ── ONLY THE ONES THAT CAN STILL BE ACCEPTED ────────────────────
+    //
+    // Without this the page lists cancelled, expired and already
+    // accepted invitations with a live Accept button on each, and
+    // pressing it gets a refusal toast from /api/accept-invite and
+    // nothing else. Expiry is checked too: /auth/sign-up and
+    // /invite/accept both refuse an expired token, so offering it here
+    // is an action that cannot succeed.
+    .eq("status", "pending")
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
 
   // A thrown error here is a shell-less Next error page on a route a
   // customer can reach. Say it in words instead.
@@ -100,7 +110,20 @@ export default async function Page() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <InvitesList invites={forList} />
+          {forList.length > 0 ? (
+            <InvitesList invites={forList} />
+          ) : (
+            // The card's description offers "or continue by creating a
+            // new one" and the control that did that is commented out
+            // below, so an empty list was a heading over nothing.
+            <p className="text-sm text-muted-foreground">
+              There are no invitations waiting for{" "}
+              <span className="font-medium">{myEmail}</span> right now. If
+              you were expecting one, ask whoever invited you to send it
+              again — an invitation expires, and it has to be addressed to
+              the address you are signed in with.
+            </p>
+          )}
           {/* <div className="mt-6 text-center text-muted-foreground space-y-6 ">
             <h6>OR</h6>
             <Button asChild>

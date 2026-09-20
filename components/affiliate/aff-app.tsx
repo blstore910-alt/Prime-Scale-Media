@@ -907,7 +907,11 @@ export default function AffiliateApp() {
                       fontSize: ".8rem",
                     }}
                   >
-                    of {refsReferred}
+                    {/* refsActive one line up is guarded and this was
+                        not, so a failed read printed "— of 0": a dash
+                        admitting the read failed, beside a confident
+                        zero from the same read. */}
+                    of {refsUnavailable ? dash : refsReferred}
                   </span>
                 </div>
               </div>

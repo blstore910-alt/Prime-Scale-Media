@@ -380,6 +380,10 @@ export default function AccountTopupForm({
         `Your ${selectedCurrency} wallet is empty — top it up before funding an ad account.`
     : "Wallet balance is unavailable.";
 
+  // Null when the wallet read failed or has not returned: the card
+  // prints a dash for that, instead of a confident 0.00.
+  const balanceKnown = !walletLoading && !walletError && hasWallet;
+
   const visibleCurrencyChoices = useMemo(() => {
     if (!selectedAccountCurrency) {
       return [];
@@ -391,7 +395,7 @@ export default function AccountTopupForm({
           id: "wallet-usd",
           value: "USD" as const,
           label: "USD Wallet",
-          balance: usdBalance,
+          balance: balanceKnown ? usdBalance : null,
           icon: <DollarSign className="h-4 w-4" />,
         },
       ];
@@ -402,11 +406,11 @@ export default function AccountTopupForm({
         id: "wallet-eur",
         value: "EUR" as const,
         label: "EUR Wallet",
-        balance: eurBalance,
+        balance: balanceKnown ? eurBalance : null,
         icon: <Euro className="h-4 w-4" />,
       },
     ];
-  }, [selectedAccountCurrency, usdBalance, eurBalance]);
+  }, [selectedAccountCurrency, usdBalance, eurBalance, balanceKnown]);
 
 
   // Money leaving a wallet for an ad account is not undone by an admin
@@ -712,7 +716,7 @@ function CurrencyChoice({
   id: string;
   value: CurrencyCode;
   label: string;
-  balance: number;
+  balance: number | null;
   icon: React.ReactNode;
   disabled?: boolean;
 }) {
@@ -738,7 +742,15 @@ function CurrencyChoice({
           {label}
         </span>
         <span className="text-xs text-muted-foreground">
-          Available: {formatCurrency(balance, value)}
+          {/* ── A DASH, NOT A ZERO ──────────────────────────────────
+              `parseAmount(wallet?.usd_balance)` is 0 while the read is
+              running AND when it failed, so this card stated
+              "Available: EUR 0.00" as fact -- with the red "Unable to
+              load wallet balance" panel rendering directly underneath
+              it, which is a screen telling a customer two different
+              things about their own money at once. */}
+          Available:{" "}
+          {balance === null ? "—" : formatCurrency(balance, value)}
         </span>
       </Label>
     </div>
