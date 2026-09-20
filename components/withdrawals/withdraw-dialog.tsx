@@ -178,17 +178,25 @@ export default function WithdrawDialog({
               ? "Send this request?"
               : "Request a withdrawal"}
           </DialogTitle>
-          <DialogDescription>
-            {confirming
-              ? "Check the details below. Nothing moves until an admin approves it."
-              : // "What is left of what we funded", not "balance". These
-                // accounts are funded by hand and there is no API to read
-                // a live balance from — so the only figure that exists is
-                // what we put on minus what has come back off. Promising
-                // a balance invites the customer to ask us for one.
-                `Ask for what is left of the budget we funded on ${
-                  adAccountName ?? "this ad account"
-                } to come back to your wallet. This is a request — an admin reviews it first.`}
+          {/* -- ONE SENTENCE, AND THE CODE AS A CHIP --------------------
+              This was a three-line paragraph with a client code in the
+              middle of it, so the code broke across lines and the one
+              fact that matters -- an admin has to approve it -- ended up
+              at the end of the third line. */}
+          <DialogDescription asChild>
+            {confirming ? (
+              <p>Nothing moves until an admin approves it.</p>
+            ) : (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                <span>Bring money back from</span>
+                <span className="inline-flex max-w-full items-center rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[0.78rem] font-semibold tracking-tight text-foreground">
+                  <span className="truncate">
+                    {adAccountName ?? "this ad account"}
+                  </span>
+                </span>
+                <span>to your wallet.</span>
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -227,10 +235,38 @@ export default function WithdrawDialog({
             </div>
           </div>
         ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="wd-amount">Amount</Label>
+        // -- ONE COLUMN ---------------------------------------------
+        // It was two columns of very different lengths: a number on the
+        // left and a four-line essay about currency on the right, so
+        // nothing lined up and the eye had two places to be. The
+        // currency is not a choice -- it is always USD -- so it belongs
+        // ON the field as a suffix, not beside it as a second control
+        // with its own heading and its own paragraph.
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <Label htmlFor="wd-amount">Amount to bring back</Label>
+              {/* The ceiling as a figure you can tap, not a sentence
+                  buried under the field. Never a 0 over a failed read. */}
+              {ceilingError ? (
+                <span className="text-xs text-muted-foreground">
+                  balance unavailable
+                </span>
+              ) : ceiling === null || ceiling === undefined ? (
+                <span className="text-xs text-muted-foreground">
+                  checking...
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs font-semibold tabular-nums text-primary underline-offset-2 hover:underline"
+                  onClick={() => setAmount(String(ceiling))}
+                >
+                  Max ${ceiling.toFixed(2)}
+                </button>
+              )}
+            </div>
+            <div className="relative">
               <Input
                 id="wd-amount"
                 type="number"
@@ -241,72 +277,45 @@ export default function WithdrawDialog({
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                className="pr-14 tabular-nums"
               />
-              {/* A figure, or an honest dash. Never a 0 over a failed
-                  read -- that would read as "there is nothing here". */}
-              <p className="text-xs text-muted-foreground">
-                {ceilingError ? (
-                  "We couldn't work out what is left on this account just now."
-                ) : ceiling === null || ceiling === undefined ? (
-                  "Checking what is left on this account…"
-                ) : (
-                  <>
-                    Up to{" "}
-                    <button
-                      type="button"
-                      className="underline underline-offset-2"
-                      onClick={() => setAmount(String(ceiling))}
-                    >
-                      ${ceiling.toFixed(2)}
-                    </button>{" "}
-                    — what we funded, less anything already asked back.
-                    Money already spent at the platform is not in that
-                    figure.
-                  </>
-                )}
-              </p>
-            </div>
-            {/* NOT a choice, and not the funding currency either. The
-                balance on an ad account is held in USD whatever it was
-                funded with, so that is what comes back — offering anything
-                else is what let a customer turn a USD balance into euros
-                1:1 and keep the difference. */}
-            <div className="space-y-2">
-              <Label htmlFor="wd-cur">Comes back as</Label>
-              <div
-                id="wd-cur"
-                className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium"
-              >
+              {/* NOT a choice, and not the funding currency either. The
+                  balance on an ad account is held in USD whatever it was
+                  funded with, so that is what comes back -- offering
+                  anything else is what let a customer turn a USD balance
+                  into euros 1:1 and keep the difference. */}
+              <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-semibold text-muted-foreground">
                 {currency}
-              </div>
-              {fundedIn !== "USD" ? (
-                <p className="text-xs text-muted-foreground">
-                  You funded this account in {fundedIn}, but the balance on it
-                  is held in USD — that is what the platform spends. You can
-                  exchange it in your wallet afterwards.
-                </p>
-              ) : null}
+              </span>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {fundedIn !== "USD"
+                ? "Comes back in USD, which is what the platform spends. Exchange it in your wallet afterwards."
+                : "What we funded, less anything already asked back."}
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wd-reason">Note (optional)</Label>
+            <Label htmlFor="wd-reason">Note for us (optional)</Label>
             <Input
               id="wd-reason"
-              placeholder="Reason for withdrawal"
+              placeholder="e.g. campaign finished"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
           </div>
 
-          <p className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-            Withdrawals need admin approval before the balance returns to your
-            wallet.
-          </p>
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+            <span className="shrink-0 font-semibold">Heads up</span>
+            <span>
+              An admin approves this before the money reaches your wallet,
+              and anything still running on the account loses that budget.
+            </span>
+          </div>
         </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="mt-1 gap-2 sm:gap-2">
           {confirming ? (
             <>
               <Button
