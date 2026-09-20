@@ -99,6 +99,11 @@ export default function AdAccountTypesCard() {
   const [newGroup, setNewGroup] = useState<AdAccountPlatformGroup>("meta");
   const [newFee, setNewFee] = useState("5");
   const [newApi, setNewApi] = useState(false);
+  // A new type without its supplier meant creating it, then finding it
+  // in the list, then editing it — for a field the person adding the
+  // type already knows.
+  const [newSupplier, setNewSupplier] = useState("");
+  const [newSupplierUrl, setNewSupplierUrl] = useState("");
 
   const patchRow = (idx: number, patch: Partial<EditRow>) => {
     setRows((prev) => {
@@ -166,15 +171,29 @@ export default function AdAccountTypesCard() {
         platform_group: newGroup,
         default_fee_pct: fee,
         api_topup_enabled: newApi,
+        supplier_label: newSupplier.trim(),
+        supplier_url: newSupplierUrl.trim(),
       });
       if (!res.ok) throw new Error(res.error);
+      return res.warning ?? null;
     },
-    onSuccess: () => {
+    onSuccess: (warning) => {
       toast.success("Type added");
+      // The type can land while a column it carries does not. Saying
+      // only "Type added" over that is the fake success this codebase
+      // keeps having to remove.
+      if (warning) {
+        toast.warning("Not everything was saved", {
+          description: warning,
+          duration: 15000,
+        });
+      }
       setNewLabel("");
       setNewGroup("meta");
       setNewFee("5");
       setNewApi(false);
+      setNewSupplier("");
+      setNewSupplierUrl("");
       invalidate();
     },
     onError: (err: Error) =>
@@ -405,6 +424,22 @@ export default function AdAccountTypesCard() {
                   )}
                   Add
                 </Button>
+              </div>
+              {/* Admin-only, and the person adding a type is the person
+                  who knows this. Leaving it blank is fine — the pill on
+                  the top-up queue then says so rather than nothing. */}
+              <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
+                <Input
+                  value={newSupplier}
+                  placeholder="Supplier (admin only)"
+                  onChange={(e) => setNewSupplier(e.target.value)}
+                />
+                <Input
+                  value={newSupplierUrl}
+                  placeholder="Their dashboard, https://..."
+                  inputMode="url"
+                  onChange={(e) => setNewSupplierUrl(e.target.value)}
+                />
               </div>
             </div>
           </div>

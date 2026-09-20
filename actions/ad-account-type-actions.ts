@@ -6,6 +6,7 @@ import {
   type AdAccountType,
   type AdAccountTypeOption,
 } from "@/lib/types/ad-account-type";
+import { isMissingColumn } from "@/lib/page-all-rows";
 import { normalizeSupplierUrl } from "@/lib/pure-supplier-link";
 import {
   type ActionResult,
@@ -272,21 +273,74 @@ export async function upsertAdAccountType(input: {
   const sort_order =
     typeof input.sort_order === "number" ? input.sort_order : maxOrder + 1;
 
-  const { data, error } = await supabase
-    .from("ad_account_types")
-    .insert({
-      tenant_id: profile.tenant_id,
-      label,
-      slug,
-      platform_group,
-      default_fee_pct: input.default_fee_pct,
-      api_topup_enabled: input.api_topup_enabled ?? false,
-      is_active: input.is_active ?? true,
-      sort_order,
-      updated_by: profile.user_id,
-    })
-    .select("id")
-    .single();
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { id: data.id } };
+  // ── THE LIVE TABLE IS NOT THE MIGRATION ─────────────────────────────
+  //
+  // This inserted one fixed row shape, so ANY column the live database
+  // does not have — supplier_label and supplier_url arrive with
+  // 20260920120000, and sort_order/updated_by are only guaranteed by a
+  // migration that may itself never have been pasted — failed the whole
+  // insert and "Add a type" did nothing but show a red toast.
+  //
+  // So: the full row, then the row without the newest columns, then the
+  // row with only what the table has had since the day it was created.
+  // Whatever lands, the type exists; what could not be written is named
+  // rather than reported as saved.
+  const core: Record<string, unknown> = {
+    tenant_id: profile.tenant_id,
+    label,
+    slug,
+    platform_group,
+    default_fee_pct: input.default_fee_pct,
+    api_topup_enabled: input.api_topup_enabled ?? false,
+    is_active: input.is_active ?? true,
+  };
+  const withOrder = { ...core, sort_order, updated_by: profile.user_id };
+  const full = supplierTouched
+    ? {
+        ...withOrder,
+        supplier_label: supplierLabel || null,
+        supplier_url: supplierUrl,
+      }
+    : withOrder;
+
+  const attempts: Array<{ row: Record<string, unknown>; lost: string | null }> =
+    full === withOrder
+      ? [
+          { row: withOrder, lost: null },
+          { row: core, lost: "sort order" },
+        ]
+      : [
+          { row: full, lost: null },
+          { row: withOrder, lost: "the supplier link" },
+          { row: core, lost: "the supplier link and the sort order" },
+        ];
+
+  let lastError = "";
+  for (const attempt of attempts) {
+    const { data, error } = await supabase
+      .from("ad_account_types")
+      .insert(attempt.row)
+      .select("id")
+      .single();
+    if (!error) {
+      return {
+        ok: true,
+        data: { id: data.id },
+        warning: attempt.lost
+          ? `Type created, but ${attempt.lost} could not be saved: that column is not on the database yet.`
+          : undefined,
+      };
+    }
+    lastError = error.message;
+    // Only a missing column is worth retrying a narrower row for. A
+    // duplicate name, a failed policy or a broken constraint will fail
+    // exactly the same way three times, and the caller needs to be told
+    // what it actually was.
+    if (!isMissingColumn(error.message)) break;
+  }
+
+  // The real message, not "something went wrong". This is the owner's
+  // own settings screen and the reason matters: a policy refusal, a
+  // duplicate slug and a missing column each need a different answer.
+  return { ok: false, error: lastError || "The type could not be created." };
 }
