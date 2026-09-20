@@ -1,4 +1,8 @@
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
+import {
+  formatPaymentReference,
+  invoiceNumber,
+} from "@/lib/payment-reference";
 import { createClient } from "@/lib/supabase/server";
 import { readFile } from "fs/promises";
 import { cookies } from "next/headers";
@@ -29,6 +33,7 @@ type CompanyRecord = {
   website_url?: string | null;
   registration_no?: string | null;
   vat_no?: string | null;
+  is_not_vat?: boolean | null;
   address?: string | null;
   state?: string | null;
   country?: string | null;
@@ -171,11 +176,6 @@ function formatMoney(
   return `${currencySymbol}${formatAmount(value)}`;
 }
 
-function formatTaxPercentage(value: number): string {
-  const normalized = Number.isInteger(value) ? String(value) : value.toFixed(2);
-  return `${normalized}%`;
-}
-
 function formatLabel(value: string | null | undefined): string {
   const compact = compactText(value);
   if (!compact) return "";
@@ -242,8 +242,12 @@ function buildInvoiceHtml(
   // "$200.00 due" while the RPC debited €200 from the EUR wallet. The
   // customer wires $200 (about €172) and is €28 short, or overpays by €33
   // the other way round, on the one document they actually pay from.
-  const currencyCode =
-    invoice.currency ?? items[0]?.currency ?? "EUR";
+  // ...and NOT items[0] either, for the same reason: the RPC reads
+  // `upper(coalesce(v_inv.currency,'EUR'))` and nothing else. Reordering
+  // the terms fixed the no-items case and left this one, where a line
+  // item saying USD over a NULL column still printed dollars on a
+  // document the customer pays from in euros.
+  const currencyCode = invoice.currency ?? "EUR";
   const currencySymbol = getCurrencySymbol(currencyCode);
 
   const computedTax = items.reduce((sum, item) => sum + toNumber(item.tax), 0);
@@ -335,7 +339,22 @@ function buildInvoiceHtml(
   const invoiceTypeKey = resolveInvoiceTypeKey(invoice.type, items);
   const invoiceType = formatLabel(invoiceTypeKey) || "N/A";
   const vatNo = compactText(company?.vat_no) || "N/A";
-  const invoiceNumber = String(invoice.number).padStart(6, "0");
+  // ── THE SAME NUMBER THE SCREEN AND THE FILENAME USE ───────────────
+  //
+  // ROUTE_MAP opens by saying the client-code-prefixed number was fixed
+  // in a dead file and "the live screen kept contradicting the PDF
+  // filename beside it". The screens were then fixed; the PDF BODY was
+  // not. So the customer quotes 000005-4839 -- which is also the shape
+  // of their bank reference -- and the document they are holding says
+  // 004839. Four identities for one invoice.
+  const invoiceAdvertiser = Array.isArray(invoice.advertiser)
+    ? invoice.advertiser[0]
+    : invoice.advertiser;
+  const invoiceNumber =
+    formatPaymentReference(
+      invoiceAdvertiser?.tenant_client_code,
+      invoice.number,
+    ) || String(invoice.number ?? "").padStart(6, "0");
   const isWalletTopupInvoice = invoiceTypeKey === "wallet_topup";
   const referenceNo = isWalletTopupInvoice
     ? getReferenceNoFromItems(items)
@@ -524,7 +543,12 @@ function buildInvoiceHtml(
           <td class="item-name capitalize">${escapeHtml(row.description)}</td>
           <td class="num">${formatAmount(row.quantity)}</td>
           <td class="num">${formatAmount(row.rate)}</td>
-          <td class="num">${escapeHtml(formatTaxPercentage(row.tax))}</td>
+          <!-- AN AMOUNT, NOT A PERCENTAGE. row.tax is summed into the
+               total (computedTax) and subtracted to get net, so it is
+               unambiguously money -- and it was drawn with a % after it.
+               An item {rate:500, tax:105} for 21% VAT printed
+               "Rate 500.00 | Tax 105% | Amount 605.00". -->
+          <td class="num">${escapeHtml(formatAmount(row.tax))}</td>
           <td class="num">${formatAmount(row.amount)}</td>
         </tr>
       `,
@@ -727,7 +751,15 @@ function buildInvoiceHtml(
          <p class="party-heading">Bill To</p>
          <p class="party-name">${escapeHtml(billToName)}</p>
           ${renderLines(resolvedBillToLines)}
-          <div class="line">VAT Number: ${escapeHtml(vatNo)}</div>
+          <div class="line">${
+            /* is_not_vat is a column the customer ticks on
+               /complete-profile and the PDF never read, so a VAT-exempt
+               business got "VAT Number: N/A" -- which reads as a
+               missing detail rather than the statement it is. */
+            company?.is_not_vat
+              ? "VAT: not VAT-registered"
+              : `VAT Number: ${escapeHtml(vatNo)}`
+          }</div>
 
          <div class="invoice-date">Invoice Date: ${escapeHtml(createdAt)}</div>
          ${periodHtml}
@@ -759,6 +791,20 @@ function buildInvoiceHtml(
           <span>Sub Total</span>
           <span>${escapeHtml(formatMoney(subTotal, currencySymbol))}</span>
         </div>
+        ${
+          /* There was no tax row at all. Every invoice this app raises
+             writes tax: 0, so it never showed -- but a hand-authored row
+             carrying VAT stated the amount nowhere, and an EU VAT
+             invoice that does not state the VAT is not a valid VAT
+             invoice. Printed only when it is not zero, so nothing
+             changes on the invoices we raise ourselves. */
+          computedTax
+            ? `<div class="summary-line">
+          <span>VAT</span>
+          <span>${escapeHtml(formatMoney(computedTax, currencySymbol))}</span>
+        </div>`
+            : ""
+        }
         <div class="summary-line shaded">
           <span>Total</span>
           <span>${escapeHtml(formatMoney(total, currencySymbol))}</span>
@@ -943,7 +989,7 @@ export async function GET(
     const { data: issuerCompany } = await supabase
       .from("companies")
       .select(
-        "name, official_email, phone, website_url, registration_no, vat_no, address, state, country, zipcode",
+        "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
       )
       .eq("tenant_id", activeProfile.tenant_id)
       .is("advertiser_id", null)
@@ -978,9 +1024,18 @@ export async function GET(
       invoiceTypeKey === "wallet_topup"
         ? sanitizeFileNamePart(getReferenceNoFromItems(invoiceRecord.items))
         : "";
+    // Same identity as the body and as the download button's own label.
+    const fileNumber =
+      sanitizeFileNamePart(
+        invoiceNumber({
+          number: invoiceRecord.number,
+          advertiser: (invoiceRecord as { advertiser?: unknown })
+            .advertiser as never,
+        }),
+      ) || String(invoiceRecord.number ?? "");
     const fileName = referenceNo
-      ? `invoice-${invoiceRecord.number}-${referenceNo}.pdf`
-      : `invoice-${invoiceRecord.number}.pdf`;
+      ? `invoice-${fileNumber}-${referenceNo}.pdf`
+      : `invoice-${fileNumber}.pdf`;
     const pdfBody = new ArrayBuffer(pdfContent.byteLength);
     new Uint8Array(pdfBody).set(pdfContent);
 

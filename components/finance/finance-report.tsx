@@ -24,7 +24,7 @@ import {
   type FinanceKind,
   type FinanceLine,
 } from "@/lib/pure-finance-report";
-import { downloadBlob } from "@/lib/download-blob";
+import { downloadCsv } from "@/lib/download-blob";
 import { compactRangeLabel } from "@/lib/pure-date-range-label";
 
 /**
@@ -139,9 +139,14 @@ export default function FinanceReport({
         .filter(Boolean)
         .join("; "),
     });
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8",
-    });
+    // ── downloadCsv, NOT downloadBlob ──────────────────────────────
+    //
+    // downloadCsv exists to prepend the byte-order mark, and its own
+    // comment says why: "these files are read by the customer's own
+    // bookkeeper, not by us." This is the customer's own financial
+    // report -- the one export that comment was written for -- and it
+    // was the one calling the raw helper. Every accented name opened as
+    // "Ã©" in a European Windows Excel.
     // ── APPEND IT, CLICK IT, THEN LET GO ────────────────────────────
     //
     // The anchor was never added to the document, and the object URL was
@@ -152,8 +157,8 @@ export default function FinanceReport({
     // customer their own figures.
     // Moved to lib/download-blob, which three other exports were
     // getting wrong in exactly the way described above.
-    downloadBlob(
-      blob,
+    downloadCsv(
+      csv,
       `financial-report-${new Date().toISOString().slice(0, 10)}${
         (data?.failed?.length ?? 0) > 0 || data?.truncated ? "-PARTIAL" : ""
       }.csv`,

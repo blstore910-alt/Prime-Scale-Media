@@ -14,6 +14,7 @@ import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import { isCustomerVisibleType } from "@/lib/notification-catalog";
 import { updateOwnProfileAndCompany } from "@/actions/company-actions";
 import { getURL } from "@/lib/utils";
 import {
@@ -721,7 +722,7 @@ export default function AdvertiserApp() {
   // advertiser). Shown under the "Affiliate program" view.
   const aff = useAffiliateStats({ enabled: !!advertiserId });
   const {
-    notifications: notifs,
+    notifications: rawNotifs,
     markAsRead,
     markAllAsRead,
     // "You're all caught up" over a read that FAILED is the worst kind of
@@ -740,6 +741,21 @@ export default function AdvertiserApp() {
     unreadCount,
     countError: notifsCountError,
   } = useNotifications();
+  // ── A SECOND LINE OF DEFENCE, WHERE IT IS DRAWN ───────────────────
+  //
+  // getNotificationCopy prints payload.summary verbatim for
+  // supplier_pool_changed, and its own comment gives the format as
+  // "... · seamx-9001: active → suspended" -- the supplier's name and
+  // their account ids. It is rendered by both customer shells, and the
+  // push route switches on `type` alone. Until now the ONLY thing
+  // keeping that off a customer's screen was the two insert sites
+  // picking their recipients correctly; one mis-addressed row put it
+  // here and, because the GDPR export copies notifications.payload out
+  // whole, into their download as well.
+  const notifs = (rawNotifs ?? []).filter((n) =>
+    isCustomerVisibleType((n as { type?: string | null })?.type),
+  );
+
 
   const {
     data: company,
@@ -1374,13 +1390,17 @@ export default function AdvertiserApp() {
   // the paying RPC uses. The modal was fixed for this and the CARD and the
   // amount column were not, so one invoice could read €120 on the button
   // and $120 in the confirmation it opened.
+  // ...and the line item is NOT consulted. invoice_pay_from_wallet reads
+  // `upper(coalesce(v_inv.currency,'EUR'))`; an items[0] saying USD over
+  // a NULL column made this button promise a dollar payment from the USD
+  // wallet while euros left the EUR one. The wallet statement's own
+  // invoice row a few hundred lines down already uses the column alone,
+  // so two rows in this same component disagreed about one invoice.
   const invCurrency = (inv: {
     currency?: string | null;
     items?: unknown;
   } | null | undefined): "USD" | "EUR" =>
-    ((inv?.currency as string | null | undefined) ??
-      (inv?.items as Array<{ currency?: string }> | undefined)?.[0]?.currency ??
-      "EUR")
+    ((inv?.currency as string | null | undefined) ?? "EUR")
       .toString()
       .toUpperCase() === "USD"
       ? "USD"

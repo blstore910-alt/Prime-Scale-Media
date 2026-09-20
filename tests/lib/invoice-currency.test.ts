@@ -19,15 +19,23 @@ test("a lowercase code is the same currency, not a different one", () => {
   assert.equal(invoiceCurrencySymbol({ currency: " USD " }), "$");
 });
 
-test("the items fall back only when the invoice itself says nothing", () => {
+test("a line item is NOT consulted, because the payment RPC does not", () => {
+  // invoice_pay_from_wallet reads upper(coalesce(v_inv.currency,'EUR'))
+  // and nothing else. A screen that reads items[0] describes a payment
+  // that will not happen: the row said $2,000 from the USD wallet while
+  // EUR 2,000 left the EUR one.
   assert.equal(
     invoiceCurrencyCode({ currency: null, items: [{ currency: "USD" }] }),
-    "USD",
+    "EUR",
   );
-  // The invoice's own column wins: it is what the RPC reads.
   assert.equal(
     invoiceCurrencyCode({ currency: "EUR", items: [{ currency: "USD" }] }),
     "EUR",
+  );
+  // The invoice's own column is the whole answer, whichever way it goes.
+  assert.equal(
+    invoiceCurrencyCode({ currency: "USD", items: [{ currency: "EUR" }] }),
+    "USD",
   );
 });
 
@@ -48,6 +56,7 @@ test("the row and the modal can no longer disagree", () => {
   for (const inv of [
     { currency: "usd" },
     { currency: null, items: [{ currency: "USD" }] },
+    { currency: "USD", items: [{ currency: "EUR" }] },
     { currency: "EUR" },
     { currency: null },
   ]) {

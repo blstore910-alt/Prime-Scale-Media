@@ -22,6 +22,7 @@ import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import { downloadCsv } from "@/lib/download-blob";
+import { isCustomerVisibleType } from "@/lib/notification-catalog";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
 const SUPPORT_EMAIL = "contact@primescalemedia.com";
@@ -178,7 +179,7 @@ export default function AffiliateApp() {
   const all = useAffiliateStats();
   const month = useAffiliateStats({ from: monthStartIso() });
   const {
-    notifications: notifs,
+    notifications: rawNotifs,
     markAsRead,
     markAllAsRead,
     // "You're all caught up" over a read that FAILED is the worst kind of
@@ -189,6 +190,21 @@ export default function AffiliateApp() {
     unreadCount,
     countError: notifsCountError,
   } = useNotifications();
+  // ── A SECOND LINE OF DEFENCE, WHERE IT IS DRAWN ───────────────────
+  //
+  // getNotificationCopy prints payload.summary verbatim for
+  // supplier_pool_changed, and its own comment gives the format as
+  // "... · seamx-9001: active → suspended" -- the supplier's name and
+  // their account ids. It is rendered by both customer shells, and the
+  // push route switches on `type` alone. Until now the ONLY thing
+  // keeping that off a customer's screen was the two insert sites
+  // picking their recipients correctly; one mis-addressed row put it
+  // here and, because the GDPR export copies notifications.payload out
+  // whole, into their download as well.
+  const notifs = (rawNotifs ?? []).filter((n) =>
+    isCustomerVisibleType((n as { type?: string | null })?.type),
+  );
+
 
   const lifetimeEur = all.totals.earnings_eur;
   const monthEur = month.totals.earnings_eur;

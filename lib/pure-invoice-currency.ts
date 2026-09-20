@@ -28,12 +28,28 @@ export interface InvoiceCurrencyish {
   items?: { currency?: string | null }[] | null;
 }
 
-/** The uppercased code the payment RPC would charge in. */
+/**
+ * The uppercased code the payment RPC would charge in.
+ *
+ * ── AND ITEMS[0] IS NOT PART OF THAT ────────────────────────────────
+ *
+ * This said "follows the RPC exactly" and then consulted the first line
+ * item before falling back. The RPC does not look at `items` at all:
+ *
+ *     v_cur := upper(coalesce(v_inv.currency, 'EUR'));
+ *
+ * So an invoice with currency NULL, total 2000 and items[0].currency
+ * 'USD' drew "$2,000.00" on the customer's Billing row, in the Pay now
+ * modal ("from your USD wallet") and on the PDF they file -- and the
+ * RPC debited EUR 2,000 from the EUR wallet. About 325 dollars over,
+ * off a wallet no surface mentioned, and there is no undo.
+ *
+ * A screen that guesses better than the thing taking the money is not
+ * being helpful; it is describing a payment that will not happen.
+ */
 export function invoiceCurrencyCode(invoice: InvoiceCurrencyish): string {
   const own = String(invoice?.currency ?? "").trim();
   if (own) return own.toUpperCase();
-  const fromItem = String(invoice?.items?.[0]?.currency ?? "").trim();
-  if (fromItem) return fromItem.toUpperCase();
   return "EUR";
 }
 

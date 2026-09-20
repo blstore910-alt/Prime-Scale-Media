@@ -142,3 +142,36 @@ export function catalogForRole(
   const audience = audienceForRole(role);
   return NOTIFICATION_CATALOG.filter((e) => e.audience === audience);
 }
+
+/**
+ * Is this type safe to render on a CUSTOMER's screen?
+ *
+ * ── WHY THIS HAS TO EXIST ────────────────────────────────────────────
+ *
+ * `audience` was declared for every type and read by exactly one thing:
+ * the preferences UI. Delivery never consulted it. getNotificationCopy
+ * prints `payload.summary` verbatim for `supplier_pool_changed`, and the
+ * format its own comment gives is
+ *
+ *     "2 new ad account(s) in the pool · seamx-9001: active → suspended"
+ *
+ * -- the supplier's name and their account ids. That function is
+ * rendered by BOTH customer shells, and the push route switches on
+ * `type` alone and pushes to whatever `recipient_user_id` says.
+ *
+ * So the only thing keeping the supplier off a customer's screen was
+ * the two insert sites choosing their recipients correctly. One
+ * mis-addressed row -- a hand-run SQL insert, a future writer, a
+ * tenants.owner_id pointing at a customer -- put it on an advertiser's
+ * notifications page AND into their GDPR export, which copies
+ * notifications.payload out whole.
+ *
+ * A second line of defence, at the place it is drawn. An unknown type
+ * is allowed through: the catalogue is a list of what we know about,
+ * not a list of what exists, and hiding a real notification because it
+ * is newer than this file is the worse failure.
+ */
+export function isCustomerVisibleType(type: string | null | undefined): boolean {
+  const entry = NOTIFICATION_CATALOG.find((e) => e.type === type);
+  return !entry || entry.audience === "customer";
+}

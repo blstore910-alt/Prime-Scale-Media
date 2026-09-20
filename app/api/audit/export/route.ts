@@ -47,7 +47,13 @@ export async function GET(req: Request) {
   // Two response headers cost nothing, and the filename says it too, so
   // it survives being forwarded as an attachment.
   const truncated = result.data.truncated === true;
-  return new NextResponse(result.data.csv, {
+  // The byte-order mark, same as every client-side export. This is the
+  // compliance file -- the one most likely to be opened in Excel on a
+  // European Windows box and least likely to be opened again to check.
+  const csvBody = result.data.csv.startsWith("﻿")
+    ? result.data.csv
+    : "﻿" + result.data.csv;
+  return new NextResponse(csvBody, {
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
