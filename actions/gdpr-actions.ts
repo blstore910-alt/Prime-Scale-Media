@@ -252,6 +252,34 @@ export async function requestOwnErasure(): Promise<ActionResult> {
     return { ok: false, error: "Unauthorized" };
   }
 
+  // ── THE OWNER CANNOT ERASE THE OWNER ────────────────────────────
+  //
+  // This had no role check and writes status = pending_erasure,
+  // is_active = false on EVERY profile row the caller holds. /profile is
+  // reachable by admins, so the tenant owner sees "Request deletion" —
+  // and pressing it locks them out permanently: requireSuperAdmin then
+  // sends them to /inactive, every server action refuses them,
+  // hardDeleteUser is super-admin-only so they cannot undo it, and
+  // toggleAdminStatus refuses a self-target AND needs a super-admin
+  // caller, so no employee admin can restore them either. The tenant is
+  // left with no owner and no path back short of hand-written SQL.
+  //
+  // GDPR does not require a controller to be able to erase itself out of
+  // its own tenancy. Refused, with the thing to do instead.
+  const { data: ownedTenant } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("owner_id", userData.user.id)
+    .limit(1)
+    .maybeSingle();
+  if (ownedTenant?.id) {
+    return {
+      ok: false,
+      error:
+        "This account owns the organisation, so it cannot delete itself — everyone would lose access. Transfer ownership first, or contact us and we will do it for you.",
+    };
+  }
+
   // Count the rows. This is a legal request: telling someone their erasure
   // was registered when nothing was written leaves them believing a right
   // was exercised that was not, and the clock they think is running is not.

@@ -31,6 +31,40 @@
 
 set search_path = public;
 
+-- ── AND IT MUST NOT READ advertisers DIRECTLY ───────────────────────
+--
+-- The first version of this policy did `exists (select 1 from
+-- public.advertisers ...)` inline, and that took the whole app down:
+--
+--     infinite recursion detected in policy for relation "advertisers"
+--
+-- `advertisers` carries a policy of its own that reads referral_links,
+-- so a policy on referral_links that reads advertisers closes a cycle,
+-- and Postgres refuses EVERY read of advertisers -- which is every
+-- screen, because the session profile embeds it. Reading the repo's own
+-- copy of the old policy was not enough: the live one had been
+-- hand-authored differently, and replacing it is what closed the loop.
+--
+-- A SECURITY DEFINER function reads advertisers WITHOUT RLS, so there
+-- is no second policy to evaluate and no cycle. STABLE, so the planner
+-- may call it once per row rather than per reference.
+create or replace function public._owns_advertiser(p_advertiser_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $blk0$
+  select exists (
+    select 1 from public.advertisers a
+     where a.id = p_advertiser_id
+       and a.user_id = auth.uid()
+  );
+$blk0$;
+
+revoke all on function public._owns_advertiser(uuid) from public, anon;
+grant execute on function public._owns_advertiser(uuid) to authenticated;
+
 drop policy if exists referral_links_select on public.referral_links;
 create policy referral_links_select on public.referral_links
   for select using (
@@ -38,11 +72,7 @@ create policy referral_links_select on public.referral_links
     -- not: what we pay somebody else for introducing them is not
     -- theirs, and "who referred me" is already on their own profile
     -- (user_profiles.referred_by) without any commercial terms on it.
-    exists (
-      select 1 from public.advertisers a
-       where a.id = referral_links.affiliate_advertiser_id
-         and a.user_id = auth.uid()
-    )
+    public._owns_advertiser(referral_links.affiliate_advertiser_id)
     or public._is_admin_of(tenant_id)
   );
 
@@ -70,6 +100,13 @@ select
        limit 1), '')) = 0
     then 'OK'
     else 'STILL THERE - a referred customer can read their referrer''s terms'
+  end
+union all
+select
+  'advertisers is readable again (no recursion)',
+  case
+    when (select count(*) from public.advertisers) >= 0 then 'OK'
+    else 'UNREACHABLE'
   end
 union all
 select

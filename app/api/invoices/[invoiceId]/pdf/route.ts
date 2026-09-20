@@ -748,6 +748,21 @@ export async function GET(
     const activeProfile =
       profiles.find((profile) => profile.id === existingProfile) ?? profiles[0];
 
+    // ── AND THEN ACTUALLY TEST THEM ─────────────────────────────────
+    //
+    // The comment above says why is_active and status were added to the
+    // select. The `if` was never written, so the columns were fetched
+    // and ignored and a deactivated admin with a live cookie could go
+    // on pulling any invoice PDF in the tenant — company name, address,
+    // VAT number, amounts. Every other boundary in the app tests this.
+    if (
+      activeProfile.is_active === false ||
+      (activeProfile.status ?? "active") === "inactive" ||
+      (activeProfile.status ?? "") === "pending_erasure"
+    ) {
+      return NextResponse.json({ error: "Account inactive" }, { status: 403 });
+    }
+
     // Tenant match alone is NOT authorization here. Every advertiser in a
     // tenant shares that tenant_id, so filtering on it only let advertiser A
     // fetch advertiser B's invoice PDF — company name, address, VAT number
