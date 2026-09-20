@@ -282,10 +282,28 @@ export default function PsmVerifyAdTopups() {
           </button>
         </div>
       ) : (
-        <div className="card">
+        <div className="card" style={{ display: "grid", gap: 10 }}>
+          {/* A FILTERED QUEUE IS NOT AN EMPTY ONE. This said the same
+              flat sentence whether nothing was waiting or the search
+              simply missed — on the screen whose job is to say who is
+              waiting on us. */}
           <p className="muted" style={{ margin: 0 }}>
-            No ad-account topups to show.
+            {status !== "all" || search.trim()
+              ? "Nothing matches that search or filter — the queue itself may not be empty."
+              : "No ad-account topups to show."}
           </p>
+          {(status !== "all" || search.trim()) && (
+            <button
+              className="btn ghost sm"
+              style={{ justifySelf: "start" }}
+              onClick={() => {
+                setStatus("all");
+                setSearch("");
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       )}
 

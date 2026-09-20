@@ -579,12 +579,20 @@ export default function AccountTopupForm({
             )}
           />
         )}
+        {/* Same reason as the summary above: what lands is USD, and we
+            do not hold the rate on this screen. The two figures that
+            ARE exact — what leaves the wallet and the fee — are stated
+            either side of it. */}
         <ConfirmFact
           label="Lands on the account"
-          value={formatCurrency(
-            parseAmount(amount) - (parseAmount(amount) * fee) / 100,
-            selectedCurrency,
-          )}
+          value={
+            selectedCurrency === "USD"
+              ? formatCurrency(
+                  parseAmount(amount) - (parseAmount(amount) * fee) / 100,
+                  "USD",
+                )
+              : "in USD, converted at today's rate"
+          }
           strong
         />
         <ConfirmFact
@@ -689,9 +697,26 @@ function BalanceSummary({
             above it while being a different number — the field is what
             leaves the wallet, this is what survives the fee. Two labels,
             because they are two amounts. */}
+        {/* ── AN AD-ACCOUNT BALANCE IS USD ──────────────────────────
+            This printed the post-fee figure with the WALLET's symbol.
+            The server converts first — calculateTopupAmount divides by
+            the rate and takes the fee off the dollar figure — so a
+            EUR 1,000 top-up at 5% promised "Lands on the account
+            EUR 950.00" and the account's own history, one tap away,
+            then showed $1,104.65. Same value, wrong number and wrong
+            currency, on the screen J4 asks you to check against.
+            Every other reader treats topup_amount as USD.
+
+            We do not hold the rate here, so no converted figure is
+            invented: the wallet-side numbers are exact and the
+            conversion is named. A USD wallet is unaffected — rate 1. */}
         <span className="text-muted-foreground">Lands on the account</span>
         <span className="font-medium">
-          {feePending ? "—" : formatCurrency(amount, currency)}
+          {feePending
+            ? "—"
+            : currency === "USD"
+              ? formatCurrency(amount, "USD")
+              : "in USD, at today's rate"}
         </span>
       </div>
       <div className="flex items-center justify-between text-sm">

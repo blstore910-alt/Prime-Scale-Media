@@ -156,7 +156,17 @@ export default function PsmRequests() {
       const { rejectAdAccountRequest } = await import(
         "@/actions/ad-account-actions"
       );
-      const result = await rejectAdAccountRequest(requestToReject.id, reason);
+      // The third argument is ifUpdatedAt, and it was dropped on the ONE
+      // action here that moves money: rejecting a paid request refunds
+      // the EUR 50. The claim/un-claim path two functions up passes it
+      // correctly. Two admins on the same row still cannot double-refund
+      // — the RPC refuses an already-rejected request — but a guard the
+      // action offers on a money path is not one to leave on the floor.
+      const result = await rejectAdAccountRequest(
+        requestToReject.id,
+        reason,
+        requestToReject.updated_at ?? undefined,
+      );
       if (!result.ok) throw new Error(result.error);
       // SAY WHAT HAPPENED TO THE MONEY. The customer paid 50 for this and
       // is getting it back; an admin who does not know that will field the

@@ -136,7 +136,19 @@ export default function useTopups(params: TopupsQueryParams = {}) {
         const orPatterns: string[] = [];
 
         if (term.length > 0) {
+          // ── A MISS READS AS AN EMPTY QUEUE ────────────────────────
+          //
+          // This matched the client code and the top-up number and
+          // nothing else, under a box labelled "Search top-ups…" and
+          // above an empty state that says "No ad-account topups to
+          // show." So an admin who types the advertiser's name, or the
+          // ad account's, is told there is nothing waiting on them —
+          // on the screen whose whole job is to say what is.
+          //
+          // top_ups_view is a VIEW with flat columns, so account_name
+          // is searchable directly.
           orPatterns.push(`tenant_client_code.ilike."*${term}*"`);
+          orPatterns.push(`account_name.ilike."*${term}*"`);
         }
 
         if (!isNaN(Number(rawTerm))) {
