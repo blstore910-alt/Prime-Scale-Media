@@ -2410,6 +2410,17 @@ export default function AdvertiserApp() {
               onOpenWallet={() => go("wallet")}
               onOpenAccounts={() => go("accounts")}
               disabled={!wallet || (!companyComplete && !companyUnknown)}
+              disabledReason={
+                !wallet
+                  ? walletError
+                    ? "We couldn't read your wallet just now — reload and try again."
+                    : "Your wallet is still being set up. Reload in a moment."
+                  : !companyComplete && !companyUnknown
+                    ? companyMissing.length && companyMissing.length <= 2
+                      ? `Still needed first: ${companyMissing.join(" and ")}`
+                      : "Add your company details first — including the billing address"
+                    : null
+              }
               loading={walletLoading}
             />
             {/* Number(), not truthiness. subscriptions.amount is moving from
@@ -3591,6 +3602,25 @@ export default function AdvertiserApp() {
                 </button>
               )}
             </div>
+            {/* ── A title IS INVISIBLE ON A PHONE ──────────────────────
+                and this is a phone app -- there is a bottom bar below.
+                A title does not fire on a DISABLED control even with a
+                mouse, so the reason this button is dead was reachable
+                by nobody. The empty state underneath talks about
+                requests that do not exist yet, which does not explain
+                it either.
+                The same fault was fixed twice already in this file, on
+                the Accounts empty state and on the notification
+                toggles, both with the same note. The Requests tab was
+                missed. */}
+            {!canRequestAccount && requestBlockedReason() ? (
+              <p
+                className="cap"
+                style={{ margin: "0 0 12px", color: "var(--faint)" }}
+              >
+                {requestBlockedReason()}.
+              </p>
+            ) : null}
             {myRequests.length ? (
               <div className="card" style={{ padding: 0 }}>
                 <div className="tblwrap">

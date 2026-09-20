@@ -24,6 +24,7 @@ export default function BalanceHero({
   onOpenWallet,
   onOpenAccounts,
   disabled,
+  disabledReason,
   loading,
 }: {
   firstName: string;
@@ -34,6 +35,9 @@ export default function BalanceHero({
   onOpenWallet: () => void;
   onOpenAccounts: () => void;
   disabled?: boolean;
+  /** Why the two buttons are dead. A dead control with no reason is the
+   *  fault this app has fixed three times elsewhere. */
+  disabledReason?: string | null;
   /** The wallet has not been read yet. */
   loading?: boolean;
 }) {
@@ -81,6 +85,24 @@ export default function BalanceHero({
           </span>
         </button>
       </div>
+
+      {/* ── SAY WHY, ON THE CARD ─────────────────────────────────────
+          Top up and Exchange go dead when there is no wallet row yet or
+          the company is incomplete, and nothing said so -- on the
+          customer's own dashboard, on the two controls that put money
+          in. A title would not have helped: this is a phone app and a
+          title does not fire on a disabled button anyway. */}
+      {disabled && disabledReason ? (
+        <p
+          style={{
+            margin: "0 0 10px",
+            fontSize: ".82rem",
+            opacity: 0.85,
+          }}
+        >
+          {disabledReason}
+        </p>
+      ) : null}
 
       <div className="hero-a">
         <button className="hero-btn" onClick={onTopup} disabled={disabled}>
