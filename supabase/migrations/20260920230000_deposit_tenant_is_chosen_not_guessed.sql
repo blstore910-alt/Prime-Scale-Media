@@ -39,13 +39,25 @@
 
 set search_path = public;
 
--- ── 1. No tenant is the deposit tenant until somebody says so ────────
--- Deliberately NOT conditional: 20260920220000's do-block may have set
--- this on whichever tenant it liked, and that value carries no
--- authority. Clearing it costs one statement and a person then decides.
-update public.tenants
+-- ── 1. Clear a flag NOBODY HAS CONFIRMED ─────────────────────────────
+-- The first draft of this file cleared it unconditionally, reasoning
+-- that a value 20260920220000's do-block chose carries no authority.
+-- That is true of a guess and false of a correction: by the time this
+-- ran on production a person had already moved the flag to the right
+-- tenant BY HAND and moved 258 deposits with it. Clearing it would have
+-- undone that and left every new deposit arriving with no tenant, and
+-- therefore visible to nobody.
+--
+-- So the test is evidence, not provenance: a flagged tenant that
+-- actually holds deposits has been confirmed by somebody, whether or
+-- not that was this file. Only an unconfirmed guess is cleared.
+update public.tenants t
    set receives_bank_deposits = false
- where receives_bank_deposits;
+ where t.receives_bank_deposits
+   and not exists (
+     select 1 from public.wise_incoming_transfers w
+      where w.tenant_id = t.id
+   );
 
 comment on column public.tenants.receives_bank_deposits is
   'True for the ONE tenant whose bank account the deposit webhook reads. SET THIS BY HAND -- it decides who can read every incoming bank transfer, and it must never be inferred from activity, because a test tenant out-runs a real one.';
