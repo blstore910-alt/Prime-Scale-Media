@@ -237,8 +237,7 @@ export default function PlansCard() {
           Billing presets used to pre-fill an advertiser at invite time —
           monthly fee, included ad accounts, and default topup fee. The USD
           price is one you choose, not a conversion — €200 a month is $225,
-          not $226.14; leave it empty and we suggest one. Yearly % off turns
-          on a yearly term for that plan. Tiers (Launch/Prime/Flex) and
+          not $226.14; leave it empty and we suggest one. Tiers (Launch/Prime/Flex) and
           communities (e.g. NSA = free). Editable; changing a preset never
           touches existing advertisers.
         </CardDescription>
@@ -368,7 +367,17 @@ export default function PlansCard() {
                     this plan has no yearly option and the Monthly/Yearly
                     pill does not appear for it. */}
                 <label className="grid gap-1">
-                  <span className={lab}>Yearly % off</span>
+                  {/* ── NOT WIRED YET, AND SAYING SO ─────────────
+                      The card used to claim this "turns on a yearly
+                      term for that plan". It does not: the column is
+                      saved and read by nothing. planPrice is only ever
+                      called with "month", nothing sets
+                      billing_period to 'year', and the migration that
+                      added it says in its own header that applying it
+                      alone changes nothing for anybody. A setting that
+                      appears to work and does not is worse than one
+                      that is plainly parked. */}
+                  <span className={lab}>Yearly % off (not in use yet)</span>
                   <Input
                     type="number"
                     min="0"

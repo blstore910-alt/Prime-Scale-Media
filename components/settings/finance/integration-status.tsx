@@ -406,12 +406,28 @@ function IntegrationRow({
         </Button>
       </div>
 
+      {/* ── GREEN MEANS TALKING TO THE REAL THING ──────────────────
+          In mock mode the adapter returns a canned transfer and canned
+          balances, so this rendered a green tick and "Connected" for a
+          feed that is switched OFF on production -- which is what
+          docs/WISE_SETUP.md says it is. Amber and the word MOCK, so
+          nobody reads a rehearsal as a connection. */}
       {result && result.ok && (
-        <div className="mt-2 flex items-start gap-2 text-sm text-green-600">
+        <div
+          className={
+            "mt-2 flex items-start gap-2 text-sm " +
+            (String(result.mode).toLowerCase() === "mock"
+              ? "text-amber-600"
+              : "text-green-600")
+          }
+        >
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0">
             <div>
-              Connected — mode <b>{result.mode}</b>
+              {String(result.mode).toLowerCase() === "mock"
+                ? "MOCK — this answered from canned data, not from the live service. Nothing here proves the connection works."
+                : "Connected"}{" "}
+              — mode <b>{result.mode}</b>
               {result.note
                 ? "."
                 : `, ${result.count} record${result.count === 1 ? "" : "s"}.`}
