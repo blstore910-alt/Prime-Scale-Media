@@ -325,7 +325,11 @@ export async function changeSubscriptionAmount(
   // A customer who should not be billed has their subscription DISABLED,
   // which is a state the screen can act on. Free-by-plan is expressed at
   // the invite, where amount 0 correctly creates no subscription at all.
-  if (amount === 0) {
+  // Rounds to the cent, because the column does. `=== 0` let 0.004
+  // through both this guard and its twin on the dialog, and the row
+  // then stored 0.00 -- producing exactly the state this refusal
+  // exists to prevent.
+  if (Math.abs(amount) < 0.005) {
     return {
       ok: false,
       error:

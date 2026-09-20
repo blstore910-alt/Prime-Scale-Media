@@ -246,6 +246,25 @@ export async function createAdAccountAsAdmin(
 // ─────────────────────────────────────────
 // ad_accounts: update
 // ─────────────────────────────────────────
+// ── TWO FIELDS THE FORM SENDS AND THIS SILENTLY DROPPED ─────────────
+//
+// update-account-form sends `platform` and `advertiser_id`; neither was
+// here, so the loop skipped them, the update succeeded on the rest, and
+// the form said "Ad Account updated successfully."
+//
+// `platform` is not cosmetic: resolveEffectiveFeePct takes two
+// percentage points off every future top-up when it is
+// "eu-meta-premium", and the platform family decides which ad-account
+// type -- and therefore which beneficiary bank -- a customer is told to
+// pay. An admin correcting it watched the dropdown change, got a
+// success toast, and the column never moved.
+//
+// `advertiser_id` is who the account belongs to. Reassigning one
+// reported success and left it with the original customer, who kept
+// seeing it, kept funding it and kept being billed for it.
+//
+// The CREATE allowlist has both, so the two forms disagreed about which
+// of their own fields were real.
 const AD_ACCOUNT_UPDATE_ALLOWED = [
   "name",
   "bm_id",
@@ -257,6 +276,8 @@ const AD_ACCOUNT_UPDATE_ALLOWED = [
   "metadata",
   "min_topup",
   "status",
+  "platform",
+  "advertiser_id",
 ] as const;
 type AdAccountUpdateInput = Partial<
   Record<(typeof AD_ACCOUNT_UPDATE_ALLOWED)[number], unknown>

@@ -47,7 +47,18 @@ type EditableRow = {
 function pctToFraction(pctStr: string): number | null {
   const v = Number(pctStr);
   if (!Number.isFinite(v) || v < 0 || v > 100) return null;
-  return v / 100;
+  // ── THE COLUMN HOLDS TWO DECIMALS OF A PERCENT ──────────────────
+  //
+  // fee_defaults.fee_pct is numeric(6,4) and stores a FRACTION, so four
+  // decimals of a fraction is two decimals of a percent. The validator
+  // accepted 5.125; the column rounded it to 0.0513 and the screen read
+  // back "5.13". On a EUR 10,000 top-up that is 513.00 charged where
+  // 512.50 was typed, with nothing saying the figure moved.
+  //
+  // Refusing is better than silently storing something else: the admin
+  // retypes one digit instead of discovering it on an invoice.
+  if (Math.abs(v * 100 - Math.round(v * 100)) > 1e-9) return null;
+  return Math.round(v * 100) / 10_000;
 }
 
 function fractionToPct(fraction: number): string {

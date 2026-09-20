@@ -435,7 +435,8 @@ export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
       newestReceivedAt: null,
     };
   }
-  const { supabase } = ctx.ctx;
+  const { supabase, profile } = ctx.ctx;
+  const tenantId = profile.tenant_id;
 
   const empty = {
     webhookConfigured:
@@ -449,20 +450,54 @@ export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
     newestReceivedAt: null,
   };
 
+  // ── OURS, AND THE ONES NOBODY HAS PLACED YET ──────────────────────
+  //
+  // These three counts had no tenant predicate at all, so on a
+  // deployment with two tenants the "280 deposits" tile included the
+  // other tenant's entire payment history -- while the tab badge six
+  // pixels away, which IS scoped, said 3. The sibling read in the panel
+  // was fixed for exactly this and carries the note; these never were.
+  //
+  // .or() rather than .eq(), because .eq excludes NULL and an
+  // unassigned deposit is the normal state for anything the matcher
+  // could not place.
+  const mine = `tenant_id.eq.${tenantId},tenant_id.is.null`;
   const [totalRes, refRes, newestRes] = await Promise.all([
     supabase
       .from("wise_incoming_transfers")
-      .select("id", { count: "exact", head: true }),
+      .select("id", { count: "exact", head: true })
+      .or(mine),
     supabase
       .from("wise_incoming_transfers")
       .select("id", { count: "exact", head: true })
+      .or(mine)
       .not("reference", "is", null),
     supabase
       .from("wise_incoming_transfers")
       .select("created_at")
+      .or(mine)
       .order("created_at", { ascending: false })
       .limit(1),
   ]);
+
+  // ── AND A FAILED COUNT IS NOT ZERO ────────────────────────────────
+  //
+  // All three errors were discarded and the function returned ok:true
+  // regardless, which defeats the panel's own failure branch -- so a
+  // refused read printed "0 Deposits" with nothing anywhere saying the
+  // feed could not be reached. The third tile already renders a dash
+  // for unknown; now the first two can too.
+  if (totalRes.error || refRes.error || newestRes.error) {
+    return {
+      ok: false,
+      error:
+        "We couldn't read the deposit feed just now, so these figures are not shown.",
+      ...empty,
+      total: 0,
+      withReference: 0,
+      newestReceivedAt: null,
+    };
+  }
 
   return {
     ok: true,

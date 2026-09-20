@@ -488,7 +488,20 @@ export default function WiseReviewPanel() {
         supabase
           .from("wise_incoming_transfers")
           .select(cols)
-          .eq("tenant_id", tenantId)
+          // ── AND THE ONES WITH NO TENANT AT ALL ──────────────────
+          //
+          // .eq() EXCLUDES NULL, and an unassigned deposit is the
+          // normal state for anything the matcher could not place --
+          // which was all 244 of them before the backfill, and is
+          // every new one until a tenant is flagged. Adding this
+          // predicate to close a cross-tenant leak took the whole
+          // orphan queue off the only screen that can act on it.
+          //
+          // Every action behind this screen is written the other way
+          // and says so: "a deposit is either unassigned (tenant_id
+          // null -- the matcher could not tell whose it was) or
+          // already ours." The read has to match the write.
+          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
           .order("created_at", { ascending: false })
         // 100 was less than the table holds — live has 229 — so the
         // "show N more" button below promised 92 more while 129 were not

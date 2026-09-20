@@ -12,6 +12,7 @@ import { isSupplier1Live } from "@/lib/integrations/autopush";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { safeErrorMessage } from "@/lib/pure-error";
 import type { SupplierAdAccount } from "@/lib/types/supplier-ad-account";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 // Admin context: maintenance guard + admin role + tenant, mirroring the other
 // admin actions (multi-profile users are disambiguated by the profile_id
@@ -654,25 +655,64 @@ export async function releaseSupplierAdAccount(
     // which is the same figure /accounts shows. Above zero means there
     // is something on the account to get out first.
     {
-      const { data: tops } = await supabase
-        .from("top_ups")
-        .select("topup_amount")
-        .eq("account_id", pool.ad_account_id)
-        .eq("status", "completed")
-        .not("is_deleted", "is", true)
-        .limit(1000);
-      const { data: wds } = await supabase
-        .from("ad_account_withdrawals")
-        .select("amount")
-        .eq("ad_account_id", pool.ad_account_id)
-        .eq("status", "approved")
-        .limit(1000);
+      // ── A FAILED READ IS NOT "IT IS EMPTY" ──────────────────────
+      //
+      // Neither error was captured. A refused top_ups read gave
+      // `tops === null`, so funded became `0 - withdrawals`, which is
+      // never above the threshold -- the guard passed and the account
+      // was released with the customer's money still on it. That is
+      // precisely the outcome the paragraph above says this exists to
+      // prevent, and the money then goes to whoever gets the account
+      // next.
+      //
+      // And pageAllRows, not .limit(1000): this file pages its own
+      // listing for exactly this reason ("PostgREST caps a response at
+      // 1000 by default and says nothing about having done so"), while
+      // the money guard took the cap. A long-lived account past a
+      // thousand top-ups would under-count what is on it.
+      const tops = await pageAllRows<{ topup_amount?: unknown }>(
+        (from: number, to: number) =>
+        supabase
+          .from("top_ups")
+          .select("topup_amount")
+          .eq("account_id", pool.ad_account_id!)
+          .eq("status", "completed")
+          .not("is_deleted", "is", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (tops.error) {
+        return {
+          ok: false,
+          error:
+            "We couldn't check what this account still holds, so it has not been released. Try again in a moment.",
+          code: "conflict",
+        };
+      }
+      const wds = await pageAllRows<{ amount?: unknown }>(
+        (from: number, to: number) =>
+        supabase
+          .from("ad_account_withdrawals")
+          .select("amount")
+          .eq("ad_account_id", pool.ad_account_id!)
+          .eq("status", "approved")
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (wds.error) {
+        return {
+          ok: false,
+          error:
+            "We couldn't check what has already been withdrawn from this account, so it has not been released. Try again in a moment.",
+          code: "conflict",
+        };
+      }
       const funded =
-        (tops ?? []).reduce(
+        tops.rows.reduce(
           (a, t) => a + (Number((t as { topup_amount?: unknown }).topup_amount) || 0),
           0,
         ) -
-        (wds ?? []).reduce(
+        wds.rows.reduce(
           (a, w) => a + (Number((w as { amount?: unknown }).amount) || 0),
           0,
         );

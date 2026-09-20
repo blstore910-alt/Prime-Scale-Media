@@ -143,3 +143,34 @@ test("no rate gives zero, never an unconverted figure", () => {
   assert.equal(eurValue, 0);
   assert.equal(eurTopup, 0);
 });
+
+test("a top-up's three stored columns always add up", () => {
+  // They are three separate 2-decimal columns. Rounding each one
+  // independently broke amount_usd = fee_amount + topup_amount on a
+  // third of all rows at rate 0.92 -- a cent invented or destroyed,
+  // on the columns the fee report reads and the supplier is pushed.
+  const rates = [{ eur: 0.86, usd: 1, gbp: 0.84, hkd: 7.8 }] as never;
+  for (let cents = 10_000; cents <= 1_000_000; cents += 137) {
+    for (const fee of [2, 4, 5, 7, 15]) {
+      const { amountUSD, feeAmount, topupAmount } = calculateTopupAmount(
+        cents / 100,
+        rates,
+        "EUR",
+        fee,
+      );
+      assert.equal(
+        Number((feeAmount + topupAmount).toFixed(2)),
+        amountUSD,
+        `${cents / 100} EUR at ${fee}%: ${feeAmount} + ${topupAmount} != ${amountUSD}`,
+      );
+    }
+  }
+});
+
+test("every column is already 2dp, so nothing downstream has to round", () => {
+  const rates = [{ eur: 0.92, usd: 1, gbp: 0.84, hkd: 7.8 }] as never;
+  const out = calculateTopupAmount(1234.56, rates, "EUR", 5);
+  for (const [k, v] of Object.entries(out)) {
+    assert.equal(Number(v.toFixed(2)), v, `${k} carries sub-cent: ${v}`);
+  }
+});

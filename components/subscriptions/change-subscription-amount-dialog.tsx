@@ -96,7 +96,7 @@ export default function ChangeSubscriptionAmountDialog({
     }
     // Refused server-side too; said here so the admin is not made to
     // press the button to find out. See the note in subscription-actions.
-    if (nextAmount === 0) {
+    if (Math.abs(nextAmount) < 0.005) {
       toast.error("A subscription cannot be zero", {
         description:
           "An invoice for nothing cannot be paid, and it would leave this customer past due for ever. Disable the subscription instead.",

@@ -25,7 +25,10 @@ export async function requestWalletAdjustment(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const delta = Number(input?.delta);
-  if (!Number.isFinite(delta) || delta === 0) {
+  // Rounds to the cent first: the column holds two decimals, so a delta
+  // of 0.004 is "non-zero" to === and 0.00 to the database -- an
+  // approved adjustment that moves nothing and explains nothing.
+  if (!Number.isFinite(delta) || Math.abs(delta) < 0.005) {
     return { ok: false, error: "Enter a non-zero amount (use - to remove)." };
   }
   if (input.currency !== "USD" && input.currency !== "EUR") {

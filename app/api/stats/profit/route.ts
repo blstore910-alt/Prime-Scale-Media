@@ -468,7 +468,13 @@ export async function GET(request: NextRequest) {
     },
     granularity,
     totals: {
-      profit: Number(totals.profit.toFixed(2)),
+      // The sum of the bars, not a separately-rounded accumulation.
+      // Every figure here is converted to EUR inside the loop, so
+      // four-decimal values are the norm and the two roundings
+      // diverged by a cent on the same card.
+      profit: Number(
+        series.reduce((n, p) => n + Number(p.profit || 0), 0).toFixed(2),
+      ),
       count: totals.count,
     },
     series,

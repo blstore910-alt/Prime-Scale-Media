@@ -382,12 +382,25 @@ export async function GET(request: NextRequest) {
     granularity,
     totals: {
       count: totals.count,
+      // ── THE HEADLINE IS THE SUM OF THE BARS UNDER IT ────────────
+      //
+      // The series rounds each bucket to the cent and this rounded the
+      // raw accumulation once, so the bars could sum to a cent either
+      // side of the figure printed above them -- and both are drawn on
+      // the same card. The EUR leg is produced inside the loop as
+      // `usd * rate`, so four-decimal values are the norm, not an edge
+      // case. Summing the already-rounded buckets makes the parts add
+      // up to the whole by construction.
       usd: {
-        amount: Number(totals.usd.amount.toFixed(2)),
+        amount: Number(
+          series.reduce((n, p) => n + Number(p.usd_amount || 0), 0).toFixed(2),
+        ),
         count: totals.usd.count,
       },
       eur: {
-        amount: Number(totals.eur.amount.toFixed(2)),
+        amount: Number(
+          series.reduce((n, p) => n + Number(p.eur_amount || 0), 0).toFixed(2),
+        ),
         count: totals.eur.count,
       },
     },

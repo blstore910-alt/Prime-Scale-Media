@@ -85,10 +85,21 @@ const prepareTopupObject = (
 
   // EUR figures alongside the USD ones. Same convention, other direction:
   // USD -> EUR MULTIPLIES by the rate.
+  // ── ROUNDED BEFORE IT IS STORED ───────────────────────────────────
+  //
+  // The server recomputes and rounds fee_amount, topup_amount and
+  // amount_usd, but it never touches these two -- they are passed
+  // through the allowlist exactly as the browser computed them. So a
+  // EUR 1,234.56 bulk top-up wrote eur_topup = 1172.8319999999999, and
+  // the customer's top-up card renders that column unformatted: "(€
+  // 1172.8319999999999)". The single-account form has rounded these
+  // since it was written.
+  const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
   const eurRate = Number(exchangeRates?.[0]?.eur ?? 0);
-  const toEur = (usd: number) => (eurRate > 0 ? usd * eurRate : 0);
-  const eurAmount = cur === "EUR" ? receivedAmount : toEur(amountUSD);
-  const eurTopupAmount = cur === "EUR" ? topupAmount * eurRate : toEur(topupAmount);
+  const toEur = (usd: number) => (eurRate > 0 ? r2(usd * eurRate) : 0);
+  const eurAmount = cur === "EUR" ? r2(receivedAmount) : toEur(amountUSD);
+  const eurTopupAmount =
+    cur === "EUR" ? r2(topupAmount * eurRate) : toEur(topupAmount);
 
   return {
     amount_received: receivedAmount,

@@ -1385,7 +1385,14 @@ export default function AdvertiserApp() {
     const bal = invCurrency(inv) === "USD" ? usdBal : eurBal;
     // A cent of tolerance: these columns are single-precision on live, so
     // an exact-balance payment must not be refused by a rounding artefact.
-    return bal + 0.005 >= Number(inv.total ?? 0);
+    // ── THE SERVER'S RULE, NOT A LOOSER ONE ───────────────────────
+    //
+    // invoice_pay_from_wallet refuses on `v_bal < v_amt`, with no
+    // epsilon. This added half a cent, so a balance of 99.995 against a
+    // 100.00 invoice rendered "Pay EUR 100.00 from wallet" and the RPC
+    // answered "Insufficient wallet balance" -- a red toast on a button
+    // the app had just told them to press. Same comparison both sides.
+    return bal >= Number(inv.total ?? 0);
   };
 
 

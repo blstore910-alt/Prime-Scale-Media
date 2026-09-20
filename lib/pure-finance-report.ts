@@ -174,10 +174,25 @@ export function summarise(lines: FinanceLine[]): CurrencyTotals[] {
     else t.out += -a;
     t.net += a;
     t.count += 1;
-    t.byKind[l.kind] = r2((t.byKind[l.kind] ?? 0) + a);
+    // Accumulate RAW here and round with the rest below. Rounding
+    // every row made the per-kind subtotals disagree with the net
+    // they are part of: three sub-cent "fee" lines summed to a
+    // byKind of 3000.03 under a net of 3000.02, on the customer's
+    // own financial statement. The header already says money is
+    // "rounded at the last possible moment, and only here" -- this
+    // line was the exception to its own rule.
+    t.byKind[l.kind] = (t.byKind[l.kind] ?? 0) + a;
   }
   return [...map.values()]
-    .map((t) => ({ ...t, in: r2(t.in), out: r2(t.out), net: r2(t.net) }))
+    .map((t) => ({
+      ...t,
+      in: r2(t.in),
+      out: r2(t.out),
+      net: r2(t.net),
+      byKind: Object.fromEntries(
+        Object.entries(t.byKind).map(([k, v]) => [k, r2(Number(v) || 0)]),
+      ) as typeof t.byKind,
+    }))
     .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
