@@ -574,9 +574,11 @@ export default function AffiliateApp() {
                   count used to remove the badge entirely, which reads as
                   "nothing new". */}
               {notifsCountError ? (
-                <span className="badge-n" title="We couldn't check">
-                  ·
-                </span>
+                <span
+                  className="badge-n unknown"
+                  title="We couldn't check for new notifications — this is not a zero."
+                  aria-label="Unread count unavailable"
+                />
               ) : unreadCount > 0 ? (
                 <span className="badge-n">
                   {unreadCount > 99 ? "99+" : unreadCount}

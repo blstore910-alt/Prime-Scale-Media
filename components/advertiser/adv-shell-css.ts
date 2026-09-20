@@ -64,6 +64,12 @@ export const ADV_CSS = `
   .tool.ic-btn,.tool.ava-btn{background:var(--panel);border:1px solid var(--line)}.tool.ic-btn:hover,.tool.ava-btn:hover{background:var(--panel-2)}
   .tool.ic-btn{padding:7px 11px}
   .badge-n{position:absolute;top:0;right:2px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;border:2px solid var(--panel)}
+  /* ── THE UNKNOWN STATE IS NOT A COUNT ────────────────────────────
+     When the count cannot be read the badge said "·" -- a full-size
+     pill with a middot floating in it, which reads as a stray mark
+     rather than a state. It is a small ring now: visibly not a number,
+     visibly deliberate, and it carries its own title. */
+  .badge-n.unknown{min-width:10px;width:10px;height:10px;padding:0;background:var(--faint);box-shadow:0 0 0 2px var(--panel);border:0;font-size:0;top:3px;right:5px}
   .tool.ava-btn{padding:4px 8px 4px 4px}
   /* Same: no brand fill behind a circular drawing, and the 36-unit SVG is
      sized to the box instead of overflowing it. The green presence dot

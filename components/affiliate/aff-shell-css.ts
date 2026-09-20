@@ -50,6 +50,12 @@ export const AFF_CSS = `
   .tier{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:99px;font-weight:700;font-size:.76rem;color:var(--gold-deep);background:linear-gradient(135deg,var(--gold-soft),#fff5db);border:1px solid #f2d9a3;box-shadow:0 6px 18px -8px rgba(239,176,44,.55)}.tier svg{width:15px;height:15px;stroke-width:2.2}
   .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer;position:relative;transition:.15s}.iconbtn:hover{color:var(--ink);border-color:var(--line-2)}
   .badge-n{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;border:2px solid var(--panel)}
+  /* ── THE UNKNOWN STATE IS NOT A COUNT ────────────────────────────
+     When the count cannot be read the badge said "·" -- a full-size
+     pill with a middot floating in it, which reads as a stray mark
+     rather than a state. It is a small ring now: visibly not a number,
+     visibly deliberate, and it carries its own title. */
+  .badge-n.unknown{min-width:10px;width:10px;height:10px;padding:0;background:var(--faint);box-shadow:0 0 0 2px var(--panel);border:0;font-size:0;top:3px;right:5px}
   .who-btn{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 5px;border:1px solid var(--line);border-radius:12px;background:var(--panel);cursor:pointer}.who-btn:hover{border-color:var(--line-2)}
   .who-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
   .who-btn .avatar svg{width:100%;height:100%;display:block}
