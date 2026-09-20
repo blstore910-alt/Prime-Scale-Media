@@ -849,14 +849,33 @@ export default function AdvertiserApp() {
   const booting =
     !!advertiserId && (walletLoading || accountsLoading || companyLoading);
 
-  const eurText = walletError ? "—" : walletLoading ? "…" : eur(eurBal);
+  // ── NO WALLET ROW IS NOT A BALANCE OF ZERO ────────────────────────
+  //
+  // `wallet === null` resolves SUCCESSFULLY through .maybeSingle(), so
+  // walletError is false and walletLoading is false and these fell
+  // through to eur(0). The card then printed "EUR 0.00" and "Available
+  // to spend" beside its own line reading "No wallet on this account
+  // yet" -- three statements, on one card, that cannot all be true.
+  const eurText = walletError
+    ? "—"
+    : walletLoading
+      ? "…"
+      : !wallet
+        ? "—"
+        : eur(eurBal);
   // The hero sits above both wallets and belongs to neither, so its Top
   // up and Exchange need a currency of their own. Whichever one they
   // actually hold; EUR when they hold both or nothing, because that is
   // what every RPC on the server falls back to.
   const heroCurrency: "EUR" | "USD" =
     eurBal <= 0 && usdBal > 0 ? "USD" : "EUR";
-  const usdText = walletError ? "—" : walletLoading ? "…" : usd(usdBal);
+  const usdText = walletError
+    ? "—"
+    : walletLoading
+      ? "…"
+      : !wallet
+        ? "—"
+        : usd(usdBal);
   const activeAccts = (accounts ?? []).filter((a) => a.status === "active");
   // Company details are what an invoice is built from, so nothing that costs
   // money or creates work can start without them. Browsing can: the app no

@@ -327,7 +327,9 @@ export default function WalletTopupDialog({
   // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the
   // advertiser pays in a currency other than their wallet currency. Rates
   // are read-only here; advertisers already read these elsewhere.
-  const { exchangeRates } = useExchangeRates({ activeOnly: true });
+  const { exchangeRates, isError: ratesError } = useExchangeRates({
+    activeOnly: true,
+  });
   const rate = exchangeRates?.[0] as
     | { eur?: number | null; gbp?: number | null; hkd?: number | null }
     | undefined;
@@ -1123,7 +1125,29 @@ export default function WalletTopupDialog({
                           transferCurrency,
                           rate,
                         );
-                        if (converted === null) return null;
+                        // ── A MISSING FIGURE IS NOT NO FIGURE ─────
+                        //
+                        // This returned null and the line vanished, so
+                        // a customer who picked a GBP transfer against
+                        // a EUR wallet was handed a GBP IBAN and no
+                        // amount at all -- and the minimum beside it
+                        // falls back to the WALLET's currency label, so
+                        // the only two numbers on the screen were both
+                        // in the wrong currency. Say it instead.
+                        if (converted === null) {
+                          return (
+                            <p className="text-xs text-amber-600">
+                              We can&apos;t work out the {transferCurrency}{" "}
+                              amount right now
+                              {ratesError
+                                ? " — we couldn't read today's rate"
+                                : " — there is no rate published for it"}
+                              . Send the {currency} value of{" "}
+                              {formatCurrency(currentAmount || 0, currency)} and
+                              we will credit that from your slip.
+                            </p>
+                          );
+                        }
                         return (
                           <p className="text-xs text-muted-foreground">
                             ≈ transfer{" "}
