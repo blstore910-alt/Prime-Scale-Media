@@ -1462,6 +1462,29 @@ export default function AdvertiserApp() {
     },
   });
   const planPaid = !!planPaidRow;
+  // ── THE FIRST DAY IS NOT "PAID", IT IS "NOT YET RAISED" ──────────
+  //
+  // Nothing raises a subscription invoice until the nightly billing
+  // run at 03:00, so a customer who signed up at 10am has a plan
+  // marked `active`, no invoice at all, and up to seventeen hours
+  // before one exists. Every branch on the Billing card keys off
+  // dueSubInvoice being falsy -- which is equally true of "paid" and
+  // of "never raised" -- so their very first day read "This month is
+  // paid", "Nothing owed right now" and a green Paid badge, about a
+  // month they had not paid for.
+  //
+  // Three states, not two: nothing raised yet, something due, or
+  // settled.
+  const awaitingFirstInvoice =
+    !!subscription &&
+    !planPaid &&
+    !dueSubInvoice &&
+    // Not while any of the three reads behind it failed: an
+    // unreadable invoice list must not become "none exists yet".
+    !planPaidError &&
+    !subError &&
+    !invError &&
+    !dueInvError;
   const planActive =
     !!subscription &&
     subscription.status === "active" &&
@@ -1538,8 +1561,20 @@ export default function AdvertiserApp() {
         ? `Still needed first: ${companyMissing.join(" and ")}`
         : "Add your company details first — including the billing address";
     }
+    // ── SAY WHICH OF THE TWO IT IS ────────────────────────────────
+    //
+    // planActive needs a PAID invoice, and on day one there is no
+    // invoice at all -- so this blamed the plan for not being active
+    // while the Billing pill and the dashboard tile, which read
+    // subscriptions.status, both printed "Active". Three screens, and
+    // the customer could see two of them contradicting the third.
+    if (awaitingFirstInvoice) {
+      return "Your first invoice hasn't been raised yet — we raise it overnight, and ad accounts open up once it is paid";
+    }
     if (!planActive && !planUnknown) {
-      return "Your plan has to be active first — that is what your included ad accounts come from";
+      return dueSubInvoice
+        ? "Pay your subscription invoice first — that is what your included ad accounts come from"
+        : "Your plan has to be active first — that is what your included ad accounts come from";
     }
     return "We couldn't check your plan just now — reload and try again";
   };
@@ -3692,6 +3727,8 @@ export default function AdvertiserApp() {
                 <p className="cap">
                   {invError || dueInvError
                     ? "We couldn't read your invoices just now, so we'd rather not tell you this month is settled."
+                    : awaitingFirstInvoice
+                      ? "We raise your first invoice overnight. Nothing has been charged yet, and nothing is owed until it appears."
                     : invLoading
                       ? "Looking up this month…"
                       : dueSubInvoice
@@ -3743,6 +3780,8 @@ export default function AdvertiserApp() {
                               be loaded. */}
                           {invError || dueInvError || invLoading
                             ? "Checking your billing…"
+                            : awaitingFirstInvoice
+                              ? "Your first invoice is on its way"
                             : dueSubInvoice
                               ? // An adjustment is not the monthly fee:
                                 // it is the difference raised when a
@@ -3764,6 +3803,8 @@ export default function AdvertiserApp() {
                                   ? `Due ${dayjs(dueBillDate).format("D MMM YYYY")}`
                                   : "Due date not set"
                               } · ${dueBillAmount}`
+                            : awaitingFirstInvoice
+                              ? `${planMoney2(subscription.amount)} · we raise it overnight`
                             : subscription.next_payment_date
                               ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · ${planMoney2(lastChargedAmount ?? subscription.amount)}`
                               : "We'll tell you when the next one is ready"}
@@ -3783,6 +3824,15 @@ export default function AdvertiserApp() {
                             {dayjs(dueBillDate).fromNow()}
                           </span>
                         ) : null
+                      ) : awaitingFirstInvoice ? (
+                        // Not "Paid". Nothing has been raised yet, so
+                        // there is nothing to have paid.
+                        <span
+                          className="badge muted"
+                          style={{ marginLeft: "auto" }}
+                        >
+                          Not yet raised
+                        </span>
                       ) : (
                         <span className="badge ok" style={{ marginLeft: "auto" }}>
                           Paid
