@@ -322,7 +322,14 @@ export default function InvoicesTable() {
                   : invoices.length
                     ? invoices.map((invoice) => {
                         const isPaid = invoice.status === "paid";
-                        const st = invoiceStatusView(invoice.status);
+                        // The due date too, so a sixty-day-late invoice
+                        // stops being drawn like one raised this morning
+                        // -- this is the screen somebody decides who to
+                        // chase from.
+                        const st = invoiceStatusView(invoice.status, {
+                          dueDate: (invoice as { due_date?: string | null })
+                            .due_date,
+                        });
                         // Nothing to mark paid on an invoice that is already
                         // settled one way or another.
                         const isVoid = st.settled && !isPaid;

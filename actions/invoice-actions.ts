@@ -50,6 +50,15 @@ const INVOICE_INSERT_ALLOWED = [
   "company_id",
   "number",
   "notes",
+  // ── WITHOUT THIS, AGED DEBT IS INVISIBLE ─────────────────────────
+  //
+  // `due_date` was written only by the subscription billing engine, so
+  // a manual_invoice or an ad_account_fee never had one -- and the
+  // Overdue filter on /invoices requires it. A EUR 2,000 manual invoice
+  // eighty-one days unpaid was returned by that filter never, on any
+  // day, for ever. The only "who owes us money" control on the screen
+  // could not see anything outside auto-generated subscriptions.
+  "due_date",
 ] as const;
 
 type InvoiceInsertInput = Partial<

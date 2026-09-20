@@ -24,7 +24,7 @@ export type InvoiceStatusView = {
 
 export function invoiceStatusView(
   status: string | null | undefined,
-  opts: { customer?: boolean } = {},
+  opts: { customer?: boolean; dueDate?: string | null; now?: number } = {},
 ): InvoiceStatusView {
   const s = (status ?? "").trim().toLowerCase();
   const customer = opts.customer === true;
@@ -45,6 +45,26 @@ export function invoiceStatusView(
   // unpaid, or anything nobody has named yet: it is owed until told
   // otherwise, and a status we do not recognise must not quietly read as
   // settled.
+  // ── AND LATE IS NOT THE SAME AS OWED ──────────────────────────────
+  //
+  // Nothing ever writes status='overdue' -- the only statuses anything
+  // writes are unpaid, paid and void -- so the Overdue badge above was
+  // unreachable and an invoice sixty days late was drawn identically to
+  // one raised this morning. The list is where somebody decides who to
+  // chase, and it had no way to tell them apart.
+  //
+  // The due date is the fact; the caller passes it when it has it.
+  if (opts.dueDate) {
+    const due = new Date(opts.dueDate).getTime();
+    if (Number.isFinite(due) && due < (opts.now ?? Date.now())) {
+      return {
+        label: customer ? "Past due" : "Overdue",
+        tone: "due",
+        settled: false,
+      };
+    }
+  }
+
   return {
     label: customer ? "Due" : "Unpaid",
     tone: customer ? "due" : "pend",

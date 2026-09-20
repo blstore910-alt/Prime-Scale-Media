@@ -4365,6 +4365,11 @@ export default function AdvertiserApp() {
                           inv.status === "refunded";
                         const invSt = invoiceStatusView(inv.status, {
                           customer: true,
+                          // "Past due", not "Due", once the date has
+                          // gone by -- the auto-debit works to that
+                          // date and the customer should see it coming.
+                          dueDate: (inv as { due_date?: string | null })
+                            .due_date,
                         });
                         const invSym =
                           invCurrency(inv) === "USD" ? "$" : "€";
