@@ -1,6 +1,5 @@
 "use client";
 
-import dayjs from "dayjs";
 import { CalendarIcon, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
@@ -26,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DATE_FORMAT } from "@/lib/constants";
+import { compactRangeLabel } from "@/lib/pure-date-range-label";
 
 const COMMISSION_TYPES = [
   { label: "One-time", value: "onetime" },
@@ -49,7 +48,6 @@ type CommissionsFiltersProps = {
   setDateRange: (value: DateRange | undefined) => void;
 };
 
-const formatDateLabel = (date: Date) => dayjs(date).format(DATE_FORMAT);
 
 function normalizeRange(range: DateRange | undefined): DateRange | undefined {
   if (!range) {
@@ -90,15 +88,14 @@ export default function CommissionsFilters({
     dateRange,
   );
 
+  // Same compaction as the dashboard bar, same reason. See
+  // lib/pure-date-range-label.
   const dateRangeLabel =
-    dateRange?.from && dateRange?.to
-      ? `${formatDateLabel(dateRange.from)} - ${formatDateLabel(dateRange.to)}`
-      : "Select Range";
+    compactRangeLabel(dateRange?.from, dateRange?.to) || "Select Range";
 
   const localDateRangeLabel =
-    localDateRange?.from && localDateRange?.to
-      ? `${formatDateLabel(localDateRange.from)} - ${formatDateLabel(localDateRange.to)}`
-      : "Select Range";
+    compactRangeLabel(localDateRange?.from, localDateRange?.to) ||
+    "Select Range";
 
   const applyFilters = () => {
     setCurrency(localCurrency);

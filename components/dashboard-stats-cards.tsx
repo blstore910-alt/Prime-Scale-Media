@@ -32,8 +32,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAppContext } from "@/context/app-provider";
-import { DATE_FORMAT } from "@/lib/constants";
 import { DashboardPeriod } from "@/lib/dashboard-period";
+import { compactRangeLabel } from "@/lib/pure-date-range-label";
 
 interface StatsResponse {
   ad_accounts: {
@@ -60,7 +60,6 @@ const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US").format(Math.floor(value));
 };
 
-const formatDateLabel = (date: Date) => dayjs(date).format(DATE_FORMAT);
 
 // Mockup-only classes (profit-hero + metric tiles + segmented period control),
 // scoped under .psm-stats so they never leak. The admin shell injects the
@@ -83,6 +82,27 @@ const STATS_CSS = `
 @media (max-width:470px){
   .psm-stats .statctl .rangelbl{display:none}
   .psm-stats .statctl .rangelbl.set{display:inline}
+}
+/* -- TWO TIDY ROWS, NOT ONE CRAMPED ONE ---------------------------
+   The bar holds four period buttons, two month arrows and a date
+   range, and on a phone that is more than fits across. The row was
+   nowrap while .seg2 itself was wrap, so the only thing that COULD
+   give way was the period group: "Year" dropped onto a second line
+   under the other three, and at the narrowest width all four stacked
+   into a vertical column beside a three-line date box.
+   So the period group takes a full row of its own and splits it into
+   equal columns -- grid-auto-flow:column keeps every option on one
+   line whatever the count -- and the arrows and the date sit under
+   it. Nothing wraps inside a control any more; the bar wraps between
+   them, which is where a wrap belongs. */
+@media (max-width:760px){
+  .psm-stats .statctl{flex-wrap:wrap;row-gap:8px}
+  .psm-stats .statctl .seg2{order:-1;flex:1 0 100%;display:grid;
+    grid-auto-flow:column;grid-auto-columns:1fr;gap:2px}
+  .psm-stats .statctl .seg2 button{padding:8px 2px;font-size:.76rem;text-align:center}
+  .psm-stats .statctl .rangebtn{flex:1 1 auto;min-width:0;justify-content:center}
+  .psm-stats .statctl .rangebtn .rangelbl{min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
 }
 .psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
 /* WRAPS, does not scroll. Measured at 400px: six options need 440px in a
@@ -169,8 +189,21 @@ const STATS_CSS = `
    full text in the title attribute — it is never folded onto a second
    line, because that is what pushed each figure to a different height
    and made six identical $0.00s look like six different cards. */
-.psm-stats [data-slot=card-description]{display:flex;align-items:center;gap:8px;height:28px;font-family:var(--hd);font-weight:700;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
-.psm-stats [data-slot=card-description]>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* -- THE LABEL WRAPS; IT DOES NOT LEAVE THE CARD ------------------
+   This was one nowrap line with a fixed 28px height and an ellipsis on
+   the text span. The ellipsis never fired: shadcn's CardHeader is a
+   grid, and a grid item's default min-width is auto, so the header
+   refused to shrink below its content and the label ran straight out
+   through the card's right edge. "EXTRA ACCOUNTS (0)" and
+   "SUBSCRIPTIONS (0)" hung over the border on a phone.
+   Two changes, and the fault cannot come back: min-width:0 down the
+   chain so shrinking is allowed at all, and no nowrap, so a label that
+   still cannot fit takes a second line instead of leaving. The row is
+   grid-auto-rows:1fr, so a two-line label does not make its card taller
+   than its neighbours -- it just starts the figure a line lower. */
+.psm-stats [data-slot=card-header]{min-width:0}
+.psm-stats [data-slot=card-description]{display:flex;align-items:center;gap:8px;min-height:28px;min-width:0;font-family:var(--hd);font-weight:700;font-size:.64rem;letter-spacing:.04em;line-height:1.25;text-transform:uppercase;color:var(--faint)}
+.psm-stats [data-slot=card-description]>span:last-child{min-width:0;overflow-wrap:anywhere}
 /* The figure: one line, and it shrinks rather than breaks. */
 /* ── A CLIPPED FIGURE READS AS A SMALLER ONE ───────────────────────
    nowrap + ellipsis turned "$0.00 / €5.00" into "$0.00 / €…" in a
@@ -181,7 +214,9 @@ const STATS_CSS = `
    one under the other with the slash gone. Two short lines beat one
    truncated one, and the row is 1fr so every tile grows together. */
 .psm-stats [data-slot=card-title]{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  min-width:0;overflow-wrap:anywhere;
   white-space:nowrap;font-size:clamp(.95rem,4vw,1.24rem);letter-spacing:-.02em;line-height:1.15}
+.psm-stats [data-slot=card-title]>span{min-width:0;max-width:100%}
 .psm-stats [data-slot=card-title] .mx-2{display:none}
 @media(min-width:1100px){
   .psm-stats [data-slot=card-title]{flex-direction:row;align-items:baseline;gap:6px}
@@ -245,10 +280,13 @@ export function DashboardStatsCards() {
   const isMobile = useIsMobile();
 
   const hasRange = Boolean(dateRange?.from && dateRange?.to);
+  // "01-08-2026 - 31-08-2026" is 23 characters in a button that shares
+  // its row with four period buttons and two arrows. On a phone it broke
+  // over three lines and left a tall ragged box in the middle of the bar.
+  // Every range the arrows make is a whole month, and a whole month has a
+  // name: "Aug 2026". See lib/pure-date-range-label.
   const dateRangeLabel =
-    dateRange?.from && dateRange?.to
-      ? `${formatDateLabel(dateRange.from)} - ${formatDateLabel(dateRange.to)}`
-      : "Select Range";
+    compactRangeLabel(dateRange?.from, dateRange?.to) || "Select Range";
 
   const setDashboardPeriod = (nextPeriod: DashboardPeriod) => {
     setPeriod(nextPeriod);
