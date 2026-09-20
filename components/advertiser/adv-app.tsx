@@ -539,6 +539,43 @@ export default function AdvertiserApp() {
     },
   });
 
+  // ── WHAT THIS ACCOUNT HAS EVER HELD ───────────────────────────────
+  //
+  // An ad account can be emptied, switched off and handed back to the
+  // pool for somebody else. The row STAYS with the customer it belonged
+  // to, with all of its top-ups — which is right, and the owner asked
+  // for it out loud: you should be able to look at a customer and see
+  // that this was a big account, not a dead card with a fee on it.
+  //
+  // Lifetime, not current: a released account holds nothing now, and
+  // "nothing" is the least interesting true thing about it. USD,
+  // because topup_amount is USD by construction for every payment
+  // currency.
+  const { data: accountTotals } = useQuery<Record<string, number>>({
+    queryKey: ["adv-account-totals", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("top_ups_view")
+        .select("account_id, topup_amount, status")
+        .eq("advertiser_id", advertiserId!)
+        .eq("status", "completed")
+        .limit(1000);
+      if (error) throw error;
+      const byAccount: Record<string, number> = {};
+      for (const row of (data ?? []) as unknown as {
+        account_id: string | null;
+        topup_amount: number | string | null;
+      }[]) {
+        const key = String(row.account_id ?? "");
+        if (!key) continue;
+        byAccount[key] = (byAccount[key] ?? 0) + (Number(row.topup_amount) || 0);
+      }
+      return byAccount;
+    },
+  });
+
   const { data: accountReturns, isError: returnsError } = useQuery<
     {
       id: string;
@@ -1717,6 +1754,15 @@ export default function AdvertiserApp() {
           <span>Currency</span>
           <b>{a.currency ?? "EUR"}</b>
         </div>
+        {/* Only once there IS a figure. A brand-new account showing
+            "Funded $0.00" reads as a fault; saying nothing reads as
+            new, which is what it is. */}
+        {Number(accountTotals?.[a.id] ?? 0) > 0 && (
+          <div className="kv">
+            <span>Funded to date</span>
+            <b>{usd(Number(accountTotals?.[a.id] ?? 0))}</b>
+          </div>
+        )}
         {locked ? (
           <div className="acts">
             {/* A sentence per state, and nothing falls through to

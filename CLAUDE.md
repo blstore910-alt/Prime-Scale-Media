@@ -39,9 +39,13 @@ repo, every session:
   item × every role) and C (every figure against SQL) are the exhaustive
   ones; D (J1–J13) is the scenarios. Walk what you can in the built-in
   browser yourself; say plainly when a signed-in session is needed.
-- **Production must keep working.** After each fix: gate, push to main,
-  then open the screen on app.primescalemedia.com and check it renders
-  WITH DATA. A broken production blocks everything else.
+- **Production must keep working, and NEVER deploy a preview.** After
+  each fix: gate, then `git push origin feat/redesign-advertiser:main`,
+  straight to production. Do not push the branch "to test" — the owner
+  does not test on preview URLs, and a second push doubles the Vercel
+  queue so every change takes twice as long to appear. Then open the
+  screen on app.primescalemedia.com and check it renders WITH DATA. A
+  broken production blocks everything else.
 - **Numbers must agree at both ends** — screen against database, to the
   cent. A confident 0 over a failed read is a fault, not a zero.
 - **No "probably".** Read the code, or ask for one SQL query. Say
@@ -50,8 +54,10 @@ repo, every session:
   end that tests what the migration actually did.
 - **Do not stop to ask permission to continue.** Ask only when the
   answer changes the work.
-- **Report after each round**: what was fixed, what is open, what is
-  needed from the owner — **and a percentage**.
+- **Report every FIVE rounds**, not every one: what was fixed, what is
+  open, what is needed from the owner — **and a percentage**. Between
+  reports, keep working; a running commentary costs the owner more
+  attention than it gives them.
 
 ### The percentage
 

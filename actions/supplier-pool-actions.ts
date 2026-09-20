@@ -667,6 +667,18 @@ export async function releaseSupplierAdAccount(
   const query = supabase
     .from("supplier_ad_accounts")
     .update({
+      // ── THE CUSTOMER'S ROW IS NOT TOUCHED ──────────────────────────
+      //
+      // Only the POOL row is unlinked. The customer's ad_accounts row
+      // keeps its name, its status and every one of its top-ups, so
+      // their history survives being handed back: an account that once
+      // held six figures still says so on their screen, switched off.
+      // That is deliberate, and the customer card prints "Funded to
+      // date" for exactly this.
+      //
+      // The release is already refused unless that account is stopped
+      // (see the status guard above), so it cannot be left looking live
+      // on somebody who no longer has it.
       ad_account_id: null,
       advertiser_id: null,
       assigned_at: null,
