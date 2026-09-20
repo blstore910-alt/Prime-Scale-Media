@@ -153,9 +153,10 @@ is a fault)
 The headline is journeys closed, out of 16 (see CLAUDE.md for the list).
 Screens opened and findings fixed are working notes.
 
-**Closed: 0. In progress: A2 and A4.**
+**Closed: 1 of 16 — A2. In progress: A4 (numbers not yet checked
+against SQL directly). A5 under way.**
 
-### A2 — wallet top-up (walked 2026-09-20, both roles)
+### A2 — wallet top-up — **CLOSED 2026-09-20**, both roles
 
 Filed EUR 300 as PSM0005 in the browser pane, verified it as the owner
 in Chrome. Every step matched:
@@ -169,8 +170,19 @@ in Chrome. Every step matched:
 | after verify | wallet EUR 300.00, activity row "Credited", queue empty |
 | **against SQL** | balance 300.00, sum of every movement 300.00, `approved_by` set. **To the cent.** |
 
-**Still open on A2:** the reject half has not been walked, so the
-reason reaching the customer is fixed but unproven.
+Both halves walked. The refusal: EUR 1,000 filed, refused with the
+"No payment found" template, the customer's row reads Rejected, the
+balance is untouched, and the reason reaches their bell in full.
+
+**What closing it took:** a customer could read exactly ONE
+notification type. `notifications` carried "User can do ALL on topup
+completed" (that type only) and "Admin can do ALL" (everything else,
+but only for `tenants.owner_id`). So every notification this app has
+ever written to a customer was invisible to them — 17 unread at the
+moment it was fixed: 6 subscription invoices, 7 subscription changes,
+2 past-due warnings, 2 refusals. It went unnoticed because
+topup_completed works, so the bell looked alive.
+See `checks/PLAK-DIT-7-MELDINGEN-ZICHTBAAR.sql`.
 
 ### A4 — fund an ad account (walked 2026-09-20, both roles)
 
