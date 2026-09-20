@@ -316,7 +316,11 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: subscription, isError: subError } = useQuery<{
+  const {
+    data: subscription,
+    isError: subError,
+    isSuccess: subLoaded,
+  } = useQuery<{
     amount: number | null;
     currency: string | null;
     status: string | null;
@@ -3775,7 +3779,24 @@ export default function AdvertiserApp() {
                     ? subStatusLabel(subscription.status)
                     : subError
                       ? "Couldn't load"
-                      : "No plan"}
+                      : // ── AND "STILL ARRIVING" IS NOT "NO PLAN" EITHER ──
+                        // Every branch on this screen separates an ERROR
+                        // from an empty answer, and none of them separated
+                        // either from "has not answered yet". So for the
+                        // width of one round trip a paying customer's own
+                        // Billing screen read: No plan. Subscription --.
+                        // "There is no plan on your account yet, so nothing
+                        // is being charged." "Ad accounts come with a plan,
+                        // so you will need one before you can request an
+                        // account." "No invoices yet."
+                        //
+                        // Every sentence of that is false for a customer on
+                        // PRIME at EUR 5.00 a month with four invoices and a
+                        // live ad account -- which is what the screen then
+                        // flips to. Caught by opening it on production.
+                        !subLoaded
+                        ? "Loading…"
+                        : "No plan"}
                 </span>
                 {/* THE NAME FIRST. This card was a price and a date:
                     "EUR 5.00 / month". A customer knows what they bought
@@ -4034,6 +4055,12 @@ export default function AdvertiserApp() {
                       Reload
                     </button>
                   </p>
+                ) : !subLoaded ? (
+                  /* Still arriving. Saying nothing is the only honest
+                     thing there is to say yet -- see the pill above. */
+                  <p className="cap" style={{ margin: 0 }}>
+                    Looking up your plan…
+                  </p>
                 ) : (
                   /* ── NO PLAN IS A DEAD END, NOT A CLEAN SLATE ───────
                      Three screens used to close a loop here. The Accounts
@@ -4285,7 +4312,9 @@ export default function AdvertiserApp() {
                         >
                           {invError
                             ? "We couldn't load your invoices — this isn't an empty list. Give it a reload."
-                            : "No invoices yet. The first one arrives with your plan."}
+                            : invLoading
+                              ? "Looking up your invoices…"
+                              : "No invoices yet. The first one arrives with your plan."}
                         </td>
                       </tr>
                     )}
