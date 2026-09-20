@@ -12,8 +12,20 @@ export default async function Page() {
     .from("user_profiles")
     .select();
 
-  if (invitesError || profilesError)
-    throw new Error(invitesError?.message || profilesError?.message);
+  // A throw here is a shell-less Next error page carrying a raw Supabase
+  // message, on a route anybody can reach. The two redirects below both
+  // depend on knowing whether there are profiles, so a failed read
+  // cannot be guessed past -- but it can be said in words.
+  if (invitesError || profilesError) {
+    return (
+      <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: "24px 16px", textAlign: "center" }}>
+        <p style={{ maxWidth: 420, opacity: 0.8, lineHeight: 1.5 }}>
+          We couldn&apos;t check your account just now. Reload the page — if
+          it keeps happening, tell us and we will look.
+        </p>
+      </main>
+    );
+  }
 
   const pendingInvites = invites?.filter(
     (invite) => invite.status === "pending"
@@ -21,6 +33,24 @@ export default async function Page() {
 
   if (!profiles.length && !pendingInvites.length) redirect("/organization/new");
   if (!profiles.length && pendingInvites.length) redirect("/invite/list");
+
+  // ── SOMEBODY WITH A WORKING ACCOUNT BELONGS IN IT ─────────────────
+  //
+  // Both redirects above require !profiles.length, so any signed-in
+  // member who typed /onboard fell through to the "your account isn't
+  // set up yet" page below -- a working advertiser or admin, told their
+  // account does not exist, on a page with no navigation.
+  //
+  // That page is for the case it was written for: a profile with no
+  // role. A profile WITH a role goes to its own shell.
+  const withRole = profiles.find((p) => {
+    const r = String((p as { role?: string }).role ?? "").toLowerCase();
+    return r === "admin" || r === "advertiser" || r === "affiliate";
+  });
+  if (withRole) {
+    const role = String((withRole as { role?: string }).role ?? "").toLowerCase();
+    redirect(role === "affiliate" ? "/my-referrals" : "/dashboard");
+  }
 
   // ── THE FALLTHROUGH WAS A DEAD END ──────────────────────────────────
   //

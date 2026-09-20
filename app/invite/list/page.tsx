@@ -7,14 +7,41 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { redirectCustomersToTheirShell } from "@/lib/auth/customer-shell-redirect";
 
 export default async function Page() {
+  // ── THIS PAGE SITS OUTSIDE THE (app) GROUP ────────────────────────
+  //
+  // So it gets no role check, no inactive check and no shell: no
+  // sidebar, no topbar, no bottom nav, and Back is the only way out.
+  // RLS grants SELECT on an invitation to any admin of the tenant, so
+  // an employee admin saw EVERY pending invitation here, each behind
+  // Accept and Decline buttons that answer "This invitation is not for
+  // you" every time -- /api/accept-invite refuses anything not
+  // addressed to the caller's own email.
+  //
+  // A customer lands somewhere just as shell-less. This is exactly what
+  // redirectCustomersToTheirShell exists for; these two routes were
+  // never covered by it.
+  await redirectCustomersToTheirShell("notif");
+
   const supabase = await createClient();
   const { data: invites, error } = await supabase
     .from("invitations")
     .select("*, tenant:tenants(*)");
 
-  if (error) throw new Error(error.message);
+  // A thrown error here is a shell-less Next error page on a route a
+  // customer can reach. Say it in words instead.
+  if (error) {
+    return (
+      <main className="max-w-lg mx-auto p-6">
+        <p className="text-sm text-destructive">
+          We couldn&apos;t load your invitations just now. This is not an
+          empty list — reload and try again.
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-lg mx-auto p-6">

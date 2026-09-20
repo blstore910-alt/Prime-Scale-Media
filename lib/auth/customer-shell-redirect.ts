@@ -32,6 +32,9 @@ export async function redirectCustomersToTheirShell(view: string) {
 
   const role = (profile as { role?: string } | undefined)?.role;
   if (role === "advertiser") redirect(`/dashboard?view=${view}`);
-  // The affiliate app does not read ?view=, so there is one destination.
-  if (role === "affiliate") redirect("/my-referrals");
+  // The affiliate app reads ?view= now (aff-app reads window.location on
+  // mount), so it can be sent to the view it was asked for rather than
+  // always landing on Referrals. "settings" is mapped there to its own
+  // "set" key.
+  if (role === "affiliate") redirect(`/my-referrals?view=${view}`);
 }
