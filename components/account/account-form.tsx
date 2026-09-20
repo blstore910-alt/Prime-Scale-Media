@@ -482,16 +482,27 @@ export default function AccountForm({
               type="number"
               control={control}
             />
+            {/* ── ZERO MEANS "USE THE PLAN", NOT "FREE" ───────────────
+                This said "nothing will be charged until you set a rate"
+                for a fee of 0 — and resolveEffectiveFeePct reads 0 as
+                NOT SET and falls straight through to the plan rate. So
+                an admin left the box empty on the strength of that
+                sentence and the customer was charged the plan's 5%: on
+                a $1,000 top-up, $50 the screen had just promised would
+                not be taken.
+                There is no way to express "free" with this box; that is
+                what a top-up fee waiver is for, and the note says so
+                rather than letting somebody try. */}
             <p className="text-xs text-muted-foreground" aria-live="polite">
-              {planPct === null || planPct === undefined
-                ? "This account's own fee is what gets charged on its top-ups."
-                : Number(feeWatch) === planPct
-                  ? `Matches their plan (${planPct}%). This account's fee is what gets charged.`
-                  : `Their plan says ${planPct}% — this account overrides it and ${
-                      feeWatch == null || Number(feeWatch) === 0
-                        ? "nothing will be charged until you set a rate"
-                        : `${feeWatch}% gets charged`
-                    }.`}
+              {feeWatch == null || Number(feeWatch) === 0
+                ? planPct === null || planPct === undefined
+                  ? "Left empty, this account has no rate of its own — the rate is decided when the top-up is made."
+                  : `Left empty, their plan's ${planPct}% is charged. To charge nothing, grant a top-up fee waiver instead.`
+                : planPct === null || planPct === undefined
+                  ? `${feeWatch}% gets charged on this account's top-ups.`
+                  : Number(feeWatch) === planPct
+                    ? `Matches their plan (${planPct}%). ${feeWatch}% gets charged.`
+                    : `Their plan says ${planPct}% — this account overrides it and ${feeWatch}% gets charged.`}
             </p>
           </div>
 

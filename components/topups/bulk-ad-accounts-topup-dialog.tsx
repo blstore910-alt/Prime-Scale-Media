@@ -830,6 +830,33 @@ export default function BulkTopupAdAccountsDialog({
             strong
           />
         ))}
+        {/* ── AND THE FEE, WHICH THIS DID NOT MENTION AT ALL ────────
+            The rows carry a fee box each, the server charges it, and the
+            confirmation listed only the amounts -- so the one screen
+            where an admin commits up to two hundred movements at once
+            showed the gross and said nothing about what comes off it.
+            The rate is per row, so this is the sum of the rows'
+            OWN rates, which is the figure that will actually be taken.
+            Split by currency, because two currencies are not summable. */}
+        {Object.entries(
+          (confirming?.rows ?? [])
+            .filter((r) => r.enabled)
+            .reduce<Record<string, number>>((acc, r) => {
+              const cur = String(r.currency ?? "").toUpperCase() || "—";
+              const amt = Number(r.amount) || 0;
+              const pct = Number(r.fee) || 0;
+              acc[cur] = (acc[cur] ?? 0) + (amt * pct) / 100;
+              return acc;
+            }, {}),
+        )
+          .filter(([, fee]) => fee > 0.005)
+          .map(([cur, fee]) => (
+            <ConfirmFact
+              key={`fee-${cur}`}
+              label={`Fee included, ${cur}`}
+              value={`${cur} ${fee.toFixed(2)}`}
+            />
+          ))}
         {(confirming?.rows ?? []).filter((r) => r.enabled).length === 0 && (
           <p className="pt-2 text-xs text-muted-foreground">
             Nothing is enabled, so nothing will be sent.
