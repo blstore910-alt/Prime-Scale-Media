@@ -64,6 +64,24 @@ export default function ReferralStatusAction({
 
   const current = (status ?? "active").toLowerCase();
 
+  // ── "WE COULD NOT READ IT" IS NOT "ACTIVE" ────────────────────────
+  //
+  // `?? "active"` above is the right default for a database where the
+  // column does not exist. It is the wrong answer for a read that
+  // failed, and the two arrived here as the same undefined -- so a
+  // pending affiliate got a green Active badge and no buttons, on the
+  // only screen that can approve one.
+  if (current === "unknown") {
+    return (
+      <span
+        className="badge pend"
+        title="We couldn't read this link's status. Reload before approving or rejecting anything."
+      >
+        Unknown
+      </span>
+    );
+  }
+
   if (current === "active") {
     return <span className="badge ok">Active</span>;
   }

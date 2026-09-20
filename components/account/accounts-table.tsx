@@ -874,8 +874,19 @@ function PsmAdminAccountRow({
     // renders LOCAL state, so if the write is refused it would sit there
     // showing a fee the account does not have. Put the old value back when
     // that happens; the hook raises the toast that says why.
-    setIsDirty(false);
-    setEditing({ fee: false });
+    // ── DO NOT CLOSE THE EDITOR BEFORE THE WRITE LANDS ──────────────
+    //
+    // This set isDirty false and closed the cell first, and React
+    // batches all three -- so the first render where `savingFee` is
+    // true is the render in which the button is already unmounted.
+    // `disabled={savingFee}` could never evaluate on a mounted node,
+    // and the cell printed local state with nothing saying a write was
+    // in flight.
+    //
+    // The editor now stays until the mutation settles. The optimistic
+    // close was there because the round trip makes the cell feel stuck;
+    // the disabled tick and the spinner are what that was really asking
+    // for, and they only work if the row is still there.
     updateAccount(
       {
         id: account.id,
@@ -884,7 +895,17 @@ function PsmAdminAccountRow({
         // admins are most likely to be looking at the same number.
         ifUpdatedAt: account.updated_at,
       },
-      { onError: () => setFee(initialFee) },
+      {
+        onError: () => {
+          setFee(initialFee);
+          setIsDirty(false);
+          setEditing({ fee: false });
+        },
+        onSuccess: () => {
+          setIsDirty(false);
+          setEditing({ fee: false });
+        },
+      },
     );
   };
 

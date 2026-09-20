@@ -227,7 +227,24 @@ function VerifyTopupInvoice({
   // component and the flag with it.
   useEffect(() => {
     onBusyChange?.(isPending);
-    return () => onBusyChange?.(false);
+    if (!isPending) return () => onBusyChange?.(false);
+    // ── AND IT HAS TO BE ABLE TO END ────────────────────────────────
+    //
+    // busy swallows Escape, the overlay click and the X, and both
+    // buttons are disabled while it is true. If the server action never
+    // settles -- an edge timeout, a dropped connection -- the admin's
+    // only exit was a page reload, and the top-ups queue behind this
+    // dialog was unreachable until they found that out.
+    //
+    // Thirty seconds is far longer than a verify takes and far shorter
+    // than somebody will sit staring at it. Releasing the lock does not
+    // cancel the write; it lets them close the box and look at the row,
+    // which is the right next step either way.
+    const t = setTimeout(() => onBusyChange?.(false), 30_000);
+    return () => {
+      clearTimeout(t);
+      onBusyChange?.(false);
+    };
   }, [isPending, onBusyChange]);
 
   const handleVerify = (values: FormValues) => {

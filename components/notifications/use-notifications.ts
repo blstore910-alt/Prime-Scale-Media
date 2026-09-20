@@ -1,4 +1,5 @@
 import { useAppContext } from "@/context/app-provider";
+import { adminOnlyNotificationTypes } from "@/lib/notification-catalog";
 import { createClient } from "@/lib/supabase/client";
 import { Notification } from "@/lib/types/notification";
 import { toast } from "sonner";
@@ -28,7 +29,8 @@ export default function useNotifications(
   const [archiveReady, setArchiveReady] = useState(ARCHIVE_COLUMN_SEEN);
   const supabase = createClient();
   const queryClient = useQueryClient();
-  const { user } = useAppContext();
+  const { user, profile } = useAppContext();
+  const isAdmin = profile?.role === "admin";
   const userId = user?.id ?? null;
 
   // Capped. This hook is mounted at the ROOT of both SPA shells, so it runs on
@@ -117,12 +119,24 @@ export default function useNotifications(
       // Archiving an unread alert took it out of the inbox and left it
       // in this count, so the bell read 3 over a list showing 2 and
       // nothing on the inbox could clear it.
-      const base = () =>
-        supabase
+      // ── AND NOT AN ADMIN ALERT ON A CUSTOMER'S RECORD ───────────
+      //
+      // Both customer shells now FILTER admin-audience types out of the
+      // list they render. This count did not, so one mis-addressed row
+      // left a red badge over a list it does not appear in, and "mark
+      // all read" could never clear it.
+      const adminTypes = isAdmin ? [] : adminOnlyNotificationTypes();
+      const base = () => {
+        let q = supabase
           .from("notifications")
           .select("id", { count: "exact", head: true })
           .eq("recipient_user_id", userId)
           .eq("is_read", false);
+        if (adminTypes.length > 0) {
+          q = q.or(`type.is.null,not.type.in.(${adminTypes.join(",")})`);
+        }
+        return q;
+      };
 
       const { count, error } = await base().is("archived_at", null);
       if (!error) return count ?? 0;

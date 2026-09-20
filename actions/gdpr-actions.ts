@@ -1,5 +1,6 @@
 "use server";
 
+import { adminOnlyNotificationTypes } from "@/lib/notification-catalog";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { maintenanceGuard, wroteSomething } from "./_shared";
@@ -138,7 +139,22 @@ export async function exportOwnData(): Promise<
     if (ids.length === 0) return [];
     const cols = EXPORT_COLUMNS[table];
     if (!cols) throw new Error(`${table}: no export column list`);
-    const { data, error } = await supabase.from(table).select(cols).in(column, ids);
+    // ── NOT AN ADMIN NOTIFICATION, WHOEVER IT WAS ADDRESSED TO ──────
+    //
+    // notifications.payload is exported verbatim, and the supplier
+    // alerts carry the supplier's name and their account ids in
+    // `summary`. Rendering is filtered on both customer shells now;
+    // this file reads by recipient_user_id alone, so a mis-addressed
+    // row still followed the customer into their download -- where it
+    // is permanent, and where it is not about them anyway.
+    const adminTypes = adminOnlyNotificationTypes();
+    let q = supabase.from(table).select(cols).in(column, ids);
+    if (table === "notifications" && adminTypes.length > 0) {
+      // The null arm matters: .not(...in...) drops NULLs in PostgREST,
+      // and a row with no type is not an admin alert.
+      q = q.or(`type.is.null,not.type.in.(${adminTypes.join(",")})`);
+    }
+    const { data, error } = await q;
     if (error) throw new Error(`${table}: ${error.message}`);
     return data ?? [];
   }

@@ -131,9 +131,20 @@ export default function AffiliatesTable() {
           .from("referral_links")
           .select("id, status")
           .in("id", ids);
-        if (statusError && statusError.code !== "42703") {
-          throw statusError;
-        }
+        // ── AND A FAILED READ DOES NOT TAKE THE SCREEN DOWN ────────
+        //
+        // The first version threw, so the whole query went isError and
+        // the table was replaced by "Failed to load referral links" --
+        // Approve and Reject still absent, now with nothing else
+        // either. The blast radius went from one column to the page.
+        //
+        // The column is what is unknown, so that is what is marked
+        // unknown. `undefined` is not good enough: the action component
+        // does `(status ?? "active")`, which paints a PENDING affiliate
+        // a confident green "Active" with no buttons, while the accrual
+        // -- which reads the real column -- pays them nothing.
+        const statusUnknown =
+          !!statusError && statusError.code !== "42703";
         const byId = new Map(
           (statusRows ?? []).map((s: { id: string; status: string | null }) => [
             s.id,
@@ -141,7 +152,15 @@ export default function AffiliatesTable() {
           ]),
         );
         for (const r of rows) {
-          if (byId.has(r.id)) r.status = byId.get(r.id) ?? r.status ?? "active";
+          if (statusUnknown) r.status = "unknown";
+          else if (byId.has(r.id)) {
+            r.status = byId.get(r.id) ?? r.status ?? "active";
+          } else if (statusError) {
+            // 42703: the column is genuinely not there. That IS the
+            // documented default, and it was never actually applied
+            // because the map is empty on that path.
+            r.status = r.status ?? "active";
+          }
         }
       }
 

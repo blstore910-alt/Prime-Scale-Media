@@ -294,16 +294,7 @@ ${s} .sidebar,${s} .mcard{will-change:transform}
 ${s} .tool.ava-btn .avatar::after,
 ${s} .who-btn .avatar::after{display:none}
 
-/* ── A pair of fee fields ───────────────────────────────────────────────
-   Two rates side by side on an admin form. Stacked and identical, the only
-   thing telling them apart was reading the label. The first takes the brand
-   colour, the second amber, and side by side they fit on one phone screen.
-
-   NOTE: this string is emitted into a <style> tag on the ADVERTISER and
-   AFFILIATE shells (aff-shell-css calls refineCss(".affapp")), so it is
-   readable with View Source by any customer. It said which of the two
-   figures is what we pay a supplier. Nothing in this file may describe
-   our costs. */
+/* A pair of rate fields, side by side. */
 ${s} .feepair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
 ${s} .feefield{border:1px solid var(--line);border-radius:12px;padding:9px 10px 8px;min-width:0}
 ${s} .feefield .mlabel{display:flex;flex-direction:column;gap:1px;margin:0 0 6px;

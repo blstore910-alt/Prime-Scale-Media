@@ -175,3 +175,18 @@ export function isCustomerVisibleType(type: string | null | undefined): boolean 
   const entry = NOTIFICATION_CATALOG.find((e) => e.type === type);
   return !entry || entry.audience === "customer";
 }
+
+/**
+ * The types that must never sit on a customer's record.
+ *
+ * isCustomerVisibleType answers the same question one row at a time,
+ * for rendering. This is the list form, for a query predicate -- the
+ * GDPR export and the unread badge both read rows by recipient alone,
+ * so a mis-addressed admin notification followed the customer into
+ * their download and left a red badge over a list it is not in.
+ */
+export function adminOnlyNotificationTypes(): string[] {
+  return NOTIFICATION_CATALOG.filter((e) => e.audience === "admin").map(
+    (e) => e.type,
+  );
+}

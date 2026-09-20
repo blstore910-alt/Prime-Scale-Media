@@ -756,7 +756,7 @@ export default function AffiliateApp() {
                     dash
                   ) : (
                     <>
-                      {eur(lifetimeEur)}
+                      {twoLeg(lifetimeEur, lifetimeUsd)}
                       {lifetimeUsd > 0 && (
                         <span style={{ fontSize: ".6em", opacity: 0.8 }}>
                           {" "}
@@ -917,7 +917,9 @@ export default function AffiliateApp() {
                   Top-up volume
                 </div>
                 <div className="n">
-                  {refsUnavailable ? dash : eur(refs.totals.spend_eur)}
+                  {refsUnavailable
+                    ? dash
+                    : twoLeg(refs.totals.spend_eur, refs.totals.spend_usd)}
                 </div>
               </div>
               <div className="c">
@@ -949,7 +951,7 @@ export default function AffiliateApp() {
                       one case where only the month read failed printed a
                       confident EUR 0 / mo. */}
                   <b style={{ color: "var(--win)" }}>
-                    {monthUnavailable ? dash : eur(monthEur)} / mo
+                    {monthUnavailable ? dash : twoLeg(monthEur, monthUsd)} / mo
                   </b>
                 </div>
                 <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
@@ -992,7 +994,9 @@ export default function AffiliateApp() {
                       </div>
                     </div>
                     <span className="amt" style={{ color: "var(--ink)" }}>
-                      {statsUnavailable ? dash : eur(all.totals.spend_eur)}
+                      {statsUnavailable
+                        ? dash
+                        : twoLeg(all.totals.spend_eur, all.totals.spend_usd)}
                     </span>
                   </div>
                 </div>
@@ -1399,7 +1403,8 @@ export default function AffiliateApp() {
                         {r.referred_advertiser_name || "Advertiser"}
                       </div>
                       <div style={{ color: "var(--faint)", fontSize: ".83rem" }}>
-                        {r.topup_count} top-ups · {eur(r.spend_eur)} spend
+                        {r.topup_count} top-ups ·{" "}
+                        {twoLeg(r.spend_eur, r.spend_usd)} spend
                       </div>
                     </div>
                     <span className="amt">
