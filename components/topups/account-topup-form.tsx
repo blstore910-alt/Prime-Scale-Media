@@ -693,19 +693,19 @@ export default function AccountTopupForm({
             )}
           />
         )}
-        {/* Same reason as the summary above: what lands is USD, and we
-            do not hold the rate on this screen. The two figures that
-            ARE exact — what leaves the wallet and the fee — are stated
-            either side of it. */}
+        {/* The account's own currency, same as the summary. The three
+            figures on this confirmation are then all in one money and
+            the sum can be checked by eye: gross − fee = what lands. */}
         <ConfirmFact
           label="Lands on the account"
           value={(() => {
             const net = parseAmount(amount) - (parseAmount(amount) * fee) / 100;
-            if (selectedCurrency === "USD") return formatCurrency(net, "USD");
+            const here = formatCurrency(net, selectedCurrency);
+            if (selectedCurrency === "USD") return here;
             if (usdRate && usdRate > 0) {
-              return `${formatCurrency(net / usdRate, "USD")} — at ${usdRate} EUR per USD`;
+              return `${here} — about ${formatCurrency(net / usdRate, "USD")}`;
             }
-            return "in USD, converted at today's rate";
+            return here;
           })()}
           strong
         />
@@ -899,25 +899,35 @@ function BalanceSummary({
           }
         />
         <div className="h-px bg-border" />
+        {/* ── IN THE ACCOUNT'S OWN MONEY ────────────────────────────
+            A EUR ad account is credited in euros. This headlined the
+            dollar conversion and put the euro figure in the hint, so a
+            customer funding a euro account from a euro wallet was shown
+            "$111.19" as the thing that lands — a number that appears
+            nowhere in the account's life, and one the admin queue then
+            contradicted with "$97.00".
+
+            top_up_create_for_advertiser takes the fee in the payment
+            currency and credits the net in it. That IS what lands. The
+            dollar value is kept underneath, because the supplier side
+            is quoted in dollars and an admin reading over a shoulder
+            will want it — but it is no longer the headline, and it is
+            not shown at all when the account is already in dollars. */}
         <Row
           label="Lands on the account"
           value={
             netInWallet === null
               ? "—"
-              : usdLanding !== null
-                ? formatCurrency(usdLanding, "USD")
-                : rateUnknown
-                  ? "we can't read today's rate"
-                  : "in USD, at today's rate"
+              : formatCurrency(netInWallet, currency)
           }
           hint={
-            netInWallet === null
+            netInWallet === null || currency === "USD"
               ? null
-              : currency === "USD"
-                ? null
-                : usdRate && usdRate > 0
-                  ? `${formatCurrency(netInWallet, currency)} at ${usdRate} ${currency} per USD`
-                  : `${formatCurrency(netInWallet, currency)}, converted on the day`
+              : usdLanding !== null
+                ? `about ${formatCurrency(usdLanding, "USD")} at ${usdRate} ${currency} per USD`
+                : rateUnknown
+                  ? "we can't read today's rate, so we can't show the dollar value"
+                  : null
           }
           tone="strong"
         />

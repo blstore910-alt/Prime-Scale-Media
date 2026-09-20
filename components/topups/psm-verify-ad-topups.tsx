@@ -62,11 +62,41 @@ const accountBmId = (t: Topup) => {
   return s.length > 0 ? s : null;
 };
 
-const advName = (t: Topup) => {
+// ── THE CLIENT CODE IS THE NAME, ON THIS SCREEN ─────────────────────
+//
+// top_ups_view returns FLAT columns, not a nested advertiser object —
+// the same trap `account_name` fell into one function up. So
+// `t.advertiser?.profile?.full_name` was undefined on every row and
+// every card in the queue was headed with the literal word
+// "Advertiser", on the screen where an admin picks WHICH customer's
+// money to release.
+//
+// And the code comes first. PSM0005 is what the bank reference, the
+// invoice, the slip and every other screen carry; the person's name is
+// how you recognise them once you have found the right row. Big code,
+// smaller name underneath.
+const flat = (t: Topup, key: string): string => {
+  const v = (t as unknown as Record<string, unknown>)[key];
+  return v === null || v === undefined ? "" : String(v).trim();
+};
+
+const advCode = (t: Topup) => {
+  const a = t.advertiser as { tenant_client_code?: string } | undefined;
+  return flat(t, "tenant_client_code") || a?.tenant_client_code || "";
+};
+
+const advPerson = (t: Topup) => {
   const a = t.advertiser as
-    | { name?: string; profile?: { full_name?: string }; tenant_client_code?: string }
+    | { name?: string; profile?: { full_name?: string } }
     | undefined;
-  return a?.profile?.full_name || a?.name || a?.tenant_client_code || "Advertiser";
+  return (
+    flat(t, "advertiser_name") ||
+    flat(t, "full_name") ||
+    flat(t, "advertiser_full_name") ||
+    a?.profile?.full_name ||
+    a?.name ||
+    ""
+  );
 };
 
 // Admin ad-account topup verify queue, ported to the mockup look. Reuses
@@ -183,18 +213,49 @@ export default function PsmVerifyAdTopups() {
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{advName(t)}</div>
-                    <div style={{ color: "var(--faint)", fontSize: ".8rem" }}>
+                    {advCode(t) ? (
+                      <div
+                        style={{
+                          fontFamily: "var(--font-jakarta)",
+                          fontWeight: 800,
+                          fontSize: "1.05rem",
+                          letterSpacing: "-0.01em",
+                        }}
+                      >
+                        <CopyText value={advCode(t)} what="client code" />
+                      </div>
+                    ) : null}
+                    {advPerson(t) ? (
+                      <div
+                        style={{
+                          color: "var(--txt-2)",
+                          fontSize: ".85rem",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {advPerson(t)}
+                      </div>
+                    ) : null}
+                    {!advCode(t) && !advPerson(t) ? (
+                      <div style={{ fontWeight: 700 }}>Customer unknown</div>
+                    ) : null}
+                    <div
+                      style={{
+                        color: "var(--txt-2)",
+                        fontSize: ".9rem",
+                        fontWeight: 600,
+                        marginTop: 2,
+                      }}
+                    >
                       {/* top_ups_view returns a FLAT account_name column,
                           not a nested account object — so `t.account?.name`
                           was undefined on every row and this line read
                           "Ad account" for all of them, on the screen where
                           an admin picks WHICH account to fund. */}
-                      <CopyText
-                        value={accountName(t)}
-                        what="account name"
-                      />{" "}
-                      · #{t.number}
+                      <CopyText value={accountName(t)} what="account name" />
+                    </div>
+                    <div style={{ color: "var(--faint)", fontSize: ".78rem" }}>
+                      #{t.number}
                     </div>
                     {accountBmId(t) ? (
                       <div style={{ color: "var(--faint)", fontSize: ".76rem" }}>
