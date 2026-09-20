@@ -34,17 +34,23 @@ staging in front of it.**
 The rhythm:
 
 ```
-git push origin feat/redesign-advertiser        # build gate
-git push origin feat/redesign-advertiser:main   # promote
+git push origin feat/redesign-advertiser:main   # straight to production
 ```
 
-Sequentially, not both at once — pushing both together doubles the Vercel
-queue and makes every change take twice as long to appear.
+**Straight to main by default.** The branch push used to be a build gate,
+and it no longer earns its keep: `scripts/gate.sh` runs tsc, lint and the
+tests locally first, and a build that fails on main does NOT take
+production down — Vercel only promotes a successful build, so the
+previous deployment keeps serving and the change simply does not land.
+The cost of a failure is identical either way, and the preview doubles
+every wait.
 
-The branch push is a BUILD GATE, nothing more: it catches a broken build
-before production (a backtick inside a CSS template literal, JSX outside
-its parent — each has bitten twice). The owner does **not** want preview
-URLs and does not test on them.
+Use the branch first ONLY for a change `next build` alone can catch:
+a new page or route, a new `useSearchParams` (Suspense boundary), a CSS
+template literal, JSX restructuring. Then sequentially, never both at
+once — together they double the Vercel queue.
+
+The owner does **not** want preview URLs and does not test on them.
 
 Testing happens on the real URL, after promoting. Preview talks to the
 **same Supabase database**, so a write there is a write on live data — it

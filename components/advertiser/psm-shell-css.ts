@@ -1029,7 +1029,18 @@ export const PSM_APP_CSS = `
      square one read as a dark blob rather than as a face or a monogram.
      Same size, same circle, everywhere. */
   .psmapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;font-size:.72rem;letter-spacing:-.02em;overflow:hidden}
-  .psmapp .toolbar .ava-btn svg{display:none}
+  /* ── THE CHEVRON, NOT THE AVATAR ──────────────────────────────────
+     This was ".ava-btn svg", which is every svg in the button — and the
+     avatar IS an svg, nested one level down in .avatar. So on a phone
+     the toolbar avatar was display:none inside a wrapper that had
+     already been told background:none and color:transparent, and the
+     owner saw an empty dark disc beside a bell while the same person
+     was drawn properly two lines lower in the menu it opened.
+
+     A CHILD selector is the chevron alone: a direct child of the
+     button, while the avatar sits one level deeper. */
+  .psmapp .toolbar .ava-btn > svg{display:none}
+  .psmapp .toolbar .ava-btn .avatar > svg{display:block;width:100%;height:100%}
   /* The standalone sign-out duplicates the one inside that menu. */
   .psmapp .topbar .so-btn{display:none}
   /* The role chip renders to 0x0 here — it is hidden by its own rule — so

@@ -6,6 +6,7 @@ import {
   type AdAccountType,
   type AdAccountTypeOption,
 } from "@/lib/types/ad-account-type";
+import { normalizeSupplierUrl } from "@/lib/pure-supplier-link";
 import {
   type ActionResult,
   resolveAdminContext,
@@ -39,17 +40,26 @@ export async function listAdAccountTypes(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
-  const { data, error } = await supabase
-    .from("ad_account_types")
-    .select(
-      "id, tenant_id, label, slug, platform_group, default_fee_pct, api_topup_enabled, is_active, sort_order, updated_by, created_at, updated_at",
-    )
-    .eq("tenant_id", profile.tenant_id)
-    .order("sort_order", { ascending: true })
-    .order("label", { ascending: true });
+  // A COLUMN A MIGRATION HAS NOT ADDED YET. supplier_label/_url arrive
+  // with 20260920120000, and code reaches production in minutes while
+  // migrations are pasted by hand — so ask for them, and on error ask
+  // again without them. The supplier link stays dark until the
+  // migration lands instead of taking the settings screen down.
+  const BASE =
+    "id, tenant_id, label, slug, platform_group, default_fee_pct, api_topup_enabled, is_active, sort_order, updated_by, created_at, updated_at";
+  const query = (cols: string) =>
+    supabase
+      .from("ad_account_types")
+      .select(cols)
+      .eq("tenant_id", profile.tenant_id)
+      .order("sort_order", { ascending: true })
+      .order("label", { ascending: true });
+
+  let { data, error } = await query(`${BASE}, supplier_label, supplier_url`);
+  if (error) ({ data, error } = await query(BASE));
   if (error) return { ok: false, error: error.message };
 
-  return { ok: true, data: (data ?? []) as AdAccountType[] };
+  return { ok: true, data: (data ?? []) as unknown as AdAccountType[] };
 }
 
 // ─────────────────────────────────────────
@@ -122,6 +132,8 @@ export async function upsertAdAccountType(input: {
   api_topup_enabled?: boolean;
   is_active?: boolean;
   sort_order?: number;
+  supplier_label?: string | null;
+  supplier_url?: string | null;
   ifUpdatedAt?: string;
 }): Promise<ActionResult<{ id: string }>> {
   // OWNER, not admin. This was enforced only by the settings layout
@@ -146,6 +158,26 @@ export async function upsertAdAccountType(input: {
   }
   if (!isValidPct(input.default_fee_pct)) {
     return { ok: false, error: "Fee must be a percent between 0 and 100." };
+  }
+
+  // ── THE LINK IS NORMALISED HERE, NOT ONLY IN THE COMPONENT ────────
+  //
+  // A server action is reachable without the form, so a client-side
+  // check is a convenience and not a guard. normalizeSupplierUrl
+  // refuses anything that is not http(s) — a pasted `javascript:` URL
+  // would otherwise be stored and later rendered as an href an admin
+  // clicks, inside their own session.
+  const supplierTouched =
+    Object.hasOwn(input, "supplier_label") ||
+    Object.hasOwn(input, "supplier_url");
+  const supplierLabel = String(input.supplier_label ?? "").trim().slice(0, 60);
+  const rawUrl = String(input.supplier_url ?? "").trim();
+  const supplierUrl = rawUrl ? normalizeSupplierUrl(rawUrl) : null;
+  if (rawUrl && !supplierUrl) {
+    return {
+      ok: false,
+      error: "The supplier dashboard link must be an http or https address.",
+    };
   }
 
   // ---- UPDATE ----
@@ -179,20 +211,46 @@ export async function upsertAdAccountType(input: {
     }
     if (typeof input.is_active === "boolean") patch.is_active = input.is_active;
     if (typeof input.sort_order === "number") patch.sort_order = input.sort_order;
+    if (supplierTouched) {
+      patch.supplier_label = supplierLabel || null;
+      patch.supplier_url = supplierUrl;
+    }
 
-    const { data: rows, error } = await supabase
+    let { data: rows, error } = await supabase
       .from("ad_account_types")
       .update(patch)
       .eq("id", input.id)
       .eq("tenant_id", profile.tenant_id)
       .select("id");
+    // Writing a column the migration has not added yet fails the WHOLE
+    // update, so the fee change the admin actually came here for would
+    // be lost too. Drop the supplier fields and write the rest, and say
+    // so rather than reporting a clean save.
+    let supplierDropped = false;
+    if (error && supplierTouched) {
+      delete patch.supplier_label;
+      delete patch.supplier_url;
+      supplierDropped = true;
+      ({ data: rows, error } = await supabase
+        .from("ad_account_types")
+        .update(patch)
+        .eq("id", input.id)
+        .eq("tenant_id", profile.tenant_id)
+        .select("id"));
+    }
     if (error) return { ok: false, error: error.message };
     // An UPDATE that matches nothing is not an error in PostgREST, so this
     // used to report a saved fee change that never happened — and the fee is
     // what every future top-up on that type is charged at.
     const wrote = wroteSomething(rows);
     if (!wrote.ok) return wrote;
-    return { ok: true, data: { id: input.id } };
+    return {
+      ok: true,
+      data: { id: input.id },
+      warning: supplierDropped
+        ? "Saved, but the supplier link was not: that column is not on the database yet."
+        : undefined,
+    };
   }
 
   // ---- CREATE ----

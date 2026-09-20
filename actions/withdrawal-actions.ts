@@ -28,6 +28,88 @@ async function throttleFinancial(
   return { ok: true, userId: uid };
 }
 
+
+// ─────────────────────────────────────────
+// fundedUsd — what is actually ON an ad account, in USD
+// ─────────────────────────────────────────
+//
+// ── THE GUARD THAT WAS NEVER THERE ──────────────────────────────────
+//
+// Neither RPC checks a balance. ad_account_withdrawal_request validates
+// ownership and nothing else, and ad_account_withdrawal_approve does
+// `usd_balance + v_wd.amount` unconditionally. The account STATUS was
+// the only gate, and once `disabled` had to be withdrawable — it does,
+// it is the step before releasing a supplier account back to the pool —
+// the gate came down to banned/closed.
+//
+// So an advertiser could ask for 5,000 off an account that was never
+// funded, and an approving admin, who is shown neither a balance nor a
+// status on that screen, credited a wallet out of nothing.
+//
+// Funded = completed top-ups minus withdrawals already taken or asked
+// for. Money actually SPENT at the platform is not in our database, so
+// this is a ceiling and not a balance — but "never put on the account
+// in the first place" is the case that creates money, and this closes
+// it exactly.
+//
+// FAILS CLOSED. A read we could not make is not a zero and it is not an
+// unlimited balance: three guards written the same week each discarded
+// their read error and fell through to the permissive branch, which is
+// how a guard becomes decoration.
+async function fundedUsd(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  adAccountId: string,
+): Promise<{ ok: true; funded: number } | { ok: false; error: string }> {
+  const [topups, withdrawals] = await Promise.all([
+    supabase
+      .from("top_ups")
+      .select("topup_amount")
+      .eq("account_id", adAccountId)
+      .eq("status", "completed"),
+    supabase
+      .from("ad_account_withdrawals")
+      .select("amount, status")
+      .eq("ad_account_id", adAccountId),
+  ]);
+
+  if (topups.error) {
+    return {
+      ok: false,
+      error:
+        "We could not read what is on this account just now — try again in a moment.",
+    };
+  }
+  if (withdrawals.error) {
+    return {
+      ok: false,
+      error:
+        "We could not read this account's withdrawals just now — try again in a moment.",
+    };
+  }
+
+  const inUsd = (topups.data ?? []).reduce(
+    (sum, r) => sum + (Number((r as { topup_amount?: unknown }).topup_amount) || 0),
+    0,
+  );
+  // Pending counts against the balance too. Two requests for the whole
+  // balance are each valid on their own and only one of them is.
+  const outUsd = (withdrawals.data ?? []).reduce((sum, r) => {
+    const row = r as { amount?: unknown; status?: unknown };
+    const status = String(row.status ?? "").toLowerCase();
+    if (status === "rejected" || status === "cancelled") return sum;
+    return sum + (Number(row.amount) || 0);
+  }, 0);
+
+  return { ok: true, funded: inUsd - outUsd };
+}
+
+const usd = (v: number) =>
+  "$" +
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(v);
+
 // ─────────────────────────────────────────
 // requestAdAccountWithdrawal — advertiser
 // Pulls balance from one of their ad accounts back to their wallet.
@@ -163,6 +245,26 @@ export async function requestAdAccountWithdrawal(input: {
     };
   }
 
+  // What is on it. A cent of tolerance, because these are numeric
+  // columns summed in JS and an exact-equality refusal on a full
+  // withdrawal would be a bug of its own.
+  const available = await fundedUsd(supabase, input.ad_account_id);
+  if (!available.ok) return { ok: false, error: available.error };
+  if (available.funded <= 0.005) {
+    return {
+      ok: false,
+      error: `There is nothing on ${acct.name ?? "this account"} to withdraw.`,
+    };
+  }
+  if (amount > available.funded + 0.005) {
+    return {
+      ok: false,
+      error: `${acct.name ?? "This account"} has ${usd(
+        available.funded,
+      )} available — that already allows for any withdrawal still waiting on us.`,
+    };
+  }
+
   const { data, error } = await supabase.rpc("ad_account_withdrawal_request", {
     p_ad_account_id: input.ad_account_id,
     p_amount: amount,
@@ -194,6 +296,50 @@ export async function approveAdAccountWithdrawal(
     return { ok: false, error: "Invalid input" };
   }
   const { supabase } = auth.ctx;
+
+  // ── CHECKED AGAIN HERE, BECAUSE THIS IS WHERE THE MONEY MOVES ─────
+  //
+  // The request-side check is a courtesy to the customer; this one is
+  // the guard. A request can sit for days while the account is emptied
+  // by another withdrawal, and the RPC credits the wallet without
+  // looking. The admin's own screen shows neither a balance nor the
+  // account status, so there is nobody else in this path who could
+  // notice.
+  const { data: wd, error: wdErr } = await supabase
+    .from("ad_account_withdrawals")
+    .select("id, ad_account_id, amount, status")
+    .eq("id", withdrawalId)
+    .maybeSingle();
+  if (wdErr) return { ok: false, error: safeErrorMessage(wdErr) };
+  if (!wd) return { ok: false, error: "That withdrawal was not found." };
+
+  const row = wd as {
+    ad_account_id?: string | null;
+    amount?: unknown;
+    status?: unknown;
+  };
+  const wanted = Number(row.amount) || 0;
+  const accountId = String(row.ad_account_id ?? "");
+  if (accountId) {
+    const available = await fundedUsd(supabase, accountId);
+    if (!available.ok) return { ok: false, error: available.error };
+    // This row's own amount is inside `funded` already (it is pending),
+    // so add it back before comparing — otherwise every withdrawal
+    // looks like it overdraws itself.
+    const withoutThis =
+      String(row.status ?? "").toLowerCase() === "pending"
+        ? available.funded + wanted
+        : available.funded;
+    if (wanted > withoutThis + 0.005) {
+      return {
+        ok: false,
+        error: `This asks for ${usd(wanted)} and the account holds ${usd(
+          Math.max(withoutThis, 0),
+        )}. Approving it would credit the wallet with money that was never on the account.`,
+      };
+    }
+  }
+
   const { error } = await supabase.rpc("ad_account_withdrawal_approve", {
     p_withdrawal_id: withdrawalId,
   });

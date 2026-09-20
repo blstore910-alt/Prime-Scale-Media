@@ -1056,7 +1056,12 @@ export const ADV_CSS = `
      understood to open a menu. */
   .advapp .toolbar .ava-btn{display:grid;place-items:center;width:40px;height:40px;padding:0;gap:0}
   .advapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;overflow:hidden}
-  .advapp .toolbar .ava-btn svg{display:none}
+  /* The CHEVRON, not the avatar. ".ava-btn svg" is every svg in the
+     button and the avatar is one of them, nested inside .avatar - so
+     this hid the avatar itself on a phone and left an empty dark disc
+     in the toolbar. */
+  .advapp .toolbar .ava-btn > svg{display:none}
+  .advapp .toolbar .ava-btn .avatar > svg{display:block;width:100%;height:100%}
   /* Duplicates the one inside that menu. */
   .advapp .topbar .so-btn{display:none}
   /* These render to 0x0 here — hidden by their own rule above — so take them

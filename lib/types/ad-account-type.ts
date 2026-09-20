@@ -23,6 +23,19 @@ export interface AdAccountType {
   // Auto-topup via the supplier API (Supplier 1) is possible for this type.
   // Only Meta-EU-PSM; every other type is manual.
   api_topup_enabled: boolean;
+  // -- ADMIN-ONLY, AND IT HAS TO STAY THAT WAY ----------------------
+  //
+  // Where an admin goes to fund an account of this type by hand, and
+  // what that supplier is called. Only one type tops up over the API,
+  // so this is most of them.
+  //
+  // The supplier's name must never reach an advertiser or an affiliate,
+  // in the UI or in the JSON behind it -- only admin surfaces read
+  // ad_account_types, and nothing that renders for a customer may start
+  // to. Optional because the migration that adds the columns may not be
+  // on the database yet.
+  supplier_label?: string | null;
+  supplier_url?: string | null;
   is_active: boolean;
   sort_order: number;
   updated_by: string | null;

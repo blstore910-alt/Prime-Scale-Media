@@ -1,5 +1,7 @@
 "use client";
 
+import PrivacyControls from "@/components/profile/privacy-controls";
+
 import { copyText } from "@/lib/copy-text";
 import { dmSans, jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
@@ -3785,6 +3787,22 @@ export default function AdvertiserApp() {
                   We&apos;ll set your commission and let you know.
                 </p>
               )}
+            </div>
+            {/* -- GDPR, WHERE THE CUSTOMER CAN ACTUALLY REACH IT ------
+                These two controls - download my data (art. 20) and
+                request erasure (art. 17) - were mounted on /profile and
+                nowhere else, and /profile now bounces every customer to
+                their own shell. So the right to export and the right to
+                be forgotten were both unreachable for the only people
+                who have them, while /help still told them to go to
+                Profile. Same component, mounted where they land. */}
+            <div className="card">
+              <h2>Your data</h2>
+              <p className="cap" style={{ margin: "0 0 12px" }}>
+                Take a copy of everything we hold about you, sign out
+                everywhere, or ask us to delete your account.
+              </p>
+              <PrivacyControls />
             </div>
           </div>
 

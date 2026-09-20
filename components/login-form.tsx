@@ -4,7 +4,7 @@ import { loginUser } from "@/actions/user-actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 const REDIRECT_REASONS: Record<string, string> = {
   idle: "You were signed out after 30 minutes of inactivity.",
@@ -37,15 +37,15 @@ export function LoginForm() {
   const [wasReloaded] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
-      const had = sessionStorage.getItem(STALE_RELOAD_KEY) !== null;
-      // Cleared now, so a genuine second failure shows the error rather
-      // than reloading round and round.
-      sessionStorage.removeItem(STALE_RELOAD_KEY);
-      return had;
+      return sessionStorage.getItem(STALE_RELOAD_KEY) !== null;
     } catch {
       return false;
     }
   });
+  // One reload per PAGE, even with no storage to remember it in. The
+  // sessionStorage key survives the reload and this does not, which is
+  // exactly right: together they are "once per tab, once per document".
+  const reloadedRef = useRef(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -120,6 +120,14 @@ export function LoginForm() {
           // authenticated. A soft router.push could render a prefetched,
           // still-unauthenticated redirect and bounce the user back to
           // /auth/login — the magic-link path below uses the same hard nav.
+          // Signed in: the stale-build marker has done its job. Left
+          // behind, the next genuine failure in this tab would skip its
+          // one reload.
+          try {
+            sessionStorage.removeItem(STALE_RELOAD_KEY);
+          } catch {
+            // Nothing to clean up in a window that has no storage.
+          }
           const dest = result.redirectTo;
           // The launch animation used to be WAITED for — a flat 1000ms added
           // to every sign-in before the browser was even asked for the next
@@ -154,10 +162,33 @@ export function LoginForm() {
         // the same dead button harder. The cure is a reload, which the
         // customer has to guess at. So do it for them, once, and keep
         // their email so only the password has to be typed again.
-        if (
-          typeof window !== "undefined" &&
-          !sessionStorage.getItem(STALE_RELOAD_KEY)
-        ) {
+        // ── ONCE. THIS USED TO MEAN NEVER-ENDING ──────────────────────
+        //
+        // The mount initialiser above REMOVED this key on every render,
+        // so the read here was always null and the reload fired on every
+        // failure: Supabase down, a 500, no network — press Sign in, the
+        // page reloads, nothing is said, press again, reload again. The
+        // setError line below was unreachable, which is why the owner
+        // saw a login that only worked "pas na refresh" and never an
+        // explanation.
+        //
+        // The key now survives the reload and is cleared only on a
+        // successful sign-in, so the second failure says what happened.
+        // And the READ is inside the try: blocked storage threw here,
+        // inside a catch block, so neither the reload nor the error ran.
+        let alreadyReloaded = true;
+        try {
+          alreadyReloaded = sessionStorage.getItem(STALE_RELOAD_KEY) !== null;
+        } catch {
+          // Storage blocked. Reload once anyway — the reload is the part
+          // that fixes a stale build; without storage we cannot tell a
+          // first failure from a second, and reloadedRef below keeps it
+          // to one attempt per page.
+          alreadyReloaded = reloadedRef.current;
+        }
+
+        if (typeof window !== "undefined" && !alreadyReloaded) {
+          reloadedRef.current = true;
           try {
             sessionStorage.setItem(STALE_RELOAD_KEY, email);
           } catch {
@@ -167,7 +198,9 @@ export function LoginForm() {
           window.location.reload();
           return;
         }
-        setError("We couldn't sign you in. Please try again.");
+        setError(
+          "We couldn't sign you in. Check your connection and try again — if this keeps happening, the service may be down.",
+        );
       }
     });
   };
