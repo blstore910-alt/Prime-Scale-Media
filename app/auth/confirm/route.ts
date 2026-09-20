@@ -5,6 +5,7 @@ import {
   type User,
 } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 type ReferralProfileShape =
   | { status?: string | null; full_name?: string | null }
@@ -66,6 +67,32 @@ async function finalizeAdvertiserSignup(params: {
     },
   );
 
+  // ── ALREADY A CUSTOMER? THEN THERE IS NOTHING TO FINALISE ─────────
+  //
+  // This sat BELOW the tenant-slug requirement, so an existing customer
+  // confirming anything at all -- and every user minted by
+  // auth.admin.createUser carries no tenant_slug metadata, which is
+  // every invited customer and every admin -- was sent to
+  // /auth/error?error=Missing tenant slug and told to ask for a fresh
+  // invite. The escape has to come first.
+  //
+  // .limit(1) rather than .maybeSingle(): this app supports the same
+  // email in two tenants -- lib/active-profile exists for that -- and
+  // maybeSingle() ERRORS on two rows. The raw message then went into
+  // redirectWithError and the allowlist on /auth/error rendered it as
+  // "An unspecified error occurred."
+  const { data: existingProfiles, error: profileLookupError } = await admin
+    .from("user_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .limit(1);
+  if (profileLookupError) {
+    return redirectWithError(request, safeErrorMessage(profileLookupError));
+  }
+  if (existingProfiles?.[0]?.id) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   if (!tenantSlug) {
     return redirectWithError(request, "Missing tenant slug");
   }
@@ -77,19 +104,6 @@ async function finalizeAdvertiserSignup(params: {
     .maybeSingle();
   if (tenantError || !tenant) {
     return redirectWithError(request, "Malformed request");
-  }
-
-  const { data: existingProfile, error: profileLookupError } = await admin
-    .from("user_profiles")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (profileLookupError) {
-    return redirectWithError(request, profileLookupError.message);
-  }
-
-  if (existingProfile?.id) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   let referralAdvertiser: {
@@ -274,7 +288,13 @@ export async function GET(request: NextRequest) {
   // this fallback was written for — and that flow always sets the
   // metadata, so in practice the fallback now serves nobody but a
   // legacy link.
-  const tenantSlug = metadataTenant ?? (metadata ? null : urlTenant);
+  // `metadata` is `(...) ?? {}`, so it was ALWAYS truthy and the
+  // right-hand branch never ran. That is the behaviour this comment
+  // argues for, so it is written as what it does: the URL is not
+  // trusted, full stop. `urlTenant` is still read above, to refuse a
+  // mismatch.
+  void urlTenant;
+  const tenantSlug = metadataTenant ?? null;
 
   const metadataReferral = getStringMetadataValue(metadata, "referral_code");
   const urlReferral = searchParams.get("ref");
@@ -282,6 +302,32 @@ export async function GET(request: NextRequest) {
     return redirectWithError(request, "Referral code mismatch");
   }
   const referralCode = (metadataReferral ?? urlReferral)?.toUpperCase() ?? null;
+
+  // ── ONLY THE SIGNUP FAMILY GETS THE SIGNUP FINALISER ──────────────
+  //
+  // This ran unconditionally for every OTP type. A password `recovery`,
+  // an `email_change` or a `magiclink` routed through here therefore
+  // went looking for a tenant slug it could not have and ended on
+  // /auth/error -- on the screen somebody reaches when they already
+  // cannot get in.
+  //
+  // `next` is honoured where the link carries one, which is how
+  // Supabase's own templates point a recovery link at
+  // /auth/update-password.
+  const nextParam = searchParams.get("next");
+  const safeNext =
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
+      ? nextParam
+      : null;
+  const isSignupFamily = !type || type === "signup" || type === "invite";
+  if (!isSignupFamily) {
+    return NextResponse.redirect(
+      new URL(
+        safeNext ?? (type === "recovery" ? "/auth/update-password" : "/dashboard"),
+        request.url,
+      ),
+    );
+  }
 
   return finalizeAdvertiserSignup({ request, user, tenantSlug, referralCode });
 }
