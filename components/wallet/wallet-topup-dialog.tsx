@@ -33,7 +33,7 @@ import {
 } from "./bank-transfer-instructions";
 
 import { createClient } from "@/lib/supabase/client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 import { formatCurrency } from "@/lib/utils-pure";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -273,8 +273,42 @@ export default function WalletTopupDialog({
   // The name of the file they picked, so the control can say what is attached
   // instead of leaving that to the browser's own "Geen bestand gekozen".
   const [slipName, setSlipName] = useState<string | null>(null);
-  const copyReference = async () => {
-    const ref = formatPaymentReference(clientCode, referenceNo);
+  const [filedReference, setFiledReference] = useState<string | null>(null);
+
+  // ── A CLAIM ALREADY WAITING, AND THE CODE IT CARRIES ──────────────
+  //
+  // The reference on the wallet is the one the NEXT claim will get. A
+  // customer who filed one an hour ago and came back to re-read their
+  // reference was shown that next code, and wired real money against
+  // it -- a code no claim has ever carried, which the matcher can
+  // never resolve. So before offering a fresh reference, say plainly
+  // that one is already open and print ITS code.
+  const { data: openTopups } = useQuery({
+    queryKey: ["wallet-topup-open", walletId],
+    enabled: open && !!walletId,
+    staleTime: 15_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallet_topups")
+        .select("id, amount, currency, status, reference_no, created_at")
+        .eq("wallet_id", walletId!)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        amount: number | string | null;
+        currency: string | null;
+        reference_no: string | number | null;
+        created_at: string;
+      }[];
+    },
+  });
+  const openTopup = (openTopups ?? [])[0] ?? null;
+  const copyReference = async (override?: string | null) => {
+    const ref = formatPaymentReference(clientCode, override ?? referenceNo);
     if (!ref) return;
     // copyText falls back to the legacy route when the Clipboard API is
     // unavailable or refused — which it is in an in-app browser, in an
@@ -300,6 +334,10 @@ export default function WalletTopupDialog({
 
   // The transfer currencies the chosen bank can receive.
   const availableTransferCurrencies = bankTransferCurrencies(bankGroup);
+
+  useEffect(() => {
+    if (open) setFiledReference(null);
+  }, [open]);
 
   // Keep the transfer currency valid for the selected bank. ZANEL is USD
   // only, so switching to it from an EUR transfer snaps back to USD.
@@ -527,7 +565,12 @@ export default function WalletTopupDialog({
       // shape that makes null mean success elsewhere. Both are refused
       // here because both are true here.
       const row = (Array.isArray(data) ? data[0] : data) as
-        | { ok?: boolean; error?: string; id?: string }
+        | {
+            ok?: boolean;
+            error?: string;
+            id?: string;
+            reference_no?: string | number | null;
+          }
         | null
         | undefined;
       if (row === null || row === undefined) {
@@ -540,9 +583,30 @@ export default function WalletTopupDialog({
           row.error ?? "The top-up was not filed. Nothing has been charged.",
         );
       }
-      return data;
+      return row;
     },
-    onSuccess: async () => {
+    onSuccess: async (row) => {
+      // ── THE REFERENCE THE CLAIM WAS FILED WITH ──────────────────
+      //
+      // wallet_topup_advertiser_create stamps the wallet's current
+      // reference onto the new row and then ROTATES the wallet, so the
+      // next claim gets a fresh code. That is right. What was wrong is
+      // that the dialog reads wallet.reference_no and the success
+      // handler invalidates ["wallet"] -- so the moment a customer
+      // filed a claim, every screen showing "your reference" showed the
+      // NEXT one.
+      //
+      // Which means: file the claim, walk to your banking app, come
+      // back to re-read the reference, and copy a code that belongs to
+      // no claim at all. The transfer then arrives quoting a reference
+      // the matcher has never seen. Two tabs do it too -- both show
+      // code A, the first submit consumes A, the second claim silently
+      // carries B while the money was wired against A.
+      //
+      // The RPC returns the row, so the code it was actually filed with
+      // is right here. Hold it and print THAT.
+      const filed = row?.reference_no;
+      setFiledReference(filed == null ? null : String(filed));
       setStep(STEPS.SUCCESS);
       await draft.clear();
       queryClient.invalidateQueries({
@@ -835,14 +899,53 @@ export default function WalletTopupDialog({
                     is what sends their payment to manual review. Selecting it
                     by hand on a phone means a long-press and two drag
                     handles, usually catching the sentence above it too. */}
+                {openTopup ? (
+                  <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
+                    <p className="text-sm font-semibold">
+                      You already have a top-up waiting
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {formatCurrency(
+                        Number(openTopup.amount) || 0,
+                        (openTopup.currency ?? "EUR").toUpperCase() === "USD"
+                          ? "USD"
+                          : "EUR",
+                      )}
+                      , filed{" "}
+                      {new Date(openTopup.created_at).toLocaleDateString()}. If
+                      you have not sent that transfer yet, use its reference
+                      below — starting a second one here gives you a different
+                      code, and money sent against the wrong code has to be
+                      matched by hand.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => copyReference(
+                        openTopup.reference_no == null
+                          ? null
+                          : String(openTopup.reference_no),
+                      )}
+                      className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-2.5 font-mono text-lg font-bold tracking-wide transition hover:border-ring"
+                    >
+                      {formatPaymentReference(
+                        clientCode,
+                        openTopup.reference_no == null
+                          ? null
+                          : String(openTopup.reference_no),
+                      )}
+                      <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  </div>
+                ) : null}
                 <div className="rounded-xl border bg-muted/20 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Put this reference in the description of your transfer, so
-                    we can match your payment.
+                    {openTopup
+                      ? "For a NEW transfer, use this reference instead:"
+                      : "Put this reference in the description of your transfer, so we can match your payment."}
                   </p>
                   <button
                     type="button"
-                    onClick={copyReference}
+                    onClick={() => copyReference()}
                     className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     aria-label={`Copy reference ${formatPaymentReference(clientCode, referenceNo)}`}
                   >
@@ -1130,9 +1233,37 @@ export default function WalletTopupDialog({
                 <div className="space-y-2">
                   <h3 className="font-semibold text-lg">Request Successful!</h3>
                   <p className="text-sm text-muted-foreground max-w-[18rem] mx-auto">
-                    Your topup request has been submitted.
+                    {filedReference
+                      ? "Now send the transfer, quoting this reference."
+                      : "Your topup request has been submitted."}
                   </p>
                 </div>
+
+                {/* THE CODE THIS CLAIM CARRIES -- not the wallet's, which
+                    has already rotated to the next one. This is the last
+                    screen before somebody opens their banking app. */}
+                {filedReference ? (
+                  <div className="w-full rounded-xl border bg-muted/20 p-4">
+                    <button
+                      type="button"
+                      onClick={() => copyReference(filedReference)}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40"
+                      aria-label={`Copy reference ${formatPaymentReference(clientCode, filedReference)}`}
+                    >
+                      {formatPaymentReference(clientCode, filedReference)}
+                      {refCopied ? (
+                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                    </button>
+                    <p className="mt-2 text-center text-xs text-muted-foreground">
+                      {refCopied
+                        ? "Copied"
+                        : "Tap to copy. You can find it again on your wallet page."}
+                    </p>
+                  </div>
+                ) : null}
 
                 <Button
                   onClick={() => onOpenChange(false)}
