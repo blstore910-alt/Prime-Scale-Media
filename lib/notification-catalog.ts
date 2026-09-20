@@ -29,6 +29,29 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     description: "When one of your top-ups is confirmed and credited.",
     audience: "customer",
   },
+  // ── THE MONEY-IN EVENT THAT SAID NOTHING ─────────────────────────
+  //
+  // A customer wires money, an admin presses Approve, the wallet is
+  // credited -- and the only feedback in the whole system was a toast
+  // on the ADMIN's screen. The customer's way of finding out was to
+  // open the app and compare a number to what they remembered. The
+  // ad-account top-up has had topup_completed since it was written;
+  // the wallet, which is where the money actually arrives, had
+  // nothing.
+  {
+    type: "wallet_topup_completed",
+    label: "Money arrived in your wallet",
+    description:
+      "When we confirm a transfer you sent and credit it to your wallet.",
+    audience: "customer",
+  },
+  {
+    type: "wallet_topup_rejected",
+    label: "Wallet top-up refused",
+    description:
+      "When a transfer you filed could not be confirmed, with the reason.",
+    audience: "customer",
+  },
   {
     type: "subscription_invoice",
     label: "Subscription invoice",

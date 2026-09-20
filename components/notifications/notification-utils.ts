@@ -71,6 +71,33 @@ export function getNotificationCopy(notification: Notification): {
         title: "Top-up Completed",
         description: "Your top-up has been verified successfully.",
       };
+    // ── AND THE ONE WHERE THE MONEY ACTUALLY ARRIVES ───────────────
+    //
+    // With the figure in it. subscription_invoice carries `amount` and
+    // `currency` and prints a generic sentence; this one is the money
+    // landing in the customer's wallet, so it says how much.
+    case "wallet_topup_completed": {
+      const p = parseNotificationPayload(notification);
+      const amount = asString(p.amount);
+      const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
+      const sym = currency === "USD" ? "$" : "€";
+      return {
+        title: "Money is in your wallet",
+        description: amount
+          ? `We confirmed your transfer and credited ${sym}${Number(amount).toFixed(2)} to your ${currency} wallet.`
+          : "We confirmed your transfer and credited it to your wallet.",
+      };
+    }
+    case "wallet_topup_rejected": {
+      const p = parseNotificationPayload(notification);
+      const reason = asString(p.reason);
+      return {
+        title: "Wallet top-up refused",
+        description: reason
+          ? reason
+          : "We could not confirm this transfer. Nothing has been credited — check the reference you used and file it again.",
+      };
+    }
     case "topup_created":
       return {
         title: "Top-up Requires Verification",

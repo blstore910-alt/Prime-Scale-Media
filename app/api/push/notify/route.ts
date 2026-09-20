@@ -66,6 +66,32 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/dashboard?view=wallet",
       };
     }
+    // The money landing in the wallet — with the figure, because this
+    // is the one push where "how much" is the whole message.
+    case "wallet_topup_completed": {
+      const amt = record.payload?.amount;
+      const cur = String(record.payload?.currency ?? "EUR").toUpperCase();
+      const sym = cur === "USD" ? "$" : "€";
+      const n = Number(amt);
+      return {
+        title: "Money is in your wallet",
+        body: Number.isFinite(n) && n > 0
+          ? `We confirmed your transfer and credited ${sym}${n.toFixed(2)}.`
+          : "We confirmed your transfer and credited it to your wallet.",
+        url: "/dashboard?view=wallet",
+      };
+    }
+    case "wallet_topup_rejected": {
+      const why = record.payload?.reason;
+      return {
+        title: "Wallet top-up refused",
+        body:
+          typeof why === "string" && why.trim()
+            ? why.trim().slice(0, 160)
+            : "We could not confirm this transfer. Nothing has been credited.",
+        url: "/dashboard?view=wallet",
+      };
+    }
 
     case "wallet_topup_created": {
       return {

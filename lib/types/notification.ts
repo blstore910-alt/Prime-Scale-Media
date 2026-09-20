@@ -1,5 +1,7 @@
 export type NotificationType =
   | "topup_completed"
+  | "wallet_topup_completed"
+  | "wallet_topup_rejected"
   | "topup_created"
   | "ad_account_request_created"
   | "user_profile_created"
@@ -125,6 +127,19 @@ export interface NotificationPayloadByType {
   };
   /** The ad-account request fee, put back after a refusal. */
   request_fee_refunded: {
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
+  /** Money the customer wired, confirmed and credited. */
+  wallet_topup_completed: {
+    wallet_topup_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+  };
+  /** A transfer we could not confirm. The reason is the customer's. */
+  wallet_topup_rejected: {
+    wallet_topup_id?: string | null;
     amount?: number | string | null;
     currency?: string | null;
     reason?: string | null;

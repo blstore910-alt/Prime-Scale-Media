@@ -1,3 +1,7 @@
+import {
+  notifyWalletTopupRejected,
+  notifyWalletTopupVerified,
+} from "@/actions/wallet-topup-notify-actions";
 import { createClient } from "@/lib/supabase/client";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,12 +24,35 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
           p_topup_id: topup.id,
         });
         if (error) throw error;
+        // ── AND TELL THE CUSTOMER ────────────────────────────────
+        //
+        // This is the money-in event of the product: someone wired
+        // money and it has now landed in their wallet. Until this
+        // line the only feedback in the whole system was a toast on
+        // THIS admin's screen, and the customer's way of finding out
+        // was to open the app and compare a figure to what they
+        // remembered. Best effort and after the RPC, like every other
+        // notify on a money path -- the credit has happened, and
+        // failing the mutation now would say it had not.
+        try {
+          await notifyWalletTopupVerified(topup.id);
+        } catch {
+          /* the credit stands either way */
+        }
       } else if (payload.action === "reject") {
         const { error } = await supabase.rpc("wallet_topup_admin_reject", {
           p_topup_id: topup.id,
           p_reason: payload.rejectionReason ?? null,
         });
         if (error) throw error;
+        // The reason is written to the customer -- that is the whole
+        // point of demanding one, and it reached the database and
+        // stopped there.
+        try {
+          await notifyWalletTopupRejected(topup.id, payload.rejectionReason);
+        } catch {
+          /* the refusal stands either way */
+        }
       } else if (payload.action === "undo") {
         const { error } = await supabase.rpc("wallet_topup_admin_undo", {
           p_topup_id: topup.id,

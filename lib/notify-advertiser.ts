@@ -24,6 +24,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AdvertiserNotice =
   | "topup_completed"
+  | "wallet_topup_completed"
+  | "wallet_topup_rejected"
   | "topup_rejected"
   | "withdrawal_approved"
   | "withdrawal_rejected"
