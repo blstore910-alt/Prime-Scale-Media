@@ -64,6 +64,28 @@ begin
   v_was := v_sub.next_payment_date::date;
   insert into _a5 values ('klok stond op', coalesce(v_was::text, '-'));
 
+  -- ── EEN TWEEDE RUN MAG DE KLOK NIET NOG EEN MAAND TERUGZETTEN ────
+  --
+  -- De eerste poging viel om op een typefout in de RAPPORTREGEL, niet
+  -- in dit blok -- de SQL-editor voert de statements op volgorde uit,
+  -- dus de klok was toen al verzet en de motor had al gedraaid. Nog een
+  -- keer plakken zou hem dan nóg een maand terugzetten en een tweede
+  -- maand factureren.
+  --
+  -- Staat er al een openstaande abonnementsfactuur, dan is het werk
+  -- gedaan en raken we niets meer aan.
+  if exists (
+    select 1 from public.invoices i
+     where i.advertiser_id = v_sub.advertiser_id
+       and i.type = 'subscription'
+       and i.status = 'unpaid'
+  ) then
+    insert into _a5 values (
+      'overgeslagen',
+      'er staat al een openstaande maandfactuur; klok en motor niet aangeraakt');
+    return;
+  end if;
+
   -- Eén maand terug, zodat de run hem als verschuldigd ziet.
   update public.subscriptions
      set next_payment_date = (v_was - interval '1 month'),
@@ -86,7 +108,7 @@ union all
 select 2, 'openstaande abonnementsfacturen voor PSM0005',
   coalesce((
     select string_agg(
-             coalesce(i.number, i.id::text) || '  ' ||
+             coalesce(i.number::text, i.id::text) || '  ' ||
              to_char(i.total, 'FM999999990.00') || ' ' ||
              upper(coalesce(i.currency, 'EUR')) ||
              '  periode ' || coalesce(i.period_start::text, '-') ||
