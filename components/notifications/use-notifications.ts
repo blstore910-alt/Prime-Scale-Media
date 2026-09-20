@@ -133,7 +133,13 @@ export default function useNotifications(
           .eq("recipient_user_id", userId)
           .eq("is_read", false);
         if (adminTypes.length > 0) {
-          q = q.or(`type.is.null,not.type.in.(${adminTypes.join(",")})`);
+          // PostgREST negates as `column.not.operator.value`, so it is
+          // `type.not.in.(…)` -- `not.type.in.(…)` is a 400. That 400
+          // is what put a grey DOT on the bell with no notification
+          // behind it: the count query failed, countError went true,
+          // and the badge correctly said "we could not ask" -- about a
+          // question this code was asking wrongly.
+          q = q.or(`type.is.null,type.not.in.(${adminTypes.join(",")})`);
         }
         return q;
       };

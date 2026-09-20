@@ -152,7 +152,13 @@ export async function exportOwnData(): Promise<
     if (table === "notifications" && adminTypes.length > 0) {
       // The null arm matters: .not(...in...) drops NULLs in PostgREST,
       // and a row with no type is not an admin alert.
-      q = q.or(`type.is.null,not.type.in.(${adminTypes.join(",")})`);
+      // PostgREST negates as `column.not.operator.value`, so it is
+          // `type.not.in.(…)` -- `not.type.in.(…)` is a 400. That 400
+          // is what put a grey DOT on the bell with no notification
+          // behind it: the count query failed, countError went true,
+          // and the badge correctly said "we could not ask" -- about a
+          // question this code was asking wrongly.
+          q = q.or(`type.is.null,type.not.in.(${adminTypes.join(",")})`);
     }
     const { data, error } = await q;
     if (error) throw new Error(`${table}: ${error.message}`);
