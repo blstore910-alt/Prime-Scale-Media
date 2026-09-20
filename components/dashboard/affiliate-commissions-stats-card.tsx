@@ -132,7 +132,17 @@ export function AffiliateCommissionsStatsCard({
           <span className="ci w">
             <Handshake />
           </span>
-          <span>Commissions <span>({formatNumber(data.totals.count)})</span></span>
+          {/* "Commissions paid", not "Commissions". The route filters
+              .eq("status","paid"), so this counts what has actually
+              been paid OUT — while /commissions lists every accrued row
+              and the affiliate's own screen says "still owed to you".
+              Three screens, three populations and one word: EUR 1,000
+              accrued and none paid read "Commissions (0), $0.00 /
+              €0.00" here and "€1,000" one click away. */}
+          <span>
+            Commissions paid{" "}
+            <span>({formatNumber(data.totals.count)})</span>
+          </span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>
@@ -232,7 +242,7 @@ export function AffiliateCommissionsStatsCard({
                 seven dashed rectangles made it look like seven faults. */}
             <div className="h-px w-full bg-border" />
             <span className="text-[11px] leading-none text-muted-foreground/70">
-              No affiliate commissions in the selected period
+              Nothing paid out to affiliates in the selected period
             </span>
           </div>
         )}

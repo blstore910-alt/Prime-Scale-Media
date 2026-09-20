@@ -290,12 +290,24 @@ export async function GET(request: NextRequest) {
     granularity,
     totals: {
       count: totals.count,
+      // ── THE HEADLINE IS THE SUM OF THE BARS UNDER IT ────────────
+      //
+      // The series rounds each bucket to the cent and this rounded the
+      // raw accumulation once, so the bars could sum to a cent or two
+      // either side of the figure printed above them. Both are drawn
+      // on the same card. Summing the already-rounded buckets makes
+      // the parts add up to the whole by construction, which is the
+      // only version somebody checking with a calculator accepts.
       usd: {
-        amount: Number(totals.usd.amount.toFixed(2)),
+        amount: Number(
+          series.reduce((n, p) => n + Number(p.usd_amount || 0), 0).toFixed(2),
+        ),
         count: totals.usd.count,
       },
       eur: {
-        amount: Number(totals.eur.amount.toFixed(2)),
+        amount: Number(
+          series.reduce((n, p) => n + Number(p.eur_amount || 0), 0).toFixed(2),
+        ),
         count: totals.eur.count,
       },
     },

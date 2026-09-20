@@ -1006,13 +1006,53 @@ export default function AffiliateApp() {
                         <div className="lbl">Top-ups</div>
                         <div className="num">{r.topup_count}</div>
                       </div>
+                      {/* ── BOTH LEGS, LIKE EVERY OTHER TILE ─────────
+                          These two printed the EUR figure only. An
+                          affiliate paid entirely in USD read "$1,400.00
+                          still owed" on the Wallet card and "€0.00" for
+                          the same referral here, six inches apart --
+                          and the CSV they export carries both columns,
+                          so the file contradicted the screen it came
+                          from. A leg that is zero stays off, so a
+                          single-currency affiliate sees one figure. */}
                       <div className="col">
                         <div className="lbl">Spend</div>
-                        <div className="num">{eur(r.spend_eur)}</div>
+                        <div className="num">
+                          {Number(r.spend_eur) > 0 || Number(r.spend_usd) <= 0
+                            ? eur(r.spend_eur)
+                            : null}
+                          {Number(r.spend_usd) > 0 ? (
+                            <span
+                              style={
+                                Number(r.spend_eur) > 0
+                                  ? { display: "block", opacity: 0.75 }
+                                  : undefined
+                              }
+                            >
+                              {usd(r.spend_usd)}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="col comm">
                         <div className="lbl">Commission</div>
-                        <div className="num win">{eur(r.earnings_eur)}</div>
+                        <div className="num win">
+                          {Number(r.earnings_eur) > 0 ||
+                          Number(r.earnings_usd) <= 0
+                            ? eur(r.earnings_eur)
+                            : null}
+                          {Number(r.earnings_usd) > 0 ? (
+                            <span
+                              style={
+                                Number(r.earnings_eur) > 0
+                                  ? { display: "block", opacity: 0.75 }
+                                  : undefined
+                              }
+                            >
+                              {usd(r.earnings_usd)}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
