@@ -122,7 +122,12 @@ export const ADV_CSS = `
   @keyframes sweep{0%,58%{transform:translateX(-120%)}82%,100%{transform:translateX(120%)}}
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  /* ── auto-fill, NOT three fixed columns ──────────────────────────
+     A customer with ONE ad account got a card sitting in a third of the
+     width with two empty thirds beside it, and a customer with four got
+     three across and one alone on a second row. auto-fill lets the row
+     hold as many as fit and lets one card be one card. */
+  .grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:14px}
   /* ── Balance hero ───────────────────────────────────────────────────
      The dashboard was a stack of flat white blocks that said the same
      number three times — two stat tiles, a "Your wallets" section and the
@@ -288,12 +293,29 @@ export const ADV_CSS = `
   .pfi{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#fff;border:1px solid var(--line-2);flex:0 0 auto}
   .pfi svg{width:19px;height:19px}.pfi.tt{background:#000;border-color:#000}
 
-  .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:12px}
-  .acard .top{display:flex;align-items:center;gap:11px}
-  .acard .nm{font-weight:700}.acard .sub{color:var(--faint);font-size:.78rem}
-  .acard .kv{display:flex;justify-content:space-between;font-size:.85rem}.acard .kv span{color:var(--faint)}.acard .kv b{font-weight:700}
-  .acard .acts{display:flex;gap:8px;margin-top:2px}
-  .acard:hover{border-color:var(--primary)}
+  /* ── THE CARD ────────────────────────────────────────────────────
+     Three bands with one rhythm: who this account is, what it costs,
+     and what you can do with it. The figures were free-floating rows of
+     two different weights; they are a column now, right-aligned and
+     tabular, so Fee and Currency line up under each other and a second
+     card lines up with the first. */
+  .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:13px}
+  .acard .top{display:flex;align-items:flex-start;gap:11px}
+  .acard .top .pfi{flex:0 0 auto}
+  .acard .nm{font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
+  .acard .sub{color:var(--faint);font-size:.76rem;margin-top:1px}
+  /* The figures, as one block with hairlines between rather than four
+     separate lines floating in the card. */
+  .acard .kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:.84rem;padding:7px 0;border-top:1px solid var(--line-2)}
+  .acard .kv:first-of-type{border-top:0;padding-top:2px}
+  .acard .kv span{color:var(--faint)}
+  .acard .kv b{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+  /* Equal halves that fill the card, so two cards side by side have
+     their buttons on the same line. */
+  .acard .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto;padding-top:2px}
+  .acard .acts .btn{width:100%;justify-content:center}
+  .acard .acts .lockmsg{grid-column:1 / -1}
+  .acard:hover{border-color:var(--primary);box-shadow:0 10px 26px -16px rgba(20,30,80,.5)}
   .acard.banned{opacity:.94}.acard.banned:hover{border-color:#f3c9c9}
   .lockmsg{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;color:var(--txt-2);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:9px 11px;width:100%}
   .lockmsg svg{width:15px;height:15px;flex:0 0 auto;color:var(--faint)}

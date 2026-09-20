@@ -339,7 +339,11 @@ export default function AccountTopupForm({
   });
 
   const amountDescription = hasWallet
-    ? `Max: ${formatCurrency(selectedBalance, selectedCurrency)}`
+    ? selectedBalance > 0
+      ? `Fee included. You can spend up to ${formatCurrency(selectedBalance, selectedCurrency)}.`
+      : // A bare "Max: EUR 0.00" under an empty box is a dead end: it
+        // states a limit without saying what to do about it.
+        `Your ${selectedCurrency} wallet is empty — top it up before funding an ad account.`
     : "Wallet balance is unavailable.";
 
   const visibleCurrencyChoices = useMemo(() => {
@@ -376,7 +380,10 @@ export default function AccountTopupForm({
   const [confirming, setConfirming] = useState<FormValues | null>(null);
 
   return (
-    <form onSubmit={handleSubmit((values) => setConfirming(values))}>
+    <form
+      onSubmit={handleSubmit((values) => setConfirming(values))}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       {/* dvh, and smaller. 90vh is measured against the viewport with the
           browser toolbar HIDDEN, so this inner scroller could be taller
           than the max-h-[92dvh] sheet containing it — two nested scrollers,
@@ -389,8 +396,10 @@ export default function AccountTopupForm({
             never resolves — the Root clips at overflow:hidden and
             nothing scrolls at all. See the long note in
             components/wallet/wallet-topup-dialog.tsx. */}
-          <div className="max-h-[62dvh] overflow-y-auto overscroll-contain pr-2 sm:max-h-[66dvh]">
-        <div className="px-1 space-y-4">
+      {/* No max-height of its own any more: it takes whatever the sheet
+          has left. A second max-h here was the second scrollbar. */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1.5">
+        <div className="space-y-4 px-0.5 pt-2 pb-1">
           <SelectField
             label="Ad Account"
             name="account_id"
@@ -452,7 +461,12 @@ export default function AccountTopupForm({
             <InputField
               name="amount"
               id="topup-amount"
-              label="Amount"
+              // ── SAY WHICH AMOUNT ────────────────────────────────
+              // The fee comes OUT of this figure, not on top of it, and
+              // a box labelled just "Amount" over a summary that lists
+              // the fee separately reads as though the two add up. They
+              // do not: this IS the total.
+              label="Amount to take from your wallet"
               control={control}
               type="number"
               min={0}
@@ -494,6 +508,7 @@ export default function AccountTopupForm({
               currency={selectedCurrency}
               balance={selectedBalance}
               amount={parseAmount(amount) - parseAmount(amount) * (fee / 100)}
+              gross={parseAmount(amount)}
               fee_pct={fee}
               fee_amount={(parseAmount(amount) * fee) / 100}
               remaining={remainingBalance}
@@ -511,9 +526,13 @@ export default function AccountTopupForm({
           scroll area, so reaching it meant scrolling the inner one to its
           end — on iOS, past an outer sheet that steals the fling. The
           button that spends the money is always on screen now. */}
-      <div className="mt-4 flex justify-end border-t pt-3">
+      {/* Full width under the thumb on a phone, right-aligned on a
+          desktop -- and always the same distance from the content
+          above it, which it was not. */}
+      <div className="mt-3 shrink-0 border-t pt-3 sm:flex sm:justify-end">
         <Button
           type="submit"
+          className="w-full sm:w-auto"
           disabled={
             isPending ||
             !hasWallet ||
@@ -692,6 +711,7 @@ function BalanceSummary({
   currency,
   balance,
   amount,
+  gross,
   remaining,
   fee_amount,
   fee_pct,
@@ -702,7 +722,10 @@ function BalanceSummary({
 }: {
   currency: CurrencyCode;
   balance: number;
+  /** What survives the fee, in the WALLET's currency. */
   amount: number;
+  /** What the customer typed: what leaves the wallet, fee included. */
+  gross: number;
   fee_amount: number;
   fee_pct: number;
   remaining: number;
@@ -716,74 +739,126 @@ function BalanceSummary({
   usdRate?: number | null;
   rateUnknown?: boolean;
 }) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-      <p className="text-xs text-muted-foreground uppercase tracking-wide">
-        Balance Summary
-      </p>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Current balance</span>
-        <span className="font-medium">{formatCurrency(balance, currency)}</span>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        {/* It said "Topup amount", which is the same words as the field
-            above it while being a different number — the field is what
-            leaves the wallet, this is what survives the fee. Two labels,
-            because they are two amounts. */}
-        {/* ── AN AD-ACCOUNT BALANCE IS USD ──────────────────────────
-            This printed the post-fee figure with the WALLET's symbol.
-            The server converts first — calculateTopupAmount divides by
-            the rate and takes the fee off the dollar figure — so a
-            EUR 1,000 top-up at 5% promised "Lands on the account
-            EUR 950.00" and the account's own history, one tap away,
-            then showed $1,104.65. Same value, wrong number and wrong
-            currency, on the screen J4 asks you to check against.
-            Every other reader treats topup_amount as USD.
+  // ── THE FEE COMES OUT OF THE AMOUNT, NOT ON TOP OF IT ──────────────
+  //
+  // calculateTopupAmount converts what the customer typed, takes the fee
+  // off the DOLLAR figure and lands the remainder -- so typing 1,000
+  // moves 1,000 out of the wallet and about 970 worth onto the account.
+  //
+  // The summary did not say that. It opened on "Current balance", then
+  // named the fee on its own line, then printed "Wallet afterwards
+  // -1,000.00" -- which reads as though the 30 had been forgotten. And
+  // the only line that would have settled it, "Lands on the account",
+  // was in DOLLARS while the fee was in euros, so the sum could not be
+  // checked by eye at all.
+  //
+  // So: the gross first, the fee as a deduction FROM it, the net in the
+  // same currency with the conversion under it, and only then the
+  // bottom line. 1,000.00 - 30.00 = 970.00, and 0.00 - 1,000.00 is
+  // obviously the balance minus the gross.
+  const netInWallet = feePending ? null : amount;
+  const usdLanding =
+    currency === "USD"
+      ? amount
+      : usdRate && usdRate > 0
+        ? amount / usdRate
+        : null;
 
-            We do not hold the rate here, so no converted figure is
-            invented: the wallet-side numbers are exact and the
-            conversion is named. A USD wallet is unaffected — rate 1. */}
-        {/* ── AND NOW WE DO HOLD THE RATE ─────────────────────────
-            The comment above was true when it was written: this screen
-            had no rate, so it named the conversion instead of inventing
-            a figure. But the rate IS readable by the customer --
-            use-usd-to-eur exists, its RLS allows any tenant profile,
-            and it returns null rather than guessing -- and the result
-            was that somebody pressed "Yes, top it up" on EUR 4,000
-            without ever seeing $4,511.63 or the rate it came from. The
-            headline number on a money confirmation was a sentence. */}
-        <span className="text-muted-foreground">Lands on the account</span>
-        <span className="font-medium">
-          {feePending
-            ? "—"
-            : currency === "USD"
-              ? formatCurrency(amount, "USD")
-              : usdRate && usdRate > 0
-                ? `${formatCurrency(amount / usdRate, "USD")} (at ${usdRate} EUR per USD)`
-                : rateUnknown
-                  ? "we can't read today's rate — reload before you confirm"
-                  : "in USD, at today's rate"}
-        </span>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">
-          {feePending ? "Top-up fee" : `Top-up fee (${fee_pct}%)`}
-        </span>
-        <span className="font-medium">
-          {feePending
-            ? feeFailed
-              ? "couldn't check"
-              : "checking…"
-            : formatCurrency(fee_amount, currency)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Wallet afterwards</span>
+  const Row = ({
+    label,
+    value,
+    hint,
+    tone,
+  }: {
+    label: React.ReactNode;
+    value: React.ReactNode;
+    hint?: React.ReactNode;
+    tone?: "muted" | "danger" | "strong";
+  }) => (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <span className="min-w-0 text-muted-foreground">{label}</span>
+      <span className="shrink-0 text-right">
         <span
-          className={cn("font-semibold", remaining < 0 && "text-destructive")}
+          className={cn(
+            "font-medium tabular-nums",
+            tone === "danger" && "font-semibold text-destructive",
+            tone === "strong" && "font-semibold",
+          )}
         >
-          {formatCurrency(remaining, currency)}
+          {value}
         </span>
+        {hint ? (
+          <span className="block text-[0.72rem] font-normal text-muted-foreground">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="rounded-xl border bg-muted/30 p-4">
+      <p className="mb-3 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
+        What this costs
+      </p>
+      <div className="space-y-2.5">
+        <Row
+          label="Out of your wallet"
+          value={formatCurrency(gross, currency)}
+          tone="strong"
+        />
+        <Row
+          label={
+            feePending
+              ? "Top-up fee (included)"
+              : `Top-up fee (${fee_pct}%, included)`
+          }
+          value={
+            feePending
+              ? feeFailed
+                ? "couldn't check"
+                : "checking…"
+              : `− ${formatCurrency(fee_amount, currency)}`
+          }
+        />
+        <div className="h-px bg-border" />
+        <Row
+          label="Lands on the account"
+          value={
+            netInWallet === null
+              ? "—"
+              : usdLanding !== null
+                ? formatCurrency(usdLanding, "USD")
+                : rateUnknown
+                  ? "we can't read today's rate"
+                  : "in USD, at today's rate"
+          }
+          hint={
+            netInWallet === null
+              ? null
+              : currency === "USD"
+                ? null
+                : usdRate && usdRate > 0
+                  ? `${formatCurrency(netInWallet, currency)} at ${usdRate} ${currency} per USD`
+                  : `${formatCurrency(netInWallet, currency)}, converted on the day`
+          }
+          tone="strong"
+        />
+        <div className="h-px bg-border" />
+        <Row
+          label="Wallet now"
+          value={formatCurrency(balance, currency)}
+        />
+        <Row
+          label="Wallet afterwards"
+          value={formatCurrency(remaining, currency)}
+          tone={remaining < 0 ? "danger" : "strong"}
+          hint={
+            remaining < 0
+              ? "More than you hold — top the wallet up first."
+              : null
+          }
+        />
       </div>
     </div>
   );
