@@ -1163,6 +1163,12 @@ export default function AdvertiserApp() {
   // the wallet view is not, and ?view=wallet lands straight on it.
   const pendingUnknown =
     activityError || activityLoading || !wallet?.id || pendingError;
+  // Unknown BECAUSE IT IS STILL COMING, as opposed to unknown because a
+  // read failed. Same value on screen, opposite sentence: one is "one
+  // moment", the other is "something went wrong". Only the disabled
+  // query and the in-flight one are the first kind.
+  const pendingChecking =
+    !activityError && !pendingError && (activityLoading || !wallet?.id);
   // ── AND IT MUST NOT COME OUT OF A TRUNCATED LIST ────────────────────
   //
   // `activity` is fetched with .limit(30) because it renders a recent
@@ -2991,6 +2997,7 @@ export default function AdvertiserApp() {
                 value={eurText}
                 pending={pendingByCurrency.EUR}
                 pendingUnknown={pendingUnknown}
+                pendingChecking={pendingChecking}
                 onTopup={() => openTopup("EUR")}
                 onExchange={() => openExchange("EUR")}
                 disabled={!wallet || (!companyComplete && !companyUnknown)}
@@ -3004,9 +3011,16 @@ export default function AdvertiserApp() {
                 disabledReason={
                   walletError
                     ? "We couldn't read your wallet just now — reload and try again"
-                    : !wallet
-                      ? "No wallet on this account yet"
-                      : undefined
+                    : // A THIRD STATE. `!wallet` is also true while the
+                      // read is in flight, so opening ?view=wallet said
+                      // "No wallet on this account yet" -- twice, once per
+                      // card -- to a customer who has one, before flipping
+                      // to their balance.
+                      walletLoading
+                      ? "Just a moment — loading your wallet"
+                      : !wallet
+                        ? "No wallet on this account yet"
+                        : undefined
                 }
               />
               <WalletCard
@@ -3015,6 +3029,7 @@ export default function AdvertiserApp() {
                 value={usdText}
                 pending={pendingByCurrency.USD}
                 pendingUnknown={pendingUnknown}
+                pendingChecking={pendingChecking}
                 onTopup={() => openTopup("USD")}
                 onExchange={() => openExchange("USD")}
                 disabled={!wallet || (!companyComplete && !companyUnknown)}
@@ -3028,9 +3043,16 @@ export default function AdvertiserApp() {
                 disabledReason={
                   walletError
                     ? "We couldn't read your wallet just now — reload and try again"
-                    : !wallet
-                      ? "No wallet on this account yet"
-                      : undefined
+                    : // A THIRD STATE. `!wallet` is also true while the
+                      // read is in flight, so opening ?view=wallet said
+                      // "No wallet on this account yet" -- twice, once per
+                      // card -- to a customer who has one, before flipping
+                      // to their balance.
+                      walletLoading
+                      ? "Just a moment — loading your wallet"
+                      : !wallet
+                        ? "No wallet on this account yet"
+                        : undefined
                 }
               />
             </div>
@@ -3043,7 +3065,11 @@ export default function AdvertiserApp() {
                 slip only — there is no server-side gate — so the money
                 arrives for somebody no invoice can be raised for. A
                 disabled button on one screen is not a rule. */}
-            {!companyComplete && !companyUnknown && (
+            {/* ...and not while the company read is still in flight.
+                `companyComplete` is false before the answer arrives, so
+                this told a customer whose details are complete to go and
+                add them, every time they opened the Wallet view. */}
+            {!companyComplete && !companyUnknown && !companyLoading && (
               <div className="duerow msg" style={{ marginTop: 12 }}>
                 <span className="ai">
                   <Ic name="i-building" />
@@ -3490,7 +3516,9 @@ export default function AdvertiserApp() {
                           // saying anything was missing.
                           requestChargesError
                             ? "We couldn't load all of your wallet activity — this isn't an empty list. Give it a reload."
-                            : "Nothing has moved yet. Top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
+                            : activityLoading
+                              ? "Looking up your wallet activity…"
+                              : "Nothing has moved yet. Top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
                         </td>
                       </tr>
                     )}
@@ -3571,13 +3599,26 @@ export default function AdvertiserApp() {
                 <h3>
                   {accountsError
                     ? "Couldn't load your ad accounts"
-                    : canRequestAccount
-                      ? "No ad accounts yet"
-                      : (requestBlockedReason() ?? "Nothing here yet")}
+                    : // BEFORE ANY OF THE OTHER ANSWERS. An empty list is
+                      // what this component holds while the read is in
+                      // flight AND when there is genuinely nothing, and
+                      // requestBlockedReason() reads a company and a plan
+                      // that have not arrived either -- so opening
+                      // ?view=accounts told a customer with a live ad
+                      // account, a paid PRIME plan and complete company
+                      // details to "Add your company details first" and
+                      // that "paying for [your plan] is the first step".
+                      accountsLoading || companyLoading
+                      ? "Loading your ad accounts…"
+                      : canRequestAccount
+                        ? "No ad accounts yet"
+                        : (requestBlockedReason() ?? "Nothing here yet")}
                 </h3>
                 <p>
                   {accountsError
                     ? "This isn't an empty list — the request didn't come back. Give it a reload."
+                    : accountsLoading || companyLoading
+                      ? "One moment."
                     : !canRequestAccount && invError
                       ? "Your invoices didn't load, so we can't tell whether the plan is paid. Reload to try again."
                     : canRequestAccount
@@ -5046,6 +5087,7 @@ function WalletCard({
   value,
   pending = 0,
   pendingUnknown = false,
+  pendingChecking = false,
   onTopup,
   onExchange,
   disabled,
@@ -5058,6 +5100,7 @@ function WalletCard({
   pending?: number;
   /** The activity read failed, so `pending` is 0 by accident, not fact. */
   pendingUnknown?: boolean;
+  pendingChecking?: boolean;
   onTopup: () => void;
   onExchange: () => void;
   disabled?: boolean;
@@ -5077,7 +5120,14 @@ function WalletCard({
           lower than they expect. */}
       <div className="wavail">
         {pendingUnknown ? (
-          "We couldn't check for pending transfers"
+          // "Couldn't" is past tense and reads as a failure. It was shown
+          // for the whole of the ordinary loading window too, on both
+          // cards, every time the Wallet view opened.
+          pendingChecking ? (
+            "Checking for pending transfers…"
+          ) : (
+            "We couldn't check for pending transfers"
+          )
         ) : pending > 0 ? (
           <>
             <b>
