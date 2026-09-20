@@ -651,6 +651,57 @@ export async function setAffiliateCommission(
       };
     }
   }
+  // ── AND THE OTHER FOUR, WHICH WERE NOT BOUNDED AT ALL ───────────────
+  //
+  // Only the percentage was checked. commission_onetime,
+  // commission_monthly, commission_currency and commission_type went
+  // straight from the allowlist into the UPDATE, and none of them has a
+  // CHECK on the column either. `5000` typed for `50.00` monthly is
+  // stored and then copied onto referral_links, so it is paid. Negatives
+  // store too.
+  //
+  // commission_type is the worst of the four because it fails SILENTLY:
+  // the accrual trigger matches it verbatim against
+  // ('percentage','pct','onetime_pct','monthly_pct'), so anything else
+  // accrues NOTHING -- which is the exact fault 20260918100000 was
+  // written to fix, re-openable by typing.
+  for (const col of ["commission_onetime", "commission_monthly"] as const) {
+    if (col in cleaned && cleaned[col] !== null && cleaned[col] !== "") {
+      const n = Number(cleaned[col]);
+      if (!Number.isFinite(n) || n < 0 || n > 1_000_000) {
+        return {
+          ok: false,
+          error:
+            "A fixed commission is an amount between 0 and 1,000,000. Check the figure.",
+          code: "invalid",
+        };
+      }
+    }
+  }
+  if ("commission_currency" in cleaned && cleaned.commission_currency != null) {
+    const cur = String(cleaned.commission_currency).toUpperCase();
+    if (cur !== "EUR" && cur !== "USD") {
+      return {
+        ok: false,
+        error: "Commission is paid in EUR or USD.",
+        code: "invalid",
+      };
+    }
+    cleaned.commission_currency = cur;
+  }
+  if ("commission_type" in cleaned && cleaned.commission_type != null) {
+    const t = String(cleaned.commission_type).toLowerCase();
+    const KNOWN = ["percentage", "pct", "onetime_pct", "monthly_pct", "flat", "onetime", "monthly"];
+    if (!KNOWN.includes(t)) {
+      return {
+        ok: false,
+        error:
+          "That commission type is not one the accrual understands, so it would earn nothing. Pick one from the list.",
+        code: "invalid",
+      };
+    }
+    cleaned.commission_type = t;
+  }
 
 
   const { data: target } = await supabase
@@ -839,6 +890,57 @@ export async function setAdvertiserCommission(
         code: "invalid",
       };
     }
+  }
+  // ── AND THE OTHER FOUR, WHICH WERE NOT BOUNDED AT ALL ───────────────
+  //
+  // Only the percentage was checked. commission_onetime,
+  // commission_monthly, commission_currency and commission_type went
+  // straight from the allowlist into the UPDATE, and none of them has a
+  // CHECK on the column either. `5000` typed for `50.00` monthly is
+  // stored and then copied onto referral_links, so it is paid. Negatives
+  // store too.
+  //
+  // commission_type is the worst of the four because it fails SILENTLY:
+  // the accrual trigger matches it verbatim against
+  // ('percentage','pct','onetime_pct','monthly_pct'), so anything else
+  // accrues NOTHING -- which is the exact fault 20260918100000 was
+  // written to fix, re-openable by typing.
+  for (const col of ["commission_onetime", "commission_monthly"] as const) {
+    if (col in cleaned && cleaned[col] !== null && cleaned[col] !== "") {
+      const n = Number(cleaned[col]);
+      if (!Number.isFinite(n) || n < 0 || n > 1_000_000) {
+        return {
+          ok: false,
+          error:
+            "A fixed commission is an amount between 0 and 1,000,000. Check the figure.",
+          code: "invalid",
+        };
+      }
+    }
+  }
+  if ("commission_currency" in cleaned && cleaned.commission_currency != null) {
+    const cur = String(cleaned.commission_currency).toUpperCase();
+    if (cur !== "EUR" && cur !== "USD") {
+      return {
+        ok: false,
+        error: "Commission is paid in EUR or USD.",
+        code: "invalid",
+      };
+    }
+    cleaned.commission_currency = cur;
+  }
+  if ("commission_type" in cleaned && cleaned.commission_type != null) {
+    const t = String(cleaned.commission_type).toLowerCase();
+    const KNOWN = ["percentage", "pct", "onetime_pct", "monthly_pct", "flat", "onetime", "monthly"];
+    if (!KNOWN.includes(t)) {
+      return {
+        ok: false,
+        error:
+          "That commission type is not one the accrual understands, so it would earn nothing. Pick one from the list.",
+        code: "invalid",
+      };
+    }
+    cleaned.commission_type = t;
   }
 
   const { data: target } = await supabase

@@ -93,6 +93,15 @@ export default function ReadonlyTopupsTable({
 
   const { topups, total, isLoading, isError, error } = useTopups({
     advertiserId,
+    // ── THE BRAID, NOT JUST THE BELT ───────────────────────────────────
+    //
+    // This is the customer-facing table and its prop doc already says
+    // advertiserId is required here. Without it the hook falls into the
+    // admin branch -- select("*"), no advertiser, no tenant -- and a
+    // signed-in customer with no advertiser row (every affiliate) was
+    // handed the tenant's whole payment table as JSON. The prop being
+    // "required" in a comment is not a guard; this is.
+    enabled: !!advertiserId,
     type: type === "all" ? undefined : type,
     source: source === "all" ? undefined : source,
     status: status === "all" ? undefined : status,
@@ -179,7 +188,13 @@ export default function ReadonlyTopupsTable({
                   colSpan={10}
                   className="text-center py-12 text-muted-foreground"
                 >
-                  No topup records found.
+                  {advertiserId
+                    ? "No topup records found."
+                    : /* The query does not run without one -- see the
+                         enabled flag above. Say so rather than print an
+                         empty table, which reads as "you have never paid
+                         us anything". */
+                      "We couldn't work out which account this page belongs to, so there is nothing to show here. That is not the same as having no payments."}
                 </TableCell>
               </TableRow>
             )}

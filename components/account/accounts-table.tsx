@@ -813,7 +813,7 @@ function PsmAdminAccountRow({
   nowMs: number;
   onOpenAdvertiser: (profileId: string) => void;
 }) {
-  const { profile } = useAppContext();
+  const { profile, isSuperAdmin } = useAppContext();
   const isAdmin = profile?.role === "admin";
   const { updateAccount, isPending: savingFee } = useUpdateAccount();
   const initialFee = account.fee;
@@ -838,7 +838,10 @@ function PsmAdminAccountRow({
 
   const handleFeeEdit = (e: React.MouseEvent<HTMLTableCellElement>) => {
     e.stopPropagation();
-    if (!isAdmin) return;
+    // The fee is a price and prices are the owner's -- the server now
+    // says so too. An employee admin opening this cell would type a
+    // number and then be refused, which is worse than not opening.
+    if (!isAdmin || !isSuperAdmin) return;
     setEditing({ ...editing, fee: true });
   };
 

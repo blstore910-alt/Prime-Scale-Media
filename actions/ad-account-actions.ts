@@ -181,6 +181,24 @@ export async function createAdAccountAsAdmin(
     if (!Number.isFinite(fee) || fee < 0 || fee > 100) {
       return { ok: false, error: "Fee must be between 0 and 100" };
     }
+    // Same rule as the update path: setting what a customer is charged
+    // is the owner's, because ad_accounts.fee outranks the plan.
+    // A zero means "use the plan", so it is not a price and is allowed.
+    if (fee > 0) {
+      const { data: feeTenant } = await supabase
+        .from("tenants")
+        .select("owner_id")
+        .eq("id", profile.tenant_id)
+        .maybeSingle();
+      if (!feeTenant || feeTenant.owner_id !== profile.user_id) {
+        return {
+          ok: false,
+          error:
+            "Only the super-admin can set what a customer is charged on top-ups. Leave the fee blank to use their plan rate.",
+          code: "forbidden",
+        };
+      }
+    }
   }
   const cleaned: Record<string, unknown> = {};
   for (const col of AD_ACCOUNT_INSERT_ALLOWED) {
@@ -298,7 +316,7 @@ export async function updateAdAccountAsAdmin(
 
   const { data: existing } = await supabase
     .from("ad_accounts")
-    .select("id, tenant_id, updated_at")
+    .select("id, tenant_id, updated_at, fee")
     .eq("id", accountId)
     .maybeSingle();
   if (!existing) return { ok: false, error: "Ad account not found", code: "not_found" };
@@ -319,6 +337,44 @@ export async function updateAdAccountAsAdmin(
   }
   if (typeof cleaned.fee === "number" && (cleaned.fee < 0 || cleaned.fee > 100)) {
     return { ok: false, error: "Fee must be between 0 and 100" };
+  }
+  // ── `fee` IS A PRICE, AND PRICES ARE THE OWNER'S ────────────────────
+  //
+  // Forty lines from here, upsertSupplierFee refuses a non-owner the
+  // SUPPLIER percentage -- what we pay. This column is what the CUSTOMER
+  // pays, it is the bigger of the two, and it was admin-level.
+  //
+  // It is also the strongest lever in the app: resolveEffectiveFeePct
+  // reads ad_accounts.fee FIRST and it wins over the plan, so it
+  // overrides upsertPlan, upsertFeeDefault, upsertExchangeRate,
+  // upsertAdAccountType and changeSubscriptionAmount -- every one of
+  // which was deliberately raised to owner-only. An employee admin
+  // editing one account from 5% to 25% charges EUR 2,500 instead of
+  // EUR 500 on a EUR 10,000 top-up, invoiced, with no owner in the loop.
+  //
+  // Everything else on the form stays admin-level; only the price moves.
+  // ...and ONLY when it actually moves. A disabled input still submits
+  // its current value, so gating on "fee is in the payload" would refuse
+  // an employee admin editing the NAME of any account that has a fee.
+  const feeChanges =
+    "fee" in cleaned &&
+    Number(cleaned.fee ?? NaN) !==
+      Number((existing as { fee?: unknown }).fee ?? NaN) &&
+    !(cleaned.fee == null && (existing as { fee?: unknown }).fee == null);
+  if (feeChanges) {
+    const { data: feeTenant } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    if (!feeTenant || feeTenant.owner_id !== profile.user_id) {
+      return {
+        ok: false,
+        error:
+          "Only the super-admin can change what a customer is charged on top-ups.",
+        code: "forbidden",
+      };
+    }
   }
   // The cost row is its own write, so an update that ONLY changes the
   // supplier fee is legitimate and must not trip "No updatable fields".

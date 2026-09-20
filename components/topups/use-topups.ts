@@ -19,6 +19,20 @@ export type TopupsQueryParams = {
    * A customer surface says whose rows it wants. Belt as well as braces.
    */
   advertiserId?: string | null;
+  /**
+   * Off means "do not run this query at all".
+   *
+   * A customer surface passes `enabled: !!advertiserId`, because the
+   * else-branch below is `select("*")` with no advertiser and no tenant
+   * predicate. Every `role='affiliate'` profile has a NULL advertiser --
+   * ensure_advertiser_and_wallet refuses to make one for a non-advertiser
+   * -- so a deactivated affiliate landing on /inactive took that branch
+   * and was handed the tenant's whole top-up table, including
+   * `top_ups.source` (which the GDPR export excludes BY NAME because it
+   * can carry a supplier identifier) and `notes`, which is admin free
+   * text about the customer. It rendered none of it; it was a JSON leak.
+   */
+  enabled?: boolean;
   type?: string | undefined;
   source?: string | undefined;
   status?: string | undefined;
@@ -91,6 +105,7 @@ export default function useTopups(params: TopupsQueryParams = {}) {
     { items: Topup[]; total: number } | undefined
   >({
     queryKey,
+    enabled: params.enabled ?? true,
     queryFn: async () => {
       const {
         advertiserId,

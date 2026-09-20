@@ -17,6 +17,7 @@ import { createTenantForCurrentUser } from "@/actions/tenant-actions";
 import { generateSlug, getInitials } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 type FormValues = {
   name: string;
@@ -54,7 +55,9 @@ export default function CreateOrganization() {
         .maybeSingle();
 
       if (error) {
-        console.error("Slug check error:", error);
+        // safeErrorMessage, per CLAUDE.md: a raw PostgrestError prints
+        // `details`, `hint` and sometimes the offending row.
+        console.error("Slug check error:", safeErrorMessage(error));
         setAvailable(null);
       } else {
         setAvailable(!data);
@@ -70,14 +73,15 @@ export default function CreateOrganization() {
   }, [tenantName, setValue]);
 
   const onSubmit = async (values: FormValues) => {
-    console.log("[onboard] submit fired", values);
+    // The whole org form payload used to be logged here, and the server
+    // action's result below it. Debug lines, left in, on the first screen
+    // a brand-new customer sees.
     try {
       const result = await createTenantForCurrentUser({
         name: values.name,
         slug: values.slug,
         initials: getInitials(values.name),
       });
-      console.log("[onboard] server action returned", result);
       if (!result.ok) {
         toast.error(result.error, { duration: 8000 });
         return;

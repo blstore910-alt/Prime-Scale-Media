@@ -481,7 +481,18 @@ export default function AccountForm({
               id="fee-percent"
               type="number"
               control={control}
+              /* The price, like the supplier cost below it, is the
+                 owner's. The server refuses it either way; disabling it
+                 here means an employee admin finds that out before they
+                 have typed a figure rather than after. */
+              disabled={!isSuperAdmin}
             />
+            {!isSuperAdmin && (
+              <p className="text-xs text-muted-foreground">
+                Visible to admins; only the super-admin can change what a
+                customer is charged. Blank uses their plan rate.
+              </p>
+            )}
             {/* ── ZERO MEANS "USE THE PLAN", NOT "FREE" ───────────────
                 This said "nothing will be charged until you set a rate"
                 for a fee of 0 — and resolveEffectiveFeePct reads 0 as
