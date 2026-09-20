@@ -4,8 +4,14 @@ import { Notification } from "@/lib/types/notification";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { useRef } from "react";
 
-export default function useNotifications() {
+export default function useNotifications(
+  view: "active" | "archived" = "active",
+) {
+  // A ref, not state: it must not cause a render of its own, and the
+  // query that sets it re-renders anyway when its data lands.
+  const archiveReady = useRef(false);
   const supabase = createClient();
   const queryClient = useQueryClient();
   const { user } = useAppContext();
@@ -26,19 +32,43 @@ export default function useNotifications() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["notifications", userId],
+    queryKey: ["notifications", userId, view],
     enabled: !!userId,
     queryFn: async () => {
       // P1-12 fix: explicit user filter (defense in depth on top of RLS)
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("recipient_user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(RECENT_LIMIT);
+      const base = () =>
+        supabase
+          .from("notifications")
+          .select("*")
+          .eq("recipient_user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(RECENT_LIMIT);
 
-      if (error) throw error;
-      return data as Notification[];
+      // ── A COLUMN THE MIGRATION MAY NOT HAVE ADDED YET ────────────
+      //
+      // Code reaches production in minutes; migrations are pasted by
+      // hand. A select naming archived_at before it exists does not
+      // degrade -- PostgREST throws, and "column notifications.archived_at
+      // does not exist" lands on the customer's own alerts page.
+      //
+      // So: ask for it, and if that is refused, ask again without it.
+      // Until the migration lands, the list is every notification and the
+      // archive is empty -- the feature stays dark instead of the screen
+      // breaking.
+      const { data, error } = await (view === "archived"
+        ? base().not("archived_at", "is", null)
+        : base().is("archived_at", null));
+
+      if (!error) {
+        archiveReady.current = true;
+        return data as Notification[];
+      }
+
+      archiveReady.current = false;
+      if (view === "archived") return [] as Notification[];
+      const { data: plain, error: plainError } = await base();
+      if (plainError) throw plainError;
+      return plain as Notification[];
     },
   });
 
@@ -117,6 +147,40 @@ export default function useNotifications() {
       toast.error("Couldn't mark them read", { description: safeErrorMessage(e) }),
   });
 
+  // ── PUT ONE ASIDE ─────────────────────────────────────────────────
+  //
+  // The only way to clear the list was "delete all read" -- all or
+  // nothing, and the row is gone. Working a queue you want the
+  // opposite: deal with this one, get it off the screen, still find it
+  // in a week when somebody asks what the alert said.
+  //
+  // Private by construction: recipient_user_id already scopes every row
+  // to one person, so clearing your own queue cannot touch anyone else's.
+  const setArchived = useMutation({
+    mutationFn: async (vars: { id: string; archived: boolean }) => {
+      if (!userId) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("notifications")
+        .update({
+          archived_at: vars.archived ? new Date().toISOString() : null,
+        })
+        .eq("id", vars.id)
+        .eq("recipient_user_id", userId)
+        .select("id");
+      if (error) throw error;
+      // An update that matched nothing returns no error and no rows, so
+      // the row would slide away on screen and come back on refetch.
+      if (!data || data.length === 0) {
+        throw new Error("That notification could not be found.");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't move it", { description: safeErrorMessage(e) }),
+  });
+
   const deleteRead = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Not authenticated");
@@ -155,5 +219,10 @@ export default function useNotifications() {
     markAsRead,
     markAllAsRead,
     deleteRead,
+    setArchived,
+    // False until a read has actually come back with the column in it,
+    // so the archive tab and the swipe stay hidden rather than offering
+    // something that would fail.
+    canArchive: archiveReady.current,
   };
 }

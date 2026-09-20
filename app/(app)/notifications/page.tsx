@@ -27,10 +27,13 @@ import {
 } from "@/components/notifications/notification-utils";
 import NotificationActionStatusDialog from "@/components/notifications/notification-action-status-dialog";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import { SwipeToArchive } from "@/components/notifications/swipe-to-archive";
+import { getNotificationCopy } from "@/components/notifications/notification-utils";
 
 export default function NotificationsPage() {
   const router = useRouter();
   const { profile } = useAppContext();
+  const [view, setView] = useState<"active" | "archived">("active");
   const {
     notifications,
     isLoading,
@@ -39,7 +42,9 @@ export default function NotificationsPage() {
     markAsRead,
     markAllAsRead,
     deleteRead,
-  } = useNotifications();
+    setArchived,
+    canArchive,
+  } = useNotifications(view);
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   const [topupCompletedDialogOpen, setTopupCompletedDialogOpen] =
@@ -337,21 +342,65 @@ export default function NotificationsPage() {
 
       <Separator />
 
-      <div className="grid border rounded-lg overflow-hidden bg-card">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={cn(
-              "border-b last:border-0",
-              !notification.is_read && "bg-muted/30",
-            )}
+      {/* ── THE LIST, AND WHAT YOU HAVE PUT ASIDE ──────────────────
+          Only once a read has come back with archived_at in it. Before
+          the migration is pasted there is no archive, and offering a tab
+          that cannot work is worse than not offering one. */}
+      {canArchive ? (
+        <div className="seg2 nfview" role="group" aria-label="Which notifications">
+          <button
+            type="button"
+            className={view === "active" ? "on" : ""}
+            aria-pressed={view === "active"}
+            onClick={() => setView("active")}
           >
-            <NotificationItem
-              notification={notification}
-              onClick={handleNotificationClick}
-            />
-          </div>
-        ))}
+            Inbox
+          </button>
+          <button
+            type="button"
+            className={view === "archived" ? "on" : ""}
+            aria-pressed={view === "archived"}
+            onClick={() => setView("archived")}
+          >
+            Archive
+          </button>
+        </div>
+      ) : null}
+
+      <div className="grid border rounded-lg overflow-hidden bg-card">
+        {notifications.map((notification) => {
+          const row = (
+            <div
+              className={cn(
+                "border-b last:border-0",
+                !notification.is_read && "bg-muted/30",
+              )}
+            >
+              <NotificationItem
+                notification={notification}
+                onClick={handleNotificationClick}
+              />
+            </div>
+          );
+          if (!canArchive) {
+            return <div key={notification.id}>{row}</div>;
+          }
+          return (
+            <SwipeToArchive
+              key={notification.id}
+              archived={view === "archived"}
+              label={getNotificationCopy(notification).title}
+              onArchive={() =>
+                setArchived.mutate({
+                  id: notification.id,
+                  archived: view !== "archived",
+                })
+              }
+            >
+              {row}
+            </SwipeToArchive>
+          );
+        })}
 
         {/* A failed read is not an empty inbox. These carry "your
             top-up was rejected", so "No notifications found" on a broken
