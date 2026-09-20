@@ -9,6 +9,8 @@ import VerifyTopupDialog from "./verify-topup-dialog";
 import RejectTopupDialog from "./reject-topup-dialog";
 import { TopupDetailsSheet } from "./topup-details-sheet";
 import TablePagination from "../ui/table-pagination";
+import { useSupplierLinks } from "@/hooks/use-supplier-link";
+import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
 
 // A two-way map printed everything that was not USD as euros, and
 // calculateTopupAmount accepts GBP and HKD too — so a pound payment was
@@ -24,6 +26,17 @@ const money = (v: number | string | null | undefined, cur: string | null) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Number(v ?? 0))
+  );
+};
+
+// top_ups_view is a VIEW: `select *` returns flat columns, so the
+// account arrives as `account_name` and not as a nested object. Both are
+// read here because the advertiser-scoped query selects the flat column
+// explicitly and the type still declares the nested one.
+const accountName = (t: Topup) => {
+  const flat = (t as unknown as { account_name?: string | null }).account_name;
+  return (
+    (flat && String(flat).trim()) || t.account?.name || "Ad account"
   );
 };
 
@@ -64,11 +77,23 @@ export default function PsmVerifyAdTopups() {
     perPage,
   });
 
+  // ── WHERE THIS ONE IS ACTUALLY FUNDED ──────────────────────────────
+  //
+  // Only one ad-account type tops up over the API; the rest are done by
+  // hand in the supplier's own dashboard. This screen is where an admin
+  // decides to do that, and it did not say which supplier — so the
+  // mapping lived in one person's head. Resolved for the accounts on
+  // this page in one read.
+  const { supplierFor } = useSupplierLinks(
+    (topups ?? []).map((t: Topup) => String(t.account_id ?? "")),
+  );
+
   return (
     <div
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <style>{SUPPLIER_PILL_CSS}</style>
       <div className="phead">
         <div>
           <h1>Ad-account Topups</h1>
@@ -137,7 +162,12 @@ export default function PsmVerifyAdTopups() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700 }}>{advName(t)}</div>
                     <div style={{ color: "var(--faint)", fontSize: ".8rem" }}>
-                      {t.account?.name ?? "Ad account"} · #{t.number}
+                      {/* top_ups_view returns a FLAT account_name column,
+                          not a nested account object — so `t.account?.name`
+                          was undefined on every row and this line read
+                          "Ad account" for all of them, on the screen where
+                          an admin picks WHICH account to fund. */}
+                      {accountName(t)} · #{t.number}
                     </div>
                   </div>
                   <span
@@ -195,6 +225,10 @@ export default function PsmVerifyAdTopups() {
                     flexWrap: "wrap",
                   }}
                 >
+                  {/* The supplier link sits with the decision, not in a
+                      details sheet: this is the moment the admin goes to
+                      do the top-up by hand. */}
+                  {pend && <SupplierPill link={supplierFor(t.account_id)} />}
                   {pend && (
                     <>
                       <button

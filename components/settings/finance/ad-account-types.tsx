@@ -38,6 +38,11 @@ type EditRow = {
   fee_str: string;
   api_topup_enabled: boolean;
   is_active: boolean;
+  // Where an admin goes to fund an account of this type by hand. Only
+  // one type tops up over the API, so this is the path for most of
+  // them — and the review screen had no way to say which supplier.
+  supplier_label: string;
+  supplier_url: string;
   updated_at: string;
   dirty: boolean;
 };
@@ -78,6 +83,8 @@ export default function AdAccountTypesCard() {
         fee_str: String(t.default_fee_pct).replace(/\.00$/, ""),
         api_topup_enabled: t.api_topup_enabled,
         is_active: t.is_active,
+        supplier_label: t.supplier_label ?? "",
+        supplier_url: t.supplier_url ?? "",
         updated_at: t.updated_at,
         dirty: false,
       })),
@@ -108,6 +115,7 @@ export default function AdAccountTypesCard() {
   const { mutate: saveAll, isPending: saving } = useMutation({
     mutationFn: async () => {
       const dirty = rows.filter((r) => r.dirty);
+      const warnings: string[] = [];
       for (const row of dirty) {
         const fee = parsePct(row.fee_str);
         if (!row.label.trim()) throw new Error("A type name can't be empty.");
@@ -121,14 +129,27 @@ export default function AdAccountTypesCard() {
           default_fee_pct: fee,
           api_topup_enabled: row.api_topup_enabled,
           is_active: row.is_active,
+          supplier_label: row.supplier_label.trim(),
+          supplier_url: row.supplier_url.trim(),
           ifUpdatedAt: row.updated_at,
         });
         if (!res.ok) throw new Error(res.error);
+        // The action can save the type and NOT the supplier link, when
+        // the column is not on the database yet. Saying "Saved" over
+        // that is the fake success this codebase keeps having to
+        // remove, so it is surfaced.
+        if (res.warning) warnings.push(`${row.label}: ${res.warning}`);
       }
-      return dirty.length;
+      return { count: dirty.length, warnings };
     },
-    onSuccess: (count) => {
+    onSuccess: ({ count, warnings }) => {
       toast.success(count === 0 ? "No changes to save" : `Saved ${count} type(s)`);
+      if (warnings.length) {
+        toast.warning("Not everything was saved", {
+          description: warnings.join(" "),
+          duration: 15000,
+        });
+      }
       invalidate();
     },
     onError: (err: Error) =>
@@ -275,6 +296,48 @@ export default function AdAccountTypesCard() {
                     Active
                   </span>
                 </label>
+
+                {/* ── WHERE THE TOP-UP IS ACTUALLY DONE ──────────────
+                    Only the API type funds itself. Every other type
+                    means an admin opens the supplier's own dashboard,
+                    moves the money there and comes back to press
+                    Verify — and the review screen could not say which
+                    supplier, let alone link to it. With three or four
+                    suppliers that is a guess made against a customer's
+                    money.
+
+                    ADMIN-ONLY. The supplier's name never appears on an
+                    advertiser or affiliate surface, in the UI or in the
+                    JSON behind it. */}
+                <div className="col-span-2 grid gap-2 sm:col-span-5 sm:grid-cols-[minmax(130px,1fr)_2fr] sm:pb-2">
+                  <label className="grid gap-1">
+                    <span className="text-xs text-muted-foreground">
+                      Supplier (admin only)
+                    </span>
+                    <Input
+                      value={row.supplier_label}
+                      placeholder={
+                        row.api_topup_enabled ? "Funded over the API" : "Who we buy this from"
+                      }
+                      onChange={(e) =>
+                        patchRow(idx, { supplier_label: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-xs text-muted-foreground">
+                      Their dashboard (opens from the top-up review)
+                    </span>
+                    <Input
+                      value={row.supplier_url}
+                      placeholder="https://..."
+                      inputMode="url"
+                      onChange={(e) =>
+                        patchRow(idx, { supplier_url: e.target.value })
+                      }
+                    />
+                  </label>
+                </div>
               </div>
             ))}
 

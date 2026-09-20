@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { Topup } from "@/lib/types/topup";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { useSupplierLinks } from "@/hooks/use-supplier-link";
+import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
 import {
   AlertCircle,
   Check,
@@ -207,6 +209,10 @@ function VerifyTopupInvoice({
     });
   };
 
+  // One read for this account, shared with the queue behind the dialog
+  // by react-query's cache.
+  const { supplierFor } = useSupplierLinks([String(topup.account_id ?? "")]);
+
   return (
     <form onSubmit={handleSubmit(handleVerify)} className="space-y-6">
       <div className="border rounded-xl overflow-hidden bg-card text-card-foreground shadow-sm">
@@ -222,7 +228,10 @@ function VerifyTopupInvoice({
           </div>
           <div className="text-right">
             <h4 className="font-semibold text-foreground">
-              {topup.account?.name || "Unknown Account"}
+              {(topup as unknown as { account_name?: string | null })
+                .account_name ||
+                topup.account?.name ||
+                "Unknown Account"}
             </h4>
             <div className="text-xs text-muted-foreground uppercase mt-1 tracking-wider">
               {topup.type.replace("-", " ")}
@@ -245,6 +254,18 @@ function VerifyTopupInvoice({
               )}
               {topup.status}
             </Badge>
+            {/* ── THE TOP-UP ITSELF IS DONE OVER THERE ───────────────
+                This dialog is where an admin decides to release the
+                money, and for every type but one that means opening
+                the supplier's own dashboard and moving it by hand.
+                Nothing on this screen said which supplier. Admin-only:
+                a customer never sees a supplier name. */}
+            {topup.status === "pending" && (
+              <div className="mt-3 flex justify-end">
+                <style>{SUPPLIER_PILL_CSS}</style>
+                <SupplierPill link={supplierFor(topup.account_id)} />
+              </div>
+            )}
           </div>
         </div>
 
