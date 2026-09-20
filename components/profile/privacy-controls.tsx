@@ -13,6 +13,7 @@ import {
 import { Download, Loader2, LogOut, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { requestOwnErasure, signOutAllDevices } from "@/actions/gdpr-actions";
+import { downloadBlob } from "@/lib/download-blob";
 
 /**
  * Two GDPR-mandated controls the user can trigger themselves:
@@ -36,16 +37,21 @@ export default function PrivacyControls() {
       const res = await fetch("/api/me/export", { cache: "no-store" });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      // An empty body is not an export. A 200 carrying nothing would
+      // have saved a 0-byte file and been announced as a success.
+      if (!blob || blob.size === 0) {
+        throw new Error("The export came back empty.");
+      }
       const stamp = new Date().toISOString().slice(0, 10);
-      a.download = `psm-export-${stamp}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Data export downloaded");
+      // downloadBlob, not an inline anchor: revoking the object URL on
+      // the next line races the download in every browser, and this
+      // handler then said "Data export downloaded" unconditionally. A
+      // customer exercising a data-protection right was told their file
+      // had arrived when it had not.
+      downloadBlob(blob, `psm-export-${stamp}.json`);
+      toast.success("Data export downloaded", {
+        description: "Check your downloads folder — it is a .json file.",
+      });
     } catch (err) {
       toast.error("Could not download export", {
         description: err instanceof Error ? err.message : "Unknown error",
@@ -57,6 +63,14 @@ export default function PrivacyControls() {
 
   async function submitErasure() {
     setRequesting(true);
+    // ── try/finally WITH NO catch ─────────────────────────────────────
+    //
+    // If requestOwnErasure() threw -- a network drop, a server error --
+    // finally cleared the busy flag and nothing else happened: no toast,
+    // no message, the dialog still open. The button did nothing at all,
+    // silently, on the control a customer uses to ask for their account
+    // to be erased. That is the one place where "it looked like nothing
+    // happened" is least acceptable.
     try {
       const result = await requestOwnErasure();
       if (!result.ok) {
@@ -70,6 +84,13 @@ export default function PrivacyControls() {
       setTimeout(() => {
         window.location.href = "/auth/login";
       }, 1500);
+    } catch (err) {
+      toast.error("Erasure request failed", {
+        description:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong. Nothing has been erased — try again.",
+      });
     } finally {
       setRequesting(false);
     }

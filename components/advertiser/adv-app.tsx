@@ -1074,7 +1074,7 @@ export default function AdvertiserApp() {
   // hazard. dueSubInvoice was not.
   // Every unpaid subscription invoice, however old, and nothing else.
   // Small by construction: one customer holds at most a handful.
-  const { data: dueInvoices } = useQuery<
+  const { data: dueInvoices, isError: dueInvError } = useQuery<
     (InvoiceWithRelations & { due_date?: string | null })[]
   >({
     queryKey: ["adv-due-sub-invoices", tenantId, advertiserId],
@@ -1340,7 +1340,18 @@ export default function AdvertiserApp() {
   // Split, so each rule is unknown only when the read BEHIND THAT RULE
   // failed. The company question is answered by the company read.
   const companyUnknown = companyError;
-  const planUnknown = planPaidError || subError || invError;
+  // ── AND THE READ THAT ACTUALLY SUPPLIES THE ANSWER ───────────────
+  //
+  // This listed invError, which belongs to the `adv-invoices` LIST
+  // query. Everything the Billing card decides from is dueSubInvoice,
+  // which comes from `adv-due-sub-invoices` -- and that query's error
+  // was never destructured at all. So when the one read that knows
+  // whether anything is owed failed, the card printed a green tick and
+  // "This month is paid", with no Pay button, over an invoice that was
+  // very much due. Seven days later the cron collects it, or dunning
+  // marks them past_due, and the only warning was a toast that had
+  // already gone.
+  const planUnknown = planPaidError || subError || invError || dueInvError;
   // WHY the Request button is dead, in the customer's words. It always
   // blamed the plan — "Your plan has to be active first" — and
   // canRequestAccount fails on EITHER leg, so somebody whose plan is paid
@@ -3441,7 +3452,7 @@ export default function AdvertiserApp() {
                     so a customer who had just paid was still being told how
                     to pay. */}
                 <p className="cap">
-                  {invError
+                  {invError || dueInvError
                     ? "We couldn't read your invoices just now, so we'd rather not tell you this month is settled."
                     : invLoading
                       ? "Looking up this month…"
@@ -3492,7 +3503,7 @@ export default function AdvertiserApp() {
                               paid" and "Nothing owed right now", directly
                               above a button saying the invoices could not
                               be loaded. */}
-                          {invError || invLoading
+                          {invError || dueInvError || invLoading
                             ? "Checking your billing…"
                             : dueSubInvoice
                               ? "Monthly fee"
@@ -3517,7 +3528,7 @@ export default function AdvertiserApp() {
                           are late for something they have already done.
                           A relative time belongs on something still open;
                           on a settled one the only useful word is Paid. */}
-                      {invError || invLoading ? null : dueSubInvoice ? (
+                      {invError || dueInvError || invLoading ? null : dueSubInvoice ? (
                         dueBillDate ? (
                           <span
                             className="badge due"
@@ -4646,17 +4657,27 @@ function Toggle({
   desc: string;
   notifType: NotificationType;
 }) {
-  const { isEnabled, setPreference } = useNotificationPreferences();
+  const { isEnabled, setPreference, isError } = useNotificationPreferences();
   const on = isEnabled(notifType);
   return (
     <div className="toggle-row">
       <div>
         <div className="t">{label}</div>
-        <div className="d">{desc}</div>
+        {/* ── A FAILED READ IS NOT "IT IS ON" ─────────────────────────
+            The hook defaulted to an empty preference list on any
+            failure, which reads as "nothing is disabled" -- so a
+            customer who had switched this off saw it rendered ON. They
+            either leave it and keep getting alerts they refused, or
+            toggle it again and write a preference that was already
+            there. Say what happened instead, and do not draw a state
+            we do not have. */}
+        <div className="d">
+          {isError ? "We couldn't read your setting just now." : desc}
+        </div>
       </div>
       <button
-        className={`sw${on ? " on" : ""}`}
-        disabled={setPreference.isPending}
+        className={`sw${isError ? "" : on ? " on" : ""}`}
+        disabled={setPreference.isPending || isError}
         onClick={() => setPreference.mutate({ type: notifType, enabled: !on })}
         aria-label={label}
       />

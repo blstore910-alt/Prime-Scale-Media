@@ -636,6 +636,22 @@ export default function WalletTopupDialog({
       queryClient.invalidateQueries({
         queryKey: ["adv-pending-topups"],
       });
+      // And the dialog's own "you already have one waiting" read, which
+      // has its own key and a 15s staleTime -- so reopening inside that
+      // window still offered a fresh reference over a claim just filed,
+      // which is the exact fault that block exists to prevent.
+      queryClient.invalidateQueries({ queryKey: ["wallet-topup-open"] });
+      // ── AND THE FINANCIAL REPORT ──────────────────────────────────
+      //
+      // ["finance-report", audience] is invalidated by NOTHING in the
+      // repo, sits inside a CSS-toggled view so it never remounts, has
+      // staleTime 60s and refetchOnWindowFocus false. With no mount, no
+      // focus refetch and no invalidation there is no refetch trigger
+      // at all -- so the screen headed "every top-up, funding, fee,
+      // invoice and return in one place", with an Export CSV button on
+      // it, showed pre-action figures for the whole session.
+      queryClient.invalidateQueries({ queryKey: ["finance-report"] });
+
     },
     onError: (err: Error) => {
       toast.error("Unable to request topup", { description: err.message });

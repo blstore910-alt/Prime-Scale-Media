@@ -92,6 +92,20 @@ export function useCreateAccountTopup({
         queryKey: ["adv-wallet-activity"],
         exact: false,
       });
+      // "Funded to date" on the account card reads its own key, so
+      // the figure never moved for the rest of the session -- on the
+      // very card the customer had just funded.
+      queryClient.invalidateQueries({ queryKey: ["adv-account-totals"] });
+      // ── AND THE FINANCIAL REPORT ──────────────────────────────────
+      //
+      // ["finance-report", audience] is invalidated by NOTHING in the
+      // repo, sits inside a CSS-toggled view so it never remounts, has
+      // staleTime 60s and refetchOnWindowFocus false. With no mount, no
+      // focus refetch and no invalidation there is no refetch trigger
+      // at all -- so the screen headed "every top-up, funding, fee,
+      // invoice and return in one place", with an Export CSV button on
+      // it, showed pre-action figures for the whole session.
+      queryClient.invalidateQueries({ queryKey: ["finance-report"] });
       onSuccess();
     },
     onError: (err: Error) => {

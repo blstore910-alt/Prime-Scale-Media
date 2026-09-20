@@ -18,7 +18,7 @@ export default function useNotificationPreferences() {
   const { user } = useAppContext();
   const userId = user?.id ?? null;
 
-  const { data: prefs = [], isLoading } = useQuery({
+  const { data: prefs = [], isLoading, isError } = useQuery({
     queryKey: ["notification-preferences", userId],
     enabled: !!userId,
     queryFn: async () => {
@@ -30,6 +30,16 @@ export default function useNotificationPreferences() {
     },
   });
 
+  // ── A FAILED READ IS NOT "EVERYTHING IS ON" ───────────────────────
+  //
+  // prefs defaulted to [] on any failure, so `disabled` was empty and
+  // isEnabled() returned true for every type -- and both Settings
+  // toggles rendered ON for a customer who had turned them off. They
+  // then either leave them (and keep getting alerts they refused) or
+  // toggle them again, writing a preference that was already there.
+  //
+  // isError is exported so the screen can say "we couldn't read your
+  // preferences" instead of showing a state that is not theirs.
   const disabled = new Set(
     prefs.filter((p) => p.push_enabled === false).map((p) => p.type),
   );
@@ -54,5 +64,5 @@ export default function useNotificationPreferences() {
     },
   });
 
-  return { isLoading, isEnabled, setPreference };
+  return { isLoading, isError, isEnabled, setPreference };
 }

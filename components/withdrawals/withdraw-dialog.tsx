@@ -69,6 +69,25 @@ export default function WithdrawDialog({
     onSuccess: () => {
       toast.success("Request sent — an admin will review it.");
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
+      // ── THE CUSTOMER'S OWN SCREENS ────────────────────────────────
+      //
+      // ["ad-account-withdrawals"] is read by ADMIN screens only, so a
+      // customer pressing Withdraw got "Request sent" and then no sign
+      // of it anywhere: not the wallet, not the account sheet, not
+      // Requests. There is no duplicate guard on the RPC, so the
+      // natural next step is to file it again.
+      queryClient.invalidateQueries({ queryKey: ["adv-account-returns"] });
+      queryClient.invalidateQueries({ queryKey: ["adv-wallet-activity"] });
+      // ── AND THE FINANCIAL REPORT ──────────────────────────────────
+      //
+      // ["finance-report", audience] is invalidated by NOTHING in the
+      // repo, sits inside a CSS-toggled view so it never remounts, has
+      // staleTime 60s and refetchOnWindowFocus false. With no mount, no
+      // focus refetch and no invalidation there is no refetch trigger
+      // at all -- so the screen headed "every top-up, funding, fee,
+      // invoice and return in one place", with an Export CSV button on
+      // it, showed pre-action figures for the whole session.
+      queryClient.invalidateQueries({ queryKey: ["finance-report"] });
       setAmount("");
       setReason("");
       setConfirming(false);

@@ -173,6 +173,16 @@ export default function WalletExchangeDialog({
       queryClient.invalidateQueries({
         queryKey: ["adv-wallet-exchanges", walletId],
       });
+      // ── AND THE FINANCIAL REPORT ──────────────────────────────────
+      //
+      // ["finance-report", audience] is invalidated by NOTHING in the
+      // repo, sits inside a CSS-toggled view so it never remounts, has
+      // staleTime 60s and refetchOnWindowFocus false. With no mount, no
+      // focus refetch and no invalidation there is no refetch trigger
+      // at all -- so the screen headed "every top-up, funding, fee,
+      // invoice and return in one place", with an Export CSV button on
+      // it, showed pre-action figures for the whole session.
+      queryClient.invalidateQueries({ queryKey: ["finance-report"] });
       onOpenChange(false);
       reset();
     },

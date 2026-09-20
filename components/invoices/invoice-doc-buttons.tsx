@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { downloadBlob } from "@/lib/download-blob";
 
 /**
  * View and Download, for one invoice, wherever an invoice is shown.
@@ -50,14 +51,9 @@ export default function InvoiceDocButtons({
         throw new Error(payload?.error || "We couldn't prepare that invoice.");
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${fileLabel}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      // downloadBlob: revoking the object URL on the next line races
+      // the download in every browser. See lib/download-blob.
+      downloadBlob(blob, `invoice-${fileLabel}.pdf`);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "We couldn't prepare that invoice.",
