@@ -83,12 +83,15 @@ export default function InvitesTable() {
           count: "exact",
         })
         .eq("tenant_id", profile?.tenant_id)
-        // Same reason as the audit and activity lists: one timestamp is
-        // not a stable order, so a page boundary can repeat a row and
-        // skip another.
+        // Newest first, THEN a unique tiebreaker -- the order of these
+        // calls is the sort priority, so id has to come second or it
+        // becomes the primary key of the sort and the list stops being
+        // chronological. Same reason as the audit and activity lists:
+        // one timestamp is not a stable order, so a page boundary can
+        // repeat a row and skip another.
+        .order("created_at", { ascending: false })
         .order("id", { ascending: false })
-        .range(start, end)
-        .order("created_at", { ascending: false });
+        .range(start, end);
       if (error) throw error;
       return { items: data ?? [], total: count ?? 0 };
     },
