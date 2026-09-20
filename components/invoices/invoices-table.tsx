@@ -9,7 +9,7 @@ import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
 import InvoiceDocButtons from "@/components/invoices/invoice-doc-buttons";
 import { emptyRow } from "@/components/ui/empty-row";
-import { CURRENCY_SYMBOLS, DATE_FORMAT } from "@/lib/constants";
+import { DATE_FORMAT } from "@/lib/constants";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -29,6 +29,7 @@ import PsmSortFilter from "@/components/psm/sort-filter";
 import { voidInvoiceAsAdmin } from "@/actions/invoice-actions";
 import { Textarea } from "@/components/ui/textarea";
 import { Ban } from "lucide-react";
+import { invoiceCurrencySymbol } from "@/lib/pure-invoice-currency";
 
 const formatInvoiceType = (type: string | null) => {
   if (!type) return "—";
@@ -314,10 +315,11 @@ export default function InvoicesTable() {
                         // Nothing to mark paid on an invoice that is already
                         // settled one way or another.
                         const isVoid = st.settled && !isPaid;
-                        const currencySymbol =
-                          CURRENCY_SYMBOLS[
-                            invoice.currency as keyof typeof CURRENCY_SYMBOLS
-                          ] ?? "€";
+                        // One rule, from lib/pure-invoice-currency: this
+                        // row said EUR while the modal one click later
+                        // said USD for the same invoice, because only one
+                        // of them uppercased the code.
+                        const currencySymbol = invoiceCurrencySymbol(invoice);
                         const isUpdatingStatus =
                           updatingInvoiceId === invoice.id;
                         return (
@@ -524,7 +526,7 @@ export default function InvoicesTable() {
                 // the RPC that takes the money. Reading items[0] here asked
                 // an admin to confirm €2,000 for a $2,000 invoice whose
                 // items array was empty.
-                `${CURRENCY_SYMBOLS[((confirmPaid.currency ?? confirmPaid.items?.[0]?.currency ?? "EUR") as string).toUpperCase() as keyof typeof CURRENCY_SYMBOLS] ?? "€"}${formatAmount(confirmPaid.total)}`
+                `${invoiceCurrencySymbol(confirmPaid)}${formatAmount(confirmPaid.total)}`
               : ""
           }
           strong
@@ -564,7 +566,7 @@ export default function InvoicesTable() {
           label="Amount"
           value={
             confirmVoid
-              ? `${CURRENCY_SYMBOLS[((confirmVoid.currency ?? confirmVoid.items?.[0]?.currency ?? "EUR") as string).toUpperCase() as keyof typeof CURRENCY_SYMBOLS] ?? "€"}${formatAmount(confirmVoid.total)}`
+              ? `${invoiceCurrencySymbol(confirmVoid)}${formatAmount(confirmVoid.total)}`
               : ""
           }
           strong

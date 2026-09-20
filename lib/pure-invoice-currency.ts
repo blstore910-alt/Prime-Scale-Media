@@ -1,0 +1,47 @@
+// ─────────────────────────────────────────────────────────────────────
+// One answer to "what currency is this invoice in"
+// ─────────────────────────────────────────────────────────────────────
+// /invoices asked twice, two hundred lines apart, and got two answers.
+// The row did CURRENCY_SYMBOLS[invoice.currency] ?? "€" -- no
+// uppercasing, no fallback to the line items. The confirm modal, in the
+// same file, did the uppercased version with the items fallback, and
+// its comment said this had been fixed.
+//
+// So a hand-authored invoice with currency = "usd" showed EUR 2,000.00
+// on the row, USD 2,000.00 in the modal one click later, "usd 2,000.00"
+// on the PDF, and invoice_pay_from_wallet charged USD -- because it does
+// upper(coalesce(currency,'EUR')). Four surfaces, three answers, on the
+// figure somebody is about to confirm.
+//
+// This follows the RPC exactly, because the RPC is what takes the
+// money: null means EUR, and the comparison is case-insensitive.
+//
+// An UNKNOWN code prints as the code, never as a euro sign. Drawing
+// "£" money with a "€" in front of it is a wrong number on the screen;
+// printing "GBP 500.00" is a true one that happens to be unstyled.
+// ─────────────────────────────────────────────────────────────────────
+
+import { CURRENCY_SYMBOLS } from "@/lib/constants";
+
+export interface InvoiceCurrencyish {
+  currency?: string | null;
+  items?: { currency?: string | null }[] | null;
+}
+
+/** The uppercased code the payment RPC would charge in. */
+export function invoiceCurrencyCode(invoice: InvoiceCurrencyish): string {
+  const own = String(invoice?.currency ?? "").trim();
+  if (own) return own.toUpperCase();
+  const fromItem = String(invoice?.items?.[0]?.currency ?? "").trim();
+  if (fromItem) return fromItem.toUpperCase();
+  return "EUR";
+}
+
+/** What to draw in front of the amount. */
+export function invoiceCurrencySymbol(invoice: InvoiceCurrencyish): string {
+  const code = invoiceCurrencyCode(invoice);
+  const symbol = (CURRENCY_SYMBOLS as Record<string, string>)[code];
+  // A trailing space, so "GBP 500.00" reads as a figure and not as a
+  // typo. A symbol needs none.
+  return symbol ?? `${code} `;
+}
