@@ -163,13 +163,25 @@ export async function GET() {
       .from("advertisers")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", profile.tenant_id),
-    // Affiliates. The hero named advertisers and stopped, so the owner
-    // could not see the other half of the book from the dashboard at
-    // all — and affiliates go live on day one alongside them.
+    // ── COUNT WHAT /users COUNTS ──────────────────────────────────────
+    //
+    // This read the `affiliates` TABLE and always answered 0, while
+    // /users showed 2 — two screens, one question, two answers, and the
+    // owner knew which was right.
+    //
+    // The reason: an affiliate is a user_profiles row with role
+    // 'affiliate'. Nothing populates `affiliates` on the paths actually
+    // in use — ensure_advertiser_and_wallet returns NULL for any role
+    // that is not advertiser, so the invite path never writes one. So
+    // the table is empty while real affiliates exist.
+    //
+    // components/admin/users/psm-advertisers.tsx counts profiles by
+    // role, and that is the number the owner recognises.
     supabase
-      .from("affiliates")
+      .from("user_profiles")
       .select("id", { count: "exact", head: true })
-      .eq("tenant_id", profile.tenant_id),
+      .eq("tenant_id", profile.tenant_id)
+      .eq("role", "affiliate"),
     supabase
       .from("advertisers")
       .select("id, profile:user_profiles(status)")

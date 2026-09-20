@@ -181,10 +181,16 @@ export async function GET(request: NextRequest) {
       .eq("tenant_id", profile.tenant_id)
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
+    // The SIGN-UPS tile counted the `affiliates` table, which nothing
+    // populates on the paths in use — so the affiliate half of this
+    // figure has always been 0, however many signed up. An affiliate is
+    // a user_profiles row with role 'affiliate', which is what /users
+    // counts and what the owner recognises.
     supabase
-      .from("affiliates")
+      .from("user_profiles")
       .select("created_at")
       .eq("tenant_id", profile.tenant_id)
+      .eq("role", "affiliate")
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
   ]);
