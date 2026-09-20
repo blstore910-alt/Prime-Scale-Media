@@ -172,7 +172,21 @@ const STATS_CSS = `
 .psm-stats [data-slot=card-description]{display:flex;align-items:center;gap:8px;height:28px;font-family:var(--hd);font-weight:700;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
 .psm-stats [data-slot=card-description]>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
 /* The figure: one line, and it shrinks rather than breaks. */
-.psm-stats [data-slot=card-title]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:clamp(1rem,4.4vw,1.3rem);letter-spacing:-.02em}
+/* ── A CLIPPED FIGURE READS AS A SMALLER ONE ───────────────────────
+   nowrap + ellipsis turned "$0.00 / €5.00" into "$0.00 / €…" in a
+   half-width card. On a money dashboard that is not a layout blemish:
+   the eye takes the visible part as the number.
+
+   So it WRAPS instead, onto its own line, and the two currencies sit
+   one under the other with the slash gone. Two short lines beat one
+   truncated one, and the row is 1fr so every tile grows together. */
+.psm-stats [data-slot=card-title]{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  white-space:nowrap;font-size:clamp(.95rem,4vw,1.24rem);letter-spacing:-.02em;line-height:1.15}
+.psm-stats [data-slot=card-title] .mx-2{display:none}
+@media(min-width:1100px){
+  .psm-stats [data-slot=card-title]{flex-direction:row;align-items:baseline;gap:6px}
+  .psm-stats [data-slot=card-title] .mx-2{display:inline;margin:0 2px;opacity:.45;font-weight:600}
+}
 
 /* Six rectangles of one size. grid-auto-rows:1fr is what makes a row
    as tall as its tallest card and every card in it that tall; the
@@ -184,6 +198,12 @@ const STATS_CSS = `
 .psm-stats [data-slot=card-content]{flex:1 1 auto;display:flex;flex-direction:column;justify-content:flex-end}
 @media(min-width:1100px){.psm-stats .statgrid{grid-template-columns:repeat(3,1fr)}}
 .psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+/* The second currency, quieter than the first: one figure leads, the
+   other supports, instead of two shouting the same size. */
+.psm-stats [data-slot=card-title]>span:last-child{font-size:.86em;color:var(--txt-2)}
+@media(min-width:1100px){
+  .psm-stats [data-slot=card-title]>span:last-child{font-size:1em;color:inherit}
+}
 
 @media (max-width:900px){.psm-stats .mgrid{grid-template-columns:repeat(2,1fr)}}
 /* Two columns all the way down: these tiles are a label plus a number,
