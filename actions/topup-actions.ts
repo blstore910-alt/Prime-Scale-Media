@@ -315,6 +315,32 @@ async function writeTopupLog(
   }
 }
 
+/**
+ * The fee resolver THROWS on a real read failure, deliberately -- a
+ * confident default over a failed read is how the wrong fee gets
+ * charged. But a throw out of a server action reaches the browser as an
+ * opaque Next.js digest: `if (!res.ok)` never runs, and the sentence the
+ * resolver exists to deliver -- "the fee cannot be worked out, nothing
+ * has been charged" -- is the one thing the admin never sees, on the
+ * three screens where money is at stake.
+ *
+ * So each caller wraps it and turns the throw back into an answer.
+ */
+async function feeOrRefusal<T>(
+  fn: () => Promise<T>,
+): Promise<{ ok: true; fee: T } | { ok: false; error: string }> {
+  try {
+    return { ok: true, fee: await fn() };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `The fee for this top-up could not be worked out (${safeErrorMessage(
+        err,
+      )}). Nothing has been charged -- try again in a moment.`,
+    };
+  }
+}
+
 export async function createTopupAsAdmin(
   input: TopupInsertInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -396,12 +422,16 @@ export async function createTopupAsAdmin(
   // can't be understated by the payload. No plan + no perk → untouched.
   if (typeof input.type === "string" && FEE_APPLICABLE_TYPES.includes(input.type)) {
     const fallbackPct = Number(input.fee) || 0;
-    const { pct: resolvedPct } = await resolveEffectiveFeePct(
-      supabase,
-      input.advertiser_id,
-      fallbackPct,
-      typeof input.account_id === "string" ? input.account_id : null,
+    const resolvedFee = await feeOrRefusal(() =>
+      resolveEffectiveFeePct(
+        supabase,
+        input.advertiser_id as string,
+        fallbackPct,
+        typeof input.account_id === "string" ? input.account_id : null,
+      ),
     );
+    if (!resolvedFee.ok) return resolvedFee;
+    const { pct: resolvedPct } = resolvedFee.fee;
 
     // ── The premium platform's two points, applied HERE ────────────────
     // Meta-EU-Premium carries a 2-point discount on the top-up fee, and
@@ -721,15 +751,11 @@ export async function bulkCreateTopupsAsAdmin(
         typeof row.account_id === "string" ? row.account_id : null;
       const key = feeKeyOf(row);
       if (feeByAdvertiser.has(key)) continue;
-      feeByAdvertiser.set(
-        key,
-        await resolveEffectiveFeePct(
-          supabase,
-          advId,
-          Number(row.fee) || 0,
-          acctId,
-        ),
+      const bulkFee = await feeOrRefusal(() =>
+        resolveEffectiveFeePct(supabase, advId, Number(row.fee) || 0, acctId),
       );
+      if (!bulkFee.ok) return bulkFee;
+      feeByAdvertiser.set(key, bulkFee.fee);
     }
   }
 
@@ -1116,14 +1142,18 @@ export async function verifyAdTopup(
     }
 
     if (row.advertiser_id) {
-      const effective = await resolveEffectiveFeePct(
-        supabase,
-        String(row.advertiser_id),
-        Number(row.fee) || 0,
-        typeof row.account_id === "string" ? row.account_id : null,
-        // The stored fee already has the premium points off.
-        true,
+      const effectiveFee = await feeOrRefusal(() =>
+        resolveEffectiveFeePct(
+          supabase,
+          String(row.advertiser_id),
+          Number(row.fee) || 0,
+          typeof row.account_id === "string" ? row.account_id : null,
+          // The stored fee already has the premium points off.
+          true,
+        ),
       );
+      if (!effectiveFee.ok) return effectiveFee;
+      const effective = effectiveFee.fee;
       // GATE ON THE NUMBER, not on `applied`.
       //
       // `applied` is false precisely when nothing is configured — no

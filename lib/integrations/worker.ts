@@ -414,7 +414,6 @@ export async function processIntegrationJobs(
       else if (state === "retried") summary.retried++;
       else summary.failed++;
     } catch (err) {
-      summary.skipped++;
       // ── max_attempts BOUNDS THIS PATH TOO ───────────────────────
       //
       // This put the job straight back to `pending` and never
@@ -427,8 +426,15 @@ export async function processIntegrationJobs(
       // a failure and counted as "held" by getAutoPushStatus.
       //
       // A money job that cannot be made to work has to become visible.
-      const spent = (job.attempts ?? 0) + 1;
-      const giveUp = spent >= job.max_attempts;
+      //
+      // NO `+ 1` HERE EITHER. claimBatch wrote attempts + 1 and returned
+      // the updated row -- which is the mistake finaliseJob twelve lines
+      // above documents having removed, and this block re-introduced it.
+      // With max_attempts = 5 a job that threw on its FOURTH claim was
+      // stamped `failed` while the database said 4: abandoned an attempt
+      // early, with the customer's money already taken and the supplier
+      // never funded. Same counter, same test, same reading.
+      const giveUp = job.attempts >= job.max_attempts;
       await ctx.supabase
         .from("integration_jobs")
         .update({
@@ -446,7 +452,13 @@ export async function processIntegrationJobs(
               }),
         })
         .eq("id", job.id);
+      // ONE bucket per job. It used to count `skipped` on the way in and
+      // `failed` again on the way out, so a job that died appeared in
+      // both totals and the cron summary no longer added up -- which is
+      // the one artefact anybody reads to decide whether the night was
+      // clean.
       if (giveUp) summary.failed++;
+      else summary.skipped++;
     }
   }
   return summary;

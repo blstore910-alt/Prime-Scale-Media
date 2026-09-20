@@ -301,10 +301,46 @@ export async function matchWiseToTopup(
       tenant_id: profile.tenant_id,
     })
     .eq("id", transferId)
+    // ── AND THE SAME REFUSAL AGAIN, AS A PREDICATE ON THE WRITE ───────
+    //
+    // The check at the top of this function read `status` seconds ago,
+    // through the CALLER's client, and then this line wrote through the
+    // SERVICE ROLE with no condition at all. So it re-armed a row that
+    // another admin had already spent.
+    //
+    // wise_confirm_suggestion is properly locked -- `for update` on the
+    // transfer, a refusal unless it is 'suggested', `for update` on the
+    // top-up, and a status predicate on its write. This UPDATE walked
+    // straight past all of that by resetting the very column the RPC
+    // guards on: A confirms (row -> 'confirmed'), B's unconditioned
+    // update puts it back to 'suggested', B's RPC now sees a fresh
+    // suggestion and credits a SECOND top-up. One EUR 5,000 transfer,
+    // EUR 10,000 in two wallets, a green toast for both admins.
+    //
+    // The twin check above cannot catch it: it looks for a DIFFERENT
+    // deposit row with the same reference, and returns null when the
+    // reference is empty -- which rematchWiseDeposits says is the case
+    // for 229 of the deposits in this feed.
+    //
+    // `or` with an explicit null arm, not `.not("status","in",...)`:
+    // PostgREST drops NULLs from a negated IN, and an unmatched deposit
+    // may carry no status at all.
+    .or(
+      "status.is.null,and(status.neq.completed,status.neq.confirmed,status.neq.matched)",
+    )
     .select("id");
   if (linkErr) return { ok: false, error: safeErrorMessage(linkErr) };
   const wrote = wroteSomething(linked);
-  if (!wrote.ok) return wrote;
+  if (!wrote.ok) {
+    // Zero rows here means the predicate above refused it, which means
+    // somebody credited this deposit between the read and the write.
+    return {
+      ok: false,
+      error:
+        "That deposit was credited by someone else while this was open. Reload before matching it again.",
+      code: "conflict",
+    };
+  }
 
   const { error } = await supabase.rpc("wise_confirm_suggestion", {
     p_transfer_id: transferId,

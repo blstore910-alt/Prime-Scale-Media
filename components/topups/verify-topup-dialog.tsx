@@ -53,9 +53,31 @@ export default function VerifyTopupDialog({
   setOpen: (open: boolean) => void;
 }) {
   const { topup, isLoading, isError, error } = useGetTopup({ topupId });
+  // ── THE BUSY FLAG HAS TO LIVE UP HERE ──────────────────────────────
+  //
+  // isPending belongs to VerifyTopupInvoice, which is rendered INSIDE
+  // DialogContent. The dialog portals without forceMount, so Escape or a
+  // click on the overlay unmounts that child and takes the flag with it
+  // -- mid-request. Every other money dialog in the app is saved by a
+  // nested ConfirmModal absorbing the dismiss; this one has none. Its
+  // submit button IS the money button.
+  //
+  // What followed: the row behind is only invalidated in onSuccess, so
+  // it still reads "pending"; the admin reopens the same row and Verify
+  // is live again. verifyAdTopup never checks status -- it delegates to
+  // top_up_admin_verify, which exists only on live and which nothing in
+  // this repository can read -- and the same step queues the supplier
+  // push. Two verifications, two pushes.
+  const [busy, setBusy] = useState(false);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && busy) return;
+        setOpen(next);
+      }}
+    >
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Verify Top-up</DialogTitle>
@@ -81,6 +103,7 @@ export default function VerifyTopupDialog({
           <VerifyTopupInvoice
             topup={topup as ExtendedTopup}
             onVerified={setOpen}
+            onBusyChange={setBusy}
           />
         )}
       </DialogContent>
@@ -97,11 +120,13 @@ type ExtendedTopup = Topup & {
 };
 
 function VerifyTopupInvoice({
+  onBusyChange,
   topup,
   onVerified,
 }: {
   topup: ExtendedTopup;
   onVerified: (open: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const {
     register,
@@ -195,6 +220,15 @@ function VerifyTopupInvoice({
       toast.error(err.message);
     },
   });
+
+  // Tell the dialog above that a write is in flight, so it refuses to
+  // close. The flag cannot live up there -- only this component knows --
+  // and it cannot stay only down here, because closing unmounts this
+  // component and the flag with it.
+  useEffect(() => {
+    onBusyChange?.(isPending);
+    return () => onBusyChange?.(false);
+  }, [isPending, onBusyChange]);
 
   const handleVerify = (values: FormValues) => {
     const newFee = Number(values.fee);

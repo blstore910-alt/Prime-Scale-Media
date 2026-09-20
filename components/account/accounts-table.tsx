@@ -815,7 +815,7 @@ function PsmAdminAccountRow({
 }) {
   const { profile } = useAppContext();
   const isAdmin = profile?.role === "admin";
-  const { updateAccount } = useUpdateAccount();
+  const { updateAccount, isPending: savingFee } = useUpdateAccount();
   const initialFee = account.fee;
   const [fee, setFee] = useState<number | string>(account.fee);
   const [editing, setEditing] = useState({ fee: false });
@@ -865,6 +865,9 @@ function PsmAdminAccountRow({
       {
         id: account.id,
         payload: { fee: parsed },
+        // The fee IS the margin, and this cell is the one place two
+        // admins are most likely to be looking at the same number.
+        ifUpdatedAt: account.updated_at,
       },
       { onError: () => setFee(initialFee) },
     );
@@ -1073,6 +1076,10 @@ function PsmAdminAccountRow({
             <button
               className="btn ghost sm"
               aria-label="Save fee"
+              // The tick carried no pending state at all -- and updateFee
+              // closes the editor optimistically, so there was nothing on
+              // screen to say the write was still in flight either.
+              disabled={savingFee}
               onClick={updateFee}
             >
               <Check />

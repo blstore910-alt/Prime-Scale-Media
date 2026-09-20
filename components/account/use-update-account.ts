@@ -7,6 +7,27 @@ import { toast } from "sonner";
 interface UpdateAccountArgs {
   id: string;
   payload: Partial<AdAccount>;
+  /**
+   * The `updated_at` the screen was looking at when the admin typed.
+   *
+   * WITHOUT THIS THE GUARD WAS DEAD. updateAdAccountAsAdmin takes an
+   * ifUpdatedAt and calls versionMatches -- but versionMatches(x,
+   * undefined) returns TRUE, and this interface had no field to put it
+   * in, so all six screens that write through this hook were
+   * structurally unable to send one. Every write was last-one-wins.
+   *
+   * `fee` is in the action's allowlist and resolveEffectiveFeePct puts
+   * the ad account's own fee FIRST, above the plan. So: the owner sets
+   * 4% on a premium account from Details while an employee admin has the
+   * same row open in the table's inline fee cell at 2% and presses the
+   * tick. 2% wins, silently, and it is our own margin on every future
+   * top-up of that account. Nothing on any screen says a value was
+   * overwritten.
+   *
+   * Pass the row's updated_at whenever you have it. A stale cached one
+   * is exactly what makes the guard fire -- that is the point.
+   */
+  ifUpdatedAt?: string;
 }
 
 export default function useUpdateAccount() {
@@ -19,8 +40,8 @@ export default function useUpdateAccount() {
   } = useMutation({
     mutationKey: ["update-account"],
 
-    mutationFn: async ({ id, payload }: UpdateAccountArgs) => {
-      const result = await updateAdAccountAsAdmin(id, payload);
+    mutationFn: async ({ id, payload, ifUpdatedAt }: UpdateAccountArgs) => {
+      const result = await updateAdAccountAsAdmin(id, payload, ifUpdatedAt);
       if (!result.ok) throw new Error(result.error);
       return { warning: result.warning };
     },
