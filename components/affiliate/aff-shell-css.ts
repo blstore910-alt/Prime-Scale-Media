@@ -297,11 +297,14 @@ export const AFF_CSS = `
      whole job is to say what you are owed. */
   .bpot{flex:1 1 118px;min-width:0;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);border-radius:15px;padding:13px 15px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.22);transition:.15s}
   .bpot:hover{background:rgba(255,255,255,.22);transform:translateY(-1px)}
-  .bpot .pl{display:block;font-size:.64rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.85)}
+  /* 10.24px, and the line under it 10.88px at roughly 2:1 on the blue
+     gradient -- on the one screen that exists to tell an affiliate what
+     they are owed. */
+  .bpot .pl{display:block;font-size:.74rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.92)}
   /* The lifetime figure under the payable one: present, and visibly the
      smaller fact. */
-  .bpot .pn{display:block;margin-top:3px;font-size:.68rem;line-height:1.3;
-    color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums}
+  .bpot .pn{display:block;margin-top:3px;font-size:.76rem;line-height:1.3;
+    color:rgba(255,255,255,.82);font-variant-numeric:tabular-nums}
   .bpot b{font-family:var(--font-sora);font-weight:800;
     /* clamp, so a five-figure balance shrinks instead of being cut off,
        and tabular figures so a column of them lines up. */
@@ -490,12 +493,16 @@ export const AFF_CSS = `
 
      pointer:coarse only: with a mouse the visible edge IS the target. */
   @media (pointer:coarse){
+    /* .dd and .dd.sm2 are the date range and Export on My Referrals --
+       39.1px and 36.6px, and in neither list until now. .chip is dead
+       markup in this shell. */
     .sw,
     .chip,
     .seg2 button,
     .mhead .iconbtn,
     .actrow .btn,
-    .btn.sm{position:relative}
+    .btn.sm,
+    .dd{position:relative}
     /* ::before for the switch, NOT ::after. .sw::after IS the white
        knob — this block re-declared the same pseudo-element at the same
        specificity, later in the file, and overrode its top, left and
@@ -509,7 +516,8 @@ export const AFF_CSS = `
     .seg2 button::after,
     .mhead .iconbtn::after,
     .actrow .btn::after,
-    .btn.sm::after{
+    .btn.sm::after,
+    .dd::after{
       content:"";position:absolute;left:0;right:0;top:50%;
       transform:translateY(-50%);height:44px;
     }

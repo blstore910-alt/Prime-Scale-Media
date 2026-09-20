@@ -363,8 +363,19 @@ export const ADV_CSS = `
   /* The plan's own name, above the price. Small caps, spaced, at the
      card's own opacity — a label for the figure under it, not a second
      headline competing with it. */
-  .sub-card .plan-name{font-family:var(--hd);font-weight:800;font-size:.76rem;
-    letter-spacing:.14em;text-transform:uppercase;opacity:.72;margin:14px 0 2px}
+  /* ── THE MARGIN SHORTHAND BELOW KILLED THE PHONE FIX ABOVE ──────────
+   margin:14px 0 2px is a shorthand at the same specificity, later in
+   the file, so it reset margin-top to 14px at every width -- including
+   inside the <=420 block whose own comment says "at phone width the
+   pill and a long plan name meet, so the name starts below it instead
+   of beside it". At 375px the pill occupies y=16..44 and the name
+   started at y=36: anything past about eighteen characters collided
+   with a pill that can read "Couldn't load", "Loading…" or "No plan" --
+   the states a customer most needs to read. Longhand, and the phone
+   rule restated after it. */
+.sub-card .plan-name{font-family:var(--hd);font-weight:800;font-size:.76rem;
+    letter-spacing:.14em;text-transform:uppercase;opacity:.72;margin-top:14px;margin-right:0;margin-bottom:2px;margin-left:0}
+@media(max-width:430px){.sub-card .plan-name{margin-top:34px}}
   .sub-card{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2),#151d3f);box-shadow:0 22px 46px -26px rgba(20,30,80,.8)}
   .sub-card .ring{position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(91,141,255,.18),transparent 30%,rgba(139,92,246,.18),transparent 60%);animation:spin 24s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -959,12 +970,24 @@ export const ADV_CSS = `
 
      pointer:coarse only: with a mouse the visible edge IS the target. */
   @media (pointer:coarse){
+    /* ── THE CONTROLS THAT WERE ACTUALLY MISSING ──────────────────
+       .chip is dead markup in both shells and .sw only exists in
+       settings, so two of the six entries were spent on nothing while
+       these six real actions were uncovered: the three hero buttons
+       (37.8px below 420), the onboarding tick (28px, on the first card
+       a new customer sees), Pay now on the fee row (~32px), the
+       copy-your-reference control (~25px), and on the affiliate side
+       the date range and Export (39.1 / 36.6px). */
     .sw,
     .chip,
     .seg2 button,
     .mhead .iconbtn,
     .actrow .btn,
-    .btn.sm{position:relative}
+    .btn.sm,
+    .hero-btn,
+    .onb-tick,
+    .duerow .dlink,
+    .copyref{position:relative}
     /* ::before for the switch, NOT ::after. .sw::after IS the white
        knob — this block re-declared the same pseudo-element at the same
        specificity, later in the file, and overrode its top, left and
@@ -978,7 +1001,11 @@ export const ADV_CSS = `
     .seg2 button::after,
     .mhead .iconbtn::after,
     .actrow .btn::after,
-    .btn.sm::after{
+    .btn.sm::after,
+    .hero-btn::after,
+    .onb-tick::after,
+    .duerow .dlink::after,
+    .copyref::after{
       content:"";position:absolute;left:0;right:0;top:50%;
       transform:translateY(-50%);height:44px;
     }

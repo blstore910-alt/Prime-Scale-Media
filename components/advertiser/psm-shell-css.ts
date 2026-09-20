@@ -377,7 +377,6 @@ export const PSM_APP_CSS = `
    it also gets the width a three-figure percentage needs. */
 @media (max-width:640px){
   .psmapp .fpanel select,
-  .psmapp .fpanel-date,
   .psmapp .feeedit input{font-size:16px}
   .psmapp .feeedit input{width:78px}
 }
@@ -387,6 +386,15 @@ export const PSM_APP_CSS = `
    so the panel reads as one form rather than a select plus a stray input. */
 .psmapp .fpanel-date{width:100%;font-family:var(--bd);font-weight:600;font-size:.86rem;border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;background:var(--panel);color:var(--ink);cursor:pointer}
 .psmapp .fpanel-date:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
+/* ── 16px, AFTER the rule above, or Safari zooms and never zooms back ─
+   The guard was eight lines higher inside the <=640 block, at the same
+   specificity, so the base rule below it won and this field stayed at
+   13.76px at every width. The comment beside that guard spells out the
+   consequence: the page zooms on focus and stays zoomed, leaving the
+   list scrolled sideways -- and .fpanel is the ONLY way to filter a
+   list on a phone. Same class of mistake this repo has shipped before,
+   with the guard sitting right next to the rule that killed it. */
+@media (max-width:640px){.psmapp .fpanel-date{font-size:16px}}
 
 .psmapp .acard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:12px}
 .psmapp .acard .top{display:flex;align-items:center;gap:11px}
@@ -601,6 +609,15 @@ export const PSM_APP_CSS = `
   .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)):has(.keeplab){
     grid-template-columns:1fr 1fr;gap:6px
   }
+  /* ── AND GIVE THE FONT BACK ─────────────────────────────────────────
+     The .64rem set for a four-across row was calculated for an 89px
+     track. This rule drops the same row to TWO columns and reset only
+     the columns and the gap -- so Details / Accounts / Commission /
+     Deactivate on /users stayed at 10.24px in tracks about 151px wide.
+     The last of those switches a customer off. */
+  .psmapp .tbl.wide td.fullcell .actrow:has(> :nth-child(4)):has(.keeplab) .btn{
+    padding:8px 10px;font-size:.78rem;letter-spacing:normal
+  }
   /* THREE fit beside their icons; FOUR do not. At 400px a third of the
      card is about 105px — icon, gap and padding take 36 of it and leave 69
      for the word, which "Min amount" fits into. A quarter is about 80px,
@@ -755,7 +772,7 @@ export const PSM_APP_CSS = `
      double what it needs. */
   .psmapp .tbl.wide tr{padding:2px 11px;margin-bottom:9px;border-radius:13px}
   .psmapp .tbl.wide td{padding:7px 2px;gap:2px 14px}
-  .psmapp .tbl.wide td::before{font-size:.62rem}
+  .psmapp .tbl.wide td::before{font-size:.72rem}
 
   /* ── Two-up card ─────────────────────────────────────────────────
      A row of label-left/value-right lines is the shape of a form, and
@@ -797,9 +814,17 @@ export const PSM_APP_CSS = `
      lets the label/value rhythm and the spacing do the separating — which is
      also calmer than a grid full of hairlines. */
   .psmapp .tbl.wide td{box-shadow:none}
+  /* ── NOT SMALLER AND LIGHTER THAN THE ONE ALREADY CALLED WRONG ───
+     This overrode its own earlier .66rem / --txt-2 declaration, landing
+     at 9.92px against --faint, about 3.3:1 on white. The advertiser
+     shell fixed exactly this case and left the reasoning in the file:
+     "11.5px at 6.4:1, not 10.6px at 3.35:1 -- this is the word that
+     says whether a figure is AMOUNT, BALANCE or FEE, and on a phone the
+     numbers were legible while their labels were not." This went the
+     other way, on every admin list in card mode. */
   .psmapp .tbl.wide td::before{
-    display:block;margin-bottom:2px;color:var(--faint);
-    font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;
+    display:block;margin-bottom:2px;color:var(--txt-2);
+    font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;
   }
   .psmapp .tbl.wide td>*{min-width:0}
   .psmapp .tbl.wide td>span{justify-self:start}
@@ -1238,15 +1263,19 @@ export const PSM_APP_CSS = `
    pointer:coarse only — on a mouse the visible edge IS the target, and an
    invisible overlay there would just make hover states fire early. */
 @media (pointer:coarse){
+  /* .mhead .iconbtn is 34x34 and closes every admin dialog, including
+     Sign out -- it was in the advertiser's list and not this one. */
   .psmapp .tool,
   .psmapp .seg2 button,
   .psmapp .actrow .btn,
   .psmapp .fbtn,
+  .psmapp .mhead .iconbtn,
   .psmapp .btn.sm{position:relative}
   .psmapp .tool::after,
   .psmapp .seg2 button::after,
   .psmapp .actrow .btn::after,
   .psmapp .fbtn::after,
+  .psmapp .mhead .iconbtn::after,
   .psmapp .btn.sm::after{
     content:"";position:absolute;left:0;right:0;top:50%;
     transform:translateY(-50%);

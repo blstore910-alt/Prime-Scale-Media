@@ -58,19 +58,36 @@ export const NOTIFICATIONS_CSS = `
 .swiperow .swipebtn:hover{color:#3a6fff;border-color:#c9d6f5}
 .swiperow .swipebtn svg{width:15px;height:15px}
 @media (hover:none){
-  /* No hover on a phone, and there the swipe IS the gesture -- the
-     button would only cover the unread dot. */
-  .swiperow .swipebtn{display:none}
+  /* ── NOT display:none ────────────────────────────────────────────
+     swipe-to-archive's own comment says why: "a swipe is invisible to
+     a keyboard and to a screen reader, so it is the shortcut, never
+     the only way." hover:none matches EVERY phone, so this deleted
+     the button on exactly the devices where the fallback matters --
+     including a phone with VoiceOver or a Bluetooth keyboard. On a
+     phone, archiving became an 88px drag with no affordance until you
+     were already dragging.
+
+     So: visible, and out of the unread dot's way. */
+  .swiperow .swipebtn{display:inline-flex;opacity:.55}
+  .swiperow .swipebtn:active{opacity:1}
 }
 
-@media (prefers-color-scheme: dark){
-  .nfview{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}
-  .nfview button{color:#9aa3bd}
-  .nfview button.on{background:rgba(255,255,255,.12);color:#9db8ff;box-shadow:none}
-  .swiperow .swipeback{background:rgba(255,255,255,.07);color:#9aa3bd}
-  .swiperow .swipeback.armed{background:rgba(91,141,255,.22);color:#9db8ff}
-  /* transparent, not a literal: the row's own background belongs to
-     whichever shell drew it. */
-  .swiperow .swipefront{background:transparent}
-}
+/* ── THE DARK BLOCK IS GONE, AND THAT IS THE FIX ────────────────────
+   This was the ONLY prefers-color-scheme block in the codebase, and
+   none of the three shells defines a dark palette -- all three
+   hard-code --ground:#f4f6fc, --panel:#fff, --ink:#12162a, and
+   app/layout pins next-themes to light with enableSystem false.
+   prefers-color-scheme follows the OS, which next-themes cannot
+   suppress. So on a dark-mode phone this repainted six things on a
+   page that stayed white:
+
+     * the SELECTED tab lost its fill and its shadow and became
+       #9db8ff on white, about 1.96:1 -- you could not tell Inbox from
+       Archive;
+     * .swipefront went transparent, so the "Archive" back layer showed
+       through EVERY row permanently, not only during a swipe;
+     * the swipe target itself went near-invisible when it was wanted.
+
+   A partial dark theme on a light page is worse than no dark theme.
+   When the shells get a real dark palette this comes back with them. */
 `;
