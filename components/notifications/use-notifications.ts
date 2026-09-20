@@ -253,15 +253,46 @@ export default function useNotifications(
       const cutoff = new Date(
         Date.now() - 30 * 86_400_000,
       ).toISOString();
-      // Also deliberately uncounted: most of the time there is nothing
-      // older than 30 days to clear.
-      const { error } = await supabase
+      // ── COUNT FIRST, THEN DELETE ──────────────────────────────────
+      //
+      // This was uncounted because "most of the time there is nothing
+      // older than 30 days" -- and that reasoning hid a permanent
+      // no-op. `notifications` has a SELECT policy and an UPDATE
+      // policy and NO DELETE POLICY at all
+      // (supabase/migrations/20260828140000_rls_templates.sql:480-486),
+      // so with RLS on, this delete matches zero rows for everyone.
+      // PostgREST does not call that an error, so the confirmation
+      // dialog warned that this "cannot be undone", the toast said
+      // "Old read notifications cleaned", and nothing was ever
+      // removed.
+      //
+      // Counting the matching rows first separates the two cases the
+      // old code could not tell apart: nothing to clear, and not
+      // allowed to clear it.
+      const { count: matching, error: countError } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_user_id", userId)
+        .eq("is_read", true)
+        .lt("created_at", cutoff);
+      if (countError) throw countError;
+
+      const { data: removed, error } = await supabase
         .from("notifications")
         .delete()
         .eq("recipient_user_id", userId)
         .eq("is_read", true)
-        .lt("created_at", cutoff);
+        .lt("created_at", cutoff)
+        .select("id");
       if (error) throw error;
+
+      const gone = removed?.length ?? 0;
+      if ((matching ?? 0) > 0 && gone === 0) {
+        throw new Error(
+          "Nothing was removed — this account is not allowed to delete notifications. Nobody has lost anything; the list is unchanged.",
+        );
+      }
+      return gone;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });

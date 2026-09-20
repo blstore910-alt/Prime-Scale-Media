@@ -1,6 +1,8 @@
 "use client";
 
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import { RejectReasonField } from "@/components/ui/reject-reason-field";
+import type { RejectContext } from "@/lib/pure-reject-reasons";
 import { createClient } from "@/lib/supabase/client";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
@@ -34,7 +36,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   approveAdAccountWithdrawal,
   rejectAdAccountWithdrawal,
@@ -74,7 +76,17 @@ type ActionAsk = {
   cta: string;
   danger?: boolean;
   facts: Array<[string, string]>;
-  run: () => void;
+  // ── A REFUSAL THE CUSTOMER CAN READ ─────────────────────────────
+  //
+  // Set this and the dialog grows a reason box, the confirm button
+  // stays dead until something is typed, and what was typed is handed
+  // to run(). Reject on this screen called run() with no argument at
+  // all, so `reason` -- which the mutation, the action, the RPC and
+  // the customer notification all carry end to end -- arrived as null
+  // every single time. The customer asking for their own money back
+  // was told "no" and nothing else.
+  reasonFor?: RejectContext;
+  run: (reason?: string) => void;
 };
 
 function ActionAskModal({
@@ -86,6 +98,14 @@ function ActionAskModal({
   close: () => void;
   busy: boolean;
 }) {
+  const [reason, setReason] = useState("");
+  const needsReason = !!ask?.reasonFor;
+  // Cleared whenever a different question is asked, so last refusal's
+  // sentence cannot be submitted against this row.
+  useEffect(() => {
+    setReason("");
+  }, [ask]);
+
   return (
     <ConfirmModal
       open={!!ask}
@@ -104,15 +124,27 @@ function ActionAskModal({
       // row that was already approved, producing a red "Approve failed"
       // toast for an action that had succeeded. psm-subscriptions.tsx does
       // it in this order; this copy did not.
+      disabled={needsReason && !reason.trim()}
       onConfirm={() => {
         const a = ask;
+        const why = reason.trim();
         close();
-        a?.run();
+        a?.run(why || undefined);
       }}
     >
       {(ask?.facts ?? []).map(([k, v]) => (
         <ConfirmFact key={k} label={k} value={v} strong={k === "Amount"} />
       ))}
+      {ask?.reasonFor ? (
+        <div className="mt-3">
+          <RejectReasonField
+            context={ask.reasonFor}
+            value={reason}
+            onChange={setReason}
+            disabled={busy}
+          />
+        </div>
+      ) : null}
     </ConfirmModal>
   );
 }
@@ -505,8 +537,9 @@ function WithdrawalsSection() {
                                           ),
                                         ],
                                       ],
-                                      run: () =>
-                                        reject.mutate({ id: w.id }),
+                                      reasonFor: "withdrawal",
+                                      run: (why) =>
+                                        reject.mutate({ id: w.id, reason: why }),
                                     })
                                   }
                                 >
@@ -635,9 +668,9 @@ function RefundsSection() {
   });
 
   const reject = useMutation({
-    mutationFn: async (id: string) => {
-      setActingId(id);
-      const res = await rejectWalletRefund(id);
+    mutationFn: async (vars: { id: string; reason?: string }) => {
+      setActingId(vars.id);
+      const res = await rejectWalletRefund(vars.id, vars.reason);
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
@@ -847,7 +880,9 @@ function RefundsSection() {
                                       ["Customer", r.advertiser?.tenant_client_code ?? "—"],
                                       ["Amount", formatCurrency(Number(r.amount), r.currency)],
                                     ],
-                                    run: () => reject.mutate(r.id),
+                                    reasonFor: "withdrawal",
+                                    run: (why) =>
+                                      reject.mutate({ id: r.id, reason: why }),
                                   })
                                 }
                               >
@@ -1244,9 +1279,9 @@ function AdjustmentsSection() {
   });
 
   const reject = useMutation({
-    mutationFn: async (id: string) => {
-      setActingId(id);
-      const res = await rejectWalletAdjustment(id);
+    mutationFn: async (vars: { id: string; reason?: string }) => {
+      setActingId(vars.id);
+      const res = await rejectWalletAdjustment(vars.id, vars.reason);
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
@@ -1431,7 +1466,9 @@ function AdjustmentsSection() {
                                           `${Number(r.delta) > 0 ? "+" : ""}${formatCurrency(Number(r.delta), r.currency)}`,
                                         ],
                                       ],
-                                      run: () => reject.mutate(r.id),
+                                      reasonFor: "withdrawal",
+                                      run: (why) =>
+                                        reject.mutate({ id: r.id, reason: why }),
                                     })
                                   }
                                 >

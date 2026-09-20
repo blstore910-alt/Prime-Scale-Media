@@ -6,8 +6,10 @@ import {
   type AdAccountType,
   type AdAccountTypeOption,
 } from "@/lib/types/ad-account-type";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { createClient } from "@/lib/supabase/server";
 import { isMissingColumn } from "@/lib/page-all-rows";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { normalizeSupplierUrl } from "@/lib/pure-supplier-link";
 import {
   type ActionResult,
@@ -208,8 +210,29 @@ export async function ensureInitialAdAccountTypes(): Promise<
     is_active: true,
     updated_by: profile.user_id,
   }));
-  const { error } = await supabase.from("ad_account_types").insert(rows);
-  if (error) return { ok: false, error: error.message };
+  // ── THE SEED WRITES AS THE SERVICE ROLE ───────────────────────────
+  //
+  // 20260920310000 / 20260920330000 split these tables into
+  // "read for every admin, write for the owner", because the settings
+  // screens that edit them are owner-only and the tables underneath
+  // still said `_is_admin_of`. That is right for the EDIT path -- and it
+  // silently broke this one.
+  //
+  // ensureTenantBootstrap fires this once per session from the
+  // app-provider, through the cookie-scoped client, so RLS applies with
+  // whichever admin happened to open the app first. On a brand-new
+  // tenant whose first visitor is an employee admin, the insert is
+  // refused with "new row violates row-level security policy",
+  // Promise.allSettled swallows it, and the tenant is left with no rows
+  // at all -- which is the very state this function exists to prevent.
+  //
+  // The seed is not a price decision: the values are the constants in
+  // this repo, the tenant comes from the session, and it runs only when
+  // the tenant has none. So it writes as the service role, and setting a
+  // price stays the owner's.
+  const admin = await createAdminClient();
+  const { error } = await admin.from("ad_account_types").insert(rows);
+  if (error) return { ok: false, error: safeErrorMessage(error) };
   return { ok: true, data: { created: rows.length } };
 }
 

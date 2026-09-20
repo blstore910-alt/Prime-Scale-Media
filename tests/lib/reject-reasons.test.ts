@@ -27,7 +27,7 @@ test("no template names a supplier, in any wording", () => {
 });
 
 test("every context has templates and every template has both halves", () => {
-  for (const ctx of ["wallet_topup", "account_topup", "account_request"] as const) {
+  for (const ctx of ["wallet_topup", "account_topup", "account_request", "withdrawal"] as const) {
     const list = rejectTemplates(ctx);
     assert.ok(list.length >= 4, `${ctx} has only ${list.length}`);
     for (const t of list) {
@@ -42,7 +42,7 @@ test("every context has templates and every template has both halves", () => {
 });
 
 test("short labels are unique inside a context, so two chips cannot look alike", () => {
-  for (const ctx of ["wallet_topup", "account_topup", "account_request"] as const) {
+  for (const ctx of ["wallet_topup", "account_topup", "account_request", "withdrawal"] as const) {
     const shorts = rejectTemplates(ctx).map((t) => t.short);
     assert.equal(new Set(shorts).size, shorts.length, ctx);
   }

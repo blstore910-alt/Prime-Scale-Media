@@ -507,7 +507,14 @@ export default function NotificationsPage() {
         onConfirm={() => {
           setCleanupOpen(false);
           deleteRead.mutate(undefined, {
-            onSuccess: () => toast.success("Old read notifications cleaned"),
+            // The count, not a claim. This said "cleaned" over a delete
+            // that RLS silently matched no rows for, every single time.
+            onSuccess: (gone) =>
+              gone > 0
+                ? toast.success(
+                    `${gone} old read notification${gone === 1 ? "" : "s"} deleted`,
+                  )
+                : toast.success("Nothing older than 30 days to clear"),
             onError: (err) =>
               toast.error("Cleanup failed", { description: err.message }),
           });

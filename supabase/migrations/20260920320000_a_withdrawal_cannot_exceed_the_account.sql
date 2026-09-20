@@ -62,6 +62,16 @@ begin
     return new;
   end if;
 
+  -- De service-role en cron gaan er doorheen. Dit stond in de kop van dit
+  -- bestand als belofte en zat NIET in de body: een correctie met de hand
+  -- door de eigenaar in de SQL-editor werd geweigerd met 23514, precies
+  -- de ene weg die open moest blijven. _fee_is_the_owners uit dezelfde
+  -- avond draagt deze regel wel; hier was alleen het commentaar
+  -- overgenomen.
+  if auth.uid() is null then
+    return new;
+  end if;
+
   -- Een gesloten account geeft niets terug. Dezelfde twee statussen die
   -- de actie weigert, zodat scherm en database het eens zijn.
   select lower(coalesce(a.status, '')) into v_status

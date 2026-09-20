@@ -2,10 +2,17 @@ import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+// ── NO IDS, BECAUSE NONE ARE SENT ───────────────────────────────────
+//
+// advertiser_id, tenant_id and email used to sit in this type. The RPC
+// below takes none of the three -- it derives all of them from
+// auth.uid() -- so they were accepted, spread into the object at the
+// call site, and silently dropped. A type that names an id reads as a
+// promise that the id matters, and the next person to touch the form
+// has to open the RPC to find out that it does not. Worse: it reads as
+// if the client chooses the advertiser, which is exactly the shape this
+// codebase is trying not to have.
 interface CreateAdAccountRequestPayload {
-  advertiser_id: string | null;
-  tenant_id: string;
-  email: string;
   platform: string;
   currency: string;
   timezone: string;

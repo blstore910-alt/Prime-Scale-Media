@@ -19,7 +19,8 @@
 export type RejectContext =
   | "wallet_topup"
   | "account_topup"
-  | "account_request";
+  | "account_request"
+  | "withdrawal";
 
 export interface RejectTemplate {
   /** The chip's word. Short enough for a row of five on a phone. */
@@ -97,10 +98,42 @@ const ACCOUNT_REQUEST: RejectTemplate[] = [
   },
 ];
 
+// ── THE ONE THAT MOVES MONEY BACK ───────────────────────────────────
+//
+// /withdrawals had no reason field at all: the confirm dialog called
+// `reject.mutate({ id })` and the optional reason was never collected,
+// so every refusal reached the RPC as null and the customer's
+// notification said nothing but "no". The three sibling reject flows
+// all demand a reason. The one where the customer is asking for their
+// own money back was the one that did not.
+const WITHDRAWAL: RejectTemplate[] = [
+  {
+    short: "Still spending",
+    text: "This ad account is still running campaigns, so the amount you asked back is not free to return yet. Pause the account, or ask for a smaller amount, and we will process it.",
+  },
+  {
+    short: "More than is on it",
+    text: "The amount you asked back is more than this ad account currently holds. Please request an amount up to the balance shown on the account.",
+  },
+  {
+    short: "Account under review",
+    text: "This ad account is under review at the moment, so nothing can be moved off it. We will let you know as soon as that is finished.",
+  },
+  {
+    short: "Bank details missing",
+    text: "We need your company and bank details on file before money can be returned. Please complete them under Settings and request this again.",
+  },
+  {
+    short: "Duplicate",
+    text: "A request for the same amount on this ad account is already in progress, so this one has been refused rather than returning it twice.",
+  },
+];
+
 const BY_CONTEXT: Record<RejectContext, RejectTemplate[]> = {
   wallet_topup: WALLET_TOPUP,
   account_topup: ACCOUNT_TOPUP,
   account_request: ACCOUNT_REQUEST,
+  withdrawal: WITHDRAWAL,
 };
 
 export function rejectTemplates(ctx: RejectContext): RejectTemplate[] {

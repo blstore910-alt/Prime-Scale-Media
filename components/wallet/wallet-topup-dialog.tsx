@@ -437,6 +437,31 @@ export default function WalletTopupDialog({
   useEffect(() => {
     if (!open) return;
     setCurrency(initialCurrency === "USD" ? "USD" : "EUR");
+    // ── AND EVERYTHING ELSE THAT MUST NOT CARRY OVER ───────────────
+    //
+    // The close-timer below resets the rest 300ms after closing, and
+    // its clearTimeout -- correctly added to stop a stale timer
+    // overwriting a fresh open -- also cancels it on a fast reopen. So
+    // after the fix, a close-and-reopen inside 300ms did NO reset at
+    // all: the dialog came back on the CONFIRMATION step, with the
+    // previous currency's bank details and the previous slip still
+    // attached, while `currency` above had switched. That is a EUR slip
+    // filed against a USD claim -- the same incident, arrived at from
+    // the other side.
+    //
+    // Opening is the moment these are known, so they are set here,
+    // synchronously. The typed amount is deliberately NOT cleared: the
+    // draft hook exists to keep it, and losing it was the complaint
+    // that put the 300ms timer here in the first place.
+    setStep(STEPS.SELECTION);
+    setBankGroup("turlit");
+    setTransferCurrency("EUR");
+    setPaymentSlipUrl(null);
+    setPaymentSlipPreview(null);
+    setPreviewSrc(null);
+    setPaymentSlipError(null);
+    setSlipName(null);
+    setIsUploadingSlip(false);
   }, [open, initialCurrency]);
 
   // ── AN UNCANCELLED TIMER OUTLIVES THE CLOSE THAT STARTED IT ────────
@@ -1071,7 +1096,25 @@ export default function WalletTopupDialog({
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
-                  <Button className="flex-1" onClick={handleNextStep}>
+                  {/* ── AND THE GATE, NOT ONLY THE WARNING ──────────
+                      The amber panel above says "Do NOT send the money
+                      yet" and then this button sat live three lines
+                      under it. A customer who read it as advice walked
+                      straight on, uploaded a slip, and filed a
+                      wallet_topups row whose reference_no is NULL --
+                      exactly the unmatchable deposit the warning exists
+                      to prevent, and 238 of the 258 deposits on this
+                      database are already in that state. */}
+                  <Button
+                    className="flex-1"
+                    onClick={handleNextStep}
+                    disabled={!formatPaymentReference(clientCode, referenceNo)}
+                    title={
+                      formatPaymentReference(clientCode, referenceNo)
+                        ? undefined
+                        : "We have no reference for this transfer yet — reload the page before sending anything."
+                    }
+                  >
                     I have made the transfer
                   </Button>
                 </div>

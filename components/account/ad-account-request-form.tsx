@@ -418,8 +418,9 @@ export default function AdAccountRequestForm({
       return;
     }
 
-    // Get advertiser_id from profile
-    const advertiser_id = profile.advertiser?.[0]?.id || null;
+    // No advertiser id is read here any more: ad_account_request_create_paid
+    // derives the advertiser, the tenant and the email from auth.uid(),
+    // and took the three this form used to send only to drop them.
 
     // Build metadata object based on platform
     let metadata: Record<string, unknown> = {};
@@ -443,9 +444,6 @@ export default function AdAccountRequestForm({
 
     mutate(
       {
-        advertiser_id,
-        tenant_id: profile.tenant_id,
-        email: profile.email,
         platform: values.platform,
         currency: values.currency,
         timezone: values.timezone,

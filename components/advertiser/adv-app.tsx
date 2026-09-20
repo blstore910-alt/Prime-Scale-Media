@@ -2223,6 +2223,16 @@ export default function AdvertiserApp() {
         tabIndex={0}
         onClick={() => openDetails(a.id)}
         onKeyDown={(e) => {
+          // ── ONLY WHEN THE CARD ITSELF HAS FOCUS ─────────────────
+          //
+          // A keydown on the inner "Top up" / "Details" button bubbles
+          // up to here. Without this test, preventDefault() swallowed
+          // that button's own activation and opened the details sheet
+          // instead -- so Top up became unreachable by keyboard on
+          // every unlocked account, on the card that had just been
+          // made keyboard-reachable. The inner buttons stop click
+          // propagation, not keydown.
+          if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             openDetails(a.id);
