@@ -256,3 +256,175 @@ export async function enqueueSupplierTopupPush(
     return { enqueued: false, reason: `enqueue threw: ${safeErrorMessage(err)}` };
   }
 }
+
+/**
+ * Tell the supplier to take money OFF an ad account.
+ *
+ * ── THE MONEY EXISTED TWICE ──────────────────────────────────────────
+ *
+ * Approving a withdrawal credits the customer's wallet and returns.
+ * The worker has had a complete `push_withdraw` handler all along
+ * (lib/integrations/worker.ts) and it is in MONEY_OPERATIONS — and
+ * nothing anywhere enqueued one. Every other money hop calls its
+ * enqueue; this one had none to call.
+ *
+ * So: $5,000 sits on a supplier account, the customer withdraws it, an
+ * admin approves. Wallet +$5,000 — and the supplier account still holds
+ * $5,000. Then releaseSupplierAdAccount computes funded = top-ups minus
+ * approved withdrawals = 0, passes, and hands the row to the next
+ * customer with five thousand dollars on it. No screen compares the
+ * app's figure to the supplier's, so nothing shows the gap.
+ *
+ * Same shape as enqueueSupplierTopupPush deliberately, including the
+ * refusals: an account that is not supplier-managed, or whose currency
+ * is not USD, is done by hand. Returning `enqueued: false` is the
+ * caller's cue to say so — the money has already moved on our side.
+ */
+export async function enqueueSupplierWithdrawPush(
+  supabase: Pick<SupabaseClient, "from">,
+  params: { withdrawalId: string; tenantId: string },
+  env: Record<string, string | undefined> = process.env,
+): Promise<EnqueueResult> {
+  const gate = autoPushGate(env);
+  if (!gate.enabled) {
+    return { enqueued: false, reason: gate.reason, heldByGate: true };
+  }
+
+  try {
+    const { data: wd, error: wdErr } = await supabase
+      .from("ad_account_withdrawals")
+      .select("id, tenant_id, ad_account_id, status, currency, amount")
+      .eq("id", params.withdrawalId)
+      .maybeSingle();
+
+    if (wdErr) {
+      return {
+        enqueued: false,
+        reason: `withdrawal read failed: ${safeErrorMessage(wdErr)}`,
+      };
+    }
+    if (!wd) return { enqueued: false, reason: "withdrawal not found" };
+    if (String(wd.tenant_id) !== String(params.tenantId)) {
+      return { enqueued: false, reason: "withdrawal belongs to another tenant" };
+    }
+    if (String(wd.status ?? "") !== "approved") {
+      return {
+        enqueued: false,
+        reason: `withdrawal is ${wd.status ?? "unknown"}, not approved`,
+      };
+    }
+
+    const amount = Number(wd.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { enqueued: false, reason: "amount is not a positive number" };
+    }
+    const amountCents = Math.round(amount * 100);
+
+    const { data: pool, error: poolErr } = await supabase
+      .from("supplier_ad_accounts")
+      .select("external_id, provider, currency")
+      .eq("ad_account_id", wd.ad_account_id)
+      .eq("provider", "supplier1")
+      .maybeSingle();
+
+    if (poolErr) {
+      return {
+        enqueued: false,
+        reason: `pool read failed: ${safeErrorMessage(poolErr)}`,
+      };
+    }
+    if (!pool?.external_id) {
+      return {
+        enqueued: false,
+        reason:
+          "ad account is not supplier-managed (manual account) — take it off by hand",
+      };
+    }
+
+    // An ad-account balance is USD by construction, and 20260919100000
+    // forces the withdrawal currency to USD by trigger — so these agree
+    // by design. The check is here anyway: a mismatch means one of those
+    // two assumptions has moved, and guessing at the supplier's expense
+    // is not recoverable.
+    const accountCurrency = String(pool.currency || "").toUpperCase();
+    const wdCurrency = String(wd.currency || "").toUpperCase();
+    if (accountCurrency !== "USD" || wdCurrency !== "USD") {
+      return {
+        enqueued: false,
+        reason: `withdrawal is ${wdCurrency || "unknown"} and the ad account is ${
+          accountCurrency || "unknown"
+        } — only USD can be pushed safely, take it off by hand`,
+      };
+    }
+
+    const idempotencyKey = `withdraw:${wd.id}`;
+    const { data: job, error: jobErr } = await supabase
+      .from("integration_jobs")
+      .insert({
+        tenant_id: params.tenantId,
+        provider: "supplier1",
+        operation: "push_withdraw",
+        status: "pending",
+        idempotency_key: idempotencyKey,
+        payload: {
+          external_ad_account_id: pool.external_id,
+          amount_cents: amountCents,
+          currency: accountCurrency,
+          withdrawal_id: wd.id,
+          ad_account_id: wd.ad_account_id,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (jobErr) {
+      if ((jobErr as { code?: string }).code === UNIQUE_VIOLATION) {
+        // Same reasoning as the top-up push: a FAILED job still holds
+        // the key, and nothing resets one. Read the row that owns it and
+        // say which case this is rather than reporting a tick.
+        const { data: existing, error: readErr } = await supabase
+          .from("integration_jobs")
+          .select("id, status")
+          .eq("provider", "supplier1")
+          .eq("operation", "push_withdraw")
+          .eq("idempotency_key", idempotencyKey)
+          .maybeSingle();
+        if (readErr) {
+          return {
+            enqueued: false,
+            reason:
+              "we could not check whether this withdrawal was already sent to the supplier - take it off by hand",
+          };
+        }
+        const prior = existing as { id: string; status?: string } | null;
+        if (prior && String(prior.status ?? "") === "failed") {
+          const { error: resetErr } = await supabase
+            .from("integration_jobs")
+            .update({ status: "pending", attempts: 0, last_error: null })
+            .eq("id", prior.id);
+          if (resetErr) {
+            return {
+              enqueued: false,
+              reason:
+                "the previous push for this withdrawal failed and could not be requeued - take it off by hand",
+            };
+          }
+          return {
+            enqueued: true,
+            reason: "requeued (the previous push had failed)",
+          };
+        }
+        return { enqueued: true, reason: "already queued (idempotent)" };
+      }
+      return {
+        enqueued: false,
+        reason: `queue insert failed: ${safeErrorMessage(jobErr)}`,
+      };
+    }
+
+    return { enqueued: true, reason: "queued", jobId: job.id };
+  } catch (err) {
+    // Belt: the wallet credit already happened. Swallow and report.
+    return { enqueued: false, reason: `enqueue threw: ${safeErrorMessage(err)}` };
+  }
+}

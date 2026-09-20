@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { pageAllRows, pageAllRowsTolerant } from "@/lib/page-all-rows";
+import { enqueueSupplierWithdrawPush } from "@/lib/integrations/enqueue";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { resolveAdminContext, resolveUserContext } from "./_shared";
@@ -11,7 +12,10 @@ import {
 } from "@/lib/pure-account-status";
 
 type ActionResult<T = null> =
-  | { ok: true; data: T }
+  // `warning` is a success that came with something the caller has to be
+  // told — here: the wallet was credited but the supplier was not told
+  // to take the money off the ad account. Surfaced by toastResult().
+  | { ok: true; data: T; warning?: string }
   | { ok: false; error: string };
 
 // Per-user throttle for a customer-initiated financial request.
@@ -374,7 +378,32 @@ export async function approveAdAccountWithdrawal(
     p_withdrawal_id: withdrawalId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
-  return { ok: true, data: null };
+
+  // ── AND TELL THE SUPPLIER TO TAKE IT OFF ──────────────────────────
+  //
+  // The wallet has just been credited. Until now nothing asked the
+  // supplier to remove the same money from the ad account, so it
+  // existed in both places: the customer could spend it from the wallet
+  // AND the account still held it, and releasing that account back to
+  // the pool handed the balance to the next customer — the release
+  // guard computes funded from OUR rows, which now say zero.
+  //
+  // Reported rather than thrown: the money has already moved on our
+  // side and refusing here would not put it back. A refusal (a manual
+  // account, a currency we will not convert, the push gate closed) is
+  // an instruction to the admin, not a failure of the approval.
+  const pushed = await enqueueSupplierWithdrawPush(supabase, {
+    withdrawalId,
+    tenantId: String(auth.ctx.profile.tenant_id),
+  });
+
+  return {
+    ok: true,
+    data: null,
+    warning: pushed.enqueued
+      ? undefined
+      : `The wallet is credited, but the supplier was not told to take it off the ad account: ${pushed.reason}. Do that by hand, or the money is on both.`,
+  };
 }
 
 // ─────────────────────────────────────────

@@ -265,9 +265,21 @@ function WithdrawalsSection() {
       setActingId(id);
       const res = await approveAdAccountWithdrawal(id);
       if (!res.ok) throw new Error(res.error);
+      return res.warning ?? null;
     },
-    onSuccess: () => {
+    onSuccess: (warning) => {
       toast.success("Withdrawal approved — wallet credited");
+      // The supplier side can refuse for reasons that are nobody's
+      // fault — a manual account, a currency we will not convert, the
+      // push gate closed. The wallet is credited either way, so this
+      // is the admin's instruction to take the money off the ad
+      // account by hand. Long, because it is an action, not a notice.
+      if (warning) {
+        toast.warning("Take it off the ad account by hand", {
+          description: warning,
+          duration: 20000,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
