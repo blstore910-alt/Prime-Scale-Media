@@ -31,6 +31,7 @@ import { formatPaymentReference } from "@/lib/payment-reference";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
+import { adjustWalletTopupAmount } from "@/actions/wise-actions";
 
 // fromNow() is a plugin, not a built-in — without this it throws.
 dayjs.extend(relativeTime);
@@ -1488,11 +1489,17 @@ function ManualMatch({
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
+  const [correctingBusy, setCorrectingBusy] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState(
+    "The bank sent less than was claimed — an intermediary fee was deducted in transit.",
+  );
 
   const {
     data: candidates = [],
     isLoading,
     isError: candidatesError,
+    refetch: refetchCandidates,
   } = useQuery({
     queryKey: ["wise-match-candidates", transferId, tenantId],
     enabled: open && !!tenantId,
@@ -1548,6 +1555,13 @@ function ManualMatch({
       }>;
     },
   });
+
+  // How far the chosen claim is from what the bank actually sent.
+  const pickedGap = (() => {
+    const c = candidates.find((x) => x.id === picked);
+    if (!c) return 0;
+    return Math.abs(Number(c.amount ?? 0) - Number(amountCents) / 100);
+  })();
 
   // ASK FIRST, like the Confirm & credit button on this same card.
   //
@@ -1688,6 +1702,26 @@ function ManualMatch({
         >
           Cancel
         </button>
+        {/* ── CORRECT THE CLAIM TO WHAT ACTUALLY ARRIVED ───────────
+            Crediting a mismatch credits the CLAIM's figure, so a EUR
+            630 claim against a EUR 618 deposit hands the customer EUR
+            12 that never arrived. The honest repair is to set the claim
+            to the received amount first -- then the exact-match path
+            credits the true figure, and the reason is kept on the
+            record where the customer can read it. */}
+        {picked && pickedGap > 0.005 ? (
+          <button
+            className="btn ghost sm"
+            onClick={() => setCorrecting(true)}
+            disabled={saving || busy || correctingBusy}
+          >
+            {correctingBusy
+              ? "…"
+              : `Set the claim to ${String(currency)} ${(
+                  Number(amountCents) / 100
+                ).toFixed(2)}`}
+          </button>
+        ) : null}
         {candidates.length > 0 && (
           <button
             className="btn sm"
@@ -1698,6 +1732,70 @@ function ManualMatch({
           </button>
         )}
       </div>
+
+      <ConfirmModal
+        open={correcting}
+        onOpenChange={(next) => {
+          if (!next && !correctingBusy) setCorrecting(false);
+        }}
+        title="Correct this claim to what arrived?"
+        lead="The customer asked us to credit one figure and the bank sent another. This sets their claim to the amount actually received, so crediting it hands them what is really there. The reason is kept on the record and the customer can read it."
+        cta="Yes, correct it"
+        busy={correctingBusy}
+        busyLabel="Correcting…"
+        disabled={correctionReason.trim().length < 3}
+        onConfirm={async () => {
+          const c = candidates.find((x) => x.id === picked);
+          if (!c) return;
+          setCorrectingBusy(true);
+          try {
+            const res = await adjustWalletTopupAmount(
+              c.id,
+              Number(amountCents) / 100,
+              correctionReason.trim(),
+            );
+            if (!res.ok) throw new Error(res.error);
+            toast.success("Claim corrected", {
+              description: "It now matches the deposit, so crediting it hands over the real figure.",
+            });
+            setCorrecting(false);
+            await refetchCandidates();
+          } catch (e) {
+            toast.error("Couldn't correct it", {
+              description: e instanceof Error ? e.message : undefined,
+            });
+          } finally {
+            setCorrectingBusy(false);
+          }
+        }}
+      >
+        <ConfirmFact
+          label="They claimed"
+          value={`${String(currency)} ${Number(
+            candidates.find((x) => x.id === picked)?.amount ?? 0,
+          ).toFixed(2)}`}
+        />
+        <ConfirmFact
+          label="The bank sent"
+          value={`${String(currency)} ${(Number(amountCents) / 100).toFixed(2)}`}
+          strong
+        />
+        <div className="grid gap-2" style={{ marginTop: 10 }}>
+          <label
+            htmlFor="wise-correction-reason"
+            style={{ fontSize: ".8rem", fontWeight: 700 }}
+          >
+            Why is it different?
+          </label>
+          <textarea
+            id="wise-correction-reason"
+            rows={3}
+            className="w-full rounded-md border bg-background p-2 text-sm"
+            value={correctionReason}
+            onChange={(e) => setCorrectionReason(e.target.value)}
+          />
+        </div>
+      </ConfirmModal>
 
       <ConfirmModal
         open={confirming}
