@@ -55,6 +55,7 @@ import AccountMinTopupDialog from "./account-min-topup-dialog";
 import useUpdateAccount from "./use-update-account";
 import { useAccountSpend } from "@/hooks/use-account-spend";
 import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
+import { CopyText } from "@/components/ui/copy-text";
 import { adAccountStatusView } from "@/lib/ad-account-status";
 
 // Admin Ad Accounts monolith, ported to the mockup look (.psmapp shell,
@@ -874,11 +875,32 @@ function PsmAdminAccountRow({
 
   return (
     <tr onClick={handleRowClick} style={{ cursor: "pointer" }}>
-      <td data-label="Client Code" className="mono">{account.advertiser?.tenant_client_code || "—"}</td>
+      <td data-label="Client Code" className="mono">
+        <CopyText
+          value={account.advertiser?.tenant_client_code}
+          what="PSM number"
+          mono
+        />
+      </td>
+      {/* ── THE TWO THINGS THAT GET RETYPED ────────────────────────
+          The account name and the BM id are what an admin carries
+          into a supplier's dashboard, character for character, and
+          one wrong character funds somebody else's account. Both
+          copy on click. The BM id was on no grid at all -- it lived
+          in a detail sheet two clicks away -- so it was read off a
+          screen and typed from memory. */}
       <td data-label="Account Name" className="clip">
-        <span style={{ fontWeight: 600 }} title={account.name}>
-          {account.name}
-        </span>
+        <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+          <span style={{ fontWeight: 600 }}>
+            <CopyText value={account.name} what="account name" />
+          </span>
+          {account.bm_id ? (
+            <span style={{ fontSize: ".72rem", color: "var(--faint)" }}>
+              BM{" "}
+              <CopyText value={String(account.bm_id)} what="BM ID" mono />
+            </span>
+          ) : null}
+        </div>
       </td>
       {/* First name only. A list cell is for recognising someone at a
           glance, and a full name pushed the two-up card wider than the

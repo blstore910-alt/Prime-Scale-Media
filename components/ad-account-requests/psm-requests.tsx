@@ -1,6 +1,7 @@
 "use client";
 
 import { PLATFORMS } from "@/lib/constants";
+import { CopyText } from "@/components/ui/copy-text";
 import { platformFamily, platformLabel } from "@/lib/pure-platform-badge";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
@@ -302,7 +303,11 @@ export default function PsmRequests() {
                       letterSpacing: "-.01em",
                     }}
                   >
-                    {r.advertiser?.tenant_client_code || "No PSM number"}
+                    <CopyText
+                      value={r.advertiser?.tenant_client_code}
+                      label={r.advertiser?.tenant_client_code || "No PSM number"}
+                      what="PSM number"
+                    />
                   </div>
                   <div
                     style={{
@@ -334,6 +339,17 @@ export default function PsmRequests() {
                 }}
               >
                 <PlatformMark platform={r.platform} />
+                {/* THE CURRENCY THE ACCOUNT WILL BE IN. It is chosen on
+                    the request and cannot be changed afterwards, and it
+                    decides which beneficiary bank the customer is given
+                    for every top-up on that account -- so it belongs on
+                    the card an admin approves from, not only in the
+                    sheet behind it. */}
+                {r.currency ? (
+                  <span className="badge muted">
+                    {String(r.currency).toUpperCase()}
+                  </span>
+                ) : null}
                 <span style={{ color: "var(--faint)", fontSize: ".8rem" }}>
                   {dayjs(r.created_at).format("D MMM")}
                 </span>

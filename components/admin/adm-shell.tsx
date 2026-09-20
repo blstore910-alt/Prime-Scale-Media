@@ -84,6 +84,31 @@ export default function AdminShell({
   const { profile, isSuperAdmin } = useAppContext();
   const pathname = usePathname() ?? "/dashboard";
   const router = useRouter();
+
+  const onNotifications = pathname === "/notifications";
+  const BELL_RETURN = "psm:bell-return";
+  const toggleNotifications = () => {
+    if (onNotifications) {
+      let back = "";
+      try {
+        back = window.sessionStorage.getItem(BELL_RETURN) ?? "";
+      } catch {
+        back = "";
+      }
+      // Never bounce back to the screen we are already on.
+      router.push(back && back !== "/notifications" ? back : "/dashboard");
+      return;
+    }
+    try {
+      window.sessionStorage.setItem(
+        BELL_RETURN,
+        pathname + (window.location.search || ""),
+      );
+    } catch {
+      // A blocked store costs the return trip, not the bell.
+    }
+    router.push("/notifications");
+  };
   const pending = usePendingCounts();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -330,9 +355,29 @@ export default function AdminShell({
             <span className="tool st" style={{ cursor: "default" }}>
               {roleLabel}
             </span>
-            <Link className="tool ic-btn" href="/notifications" aria-label="Alerts">
+            {/* ── THE BELL GOES BOTH WAYS ────────────────────────────
+                It was a one-way Link. You are halfway through reviewing
+                a top-up, you check whether anything came in, and then
+                there is no way back except the browser button or
+                finding the screen again in the menu -- so the bell was
+                a thing you avoided pressing while working.
+                Pressing it again returns you to the exact screen you
+                left, query string included. sessionStorage rather than
+                router.back(), because back is the browser's history and
+                that is not the same thing: arrive on /notifications
+                from an email link and back leaves the app entirely.
+                Wrapped, because Safari in private mode throws on the
+                accessor itself rather than returning null. */}
+            <button
+              type="button"
+              className={"tool ic-btn" + (onNotifications ? " on" : "")}
+              onClick={toggleNotifications}
+              aria-label={onNotifications ? "Back to where you were" : "Alerts"}
+              title={onNotifications ? "Back" : "Alerts"}
+              aria-pressed={onNotifications}
+            >
               <Bell />
-            </Link>
+            </button>
             <div className="usermenu" ref={menuRef}>
               <button
                 className="tool ava-btn"

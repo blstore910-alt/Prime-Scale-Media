@@ -85,6 +85,34 @@ export const PSM_APP_CSS = `
 .psmapp .tool.ic-btn,.psmapp .tool.ava-btn{background:transparent;border:1px solid transparent}
 .psmapp .tool.ic-btn:hover,.psmapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
 .psmapp .tool.ic-btn{padding:7px 11px}
+/* The bell is a toggle now: lit while you are on the alerts screen, so
+   it is clear that pressing it again takes you back rather than
+   somewhere new. */
+.psmapp .tool.ic-btn.on{background:var(--primary-tint);border-color:var(--primary);color:var(--primary-600)}
+
+/* ── CLICK THE VALUE, IT COPIES ────────────────────────────────────
+   An ad-account name and a BM id get retyped into a supplier's
+   dashboard character for character. No copy icon: one per row is
+   twenty pieces of furniture in a table of twenty, and it puts the
+   target beside the thing you are looking at instead of on it. The
+   value is the button. A dotted underline is the only hint it needs;
+   the confirmation replaces nothing and shifts nothing, because a row
+   that jumps as you copy makes you doubt what you copied. */
+.psmapp .copytext{display:inline-flex;align-items:baseline;gap:6px;max-width:100%;
+  padding:0;border:0;background:none;font:inherit;color:inherit;text-align:left;
+  cursor:pointer;border-radius:5px}
+.psmapp .copytext .ct-v{min-width:0;overflow-wrap:anywhere;
+  border-bottom:1px dashed var(--line-2);transition:border-color .12s,color .12s}
+.psmapp .copytext.mono .ct-v{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
+  letter-spacing:.01em}
+.psmapp .copytext:hover .ct-v{border-bottom-color:var(--primary);color:var(--primary-600)}
+.psmapp .copytext:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.psmapp .copytext .ct-f{flex:0 0 auto;font-size:.66rem;font-weight:700;
+  letter-spacing:.03em;color:var(--win);opacity:0;transition:opacity .12s}
+.psmapp .copytext.done .ct-f{opacity:1}
+.psmapp .copytext.done .ct-v{border-bottom-color:var(--win);color:var(--win)}
+.psmapp .copytext.failed .ct-f{opacity:1;color:var(--danger)}
+.psmapp .copytext.failed .ct-v{border-bottom-color:var(--danger)}
 .psmapp .tool.ava-btn{padding:4px 8px 4px 4px}
 .psmapp .tool.ava-btn .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:none;position:relative;overflow:hidden}
 .psmapp .tool.ava-btn .avatar svg{width:100%;height:100%;display:block}
