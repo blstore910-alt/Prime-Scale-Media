@@ -15,8 +15,22 @@ import test from "node:test";
 // Tabs, newlines and carriage returns are ordinary. Nothing else below
 // 0x20 belongs in this codebase's source.
 
-const ROOTS = ["app", "actions", "components", "hooks", "lib", "tests"];
-const EXTS = [".ts", ".tsx", ".js", ".mjs"];
+// Everything a person edits by hand. `supabase` is here for the .sql
+// files in particular: a migration is pasted into an editor by hand,
+// and one grep treats as binary drops out of every sweep that greps —
+// which is most of them.
+const ROOTS = [
+  "app",
+  "actions",
+  "components",
+  "context",
+  "hooks",
+  "lib",
+  "scripts",
+  "supabase",
+  "tests",
+];
+const EXTS = [".ts", ".tsx", ".js", ".mjs", ".sql"];
 const ALLOWED = new Set([9, 10, 13]); // tab, LF, CR
 
 function walk(dir: string, out: string[] = []): string[] {

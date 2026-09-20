@@ -471,8 +471,21 @@ export default function InviteForm() {
               />
             </div>
 
-            {/* Plan / community / referrer (advertiser only) */}
-            {role === "advertiser" && (
+            {/* ── PRICING IS THE OWNER'S, ON THE SCREEN TOO ──────────
+                The server drops these fields for a non-owner rather
+                than refusing — which is the right call for an invite,
+                but it left the three fee inputs fully editable by an
+                employee admin. They type EUR 200/mo, get "Invitation
+                email sent", the invitation stores monthly_fee: null,
+                create_subscription_from_invite sees v_fee <= 0 and
+                returns, and the customer is onboarded FREE, for ever,
+                with nothing reporting it. included_ad_accounts: null
+                also bills them EUR 50 per extra account from day one.
+
+                Same class as the four controls on /subscriptions that
+                were hidden for this reason: a control that can only
+                ever fail is not a control. */}
+            {role === "advertiser" && isSuperAdmin && (
               <div className="rounded-md border p-3 space-y-3">
                 {/* Plan (tier) */}
                 <div>

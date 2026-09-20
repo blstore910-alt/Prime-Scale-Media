@@ -1,4 +1,24 @@
 -- =====================================================================
+-- SUPERSEDED BY 20260920140000 -- DO NOT RUN THIS AGAIN
+-- =====================================================================
+-- This adds supplier_label / supplier_url to ad_account_types, whose
+-- read policy grants SELECT to ANY member of the tenant. That is a
+-- customer-readable row, so those columns were a leak: any advertiser
+-- could GET /rest/v1/ad_account_types?select=* and read the supplier's
+-- name and dashboard URL. A supplier name WAS entered on production in
+-- the hours this was live.
+--
+-- 20260920140000 moves the fields to ad_account_type_suppliers, which
+-- is admin-only, and DROPS them from this table. Running this file
+-- again -- for instance by replaying the folder in filename order --
+-- re-adds them and re-opens the leak, and its report below would print
+-- OK while doing so.
+--
+-- The app at HEAD reads only ad_account_type_suppliers. This file is
+-- kept for the record.
+-- =====================================================================
+
+-- =====================================================================
 -- ad_account_types.supplier_label / supplier_url
 --    where an admin goes to do a top-up by hand
 -- =====================================================================

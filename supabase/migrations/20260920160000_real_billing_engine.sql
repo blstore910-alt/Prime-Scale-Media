@@ -1,4 +1,40 @@
 -- =====================================================================
+-- SUPERSEDED. Do not run the function half of this file again.
+-- =====================================================================
+-- Read off production on 2026-09-20, AFTER this was written and pasted:
+--
+--   * the billing cron is a VERCEL cron (vercel.json, 03:00 daily) that
+--     calls /api/cron/subscription-billing, which calls
+--     subscription_billing_run() -- NOT process_recurring_subscriptions;
+--   * pg_cron carries no billing job at all (only backup, rate-limit
+--     prune and audit stats), so process_recurring_subscriptions is
+--     called by nothing;
+--   * subscription_billing_run already does everything the section
+--     below was written to add, and more: it generates for active and
+--     past_due only, honours subscription_waiver and
+--     subscription_discount perks, sets currency, subscription_id,
+--     period_start and due_date, collects after the grace, marks
+--     past_due with a notification, skips deactivated customers, and
+--     raises an integration failure when a customer has no company to
+--     invoice.
+--
+-- So the function this file rewrites is dead code, and the faults it
+-- claims to fix do not exist in the engine that runs. Rewriting it did
+-- no harm -- nothing calls it -- but it fixed nothing either.
+--
+-- WHAT WAS REAL, and has been applied: the backfill in section 0. It
+-- filled subscription_id, currency, period_start and due_date on
+-- invoices the OLD engine had left null, which is exactly what
+-- subscription_billing_run writes for every new one. That makes the
+-- legacy rows consistent rather than invisible. It is safe to run
+-- again; it is idempotent and it leaves duplicates alone.
+--
+-- Anything that needs fixing in the live engine has to be done against
+-- subscription_billing_run. This file is kept for the backfill and for
+-- the record of how the mistake was found.
+-- =====================================================================
+
+-- =====================================================================
 -- process_recurring_subscriptions — what the app has always said it does
 -- =====================================================================
 -- Read off production on 2026-09-20, the live function:

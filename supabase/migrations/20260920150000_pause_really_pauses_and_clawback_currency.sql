@@ -131,6 +131,15 @@ revoke all on function public.subscription_resume_skips_paused_months(uuid)
 grant execute on function public.subscription_resume_skips_paused_months(uuid)
   to authenticated;
 
+-- ── 3. SUPERSEDED: this block targets a function nothing calls ───────
+-- The live billing cron calls subscription_billing_run(), not
+-- process_recurring_subscriptions (vercel.json, 03:00). And
+-- subscription_billing_run ALREADY excludes paused from both loops:
+-- it generates for ('active','past_due') and collects where status is
+-- not in ('cancelled','inactive','paused'). So this block is a no-op
+-- against the engine that runs, and its report line will read
+-- "NOT APPLIED" for a fault that does not exist. Left in place because
+-- it is harmless and idempotent; do not act on its verdict.
 -- ── 3. The billing run leaves a paused plan alone ────────────────────
 -- Both loops. GENERATE already filtered to active/past_due; AUTO-DEBIT
 -- did not, which is the hole. Rather than re-author the whole function

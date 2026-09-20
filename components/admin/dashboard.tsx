@@ -11,7 +11,6 @@ import {
   Coins,
   Download,
   FileText,
-  Gift,
   Receipt,
   RefreshCw,
   Server,
@@ -180,7 +179,7 @@ export default function AdminDashboard() {
     { href: "/invoices", icon: Receipt, ci: "g", label: "Invoices" },
     { href: "/subscriptions", icon: RefreshCw, ci: "b", label: "Subscriptions" },
     { href: "/wallets", icon: Wallet, ci: "t", label: "Wallets" },
-    { href: "/promotions", icon: Gift, ci: "p", label: "Promotions" },
+
   ];
 
   return (

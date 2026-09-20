@@ -856,10 +856,27 @@ export default function AdvertiserApp() {
             row: i,
           }) as WalletEvent,
       ),
-    // Only what actually left the wallet. A pending or rejected
-    // funding has not moved a cent.
+    // ── THE DEBIT IS IMMEDIATE, WHATEVER THE STATUS SAYS ────────────
+    //
+    // This filtered to `completed` under a comment claiming a pending
+    // funding "has not moved a cent". It has: the RPC takes the money
+    // out of the wallet at CREATION — use-create-account-topup says
+    // "The debit IS immediate" and the form says it "cannot be undone
+    // at all by the customer" — and the row then sits in the admin
+    // verify queue as `pending`, for hours or days.
+    //
+    // So the exact complaint this statement was extended to answer came
+    // straight back: balance drops by EUR 5,000, no line anywhere. A
+    // REJECTED one is worse — the money left and does not come back —
+    // and it was filtered out permanently.
+    //
+    // Everything that left is listed; the status is on the row so the
+    // customer can see where it is.
     ...(accountFundings ?? [])
-      .filter((t) => String(t.status ?? "").toLowerCase() === "completed")
+      .filter((t) => {
+        const st = String(t.status ?? "").toLowerCase();
+        return st !== "cancelled";
+      })
       .map(
         (t) =>
           ({ kind: "funding", id: t.id, at: t.created_at, row: t }) as WalletEvent,
@@ -2855,7 +2872,29 @@ export default function AdvertiserApp() {
                                 {money2(t.amount_received)}
                               </td>
                               <td data-label="Status" className="r">
-                                <span className="badge muted">Sent</span>
+                                {/* The money has left the wallet in every
+                                    one of these states. What differs is
+                                    where it IS: on the account, on its
+                                    way, or refused and owed back. */}
+                                <span
+                                  className={`badge ${
+                                    String(t.status ?? "").toLowerCase() ===
+                                    "completed"
+                                      ? "muted"
+                                      : String(t.status ?? "").toLowerCase() ===
+                                          "rejected"
+                                        ? "due"
+                                        : "pend"
+                                  }`}
+                                >
+                                  {String(t.status ?? "").toLowerCase() ===
+                                  "completed"
+                                    ? "On the account"
+                                    : String(t.status ?? "").toLowerCase() ===
+                                        "rejected"
+                                      ? "Refused"
+                                      : "On its way"}
+                                </span>
                               </td>
                             </tr>
                           );
