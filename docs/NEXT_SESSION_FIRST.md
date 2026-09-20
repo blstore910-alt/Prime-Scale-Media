@@ -148,24 +148,52 @@ is a fault)
 
 ---
 
-## 5. The percentage — count it, do not feel it
+## 5. Journeys — the only number that counts
 
-| track | how | 2026-09-20 evening |
-|---|---|---|
-| A. Screens | opened and seen WITH DATA, of 46 | **18 / 46** — every owner/admin destination walked in the pane tonight: dashboard, users, wallets, wallet-topups, top-ups, accounts, account-pool, ad-account-requests, subscriptions, invoices, withdrawals, commissions, affiliates, invites, promotions, reconciliation, audit, admins, plus 4 settings tabs (general, finance, plans, ad-account-types). Advertiser side was walked in an earlier session |
-| B. Findings | fixed / raised | **~40 / ~110** |
-| C. Numbers | of the 8 SQL checks, matched against the screen | **2 / 8** |
-| D. Journeys | J1–J13 end to end on production | **0 / 13** |
+The headline is journeys closed, out of 16 (see CLAUDE.md for the list).
+Screens opened and findings fixed are working notes.
 
-**Headline is the LOWEST, not the average: 0%.** D is zero because no
-journey has been walked end to end with real money. That is the number
-until it is not.
+**Closed: 0. In progress: A2 and A4.**
 
-Still to walk for A: settings/integrations, settings/banks,
-/activity-logs, /manual, /notifications, /profile, /help, and the
-advertiser + affiliate shells on this session.
+### A2 — wallet top-up (walked 2026-09-20, both roles)
 
----
+Filed EUR 300 as PSM0005 in the browser pane, verified it as the owner
+in Chrome. Every step matched:
+
+| | |
+|---|---|
+| dialog, all four transfer currencies | EUR 300 / USD 344 / GBP 258 minimum, right bank details per currency |
+| reference | `0005-0176936715`, on the claim and on the queue card |
+| customer, before verify | "EUR 300.00 awaiting verification", pending row in the activity table |
+| admin queue | PSM0005, EUR 300.00, "No bank deposit matched this yet" |
+| after verify | wallet EUR 300.00, activity row "Credited", queue empty |
+| **against SQL** | balance 300.00, sum of every movement 300.00, `approved_by` set. **To the cent.** |
+
+**Still open on A2:** the reject half has not been walked, so the
+reason reaching the customer is fixed but unproven.
+
+### A4 — fund an ad account (walked 2026-09-20, both roles)
+
+EUR 100 at 3% onto AA-PSM0005-EU-01. The customer's dialog and the
+server agreed exactly: EUR 100 out, EUR 3 fee, EUR 97 on the account,
+EUR 200 left. Verified through the new checklist; the card reads
+Completed.
+
+**Found and fixed while walking it:** the queue printed `$97.00` for
+EUR 97 on a euro account; the customer's dialog headlined a dollar
+conversion; every card in the queue was headed with the literal word
+"Advertiser"; the statement booked the funding twice (movement +
+receipt invoice); the customer was notified twice (a live trigger plus
+the server action).
+
+**Still open on A4:** the fixes above need one more look on production
+after the deploy, and the numbers have not been checked against SQL.
+
+### Two roles at once
+
+The built-in browser pane and Chrome have SEPARATE cookie jars; two
+tabs in one pane do NOT. Pane = the customer, Chrome = the owner. That
+is what makes any of this walkable; ask for the Chrome login once.
 
 ## 6. Open questions for the owner — these change the work
 
