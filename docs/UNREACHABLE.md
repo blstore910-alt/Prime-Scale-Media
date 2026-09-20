@@ -17,8 +17,29 @@ Regenerate the list with the script at the bottom.
 |---|---|
 | ~~`withdrawals/precharge-panel.tsx`~~ | **Wired 2026-09-17.** It lives on `/wallet-topups`, under the deposit panel — it advances wallet credit against a payment that has NOT cleared and settles when that payment is verified, so the admin doing it is already looking at that queue. It was briefly put on `/withdrawals` first, which was wrong: withdrawals is money leaving the system, this is money arriving early. |
 | `wallet/wallet-exchanges-table.tsx` | The wallet EXCHANGE history. Exchanges can be made (WalletExchangeDialog is live in the advertiser app) but the record of them is not shown anywhere. |
-| `settings/finance/fee-defaults.tsx` | Default fee settings. No route renders it; check against `/settings/ad-account-types`, which may have replaced it. |
+| `settings/finance/fee-defaults.tsx` | Default fee settings. **Confirmed dead on both ends, 2026-09-20.** No route renders the screen, AND its resolver `resolveFeePct` (`actions/fee-default-actions.ts:136`) has zero callers — `resolveEffectiveFeePct`, which decides what every customer is actually charged, never reads `fee_defaults` at all. So the table is written by nothing reachable and read by nothing. Before wiring it back, decide where it sits in the chain: today that chain is account fee → plan rate → the caller's fallback, and inserting a tenant default before the fallback WOULD change what some customers are charged. That is a pricing decision, not a port. |
 | `affiliate/affiliate-dashboard.tsx` | Possibly superseded by `affiliate/aff-app.tsx`. Confirm before deleting — the affiliate surface is the least-reviewed part of the app. |
+
+## Checked again 2026-09-20, and what changed
+
+A full transitive reachability walk from every `app/**` entrypoint — not
+"does anything import it", which is the test that produced the 31 above —
+counted **47** unreachable components. Three things worth carrying forward:
+
+- `topups/topups-table.tsx` is dead, and with it everything it alone mounts:
+  `topups/admin-topup-dialogs`, `topups/topup-row`, `topups/topup-card`,
+  `topups/advertiser-topup-card`. `/top-ups` renders `psm-verify-ad-topups`.
+  A fee-display fault was found in `admin-topup-dialogs` and deliberately NOT
+  fixed for that reason.
+- `docs/ROUTE_MAP.md` is stale: `/billing`, `/help`, `/referrals`,
+  `/organization`, `/onboard`, `/my-invites`, `/invite/*` and `/pwa` are
+  missing from it, and there is no `/system-status` route at all — that panel
+  lives inside `/dashboard` behind a super-admin `<details>`.
+- Two writers of `top_ups.is_deleted` exist, `topups/topup-row.tsx` and
+  `topups/topup-row-old.tsx`, and **both are unreachable**. The server
+  supports striking out a top-up and every report excludes struck-out rows,
+  so the capability is real and has no button. That is a missing feature,
+  not dead code.
 
 ## Superseded by a psm-* port — safe to delete once confirmed
 
