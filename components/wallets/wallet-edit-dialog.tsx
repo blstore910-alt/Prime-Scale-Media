@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { adminAdjustWalletBalances } from "@/actions/adjustment-actions";
 import { createClient } from "@/lib/supabase/client";
 import { WalletWithAdvertiser } from "@/lib/types/wallet";
 
@@ -96,6 +97,8 @@ export default function WalletEditDialog({
     usdDelta: number;
     eurDelta: number;
     reason: string;
+    expectedUsd: number;
+    expectedEur: number;
   } | null>(null);
 
   const {
@@ -141,16 +144,30 @@ export default function WalletEditDialog({
       usdDelta: number;
       eurDelta: number;
       reason: string;
+      expectedUsd: number;
+      expectedEur: number;
     }) => {
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("wallet_admin_adjust", {
-        p_wallet_id: vars.walletId,
-        p_usd_delta: vars.usdDelta,
-        p_eur_delta: vars.eurDelta,
-        p_reason: vars.reason,
+      // ── NOT .rpc() FROM HERE ────────────────────────────────────────
+      //
+      // wallet_admin_adjust only checks `role = 'admin'`, and PostgREST
+      // publishes it at /rest/v1/rpc/wallet_admin_adjust. Calling it from
+      // the browser meant every guard in this dialog -- owner-only, the
+      // right tenant, no negative result, the base still being the base --
+      // was advisory: one line in devtools skipped all four.
+      //
+      // The server action re-reads the wallet, so the balance the delta
+      // lands on is the database's, not the screen's, and it refuses if
+      // the base moved while this dialog was open.
+      const res = await adminAdjustWalletBalances({
+        walletId: vars.walletId,
+        usdDelta: vars.usdDelta,
+        eurDelta: vars.eurDelta,
+        reason: vars.reason,
+        expectedUsd: vars.expectedUsd,
+        expectedEur: vars.expectedEur,
       });
-      if (error) throw error;
-      return data;
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
     },
     onSuccess: (_data, vars) => {
       toast.success("Wallet balances updated successfully.");
@@ -199,6 +216,8 @@ export default function WalletEditDialog({
       usdDelta,
       eurDelta,
       reason: values.reason,
+      expectedUsd: currentUsd,
+      expectedEur: currentEur,
     });
   };
 

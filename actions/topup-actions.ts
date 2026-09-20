@@ -1487,3 +1487,84 @@ export async function notifyTopupRejected(
   });
   return { ok: true, data: null };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// rejectAdTopup
+//
+// Verify goes through verifyAdTopup: maintenance freeze, tenant guard,
+// a fee gate, and a re-read that refuses a row which is no longer
+// pending. Reject went STRAIGHT from the browser to
+// `top_up_admin_reject` — same queue, same row, same consequences for
+// the customer, none of the four.
+//
+// What that asymmetry costs:
+//
+//   * MAINTENANCE_MODE=true freezes verify and not reject, so during an
+//     incident the queue is half frozen — the worst of both.
+//   * Nothing re-read `status`. The dialog is dismissible; the row stays
+//     on screen reading pending; Reject is live again. The reject dialog
+//     has no second-confirmation step, so that is one click, and
+//     top_up_admin_reject is hand-authored on live — this repo cannot
+//     say whether IT re-checks.
+//   * The tenant was never compared server-side. The RPC's own check is
+//     unverifiable here for the same reason.
+//
+// Notifying the customer stays best-effort and stays AFTER the refusal,
+// exactly as it was: the rejection has happened, and failing now would
+// tell the admin it did not.
+// ─────────────────────────────────────────────────────────────────────
+export async function rejectAdTopup(
+  topupId: string,
+  reason: string,
+): Promise<ActionResult<null> & { code?: string }> {
+  if (typeof topupId !== "string" || !topupId) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const trimmed = typeof reason === "string" ? reason.trim() : "";
+  if (!trimmed) {
+    return { ok: false, error: "Give a reason — the customer is told it." };
+  }
+
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  const { data: row, error: readErr } = await supabase
+    .from("top_ups")
+    .select("id, tenant_id, status")
+    .eq("id", topupId)
+    .maybeSingle();
+  // A failed read is not an absent row. Saying "not found" over an
+  // error would send the admin looking for a top-up that is there.
+  if (readErr) return { ok: false, error: safeErrorMessage(readErr) };
+  if (!row) return { ok: false, error: "Top-up not found" };
+  if (row.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const status = String(row.status ?? "pending").toLowerCase();
+  if (status !== "pending") {
+    return {
+      ok: false,
+      error:
+        status === "completed"
+          ? "This top-up has already been verified and the account funded. Reload the queue."
+          : `This top-up is already ${status}. Reload the queue.`,
+      code: "conflict",
+    };
+  }
+
+  const { error } = await supabase.rpc("top_up_admin_reject", {
+    p_top_up_id: topupId,
+    p_reason: trimmed,
+  });
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+
+  try {
+    await notifyTopupRejected(topupId, trimmed);
+  } catch {
+    /* the refusal stands either way */
+  }
+
+  return { ok: true, data: null };
+}
