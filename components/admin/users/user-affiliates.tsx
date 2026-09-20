@@ -216,6 +216,8 @@ function AssignAffiliateDialog({
   isLoadingOptions: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const { isSuperAdmin } = useAppContext();
+  const isOwner = isSuperAdmin;
   const queryClient = useQueryClient();
   const form = useForm<AssignAffiliateValues>({
     defaultValues: {
@@ -287,7 +289,19 @@ function AssignAffiliateDialog({
     >
       <DialogTrigger asChild>
         <Button
-          disabled={isLoadingOptions || isPending || options.length === 0}
+          /* assignAffiliateToAdvertiser copies the commission terms onto
+             the link, so it is owner-only on the server. The sibling
+             Commission dialog in this same sheet already says so; this
+             one let an employee admin pick an affiliate, confirm, and
+             collect a refusal. */
+          disabled={
+            !isOwner || isLoadingOptions || isPending || options.length === 0
+          }
+          title={
+            isOwner
+              ? undefined
+              : "Only the account owner can name a customer's referrer, because it sets the commission."
+          }
         >
           {isLoadingOptions ? (
             <Loader2 className="animate-spin" />

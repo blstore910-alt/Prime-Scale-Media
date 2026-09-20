@@ -526,6 +526,7 @@ function AdvertiserRow({
   earningsError: boolean;
 }) {
   const { updateUserProfile, isPending } = useUpdateUserProfile();
+  const { isSuperAdmin } = useAppContext();
 
   const advertiser = profile.advertiser?.[0];
   const isActive = profile.status === "active";
@@ -690,12 +691,19 @@ function AdvertiserRow({
             )}
           </div>
         ) : advertiser ? (
-          <button
-            className="btn ghost sm"
-            onClick={stop(() => onCreateSubscription(advertiser.id))}
-          >
-            <Plus /> Subscription
-          </button>
+          /* createSubscriptionAsAdmin is owner-only on the server
+             ("Only the account owner can start, stop or price a
+             subscription"), and this page is requireAdmin — so for an
+             employee admin this opened a dialog, took a monthly figure,
+             and ended in a red toast. */
+          isSuperAdmin ? (
+            <button
+              className="btn ghost sm"
+              onClick={stop(() => onCreateSubscription(advertiser.id))}
+            >
+              <Plus /> Subscription
+            </button>
+          ) : null
         ) : isAffiliate ? (
           /* An affiliate has no advertiser record because an affiliate does
              not buy anything — that is the normal shape of the row, not a

@@ -410,16 +410,19 @@ export function DashboardStatsCards() {
                   what leaves for the ad accounts — the order the money
                   actually travels in. Wallet in and Exchanges were on no
                   tile at all before this. */}
+              {/* ── TWO OF THESE ARE OWNER-ONLY AT THE SOURCE ────────
+                  /api/stats/fees and /api/stats/affiliate-commissions
+                  are apiRequireOwner, so mounting them here gave every
+                  employee admin a dashboard with two tiles permanently
+                  reading "Failed to load" — correct that they cannot
+                  see the figures, wrong that they are asked to look at
+                  them. I added them to this grid tonight; they belong
+                  on the owner's. */}
               <WalletTopupsStatsCard period={period} dateRange={dateRange} />
               <TopupsStatsCard period={period} dateRange={dateRange} />
-              <FeesStatsCard period={period} dateRange={dateRange} />
               <WalletExchangesStatsCard period={period} dateRange={dateRange} />
               <SubscriptionsStatsCard period={period} dateRange={dateRange} />
               <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
-              <AffiliateCommissionsStatsCard
-                period={period}
-                dateRange={dateRange}
-              />
               <RegistrationsStatsCard period={period} dateRange={dateRange} />
             </div>
           </div>

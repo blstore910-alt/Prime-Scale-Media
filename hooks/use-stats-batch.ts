@@ -34,7 +34,12 @@ const PERIOD_DATASETS = [
   "registrations",
 ] as const;
 
-const ADMIN_DATASETS = PERIOD_DATASETS;
+// An employee admin sees six of the eight tiles: /api/stats/fees and
+// /api/stats/affiliate-commissions are apiRequireOwner at the source,
+// so asking for them here buys a refusal per slice.
+const ADMIN_DATASETS = PERIOD_DATASETS.filter(
+  (d) => d !== "affiliate-commissions",
+);
 
 const SUPER_ADMIN_DATASETS = ["summary", ...PERIOD_DATASETS] as const;
 

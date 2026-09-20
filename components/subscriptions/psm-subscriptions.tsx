@@ -236,9 +236,27 @@ export default function PsmSubscriptions() {
           ) : null}
         </div>
         <div className="pacts">
-          <button className="btn grad" onClick={() => setIsCreateOpen(true)}>
-            <Plus /> <span className="blab">New Subscription</span>
-          </button>
+          {/* ── A BUTTON THAT ALWAYS FAILS IS NOT A BUTTON ───────────
+              createSubscriptionAsAdmin and setSubscriptionStatus are
+              both owner-only on the server ("Only the account owner can
+              start, stop or price a subscription"), and this page is
+              requireAdmin. So an employee admin could press New
+              Subscription, read a confirmation naming the customer and
+              the monthly figure, confirm it — and get a red toast. Only
+              the Amount button was gated; the other four were not.
+
+              Hidden rather than disabled: a disabled control on a desk
+              screen reads as "not right now", and this is "not you,
+              ever". The note says which. */}
+          {isSuperAdmin ? (
+            <button className="btn grad" onClick={() => setIsCreateOpen(true)}>
+              <Plus /> <span className="blab">New Subscription</span>
+            </button>
+          ) : (
+            <span className="cap" style={{ alignSelf: "center" }}>
+              Plans are the owner&apos;s to start, price and stop.
+            </span>
+          )}
         </div>
       </div>
 
@@ -432,6 +450,9 @@ export default function PsmSubscriptions() {
                               <span className="alab">Invoices</span>
                             </Link>
                           )}
+                          {/* Same rule as the header button: the
+                              server refuses all four for a
+                              non-owner. */}
                           {isSuperAdmin && (
                             <button
                               className="btn ghost sm"
@@ -443,136 +464,140 @@ export default function PsmSubscriptions() {
                             </button>
                           )}
 
-                          {s.status === "inactive" && (
-                            <button
-                              className="btn sm"
-                              title="Activate"
-                              aria-label="Activate"
-                              onClick={() =>
-                                askStatus(s, "active", {
-                                  title: "Start billing this customer?",
-                                  lead: "It begins a recurring monthly charge. If this plan was paused or stopped, the billing run starts from its stored next-payment date and walks forward — so every month it was off is invoiced on the next pass and auto-debited from the wallet. Move the next payment date first if you do not want that.",
-                                  cta: "Yes, activate it",
-                                  done: "Subscription activated successfully.",
-                                })
-                              }
-                              disabled={pending}
-                            >
-                              {pending ? (
-                                <Loader2 className="animate-spin" />
-                              ) : (
-                                <PlayCircle />
-                              )}
-                              <span className="alab">Activate</span>
-                            </button>
-                          )}
-
-                          {/* PAST DUE GETS THE SAME CONTROLS AS ACTIVE.
-                              Dunning writes this status, the billing run
-                              keeps retrying the auto-debit every day while
-                              it holds — and the action row rendered
-                              buttons only for active, inactive and paused,
-                              so the one subscription the desk most needs to
-                              stop had no buttons at all. */}
-                          {(s.status === "active" ||
-                            s.status === "past_due") && (
+                          {isSuperAdmin && (
                             <>
-                              {/* titled: .alab is display:none below 420px and
-                                  then only the icon is left, so without this
-                                  the button has no accessible name at all. */}
+                            {s.status === "inactive" && (
                               <button
-                                className="btn ghost sm"
-                                title="Pause"
-                                aria-label="Pause"
+                                className="btn sm"
+                                title="Activate"
+                                aria-label="Activate"
                                 onClick={() =>
-                                askStatus(s, "paused", {
-                                  title: "Pause this subscription?",
-                                  // "Anything already unpaid stays unpaid"
-                                  // was false. The auto-debit pass filters
-                                  // on 'cancelled' alone, so an invoice
-                                  // already issued is still taken out of
-                                  // the customer's wallet on its due date —
-                                  // pausing stops NEW invoices, not the
-                                  // collection of old ones.
-                                  lead: "No new invoices are raised while it is paused. An invoice that has already been issued is still collected from their wallet on its due date — void it first if that is not what you want.",
-                                  cta: "Yes, pause it",
-                                  done: "Subscription paused successfully.",
-                                })
-                              }
+                                  askStatus(s, "active", {
+                                    title: "Start billing this customer?",
+                                    lead: "It begins a recurring monthly charge. If this plan was paused or stopped, the billing run starts from its stored next-payment date and walks forward — so every month it was off is invoiced on the next pass and auto-debited from the wallet. Move the next payment date first if you do not want that.",
+                                    cta: "Yes, activate it",
+                                    done: "Subscription activated successfully.",
+                                  })
+                                }
                                 disabled={pending}
                               >
                                 {pending ? (
                                   <Loader2 className="animate-spin" />
                                 ) : (
-                                  <PauseCircle />
+                                  <PlayCircle />
                                 )}
-                                <span className="alab">Pause</span>
+                                <span className="alab">Activate</span>
                               </button>
-                              <button
-                                className="btn ghost sm"
-                                title="Disable"
-                                aria-label="Disable"
-                                onClick={() =>
-                                askStatus(s, "inactive", {
-                                  title: "Stop this plan?",
-                                  // "It does not backfill" was false.
-                                  // next_payment_date is never moved, so on
-                                  // reactivation generation resumes from the
-                                  // stale date and walks forward through
-                                  // every month that was skipped, raising
-                                  // and auto-debiting each one. A plan off
-                                  // for three months is billed for three.
-                                  // ...AND IT REACTIVATES ITSELF. When
-                                  // that already-issued invoice IS
-                                  // collected, the paid-invoice trigger
-                                  // sets the subscription back to active
-                                  // and rolls the period forward — so
-                                  // "billing stops" is true until the
-                                  // first successful debit and false
-                                  // afterwards. Said out loud until the
-                                  // SQL is fixed.
-                                  lead: "No new invoice is raised. But an invoice already issued is still collected from the wallet on its due date — and when that collection succeeds the subscription currently switches itself back to active and carries on monthly. Check their open invoices first.",
-                                  cta: "Yes, stop it",
-                                  danger: true,
-                                  done: "Subscription disabled successfully.",
-                                })
-                              }
-                                disabled={pending}
-                                style={{
-                                  color: "var(--danger)",
-                                  borderColor: "var(--danger)",
-                                }}
-                              >
-                                {pending ? (
-                                  <Loader2 className="animate-spin" />
-                                ) : (
-                                  <MinusCircle />
-                                )}
-                                <span className="alab">Disable</span>
-                              </button>
-                            </>
-                          )}
+                            )}
 
-                          {s.status === "paused" && (
-                            <button
-                              className="btn sm"
-                              onClick={() =>
-                                askStatus(s, "active", {
-                                  title: "Start billing this customer?",
-                                  lead: "It begins a recurring monthly charge. If this plan was paused or stopped, the billing run starts from its stored next-payment date and walks forward — so every month it was off is invoiced on the next pass and auto-debited from the wallet. Move the next payment date first if you do not want that.",
-                                  cta: "Yes, activate it",
-                                  done: "Subscription activated successfully.",
-                                })
-                              }
-                              disabled={pending}
-                            >
-                              {pending ? (
-                                <Loader2 className="animate-spin" />
-                              ) : (
-                                <PlayCircle />
-                              )}
-                              Unpause
-                            </button>
+                            {/* PAST DUE GETS THE SAME CONTROLS AS ACTIVE.
+                                Dunning writes this status, the billing run
+                                keeps retrying the auto-debit every day while
+                                it holds — and the action row rendered
+                                buttons only for active, inactive and paused,
+                                so the one subscription the desk most needs to
+                                stop had no buttons at all. */}
+                            {(s.status === "active" ||
+                              s.status === "past_due") && (
+                              <>
+                                {/* titled: .alab is display:none below 420px and
+                                    then only the icon is left, so without this
+                                    the button has no accessible name at all. */}
+                                <button
+                                  className="btn ghost sm"
+                                  title="Pause"
+                                  aria-label="Pause"
+                                  onClick={() =>
+                                  askStatus(s, "paused", {
+                                    title: "Pause this subscription?",
+                                    // "Anything already unpaid stays unpaid"
+                                    // was false. The auto-debit pass filters
+                                    // on 'cancelled' alone, so an invoice
+                                    // already issued is still taken out of
+                                    // the customer's wallet on its due date —
+                                    // pausing stops NEW invoices, not the
+                                    // collection of old ones.
+                                    lead: "No new invoices are raised while it is paused. An invoice that has already been issued is still collected from their wallet on its due date — void it first if that is not what you want.",
+                                    cta: "Yes, pause it",
+                                    done: "Subscription paused successfully.",
+                                  })
+                                }
+                                  disabled={pending}
+                                >
+                                  {pending ? (
+                                    <Loader2 className="animate-spin" />
+                                  ) : (
+                                    <PauseCircle />
+                                  )}
+                                  <span className="alab">Pause</span>
+                                </button>
+                                <button
+                                  className="btn ghost sm"
+                                  title="Disable"
+                                  aria-label="Disable"
+                                  onClick={() =>
+                                  askStatus(s, "inactive", {
+                                    title: "Stop this plan?",
+                                    // "It does not backfill" was false.
+                                    // next_payment_date is never moved, so on
+                                    // reactivation generation resumes from the
+                                    // stale date and walks forward through
+                                    // every month that was skipped, raising
+                                    // and auto-debiting each one. A plan off
+                                    // for three months is billed for three.
+                                    // ...AND IT REACTIVATES ITSELF. When
+                                    // that already-issued invoice IS
+                                    // collected, the paid-invoice trigger
+                                    // sets the subscription back to active
+                                    // and rolls the period forward — so
+                                    // "billing stops" is true until the
+                                    // first successful debit and false
+                                    // afterwards. Said out loud until the
+                                    // SQL is fixed.
+                                    lead: "No new invoice is raised. But an invoice already issued is still collected from the wallet on its due date — and when that collection succeeds the subscription currently switches itself back to active and carries on monthly. Check their open invoices first.",
+                                    cta: "Yes, stop it",
+                                    danger: true,
+                                    done: "Subscription disabled successfully.",
+                                  })
+                                }
+                                  disabled={pending}
+                                  style={{
+                                    color: "var(--danger)",
+                                    borderColor: "var(--danger)",
+                                  }}
+                                >
+                                  {pending ? (
+                                    <Loader2 className="animate-spin" />
+                                  ) : (
+                                    <MinusCircle />
+                                  )}
+                                  <span className="alab">Disable</span>
+                                </button>
+                              </>
+                            )}
+
+                            {s.status === "paused" && (
+                              <button
+                                className="btn sm"
+                                onClick={() =>
+                                  askStatus(s, "active", {
+                                    title: "Start billing this customer?",
+                                    lead: "It begins a recurring monthly charge. If this plan was paused or stopped, the billing run starts from its stored next-payment date and walks forward — so every month it was off is invoiced on the next pass and auto-debited from the wallet. Move the next payment date first if you do not want that.",
+                                    cta: "Yes, activate it",
+                                    done: "Subscription activated successfully.",
+                                  })
+                                }
+                                disabled={pending}
+                              >
+                                {pending ? (
+                                  <Loader2 className="animate-spin" />
+                                ) : (
+                                  <PlayCircle />
+                                )}
+                                Unpause
+                              </button>
+                            )}
+                            </>
                           )}
                         </div>
                       </td>

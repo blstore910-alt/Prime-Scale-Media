@@ -226,17 +226,44 @@ export async function POST(request: NextRequest) {
     // Plan fields — advertiser invites only, pre-filled from a preset in
     // the UI and adjustable. Validated + only stored for advertisers.
     const isAdvertiser = role === "advertiser";
-    const plan_id =
-      isAdvertiser && typeof body.plan_id === "string" && body.plan_id.length > 0
-        ? body.plan_id
-        : null;
-    const monthly_fee = isAdvertiser
+
+    // ── PRICING IS THE OWNER'S, ON EVERY DOOR ─────────────────────────
+    //
+    // This route is guarded by apiRequireAdmin, and the /invites PAGE is
+    // requireSuperAdmin — but a page guard is not a boundary, because an
+    // API route never goes through a layout. The commission fields above
+    // were owner-gated for exactly this reason and the PLAN fields were
+    // not, so an employee admin refused by upsertPlan, by
+    // createSubscriptionAsAdmin ("Only the account owner can start, stop
+    // or price a subscription") and by changeSubscriptionAmount could
+    // POST one invite carrying monthly_fee: 5, topup_fee_pct: 0,
+    // included_ad_accounts: 1000 — and create_subscription_from_invite
+    // writes exactly that on accept. Same side door, one field along.
+    //
+    // Dropped rather than refused, to match how the commission fields
+    // behave: the invite still goes out, on the tenant's defaults.
+    const canPrice = callerCommissionAllowed;
+    const priceable = isAdvertiser && canPrice;
+
+    // A plan id from ANOTHER tenant was storable too — nothing checked
+    // it belonged to us. Verified here rather than trusted.
+    let plan_id: string | null = null;
+    if (priceable && typeof body.plan_id === "string" && body.plan_id.length > 0) {
+      const { data: planRow } = await supabase
+        .from("plans")
+        .select("id")
+        .eq("id", body.plan_id)
+        .eq("tenant_id", profile.tenant_id)
+        .maybeSingle();
+      plan_id = planRow?.id ? body.plan_id : null;
+    }
+    const monthly_fee = priceable
       ? numOrNull(body.monthly_fee, 0, 1_000_000)
       : null;
-    const included_ad_accounts = isAdvertiser
+    const included_ad_accounts = priceable
       ? numOrNull(body.included_ad_accounts, 0, 1000)
       : null;
-    const topup_fee_pct = isAdvertiser
+    const topup_fee_pct = priceable
       ? numOrNull(body.topup_fee_pct, 0, 100)
       : null;
     // The currency the plan is priced in, resolved once so the stored row
