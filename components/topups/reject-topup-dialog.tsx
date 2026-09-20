@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RejectReasonField } from "@/components/ui/reject-reason-field";
+import { notifyTopupRejected } from "@/actions/topup-actions";
 
 export default function RejectTopupDialog({
   open,
@@ -43,6 +44,21 @@ export default function RejectTopupDialog({
         p_reason: vars.reason,
       });
       if (error) throw error;
+      // ── AND TELL THE CUSTOMER WHY ────────────────────────────────
+      //
+      // The reason is written to the customer -- it is the whole
+      // point of demanding one, and there are fifteen templates
+      // behind this box. It reached the database and stopped there.
+      //
+      // Best effort and deliberately after the RPC: the rejection has
+      // already happened, and failing the mutation now would tell the
+      // admin it did not. The action re-reads the row, so it cannot
+      // announce a refusal that is not there.
+      try {
+        await notifyTopupRejected(vars.topupId, vars.reason);
+      } catch {
+        /* the refusal stands either way */
+      }
       return data;
     },
     onSuccess: (_data, vars) => {

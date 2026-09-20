@@ -1309,3 +1309,62 @@ export async function quoteTopupFeePct(
     };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Tell the customer their ad-account top-up was refused, and why
+// ─────────────────────────────────────────────────────────────────────
+// `top_up_admin_reject` is called straight from the browser, which is
+// allowed here — it is a SECURITY DEFINER RPC, which is what CLAUDE.md
+// says financial writes go through. But an RPC cannot be given a
+// notification from the client, and the rejection reason is the single
+// most important sentence in this whole flow: it is written to the
+// customer, it is the reason the reject dialog demands one, and there
+// are fifteen templates behind it. Until now it reached the database
+// and stopped there.
+//
+// So: a small action the dialog calls AFTER the RPC has returned. It
+// cannot invent a rejection — it re-reads the row and writes nothing
+// unless that row really is rejected, so a caller cannot use it to
+// tell a customer their money is gone when it is not.
+// ─────────────────────────────────────────────────────────────────────
+export async function notifyTopupRejected(
+  topupId: string,
+  reason: string,
+): Promise<ActionResult> {
+  if (typeof topupId !== "string" || !topupId) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  const { data: row } = await supabase
+    .from("top_ups")
+    .select("id, tenant_id, advertiser_id, status, amount_received, currency")
+    .eq("id", topupId)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Top-up not found" };
+  if (row.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+  // The row is the proof. Anything other than rejected and we say
+  // nothing rather than telling a customer something that did not
+  // happen.
+  const status = String(row.status ?? "").toLowerCase();
+  if (status !== "rejected" && status !== "failed") {
+    return { ok: true, data: null };
+  }
+
+  await notifyAdvertiser(supabase, {
+    advertiserId: row.advertiser_id ? String(row.advertiser_id) : null,
+    tenantId: profile.tenant_id,
+    type: "topup_rejected",
+    payload: {
+      topup_id: topupId,
+      amount: row.amount_received ?? null,
+      currency: row.currency ?? null,
+      reason: typeof reason === "string" ? reason.trim().slice(0, 500) : null,
+    },
+  });
+  return { ok: true, data: null };
+}
