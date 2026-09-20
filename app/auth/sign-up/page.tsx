@@ -43,7 +43,21 @@ export default async function Page({ searchParams }: PageProps) {
     { p_token: token },
   );
 
-  if (error) throw new Error(error.message);
+  // ── NOT A RAW POSTGRES MESSAGE ON A PUBLIC URL ──────────────────
+  //
+  // This is the first thing an invited customer ever sees, and a
+  // throw here renders Next's error page carrying whatever the
+  // database said -- table names, column names, a hint. The sibling
+  // route at app/invite/accept was fixed for exactly this.
+  //
+  // The expired card is the right shape: it is what an unreadable
+  // token already renders, and from the invitee's side the two are
+  // indistinguishable anyway.
+  if (error) {
+    return (
+      <InviteExpired reason="We couldn't check this invitation just now. Reload the page, or ask us for a fresh link." />
+    );
+  }
 
   // Unknown / revoked token → show the expired card instead of crashing.
   if (!inviteJson) {

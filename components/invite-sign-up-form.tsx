@@ -176,7 +176,22 @@ export default function InviteSignUpForm({
         return;
       }
       toast.success("Welcome! Your account is ready.");
-      router.push("/dashboard");
+      // ── AN ADVERTISER NEEDS THEIR COMPANY BEFORE ANYTHING ELSE ──
+      //
+      // The existing-user accept path sends advertisers to
+      // /complete-profile and explains why; the SIGNUP path -- the one
+      // every brand-new customer takes -- sent everybody to
+      // /dashboard. There they meet a red chip telling them to add
+      // company details, a Top up button that is greyed, and a
+      // Request one that is dead, with the form they need one more
+      // click away. The layout redirects them there anyway on the
+      // next navigation, so this only decides whether their first
+      // screen is the blocked one or the one that unblocks it.
+      router.push(
+        String(invite?.role ?? "").toLowerCase() === "advertiser"
+          ? "/complete-profile"
+          : "/dashboard",
+      );
     } catch (error) {
       console.error("Error during sign up:", error);
       toast.error(

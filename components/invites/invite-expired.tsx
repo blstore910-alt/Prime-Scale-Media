@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { switchToProfile } from "@/actions/profile-switch-actions";
 
-export default async function InviteExpired() {
+export default async function InviteExpired({
+  reason,
+}: {
+  /** What actually went wrong, when it is not expiry. */
+  reason?: string;
+} = {}) {
   const supabase = await createClient();
   const { data: profiles } = await supabase
     .from("user_profiles")
@@ -19,12 +24,38 @@ export default async function InviteExpired() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen text-center space-y-6">
+      {/* ── ONE CARD, FOUR DIFFERENT CAUSES ───────────────────────────
+          This said "expired" for an expired invite, an already-accepted
+          one, an unreadable token and a read that failed -- and for an
+          accepted one the correct advice is "log in", which it never
+          said. An anonymous invitee's only control here was "Create New
+          Organization", which is the wrong action and, since
+          /organization/new is not a public route, 307s them to a login
+          they have no account for.
+          So: say what is actually known, and always offer the two doors
+          that work for somebody who already has an account. */}
       <div>
-        <h2 className="text-2xl font-semibold">This invitation has expired</h2>
-        <p className="text-muted-foreground">
-          Please contact the organization owner for a new invite.
+        <h2 className="text-2xl font-semibold">
+          {reason ? "We couldn't open this invitation" : "This invitation can't be used"}
+        </h2>
+        <p className="text-muted-foreground max-w-md">
+          {reason ??
+            "It may have expired, or it may already have been accepted. If you have signed up before, log in — your account is already there."}
         </p>
       </div>
+
+      {!hasOrganizations ? (
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button asChild>
+            <Link href="/auth/login">Log in</Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <a href="mailto:contact@primescalemedia.com?subject=Invitation%20link">
+              Ask us for a new link
+            </a>
+          </Button>
+        </div>
+      ) : null}
 
       {hasOrganizations ? (
         <>
