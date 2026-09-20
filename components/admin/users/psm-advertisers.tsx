@@ -146,13 +146,28 @@ export default function PsmAdvertisers() {
       // switched on. The tab badge answers the first; "how many are we
       // actually serving" is the one anybody asks, and it needed a filter
       // and a read of the pagination.
+      // ── THE HEADER AND THE PILLS HAVE TO MEAN THE SAME THING ────
+      //
+      // "N active" counted `is_active` alone. Every row renders
+      // peopleStatusView, which is off if EITHER column says off and
+      // prints an unknown word as itself -- and pure-people-status says
+      // in its own first paragraph that the two columns "disagree on
+      // live rows". So 40 advertisers of whom 3 are is_active=true and
+      // status='suspended' gave "40 active" over a table showing three
+      // amber Suspended pills, and the Account status -> Active filter
+      // returned rows that render as Suspended.
       const one = async (r: string, active?: boolean) => {
         let q = supabase
           .from("user_profiles")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", me?.tenant_id)
           .eq("role", r);
-        if (active !== undefined) q = q.eq("is_active", active);
+        if (active === true) {
+          q = q.eq("is_active", true).eq("status", "active");
+        } else if (active === false) {
+          // Off if EITHER says off, which .or expresses and .eq cannot.
+          q = q.or("is_active.eq.false,status.neq.active");
+        }
         const { count, error } = await q;
         return error ? null : (count ?? 0);
       };

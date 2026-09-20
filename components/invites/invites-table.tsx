@@ -83,6 +83,10 @@ export default function InvitesTable() {
           count: "exact",
         })
         .eq("tenant_id", profile?.tenant_id)
+        // Same reason as the audit and activity lists: one timestamp is
+        // not a stable order, so a page boundary can repeat a row and
+        // skip another.
+        .order("id", { ascending: false })
         .range(start, end)
         .order("created_at", { ascending: false });
       if (error) throw error;

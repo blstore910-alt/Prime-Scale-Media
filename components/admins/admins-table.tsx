@@ -1,5 +1,6 @@
 "use client";
 
+import { peopleStatusView } from "@/lib/pure-people-status";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { toggleAdminStatus } from "@/actions/admin-actions";
 import { useAppContext } from "@/context/app-provider";
@@ -161,7 +162,21 @@ export default function AdminsTable() {
               </thead>
               <tbody>
                 {admins.map((admin) => {
-                  const isActive = admin.status === "active";
+                  // ── BOTH COLUMNS, LIKE EVERY GUARD ────────────────
+                  //
+                  // This read `status` alone while the badge below took
+                  // its COLOUR from is_active and its WORD from status,
+                  // and require-super-admin and the (app) layout both
+                  // read the two together. `status = NULL` is reachable
+                  // -- neither accept-invite route sets it -- and the
+                  // guards treat that as active, so an admin with full
+                  // working access could render as locked out here, and
+                  // the Deactivate/Activate button pointed the wrong way.
+                  const statusView = peopleStatusView(
+                    admin.status,
+                    admin.is_active,
+                  );
+                  const isActive = statusView.tone === "ok";
                   const isSelf = admin.id === profile?.id;
                   const lastSeen = formatLastSeen(admin.last_seen_at);
                   return (
@@ -186,11 +201,29 @@ export default function AdminsTable() {
                         </div>
                       </td>
                       <td data-label="Status">
+                        {/* ── ONE COLUMN FOR THE COLOUR, ANOTHER FOR THE
+                            WORD, AND EVERY GUARD READS BOTH ──────────
+                            The colour came from `is_active` and the text
+                            from `status`, with no relationship between
+                            them -- and `status = NULL` is reachable
+                            (neither accept-invite route sets it), which
+                            the guards read as "active". So an admin with
+                            full working access, able to approve a top-up
+                            right now, rendered a RED badge reading
+                            "unknown", under an Activate button headed
+                            "Give this admin access back?". The owner
+                            reviewing who holds the keys read locked-out.
+
+                            peopleStatusView is the shared rule the
+                            customer list already uses: off if EITHER
+                            column says off, Active only for the literal
+                            word or an empty status with is_active true,
+                            and anything else printed as itself. */}
                         <span
-                          className={`badge ${isActive ? "ok" : "due"}`}
+                          className={statusView.cls}
                           style={{ textTransform: "capitalize" }}
                         >
-                          {admin.status ?? "unknown"}
+                          {statusView.label}
                         </span>
                       </td>
                       <td data-label="Last seen">

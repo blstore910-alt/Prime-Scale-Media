@@ -106,7 +106,14 @@ export default function useTopups(params: TopupsQueryParams = {}) {
   >({
     queryKey,
     enabled: params.enabled ?? true,
-    queryFn: async () => {
+    queryFn: () => runQuery(false),
+  });
+
+  async function runQuery(skipDeletedFilter: boolean): Promise<{
+    items: Topup[];
+    total: number;
+  }> {
+    {
       const {
         advertiserId,
         type,
@@ -134,6 +141,21 @@ export default function useTopups(params: TopupsQueryParams = {}) {
             )
             .eq("advertiser_id", advertiserId)
         : supabase.from("top_ups_view").select(`*`, { count: "exact" });
+
+      // ── A STRUCK-OUT TOP-UP IS NOT ON THIS QUEUE ────────────────
+      //
+      // The dashboard badge excludes is_deleted, and so do all eight
+      // /api/stats money readers -- this list did not, so a struck-out
+      // pending top-up dropped off the badge and stayed here with a
+      // live Verify button beside it.
+      //
+      // Asked for, and RETRIED WITHOUT IT on 42703: top_ups_view is
+      // hand-authored on live and may not expose the column, and a
+      // select naming one that does not exist throws rather than
+      // degrading -- which would take this whole screen down.
+      if (!skipDeletedFilter) {
+        query = query.not("is_deleted", "is", true);
+      }
 
       if (type && type !== "all") {
         query = query.eq("type", type);
@@ -186,7 +208,16 @@ export default function useTopups(params: TopupsQueryParams = {}) {
         error: qError,
         count,
       } = await query.range(start, end);
-      if (qError) throw qError;
+      if (qError) {
+        if (
+          !skipDeletedFilter &&
+          ((qError as { code?: string }).code === "42703" ||
+            /is_deleted/i.test(String(qError.message ?? "")))
+        ) {
+          return runQuery(true);
+        }
+        throw qError;
+      }
 
       const results = (rows ?? []) as Topup[];
 
@@ -201,8 +232,8 @@ export default function useTopups(params: TopupsQueryParams = {}) {
       }
 
       return { items: results, total: count ?? results.length };
-    },
-  });
+    }
+  }
 
   return {
     topups: data?.items ?? [],

@@ -81,7 +81,15 @@ export default function useAuditEvents(params: AuditEventsParams = {}) {
       let query = supabase
         .from("audit_events")
         .select("*", { count: "exact" })
-        .order("occurred_at", { ascending: false });
+        // ── A UNIQUE TIEBREAKER, OR THE PAGES OVERLAP ───────────────
+        //
+        // One timestamp, no second key: a billing run writes eighty
+        // rows with the same instant, and Postgres may return them in a
+        // different order for page 1 and page 2. Paging through then
+        // shows some rows twice and never shows others -- and the CSV,
+        // which orders by (occurred_at, id), disagrees with the screen.
+        .order("occurred_at", { ascending: false })
+        .order("id", { ascending: false });
 
       if (table && table !== "all") query = query.eq("table_name", table);
       if (action && action !== "all") query = query.eq("action", action);
