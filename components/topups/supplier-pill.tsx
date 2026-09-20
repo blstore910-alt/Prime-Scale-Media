@@ -27,7 +27,14 @@ export default function SupplierPill({
 }) {
   if (!link) return null;
 
-  if (link.apiEnabled && !link.url) {
+  // ── API WINS OVER THE LINK ──────────────────────────────────────
+  //
+  // This tested `apiEnabled && !url`, so a type that funds itself over
+  // the API but happens to have a dashboard URL on file still showed
+  // "go and do it by hand". If the API can do it, there is nothing for
+  // the admin to go and do — we still approve by hand for now, but the
+  // funding itself is not theirs to perform.
+  if (link.apiEnabled) {
     return (
       <span className="suppill auto" title="This type funds itself over the API">
         <Zap />

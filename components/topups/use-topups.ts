@@ -136,7 +136,7 @@ export default function useTopups(params: TopupsQueryParams = {}) {
         ? supabase
             .from("top_ups_view")
             .select(
-              "id, created_at, number, type, status, currency, amount_received, amount_usd, topup_amount, fee, fee_amount, account_name, tenant_client_code",
+              "id, created_at, number, type, status, currency, amount_received, amount_usd, topup_amount, topup_usd, fee, fee_amount, account_name, tenant_client_code",
               { count: "exact" },
             )
             .eq("advertiser_id", advertiserId)

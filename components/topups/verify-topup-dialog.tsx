@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import useGetTopup from "./use-get-topup";
 import { Badge } from "../ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 
 const formSchema = z.object({
   // Plans store topup_fee_pct as numeric(5,2), so the effective fee can be
@@ -166,6 +167,15 @@ function VerifyTopupInvoice({
   // topup_amount is the net and fee_amount is the fee, both USD, so their
   // sum is the gross. Editing the percentage then re-splits that exact
   // figure, which is what the server will do too.
+  // ── IN THE ACCOUNT'S OWN MONEY ─────────────────────────────────
+  //
+  // A EUR ad account is credited in euros. The customer's own RPC
+  // stores the net and the fee in the payment currency, which on that
+  // path is always the account's currency; only the admin create paths
+  // convert to USD first. landedOnAccount tells the two apart on
+  // topup_usd, which only the customer path writes.
+  const landed = landedOnAccount(topup as never);
+  const creditCurrency = landed.currency;
   const grossUsd =
     Number(topup.topup_amount ?? 0) + Number(topup.fee_amount ?? 0);
 
@@ -247,6 +257,8 @@ function VerifyTopupInvoice({
     };
   }, [isPending, onBusyChange]);
 
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
+
   const handleVerify = (values: FormValues) => {
     const newFee = Number(values.fee);
     const originalFee = Number(topup.fee);
@@ -263,6 +275,34 @@ function VerifyTopupInvoice({
   // One read for this account, shared with the queue behind the dialog
   // by react-query's cache.
   const { supplierFor } = useSupplierLinks([String(topup.account_id ?? "")]);
+  const supplier = supplierFor(String(topup.account_id ?? ""));
+
+  const steps = [
+    {
+      key: "figures",
+      title: "The figures match the customer's payment",
+      detail: `Paid ${formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}, ${formatCurrency(calculatedValues.netAmount, creditCurrency)} lands on the account.`,
+    },
+    supplier?.apiEnabled
+      ? {
+          key: "api",
+          title: "This account funds itself over the API",
+          detail:
+            "Pressing Verify queues the top-up with the supplier. Nothing to do by hand — we still approve it here for now.",
+        }
+      : {
+          key: "funded",
+          title: `I have funded the account${supplier?.label ? ` at ${supplier.label}` : ""}`,
+          detail: `${formatCurrency(calculatedValues.netAmount, creditCurrency)} is on the account now.`,
+        },
+    {
+      key: "tell",
+      title: "The customer will be told",
+      detail:
+        "Verifying marks it completed and sends them a notification. It cannot be undone from this screen.",
+    },
+  ];
+  const allTicked = steps.every((st) => ticked[st.key]);
 
   return (
     <form onSubmit={handleSubmit(handleVerify)} className="space-y-6">
@@ -386,9 +426,45 @@ function VerifyTopupInvoice({
             {/* Says which currency is which, because two are on screen. */}
             <div className="col-span-12 mt-1 text-right text-xs text-muted-foreground">
               Paid {formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}
-              {" · "}the ad account is credited in USD
+              {" · "}the ad account is credited in {creditCurrency}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── THE STEPS, IN ORDER, WITH A TICK EACH ──────────────────
+          Verifying is the end of a sequence, not a single act: the
+          money has to be on the account before we tell the customer it
+          is. Which steps there are depends on the type — an API type
+          funds itself when this is pressed, a manual one does not —
+          and the button waits until each has been ticked. */}
+      <div className="rounded-lg border bg-muted/20 p-4">
+        <p className="text-sm font-semibold">Before you verify</p>
+        <div className="mt-3 grid gap-3">
+          {steps.map((step) => (
+            <label
+              key={step.key}
+              className="flex cursor-pointer items-start gap-3 text-sm"
+            >
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                checked={!!ticked[step.key]}
+                disabled={isPending}
+                onChange={(e) =>
+                  setTicked((t) => ({ ...t, [step.key]: e.target.checked }))
+                }
+              />
+              <span>
+                <span className="font-medium">{step.title}</span>
+                {step.detail ? (
+                  <span className="block text-muted-foreground">
+                    {step.detail}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -401,7 +477,14 @@ function VerifyTopupInvoice({
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
+        <Button
+          type="submit"
+          disabled={isPending || !allTicked}
+          title={
+            allTicked ? undefined : "Tick every step above first."
+          }
+          className="w-full sm:w-auto"
+        >
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
           ) : (

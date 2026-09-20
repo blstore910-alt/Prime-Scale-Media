@@ -12,6 +12,7 @@ import TablePagination from "../ui/table-pagination";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
 import { CopyText } from "@/components/ui/copy-text";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 
 // A two-way map printed everything that was not USD as euros, and
 // calculateTopupAmount accepts GBP and HKD too — so a pound payment was
@@ -170,6 +171,7 @@ export default function PsmVerifyAdTopups() {
           {topups.map((t: Topup) => {
             const pend = t.status === "pending";
             const cur = t.currency;
+            const landed = landedOnAccount(t);
             return (
               <div key={t.id} className="card" style={{ padding: 16 }}>
                 <div
@@ -224,15 +226,20 @@ export default function PsmVerifyAdTopups() {
                     gap: 8,
                   }}
                 >
-                  {/* THREE figures, TWO currencies. topup_amount and
-                      fee_amount are USD by construction — calculateTopupAmount
-                      divides the received amount by the rate and takes the fee
-                      off the dollar figure (lib/utils-pure.ts). Only
-                      amount_received is in the currency the customer paid in.
-                      Printing all of them with `cur` turned $1,139.53 into
-                      "EUR 1,139.53" on the exact screen where an admin checks
-                      the figures against a bank slip: ~16% out, in our favour,
-                      on a decision to release money. */}
+                  {/* THREE figures, and the currency depends on who
+                      filed the row. An ad account HAS a currency:
+                      AA-PSM0005-EU-01 is a euro account, euros go on it
+                      and euros come off it, and there is no dollar
+                      figure anywhere in its life. The customer's own RPC
+                      takes the fee in the payment currency and stores
+                      the net there; only the ADMIN paths convert to USD
+                      first (calculateTopupAmount). Forcing "USD" here
+                      was right for admin rows and wrong for every row a
+                      customer filed — seen on production as "$97.00"
+                      beside a dialog that had just promised "$111.19",
+                      for EUR 97.00 landing on a euro account.
+                      landedOnAccount tells the two apart on topup_usd,
+                      which only the customer path writes. */}
                   <b
                     style={{
                       fontFamily: "var(--font-jakarta)",
@@ -241,25 +248,32 @@ export default function PsmVerifyAdTopups() {
                     }}
                     title="Credited to the ad account"
                   >
-                    {money(t.topup_amount, "USD")}
+                    {money(landed.amount, landed.currency)}
                   </b>
                   <span style={{ color: "var(--faint)", fontSize: ".82rem" }}>
                     paid {money(t.amount_received, cur)} · fee{" "}
-                    {money(t.fee_amount, "USD")}
+                    {money(t.fee_amount, landed.currency)}
                   </span>
                 </div>
+                {/* The supplier line sits ABOVE the buttons, on its own
+                    row: it is context for the decision, not one of the
+                    choices, and mixing it in made a four-item row that
+                    wrapped differently on every card. */}
+                {pend ? (
+                  <div style={{ marginTop: 12 }}>
+                    <SupplierPill link={supplierFor(t.account_id)} />
+                  </div>
+                ) : null}
+                {/* All the buttons on ONE row, and they stay on it. */}
                 <div
                   style={{
                     display: "flex",
                     gap: 8,
-                    marginTop: 12,
-                    flexWrap: "wrap",
+                    marginTop: 10,
+                    flexWrap: "nowrap",
+                    alignItems: "center",
                   }}
                 >
-                  {/* The supplier link sits with the decision, not in a
-                      details sheet: this is the moment the admin goes to
-                      do the top-up by hand. */}
-                  {pend && <SupplierPill link={supplierFor(t.account_id)} />}
                   {pend && (
                     <>
                       <button
