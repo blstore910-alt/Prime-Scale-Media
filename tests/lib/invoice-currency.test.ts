@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  currencySymbol,
   invoiceCurrencyCode,
   invoiceCurrencySymbol,
 } from "../../lib/pure-invoice-currency.ts";
@@ -55,4 +56,18 @@ test("the row and the modal can no longer disagree", () => {
       invoiceCurrencySymbol({ ...inv }),
     );
   }
+});
+
+test("currencySymbol never draws a euro sign in front of another currency", () => {
+  // The deposit desk case: a GBP 630 transfer against a EUR 630 claim.
+  const gbp = currencySymbol("GBP");
+  assert.ok(!gbp.includes("\u20ac"), gbp);
+  assert.equal(currencySymbol("USD"), "$");
+  assert.equal(currencySymbol("EUR"), "\u20ac");
+  assert.equal(currencySymbol("eur"), "\u20ac");
+  // Unknown prints the code, with a space so it reads as a figure.
+  assert.equal(currencySymbol("ZZZ"), "ZZZ ");
+  // Nothing at all falls back to EUR, which is what the RPCs coalesce to.
+  assert.equal(currencySymbol(null), "\u20ac");
+  assert.equal(currencySymbol(""), "\u20ac");
 });

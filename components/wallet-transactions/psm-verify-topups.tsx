@@ -27,6 +27,7 @@ import {
   useMatchedDeposits,
   type MatchedDeposit,
 } from "@/hooks/use-matched-deposits";
+import { currencySymbol } from "@/lib/pure-invoice-currency";
 
 const money = (v: number | string | null | undefined, cur: string | null) =>
   (cur === "USD" ? "$" : "€") +
@@ -95,7 +96,11 @@ function MatchedStrip({
 
   if (deposit) {
     const amount =
-      (deposit.currency === "USD" ? "$" : "€") +
+      // A deposit is whatever the payer sent, and the top-up screen
+      // offers GBP and HKD transfers -- so this drew "EUR 630.00" over
+      // a GBP 630 deposit, on the strip an admin reads to decide
+      // whether it matches a EUR 630 claim.
+      currencySymbol(deposit.currency) +
       (deposit.amountCents / 100).toFixed(2);
     // The reference is printed one line above this strip. Repeating it
     // here said the same number twice in four lines — so it is shown only

@@ -54,6 +54,7 @@ import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import FinanceReport from "@/components/finance/finance-report";
 import { isAccountLocked } from "@/lib/pure-account-status";
+import { currencySymbol } from "@/lib/pure-invoice-currency";
 
 dayjs.extend(relativeTime);
 
@@ -2768,7 +2769,7 @@ export default function AdvertiserApp() {
                           says "Pending wallet top-up"; repeating it on the
                           line under it said the same thing twice. */}
                       <div className="l1">
-                        {t.currency === "USD" ? "$" : "€"}
+                        {currencySymbol(t.currency)}
                         {money2(t.amount)}
                       </div>
                       <div className="l2">
@@ -3060,7 +3061,7 @@ export default function AdvertiserApp() {
                             className="r mono"
                             style={{ fontWeight: 700 }}
                           >
-                            {t.currency === "USD" ? "$" : "€"}
+                            {currencySymbol(t.currency)}
                             {money2(t.amount)}
                           </td>
                           <td data-label="Status" className="r">

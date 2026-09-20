@@ -6,6 +6,7 @@ import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useMatchedDeposits } from "@/hooks/use-matched-deposits";
 import { useOutstandingPrecharges } from "@/hooks/use-outstanding-precharges";
 import { formatPaymentReference } from "@/lib/payment-reference";
+import { currencySymbol } from "@/lib/pure-invoice-currency";
 
 interface WalletTransactionApproveDialogProps {
   open: boolean;
@@ -146,7 +147,7 @@ export default function WalletTransactionApproveDialog({
         label="Bank deposit"
         value={
           deposit
-            ? `${deposit.currency === "USD" ? "$" : "€"}${(
+            ? `${currencySymbol(deposit.currency)}${(
                 deposit.amountCents / 100
               ).toFixed(2)}${deposit.senderName ? " from " + deposit.senderName : ""}`
             : depositsUnreadable

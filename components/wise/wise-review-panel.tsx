@@ -30,6 +30,7 @@ import PaymentSlipDialog from "@/components/wallet-transactions/payment-slip-dia
 import { formatPaymentReference } from "@/lib/payment-reference";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { currencySymbol } from "@/lib/pure-invoice-currency";
 
 // fromNow() is a plugin, not a built-in — without this it throws.
 dayjs.extend(relativeTime);
@@ -1386,7 +1387,7 @@ Statement tried: ${p.attempts.join(" | ")}`
               label="They claimed"
               value={
                 askTo
-                  ? `${askTo.currency === "USD" ? "$" : "€"}${askTo.amount.toFixed(2)} on ${new Date(
+                  ? `${currencySymbol(askTo.currency)}${askTo.amount.toFixed(2)} on ${new Date(
                       askTo.filedAt,
                     ).toLocaleDateString()}`
                   : "—"

@@ -37,11 +37,29 @@ export function invoiceCurrencyCode(invoice: InvoiceCurrencyish): string {
   return "EUR";
 }
 
-/** What to draw in front of the amount. */
-export function invoiceCurrencySymbol(invoice: InvoiceCurrencyish): string {
-  const code = invoiceCurrencyCode(invoice);
-  const symbol = (CURRENCY_SYMBOLS as Record<string, string>)[code];
+/**
+ * What to draw in front of an amount, for any currency code.
+ *
+ * Eight screens wrote `currency === "USD" ? "$" : "€"`, which is a
+ * statement that nothing else exists. Wallets are EUR/USD, so most of
+ * those were harmless -- but a BANK DEPOSIT is whatever the payer sent,
+ * and the top-up screen actively offers GBP and HKD transfers. A GBP
+ * 630 deposit rendered as "EUR 630.00" on the desk where an admin
+ * decides whether it matches a EUR 630 claim.
+ *
+ * An unknown code prints as the code. "GBP 630.00" is a true figure
+ * that happens to be unstyled; "EUR 630.00" is a wrong one.
+ */
+export function currencySymbol(code: string | null | undefined): string {
+  const upper = String(code ?? "").trim().toUpperCase();
+  if (!upper) return (CURRENCY_SYMBOLS as Record<string, string>).EUR ?? "€";
+  const symbol = (CURRENCY_SYMBOLS as Record<string, string>)[upper];
   // A trailing space, so "GBP 500.00" reads as a figure and not as a
   // typo. A symbol needs none.
-  return symbol ?? `${code} `;
+  return symbol ?? `${upper} `;
+}
+
+/** What to draw in front of the amount. */
+export function invoiceCurrencySymbol(invoice: InvoiceCurrencyish): string {
+  return currencySymbol(invoiceCurrencyCode(invoice));
 }

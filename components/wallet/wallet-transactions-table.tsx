@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import WalletTopupDetailsSheet from "./wallet-topup-details-sheet";
+import { currencySymbol } from "@/lib/pure-invoice-currency";
 
 const formatAmount = (value: number | string | null | undefined) => {
   const num = Number(value ?? 0);
@@ -138,7 +139,7 @@ export default function WalletTransactionsTable({
                 </TableCell>
                 {/* Add currency symbol here */}
                 <TableCell className="font-mono font-semibold">
-                  {topup.currency === "USD" ? "$" : "€"}
+                  {currencySymbol(topup.currency)}
                   {formatAmount(topup.amount)}
                 </TableCell>
                 <TableCell className="font-mono">

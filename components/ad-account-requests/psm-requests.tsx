@@ -26,6 +26,7 @@ import AdAccountRequestDetailsSheet from "./ad-account-request-details-sheet";
 import CreateAdAccountFromRequestDialog from "./create-ad-account-from-request-dialog";
 import CreateAdAccountRequestInvoiceDialog from "./create-ad-account-request-invoice-dialog";
 import TablePagination from "../ui/table-pagination";
+import { currencySymbol } from "@/lib/pure-invoice-currency";
 
 // The request's own `platform` is a family choice the CUSTOMER made, in
 // whichever vocabulary their form used — "meta-ads" on the rows this
@@ -215,7 +216,7 @@ export default function PsmRequests() {
       toast.success("Ad account request rejected.", {
         description:
           back > 0
-            ? `${result.data?.currency === "USD" ? "$" : "€"}${back.toFixed(
+            ? `${currencySymbol(result.data?.currency)}${back.toFixed(
                 2,
               )} returned to their wallet.${
                 result.data?.perkRestored
