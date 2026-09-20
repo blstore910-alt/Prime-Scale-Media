@@ -2131,6 +2131,42 @@ export default function AdvertiserApp() {
         exact: false,
       });
       queryClient.invalidateQueries({ queryKey: ["wallet"], exact: false });
+      // ── AND EVERYTHING THE PAYMENT JUST CHANGED ────────────────────
+      //
+      // `_on_subscription_invoice_paid` sets the subscription back to
+      // `active` and moves next_payment_date on. Neither
+      // ["adv-subscription"] nor ["adv-last-charged-sub"] was
+      // invalidated here — and a grep of the whole repo says NOTHING
+      // invalidates either key, anywhere.
+      //
+      // This app is one component with CSS-toggled views, so nothing
+      // remounts; staleTime is 30s and refetchOnWindowFocus is off. So
+      // after a customer cleared a past-due invoice their own billing
+      // card kept the pill "Payment due" and the old renewal date for
+      // the rest of the session, and a discounted customer paying their
+      // first invoice kept reading the LIST price per month. Only a
+      // full page reload put it right.
+      queryClient.invalidateQueries({
+        queryKey: ["adv-subscription"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["adv-last-charged-sub"],
+        exact: false,
+      });
+      // The statement and its CSV. Four other money paths invalidate
+      // this and each carries a comment saying the report has no other
+      // refetch trigger; the largest recurring debit in the app did
+      // not, so the file a bookkeeper is handed was short by exactly
+      // the invoice amount.
+      queryClient.invalidateQueries({
+        queryKey: ["finance-report"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["adv-wallet-activity"],
+        exact: false,
+      });
       return true;
     } catch (e) {
       toast.error("Couldn't pay from wallet", {
@@ -4658,7 +4694,6 @@ export default function AdvertiserApp() {
                         ? (invoices ?? [])
                         : (invoices ?? []).slice(0, 5)
                       ).map((inv) => {
-                        const paid = inv.status === "paid";
                         // ── A CANCELLED INVOICE IS NOT AN UNPAID ONE ──
                         //
                         // "Pay now" rendered on anything that was not
@@ -4670,11 +4705,6 @@ export default function AdvertiserApp() {
                         // wallet and stamped a cancelled invoice paid.
                         // The badge beside it correctly read "Cancelled"
                         // the whole time.
-                        const settled =
-                          paid ||
-                          inv.status === "void" ||
-                          inv.status === "cancelled" ||
-                          inv.status === "refunded";
                         const invSt = invoiceStatusView(inv.status, {
                           customer: true,
                           // "Past due", not "Due", once the date has
@@ -4683,6 +4713,19 @@ export default function AdvertiserApp() {
                           dueDate: (inv as { due_date?: string | null })
                             .due_date,
                         });
+                        // ── ONE ANSWER, NOT TWO ────────────────────
+                        //
+                        // `settled` was computed here by hand, beside an
+                        // invoiceStatusView that already answers the
+                        // same question -- and the two disagreed. The
+                        // helper trims and lowercases; this compared
+                        // byte-exact strings, so "Void" or "CANCELLED"
+                        // was payable, and the two differed on "draft"
+                        // as well. invoice_pay_from_wallet short-
+                        // circuits on 'paid' alone, so a press on such a
+                        // row debits the wallet and stamps a cancelled
+                        // invoice paid. The duplicate WAS the hazard.
+                        const settled = invSt.settled;
                         const invSym =
                           invCurrency(inv) === "USD" ? "$" : "€";
                         return (
