@@ -851,6 +851,50 @@ export default function AdvertiserApp() {
   // A paid invoice IS a wallet movement — invoice_pay_from_wallet debits
   // the balance — so it belongs in the same list, in time order, as a
   // negative. The invoices are already loaded for the billing screen.
+  // ── THE REQUEST FEE, WHICH LEFT NO TRACE ─────────────────────────
+  //
+  // ad_account_request_create_paid debits the wallet directly and
+  // writes no invoice, no wallet_topups row, no top_ups row and no
+  // precharge. The statement below is built from five sources and the
+  // fee is none of them, so a customer with EUR 500 who requests an
+  // account sees EUR 450 and no line explaining it anywhere -- and
+  // their exported CSV, the one a bookkeeper reads, is EUR 50 out. The
+  // refund does the same in reverse: a rejected request silently ADDS
+  // 50 from nowhere.
+  //
+  // charged_amount / charged_at are added by migration 20260920250000
+  // and must be written by those two live functions. Until they are,
+  // this read comes back refused, the retry drops the columns, and the
+  // line simply does not appear -- the screen does not break.
+  const { data: requestCharges } = useQuery<
+    {
+      id: string;
+      charged_amount: number | null;
+      charged_currency: string | null;
+      charged_at: string | null;
+      refunded_amount: number | null;
+      refunded_at: string | null;
+      platform: string | null;
+    }[]
+  >({
+    queryKey: ["adv-request-charges", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("ad_account_requests")
+        .select(
+          "id, platform, charged_amount, charged_currency, charged_at, refunded_amount, refunded_at",
+        )
+        .eq("advertiser_id", advertiserId!)
+        .not("charged_at", "is", null)
+        .order("charged_at", { ascending: false })
+        .limit(50);
+      if (error) return [];
+      return (data ?? []) as never;
+    },
+  });
+
   type WalletEvent =
     | { kind: "topup"; id: string; at: string; row: NonNullable<typeof activity>[number] }
     | { kind: "exchange"; id: string; at: string; row: NonNullable<typeof exchanges>[number] }
@@ -866,8 +910,34 @@ export default function AdvertiserApp() {
         id: string;
         at: string;
         row: NonNullable<typeof accountReturns>[number];
+      }
+    | {
+        kind: "reqfee";
+        id: string;
+        at: string;
+        row: NonNullable<typeof requestCharges>[number];
+        refund?: boolean;
       };
   const walletEvents: WalletEvent[] = [
+    // The charge, and the refund as its own line where there was one:
+    // a customer whose request was rejected sees the money go and come
+    // back, which is what happened.
+    ...(requestCharges ?? []).flatMap((r) => {
+      const out: WalletEvent[] = [];
+      if (r.charged_at && Number(r.charged_amount) > 0) {
+        out.push({ kind: "reqfee", id: `c-${r.id}`, at: r.charged_at, row: r });
+      }
+      if (r.refunded_at && Number(r.refunded_amount) > 0) {
+        out.push({
+          kind: "reqfee",
+          id: `r-${r.id}`,
+          at: r.refunded_at,
+          row: r,
+          refund: true,
+        });
+      }
+      return out;
+    }),
     ...(activity ?? []).map(
       (t) => ({ kind: "topup", id: t.id, at: t.created_at, row: t }) as WalletEvent,
     ),
@@ -2973,6 +3043,44 @@ export default function AdvertiserApp() {
                                         )
                                       ? "Refused"
                                       : "On its way"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }
+                        if (ev.kind === "reqfee") {
+                          const q = ev.row;
+                          const refund = ev.refund === true;
+                          const amt = Number(
+                            refund ? q.refunded_amount : q.charged_amount,
+                          );
+                          const sym = currencySymbol(q.charged_currency);
+                          return (
+                            <tr key={ev.id}>
+                              <td
+                                data-label="Date"
+                                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              >
+                                {dayjs(ev.at).format("D MMM")}
+                              </td>
+                              <td data-label="Reference" className="mono">
+                                —
+                              </td>
+                              <td data-label="What">
+                                {refund
+                                  ? "Ad-account request refunded"
+                                  : "Ad-account request fee"}
+                              </td>
+                              <td data-label="Amount" className="r">
+                                {refund ? "+" : "−"}
+                                {sym}
+                                {Math.abs(amt).toFixed(2)}
+                              </td>
+                              <td data-label="Status" className="r">
+                                <span
+                                  className={`badge ${refund ? "ok" : "muted"}`}
+                                >
+                                  {refund ? "Returned" : "Charged"}
                                 </span>
                               </td>
                             </tr>
