@@ -18,6 +18,7 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
       rejectionReason?: string;
     }) => {
       const supabase = createClient();
+      let notifyProblem: string | null = null;
 
       if (payload.action === "approve") {
         const { error } = await supabase.rpc("wallet_topup_admin_verify", {
@@ -34,10 +35,17 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
         // remembered. Best effort and after the RPC, like every other
         // notify on a money path -- the credit has happened, and
         // failing the mutation now would say it had not.
+        // The OUTCOME, not a shrug. "Credited, but the customer was
+        // not told" is exactly the thing somebody has to act on, and it
+        // was being swallowed twice over: once by this catch and once
+        // by notifyAdvertiser's own. I watched a EUR 300 verify and a
+        // EUR 1,000 refusal both reach the customer's bell as nothing
+        // at all, with no way to see why from outside the database.
         try {
-          await notifyWalletTopupVerified(topup.id);
-        } catch {
-          /* the credit stands either way */
+          const n = await notifyWalletTopupVerified(topup.id);
+          if (!n.ok) notifyProblem = n.error;
+        } catch (e) {
+          notifyProblem = e instanceof Error ? e.message : "unknown";
         }
       } else if (payload.action === "reject") {
         const { error } = await supabase.rpc("wallet_topup_admin_reject", {
@@ -49,9 +57,13 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
         // point of demanding one, and it reached the database and
         // stopped there.
         try {
-          await notifyWalletTopupRejected(topup.id, payload.rejectionReason);
-        } catch {
-          /* the refusal stands either way */
+          const n = await notifyWalletTopupRejected(
+            topup.id,
+            payload.rejectionReason,
+          );
+          if (!n.ok) notifyProblem = n.error;
+        } catch (e) {
+          notifyProblem = e instanceof Error ? e.message : "unknown";
         }
       } else if (payload.action === "undo") {
         const { error } = await supabase.rpc("wallet_topup_admin_undo", {
@@ -59,8 +71,9 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
         });
         if (error) throw error;
       }
+      return { notifyProblem };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
       const messages = {
         approve: {
           title: "Payment approved",
@@ -80,6 +93,21 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
       toast.success(message.title, {
         description: message.description,
       });
+
+      // ── AND SAY IT IF THE CUSTOMER WAS NOT TOLD ─────────────────
+      //
+      // The money has moved either way, so this is a warning and not a
+      // failure — but it is the admin's to know. Until this line the
+      // notification silently not being written looked exactly like it
+      // having been written, from every screen we have.
+      const problem = (res as { notifyProblem?: string | null } | undefined)
+        ?.notifyProblem;
+      if (problem) {
+        toast.warning("The customer was NOT notified", {
+          description: `${problem}. Tell them by hand, and send me this line.`,
+          duration: 12_000,
+        });
+      }
 
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });

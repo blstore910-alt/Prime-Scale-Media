@@ -47,9 +47,9 @@ export async function notifyAdvertiser(
     type: AdvertiserNotice;
     payload: Record<string, unknown>;
   },
-): Promise<void> {
+): Promise<{ ok: boolean; why?: string }> {
   try {
-    if (!args.advertiserId) return;
+    if (!args.advertiserId) return { ok: false, why: "no advertiser id" };
     const { data: adv } = await supabase
       .from("advertisers")
       .select("user_id")
@@ -58,7 +58,9 @@ export async function notifyAdvertiser(
     const userId = (adv as { user_id?: string | null } | null)?.user_id;
     // A NULL user_id would write a row nobody can ever read: the select
     // policy matches on recipient_user_id and the push route skips it.
-    if (!userId) return;
+    if (!userId) {
+      return { ok: false, why: "the advertiser has no sign-in behind it" };
+    }
 
     // ── THE SERVICE ROLE WRITES IT, AND A FAILURE IS SAID OUT LOUD ──
     //
@@ -84,16 +86,22 @@ export async function notifyAdvertiser(
       is_read: false,
     });
     if (error) {
+      const why = safeErrorMessage(error);
       console.error(
         `notifyAdvertiser(${args.type}) could not write the row:`,
-        safeErrorMessage(error),
+        why,
       );
+      return { ok: false, why };
     }
+    return { ok: true };
   } catch (err) {
-    // Still never throws -- the money has already moved. But it says so.
-    console.error(
-      `notifyAdvertiser(${args.type}) threw:`,
-      safeErrorMessage(err),
-    );
+    // Still never throws -- the money has already moved. But it says
+    // so, and now it says so to the ADMIN's screen as well as the log:
+    // "credited, but the customer was not told" is exactly the thing
+    // somebody has to act on, and a console line on a server nobody
+    // reads is not telling anybody.
+    const why = safeErrorMessage(err);
+    console.error(`notifyAdvertiser(${args.type}) threw:`, why);
+    return { ok: false, why };
   }
 }

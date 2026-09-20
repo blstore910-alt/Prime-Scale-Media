@@ -64,11 +64,15 @@ export async function notifyWalletTopupVerified(
 
   // The row is the proof. Anything other than completed and we say
   // nothing rather than telling a customer their money arrived.
-  if (String(row.status ?? "").toLowerCase() !== "completed") {
-    return { ok: true, data: null };
+  const st = String(row.status ?? "").toLowerCase();
+  if (st !== "completed") {
+    return { ok: false, error: `not completed yet (status ${st || "empty"})` };
+  }
+  if (!row.advertiser_id) {
+    return { ok: false, error: "the top-up has no advertiser on it" };
   }
 
-  await notifyAdvertiser(supabase, {
+  const sent = await notifyAdvertiser(supabase, {
     advertiserId: row.advertiser_id,
     tenantId,
     type: "wallet_topup_completed",
@@ -78,7 +82,9 @@ export async function notifyWalletTopupVerified(
       currency: row.currency ?? null,
     },
   });
-  return { ok: true, data: null };
+  return sent.ok
+    ? { ok: true, data: null }
+    : { ok: false, error: sent.why ?? "unknown" };
 }
 
 export async function notifyWalletTopupRejected(
@@ -94,10 +100,16 @@ export async function notifyWalletTopupRejected(
 
   const status = String(row.status ?? "").toLowerCase();
   if (status !== "rejected" && status !== "failed") {
-    return { ok: true, data: null };
+    return {
+      ok: false,
+      error: `not refused yet (status ${status || "empty"})`,
+    };
+  }
+  if (!row.advertiser_id) {
+    return { ok: false, error: "the top-up has no advertiser on it" };
   }
 
-  await notifyAdvertiser(supabase, {
+  const sent = await notifyAdvertiser(supabase, {
     advertiserId: row.advertiser_id,
     tenantId,
     type: "wallet_topup_rejected",
@@ -111,5 +123,7 @@ export async function notifyWalletTopupRejected(
           : null,
     },
   });
-  return { ok: true, data: null };
+  return sent.ok
+    ? { ok: true, data: null }
+    : { ok: false, error: sent.why ?? "unknown" };
 }
