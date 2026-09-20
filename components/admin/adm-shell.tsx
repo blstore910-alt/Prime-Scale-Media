@@ -50,6 +50,8 @@ const TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/users": "Advertisers",
   "/accounts": "Ad Accounts",
+  // Missing, so the topbar read "Dashboard" on a screen that is not it.
+  "/account-pool": "Account Pool",
   "/ad-account-requests": "Account Requests",
   "/wallet-topups": "Wallet Topups",
   "/withdrawals": "Withdrawals",

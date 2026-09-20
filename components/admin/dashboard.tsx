@@ -195,12 +195,25 @@ export default function AdminDashboard() {
           <h1>Dashboard</h1>
           <p>What needs your action right now.</p>
         </div>
-        <button
-          className="btn grad sm invite"
-          onClick={() => dispatch("open-invite-user")}
-        >
-          <UserPlus /> <span className="ilab">New invite</span>
-        </button>
+        {/* ── OWNER ONLY, LIKE EVERYTHING ELSE ABOUT INVITES ──────
+            /invites is requireSuperAdmin and the sidebar entry is
+            inside the isSuperAdmin block -- but this button had no
+            gate at all and the API route behind it is apiRequireAdmin.
+            So an employee admin could send a real invitation, creating
+            a tenant member on acceptance, with pricing fields silently
+            dropped server-side -- and then had no screen on which to
+            see it, cancel it or resend it. /invites redirects them
+            away and the sidebar entry is hidden.
+            Either they get the list or they lose the button; the list
+            is a pricing surface, so they lose the button. */}
+        {isSuperAdmin ? (
+          <button
+            className="btn grad sm invite"
+            onClick={() => dispatch("open-invite-user")}
+          >
+            <UserPlus /> <span className="ilab">New invite</span>
+          </button>
+        ) : null}
       </div>
 
       {/* The "N items need action" hero is GONE. It restated, in a sentence,

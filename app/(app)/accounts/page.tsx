@@ -32,6 +32,21 @@ export default async function Page() {
   const allowed = roles.some((r) => r === "admin" || r === "advertiser");
   if (!allowed) redirect("/dashboard");
 
+  // ── AN ADVERTISER GETS SENT HOME HERE, ON THE SERVER ──────────────
+  //
+  // This page admitted advertisers and then AccountsRouter returned
+  // null and did a client-side router.replace("/dashboard"). So before
+  // the effect ran -- and permanently if that chunk failed to load --
+  // the customer saw a completely blank page: no sidebar, no topbar, no
+  // bottom nav. And it landed them on the Dashboard view although they
+  // had asked for accounts, which the advertiser shell has its own view
+  // for.
+  //
+  // /my-referrals already solved exactly this, server-side and with a
+  // named view. Same here.
+  const isAdmin = roles.some((r) => r === "admin");
+  if (!isAdmin) redirect("/dashboard?view=accounts");
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">

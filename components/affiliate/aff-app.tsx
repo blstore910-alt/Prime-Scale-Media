@@ -109,6 +109,36 @@ function rangeFromTo(k: RangeKey): { from?: string } {
 export default function AffiliateApp() {
   const { profile } = useAppContext();
   const [view, setView] = useState<View>("refs");
+
+  // ── THE URL DECIDES THE FIRST VIEW ────────────────────────────────
+  //
+  // This app read no search param at all, so the three redirects that
+  // exist to send an affiliate to their own Help, Notifications or
+  // Profile -- customer-shell-redirect sends ?view=help / notif /
+  // settings -- all landed on My Referrals, and those three views were
+  // unreachable by any link.
+  //
+  // window.location rather than useSearchParams, for the reason the
+  // advertiser shell gives: useSearchParams drags a Suspense
+  // requirement into a page that does not otherwise need one.
+  //
+  // Object.hasOwn, NOT `in`: the `in` operator walks the prototype
+  // chain, so ?view=__proto__ would make TITLES[view] evaluate to
+  // Object.prototype, which React refuses to render.
+  //
+  // "settings" is what the redirect sends and "set" is what this app
+  // calls the view, so that one is mapped rather than matched.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const wanted = new URLSearchParams(window.location.search).get("view");
+    if (!wanted) return;
+    if (wanted === "settings") {
+      setView("set");
+      return;
+    }
+    if (Object.hasOwn(TITLES, wanted)) setView(wanted as View);
+    // Mount only. Later changes come from go(), which owns the URL.
+  }, []);
   const [navOpen, setNavOpen] = useState(false);
   const [showEurUsd, setShowEurUsd] = useState<"EUR" | "USD">("EUR");
   const [payOpen, setPayOpen] = useState(false);
@@ -281,7 +311,19 @@ export default function AffiliateApp() {
   const go = (v: View) => {
     setView(v);
     setNavOpen(false);
-    if (typeof window !== "undefined") window.scrollTo(0, 0);
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+      // ── AND KEEP THE URL HONEST ─────────────────────────────────
+      //
+      // Without this the address bar says My Referrals whatever you
+      // are looking at, so a reload throws the view away and the page
+      // cannot be linked to or bookmarked. replaceState, not push: the
+      // in-app views are not browser history, and the advertiser shell
+      // made the same choice for the same reason.
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", v);
+      window.history.replaceState(null, "", url.toString());
+    }
   };
 
   const copyLink = async () => {
