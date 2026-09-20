@@ -1,6 +1,19 @@
 /** Where a customer writes when the app cannot help them. */
 export const SUPPORT_EMAIL = "contact@primescalemedia.com";
 
+/**
+ * What an EXTRA ad account costs, once the plan's included allowance is
+ * used up. EUR is the base; a USD request is converted at the live rate.
+ *
+ * It was written only inside the customer's request form, so the admin
+ * dialog that raises the invoice for it opened at 0.00 with no
+ * reference figure anywhere on screen - type 5 instead of 50 and the
+ * invoice is created, payable, with a success toast. The RPC that
+ * charges it (ad_account_request_create_paid) holds its own copy in
+ * SQL; if this changes, change it there too.
+ */
+export const AD_ACCOUNT_REQUEST_FEE_EUR = 50;
+
 export const DATE_FORMAT = "DD-MM-YYYY";
 export const DATE_TIME_FORMAT = "DD-MM-YYYY HH:mm";
 

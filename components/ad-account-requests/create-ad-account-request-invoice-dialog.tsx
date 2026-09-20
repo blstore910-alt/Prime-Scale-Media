@@ -28,6 +28,8 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { Controller, Resolver, useForm } from "react-hook-form";
 import { toast } from "sonner";
+
+import { AD_ACCOUNT_REQUEST_FEE_EUR } from "@/lib/constants";
 import z from "zod";
 import useCreateAdAccountRequestInvoice from "./use-create-ad-account-request-invoice";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
@@ -42,11 +44,31 @@ const schema = z.object({
   amount: z.coerce.number().gt(0, "Amount must be greater than 0"),
 });
 
-function getDefaultValues(): FormValues {
-  return {
-    currency: "EUR",
-    amount: 0,
-  };
+// ── AN EMPTY BOX IS NOT A DEFAULT ────────────────────────────────────
+//
+// This opened at 0.00 EUR whatever the request said, and nothing
+// anywhere on the screen stated what an extra ad account costs. So the
+// amount was whatever the admin remembered, in a currency that might
+// not be the customer's: type 5 instead of 50 and the invoice is
+// created, payable, with a success toast, and the customer pays 5 for
+// a 50 service. The request already knows its own currency, and the
+// customer's own form has been quoting AD_ACCOUNT_REQUEST_FEE_EUR all
+// along.
+//
+// `request_fee` in the metadata is what the RPC actually computed for
+// THIS request, so it wins when it is there.
+function getDefaultValues(request: AdAccountRequest | null): FormValues {
+  const currency =
+    String(request?.currency ?? "").toUpperCase() === "USD" ? "USD" : "EUR";
+  const metadata = (request?.metadata ?? {}) as { request_fee?: unknown };
+  const quoted = Number(metadata.request_fee);
+  const amount =
+    Number.isFinite(quoted) && quoted > 0
+      ? quoted
+      : currency === "EUR"
+        ? AD_ACCOUNT_REQUEST_FEE_EUR
+        : Math.round(AD_ACCOUNT_REQUEST_FEE_EUR / 0.86);
+  return { currency, amount };
 }
 
 export default function CreateAdAccountRequestInvoiceDialog({
@@ -67,14 +89,16 @@ export default function CreateAdAccountRequestInvoiceDialog({
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: getDefaultValues(),
+    defaultValues: getDefaultValues(request),
     resolver: zodResolver(schema) as Resolver<FormValues>,
   });
 
+  // On OPEN, so a dialog re-used for a second request does not keep the
+  // first one's currency — the same fault the wallet top-up dialog had.
   useEffect(() => {
     if (!open) return;
-    reset(getDefaultValues());
-  }, [open, reset]);
+    reset(getDefaultValues(request));
+  }, [open, reset, request]);
 
   const onSubmit = (values: FormValues) => {
     if (!request?.id || !request.advertiser_id) {
@@ -92,7 +116,7 @@ export default function CreateAdAccountRequestInvoiceDialog({
       {
         onSuccess: () => {
           toast.success("Invoice created successfully.");
-          reset(getDefaultValues());
+          reset(getDefaultValues(request));
           onOpenChange(false);
         },
         onError: (error) => {
@@ -109,7 +133,7 @@ export default function CreateAdAccountRequestInvoiceDialog({
       open={open}
       onOpenChange={(value) => {
         if (!value) {
-          reset(getDefaultValues());
+          reset(getDefaultValues(request));
         }
         onOpenChange(value);
       }}

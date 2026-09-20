@@ -12,7 +12,10 @@ import { DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { toast } from "sonner";
-import { TIMEZONES } from "@/lib/constants";
+import {
+  AD_ACCOUNT_REQUEST_FEE_EUR,
+  TIMEZONES,
+} from "@/lib/constants";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from "@/context/app-provider";
@@ -344,8 +347,8 @@ export default function AdAccountRequestForm({
   const feeAmount = isFree
     ? 0
     : selectedCurrency === "EUR"
-      ? 50
-      : Math.round(50 / (feePreview?.rate || 0.86));
+      ? AD_ACCOUNT_REQUEST_FEE_EUR
+      : Math.round(AD_ACCOUNT_REQUEST_FEE_EUR / (feePreview?.rate || 0.86));
   const feeSymbol = selectedCurrency === "USD" ? "$" : "€";
   const feeBalance =
     selectedCurrency === "USD" ? (feePreview?.usd ?? 0) : (feePreview?.eur ?? 0);
