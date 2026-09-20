@@ -14,6 +14,18 @@ Pass D answers "does it work together". Doing D without A is how a
 screen nobody opened reaches a customer; doing D without C is how a
 confident, wrong number does.
 
+> ### Read `docs/WALKTHROUGH_CORRECTIONS.md` first
+>
+> This page is 53 commits behind the code. Four of its steps are wrong in
+> a way that moves money — the EUR 300 floor makes "EUR 1 in" impossible,
+> a withdrawal is always USD and not the account's currency, J7's refund
+> pill was deleted, and a self-signup referral link is `pending` and earns
+> nothing until it is approved. The corrections file has all of them,
+> verified against the code on 2026-09-20, plus 38 migrations missing
+> from the ledger below and eleven rows that belong in Known limitations.
+>
+> Where the two disagree, the corrections file is right.
+
 This is the script for going through the whole app by hand, on
 production, with real money. It is written to be *worked*: every step says
 what to press, what must happen, and what to look at if it doesn't.
@@ -749,9 +761,20 @@ a surprise; seeing something *else* is.
 | J4 | No customer-facing screen for a withdrawal request | Needs a small list in the account sheet |
 | J6 | Payout request writes no record | Needs a request table, or an invoice |
 | J6 | A standalone affiliate has no referral link | Needs a decision: give affiliates a code of their own, or make them advertisers |
-| J7 | A refund has no line in Wallet activity and no credit note | Needs the adjustments feed in the customer's history |
+| ~~J7~~ | ~~A refund has no line in Wallet activity~~ | **Struck 2026-09-20: there is no refund. The pill was removed and the action forces it false.** |
 | J5 / J4 | Two money RPCs (`wallet_exchange`, `top_up_create_for_advertiser`) exist only on the live database | Nothing in the repo can verify them; that is why both steps say "check the result against the promise" |
-| everywhere | 33 RLS policies still check a role without checking whether that person is still active | The migration is being written from the live policy list |
+| ~~everywhere~~ | ~~33 RLS policies check a role without checking is_active~~ | **Struck 2026-09-20: contradicted by this file's own ledger, which lists 20260918140000_policies_reject_deactivated_admin as applied.** |
+| J1.4 / J4.1 | Once the plan is active, wallet AND ad-account top-ups both carry a 300 floor | Override per row: /wallets and /accounts both have a Min amount control |
+| J4.2 | A withdrawal always returns USD, whatever the account was funded in | Deliberate — an ad-account balance IS a USD column |
+| J6 / J12 | A self-signup referral link is `pending` and accrues nothing until approved at /affiliates | The invite path writes `active`; self-signup does not |
+| J9.3 | /top-ups shows no PSM number, and the customer name may read the literal "Advertiser" | Depends on top_ups_view's columns — one SQL settles it, see the corrections file |
+| J9.6 | Wallet adjust takes a delta with no expected base and no idempotency token | Two admins in the dialog at once both apply |
+| J10.2 | The Banks page is not wired to the customer top-up screen | The card says so in bold; this step cannot pass |
+| J11.4 | The audit CSV honours the table and action filters but hardcodes 30 days and ignores the row-id filter | "Filter to that customer, export" still exports the wrong thing |
+| J13.5 | MAINTENANCE_MODE needs a redeploy each way, and app/api/* routes do not check it | POST /api/send-invite still writes during a freeze |
+| J13.6 | GBP and HKD cannot be selected anywhere, but GBP/HKD bank instructions are still shown to customers | The asymmetry is the finding, not the missing dropdown |
+| A4 | The affiliate app has no `?view=` URLs at all, and lands on Referrals rather than Dashboard | Every A4 row must be ticked by clicking |
+| A6 | /onboard with no profile redirects to /organization/new, a live tenant-creation form | Open it, do not submit |
 
 ---
 
