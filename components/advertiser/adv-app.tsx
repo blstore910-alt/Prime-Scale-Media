@@ -55,6 +55,7 @@ import PsmAvatar from "@/components/ui/psm-avatar";
 import FinanceReport from "@/components/finance/finance-report";
 import { isAccountLocked } from "@/lib/pure-account-status";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
+import { catalogForRole } from "@/lib/notification-catalog";
 
 dayjs.extend(relativeTime);
 
@@ -4511,16 +4512,23 @@ export default function AdvertiserApp() {
                   <Ic name="i-bell" /> Notification preferences
                 </h2>
                 <p className="cap">Pick what&apos;s worth a ping.</p>
-                <Toggle
-                  label="Top-up verified"
-                  desc="When a payment is credited"
-                  notifType="topup_completed"
-                />
-                <Toggle
-                  label="Invoice / fee due"
-                  desc="Before your monthly fee is charged"
-                  notifType="subscription_invoice"
-                />
+                {/* ── FROM THE CATALOGUE, NOT TWO HARD-CODED ROWS ──────
+                    The catalogue already carries an `audience` on every
+                    type and a helper that filters by it -- and that
+                    helper's ONLY consumer is the admin dialog, which a
+                    customer can never open. So a customer had two
+                    toggles out of six, and four of their own
+                    notification types had no control anywhere: past
+                    due, plan changed, and the three added tonight.
+                    Anything added later now appears here on its own. */}
+                {catalogForRole("advertiser").map((entry) => (
+                  <Toggle
+                    key={entry.type}
+                    label={entry.label}
+                    desc={entry.description}
+                    notifType={entry.type}
+                  />
+                ))}
               </div>
             </div>
             {/* Not for people who already are one. isAffiliate was read
