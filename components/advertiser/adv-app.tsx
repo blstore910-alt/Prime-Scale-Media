@@ -961,6 +961,24 @@ export default function AdvertiserApp() {
         row: NonNullable<typeof requestCharges>[number];
         refund?: boolean;
       };
+  // ── THIS LIST IS FIVE CAPPED READS STITCHED TOGETHER ──────────────
+  //
+  // Each source is fetched with .limit(30) independently, then merged
+  // and sorted. So a customer with 100 fundings and 5 top-ups sees
+  // fundings going back only 30 while top-ups go back to the
+  // beginning -- and the result looks like one continuous history with
+  // nothing missing. The invoices table below this one does say "your
+  // 30 most recent"; this one said nothing at all.
+  //
+  // Saying it is the fix that is honest at any cap. A source that came
+  // back exactly full is a source that has more.
+  const activityTruncated =
+    (activity?.length ?? 0) >= 30 ||
+    (exchanges?.length ?? 0) >= 30 ||
+    (invoices?.length ?? 0) >= 30 ||
+    (accountFundings?.length ?? 0) >= 30 ||
+    (accountReturns?.length ?? 0) >= 30;
+
   const walletEvents: WalletEvent[] = [
     // The charge, and the refund as its own line where there was one:
     // a customer whose request was rejected sees the money go and come
@@ -3309,6 +3327,19 @@ export default function AdvertiserApp() {
                     )}
                   </tbody>
                 </table>
+                {activityTruncated ? (
+                  <p
+                    className="cap"
+                    style={{
+                      margin: 0,
+                      padding: "10px 14px",
+                      color: "var(--faint)",
+                    }}
+                  >
+                    Showing your most recent activity. Older entries are not
+                    listed here — the financial report has the full period.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
