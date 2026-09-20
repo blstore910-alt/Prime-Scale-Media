@@ -89,17 +89,50 @@ export default function AffiliateTableRow({
         {COMMISSION_TYPE_LABELS[referral.commission_type as string] ||
           EMPTY_VALUE}
       </td>
-      <td data-label="Commission Monthly" className="r mono">
+      {/* ── NOTHING ACCRUES THESE ─────────────────────────────────
+          commission-setup-utils marks every monthly/one-time type
+          `accrues: false` -- "Recorded on the referral. Paid by hand --
+          nothing accrues it." The setup dialog warns; this screen, the
+          one an owner reviews liabilities on, rendered them as plain
+          money beside an Earnings column reading N/A. A link at
+          EUR 200/mo live for seven months shows EUR 200.00 here,
+          nothing on /commissions, and EUR 1,400 of real liability
+          invisible on both. The title says it where it is read. */}
+      <td
+        data-label="Commission Monthly"
+        className="r mono"
+        title="Paid by hand — nothing accrues this, so it will never appear on /commissions or in Earnings."
+      >
         {formatCommissionAmount(
           referral.commission_monthly,
           referral.commission_currency,
         )}
+        {Number(referral.commission_monthly) > 0 ? (
+          <span
+            className="muted"
+            style={{ display: "block", fontSize: ".72rem" }}
+          >
+            by hand
+          </span>
+        ) : null}
       </td>
-      <td data-label="Commission One-time" className="r mono">
+      <td
+        data-label="Commission One-time"
+        className="r mono"
+        title="Paid by hand — nothing accrues this, so it will never appear on /commissions or in Earnings."
+      >
         {formatCommissionAmount(
           referral.commission_onetime,
           referral.commission_currency,
         )}
+        {Number(referral.commission_onetime) > 0 ? (
+          <span
+            className="muted"
+            style={{ display: "block", fontSize: ".72rem" }}
+          >
+            by hand
+          </span>
+        ) : null}
       </td>
       <td data-label="Commission Recurring" className="r mono">{formatPercent(referral.commission_pct)}</td>
       {/* N/A, not 0.00. Neither insert path writes earnings_* -- they

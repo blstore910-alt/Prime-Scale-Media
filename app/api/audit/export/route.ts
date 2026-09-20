@@ -23,12 +23,14 @@ export async function GET(req: Request) {
   }
   const table = url.searchParams.get("table") ?? undefined;
   const action = url.searchParams.get("action") ?? undefined;
+  const rowId = url.searchParams.get("row") ?? undefined;
 
   const result = await exportAuditEventsCsv({
     fromIso: from,
     toIso: to,
     table,
     action,
+    rowId,
   });
   if (!result.ok) {
     return NextResponse.json(

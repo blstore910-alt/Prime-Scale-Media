@@ -467,11 +467,30 @@ export default function PsmRequests() {
                   ? (accountsByAdvertiser?.[`${advId}|${fam}`] ?? [])[0]
                   : undefined;
                 const acctName = made?.name || "";
-                // The account's own BM id beats the one the customer
-                // typed on the request: it is what the account actually
-                // runs under, and the two can differ.
-                const bm = made?.bm_id || ident?.value || "";
-                const bmLabel = made?.bm_id ? "BM" : ident?.label ?? "BM";
+                // ── AND `made` IS A GUESS, NOT A LINK ───────────────
+                //
+                // There is no FK from a request to the account it
+                // produced, so `made` is "the newest ad_accounts row
+                // with the same advertiser and platform family", out of
+                // a .limit(500) lookup. For a customer asking for a
+                // SECOND account that is their EXISTING one.
+                //
+                // Preferring it therefore printed the wrong Business
+                // Manager on a copy-on-click field: PSM0005 asks for a
+                // new Meta account quoting BM 1112223334 and the card
+                // showed 9998887776. The admin provisions and funds the
+                // wrong BM.
+                //
+                // What the customer typed on THIS request is the thing
+                // this request is about. The guess is still shown when
+                // they typed nothing, and it is labelled as belonging
+                // to an existing account so nobody retypes it blind.
+                const bm = ident?.value || made?.bm_id || "";
+                const bmLabel = ident?.value
+                  ? (ident?.label ?? "BM")
+                  : made?.bm_id
+                    ? "BM (their existing account)"
+                    : "BM";
                 if (!acctName && !bm) return null;
                 return (
                   <div

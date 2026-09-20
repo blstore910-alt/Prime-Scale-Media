@@ -25,6 +25,8 @@ export async function exportAuditEventsCsv(params: {
   toIso: string;
   table?: string;
   action?: string;
+  /** One row's id, the same deep-link filter the screen offers. */
+  rowId?: string;
 }): Promise<
   ActionResult<{ csv: string; count: number; truncated: boolean }>
 > {
@@ -93,6 +95,12 @@ export async function exportAuditEventsCsv(params: {
     }
     if (params.action && params.action !== "all") {
       q = q.eq("action", params.action);
+    }
+    // The screen's /audit?row=<uuid> filter. Without it, exporting from
+    // a screen narrowed to one row handed back every audited write in
+    // the range and none of the six on screen.
+    if (params.rowId) {
+      q = q.eq("row_id", params.rowId);
     }
     return q;
   });

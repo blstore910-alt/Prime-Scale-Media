@@ -105,14 +105,26 @@ export default function AuditEventsTable() {
   async function downloadCsv() {
     setExporting(true);
     try {
-      // Last 30 days by default; matches the "recent activity" mental model.
+      // ── THE FILTERS THE SCREEN IS ACTUALLY SHOWING ──────────────
+      //
+      // This hardcoded a rolling 30 days while the table defaults to
+      // All time, and sent neither the ?row= id nor the "last N
+      // minutes" control. Paste a wallet_topups row id, narrow to the
+      // six events spanning March to September, press Export: the file
+      // held every audited write of the last 30 days and none of the
+      // six, under a toast reading "Audit CSV downloaded".
       const to = new Date().toISOString();
-      const from = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+      const windowMs =
+        sinceMinutes > 0 ? sinceMinutes * 60 * 1000 : 366 * 86400 * 1000;
+      // 366 days is the action's own ceiling; All time asks for as much
+      // of it as the server will give and says so if it is short.
+      const from = new Date(Date.now() - windowMs + 1000).toISOString();
       const params = new URLSearchParams({
         from,
         to,
         ...(table !== "all" ? { table } : {}),
         ...(action !== "all" ? { action } : {}),
+        ...(rowIdFromUrl ? { row: rowIdFromUrl } : {}),
       });
       const res = await fetch(`/api/audit/export?${params.toString()}`, {
         cache: "no-store",
@@ -121,16 +133,40 @@ export default function AuditEventsTable() {
         const body = await res.json().catch(() => null);
         throw new Error(body?.error ?? `Export failed (${res.status})`);
       }
+      // ── AND READ WHAT THE SERVER SAID ABOUT IT ──────────────────
+      //
+      // The route names a short file "audit-<date>-PARTIAL.csv" and
+      // sets X-Export-Rows and X-Export-Truncated. `a.download`
+      // OVERRIDES Content-Disposition, so the warning in the filename
+      // was thrown away and the toast was unconditional -- a file that
+      // stopped at the ceiling landed looking complete. Fixed on the
+      // server, re-introduced one function away.
+      const wasTruncated =
+        res.headers.get("X-Export-Truncated") === "true";
+      const rowCount = res.headers.get("X-Export-Rows");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `audit-${new Date().toISOString().slice(0, 10)}${
+        wasTruncated ? "-PARTIAL" : ""
+      }.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success("Audit CSV downloaded");
+      if (wasTruncated) {
+        toast.warning("Audit CSV downloaded — but it is INCOMPLETE", {
+          description: `It stopped at the export ceiling${
+            rowCount ? ` (${rowCount} rows)` : ""
+          }. Narrow the range or the table and export again.`,
+          duration: 12000,
+        });
+      } else {
+        toast.success(
+          `Audit CSV downloaded${rowCount ? ` — ${rowCount} rows` : ""}`,
+        );
+      }
     } catch (err) {
       toast.error("CSV export failed", {
         description: err instanceof Error ? err.message : "Unknown error",
