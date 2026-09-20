@@ -247,7 +247,16 @@ export default function AuditEventsTable() {
       ) : isError ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            {(error as Error)?.message ?? "Failed to load audit events."}
+            {/* ?? catches only null and undefined, so an empty message
+                rendered NOTHING, and a bare "JWT expired" rendered alone
+                in a card the same shape as "No audit events found." --
+                the failure and the empty state looked identical on the
+                screen you open when money is missing. Always lead with
+                the sentence; append the reason when there is one. */}
+            Failed to load audit events.
+            {(error as Error)?.message
+              ? ` ${(error as Error).message}`
+              : ""}
           </p>
         </div>
       ) : events.length ? (
