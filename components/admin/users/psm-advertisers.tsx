@@ -42,6 +42,7 @@ import { getCompletedWalletTopupTotals } from "./wallet-topup-totals";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import { safeIlikeTerm } from "@/lib/utils/search";
 import { csvSafe } from "@/lib/csv-safe";
+import { downloadCsv } from "@/lib/download-blob";
 
 // Admin advertisers list, ported to the mockup look. Reuses the real
 // `useUsers` data hook (unchanged query) and the real detail sheet +
@@ -349,13 +350,7 @@ export default function PsmAdvertisers() {
       const data = rows as Record<string, unknown>[];
       const parser = new Parser(opts);
       const csv = parser.parse(data);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${kind}s.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadCsv(csv, `${kind}s.csv`);
     } catch (err) {
       toast.error("Unable to export users", {
         description: err instanceof Error ? err.message : "Export failed.",

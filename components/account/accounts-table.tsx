@@ -57,6 +57,7 @@ import { useAccountSpend } from "@/hooks/use-account-spend";
 import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
 import { CopyText } from "@/components/ui/copy-text";
 import { adAccountStatusView } from "@/lib/ad-account-status";
+import { downloadCsv } from "@/lib/download-blob";
 
 // Admin Ad Accounts monolith, ported to the mockup look (.psmapp shell,
 // injected by AdminShell). Reuses the exact data hooks, search/platform/
@@ -134,23 +135,44 @@ export default function AccountsTable() {
     // trip for the same rows it already had.
     queryKey: ["ad-accounts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .select(
-          `*,
-          advertiser:advertisers(
-            tenant_client_code,
-            profile:user_profiles(
-              id,
-              full_name,
-              email
+      // ── PAGED, BECAUSE THE CAP IS SILENT ────────────────────────
+      //
+      // There was no .limit(), which does not mean "all of them": it
+      // means PostgREST's default ceiling of 1,000 rows, returned with
+      // no error and no marker. Every filter, count and CSV on this
+      // screen is computed in the browser from this array, so past a
+      // thousand accounts the whole page would be quietly wrong -- the
+      // tiles, the search, the export -- with nothing saying so.
+      //
+      // And a unique tiebreaker after created_at: Postgres gives no
+      // defined order among rows sharing a timestamp, and a batch of
+      // accounts created in the same second straddles a page boundary,
+      // so a row could appear twice or vanish.
+      const PAGE = 1000;
+      const rows: unknown[] = [];
+      for (let from = 0; from < 50_000; from += PAGE) {
+        const { data, error } = await supabase
+          .from("ad_accounts")
+          .select(
+            `*,
+            advertiser:advertisers(
+              tenant_client_code,
+              profile:user_profiles(
+                id,
+                full_name,
+                email
+              )
             )
+          `,
           )
-        `,
-        )
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return { items: data ?? [], total: (data ?? []).length };
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if ((data ?? []).length < PAGE) break;
+      }
+      return { items: rows, total: rows.length };
     },
   });
 
@@ -323,31 +345,27 @@ export default function AccountsTable() {
     ];
 
     const opts = { fields, withBOM: true };
-    const supabase = createClient();
     try {
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        // The CSV declares its own field list above and uses exactly two of
-        // these embedded values. Pulling three whole rows per account to
-        // print two of their columns dragged the admin's private `note`, the
-        // commission terms and the entire tenant record into a file that
-        // then leaves the building by email. Ask for what the export prints.
-        .select(
-          "*, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
-        );
-      if (error) throw error;
-      const parser = new Parser(opts);
-      const csv = parser.parse(data);
+      // ── WHAT YOU SEE IS WHAT YOU DOWNLOAD ───────────────────────
+      //
+      // This re-read the table with no filter at all, so an admin
+      // looking at three Meta accounts for PSM0005 pressed Download and
+      // got every ad account in the tenant -- truncated at PostgREST's
+      // 1,000-row ceiling, in a file headed exactly like a complete
+      // one. Search, platform, status and sort are applied in the
+      // browser above, so the honest export is the array the screen is
+      // already showing. It cannot disagree with the screen, and it
+      // cannot be short without the screen being short too.
+      const csv = new Parser(opts).parse(
+        sortedAccounts as unknown as Record<string, unknown>[],
+      );
 
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       // It is the AD ACCOUNTS export. "users.csv" is what an admin then
       // emails to someone, or opens next to the real users export.
-      a.download = "ad-accounts.csv";
-      a.click();
-      URL.revokeObjectURL(url);
+      // downloadCsv, because this was a detached anchor with a URL
+      // revoked on the next line: Firefox ignored the click outright and
+      // the button did nothing, silently. See lib/download-blob.
+      downloadCsv(csv, "ad-accounts.csv");
     } catch (error) {
       // And say so. A failure that only reaches the console is a
       // button that does nothing, from where the operator is sitting.

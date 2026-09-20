@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
 import PsmAvatar from "@/components/ui/psm-avatar";
+import { downloadCsv } from "@/lib/download-blob";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
 const SUPPORT_EMAIL = "contact@primescalemedia.com";
@@ -349,13 +350,10 @@ export default function AffiliateApp() {
         "Earnings EUR": Number(r.earnings_eur) || 0,
       }));
       const csv = new Parser().parse(flat);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "my_referrals.csv";
-      a.click();
-      URL.revokeObjectURL(url);
+      // downloadCsv adds the BOM too: this file goes to an affiliate's
+      // own bookkeeper, and without it a name with an accent opens as
+      // mojibake in a European Windows Excel.
+      downloadCsv(csv, "my_referrals.csv");
     } catch (e) {
       toast.error("Export failed", {
         description: e instanceof Error ? e.message : undefined,
