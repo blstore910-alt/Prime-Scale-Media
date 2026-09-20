@@ -45,7 +45,9 @@ export async function syncSupplierPool(
   // new, 1 suspended" is the thing an admin needs to see.
   const { data: existingRows, error: existingError } = await supabase
     .from("supplier_ad_accounts")
-    .select("external_id, status")
+    // ...and the two measured values, so an absent one in the feed does
+    // not blank a stored one. See the spread below.
+    .select("external_id, status, balance_cents, fee_percentage")
     .eq("tenant_id", tenantId)
     .eq("provider", "supplier1");
 
@@ -60,12 +62,22 @@ export async function syncSupplierPool(
   // mirror matters more than reporting on it.
   const knowsBefore = !existingError;
   const before = new Map<string, string | null>();
+  const heldValues = new Map<
+    string,
+    { balance_cents: number | null; fee_percentage: number | null }
+  >();
   if (knowsBefore) {
     for (const r of (existingRows ?? []) as Array<{
       external_id: string;
       status: string | null;
+      balance_cents: number | null;
+      fee_percentage: number | null;
     }>) {
       before.set(r.external_id, r.status ?? null);
+      heldValues.set(r.external_id, {
+        balance_cents: r.balance_cents ?? null,
+        fee_percentage: r.fee_percentage ?? null,
+      });
     }
   }
 
@@ -105,8 +117,31 @@ export async function syncSupplierPool(
       currency: a.currency ?? null,
       timezone: a.timezone ?? null,
       status: a.status ?? null,
-      fee_percentage: a.fee_percentage ?? null,
-      balance_cents: a.balance_cents ?? null,
+      // ── null MEANS "THE LIST DOES NOT CARRY THIS", NOT "ZERO" ────
+      //
+      // The list endpoint returns no balance and, for most accounts, no
+      // fee. Writing null for them blanked whatever a per-account fetch
+      // had stored -- every fifteen minutes, for ever. The pool screen
+      // then shows no balance on inventory we have just measured, and
+      // `fee_percentage` is the supplier COST the allocate dialog offers
+      // when a customer has no plan rate.
+      //
+      // The key stays present on every row -- PostgREST refuses an
+      // upsert whose objects do not all have the same keys -- and falls
+      // back to what we already hold. When the existing read failed we
+      // do not know what we hold, so the feed's own value stands
+      // (that read failing is already handled as "say nothing about
+      // changes" above; it must not also become "blank everything").
+      fee_percentage:
+        a.fee_percentage ??
+        (knowsBefore
+          ? (heldValues.get(a.external_id)?.fee_percentage ?? null)
+          : null),
+      balance_cents:
+        a.balance_cents ??
+        (knowsBefore
+          ? (heldValues.get(a.external_id)?.balance_cents ?? null)
+          : null),
       supplier_assigned_to: a.assigned_to ?? null,
       raw: a as unknown as Record<string, unknown>,
       synced_at: nowIso,
@@ -124,7 +159,18 @@ export async function syncSupplierPool(
       });
     if (error) {
       console.error("supplier pool upsert failed:", safeErrorMessage(error));
-      return { ok: false, error: error.message };
+      // safeErrorMessage on the way OUT as well. The line above
+      // sanitises the log and this one returned the raw message to the
+      // caller, which is the wrong way round -- the caller is what
+      // reaches a screen.
+      //
+      // And say how far it got: the chunks before this one are already
+      // committed, so "failed" on its own describes a rollback that did
+      // not happen.
+      return {
+        ok: false,
+        error: `${safeErrorMessage(error)} (${i} of ${rows.length} accounts were already written)`,
+      };
     }
   }
 

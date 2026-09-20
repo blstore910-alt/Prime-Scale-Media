@@ -59,6 +59,78 @@ function mapPlatform(p: string | null | undefined): Supplier1Platform {
   }
 }
 
+
+/**
+ * A push the supplier acknowledged BY NAME, or nothing.
+ *
+ * ── "200 {}" IS NOT A FUNDED AD ACCOUNT ──────────────────────────────
+ *
+ * seamxFetch refuses a 200 with an empty body and a 200 that is not
+ * JSON, and its comment names the case it did NOT cover: "Same for a
+ * bare 200 {}." JSON.parse("{}") is {}, not null, so `{}`, `[]`,
+ * `{"status":"pending"}` and `{"error":"upstream unavailable"}` all
+ * arrived as success -- and then:
+ *
+ *     external_topup_id: String(res.data?.data?.id ?? "")   -> ""
+ *     status: mapMovementStatus(undefined)                   -> "queued"
+ *
+ * The worker only rejects status === "failed", so the job was written
+ * `succeeded` with an EMPTY external id. A supplier deploy that puts a
+ * gateway in front of /v1/topups for an hour therefore marks ten queued
+ * USD 2,000 pushes as done: USD 20,000 collected from customers, zero
+ * funded, no failed job, no alert, and nothing in the app compares our
+ * figure to theirs.
+ *
+ * Two rules, both of which a real reply satisfies:
+ *   - there is an id. An acknowledgement with no handle is not one.
+ *   - the status is a word we recognise. `mapMovementStatus` defaults
+ *     unknown words to "queued", so `cancelled`, `declined`, `on_hold`
+ *     and `error` all read as "on its way".
+ *
+ * Retryable, because a gateway answering for the supplier is usually
+ * transient -- and the idempotency key means a retry cannot double-fund.
+ */
+const KNOWN_MOVEMENT_STATUSES = new Set([
+  "approved",
+  "completed",
+  "rejected",
+  "failed",
+  "queued",
+  "pending",
+  "processing",
+  "submitted",
+  "in_progress",
+]);
+
+function acknowledgedMovement(
+  raw: unknown,
+  what: "top-up" | "withdrawal",
+):
+  | { ok: true; id: string; status: "queued" | "completed" | "failed" }
+  | { ok: false; error: string; retryable: true } {
+  const node = (raw as { data?: { id?: unknown; status?: unknown } } | null)
+    ?.data;
+  const id = String(node?.id ?? "").trim();
+  const statusWord = String(node?.status ?? "")
+    .trim()
+    .toLowerCase();
+  if (!id) {
+    return {
+      ok: false,
+      error: `SeamX answered 200 but named no ${what} id, so nothing can be confirmed as sent.`,
+      retryable: true,
+    };
+  }
+  if (statusWord && !KNOWN_MOVEMENT_STATUSES.has(statusWord)) {
+    return {
+      ok: false,
+      error: `SeamX reported the ${what} as "${statusWord}", which is not a status this app knows. Treating it as unsent rather than guessing.`,
+      retryable: true,
+    };
+  }
+  return { ok: true, id, status: mapMovementStatus(statusWord) };
+}
+
 // SeamX topup/withdraw status → our queued/completed/failed.
 function mapMovementStatus(
   s: string | null | undefined,
@@ -489,11 +561,13 @@ const realSupplier1Adapter: Supplier1Adapter = {
       }),
     });
     if (!res.ok) return res;
+    const ack = acknowledgedMovement(res.data, "top-up");
+    if (!ack.ok) return ack;
     return {
       ok: true,
       data: {
-        external_topup_id: String(res.data?.data?.id ?? ""),
-        status: mapMovementStatus(res.data?.data?.status),
+        external_topup_id: ack.id,
+        status: ack.status,
         balance_after_cents: null,
       } satisfies Supplier1TopupPushResult,
     };
@@ -519,11 +593,13 @@ const realSupplier1Adapter: Supplier1Adapter = {
       }),
     });
     if (!res.ok) return res;
+    const ack = acknowledgedMovement(res.data, "withdrawal");
+    if (!ack.ok) return ack;
     return {
       ok: true,
       data: {
-        external_withdraw_id: String(res.data?.data?.id ?? ""),
-        status: mapMovementStatus(res.data?.data?.status),
+        external_withdraw_id: ack.id,
+        status: ack.status,
         balance_after_cents: null,
       } satisfies Supplier1WithdrawPushResult,
     };
