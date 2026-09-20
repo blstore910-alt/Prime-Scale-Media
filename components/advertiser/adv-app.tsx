@@ -230,7 +230,19 @@ export default function AdvertiserApp() {
   const firstName = name.split(" ")[0];
   // Approved affiliate or not. An `active` referral_links row is the only
   // thing that makes an advertiser one.
-  const { isAffiliate, isError: affiliateUnknown } = useIsAffiliate();
+  // isLoading too. The hook sets retry: 2 on purpose -- "three tries
+  // before anybody is told they are not an affiliate" -- so the window
+  // where isAffiliate is false and isError is false is SECONDS, not
+  // milliseconds. During it, an approved affiliate was shown the
+  // "Get paid for the people you bring in / Join the affiliate program"
+  // hero instead of their own referral book, and a "Become an affiliate"
+  // card in Settings that the flag is read two lines above to prevent.
+  const {
+    isAffiliate,
+    isError: affiliateError,
+    isLoading: affiliateLoading,
+  } = useIsAffiliate();
+  const affiliateUnknown = affiliateError || affiliateLoading;
 
   const {
     data: wallet,
@@ -1118,7 +1130,7 @@ export default function AdvertiserApp() {
   // charged — so the list untick­ed itself and told a paying customer to
   // fund a wallet they had funded. head:true, so it fetches a number and
   // no rows.
-  const { data: toppedUpCount } = useQuery<number>({
+  const { data: toppedUpCount, isError: toppedUpError } = useQuery<number>({
     queryKey: ["adv-ever-topped-up", wallet?.id],
     enabled: !!wallet?.id,
     staleTime: 5 * 60_000,
@@ -1139,6 +1151,16 @@ export default function AdvertiserApp() {
   const {
     data: pendingRows,
     isError: pendingError,
+    // Its OWN settled flag. pendingUnknown below consulted
+    // activityLoading -- a DIFFERENT request -- so while this one was in
+    // flight or retrying, pendingUnknown was false over an empty list
+    // and the wallet card printed "Available to spend" beside a balance
+    // of zero, with no pending panel, to a customer who had wired
+    // EUR 10,000 that morning. They wire it again; there is no duplicate
+    // guard on wallet_topup_advertiser_create. That is verbatim the
+    // failure the paragraph below says this code exists to prevent,
+    // arriving through the sibling query.
+    isSuccess: pendingLoaded,
   } = useQuery<
     {
       id: string;
@@ -1182,13 +1204,19 @@ export default function AdvertiserApp() {
   // over an empty list. The dash view is covered by the booting gate;
   // the wallet view is not, and ?view=wallet lands straight on it.
   const pendingUnknown =
-    activityError || activityLoading || !wallet?.id || pendingError;
+    activityError ||
+    activityLoading ||
+    !wallet?.id ||
+    pendingError ||
+    !pendingLoaded;
   // Unknown BECAUSE IT IS STILL COMING, as opposed to unknown because a
   // read failed. Same value on screen, opposite sentence: one is "one
   // moment", the other is "something went wrong". Only the disabled
   // query and the in-flight one are the first kind.
   const pendingChecking =
-    !activityError && !pendingError && (activityLoading || !wallet?.id);
+    !activityError &&
+    !pendingError &&
+    (activityLoading || !wallet?.id || !pendingLoaded);
   // ── AND IT MUST NOT COME OUT OF A TRUNCATED LIST ────────────────────
   //
   // `activity` is fetched with .limit(30) because it renders a recent
@@ -1386,9 +1414,44 @@ export default function AdvertiserApp() {
   // describes what they pay, and a different figure leaves their wallet.
   // The last paid subscription invoice is what they were actually
   // charged, and it is already loaded for the billing table.
-  const lastChargedAmount = (invoices ?? []).find(
-    (i) => i.type === "subscription" && i.status === "paid",
-  )?.total;
+  //
+  // ── AND NOT FROM THE 30-ROW WINDOW ──────────────────────────────────
+  //
+  // `invoices` is .limit(30) across EVERY invoice type. planPaid and
+  // dueSubInvoice were each given their own unbounded query for exactly
+  // this hazard; this, the third consumer, was left on the list. A
+  // customer who tops up weekly raises a receipt invoice each time, so
+  // thirty rows is about five months -- after which their last paid
+  // subscription invoice drops off the page, lastChargedAmount goes
+  // undefined, and all three sites that render it fall back to
+  // subscriptions.amount. Which is the LIST price, and the comment above
+  // says why that is the wrong number: a customer on a subscription
+  // discount then reads "EUR 200.00 / month" on their plan card while
+  // EUR 5.00 leaves their wallet.
+  const { data: lastChargedRow } = useQuery<{ total: number | null } | null>({
+    queryKey: ["adv-last-charged-sub", advertiserId, tenantId],
+    enabled: !!advertiserId && !!tenantId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("total")
+        .eq("tenant_id", tenantId)
+        .eq("advertiser_id", advertiserId)
+        .eq("type", "subscription")
+        .eq("status", "paid")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as { total: number | null } | null;
+    },
+  });
+  const lastChargedAmount =
+    lastChargedRow?.total ??
+    (invoices ?? []).find(
+      (i) => i.type === "subscription" && i.status === "paid",
+    )?.total;
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -1628,6 +1691,27 @@ export default function AdvertiserApp() {
   // marks them past_due, and the only warning was a toast that had
   // already gone.
   const planUnknown = planPaidError || subError || invError || dueInvError;
+  // ── DO WE KNOW WHETHER ANYTHING IS DUE? ─────────────────────────────
+  //
+  // Three branches guarded on `invLoading`, which is the isLoading of
+  // adv-invoices -- the 30-row LIST -- and not of adv-due-sub-invoices,
+  // which is the read that actually decides it. The list is the bigger
+  // request (30 rows with an `items` jsonb each), so it routinely lands
+  // LAST: for the whole time the due-invoice read is in flight, or
+  // retrying (make-query-client sets retry: 1, during which isError is
+  // still false and data still undefined), `dueSubInvoice` is undefined
+  // and every branch fell through to the settled one.
+  //
+  // awaitingFirstInvoice does not cover it: it requires !planPaid, so it
+  // only ever speaks for a NEW customer. For an existing one planPaid is
+  // true and the chain goes straight to "This month is paid".
+  //
+  // A customer with EUR 1,240.50 in the wallet and a EUR 200 invoice due
+  // in three days therefore read a green tick, "This month is paid", a
+  // green Paid badge and "Nothing owed right now" -- with no Pay button,
+  // because that too is inside the dueSubInvoice branch. Seven days
+  // later the auto-debit takes it and dunning can mark them past_due.
+  const dueUnknown = invError || dueInvError || invLoading || !dueInvLoaded;
   // WHY the Request button is dead, in the customer's words. It always
   // blamed the plan — "Your plan has to be active first" — and
   // canRequestAccount fails on EITHER leg, so somebody whose plan is paid
@@ -2421,7 +2505,14 @@ export default function AdvertiserApp() {
                  shown "Get started — 4 steps left" at 0%, told to fund
                  their wallet, on the same dashboard whose other cards
                  already said the reads had failed. */
-              unavailable={walletError || accountsError || companyError}
+              /* ...and toppedUpCount's own failure. hasToppedUp collapses
+                 to 0 on a failed read, and the first top-up leaves the
+                 wallet the moment the plan is charged -- so a customer who
+                 has transferred EUR 40,000 gets "Top up your wallet",
+                 which is the exact thing that query was added to prevent. */
+              unavailable={
+                walletError || accountsError || companyError || toppedUpError
+              }
               advertiserId={advertiserId}
               company={company ?? null}
               eurBalance={eurBal}
@@ -2667,9 +2758,15 @@ export default function AdvertiserApp() {
                       the customer recognises as the product they bought
                       is its name. Unpaid still wins over both — that is
                       the one case where the state IS the headline. */}
-                  {dueSubInvoice
-                    ? "Unpaid"
-                    : (planName ?? subscription?.status ?? "—")}
+                  {/* ...and the same third state here, where there was
+                      none at all: `dueSubInvoice` falsy printed the plan
+                      name and a calm colour over an unpaid invoice that
+                      had simply not arrived yet. */}
+                  {dueUnknown
+                    ? "…"
+                    : dueSubInvoice
+                      ? "Unpaid"
+                      : (planName ?? subscription?.status ?? "—")}
                 </div>
                 <div className="sub">
                   {/* THE INVOICE'S FIGURE, NOT THE PLAN'S. These are not
@@ -2682,15 +2779,17 @@ export default function AdvertiserApp() {
                       adjustment, and the currency could differ too. The
                       billing card was fixed for exactly this; the tile was
                       missed. */}
-                  {dueSubInvoice
-                    ? `${dueBillAmount} outstanding`
-                    : subscription?.next_payment_date
-                      ? `${
-                          planName && subscription?.status
-                            ? subStatusLabel(subscription.status) + " · "
-                            : ""
-                        }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
-                      : "No subscription"}
+                  {dueUnknown
+                    ? "checking…"
+                    : dueSubInvoice
+                      ? `${dueBillAmount} outstanding`
+                      : subscription?.next_payment_date
+                        ? `${
+                            planName && subscription?.status
+                              ? subStatusLabel(subscription.status) + " · "
+                              : ""
+                          }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
+                        : "No subscription"}
                 </div>
               </div>
             </div>
@@ -3919,6 +4018,8 @@ export default function AdvertiserApp() {
                 <p className="cap">
                   {invError || dueInvError
                     ? "We couldn't read your invoices just now, so we'd rather not tell you this month is settled."
+                    : !dueInvLoaded
+                      ? "Looking up this month…"
                     : awaitingFirstInvoice
                       ? "We raise your first invoice overnight. Nothing has been charged yet, and nothing is owed until it appears."
                     : invLoading
@@ -3970,7 +4071,7 @@ export default function AdvertiserApp() {
                               paid" and "Nothing owed right now", directly
                               above a button saying the invoices could not
                               be loaded. */}
-                          {invError || dueInvError || invLoading
+                          {dueUnknown
                             ? "Checking your billing…"
                             : awaitingFirstInvoice
                               ? "Your first invoice is on its way"
@@ -4007,7 +4108,7 @@ export default function AdvertiserApp() {
                           are late for something they have already done.
                           A relative time belongs on something still open;
                           on a settled one the only useful word is Paid. */}
-                      {invError || dueInvError || invLoading ? null : dueSubInvoice ? (
+                      {dueUnknown ? null : dueSubInvoice ? (
                         dueBillDate ? (
                           <span
                             className="badge due"
@@ -4657,7 +4758,10 @@ export default function AdvertiserApp() {
                 with a live approved referral link was being invited, in
                 their own settings, to apply for the thing they already
                 have. */}
-            <div className="card" hidden={isAffiliate}>
+            {/* ...and hidden while we do not yet know. Offering
+                "Become an affiliate" to somebody who already is one is
+                the thing this flag is read to prevent. */}
+            <div className="card" hidden={isAffiliate || affiliateUnknown}>
               <h2>
                 <span
                   style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
