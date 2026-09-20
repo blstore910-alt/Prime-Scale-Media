@@ -9,6 +9,19 @@ import utc from "dayjs/plugin/utc";
 dayjs.extend(utc);
 
 type CurrencyKey = "usd" | "eur";
+
+/**
+ * True when this row's money columns are already in `currency`.
+ *
+ * The customer's RPC writes `topup_usd` and neither admin create path
+ * does (it is not in TOPUP_INSERT_ALLOWED), so its presence is what
+ * tells the two apart.
+ */
+function alreadyInRowCurrency(row: { topup_usd?: number | string | null }) {
+  const v = row?.topup_usd;
+  if (v === null || v === undefined || v === "") return false;
+  return Number.isFinite(Number(v));
+}
 type BucketMode = "hour" | "day" | "week" | "month";
 
 type TopupRow = {
@@ -17,6 +30,8 @@ type TopupRow = {
   verified_at?: string | null;
   currency: string | null;
   topup_amount: number | string | null;
+  /** Written only by the customer's RPC — the discriminator. */
+  topup_usd?: number | string | null;
 };
 
 type TopupSeriesPoint = {
@@ -189,8 +204,23 @@ function buildSeries(
       point.usd_amount += amount;
       point.usd_count += 1;
     } else {
-      // Converted: the column is USD, the bucket is drawn as EUR.
-      point.eur_amount += amount * usdToEurRate;
+      // ── ONLY IF IT IS ACTUALLY DOLLARS ────────────────────────
+      //
+      // These columns are dollars on ADMIN-created rows, because
+      // calculateTopupAmount converts first. On a row the CUSTOMER
+      // filed they are not: top_up_create_for_advertiser takes the fee
+      // in the payment currency and stores the net there, and the
+      // payment currency is the ad account's own. Converting those a
+      // second time is how the owner's dashboard read
+      // "AD TOPUPS EUR 84.62 / FEES EUR 2.62" an hour after a EUR 100
+      // funding at 3% — 97 and 3 euros, each multiplied by 0.8724.
+      //
+      // topup_usd is written only by the customer's RPC, so it says
+      // which kind of row this is without guessing. See
+      // lib/pure-topup-landed.
+      point.eur_amount += alreadyInRowCurrency(row)
+        ? amount
+        : amount * usdToEurRate;
       point.eur_count += 1;
     }
   }
@@ -293,7 +323,7 @@ export async function GET(request: NextRequest) {
     (from, to) =>
     supabase
       .from("top_ups")
-      .select("created_at, verified_at, currency, topup_amount")
+      .select("created_at, verified_at, currency, topup_amount, topup_usd")
       .eq("tenant_id", profile.tenant_id)
       // ── DATED BY WHEN THE MONEY ARRIVED ──────────────────────────
       // This gates on status = completed and then dated the row by
@@ -326,7 +356,7 @@ export async function GET(request: NextRequest) {
     (from, to) =>
     supabase
       .from("top_ups")
-      .select("created_at, currency, topup_amount")
+      .select("created_at, currency, topup_amount, topup_usd")
       .eq("tenant_id", profile.tenant_id)
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd)
@@ -363,7 +393,9 @@ export async function GET(request: NextRequest) {
 
       acc.count += 1;
       acc[currency].amount +=
-        currency === "eur" ? amount * usdToEurRate : amount;
+        currency === "eur" && !alreadyInRowCurrency(row)
+          ? amount * usdToEurRate
+          : amount;
       acc[currency].count += 1;
       return acc;
     },

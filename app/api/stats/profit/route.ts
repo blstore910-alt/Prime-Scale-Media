@@ -18,6 +18,8 @@ type FeeRow = {
   created_at: string;
   currency: string | null;
   fee_amount: number | string | null;
+  /** Written only by the customer's RPC — says whose row this is. */
+  topup_usd?: number | string | null;
 };
 
 type InvoiceRow = {
@@ -267,7 +269,7 @@ export async function GET(request: NextRequest) {
     (from, to) =>
       supabase
         .from("top_ups")
-        .select("created_at, currency, fee_amount")
+        .select("created_at, currency, fee_amount, topup_usd")
         .eq("tenant_id", profile.tenant_id)
         .eq("status", "completed")
         .gte("created_at", periodStart)
@@ -291,7 +293,7 @@ export async function GET(request: NextRequest) {
     (from, to) =>
       supabase
         .from("top_ups")
-        .select("created_at, currency, fee_amount")
+        .select("created_at, currency, fee_amount, topup_usd")
         .eq("tenant_id", profile.tenant_id)
         .eq("status", "completed")
         .gte("created_at", periodStart)
@@ -405,19 +407,35 @@ export async function GET(request: NextRequest) {
   const referralCommissions = referralCommissionsResult.rows;
 
   const rows: ProfitContributionRow[] = [
-    // fee_amount is USD by construction, whatever top_ups.currency says.
-    // calculateTopupAmount (lib/utils-pure.ts) converts the paid amount to
-    // USD first and takes the fee off THAT, and both the single and bulk
-    // top-up forms store the result. Labelling it with the top-up's payment
-    // currency counted a dollar figure as euros on every EUR top-up, which
-    // inflated euro fee revenue on the one screen the operator uses to see
-    // what the business earned.
-    ...fees.map((row) => ({
-      created_at: row.created_at,
-      currency: "USD",
-      amount: row.fee_amount,
-      direction: 1 as const,
-    })),
+    // ── AND WHOSE ROW IT IS DECIDES THE CURRENCY ────────────────
+    //
+    // fee_amount is USD on an ADMIN-created row: calculateTopupAmount
+    // converts the paid amount to USD first and takes the fee off THAT,
+    // and both admin top-up forms store the result. Labelling it with
+    // the payment currency counted a dollar figure as euros, which is
+    // why this hard-codes "USD".
+    //
+    // It is NOT USD on a row the customer filed.
+    // top_up_create_for_advertiser takes the fee in the payment
+    // currency and stores it there, so hard-coding USD converts a euro
+    // figure a second time: a EUR 3.00 fee was booked as EUR 2.62 of
+    // profit. The owner spotted it on the dashboard the same hour.
+    //
+    // topup_usd is written only by the customer's RPC, so it says which
+    // kind of row this is without guessing.
+    ...fees.map((row) => {
+      const customerFiled = (() => {
+        const v = (row as { topup_usd?: number | string | null }).topup_usd;
+        if (v === null || v === undefined || v === "") return false;
+        return Number.isFinite(Number(v));
+      })();
+      return {
+        created_at: row.created_at,
+        currency: customerFiled ? row.currency : "USD",
+        amount: row.fee_amount,
+        direction: 1 as const,
+      };
+    }),
     ...subscriptionInvoices.map((row) => ({
       created_at: row.created_at,
       currency: row.currency,
