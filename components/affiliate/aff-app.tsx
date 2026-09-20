@@ -338,6 +338,22 @@ export default function AffiliateApp() {
   };
 
   const exportReferrals = () => {
+    // ── "NOTHING TO EXPORT" OVER A READ THAT FAILED ─────────────────
+    //
+    // refs.rows is empty for three different reasons and this treated
+    // them as one. An affiliate whose referral read was refused pressed
+    // Export and was told they have nothing -- about their own
+    // customers, on the file they hand a bookkeeper.
+    if (refs.isError) {
+      toast.error("We couldn't read your referrals, so there is nothing to export yet", {
+        description: "This is not an empty list. Reload and try again.",
+      });
+      return;
+    }
+    if (refs.isLoading) {
+      toast.info("Still loading your referrals — try again in a moment.");
+      return;
+    }
     if (!refs.rows.length) {
       toast.info("Nothing to export for this range.");
       return;
@@ -978,7 +994,13 @@ export default function AffiliateApp() {
             <div className="refhead">
               <h2>
                 Your referrals{" "}
-                <span className="muted2">· {refsActive} active</span>
+                {/* The one figure on this screen that was not guarded
+                    by refsUnavailable -- so a failed read printed
+                    "· 0 active" over a list that says it could not be
+                    loaded, two lines below. */}
+                <span className="muted2">
+                  · {refsUnavailable ? dash : refsActive} active
+                </span>
               </h2>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

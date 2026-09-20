@@ -517,9 +517,22 @@ export default function PsmAccountPool() {
               allValue: "unassigned",
               onChange: (v) => setFilter(v as SupplierAdAccountFilter),
               options: [
-                { value: "unassigned", label: `Unassigned (${counts.unassigned})` },
-                { value: "assigned", label: `Allocated (${counts.assigned})` },
-                { value: "all", label: `All (${counts.all})` },
+                // ── A DASH WHEN THE POOL COULD NOT BE READ ────────
+                // These are computed from `pool.data ?? []`, and this
+                // filter bar sits OUTSIDE the error branch below it --
+                // so a failed read rendered "Unassigned (0) / Allocated
+                // (0) / All (0)" directly above "Couldn't load the
+                // pool:". Three confident zeros over the sentence
+                // saying we could not look.
+                {
+                  value: "unassigned",
+                  label: `Unassigned (${pool.isError ? "—" : counts.unassigned})`,
+                },
+                {
+                  value: "assigned",
+                  label: `Allocated (${pool.isError ? "—" : counts.assigned})`,
+                },
+                { value: "all", label: `All (${pool.isError ? "—" : counts.all})` },
               ],
             },
             {
