@@ -54,7 +54,23 @@ export async function exportOwnData(): Promise<
     profiles,
     advertisers,
   ] = await Promise.all([
-    supabase.from("user_profiles").select("*").eq("user_id", userId),
+    // ── NOT `*`, FOR THE SAME REASON AS EVERY OTHER TABLE HERE ─────
+    //
+    // The policy is written out sixty lines below -- "`*` on an export
+    // is a standing promise to hand the customer every column anybody
+    // adds later" -- and every table obeyed it except this one, which
+    // is the table holding role, status and the referral fields. On a
+    // hand-authored schema nobody could say from this repo what a
+    // customer actually receives, and any admin-only column added to
+    // user_profiles shipped to them on the next download.
+    //
+    // Their identity, their settings, their dates. Not our workflow.
+    supabase
+      .from("user_profiles")
+      .select(
+        "id, user_id, tenant_id, full_name, email, phone, avatar_url, country, timezone, language, created_at, updated_at",
+      )
+      .eq("user_id", userId),
     // NOT advertisers(*). That row carries the commission terms we owe an
     // affiliate for having referred this customer — commission_type,
     // commission_pct, commission_onetime, commission_monthly,
@@ -100,8 +116,14 @@ export async function exportOwnData(): Promise<
     billings: "id, company_id, created_at, updated_at",
     subscriptions:
       "id, advertiser_id, currency, amount, status, start_date, next_payment_date, created_at, updated_at",
+    //   * referral_links.affiliate_user_id — ANOTHER DATA SUBJECT'S
+    //     auth.users id. This file's own header promises it "never
+    //     exposes another user's data", and it was handing out the
+    //     affiliate's primary key. Which affiliate referred them is
+    //     arguably theirs to know; that person's database identifier is
+    //     not, and it is the key to every other table they appear in.
     referral_links:
-      "id, code, advertiser_user_id, affiliate_user_id, status, created_at, updated_at",
+      "id, code, advertiser_user_id, status, created_at, updated_at",
     ad_account_requests:
       "id, advertiser_id, platform, currency, timezone, website_url, notes, status, created_at, updated_at",
     ad_accounts:
@@ -224,9 +246,13 @@ export async function exportOwnData(): Promise<
       ad_accounts: adAccounts,
       notifications,
       invitations,
+      // Accurate, and now complete: it did not mention the third party's
+      // own identifier, which was in the file.
       _not_included: [
         "Commission we pay a third party for having referred you — that is our arrangement with them, not your personal data.",
-        "Internal notes and supplier references on your ad accounts and payments.",
+        "Internal notes and references on your ad accounts and payments.",
+        "The account identifier of anyone who referred you — that is their data, not yours.",
+        "Internal fields on your profile that describe how we work an account rather than who you are.",
       ],
     },
   };
