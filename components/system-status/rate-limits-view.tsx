@@ -3,6 +3,7 @@
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { maskRateLimitKey } from "@/lib/pure-rate-limit-key";
 
 type Bucket = {
   key: string;
@@ -110,7 +111,19 @@ export default function RateLimitsView() {
                 const near = ceiling !== null && b.count / ceiling >= 0.8;
                 return (
                   <tr key={b.key}>
-                    <td data-label="Key" className="keycell">{b.key}</td>
+                    {/* The key is built from an identifier -- an IP
+                        address or a user id -- and rate_limit_buckets is
+                        a GLOBAL table whose read policy is "owner of any
+                        tenant". So on a deployment with two tenants this
+                        cell was one tenant's customers' IP addresses on
+                        another tenant's dashboard, refreshing every
+                        thirty seconds. The kind and the count answer the
+                        question this screen exists for; the identifier
+                        only matters once you have decided to act, and
+                        then it is in the audit log with its context. */}
+                    <td data-label="Key" className="keycell">
+                      {maskRateLimitKey(b.key)}
+                    </td>
                     <td data-label="Count" className="r">
                       {near ? (
                         <span className="badge due">{b.count}</span>

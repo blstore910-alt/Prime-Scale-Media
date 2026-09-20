@@ -475,10 +475,19 @@ export default function WiseReviewPanel() {
       // the desk where customers' bank transfers wait to be credited.
       const BASE =
         "id, external_id, amount_cents, currency, reference, status, note, suggested_topup_id, created_at, sender_name, sender_iban";
+      // ── SCOPED HERE TOO, NOT ONLY IN THE POLICY ────────────────
+      //
+      // This read had no tenant predicate at all -- its own sibling two
+      // hundred lines down does -- so it leaned entirely on an RLS rule
+      // that let the owner of ANY tenant see a deposit with no tenant
+      // of its own. Which was all 244 of them. The policy is fixed in
+      // 20260920220000; this is the belt to its braces, and it is what
+      // keeps the screen honest if a policy is ever replaced by hand.
       const run = (cols: string) =>
         supabase
           .from("wise_incoming_transfers")
           .select(cols)
+          .eq("tenant_id", tenantId)
           .order("created_at", { ascending: false })
         // 100 was less than the table holds — live has 229 — so the
         // "show N more" button below promised 92 more while 129 were not
