@@ -72,6 +72,11 @@ type InvoiceRecord = {
   items: InvoiceItem[] | null;
   sub_total: number | null;
   total: number | null;
+  /** Optional on purpose: the live schema is hand-authored, so a column
+   *  a migration has not added yet arrives as undefined and the line it
+   *  feeds is simply omitted. Both come from the select("*") above. */
+  due_date?: string | null;
+  period_start?: string | null;
   company?: CompanyRecord | null;
   advertiser?: AdvertiserRecord | null;
   tenant?: TenantRecord | null;
@@ -241,22 +246,53 @@ function buildInvoiceHtml(
     invoice.currency ?? items[0]?.currency ?? "EUR";
   const currencySymbol = getCurrencySymbol(currencyCode);
 
-  const computedSubTotal = items.reduce((sum, item) => {
-    const itemAmount = toNumber(item.amount);
-    if (itemAmount > 0) return sum + itemAmount;
-    return sum + toNumber(item.quantity) * toNumber(item.rate);
-  }, 0);
-
   const computedTax = items.reduce((sum, item) => sum + toNumber(item.tax), 0);
-  const subTotal = toNumber(invoice.sub_total ?? computedSubTotal);
-  const total = toNumber(invoice.total ?? subTotal + computedTax);
+
+  // ── ONE DEFINITION OF "NET", USED EVERYWHERE ──────────────────────
+  //
+  // item.amount was read as NET here and rendered as GROSS in the line
+  // table (quantity * rate + tax), so an item {qty 1, rate 100, tax 21,
+  // amount 121} printed Amount 121.00 above a Sub Total of 121.00 and a
+  // Total of 142.00 -- twenty-one euros of tax charged twice on a
+  // hundred-and-twenty-one euro invoice, on a document somebody pays
+  // from. Net is quantity * rate; amount is net + tax; the two are
+  // never mixed again.
+  const computedSubTotal = items.reduce(
+    (sum, item) => sum + toNumber(item.quantity) * toNumber(item.rate),
+    0,
+  );
+
+  // ── A TOTAL THAT ITS OWN LINES DO NOT ADD UP TO ───────────────────
+  //
+  // subTotal fell back to the sum of `items`, and an invoice with no
+  // items is a real shape here -- nothing in the repo writes sub_total,
+  // and rows are hand-authored. So a EUR 200 invoice printed a line
+  // reading "No line items found ... 0.00", "Sub Total EUR 0.00" and
+  // "Total EUR 200.00". A document that states its own subtotal as zero
+  // and then asks for 200 is not bookable, and it is the customer's
+  // accountant who has to make sense of it.
+  //
+  // invoices.total is what invoice_pay_from_wallet actually charges, so
+  // it is the authority. When there are no lines to add up, the subtotal
+  // IS the total less whatever tax we know about -- which is the true
+  // statement -- rather than a zero contradicting the line below it.
+  const storedTotal =
+    invoice.total === null || invoice.total === undefined
+      ? null
+      : toNumber(invoice.total);
+  const hasLines = items.length > 0;
+  const total =
+    storedTotal ?? (hasLines ? computedSubTotal + computedTax : 0);
+  const subTotal =
+    invoice.sub_total !== null && invoice.sub_total !== undefined
+      ? toNumber(invoice.sub_total)
+      : hasLines
+        ? computedSubTotal
+        : Math.max(total - computedTax, 0);
 
   const company = invoice.company;
   const advertiser = invoice.advertiser;
-  const tenant = invoice.tenant;
   const issuer = invoice.issuer;
-  const tenantName =
-    compactText(tenant?.name ?? advertiser?.profile?.full_name) || "N/A";
   const companyName = compactText(company?.name) || "N/A";
   // Prefer the tenant-level company the admin filled in on
   // /settings/general (name + full address + registration/VAT). Fall
@@ -275,6 +311,7 @@ function buildInvoiceHtml(
       ])
     : ["30 N Gould St,", "STE R Sheridan Wyoming", "US WY 82801"];
   const createdAt = formatIsoDate(invoice.created_at);
+
   const invoiceTypeKey = resolveInvoiceTypeKey(invoice.type, items);
   const invoiceType = formatLabel(invoiceTypeKey) || "N/A";
   const vatNo = compactText(company?.vat_no) || "N/A";
@@ -301,7 +338,51 @@ function buildInvoiceHtml(
   const statusClass = isSettled ? "paid" : "unpaid";
   const paidAt =
     isPaid && invoice.paid_at ? formatIsoDate(invoice.paid_at) : "";
-  const settlementLabel = isPaid ? "Amount Paid" : "Amount Due";
+  // isSettled already knows that void and refunded owe nothing; this
+  // line did not, so a cancelled EUR 200 invoice printed a green
+  // "Void" pill directly above "Amount Due EUR 200.00" -- and the
+  // customer-facing word for void is "Cancelled", which is what
+  // lib/invoice-status.ts prints on every screen.
+  const settlementLabel = isPaid
+    ? "Amount Paid"
+    : isSettled
+      ? "Nothing Due"
+      : "Amount Due";
+  // ── WHAT AN INVOICE HAS TO SAY AND DID NOT ────────────────────────
+  //
+  // due_date exists on the row and drives the dunning run and the
+  // customer's own billing page -- and the PDF never read it, so an
+  // unpaid invoice said "Amount Due EUR 200.00" with no date to pay
+  // by. period_start is written by both subscription generators, so a
+  // monthly invoice never said which month it covered. And vat_no in
+  // the Bill To block is the CUSTOMER'S: an EU invoice carrying the
+  // buyer's VAT number and none of the seller's is not a valid VAT
+  // invoice.
+  //
+  // Read straight off rows already in hand, so a column a migration
+  // has not added yet is simply undefined and the line is omitted --
+  // no second query to fail.
+  const dueAt = invoice.due_date ? formatIsoDate(invoice.due_date) : "";
+  const dueDateHtml =
+    !isSettled && dueAt && dueAt !== "N/A"
+      ? `<div class="invoice-date">Due: ${escapeHtml(dueAt)}</div>`
+      : "";
+
+  const periodFrom = invoice.period_start
+    ? formatIsoDate(invoice.period_start)
+    : "";
+  const periodHtml =
+    periodFrom && periodFrom !== "N/A"
+      ? `<div class="invoice-date">Period from: ${escapeHtml(periodFrom)}</div>`
+      : "";
+
+  const issuerVat = compactText(issuer?.vat_no) || "";
+  const issuerReg = compactText(issuer?.registration_no) || "";
+  const issuerIdsHtml = [
+    issuerReg ? `<div class="line">Reg. No: ${escapeHtml(issuerReg)}</div>` : "",
+    issuerVat ? `<div class="line">VAT No: ${escapeHtml(issuerVat)}</div>` : "",
+  ].join("");
+
   const paymentDateHtml =
     paidAt && paidAt !== "N/A"
       ? `<div class="invoice-date">Payment Date: ${escapeHtml(paidAt)}</div>`
@@ -321,23 +402,34 @@ function buildInvoiceHtml(
       .join(", "),
   ]);
 
-  const tenantAddressLines = formatAddressLines([
-    tenant?.address,
-    [tenant?.state, tenant?.country, tenant?.zipcode]
-      .filter(Boolean)
-      .join(", "),
-  ]);
-
   const hasRealAddress = (lines: string[]) =>
     lines.length > 0 && !(lines.length === 1 && lines[0] === "N/A");
 
+  // ── AN INVOICE FROM US, TO US ─────────────────────────────────────
+  //
+  // `tenant` is OUR tenant row, not the customer's. So when
+  // invoices.company_id was null -- which it is for anything raised
+  // before the customer filled in Settings > Company -- the Bill To
+  // block printed our own name and our own address opposite our own
+  // name in the From block. The customer's own name was reached only
+  // if tenants.name happened to be null too. That is what the blank
+  // company invoice actually was: not blank, addressed to the wrong
+  // party.
+  //
+  // The customer is, in order: their company, then the person on the
+  // account. Our tenant is never the customer, so it is no longer in
+  // the chain at all.
+  const advertiserName =
+    compactText(
+      advertiser?.profile?.full_name ?? advertiser?.profile?.email,
+    ) || "";
+  const billToName =
+    companyName !== "N/A" ? companyName : advertiserName || "N/A";
   const resolvedBillToLines = hasRealAddress(companyAddressLines)
     ? companyAddressLines
     : hasRealAddress(billingLines)
       ? billingLines
-      : tenantAddressLines;
-
-  const billToName = companyName !== "N/A" ? companyName : tenantName;
+      : [];
   const lineItems = items.map((item, index) => {
     const quantity = toNumber(item.quantity);
     const rate = toNumber(item.rate);
@@ -372,14 +464,23 @@ function buildInvoiceHtml(
     };
   });
 
+  // ── A PLACEHOLDER THAT INVENTED A ZERO LINE ───────────────────────
+  //
+  // "No line items found ... 0.00 0.00 0% 0.00" is an internal
+  // observation printed as an invoice line, and it made the table
+  // contradict the total underneath it. An invoice with no stored
+  // lines still charges a real amount, so print THAT as the line: one
+  // row, the invoice's own description and its own total. The customer
+  // sees what they are paying for instead of a row that says nothing
+  // was found.
   if (!lineItems.length) {
     lineItems.push({
       index: 1,
-      description: "No line items found",
-      quantity: 0,
-      rate: 0,
-      tax: 0,
-      amount: 0,
+      description: invoiceType || "Services",
+      quantity: 1,
+      rate: subTotal,
+      tax: computedTax,
+      amount: total,
     });
   }
 
@@ -585,7 +686,7 @@ function buildInvoiceHtml(
         <div class="invoice-meta">
           <h1 class="invoice-title">INVOICE</h1>
           <div class="invoice-number"># ${escapeHtml(invoiceNumber)}</div>
-          <div class="invoice-type">Type: ${escapeHtml(invoiceType)}</div>
+          <div class="invoice-type">${escapeHtml(invoiceType)}</div>
           ${invoiceReferenceHtml}
           <div class="invoice-status ${statusClass}">${escapeHtml(statusText)}</div>
         </div>
@@ -595,6 +696,7 @@ function buildInvoiceHtml(
         <div class="from">
           <p class="party-name">${escapeHtml(issuerName)}</p>
           ${renderLines(issuerAddressLines)}
+          ${issuerIdsHtml}
         </div>
          <div class="bill-to">
          <p class="party-heading">Bill To</p>
@@ -603,6 +705,8 @@ function buildInvoiceHtml(
           <div class="line">VAT Number: ${escapeHtml(vatNo)}</div>
 
          <div class="invoice-date">Invoice Date: ${escapeHtml(createdAt)}</div>
+         ${periodHtml}
+         ${dueDateHtml}
          ${paymentDateHtml}
         </div>
       </section>
