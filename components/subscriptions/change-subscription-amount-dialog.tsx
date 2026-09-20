@@ -123,6 +123,11 @@ export default function ChangeSubscriptionAmountDialog({
       });
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      // The header counts are their own key with a 30s staleTime, and
+      // a reprice can move a row between statuses.
+      queryClient.invalidateQueries({
+        queryKey: ["subscription-status-counts"],
+      });
       onOpenChange(false);
     } catch (e) {
       // A REJECTED PROMISE IS NOT A HANDLED ERROR.

@@ -1,5 +1,6 @@
 "use client";
 
+import { pageAllRows } from "@/lib/page-all-rows";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { grantPerk, revokePerk } from "@/actions/perk-actions";
 import PsmSortFilter from "@/components/psm/sort-filter";
@@ -149,15 +150,28 @@ export default function PsmPromotions() {
     queryKey: ["advertiser-perks", profile?.tenant_id],
     enabled: profile?.role === "admin" && !!profile?.tenant_id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("advertiser_perks")
-        .select(
-          "*, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
-        )
-        .eq("tenant_id", profile?.tenant_id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as PerkRow[];
+      // ── EVERY PERK, NOT THE FIRST THOUSAND ───────────────────────
+      //
+      // A plain select takes PostgREST's cap, and the search on this
+      // screen filters the fetched ARRAY -- so past a thousand perks,
+      // typing a client code returned "No perks to show." and the admin
+      // granted a second discount. The billing run then takes
+      // `order by amount desc limit 1`, so the customer keeps the
+      // original 50% and the register double-counts the giveaway --
+      // which is the exact hazard this screen's own error branch names.
+      const paged = await pageAllRows<PerkRow>((from, to) =>
+        supabase
+          .from("advertiser_perks")
+          .select(
+            "*, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
+          )
+          .eq("tenant_id", profile?.tenant_id)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      );
+      if (paged.error) throw new Error(paged.error);
+      return paged.rows;
     },
   });
 

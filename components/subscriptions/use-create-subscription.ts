@@ -24,6 +24,16 @@ export default function useCreateSubscription() {
       await queryClient.invalidateQueries({
         queryKey: ["subscriptions", profile?.tenant_id],
       });
+      // ── AND THE HEADER COUNTS, WHICH ARE A DIFFERENT KEY ─────────
+      //
+      // The counts live under ["subscription-status-counts", tenant]
+      // with a 30s staleTime, and nothing invalidated them. Pause three
+      // plans and the row badges flip immediately while the header
+      // still reads "31 active" over 28 active rows -- and that header
+      // is the figure the owner quotes upward.
+      await queryClient.invalidateQueries({
+        queryKey: ["subscription-status-counts"],
+      });
     },
   });
 

@@ -24,8 +24,20 @@ const actionOptions = [
   })),
 ];
 
-// Maps a db_action to one of the mockup's scoped `.badge` variants.
-function dbActionBadge(dbAction?: string | null) {
+// ── THE COLOUR AND THE WORD CAME FROM DIFFERENT COLUMNS ─────────────
+//
+// `db_action` gave the colour and `action` gave the text, with no
+// constraint tying them together -- so a TOPUP_DELETED entry whose
+// db_action happened to be INSERT rendered as a green "ok" badge. On
+// the screen somebody opens when money is missing.
+//
+// The word decides. db_action is only a hint, and only when the word
+// itself says nothing.
+function actionBadge(action?: string | null, dbAction?: string | null) {
+  const a = String(action ?? "").toLowerCase();
+  if (/delete|remove|revoke|reject|cancel|fail/.test(a)) return "due";
+  if (/create|add|approve|verify|complete|grant/.test(a)) return "ok";
+  if (/update|change|edit|set/.test(a)) return "pend";
   switch (dbAction) {
     case "INSERT":
       return "ok";
@@ -234,7 +246,9 @@ export default function ActivityLogsTable() {
                         </div>
                       </td>
                       <td data-label="Action">
-                        <span className={`badge ${dbActionBadge(log.db_action)}`}>
+                        <span
+                          className={`badge ${actionBadge(log.action, log.db_action)}`}
+                        >
                           {formatActionLabel(log.action)}
                         </span>
                       </td>
