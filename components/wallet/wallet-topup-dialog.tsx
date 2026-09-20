@@ -204,8 +204,24 @@ export default function WalletTopupDialog({
   // bank transfer to the wrong legal entity. Nothing server-side catches
   // it: wallet_topup_advertiser_create takes amount, currency and slip,
   // and never learns which beneficiary was on screen.
+  // ── AND THE FOURTH: NO ACCOUNTS AT ALL ────────────────────────────
+  //
+  // `accountTypeSlugs.length > 0` excluded the one customer who most
+  // needs asking: somebody who has just signed up and has NO ad
+  // accounts yet. Their list is genuinely empty — not unread, not
+  // unmapped — so routingUnknown stayed false, the chooser was not
+  // rendered, and bankGroup stayed at its default of "turlit".
+  //
+  // That is their FIRST transfer, the one they have no basis to doubt,
+  // and a customer whose plan is Meta-EU-PSM-GH belongs at ZANEL. The
+  // wrong legal entity, and nothing downstream catches it:
+  // wallet_topup_advertiser_create stores amount, currency and slip,
+  // and never learns which beneficiary was on screen.
+  //
+  // We do not know where their money goes yet, so we say so and ask —
+  // which is what the copy below already does for the other two cases.
   const routingUnknown =
-    accountsUnknown || (accountTypeSlugs.length > 0 && routed.length === 0);
+    accountsUnknown || routed.length === 0;
   const bankChoices = routingUnknown
     ? BANK_GROUP_OPTIONS.map((o) => o.value)
     : routed;
@@ -684,9 +700,9 @@ export default function WalletTopupDialog({
                     <Label>Which accounts are you funding?</Label>
                     {routingUnknown && (
                       <p className="text-xs text-muted-foreground">
-                        We could not work this out from your ad accounts, so
-                        please pick the one you were given. If you are not
-                        sure, ask us before you send anything.
+                        {accountTypeSlugs.length === 0
+                          ? "You don't have an ad account yet, so we can't tell which of our accounts your transfer should go to. Use the one we gave you — and if you weren't given one, ask us before you send anything."
+                          : "We could not work this out from your ad accounts, so please pick the one you were given. If you are not sure, ask us before you send anything."}
                       </p>
                     )}
                     <RadioGroup
