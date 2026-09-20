@@ -71,7 +71,23 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     !data ||
     userData.user.email?.toLowerCase() !== data.email?.toLowerCase()
   ) {
-    redirect("/dashboard");
+    // ── SAY WHICH ACCOUNT IS SIGNED IN ────────────────────────────
+    //
+    // A silent redirect to /dashboard is the most common case on this
+    // route -- invited on a work address, signed in on a personal one
+    // -- and it reads as the link being broken. The invitee mails
+    // support; nobody can tell them the answer is "sign out first",
+    // because nothing said so.
+    //
+    // The invitation's own address is NOT shown: this page is reached
+    // by anyone holding the link, and naming the recipient would hand
+    // them an address they may not have. The signed-in one is theirs
+    // already.
+    redirect(
+      `/dashboard?invite=wrong-account&as=${encodeURIComponent(
+        userData.user.email ?? "",
+      )}`,
+    );
   }
 
   // ── EXPIRED IS NOT THE ONLY WAY AN INVITE IS OVER ───────────────────

@@ -169,10 +169,37 @@ export async function POST(request: NextRequest) {
         "accept-invite profile insert failed:",
         safeErrorMessage(profileError),
       );
+      // ── PUT THE INVITATION BACK ────────────────────────────────────
+      //
+      // The invitation was consumed sixty lines above, on the admin
+      // client, and the profile insert runs on the CALLER's RLS-bound
+      // one. When this half fails the customer is locked out for good:
+      // pressing Accept again renders InviteExpired; /onboard finds no
+      // profile AND no pending invite, so it sends them to
+      // /organization/new -- a live tenant-creation form; and the
+      // admin's Invites screen says "Accepted", so nobody re-issues.
+      //
+      // Nothing else has happened yet, so handing the invitation back
+      // makes the retry the customer will obviously attempt work. The
+      // sibling signup route gets the ORDER right -- profile first,
+      // then the compare-and-swap -- and explains why; this one is the
+      // existing-user path and could not be reordered as cheaply.
+      const { error: restoreError } = await admin
+        .from("invitations")
+        .update({ status: "pending" })
+        .eq("id", invite_id)
+        .eq("status", "accepted");
+      if (restoreError) {
+        console.error(
+          "accept-invite could not hand the invitation back:",
+          safeErrorMessage(restoreError),
+        );
+      }
       return NextResponse.json(
         {
           success: false,
-          message: "An error occurred while creating user profile",
+          message:
+            "We couldn't finish setting up your account. Your invitation is still valid — press Accept again, and tell us if it happens twice.",
         },
         { status: 500 },
       );
