@@ -50,10 +50,26 @@ export function useAffiliateEarnings(
       if (ids.length > 0) {
         // Best effort: if referral_links has no status column either, every
         // link counts, which is the same answer as before statuses existed.
-        const { data: statusRows } = await supabase
+        const { data: statusRows, error: statusError } = await supabase
           .from("referral_links")
           .select("id, status")
           .in("id", ids);
+        // ── A MISSING COLUMN IS BEST-EFFORT; A FAILED READ IS NOT ───
+        //
+        // The comment above is right that an absent `status` column
+        // should fall back to counting every link. But EVERY error was
+        // swallowed, so a refused read left statusById empty and the
+        // rejected-link filter below matched nothing -- rejected
+        // commissions added straight into an affiliate's Earnings
+        // figure, which is money they are not owed. 42703 is "column
+        // does not exist"; anything else is thrown so the screen shows
+        // a dash instead of a wrong total.
+        if (
+          statusError &&
+          (statusError as { code?: string }).code !== "42703"
+        ) {
+          throw statusError;
+        }
         for (const row of statusRows ?? []) {
           const r = row as { id: string; status: string | null };
           if (r.status) statusById.set(r.id, r.status);

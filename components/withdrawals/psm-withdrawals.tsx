@@ -348,8 +348,15 @@ function WithdrawalsSection() {
                 { value: "pending", label: "Pending" },
                 { value: "approved", label: "Approved" },
                 { value: "rejected", label: "Rejected" },
-                { value: "cancelled", label: "Cancelled" },
-              ],
+// ── AN OPTION THAT MATCHES NOTHING IS NOT A FILTER ──────────────
+// ad_account_withdrawals.status allows 'cancelled', but nothing in
+// the app ever writes it: the only two writers are
+// ad_account_withdrawal_approve (writes 'approved') and _reject
+// (writes 'rejected'), and withdrawal-actions calls only those. So
+// this option returned an empty list every single time, above an
+// empty state that reads as "there are none" rather than "this
+// filter cannot find any". Put it back the day something writes it.
+                              ],
             },
           ]}
           searchActive={!!search.trim()}

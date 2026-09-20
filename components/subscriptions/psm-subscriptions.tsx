@@ -223,13 +223,25 @@ export default function PsmSubscriptions() {
                 {statusCounts.active === null ? "—" : statusCounts.active}{" "}
                 active
               </span>
-              {statusCounts.pastDue ? (
+              {/* NULL IS NOT ZERO, AND `? :` CANNOT TELL THEM APART.
+                  `active` got this right two lines up; these three used
+                  truthiness, so a count we could not read rendered as
+                  nothing at all -- and "who owes us money" reading as
+                  "nobody does" is the one of the four that gets acted
+                  on. A dash when unknown, hidden only at a real zero. */}
+              {statusCounts.pastDue === null ? (
+                <span className="due">— past due</span>
+              ) : statusCounts.pastDue > 0 ? (
                 <span className="due">{statusCounts.pastDue} past due</span>
               ) : null}
-              {statusCounts.paused ? (
+              {statusCounts.paused === null ? (
+                <span>— paused</span>
+              ) : statusCounts.paused > 0 ? (
                 <span>{statusCounts.paused} paused</span>
               ) : null}
-              {statusCounts.inactive ? (
+              {statusCounts.inactive === null ? (
+                <span>— inactive</span>
+              ) : statusCounts.inactive > 0 ? (
                 <span>{statusCounts.inactive} inactive</span>
               ) : null}
             </p>
@@ -282,6 +294,13 @@ export default function PsmSubscriptions() {
                 { value: "past_due", label: "Past due" },
                 { value: "inactive", label: "Inactive" },
                 { value: "paused", label: "Paused" },
+                // ── A STATUS THE APP WRITES AND COULD NOT LIST ──────
+                // setSubscriptionStatus allows 'cancelled' and the
+                // billing engine treats it as terminal, but there was
+                // no option for it -- so an admin who cancelled a
+                // subscription could never find it again except under
+                // "All statuses".
+                { value: "cancelled", label: "Cancelled" },
               ],
             },
           ]}
