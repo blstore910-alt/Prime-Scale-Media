@@ -1126,15 +1126,25 @@ export default function AdvertiserApp() {
     ...(exchanges ?? []).map(
       (x) => ({ kind: "exchange", id: x.id, at: x.created_at, row: x }) as WalletEvent,
     ),
-    // Paid only. An unpaid invoice has not touched the balance, and a
-    // wallet_topup invoice is the RECEIPT for a deposit already listed
-    // above it — showing it here would book the same EUR 5 twice, once
-    // each way, and net the statement to nothing.
+    // Paid only, and no RECEIPTS. An unpaid invoice has not touched the
+    // balance, and a receipt invoice is raised FOR a movement that is
+    // already on this list — showing it again books the same money
+    // twice.
+    //
+    // `wallet_topup` was excluded for exactly that reason;
+    // `ad_account_topup` was not, and a live database trigger raises one
+    // every time an ad-account funding is verified. Seen on production:
+    // funding an account with EUR 100 at 3% produced
+    //   "Funded AA-PSM0005-EU-01   −€100.00"   (the movement)
+    //   "Ad-account top-up          −€97.00"   (its receipt)
+    // so a statement whose balance had gone down by EUR 100 read as
+    // EUR 197 leaving. The balance was right; the page explaining it
+    // was not, which is the worse half.
     ...(invoices ?? [])
       .filter(
         (i) =>
           String(i.status) === "paid" &&
-          !["wallet_topup", "topup"].includes(
+          !["wallet_topup", "topup", "ad_account_topup", "account_topup"].includes(
             String(i.type ?? "").toLowerCase(),
           ),
       )

@@ -1301,45 +1301,25 @@ export async function verifyAdTopup(
       .eq("id", topupId)
       .maybeSingle();
 
-    // ── ONCE, NOT TWICE ───────────────────────────────────────────
+    // ── THE LIVE TRIGGER OWNS THIS ONE ────────────────────────────
     //
-    // The live database carries `trg_notify_topup_completed` on
-    // `top_ups` — a hand-authored trigger that is in no migration in
-    // this repo, so nothing here could have known about it. It writes
-    // a `topup_completed` row of its own, and this block was added
-    // later on top of it: the customer got the same "your top-up is
-    // complete" twice, from one press.
+    // `trg_notify_topup_completed` on `top_ups` is hand-authored on the
+    // live database and in no migration in this repo, so nothing here
+    // could have known about it — and this block was added on top. The
+    // customer got "Top-up Completed" twice from one press, which I
+    // watched happen on production.
     //
-    // Rather than drop a trigger whose body I have not read, this side
-    // looks first. If the trigger already spoke, we stay quiet; if the
-    // trigger is ever removed, this keeps working.
-    const { data: already } = await supabase
-      .from("notifications")
-      .select("id")
-      .eq("type", "topup_completed")
-      .contains("payload", { topup_id: topupId })
-      .limit(1);
-    if ((already ?? []).length > 0) {
-      return {
-        ok: true,
-        data,
-        warning:
-          !push.enqueued && !push.heldByGate
-            ? `Verified, but the supplier was NOT told: ${push.reason}. Fund the account by hand.`
-            : undefined,
-      };
-    }
-
-    await notifyAdvertiser(supabase, {
-      advertiserId: (who as { advertiser_id?: string | null } | null)
-        ?.advertiser_id,
-      tenantId: profile.tenant_id,
-      type: "topup_completed",
-      payload: {
-        topup_id: topupId,
-        approved_at: new Date().toISOString(),
-      },
-    });
+    // A dedupe read was tried first and did not work: it matched on
+    // `payload @> {topup_id}` and the trigger writes a different shape,
+    // so it found nothing and wrote the second row anyway. Guessing at
+    // another function's payload to avoid duplicating it is the wrong
+    // shape of fix.
+    //
+    // The trigger fires on the row's own status change, which is the
+    // more reliable place, and it fires for the admin create paths too.
+    // So this side does not write it at all. `who` is still read above
+    // because the enqueue and the warning below use the same context.
+    void who;
   }
 
   return {

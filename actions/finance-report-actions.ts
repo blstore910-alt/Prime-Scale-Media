@@ -383,9 +383,18 @@ export async function financeReportForMe(): Promise<
     // The row stays, because they should be able to see the invoice
     // exists and download it. It just does not move the total: the
     // deposit line already carries that money.
-    const isDepositReceipt = ["wallet_topup", "topup"].includes(
-      String(r.type ?? "").toLowerCase(),
-    );
+    // ad_account_topup too: a live trigger raises one every time an
+    // ad-account funding is verified, and the funding itself is already
+    // a line on this report. Booked as an invoice it becomes a second
+    // debit for the same movement -- EUR 100 out and EUR 97 out, for
+    // one EUR 100 transfer -- on the document the customer hands their
+    // bookkeeper.
+    const isDepositReceipt = [
+      "wallet_topup",
+      "topup",
+      "ad_account_topup",
+      "account_topup",
+    ].includes(String(r.type ?? "").toLowerCase());
     lines.push({
       id: `inv-${r.id}`,
       at: String(r.paid_at ?? r.created_at ?? ""),
@@ -395,7 +404,9 @@ export async function financeReportForMe(): Promise<
       // The amount is correctly 0 either way; the words were not.
       label:
         (isDepositReceipt
-          ? "wallet top-up receipt"
+          ? String(r.type ?? "").toLowerCase().includes("account")
+            ? "ad-account top-up receipt"
+            : "wallet top-up receipt"
           : String(r.type ?? "invoice").replace(/_/g, " ")) +
         (isDepositReceipt
           ? ""
