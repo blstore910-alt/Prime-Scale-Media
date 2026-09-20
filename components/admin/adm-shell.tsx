@@ -138,7 +138,6 @@ export default function AdminShell({
     {
       title: "More",
       items: [
-        { title: "Promotions", href: "/promotions", icon: Gift },
         { title: "Manual", href: "/manual", icon: BookOpen },
         { title: "Get Help", href: "/help", icon: HelpCircle },
       ],
@@ -146,6 +145,14 @@ export default function AdminShell({
   ];
 
   if (isSuperAdmin) {
+    // Promotions moved here from "More": a waiver or a 100% discount
+    // stops a customer being billed, which is pricing, and pricing is
+    // the owner's everywhere else in this app.
+    groups[groups.length - 1].items.unshift({
+      title: "Promotions",
+      href: "/promotions",
+      icon: Gift,
+    });
     groups.push({
       title: "Owner",
       items: [

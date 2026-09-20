@@ -1,8 +1,9 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, LogOut } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import ReadonlyTopupsTable from "@/components/topups/readonly-topups-table";
 import { AppProvider } from "@/context/app-provider";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -57,17 +58,19 @@ export default function InactiveContent({
                       reference.
                     </p>
                   </div>
-                  <div className="flex gap-3">
-                    <Button asChild variant="outline">
-                      <Link href="/auth/login">
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Switch Account
-                      </Link>
-                    </Button>
+                  {/* ── A DEAD END, UNTIL NOW ────────────────────────
+                      "Switch Account" was a Link to /auth/login. The
+                      session is still valid, so that page redirects to
+                      /dashboard, the (app) layout sees status ===
+                      "inactive" and sends them back here. A deactivated
+                      customer was in a loop with no way out and no way
+                      to sign in as somebody else. A real sign-out —
+                      which the app already has, and /complete-profile
+                      already uses — is the exit. */}
+                  <div className="flex flex-wrap gap-3">
+                    <LogoutButton />
                     <Button asChild>
-                      <a href="mailto:contact@primescalemedia.com ">
-                        Contact Support
-                      </a>
+                      <a href={`mailto:${SUPPORT_EMAIL}`}>Contact Support</a>
                     </Button>
                   </div>
                 </div>
@@ -95,7 +98,10 @@ export default function InactiveContent({
             </div>
 
             <p className="text-center text-sm text-gray-500 mt-8">
-              &copy; {new Date().getFullYear()} PSM Logbook. All rights
+              {/* "PSM Logbook" is a different product. The invite
+                  screen carried the same line and was corrected; this
+                  one is customer-facing too. */}
+              &copy; {new Date().getFullYear()} Prime Scale Media. All rights
               reserved.
             </p>
           </div>

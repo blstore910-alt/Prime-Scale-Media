@@ -39,6 +39,33 @@ async function requireAdminCtx() {
   return { ok: true as const, supabase, profile };
 }
 
+/**
+ * The same, plus "and you own this tenant".
+ *
+ * Approving a referral link is what starts the accrual trigger paying
+ * somebody, and rejecting one is terminal. assignAffiliateToAdvertiser
+ * is owner-gated for exactly that reason; the approve step it names in
+ * its own comment never got the gate.
+ */
+async function resolveOwnerCtx() {
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return ctx;
+  const { data: tenant } = await ctx.supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", ctx.profile.tenant_id)
+    .maybeSingle();
+  const ownerId = (tenant as { owner_id?: string | null } | null)?.owner_id;
+  if (!ownerId || ownerId !== ctx.profile.user_id) {
+    return {
+      ok: false as const,
+      error:
+        "Only the account owner can approve or refuse an affiliate, because it sets what we pay them.",
+    };
+  }
+  return ctx;
+}
+
 // ─────────────────────────────────────────
 // referral_commissions: admin toggle paid/unpaid
 // ─────────────────────────────────────────
@@ -262,7 +289,13 @@ export async function setReferralLinkStatus(
     return { ok: false, error: "Invalid status" };
   }
 
-  const ctx = await requireAdminCtx();
+  // OWNER, not admin. Flipping a link to `active` is what starts the
+  // accrual trigger paying somebody, and `rejected` is one-way and
+  // silently stops them earning. assignAffiliateToAdvertiser was
+  // owner-gated for exactly this reason, with a comment naming "the
+  // owner-only approve step on /affiliates" -- which never got the
+  // gate. The page is requireSuperAdmin; the action was not.
+  const ctx = await resolveOwnerCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 

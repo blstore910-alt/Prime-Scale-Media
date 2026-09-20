@@ -52,7 +52,17 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     .eq("token", token)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  // ── DO NOT THROW ON A PUBLIC URL ─────────────────────────────────
+  //
+  // Forty lines above there is a comment saying exactly this, and then
+  // this line throws. An RLS hiccup or a phantom column blanks the
+  // document for an invitee — the FIRST screen a new customer ever
+  // sees — instead of showing the expired card that is already
+  // imported two lines up. A read we could not make is indistinguishable
+  // from an invite we cannot find, and both want the same card.
+  if (error) {
+    return <InviteExpired />;
+  }
 
   // Case-insensitive email match (the RLS policy compares lower(email)),
   // so a case difference between the invite and the account doesn't

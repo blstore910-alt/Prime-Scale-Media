@@ -1,7 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
-import { type ActionResult, resolveAdminContext } from "./_shared";
+import { type ActionResult, resolveOwnerContext } from "./_shared";
 import type { PerkKind } from "@/lib/types/perk";
 
 const VALID_KINDS: PerkKind[] = [
@@ -31,7 +31,12 @@ export async function grantPerk(
   // NO money RPC in the schema tests is_active or status alongside the role.
   // So a deactivated admin kept every power they had, which is precisely the
   // thing deactivating them is meant to remove.
-  const auth = await resolveAdminContext();
+  // OWNER, not admin. A subscription waiver or a 100% discount
+  // stops a customer being billed, which is a price. The page was
+  // requireAdmin and so was this, so an employee admin refused by
+  // every other pricing control could grant one from their own
+  // sidebar and nothing would ever invoice that customer again.
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (typeof input.advertiser_id !== "string" || !input.advertiser_id) {
@@ -89,7 +94,12 @@ export async function revokePerk(perkId: string): Promise<ActionResult> {
   // NO money RPC in the schema tests is_active or status alongside the role.
   // So a deactivated admin kept every power they had, which is precisely the
   // thing deactivating them is meant to remove.
-  const auth = await resolveAdminContext();
+  // OWNER, not admin. A subscription waiver or a 100% discount
+  // stops a customer being billed, which is a price. The page was
+  // requireAdmin and so was this, so an employee admin refused by
+  // every other pricing control could grant one from their own
+  // sidebar and nothing would ever invoice that customer again.
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   if (typeof perkId !== "string" || !perkId) {
     return { ok: false, error: "Invalid input", code: "invalid" };

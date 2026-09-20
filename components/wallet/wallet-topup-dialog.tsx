@@ -505,14 +505,21 @@ export default function WalletTopupDialog({
       // amount and slip path was destroyed, for a top-up that was never
       // filed. Both sibling dialogs were hardened for exactly this.
       //
-      // Only an explicit refusal is rejected — a null row is accepted,
-      // because a `returns void` RPC gives null on SUCCESS and refusing
-      // that would tell every customer their transfer failed.
+      // Read off production 2026-09-20: wallet_topup_advertiser_create
+      // RETURNS wallet_topups — a row. So on success `data` is that row
+      // and a null answer is a genuine failure, not the "returns void"
+      // shape that makes null mean success elsewhere. Both are refused
+      // here because both are true here.
       const row = (Array.isArray(data) ? data[0] : data) as
-        | { ok?: boolean; error?: string }
+        | { ok?: boolean; error?: string; id?: string }
         | null
         | undefined;
-      if (row && typeof row === "object" && row.ok === false) {
+      if (row === null || row === undefined) {
+        throw new Error(
+          "The top-up was not filed. Nothing has been charged — try again in a moment.",
+        );
+      }
+      if (typeof row === "object" && row.ok === false) {
         throw new Error(
           row.error ?? "The top-up was not filed. Nothing has been charged.",
         );
