@@ -228,6 +228,13 @@ export const PSM_APP_CSS = `
 .psmapp .list-row .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
 .psmapp .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;font-size:.72rem;font-weight:700;white-space:nowrap}
 .psmapp .badge.ok{background:var(--win-soft);color:#0e8f66}.psmapp .badge.pend{background:var(--warn-soft);color:#8a5a00}.psmapp .badge.due{background:var(--danger-soft);color:#c0392b}.psmapp .badge.info{background:var(--primary-tint);color:var(--primary-600)}.psmapp .badge.muted{background:var(--panel-2);color:var(--faint)}
+/* SWITCHED OFF IS NOT AN ERROR. A deactivated customer was drawn in
+   .due -- the same red as an overdue invoice and a failed payment --
+   so a deliberate, reversible admin action looked like an alarm.
+   Slate: plainly not-active, plainly nothing wrong. Every people
+   screen takes this class from lib/pure-people-status, so an
+   advertiser, an affiliate and an admin cannot drift apart again. */
+.psmapp .badge.off{background:var(--panel-2);color:var(--txt-2)}
 
 .psmapp .tblwrap{overflow-x:auto}
 .psmapp .tbl{width:100%;border-collapse:collapse;font-size:.9rem}
@@ -806,6 +813,15 @@ export const PSM_APP_CSS = `
 .psmapp .pactions{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:560px){.psmapp .lbl-long{display:none}}
 .psmapp .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.psmapp .btn.danger:hover{background:var(--danger)}
+/* .danger.soft -- the off switch, in a row of ghost buttons. Solid
+   .danger shouts on a card that holds four controls; .ghost.danger was
+   a red word on white with no edge and read as a label rather than a
+   button. A tint and a real border: unmistakably a control, and
+   unmistakably the one that stops something. */
+.psmapp .btn.danger.soft{background:var(--danger-soft);color:#c0392b;
+  border:1px solid rgba(229,72,77,.34);box-shadow:none}
+.psmapp .btn.danger.soft:hover{background:var(--danger-soft);
+  border-color:rgba(229,72,77,.62)}
 /* A quiet danger: the solid red above is right for a confirmation's own
    button and far too loud for one control in a row of four. */
 .psmapp .btn.ghost.danger{background:var(--danger-soft);color:var(--danger);
@@ -816,10 +832,15 @@ export const PSM_APP_CSS = `
 /* A quiet count line under a page heading: how many of the thing on this
    screen are in each state. Sits under the subtitle, reads as data rather
    than as a control. */
-.psmapp .subcounts{display:flex;flex-wrap:wrap;gap:4px 12px;margin:6px 0 0;
+/* The column gap has to beat the 5px between a dot and its OWN word,
+   by enough that the eye groups them correctly. At 12px it did not:
+   "4 active" sat 12px from the next dot and that dot sat 5px from
+   "1 deactivated", so the two counts read as one run of text with a
+   stray dot in the middle. */
+.psmapp .subcounts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:6px 0 0;
   font-size:.8rem;color:var(--txt-2)}
-.psmapp .subcounts span{display:inline-flex;align-items:center;gap:5px}
-.psmapp .subcounts span::before{content:"";width:6px;height:6px;
+.psmapp .subcounts span{display:inline-flex;align-items:center;gap:6px}
+.psmapp .subcounts span::before{content:"";width:6px;height:6px;flex:0 0 auto;
   border-radius:50%;background:var(--line-2)}
 .psmapp .subcounts span.on{color:var(--win);font-weight:650}
 .psmapp .subcounts span.on::before{background:var(--win)}

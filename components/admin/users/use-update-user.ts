@@ -31,6 +31,18 @@ export default function useUpdateUserProfile() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["users"] }),
         queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
+        // ── THE DRAWER AND THE COUNTERS READ THEIR OWN QUERIES ──────
+        //
+        // UserDetailsSheet reads ["user", profileId] and the "N active /
+        // N deactivated" strip reads ["people-counts"]. Neither was
+        // invalidated, and staleTime keeps them, so after switching a
+        // customer off the drawer still said Active and the counters
+        // still said 5 active -- correct only after a full reload. Two
+        // screens disagreeing about whether a customer has access is
+        // exactly the kind of thing somebody acts on.
+        queryClient.invalidateQueries({ queryKey: ["user"] }),
+        queryClient.invalidateQueries({ queryKey: ["people-counts"] }),
+        queryClient.invalidateQueries({ queryKey: ["advertiser-plan-badges"] }),
       ]);
     },
     onError: (err) => {

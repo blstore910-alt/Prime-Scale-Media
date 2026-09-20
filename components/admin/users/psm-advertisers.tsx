@@ -22,12 +22,17 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { type MouseEvent, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import CommissionSetupDialog from "./commission-setup-dialog";
 import type { Profile } from "./user-table";
 import UserDetailsSheet from "./user-details-sheet";
 import useUpdateUserProfile from "./use-update-user";
+import {
+  peopleStatusView,
+  planStatusLabel,
+} from "@/lib/pure-people-status";
+import { PERK_KIND_LABELS, type PerkKind } from "@/lib/types/perk";
 import useUsers from "./use-users";
 import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
@@ -145,7 +150,113 @@ export default function PsmAdvertisers() {
     },
   });
 
-  const rows = (profiles?.data ?? []) as Profile[];
+  const rows = useMemo(
+    () => (profiles?.data ?? []) as Profile[],
+    [profiles?.data],
+  );
+
+  // ── WHICH PLAN, AND WHAT THEY GET OFF ────────────────────────────
+  //
+  // The Plan column showed a price. Two customers on different plans at
+  // the same price were identical on screen, and a customer sitting on a
+  // 100% fee waiver looked exactly like one paying full rate -- which is
+  // the difference between an invoice that is right and one that is not.
+  //
+  // Three reads, each allowed to fail on its own: this data lives behind
+  // migrations that are pasted by hand, and a screen that dies because
+  // `plans` or `advertiser_perks` is not there yet is worse than a
+  // screen without a plan name. A failure leaves that half dark, and
+  // the price -- which comes from the row itself -- still prints.
+  const advertiserIds = useMemo(
+    () =>
+      rows
+        .map((r) => (r.advertiser?.[0] as { id?: string } | undefined)?.id)
+        .filter((id): id is string => typeof id === "string" && !!id)
+        // A page is ten rows; the cap is for a future page size, because
+        // .in() with a couple of hundred uuids exceeds PostgREST's 8 KiB
+        // request line and comes back as a 400 with no useful message.
+        .slice(0, 120),
+    [rows],
+  );
+
+  const { data: planBadges } = useQuery({
+    queryKey: ["advertiser-plan-badges", me?.tenant_id, advertiserIds.join(",")],
+    enabled: advertiserIds.length > 0 && !!me?.tenant_id,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const out: Record<string, { planName?: string; perks: string[] }> = {};
+      for (const id of advertiserIds) out[id] = { perks: [] };
+
+      const { data: aplans } = await supabase
+        .from("advertiser_plans")
+        .select("advertiser_id, plan_id")
+        .in("advertiser_id", advertiserIds);
+
+      const planRows = (aplans ?? []) as unknown as {
+        advertiser_id?: string;
+        plan_id?: string | null;
+      }[];
+      const planIds = Array.from(
+        new Set(
+          planRows
+            .map((p) => p.plan_id)
+            .filter((v): v is string => typeof v === "string" && !!v),
+        ),
+      );
+      if (planIds.length > 0) {
+        const { data: plans } = await supabase
+          .from("plans")
+          .select("id, name")
+          .in("id", planIds);
+        const nameById = new Map<string, string>(
+          ((plans ?? []) as unknown as { id?: string; name?: string }[]).map(
+            (p) => [String(p.id ?? ""), String(p.name ?? "")],
+          ),
+        );
+        for (const row of planRows) {
+          const nm = row.plan_id ? nameById.get(String(row.plan_id)) : "";
+          if (row.advertiser_id && nm && out[row.advertiser_id]) {
+            out[row.advertiser_id].planName = nm;
+          }
+        }
+      }
+
+      const { data: perks } = await supabase
+        .from("advertiser_perks")
+        .select("advertiser_id, kind, amount, starts_at, expires_at")
+        .in("advertiser_id", advertiserIds)
+        .eq("active", true);
+
+      // A perk row can be dated in or out. `active` alone is not the
+      // answer -- a discount that ran out last month is still active=true
+      // until somebody switches it off.
+      const now = Date.now();
+      for (const raw of perks ?? []) {
+        const p = raw as {
+          advertiser_id?: string;
+          kind?: string;
+          amount?: number | string | null;
+          starts_at?: string | null;
+          expires_at?: string | null;
+        };
+        const started = !p.starts_at || new Date(p.starts_at).getTime() <= now;
+        const live = !p.expires_at || new Date(p.expires_at).getTime() > now;
+        if (!started || !live) continue;
+        const bucket = p.advertiser_id ? out[p.advertiser_id] : undefined;
+        if (!bucket) continue;
+        const label =
+          PERK_KIND_LABELS[p.kind as PerkKind] ?? String(p.kind ?? "Perk");
+        const pct = Number(p.amount);
+        bucket.perks.push(
+          Number.isFinite(pct) && pct > 0 && String(p.kind ?? "").includes("discount")
+            ? `${label} ${pct}%`
+            : label,
+        );
+      }
+      return out;
+    },
+  });
   const totalCount = total ?? 0;
   const from = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
   const to = Math.min(page * perPage, totalCount);
@@ -418,6 +529,12 @@ export default function PsmAdvertisers() {
                       onCommissionSetup={openCommission}
                       earningsByEmail={earningsByEmail}
                       earningsError={earningsError}
+                      planBadge={
+                        planBadges?.[
+                          (profile.advertiser?.[0] as { id?: string } | undefined)
+                            ?.id ?? ""
+                        ]
+                      }
                     />
                   ))}
                 </tbody>
@@ -513,6 +630,7 @@ export default function PsmAdvertisers() {
 function AdvertiserRow({
   profile,
   onView,
+  planBadge,
   onCreateSubscription,
   onCommissionSetup,
   earningsByEmail,
@@ -520,6 +638,7 @@ function AdvertiserRow({
 }: {
   profile: Profile;
   onView: () => void;
+  planBadge?: { planName?: string; perks: string[] };
   onCreateSubscription: (advertiserId: string) => void;
   onCommissionSetup: (advertiser: Advertiser | undefined) => void;
   earningsByEmail: Record<string, { eur: number; usd: number; links: number }>;
@@ -529,7 +648,11 @@ function AdvertiserRow({
   const { isSuperAdmin } = useAppContext();
 
   const advertiser = profile.advertiser?.[0];
-  const isActive = profile.status === "active";
+  // is_active and status are separate columns and they disagree on live
+  // rows. peopleStatusView settles it in one place: either saying off
+  // means off.
+  const status = peopleStatusView(profile.status, profile.is_active);
+  const isActive = status.tone === "ok";
 
   const subscriptions = advertiser?.subscriptions;
   const hasSubscription = !!subscriptions?.length;
@@ -548,6 +671,14 @@ function AdvertiserRow({
     sub0?.amount != null && Number.isFinite(Number(sub0.amount))
       ? `${(sub0.currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€"}${Number(sub0.amount).toFixed(0)} / mo`
       : null;
+
+  const planName = planBadge?.planName ?? null;
+  // One pill, however many perks: a row is not the place for a list, and
+  // "3 perks" with the names on hover is honest about there being more.
+  const perks = planBadge?.perks ?? [];
+  const perkLabel =
+    perks.length === 0 ? null : perks.length === 1 ? perks[0] : `${perks.length} perks`;
+  const perkTitle = perks.join(" · ");
 
   const commissionType = advertiser?.commission_type
     ? COMMISSION_TYPE_LABELS[advertiser.commission_type] ??
@@ -606,6 +737,23 @@ function AdvertiserRow({
     fn();
   };
 
+  // ── A CLOSING DIALOG MUST NOT OPEN THE DRAWER BEHIND IT ───────────
+  //
+  // The row is clickable, and the confirmation portals to the body on
+  // top of it. When it closed, the pointer-up landed on the card
+  // underneath and the details drawer opened -- so every deactivation
+  // ended with a panel the admin had not asked for, showing the status
+  // from before the write. Whichever way the dialog closes, ignore the
+  // row for a moment after.
+  const muteRow = useRef(0);
+  const closeGuard = () => {
+    muteRow.current = Date.now() + 450;
+  };
+  const onRowClick = () => {
+    if (Date.now() < muteRow.current) return;
+    onView();
+  };
+
   const clientCode = advertiser?.tenant_client_code ?? "";
   const isAffiliate = (profile.role ?? "").toLowerCase() === "affiliate";
   const earnings =
@@ -616,7 +764,7 @@ function AdvertiserRow({
     };
 
   return (
-    <tr style={{ cursor: "pointer" }} onClick={onView}>
+    <tr style={{ cursor: "pointer" }} onClick={onRowClick}>
       {/* .fullcell: on a phone this stacks under its label at full width
           instead of being squeezed into the right-hand value column, where
           an avatar plus a name plus an email wrapped into three differently
@@ -667,20 +815,31 @@ function AdvertiserRow({
             ) : (
               <div style={{ fontWeight: 700 }}>Subscribed</div>
             )}
-            {subscriptionStatus && subscriptionStatus !== "active" && (
-              <span
-                className="badge pend"
-                style={{
-                  textTransform: "capitalize",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  marginTop: 4,
-                }}
-              >
-                {subscriptionStatus}
+            {/* THE PLAN'S NAME, WHICH IS WHAT AN ADMIN ASKS FOR.
+                "EUR 150 / mo" says what it costs and not which plan it
+                is, so two customers on different plans at the same price
+                were indistinguishable. */}
+            {planName ? (
+              <div className="muted" style={{ fontSize: ".76rem", marginTop: 2 }}>
+                {planName}
+              </div>
+            ) : null}
+            {/* Never the bare word "Inactive": that is the customer's
+                word, one row below, and the two were being read as one. */}
+            {planStatusLabel(subscriptionStatus) && (
+              <span className="badge pend" style={{ marginTop: 4 }}>
+                {planStatusLabel(subscriptionStatus)}
               </span>
             )}
+            {perkLabel ? (
+              <span
+                className="badge info"
+                style={{ marginTop: 4, marginLeft: planStatusLabel(subscriptionStatus) ? 4 : 0 }}
+                title={perkTitle}
+              >
+                {perkLabel}
+              </span>
+            ) : null}
             {commissionType && (
               <div
                 className="muted"
@@ -758,12 +917,11 @@ function AdvertiserRow({
         </td>
       )}
       <td data-label="Status">
-        <span
-          className={`badge ${isActive ? "ok" : "due"}`}
-          style={{ textTransform: "capitalize" }}
-        >
-          {profile.status ?? "—"}
-        </span>
+        {/* One pill, from lib/pure-people-status, so an advertiser, an
+            affiliate and an admin are drawn identically -- and a
+            deliberately switched-off customer is grey rather than the
+            red that meant "something went wrong". */}
+        <span className={status.cls}>{status.label}</span>
       </td>
       {/* .actrow keeps all four on ONE row at every width by letting them
           shrink together — a 3+1 wrap reads as an accident, and the odd one
@@ -836,8 +994,13 @@ function AdvertiserRow({
                beside three named ones, identified only by a title a phone
                never shows. It keeps its word; the other three give theirs
                up. */
+            /* A ghost button in danger ink on a white card is a red
+               word and nothing else -- on the phone screenshot it read
+               as a label, not a control. It keeps a visible edge and a
+               tint so it is plainly a button, which matters most for
+               the one button that switches a paying customer off. */
             className={
-              "btn ghost sm keeplab" + (isActive ? " danger" : "")
+              "btn sm keeplab" + (isActive ? " danger soft" : " ghost")
             }
             disabled={isPending}
             onClick={stop(askToggle)}
@@ -858,7 +1021,7 @@ function AdvertiserRow({
       <ConfirmModal
         open={askDeactivate}
         onOpenChange={(next) => {
-          if (!next) setAskDeactivate(false);
+          if (!next) { closeGuard(); setAskDeactivate(false); }
         }}
         title="Deactivate this customer?"
         /* THIS NAMED THE ONE CONSEQUENCE THAT IS FALSE AND OMITTED THE
@@ -884,6 +1047,7 @@ function AdvertiserRow({
         cta="Yes, deactivate"
         tone="danger"
         onConfirm={() => {
+          closeGuard();
           setAskDeactivate(false);
           toggleStatus();
         }}
@@ -898,7 +1062,7 @@ function AdvertiserRow({
       <ConfirmModal
         open={askActivate}
         onOpenChange={(next) => {
-          if (!next) setAskActivate(false);
+          if (!next) { closeGuard(); setAskActivate(false); }
         }}
         title="Switch this customer back on?"
         lead="They get access back, and the subscriptions that were stopped when you switched them off start running again. The next invoice is raised from today, not back-dated for the time they were off — they are not charged for the months they could not use the account. A subscription you cancelled or paused deliberately stays as it is."
