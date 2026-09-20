@@ -86,7 +86,7 @@ export default function InvitesTable() {
     .map((i: any) => i.email)
     .filter((e: unknown): e is string => typeof e === "string" && e.length > 0);
 
-  const { data: codeByEmail } = useQuery({
+  const { data: codeByEmail, isError: codeByEmailError } = useQuery({
     queryKey: ["invite-client-codes", profile?.tenant_id, pageEmails.join(",")],
     enabled: pageEmails.length > 0 && !!profile?.tenant_id,
     queryFn: async () => {
@@ -212,11 +212,21 @@ export default function InvitesTable() {
                       {code ? (
                         <span style={{ fontWeight: 800 }}>{code}</span>
                       ) : (
+                        // A POSITIVE CLAIM FROM A QUERY THAT MAY NOT
+                        // HAVE RUN. "Assigned when the invitee signs up"
+                        // says this person has not signed up -- and on a
+                        // failed lookup it says that about somebody who
+                        // has, which ends in chasing or re-inviting a
+                        // customer who already has an account.
                         <span
                           className="muted"
-                          title="Assigned when the invitee signs up"
+                          title={
+                            codeByEmailError
+                              ? "We couldn't check whether this invite has been accepted."
+                              : "Assigned when the invitee signs up"
+                          }
                         >
-                          —
+                          {codeByEmailError ? "?" : "—"}
                         </span>
                       )}
                     </td>
