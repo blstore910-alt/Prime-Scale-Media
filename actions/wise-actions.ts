@@ -1150,7 +1150,22 @@ export async function adjustWalletTopupAmount(
     ? `${String(topup.description)}\n${line}`
     : line;
 
-  const { data: updated, error: updateError } = await supabase
+  // ── THE SERVICE ROLE WRITES IT ───────────────────────────────────
+  //
+  // This is the last place in the app that writes wallet_topups
+  // through the CALLER's client, and the next migration takes
+  // `amount` and `status` away from `authenticated` at the column
+  // level -- because the table carries a `for all to authenticated`
+  // policy, which means an employee admin could insert a claim for any
+  // advertiser and flip it to completed from the browser console, and
+  // the balance trigger would credit it. That is the same power
+  // wallet_admin_adjust was just made owner-only for, one table over.
+  //
+  // The guards do not move: the row was re-read above, the tenant
+  // compared, the status checked, and the write below still carries
+  // both predicates.
+  const adminWrite = await createAdminClient();
+  const { data: updated, error: updateError } = await adminWrite
     .from("wallet_topups")
     .update({ amount: rounded, description })
     .eq("id", topupId)
