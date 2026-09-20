@@ -29,8 +29,13 @@ import {
 } from "@/hooks/use-matched-deposits";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
 
+// `cur === "USD" ? "$" : "€"` painted a euro sign on every currency
+// that was not exactly the string USD -- including "usd", which the
+// balance trigger dispatches on with lower(), so it would credit the
+// USD wallet while this card said euros. currencySymbol is the shared
+// helper and it upper-cases first.
 const money = (v: number | string | null | undefined, cur: string | null) =>
-  (cur === "USD" ? "$" : "€") +
+  currencySymbol(cur) +
   new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

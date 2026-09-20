@@ -71,8 +71,17 @@ export default function WalletTransactionApproveDialog({
   } = useOutstandingPrecharges([topup.id]);
   const advance = precharges[topup.id];
   const requestedAmount = Number(topup.amount ?? 0);
+  // ── NEVER AN EMPTY SYMBOL ON THE BUTTON THAT MOVES MONEY ────────
+  //
+  // `?? ""` meant a lowercase or null currency rendered "Yes, credit
+  // 1000.00" with no currency at all, on the confirmation for a wallet
+  // credit. Upper-cased first, and the code itself as the fallback, so
+  // an unknown currency reads "Yes, credit XAF 1000.00" rather than
+  // saying nothing.
+  const curCode = String(topup.currency ?? "").toUpperCase();
   const symbol =
-    CURRENCY_SYMBOLS[topup.currency as keyof typeof CURRENCY_SYMBOLS] ?? "";
+    CURRENCY_SYMBOLS[curCode as keyof typeof CURRENCY_SYMBOLS] ??
+    (curCode ? `${curCode} ` : "");
   const advertiserCode = topup.advertiser?.tenant_client_code ?? "—";
   const advertiserName = topup.advertiser?.profile?.full_name ?? "";
 

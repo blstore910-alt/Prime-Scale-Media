@@ -102,14 +102,10 @@ function convertWalletToTransfer(
   }
 }
 
-// Old drafts stored the 2-way "meta_eu" | "others" group. Map any stale value
-// onto the current 3-bank groups so a restored draft never lands invalid.
-function normalizeBankGroup(value: unknown): BankGroup {
-  // "muxue" is no longer offered, so a draft naming it lands on turlit —
-  // which is where those accounts now send anyway.
-  if (value === "turlit" || value === "zanel") return value;
-  return "turlit";
-}
+// The 2-way "meta_eu" | "others" mapper that stale drafts needed is gone
+// with the draft restoring the bank group at all. A draft brings back the
+// amount; which bank the money goes to is decided by the routing for the
+// customer's own ad-account types, every time the dialog opens.
 
 // Beneficiary bank options, in the order they are offered. Each lists the
 // ad-account families that route to it.
@@ -402,16 +398,32 @@ export default function WalletTopupDialog({
   // second is not information anyone is deciding on. The protection is what
   // matters (CLAUDE.md: never lose typing), so what was typed simply comes
   // back and the draft is consumed.
+  // ── THE DRAFT BRINGS BACK THE TYPING, NOT THE DECISIONS ──────────
+  //
+  // useFormDraft loads from IndexedDB asynchronously, so on the first
+  // open after a page load this effect runs a tick AFTER the open
+  // effect below — and it used to set currency, bankGroup,
+  // transferCurrency, the slip and the step, overwriting every one of
+  // them. The draft key is `wallet-topup:<walletId>`, one record per
+  // wallet and not per currency, and the "Resume where you left off"
+  // bar was deliberately removed, so nothing told the customer that a
+  // previous choice had come back.
+  //
+  // Press "Top up" inside the USD card with an unfinished EUR draft and
+  // the dialog opened on USD and then flipped to EUR — landing them on
+  // step 2 or 3 with the previous currency's IBAN and the previous slip
+  // attached. That is the "a EUR slip filed against a USD claim"
+  // incident this file is hardened against, arrived at from a third
+  // direction.
+  //
+  // What the draft is FOR is the amount they typed (CLAUDE.md: never
+  // lose typing). That is what it restores now. Which wallet, which
+  // bank and which step are decisions the customer makes by pressing a
+  // button, and the press is newer than the draft.
   useEffect(() => {
     if (!open || !draft.hasDraft || !draft.restoredDraft) return;
     const v = draft.restoredDraft.values;
-    setCurrency(v.currency);
-    setBankGroup(normalizeBankGroup(v.bankGroup));
-    if (v.transferCurrency) setTransferCurrency(v.transferCurrency);
-    setPaymentSlipUrl(v.paymentSlipUrl);
-    setPaymentSlipPreview(v.paymentSlipUrl ? "image" : null);
     setValue("amount", v.amount || 0);
-    setStep(v.step || STEPS.SELECTION);
     draft.dismissDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft.hasDraft, draft.restoredDraft]);
@@ -530,13 +542,41 @@ export default function WalletTopupDialog({
       "webp",
       "bmp",
     ]);
+    // ── THE BUCKET'S LIST, NOT "ANYTHING THE BROWSER CALLS AN IMAGE"
+    //
+    // The gate used to be `file.type.startsWith("image/")`, and the
+    // bucket's allowed_mime_types is exactly
+    // png / jpeg / gif / webp / bmp / pdf. So an iPhone photo
+    // (image/heic), a TIFF or an AVIF passed here and was refused by
+    // storage — and by then the customer has pressed "I have made the
+    // transfer" and the money has left their bank. They landed on step
+    // 3 with a raw Supabase storage message, Submit permanently
+    // disabled, and no way forward. Most phone photos are HEIC.
+    //
+    // Refusing it here costs them a re-export and tells them what to
+    // do; refusing it there costs them the transfer.
+    const ALLOWED_IMAGE_TYPES = new Set([
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/gif",
+      "image/webp",
+      "image/bmp",
+    ]);
     const isImage =
-      imageExtensions.has(extension) ||
-      (file.type.startsWith("image/") && file.type !== "image/svg+xml");
+      ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase()) ||
+      // An empty file.type happens on some Android pickers; the
+      // extension is then the only thing we have, and the bucket
+      // sniffs the bytes anyway.
+      (!file.type && imageExtensions.has(extension));
     const isPdf = extension === "pdf" || file.type === "application/pdf";
 
     if (!isImage && !isPdf) {
-      setPaymentSlipError("Only PNG / JPG / GIF / WEBP / BMP / PDF allowed.");
+      setPaymentSlipError(
+        extension === "heic" || extension === "heif" || file.type === "image/heic"
+          ? "iPhone photos (HEIC) can't be read here. In Photos, tap Share and choose a JPEG, or take a screenshot of the receipt and send that."
+          : "Send a PNG, JPG, GIF, WEBP, BMP or PDF. Other formats can't be opened by our team.",
+      );
       setPaymentSlipUrl(null);
       setPaymentSlipPreview(null);
       setPreviewSrc(null);

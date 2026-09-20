@@ -1622,6 +1622,7 @@ function ManualMatch({
   busy: boolean;
   onDone: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1895,7 +1896,36 @@ function ManualMatch({
               description: "It now matches the deposit, so crediting it hands over the real figure.",
             });
             setCorrecting(false);
-            await refetchCandidates();
+            // ── AND EVERY OTHER SCREEN THAT SHOWS THIS CLAIM ───────
+            //
+            // refetchCandidates() refreshes THIS panel only. All three
+            // Money-in panels are mounted at once and merely hidden, so
+            // nothing remounts; staleTime is 30s and
+            // refetchOnWindowFocus is off. With no invalidation there
+            // was no refetch trigger at all, and the verify card kept
+            // the OLD figure for the rest of the session -- including
+            // the button, which read "Yes, credit EUR 630.00" while the
+            // trigger credited the corrected EUR 618.00. Correcting a
+            // claim is exactly the moment those screens are wrong.
+            await Promise.all([
+              refetchCandidates(),
+              queryClient.invalidateQueries({
+                queryKey: ["wallet-transactions"],
+                exact: false,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["matched-deposits"],
+                exact: false,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["outstanding-precharges"],
+                exact: false,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["money-in-counts"],
+                exact: false,
+              }),
+            ]);
           } catch (e) {
             toast.error("Couldn't correct it", {
               description: e instanceof Error ? e.message : undefined,
