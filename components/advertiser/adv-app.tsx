@@ -2278,7 +2278,11 @@ export default function AdvertiserApp() {
         </div>
         <div className="kv">
           <span>Currency</span>
-          <b>{a.currency ?? "EUR"}</b>
+          {/* NOT `?? "EUR"`. An account with no currency cannot be
+              funded at all -- the funding dialog refuses it -- so
+              printing EUR here told the customer the opposite of what
+              the next screen would say. */}
+          <b>{a.currency ? a.currency : "Not set yet"}</b>
         </div>
         {/* Only once there IS a figure. A brand-new account showing
             "Funded $0.00" reads as a fault; saying nothing reads as

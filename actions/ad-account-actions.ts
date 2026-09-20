@@ -254,6 +254,24 @@ export async function createAdAccountAsAdmin(
   if (cleaned.min_topup == null) {
     cleaned.min_topup = 0;
   }
+  // ── AND A CURRENCY, FOR THE SAME REASON ──────────────────────────
+  //
+  // Found on production: PSM0002's account "test1321" carries currency
+  // N/A. account-topup-form normalises anything that is not USD or EUR
+  // to null, the wallet picker then renders nothing, and Submit is hard
+  // disabled -- so the screen reads "Select an account with configured
+  // currency to continue", which is an instruction with no control
+  // behind it. The customer cannot set a currency; only we can, and
+  // nothing told us.
+  //
+  // USD, because topup_amount is USD by construction on every path and
+  // the supplier pool returns USD accounts. An admin can change it on
+  // the same form; what must not happen is an account that exists and
+  // cannot be funded.
+  {
+    const cur = String(cleaned.currency ?? "").trim().toUpperCase();
+    cleaned.currency = cur === "EUR" || cur === "USD" ? cur : "USD";
+  }
 
   const { data: inserted, error: insertError } = await supabase
     .from("ad_accounts")

@@ -482,7 +482,15 @@ export default function AccountTopupForm({
                   </RadioGroup>
                 ) : (
                   <FieldDescription>
-                    Select an account with configured currency to continue.
+                    {/* The old copy read "Select an account with
+                        configured currency to continue" -- an
+                        instruction with no control behind it. There is
+                        no currency field on this form, and the customer
+                        cannot set one. Found on a live account whose
+                        currency column is empty. */}
+                    {selectedAccount
+                      ? "This ad account has no currency set yet, so it cannot be funded. Tell us and we will set it — it takes a minute."
+                      : "Pick an ad account first."}
                   </FieldDescription>
                 )}
                 {fieldState.invalid && (
