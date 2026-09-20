@@ -49,6 +49,16 @@ with a signed-in session for EACH role the journey needs — not read off
 the code. Every figure it produces checked against the database to the
 cent. The result written into `docs/NEXT_SESSION_FIRST.md`.
 
+**Open every branch of a dialog, not just the happy path.** A modal
+with a currency picker, a bank choice, a type or a set of steps gets
+walked through EVERY option: pick each one, press Next, press Back,
+and check what changed — the bank details, the minimum, the labels, the
+figures. Only then do one of them for real. Half the faults in this app
+live in the branch nobody opened. The wallet top-up dialog is four
+transfer currencies times two wallets; the ad-account funding dialog,
+the exchange dialog, the withdraw dialog, the invite form and the
+verify/reject dialogs are all the same shape.
+
 **Two browser tabs, two roles.** Tab one is the owner; tab two is the
 test advertiser or affiliate. Without the second tab Claude can only
 read, and reading is what did not work. Ask for the login once, by
