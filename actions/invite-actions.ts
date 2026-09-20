@@ -8,6 +8,24 @@ type ActionResult<T = null> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+async function requireOwnerCtx() {
+  const base = await requireAdminCtx();
+  if (!base.ok) return base;
+  const { data: tenant } = await base.supabase
+    .from("tenants")
+    .select("owner_id")
+    .eq("id", base.profile.tenant_id)
+    .maybeSingle();
+  const ownerId = (tenant as { owner_id?: string | null } | null)?.owner_id;
+  if (!ownerId || ownerId !== base.profile.user_id) {
+    return {
+      ok: false as const,
+      error: "Only the account owner can cancel an invitation.",
+    };
+  }
+  return base;
+}
+
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
   if (!mm.ok) return { ok: false as const, error: mm.error };
@@ -50,7 +68,16 @@ export async function cancelInvitation(
     return { ok: false, error: "Invalid status" };
   }
 
-  const ctx = await requireAdminCtx();
+  // ── OWNER, FOR EVERY INVITE ROLE ─────────────────────────────────
+  //
+  // The owner check below used to fire only when invite.role ===
+  // "admin", so every advertiser and affiliate invitation cancelled at
+  // plain admin level -- on /invites, which is requireSuperAdmin. An
+  // invitation carries the monthly fee, the included accounts, the
+  // top-up fee, the referrer and the community: cancelling one destroys
+  // a priced offer the owner authored and kills the customer's signup
+  // link, silently.
+  const ctx = await requireOwnerCtx();
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
@@ -69,23 +96,9 @@ export async function cancelInvitation(
 
   // Admin-role invites are only issued by the super-admin — an
   // employee cancelling one is a permission escalation the other
-  // way (blocks the owner's new admin). Require super-admin to
-  // cancel those.
-  if (invite.role === "admin") {
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("owner_id")
-      .eq("id", profile.tenant_id)
-      .maybeSingle();
-    const isSuperAdmin =
-      !!tenant?.owner_id && tenant.owner_id === profile.user_id;
-    if (!isSuperAdmin) {
-      return {
-        ok: false,
-        error: "Only the tenant owner can cancel admin invitations.",
-      };
-    }
-  }
+  // way (blocks the owner's new admin). That test used to live here as
+  // an `if (invite.role === "admin")`; it is now the guard on the whole
+  // action, so it needs no second copy.
 
   const { data: rows, error } = await supabase
     .from("invitations")

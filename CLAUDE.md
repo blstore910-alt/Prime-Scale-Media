@@ -39,13 +39,20 @@ repo, every session:
   item × every role) and C (every figure against SQL) are the exhaustive
   ones; D (J1–J13) is the scenarios. Walk what you can in the built-in
   browser yourself; say plainly when a signed-in session is needed.
-- **Production must keep working, and NEVER deploy a preview.** After
-  each fix: gate, then `git push origin feat/redesign-advertiser:main`,
-  straight to production. Do not push the branch "to test" — the owner
-  does not test on preview URLs, and a second push doubles the Vercel
-  queue so every change takes twice as long to appear. Then open the
-  screen on app.primescalemedia.com and check it renders WITH DATA. A
+- **Preview is the test bench; production is the destination.** The
+  owner cannot walk every screen for me, so I walk them myself. Push the
+  branch, open the preview, and go through it as each role: advertiser,
+  affiliate, admin, super-admin — every account, every button, every
+  journey. Then `git push origin feat/redesign-advertiser:main` and
+  check the same screen renders WITH DATA on app.primescalemedia.com. A
   broken production blocks everything else.
+  **Preview shares the LIVE Supabase database**, so a write there is a
+  write on real data: use the test users from the walkthrough, never a
+  real customer's row, and never move real money to prove a button
+  works.
+- **Speed is part of the job.** Batch fixes, one gate, one push. Don't
+  stop to narrate. A round that finds ten things fixes ten things before
+  it reports.
 - **Numbers must agree at both ends** — screen against database, to the
   cent. A confident 0 over a failed read is a fault, not a zero.
 - **No "probably".** Read the code, or ask for one SQL query. Say

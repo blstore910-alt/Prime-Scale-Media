@@ -120,6 +120,14 @@ export async function saveOwnCompanyOnboarding(input: {
   company: CompanyInput;
   billing: BillingInput;
 }): Promise<ActionResult<{ company_id: string }>> {
+  // Its sibling updateOwnProfileAndCompany opens with this and this one
+  // did not, so MAINTENANCE_MODE=true froze one of the two writes that
+  // change the company name, VAT number and billing address -- the
+  // three things printed on an invoice.
+  {
+    const mm = maintenanceGuard();
+    if (!mm.ok) return { ok: false, error: mm.error };
+  }
   if (!input?.company || !input?.billing) {
     return { ok: false, error: "Invalid input" };
   }

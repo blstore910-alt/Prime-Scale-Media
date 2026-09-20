@@ -1,3 +1,4 @@
+import { pageAllRows } from "@/lib/page-all-rows";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { safeErrorMessage } from "@/lib/pure-error";
 import type { Supplier1Adapter } from "@/lib/integrations/types";
@@ -43,13 +44,39 @@ export async function syncSupplierPool(
   // What we hold now, so the caller can be told what actually CHANGED rather
   // than just how many rows were written. "47 accounts synced" is noise; "2
   // new, 1 suspended" is the thing an admin needs to see.
-  const { data: existingRows, error: existingError } = await supabase
-    .from("supplier_ad_accounts")
-    // ...and the two measured values, so an absent one in the feed does
-    // not blank a stored one. See the spread below.
-    .select("external_id, status, balance_cents, fee_percentage")
-    .eq("tenant_id", tenantId)
-    .eq("provider", "supplier1");
+  // ── EVERY ROW, NOT THE FIRST THOUSAND ────────────────────────────
+  //
+  // This had no .range() and no .order(), so PostgREST capped it at
+  // 1,000 in an unspecified order. Two things then go wrong at once for
+  // every account past the cap, every fifteen minutes: it is absent
+  // from `before`, so it is announced to the admins as brand new; and
+  // it is absent from `heldValues`, so the spread below falls back to
+  // null and the upsert BLANKS the stored fee_percentage and
+  // balance_cents. fee_percentage is the supplier's cost, and it is
+  // what an allocated account's fee is priced from -- so the damage
+  // outlives the sync.
+  const existingPage = await pageAllRows<{
+    external_id: string;
+    status: string | null;
+    balance_cents: number | null;
+    fee_percentage: number | null;
+  }>((from, to) =>
+    supabase
+      .from("supplier_ad_accounts")
+      // ...and the two measured values, so an absent one in the feed does
+      // not blank a stored one. See the spread below.
+      .select("external_id, status, balance_cents, fee_percentage")
+      .eq("tenant_id", tenantId)
+      .eq("provider", "supplier1")
+      .order("external_id", { ascending: true })
+      .range(from, to),
+  );
+  const existingRows = existingPage.rows;
+  // A truncated read is not a read. Same reasoning as a failed one: we
+  // do not KNOW what was there, so we must not act as though we do.
+  const existingError = existingPage.error || existingPage.truncated
+    ? { message: existingPage.error ?? "more rows than one pass can read" }
+    : null;
 
   // If this read fails, `before` is EMPTY — and an empty before means every
   // account the supplier returns looks brand new. On a tenant with a few

@@ -442,7 +442,15 @@ export async function updateAffiliate(
   if (typeof affiliateId !== "string" || affiliateId.length === 0) {
     return { ok: false, error: "Invalid input", code: "invalid" };
   }
-  const caller = await assertAdmin();
+    // ── OWNER, LIKE THE SCREEN IT SITS BEHIND ────────────────────────
+  //
+  // /affiliates is requireSuperAdmin, and referral-actions.ts says the
+  // rule out loud for its own sibling: "Only the account owner can
+  // approve or refuse an affiliate, because it sets what we pay them."
+  // setReferralLinkStatus got that gate; these three never did. A page
+  // guard is not a boundary -- a server action never goes through a
+  // layout, and its id is in the page payload.
+const caller = await assertSuperAdmin();
   if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
   const { supabase, profile } = caller.ctx;
 
@@ -494,7 +502,15 @@ export async function approveAffiliate(
 ): Promise<ActionResult> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
-  const caller = await assertAdmin();
+    // ── OWNER, LIKE THE SCREEN IT SITS BEHIND ────────────────────────
+  //
+  // /affiliates is requireSuperAdmin, and referral-actions.ts says the
+  // rule out loud for its own sibling: "Only the account owner can
+  // approve or refuse an affiliate, because it sets what we pay them."
+  // setReferralLinkStatus got that gate; these three never did. A page
+  // guard is not a boundary -- a server action never goes through a
+  // layout, and its id is in the page payload.
+const caller = await assertSuperAdmin();
   if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
   const { supabase, profile } = caller.ctx;
 
@@ -539,7 +555,15 @@ export async function rejectAffiliate(
 ): Promise<ActionResult> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
-  const caller = await assertAdmin();
+    // ── OWNER, LIKE THE SCREEN IT SITS BEHIND ────────────────────────
+  //
+  // /affiliates is requireSuperAdmin, and referral-actions.ts says the
+  // rule out loud for its own sibling: "Only the account owner can
+  // approve or refuse an affiliate, because it sets what we pay them."
+  // setReferralLinkStatus got that gate; these three never did. A page
+  // guard is not a boundary -- a server action never goes through a
+  // layout, and its id is in the page payload.
+const caller = await assertSuperAdmin();
   if (!caller.ok) return { ok: false, error: caller.error, code: "forbidden" };
   const { supabase, profile } = caller.ctx;
 

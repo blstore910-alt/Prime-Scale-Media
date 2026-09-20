@@ -1,6 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
+import { pageAllRows } from "@/lib/page-all-rows";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
   resolveAdminContext,
@@ -420,14 +421,48 @@ export async function rematchWiseDeposits(): Promise<
     };
   }
 
-  const { data: pending, error: pErr } = await supabase
-    .from("wallet_topups")
-    .select(
-      "id, reference_no, amount, currency, status, advertiser_id, created_at",
-    )
-    .eq("status", "pending")
-    .eq("tenant_id", profile.tenant_id);
+  // ── EVERY PENDING CLAIM, NOT THE FIRST THOUSAND ──────────────────
+  //
+  // This had no .range() and no limit, so PostgREST capped it at 1,000
+  // silently. A pending claim that fell off the end is not "no claim" to
+  // the loop below -- it is a claim that has stopped existing, so the
+  // sweep WITHDRAWS a correct deposit-to-claim match and stamps it "no
+  // longer pending, completed another way". That is a matched payment
+  // being un-matched on the verify desk, with a sentence explaining it
+  // that is not true.
+  const pendingPage = await pageAllRows<{
+    id: string;
+    reference_no: string | null;
+    amount: number | null;
+    currency: string | null;
+    status: string | null;
+    advertiser_id: string | null;
+    created_at: string | null;
+  }>((from, to) =>
+    supabase
+      .from("wallet_topups")
+      .select(
+        "id, reference_no, amount, currency, status, advertiser_id, created_at",
+      )
+      .eq("status", "pending")
+      .eq("tenant_id", profile.tenant_id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  const pErr = pendingPage.error ? { message: pendingPage.error } : null;
+  const pending = pendingPage.rows;
   if (pErr) return { ok: false, error: safeErrorMessage(pErr) };
+  // Truncation is NOT "nothing else is pending". Withdrawing a match on
+  // an incomplete list is the exact damage above, so the sweep stops
+  // rather than acting on a list it knows is short.
+  if (pendingPage.truncated) {
+    return {
+      ok: false,
+      error:
+        "There are more pending claims than this sweep can read in one pass. It has not changed anything — re-run it once the queue is smaller, or match by hand.",
+    };
+  }
   if (!pending || pending.length === 0) {
     return {
       ok: true,

@@ -19,6 +19,23 @@ function fakeSupabase(opts: {
         eq() {
           return chain;
         },
+        // The mirror read is paged now: an unpaged select was capped at
+        // 1,000 rows in an unspecified order, which announced every
+        // account past the cap as new AND blanked its stored
+        // fee_percentage on the upsert.
+        order() {
+          return chain;
+        },
+        range(from: number) {
+          return Promise.resolve({
+            data: opts.existingError
+              ? null
+              : from === 0
+                ? (opts.existing ?? [])
+                : [],
+            error: opts.existingError ?? null,
+          });
+        },
         upsert(rows: Record<string, unknown>[]) {
           if (!opts.upsertError) upserted.push(...rows);
           return Promise.resolve({ error: opts.upsertError ?? null });

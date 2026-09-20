@@ -71,7 +71,14 @@ async function resolveOwnerContext(): Promise<
 // Admin read (RLS also covers reads); kept in an action for consistency.
 // ─────────────────────────────────────────
 export async function listBankAccounts(): Promise<ActionResult<BankAccount[]>> {
-  const auth = await resolveAdminContext();
+  // ── OWNER, LIKE BOTH WRITERS IN THIS FILE ────────────────────────
+  //
+  // upsertBankAccount and deleteBankAccount are resolveOwnerContext and
+  // the settings screen is requireSuperAdmin -- this read was the one
+  // door left at admin level, and it returns the whole row: beneficiary,
+  // account_no, swift_bic, routing_no, bank_address. Those are the
+  // destinations customers wire money to.
+  const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
