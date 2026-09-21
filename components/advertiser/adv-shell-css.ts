@@ -808,31 +808,32 @@ export const ADV_CSS = `
      A full card for "nothing needs doing" was about 120px of green at
      the top of the dashboard. One strip, one line, and a single sheen
      that crosses it when it appears so it still feels like an arrival. */
+  /* A white card like every other card on the dashboard, with the green
+     kept to the one place it means something: the tick. A mint gradient
+     under a solid green square under a bordered box read as three
+     different greens and a button, not as one calm line of good news. */
   .onb-done{position:relative;overflow:hidden;display:flex;align-items:center;
-    gap:12px;padding:12px 10px 12px 12px;border-radius:14px;
-    background:linear-gradient(100deg,#eafbf4,#d9f7ec 48%,#eafbf4);
-    border:1px solid rgba(16,185,129,.28);
-    box-shadow:0 12px 28px -22px rgba(16,185,129,.9)}
+    gap:12px;padding:12px 10px 12px 14px;border-radius:16px;
+    background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
   .onb-done::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.85) 50%,transparent 62%);
+    background:linear-gradient(105deg,transparent 40%,rgba(16,185,129,.10) 50%,transparent 60%);
     background-size:240% 100%;background-position:190% 0;
-    animation:onbsheen 2.6s ease-out 1}
+    animation:onbsheen 2.4s ease-out 1}
   @keyframes onbsheen{to{background-position:-70% 0}}
-  .onb-done-ic{width:26px;height:26px;border-radius:9px;flex:0 0 auto;display:grid;
-    place-items:center;background:var(--win);color:#fff;
-    box-shadow:0 0 0 3px rgba(16,185,129,.16);animation:onbpop .42s cubic-bezier(.2,1.5,.4,1) 1}
-  .onb-done-ic svg{width:15px;height:15px;stroke-width:3}
+  .onb-done-ic{width:32px;height:32px;border-radius:50%;flex:0 0 auto;display:grid;
+    place-items:center;background:var(--win-soft);color:var(--win);
+    animation:onbpop .42s cubic-bezier(.2,1.5,.4,1) 1}
+  .onb-done-ic svg{width:16px;height:16px;stroke-width:3}
   @keyframes onbpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
   .onb-done-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-  .onb-done-t{font-family:var(--hd);font-weight:800;font-size:.95rem;line-height:1.2;color:#0b7a5a}
-  .onb-done-s{color:#3d7a64;font-size:.82rem;line-height:1.3;
+  .onb-done-t{font-family:var(--hd);font-weight:800;font-size:.92rem;line-height:1.25;color:var(--ink)}
+  .onb-done-s{color:var(--txt-2);font-size:.8rem;line-height:1.3;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .onb-done-x{position:relative;z-index:1;flex:0 0 auto;width:32px;height:32px;
-    display:grid;place-items:center;border-radius:10px;cursor:pointer;
-    border:1px solid rgba(16,185,129,.28);background:rgba(255,255,255,.7);
-    color:#0b7a5a;transition:.14s}
-  .onb-done-x svg{width:14px;height:14px;stroke-width:2.6}
-  .onb-done-x:hover{background:#fff;border-color:rgba(16,185,129,.5)}
+  .onb-done-x{position:relative;z-index:1;flex:0 0 auto;width:28px;height:28px;
+    display:grid;place-items:center;border-radius:8px;cursor:pointer;
+    border:0;background:none;color:var(--faint);transition:.14s}
+  .onb-done-x svg{width:13px;height:13px;stroke-width:2.4}
+  .onb-done-x:hover{background:var(--panel-2);color:var(--ink)}
   @media (prefers-reduced-motion:reduce){
     .onb-done::after,.onb-done-ic{animation:none}
     .onb-done::after{opacity:0}
