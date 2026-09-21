@@ -390,10 +390,36 @@ export default function AdAccountRequestForm({
   });
   useUnsavedChangesWarning(isDirty);
 
-  // Auto-switch currency to USD if EUR is selected and platform is not meta-ads
+  // ── THE CURRENCY FOLLOWS THE PLATFORM, BOTH WAYS ──────────────────
+  //
+  // This only forced EUR -> USD when leaving Meta, and never came back.
+  // So: open the dialog (Meta, EUR), tap TikTok to see what it is (USD
+  // is its only option, and is selected for you), tap back to Meta --
+  // and USD stays. EUR reappears as a choice and is NOT reselected.
+  //
+  // The currency radios sit below the fold while you are reading the
+  // platform list, so nothing on screen says what just happened. An ad
+  // account keeps its currency for life, so that customer ends up
+  // asking for a USD account while their wallet, their plan and their
+  // existing account are all in euros -- and every funding of it needs
+  // a USD wallet they have never put money in.
+  //
+  // Leaving Meta still forces USD, because that is the only currency
+  // the other platforms have. RETURNING to Meta now restores EUR, which
+  // is both the form's default and the only currency the customer was
+  // ever offered before they went wandering.
+  const prevPlatform = useRef(selectedPlatform);
   useEffect(() => {
-    if (selectedPlatform !== "meta-ads" && selectedCurrency === "EUR") {
-      setValue("currency", "USD");
+    const was = prevPlatform.current;
+    prevPlatform.current = selectedPlatform;
+
+    if (selectedPlatform !== "meta-ads") {
+      if (selectedCurrency === "EUR") setValue("currency", "USD");
+      return;
+    }
+    // Came BACK to Meta from a USD-only platform: undo the forcing.
+    if (was !== "meta-ads" && selectedCurrency === "USD") {
+      setValue("currency", "EUR");
     }
   }, [selectedPlatform, selectedCurrency, setValue]);
 
