@@ -585,7 +585,13 @@ function TopupHistory({ account }: { account: AdAccount }) {
         // this exact shape and the note "not rendering is not the same as
         // not sending".
         .select(
-          "id, created_at, amount_received, currency, topup_amount, fee, fee_amount, status",
+          // topup_usd IS THE DISCRIMINATOR, so it has to be asked for.
+          // Without it landedOnAccount sees undefined, reads every row as
+          // an admin row and prints dollars over a euro account -- which
+          // is exactly what this sheet did after the currency fix landed,
+          // because the fix was in the cell and the column was not in the
+          // select.
+          "id, created_at, amount_received, currency, topup_amount, topup_usd, fee, fee_amount, status",
         )
         .eq("account_id", account.id)
         // A deleted top-up is not history. This sheet is shown to the
@@ -608,7 +614,7 @@ function TopupHistory({ account }: { account: AdAccount }) {
         const retry = await supabase
           .from("top_ups")
           .select(
-            "id, created_at, amount_received, currency, topup_amount, fee, fee_amount, status",
+            "id, created_at, amount_received, currency, topup_amount, topup_usd, fee, fee_amount, status",
           )
           .eq("account_id", account.id)
           .order("created_at", { ascending: false })
