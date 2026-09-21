@@ -43,6 +43,8 @@ type Item = {
   icon: LucideIcon;
   /** null = the count could not be read. NOT the same as 0. */
   badge?: number | null;
+  /** Nested under the item above it — a place you go FROM that screen. */
+  sub?: boolean;
 };
 type Group = { title?: string; items: Item[] };
 
@@ -127,7 +129,11 @@ export default function AdminShell({
       items: [
         { title: "Advertisers", href: "/users", icon: Users },
         { title: "Ad Accounts", href: "/accounts", icon: Monitor },
-        { title: "Account Pool", href: "/account-pool", icon: Boxes },
+        // The pool is where an ad account COMES FROM — you open it from
+        // the accounts screen ("Allocate one from the Account Pool"), and
+        // it was sitting beside Ad Accounts as if it were a separate part
+        // of the business. Nested under it instead.
+        { title: "Account Pool", href: "/account-pool", icon: Boxes, sub: true },
         {
           title: "Account Requests",
           href: "/ad-account-requests",
@@ -290,7 +296,9 @@ export default function AdminShell({
                      prefetch, so opening the drawer and tapping is no
                      slower. */
                   prefetch={false}
-                  className={`navlink${isActive(pathname, item.href) ? " on" : ""}`}
+                  className={`navlink${item.sub ? " sub" : ""}${
+                    isActive(pathname, item.href) ? " on" : ""
+                  }`}
                 >
                   <Icon /> {item.title}
                   {/* An unreadable count used to render as no badge at all,

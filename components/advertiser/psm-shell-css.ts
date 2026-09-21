@@ -1087,6 +1087,14 @@ export const PSM_APP_CSS = `
    The active nav item had a tint and nothing else. A left rail makes the
    current section findable at a glance in a 22-item drawer. */
 .psmapp .navlink{position:relative}
+/* A nested link: indented, a shade quieter, with a short rule tying it to
+   the item above. The Account Pool is where an ad account comes from, not
+   a separate part of the business, and it read as a sibling of Ad
+   Accounts. */
+.psmapp .navlink.sub{padding-left:32px;font-size:.87rem;font-weight:500}
+.psmapp .navlink.sub::before{content:"";position:absolute;left:18px;top:50%;
+  width:8px;height:1px;background:var(--line-2)}
+.psmapp .navlink.sub svg{width:16px;height:16px}
 .psmapp .navlink.on::before{
   content:"";position:absolute;left:-14px;top:50%;transform:translateY(-50%);
   width:3px;height:18px;border-radius:0 3px 3px 0;background:var(--primary)
