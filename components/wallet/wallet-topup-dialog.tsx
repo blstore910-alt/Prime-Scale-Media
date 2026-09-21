@@ -1400,8 +1400,15 @@ export default function WalletTopupDialog({
                 <div className="space-y-2">
                   <h3 className="font-semibold text-lg">Request Successful!</h3>
                   <p className="text-sm text-muted-foreground max-w-[18rem] mx-auto">
+                    {/* NOT "quoting this reference" — that is bank
+                        jargon for an instruction with a concrete place
+                        to put it. Step 2 of this same dialog already
+                        says it plainly ("Put this reference in the
+                        description of your transfer"); this screen, the
+                        last one before somebody opens their banking
+                        app, said it in the vaguest form. */}
                     {filedReference
-                      ? "Now send the transfer, quoting this reference."
+                      ? "Now send the transfer, and put this reference in the description."
                       : "Your topup request has been submitted."}
                   </p>
                 </div>
@@ -1431,7 +1438,7 @@ export default function WalletTopupDialog({
                              whole point of this block is that the
                              wallet has already rotated to the NEXT
                              code, so that page shows a different one. */
-                          "Tap to copy — put it on the transfer."}
+                          "Tap to copy, then paste it into the description field."}
                     </p>
                   </div>
                 ) : null}
