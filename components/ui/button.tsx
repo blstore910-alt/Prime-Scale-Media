@@ -23,8 +23,16 @@ const buttonVariants = cva(
         // composites over whatever the background happens to be.
         default:
           "bg-brand-strong text-white shadow-[inset_0_1px_0_rgba(255,255,255,.28),0_10px_22px_-14px_rgba(58,111,255,.85),0_2px_5px_-3px_rgba(20,30,80,.35)] hover:-translate-y-px hover:brightness-[1.06] active:brightness-[.98]",
+        // The same fault as `default` above, one line lower, and it was
+        // live on every red button in the app: tailwind-merge reads
+        // `bg-gradient-to-b` as a background COLOUR and keeps the last
+        // one, so `bg-destructive` was dropped from the class list, and
+        // `text-destructive-foreground` has no token in app/globals.css.
+        // "Request deletion" rendered as dark text on nothing -- the owner
+        // could not see it was a button. Solid red, white text, and the
+        // highlight from the inset shadow.
         destructive:
-          "bg-destructive text-destructive-foreground bg-gradient-to-b from-white/[.18] to-transparent to-[58%] shadow-[inset_0_1px_0_rgba(255,255,255,.2),0_10px_22px_-14px_rgba(229,72,77,.9)] hover:-translate-y-px hover:brightness-[1.04]",
+          "bg-destructive text-white shadow-[inset_0_1px_0_rgba(255,255,255,.22),0_10px_22px_-14px_rgba(229,72,77,.9),0_2px_5px_-3px_rgba(20,30,80,.3)] hover:-translate-y-px hover:brightness-[1.06] active:brightness-[.98]",
         outline:
           "border border-input bg-gradient-to-b from-white to-muted/60 shadow-[inset_0_1px_0_#fff,0_2px_5px_-4px_rgba(20,30,80,.4)] hover:border-ring hover:text-foreground hover:shadow-[inset_0_1px_0_#fff,0_8px_16px_-12px_rgba(20,30,80,.5)]",
         secondary:
