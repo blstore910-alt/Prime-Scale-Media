@@ -4346,6 +4346,16 @@ export default function AdvertiserApp() {
                     label ON the card, not the first thing to read on it —
                     the plan name and the price are. It sat above both,
                     pushing the name down and making a pill the headline. */}
+                {/* ── THE NAME AND THE STATE, ON ONE LINE ─────────────
+                    The pill was absolutely positioned in the top-right
+                    corner and the plan name started below it, so "PRIME"
+                    and "Active" sat on two lines with a gap between them
+                    that belonged to neither. They are one statement —
+                    which plan, and whether it is running — so they go on
+                    one row, and the phone-width hack that pushed the name
+                    down to clear the pill is no longer needed. */}
+                <div className="sub-head">
+                {planName && <div className="plan-name">{planName}</div>}
                 <span className="pill pill-tr">
                   <Ic name="i-shield" />{" "}
                   {/* A failed read is not "no plan". Telling a paying
@@ -4375,17 +4385,10 @@ export default function AdvertiserApp() {
                         ? "Loading…"
                         : "No plan"}
                 </span>
-                {/* THE NAME FIRST. This card was a price and a date:
-                    "EUR 5.00 / month". A customer knows what they bought
-                    by its NAME — Prime, Starter, whatever they were sold —
-                    and the price is what it costs, not what it is. The
-                    name has been available on this screen all along; the
-                    invoice row a few hundred lines down already uses it.
-                    The plan card, which is the one place it belongs, did
-                    not. */}
-                {planName && (
-                  <div className="plan-name">{planName}</div>
-                )}
+                </div>
+                {/* THE NAME FIRST — it moved up into .sub-head above.
+                    A customer knows what they bought by its NAME, and the
+                    price is what it costs, not what it is. */}
                 <div className="plan">
                   {subscription && Number(subscription.amount ?? 0) > 0
                     ? // THE INVOICE'S FIGURE WHERE THERE IS ONE. The
@@ -4404,8 +4407,24 @@ export default function AdvertiserApp() {
                     : "Subscription"}
                 </div>
                 <div className="meta">
+                  {/* ── "RENEWS" A DATE THAT HAS ALREADY PASSED ──────
+                      next_payment_date only moves forward when the invoice
+                      for the period is PAID, so between the invoice being
+                      raised and settled — up to the full seven days of
+                      grace — this printed "Renews 20 Sep 2026" on the
+                      21st. A date in the past, presented as something
+                      still to come, on the card that tells the customer
+                      what they are paying for.
+                      The renewal HAS happened; the invoice below is what
+                      it produced. Say that instead. */}
                   {subscription?.next_payment_date
-                    ? `Renews ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}`
+                    ? dayjs(subscription.next_payment_date).isAfter(
+                        dayjs().startOf("day"),
+                      )
+                      ? `Renews ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}`
+                      : dueSubInvoice
+                        ? `Renewed ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · invoice below`
+                        : `Due for renewal since ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}`
                     : "—"}
                 </div>
                 <div

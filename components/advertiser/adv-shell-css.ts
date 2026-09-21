@@ -396,32 +396,34 @@ export const ADV_CSS = `
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}
 
-  /* The status, pinned to the top-right corner. A pill at the start of
-     the card makes the state the headline; the plan and the price are
-     the headline, and the state is a mark on it. */
-  .sub-card .pill.pill-tr{position:absolute;top:16px;right:16px;margin:0;z-index:2}
-  .sub-card .plan-name{margin-top:6px}
-  @media(max-width:420px){
-    /* At phone width the pill and a long plan name meet, so the name
-       starts below it instead of beside it. */
-    .sub-card .plan-name{margin-top:34px}
-  }
+  /* ── THE NAME AND THE STATE ARE ONE LINE ──────────────────────────
+     The pill was position:absolute in the top-right corner and the name
+     started below it, so "PRIME" and "Active" sat on two lines with a
+     band of empty card between them. They answer one question together
+     — which plan, and is it running — so they share a row.
+
+     Taking the pill out of the corner also removes the reason for the
+     phone-width hack underneath it: there is nothing left to collide
+     with, at any width, however long the plan name or the status word. */
+  .sub-card .sub-head{display:flex;align-items:center;gap:10px;
+    min-height:28px;margin:0 0 2px;position:relative;z-index:2}
+  .sub-card .pill.pill-tr{position:static;margin:0 0 0 auto;flex:0 0 auto}
   /* The plan's own name, above the price. Small caps, spaced, at the
      card's own opacity — a label for the figure under it, not a second
      headline competing with it. */
-  /* ── THE MARGIN SHORTHAND BELOW KILLED THE PHONE FIX ABOVE ──────────
-   margin:14px 0 2px is a shorthand at the same specificity, later in
-   the file, so it reset margin-top to 14px at every width -- including
-   inside the <=420 block whose own comment says "at phone width the
-   pill and a long plan name meet, so the name starts below it instead
-   of beside it". At 375px the pill occupies y=16..44 and the name
-   started at y=36: anything past about eighteen characters collided
-   with a pill that can read "Couldn't load", "Loading…" or "No plan" --
-   the states a customer most needs to read. Longhand, and the phone
-   rule restated after it. */
+  /* Small caps, spaced, at the card's own opacity — a label for the
+   figure under it, not a second headline competing with it.
+
+   No top margin any more: .sub-head owns the spacing. That also ends a
+   fight this file used to have with itself -- a margin shorthand later
+   in the file reset the margin-top that a phone-width rule above it had
+   just set, so at 375px a long plan name ran straight into a pill that
+   can read "Couldn't load", "Loading…" or "No plan". Both rules are
+   gone; min-width:0 lets a long name ellipsise instead of shoving the
+   pill off the card. */
 .sub-card .plan-name{font-family:var(--hd);font-weight:800;font-size:.76rem;
-    letter-spacing:.14em;text-transform:uppercase;opacity:.72;margin-top:14px;margin-right:0;margin-bottom:2px;margin-left:0}
-@media(max-width:430px){.sub-card .plan-name{margin-top:34px}}
+    letter-spacing:.14em;text-transform:uppercase;opacity:.72;margin:0;
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sub-card{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2),#151d3f);box-shadow:0 22px 46px -26px rgba(20,30,80,.8)}
   .sub-card .ring{position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(91,141,255,.18),transparent 30%,rgba(139,92,246,.18),transparent 60%);animation:spin 24s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
