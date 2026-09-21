@@ -261,6 +261,19 @@ begin
   exception when others then
     insert into _m33 values (15, 'leverancierskost', 'MISLUKT: ' || sqlerrm);
   end;
+
+  -- 16. De eigenaar: "zonder plan moet eigenlijk niemand een ad account
+  -- aan kunnen vragen". Het scherm houdt dat nu tegen; de functie zelf
+  -- moet het ook doen, anders omzeil je het met één aanroep.
+  begin
+    select string_agg(pg_get_functiondef(p.oid), E'\n\n')
+      into v
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'ad_account_request_create_paid';
+    insert into _m33 values (16, 'STUUR TERUG >> body ad_account_request_create_paid', coalesce(v, 'bestaat niet'));
+  exception when others then
+    insert into _m33 values (16, 'body ad_account_request_create_paid', 'MISLUKT: ' || sqlerrm);
+  end;
 end;
 $blk0$;
 

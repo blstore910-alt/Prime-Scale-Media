@@ -1891,6 +1891,16 @@ export default function AdvertiserApp() {
   // Three states, not two: nothing raised yet, something due, or
   // settled.
   const advReadsWillRun = !!advertiserId && !!tenantId;
+  // ── A PLAN THAT IS NOT RUNNING IS NOT THE CUSTOMER'S PLAN ────────────
+  //
+  // planName comes from advertiser_plans -- the plan we ASSIGNED, e.g. on
+  // the invite -- not from a subscription. PSM0007 was assigned Prime and
+  // never subscribed, so the dashboard tile read "Prime · No subscription"
+  // and Billing headlined PRIME over a "No plan" pill. The owner: "er is
+  // geen plan maar er staat overal prime". With no subscription there is
+  // no plan to name; the invoice lines keep using planName.
+  const noPlan = subLoaded && !subscription;
+  const shownPlanName = subscription ? planName : null;
   const awaitingFirstInvoice =
     !!subscription &&
     !planPaid &&
@@ -2075,6 +2085,9 @@ export default function AdvertiserApp() {
     // while the Billing pill and the dashboard tile, which read
     // subscriptions.status, both printed "Active". Three screens, and
     // the customer could see two of them contradicting the third.
+    if (noPlan) {
+      return "Ad accounts come with a plan — ask us to start one for you first";
+    }
     if (awaitingFirstInvoice) {
       return "Your first invoice hasn't been raised yet — we raise it overnight, and ad accounts open up once it is paid";
     }
@@ -2086,9 +2099,16 @@ export default function AdvertiserApp() {
     return "We couldn't check your plan just now — reload and try again";
   };
 
-  const canRequestAccount =
-    (companyComplete || companyUnknown) &&
-    (planActive || planUnknown || (accounts ?? []).length > 0);
+  // ── NO PLAN, NO REQUEST ─────────────────────────────────────────────
+  //
+  // This let anyone who already HAD an account request another, plan or
+  // no plan ("having an account means this gate was passed once"). But an
+  // account an admin created by hand passed no gate at all -- PSM0007 has
+  // one and no subscription -- and a plan that lapsed is not a plan. The
+  // owner: "zonder plan moet eigenlijk niemand een ad account aan kunnen
+  // vragen". A plan read that failed is not a yes either:
+  // requestBlockedReason says we could not check, and the button waits.
+  const canRequestAccount = (companyComplete || companyUnknown) && planActive;
 
   // ── Deep links ──────────────────────────────────────────────────────
   // The views were pure state, so nothing outside this component could
@@ -3230,7 +3250,9 @@ export default function AdvertiserApp() {
                     ? "…"
                     : dueSubInvoice
                       ? "Unpaid"
-                      : (planName ?? subscription?.status ?? "—")}
+                      : noPlan
+                        ? "No plan"
+                        : (shownPlanName ?? subscription?.status ?? "—")}
                 </div>
                 <div className="sub">
                   {/* THE INVOICE'S FIGURE, NOT THE PLAN'S. These are not
@@ -3249,11 +3271,13 @@ export default function AdvertiserApp() {
                       ? `${dueBillAmount} outstanding`
                       : subscription?.next_payment_date
                         ? `${
-                            planName && subscription?.status
+                            shownPlanName && subscription?.status
                               ? subStatusLabel(subscription.status) + " · "
                               : ""
                           }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
-                        : "No subscription"}
+                        : noPlan
+                          ? "Ad accounts come with a plan"
+                          : "No subscription"}
                 </div>
               </div>
             </div>
@@ -4509,7 +4533,9 @@ export default function AdvertiserApp() {
                     one row, and the phone-width hack that pushed the name
                     down to clear the pill is no longer needed. */}
                 <div className="sub-head">
-                {planName && <div className="plan-name">{planName}</div>}
+                {shownPlanName && (
+                  <div className="plan-name">{shownPlanName}</div>
+                )}
                 <span className="pill pill-tr">
                   <Ic name="i-shield" />{" "}
                   {/* A failed read is not "no plan". Telling a paying
@@ -4558,7 +4584,9 @@ export default function AdvertiserApp() {
                         : lastChargedAmount != null
                           ? `${chargedMoneyNeat(lastChargedAmount)} / month`
                           : `${planMoneyNeat(subscription.amount)} / month`)
-                    : "Subscription"}
+                    : noPlan
+                      ? "No plan yet"
+                      : "Subscription"}
                 </div>
                 <div className="meta">
                   {/* ── "RENEWS" A DATE THAT HAS ALREADY PASSED ──────
@@ -4615,8 +4643,9 @@ export default function AdvertiserApp() {
                       days. Telling a customer it is pro-rata on the one
                       screen where they decide is the sentence that
                       makes them keep the wrong amount in the wallet. */}
-                  Switch anytime — you pay the difference straight away,
-                  never a part-month. Ask us for the figure first.
+                  {noPlan
+                    ? "Ad accounts come with a plan. Ask us which one fits and we'll start it for you."
+                    : "Switch anytime — you pay the difference straight away, never a part-month. Ask us for the figure first."}
                 </div>
               </div>
               <div className="card">
