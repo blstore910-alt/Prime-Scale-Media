@@ -5,7 +5,7 @@
 > that carries over is in this repo and pushed to `main`. Read this
 > section, then `CLAUDE.md`, then the per-journey state below.
 
-## THE NUMBER: 3 of 16 journeys closed (A1, A2, A5).
+## THE NUMBER: 4 of 16 journeys closed (A1, A2, A3, A5).
 
 ## How to start, in order
 
@@ -84,13 +84,13 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 
 # READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
-## THE NUMBER: 3 of 16 journeys closed (A1, A2, A5).
+## THE NUMBER: 4 of 16 journeys closed (A1, A2, A3, A5).
 
 | journey | state |
 |---|---|
 | A1 invite → signup → onboarding → dashboard | **CLOSED 2026-09-21.** Invite created as owner (every branch of the dialog opened first), link copied, signed up as PSM0006 in the pane, onboarding and dashboard walked. Figures agree: EUR 0 wallet, Prime EUR 200/mo, invoice 0006-125 EUR 200 open. The first-invoice question is answered: `trg_create_invoice_on_subscription_created` raises it, and it was raising ORPHANS — see below. PLAK 14/15/16/17 all applied |
 | **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
-| A3 ad-account request, €50 off the wallet | **WALKED, not closed.** Every dialog branch opened; the INCLUDED path proved end to end (wallet stayed €195, request reached both queues without a reload); the €50 quote verified (€195 → €145) but the debit NOT executed. Six faults fixed, ten open — see below. **PLAK-18 is urgent** |
+| A3 ad-account request, €50 off the wallet | **CLOSED 2026-09-21.** Every dialog branch opened; the INCLUDED path proved end to end (wallet stayed €195, request reached both queues without a reload); and the €50 leg EXECUTED: €195.00 → €145.00 on the customer screen AND the owner's /wallets, with the statement line "Ad-account request fee −€50.00 Charged" appearing for the first time ever. Eight faults fixed; what is left is listed below and none of it is on this journey's money |
 | A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
 | **A5 invoice → Pay now** | **CLOSED 2026-09-21.** Invoice 0005-124 (€5.00) paid from the wallet as PSM0005 in the pane. €200.00 → €195.00 on the customer screen AND on the owner's /wallets; statement row −€5.00 dated 21 Sep; invoice Paid; clock 20 Sep → 20 Oct on both sides. Reconciles: €305 credited − €110 spent = €195 |
 | A6 … S3 | not started |
@@ -270,8 +270,23 @@ Walked as PSM0005 in the pane with the owner in Chrome. What was proved:
   your wallet when you submit. **Balance: €195.00 → €145.00**". So the
   allowance count DOES include pending requests.
 
-**Not done: the EUR 50 leg was never executed.** Quote verified, debit
-not. That is what remains before A3 can close.
+**The EUR 50 leg, executed 2026-09-21.** Confirm modal: "The fee leaves
+your wallet the moment you send this" / Platform Meta / Currency EUR /
+**Cost: €50 from your wallet**. After sending:
+
+| | |
+|---|---|
+| customer wallet | €195.00 → **€145.00** |
+| owner /wallets | **145.00** |
+| statement | `21 Sep · Ad-account request fee · −€50.00 · Charged` |
+
+That statement line had **never appeared before**. It needed both halves:
+PLAK-19 writing `charged_at`, and the `adv-request-charges` invalidation.
+Before today, nobody had ever actually been charged the €50 at all —
+all 8 prior requests were included, which is why the gap went unnoticed.
+
+The currency fix was re-verified live: EUR → TikTok (USD) → back to Meta
+→ **EUR**.
 
 #### Found by walking it, fixed and live
 
