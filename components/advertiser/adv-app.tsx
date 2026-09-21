@@ -10,6 +10,8 @@ import PlatformMark from "@/components/psm/platform-mark";
 import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
+import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
+import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
@@ -142,8 +144,7 @@ const money2sym = (
 ) =>
   (String(currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€") + money2(n);
 
-// Support inbox for the "contact us" actions. Change here if it differs.
-const SUPPORT_EMAIL = "contact@primescalemedia.com";
+// Every "contact us" action is WhatsApp now -- see lib/whatsapp.ts.
 
 // ── A CUSTOMER READS THE NETWORK, NEVER THE TYPE ───────────────────
 //
@@ -5027,11 +5028,13 @@ export default function AdvertiserApp() {
                             fontSize: ".82rem",
                             textAlign: "center",
                           }}
-                          href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-                            "Plan for " + (referralCode || "my account"),
-                          )}`}
+                          href={whatsappUrl(
+                            `Hi PSM, I'd like to restart my plan (${referralCode || "my account"}).`,
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          Ask us about restarting your plan
+                          Ask us on WhatsApp about restarting your plan
                         </a>
                       </>
                     ) : (
@@ -5052,11 +5055,13 @@ export default function AdvertiserApp() {
                     <a
                       className="btn block ghost"
                       style={{ marginTop: 14 }}
-                      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-                        "Plan for " + (referralCode || "my account"),
-                      )}`}
+                      href={whatsappUrl(
+                        `Hi PSM, I'd like to set up a plan (${referralCode || "my account"}).`,
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      <Ic name="i-mail" /> Ask us to set up a plan
+                      <WhatsappIcon /> Ask us on WhatsApp to set up a plan
                     </a>
                       </>
                     )}
@@ -5818,13 +5823,13 @@ export default function AdvertiserApp() {
                 <p className="cap">We&apos;re one tap away.</p>
                 <button
                   className="btn block grad"
-                  onClick={() => {
-                    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-                      "Question about my account",
-                    )}`;
-                  }}
+                  onClick={() =>
+                    openWhatsapp(
+                      `Hi PSM, I have a question about my account${referralCode ? ` (${referralCode})` : ""}.`,
+                    )
+                  }
                 >
-                  <Ic name="i-mail" /> Message your manager
+                  <WhatsappIcon /> Message us on WhatsApp
                 </button>
               </div>
             </div>

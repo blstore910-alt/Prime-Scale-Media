@@ -19,12 +19,14 @@ import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
+import { openWhatsapp } from "@/lib/whatsapp";
+import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import { downloadCsv } from "@/lib/download-blob";
 import { isCustomerVisibleType } from "@/lib/notification-catalog";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
-const SUPPORT_EMAIL = "contact@primescalemedia.com";
+// Every "contact us" action is WhatsApp now -- see lib/whatsapp.ts.
 
 type View = "dash" | "refs" | "pay" | "notif" | "set" | "help";
 const TITLES: Record<View, string> = {
@@ -1788,9 +1790,7 @@ export default function AffiliateApp() {
                 onClick={() => {
                   const line = (label: string, v: string) =>
                     `${label}: ${v.trim() || "—"}`;
-                  window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-                    "Payout details setup",
-                  )}&body=${encodeURIComponent(
+                  openWhatsapp(
                     [
                       "Hi PSM team, here are my payout details:",
                       "",
@@ -1801,13 +1801,13 @@ export default function AffiliateApp() {
                       line("Billing address", payout.address),
                       line("VAT / Tax ID", payout.taxId),
                     ].join("\n"),
-                  )}`;
+                  );
                 }}
               >
-                Email payout details to set up
+                <WhatsappIcon /> Send payout details on WhatsApp
               </button>
               <p className="cap" style={{ marginTop: 8 }}>
-                This opens an email with what you typed above — nothing is
+                This opens WhatsApp with what you typed above — nothing is
                 stored until we confirm it.
               </p>
             </div>
@@ -1884,13 +1884,11 @@ export default function AffiliateApp() {
                 <button
                   className="btn"
                   style={{ width: "100%", justifyContent: "center" }}
-                  onClick={() => {
-                    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-                      "Affiliate question",
-                    )}`;
-                  }}
+                  onClick={() =>
+                    openWhatsapp("Hi PSM, I have a question about my affiliate account.")
+                  }
                 >
-                  <Ic name="i-mail" /> Contact your PSM manager
+                  <WhatsappIcon /> Message us on WhatsApp
                 </button>
               </div>
             </div>
@@ -1998,10 +1996,8 @@ export default function AffiliateApp() {
                   showEurUsd === "EUR"
                     ? `€${exact(all.payable.eur)}`
                     : `$${exact(all.payable.usd)}`;
-                const subject = encodeURIComponent(
-                  `Payout request — ${amount} (${showEurUsd})`,
-                );
-                const body = encodeURIComponent(
+                const subject = `Payout request — ${amount} (${showEurUsd})`;
+                const body = (
                   `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\n` +
                     `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n` +
                     // Which basis the figure came from, so whoever reads
@@ -2011,11 +2007,11 @@ export default function AffiliateApp() {
                       all.payable.isLifetime
                         ? "lifetime earned - outstanding figure unavailable, please verify"
                         : "outstanding, already net of anything paid"
-                    }\n\nThank you.`,
+                    }\n\nThank you.`
                 );
-                window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+                openWhatsapp(`${subject}\n\n${body}`);
                 setPayOpen(false);
-                toast.success("Opening your email to send the payout request.");
+                toast.success("Opening WhatsApp to send the payout request.");
               }}
             >
               <Ic name="i-download" /> Request payout
