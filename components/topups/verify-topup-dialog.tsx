@@ -314,39 +314,30 @@ function VerifyTopupInvoice({
     <form onSubmit={handleSubmit(handleVerify)} className="space-y-6">
       <div className="border rounded-xl overflow-hidden bg-card text-card-foreground shadow-sm">
         {/* Invoice Header */}
-        <div className="bg-muted/30 p-6 flex flex-col sm:flex-row justify-between gap-4">
-          <div>
-            <h3 className="font-bold text-lg text-primary tracking-tight">
-              Topup #{String(topup.number).padStart(6, "0")}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Requested at: {dayjs(topup.created_at).format("D MMM, YYYY")}
-            </p>
-          </div>
-          {/* ── ONE COLUMN, NOT A SCATTER ───────────────────────────
-              This was five items stacked right-aligned under each other
-              -- account name, the word "TOP UP", a status badge and a
-              supplier pill -- against a left column with two. It read as
-              a pile rather than a header.
+        {/* ── TWO ROWS, EACH ONE THING LEFT AND ONE THING RIGHT ──────
+            This was a left column (number, date) against a right-aligned
+            column (account, type, status, supplier). Side by side on a
+            wide dialog that held; on a phone the two columns stacked, so
+            a left-aligned title sat above a right-aligned pile and two
+            pills of different shapes -- "not nicely aligned", twice.
 
-              The account is what this row IS, so it leads. The type is a
-              caption under it. The two badges share one line, which is
-              what badges are for, and they sit on the same baseline as
-              the top-up number on the left. */}
-          <div className="text-right space-y-1">
-            <h4 className="font-semibold text-foreground">
-              {(topup as unknown as { account_name?: string | null })
-                .account_name ||
-                topup.account?.name ||
-                "Unknown Account"}
-            </h4>
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">
-              {topup.type.replace("-", " ")}
+            Now the same two rows at every width: the number with its
+            status, then the account with its supplier. Both badges are
+            the same height and shape, so they read as a pair. */}
+        <div className="bg-muted/30 p-5 sm:p-6 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-bold text-lg text-primary tracking-tight leading-tight">
+                Topup #{String(topup.number).padStart(6, "0")}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Requested {dayjs(topup.created_at).format("D MMM YYYY")}
+              </p>
             </div>
-            <div className="flex items-center justify-end gap-2 flex-wrap pt-1">
             <Badge
               variant={topup.status === "completed" ? "default" : "secondary"}
               className={cn(
+                "shrink-0 rounded-full px-2.5 py-1 capitalize",
                 topup.status === "completed" &&
                   "bg-green-500 hover:bg-green-600",
                 topup.status === "pending" &&
@@ -362,14 +353,26 @@ function VerifyTopupInvoice({
               )}
               {topup.status}
             </Badge>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className="font-semibold text-foreground truncate">
+                {(topup as unknown as { account_name?: string | null })
+                  .account_name ||
+                  topup.account?.name ||
+                  "Unknown Account"}
+              </h4>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                {topup.type.replace("-", " ")}
+              </div>
+            </div>
             {/* Admin-only: a customer never sees a supplier name. */}
             {topup.status === "pending" && (
-              <>
+              <span className="shrink-0">
                 <style>{SUPPLIER_PILL_CSS}</style>
                 <SupplierPill link={supplierFor(topup.account_id)} compact />
-              </>
+              </span>
             )}
-            </div>
           </div>
         </div>
 

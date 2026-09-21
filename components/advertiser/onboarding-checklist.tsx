@@ -269,15 +269,20 @@ export default function OnboardingChecklist({
         <span className="onb-done-ic">
           <Ic name="i-check" />
         </span>
-        <span className="onb-done-t">You&apos;re all set</span>
-        <span className="onb-done-s">your account is ready to run</span>
+        {/* One text block that shrinks, so the close button can never be
+            pushed onto a second line: flex-wrap sent a faint 18px "×" to
+            the bottom-right corner on a phone, where nobody saw it. */}
+        <span className="onb-done-txt">
+          <span className="onb-done-t">You&apos;re all set</span>
+          <span className="onb-done-s">Your account is ready to run.</span>
+        </span>
         <button
           className="onb-done-x"
           aria-label="Dismiss"
           title="Dismiss"
           onClick={() => persist({ dismissed: true })}
         >
-          &times;
+          <Ic name="i-x" />
         </button>
       </div>
     );

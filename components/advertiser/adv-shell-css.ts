@@ -809,7 +809,7 @@ export const ADV_CSS = `
      the top of the dashboard. One strip, one line, and a single sheen
      that crosses it when it appears so it still feels like an arrival. */
   .onb-done{position:relative;overflow:hidden;display:flex;align-items:center;
-    gap:10px;padding:10px 12px 10px 10px;border-radius:14px;flex-wrap:wrap;
+    gap:12px;padding:12px 10px 12px 12px;border-radius:14px;
     background:linear-gradient(100deg,#eafbf4,#d9f7ec 48%,#eafbf4);
     border:1px solid rgba(16,185,129,.28);
     box-shadow:0 12px 28px -22px rgba(16,185,129,.9)}
@@ -823,12 +823,16 @@ export const ADV_CSS = `
     box-shadow:0 0 0 3px rgba(16,185,129,.16);animation:onbpop .42s cubic-bezier(.2,1.5,.4,1) 1}
   .onb-done-ic svg{width:15px;height:15px;stroke-width:3}
   @keyframes onbpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
-  .onb-done-t{font-family:var(--hd);font-weight:800;font-size:.95rem;color:#0b7a5a}
-  .onb-done-s{color:var(--txt-2);font-size:.85rem;min-width:0}
-  .onb-done-x{margin-left:auto;border:0;background:none;cursor:pointer;
-    color:rgba(11,122,90,.55);font-size:1.15rem;line-height:1;padding:2px 4px;
-    border-radius:7px;transition:.14s}
-  .onb-done-x:hover{color:#0b7a5a;background:rgba(16,185,129,.12)}
+  .onb-done-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .onb-done-t{font-family:var(--hd);font-weight:800;font-size:.95rem;line-height:1.2;color:#0b7a5a}
+  .onb-done-s{color:#3d7a64;font-size:.82rem;line-height:1.3;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .onb-done-x{position:relative;z-index:1;flex:0 0 auto;width:32px;height:32px;
+    display:grid;place-items:center;border-radius:10px;cursor:pointer;
+    border:1px solid rgba(16,185,129,.28);background:rgba(255,255,255,.7);
+    color:#0b7a5a;transition:.14s}
+  .onb-done-x svg{width:14px;height:14px;stroke-width:2.6}
+  .onb-done-x:hover{background:#fff;border-color:rgba(16,185,129,.5)}
   @media (prefers-reduced-motion:reduce){
     .onb-done::after,.onb-done-ic{animation:none}
     .onb-done::after{opacity:0}
