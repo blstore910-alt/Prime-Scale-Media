@@ -1,3 +1,95 @@
+# READ THIS FIRST — state of play, 2026-09-21
+
+## THE NUMBER: 1 of 16 journeys closed (A2).
+
+| journey | state |
+|---|---|
+| A1 invite → signup → onboarding → dashboard | not started |
+| **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
+| A3 ad-account request, €50 off the wallet | not started |
+| A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
+| **A5 invoice → Pay now** | **in progress.** Invoice 124 (€5.00, period 2026-09-20) is open on PSM0005 and waiting to be paid. Sweep findings fixed — see below |
+| A6 … S3 | not started |
+
+### 2026-09-21 — THE ONE THAT MATTERED
+
+**A single unpaid invoice made the whole customer app unopenable.**
+
+`invCurrency` was a `const` arrow function in `adv-app.tsx`, declared
+twenty lines BELOW the `.reduce` in `unpaidSubByCurrency` that calls it.
+A const is in its temporal dead zone until its own line runs, so the
+call threw
+
+    ReferenceError: Cannot access 'invCurrency' before initialization
+
+and Next replaced the entire advertiser app with "Application error: a
+client-side exception has occurred". Not the billing page — the WHOLE
+app, because the views are CSS-toggled and all of them render.
+
+It hid for days because **`.reduce` on an EMPTY array never calls its
+callback.** Every advertiser with nothing outstanding was fine. PSM0005
+got an open invoice from `PLAK-DIT-9` and could no longer sign in to
+anything. `tsc` does not catch it: the reference is inside a callback,
+so it cannot prove the callback runs immediately.
+
+Fixed in `a4bd9c7`; the arithmetic then moved to `lib/pure-invoice-due.ts`
+(`c5425ae`) where thirteen tests exercise the NON-empty path, which is
+the only path that could ever have shown the fault.
+
+`no-use-before-define` was tried and removed: sixteen hits, fifteen of
+them the house pattern (a module-scope `CSS` const at the bottom of a
+file, used from JSX — safe, the module has finished by then).
+
+### 2026-09-21 — A5 sweep findings, FIXED
+
+- The billing card showed the NEWEST open invoice. With two open, the
+  customer saw yesterday's while last month's sat past due being dunned.
+  Now oldest first, and the card says how many are open and the total
+  per currency.
+- `canExchangeToPay` asked only `other > 0`. €200 owed and one cent in
+  USD rendered "Exchange to pay €200.00" — and because it is one button,
+  that REMOVED the top-up route. Now the real rate, after the fee, via
+  `lib/pure-exchange.ts`. An unread rate is not a "no".
+- Whichever route is not primary now sits under it as a quiet link, so
+  one control can never take the other away.
+- The exchange dialog did not know what it had been opened for: an empty
+  amount box under a button reading "Exchange to pay €5.00". It now
+  takes `needAmount`/`needCurrency`/`needLabel`, prefills what lands
+  after the fee (rounded UP), and shows whether the gap closes.
+- "we'll take it from your wallet on the due date" printed directly
+  above "Due date not set".
+- A PAUSED plan gives `subscription = null`, so the card said "there is
+  no plan on your account yet, so nothing is being charged" with a live
+  Pay button below it. That branch now pays the open invoice.
+- The View button is a `window.open` of the PDF route, so every refusal
+  landed in a new tab as `{"error":"..."}`. Inline now gets a readable
+  page, and the catch-all no longer leaks Supabase details.
+
+### Still OPEN on A5
+
+- Not yet walked as the customer: invoice 124 has not been paid. Needs
+  an advertiser session in the built-in pane (`xifape4500@jobscai.com`,
+  PSM0005). **One browser = one Supabase session**, so the owner has to
+  stay in Chrome and the customer in the pane.
+- After paying, `next_payment_date` moves from 18 Oct to 20 Oct
+  (period_start + 1 month). Put it back.
+- `wallet_exchange`'s body is not in this repo, so nothing here can say
+  whether its 0.6% fee comes off the FROM side or the TO side. The
+  dialog's own preview is what the customer decides on, and it is
+  internally consistent — but "exactly enough" is only proven against
+  the screen, not the server. **Ask for the body.**
+- Permissions findings from the sweep, unfixed:
+  `grant_advertiser_perk`/`revoke_advertiser_perk` are admin-only with
+  no `is_active`, no owner check and no 0–100 clamp; `invoices` and
+  `subscriptions` are fully writable by any active admin through
+  PostgREST; `_money_columns_are_the_owners` is UPDATE-only so INSERT
+  walks past it; `createInvoiceAsAdmin` validates the parties but not
+  the money.
+- `PLAK-DIT-11B-LEESROL.sql` and `PLAK-DIT-12-KORTING-BIJ-WIJZIGING.sql`
+  are sent and not yet confirmed applied.
+
+---
+
 # READ THIS FIRST — state of play, 2026-09-20 (evening)
 
 This file is the handover. A new Claude session — same account or a
