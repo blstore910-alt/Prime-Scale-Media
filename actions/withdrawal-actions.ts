@@ -175,8 +175,17 @@ async function fundedUsd(
   return { ok: true, funded: inUsd - outUsd, otherCurrency };
 }
 
-const usd = (v: number) =>
-  "$" +
+// ── THE ACCOUNT'S CURRENCY, NOT A HARD DOLLAR SIGN ──────────────────
+//
+// This was `usd()`, a literal "$", used in both refusal messages in a
+// file whose own 60-line header explains that the ceiling is computed in
+// the currency of the ACCOUNT. AA-PSM0005-EU-01 holds EUR 194.00, so a
+// customer asking for EUR 250 was refused with "has $194.00 available"
+// and the admin over-approving with "the account holds $194.00" — the
+// right number, the wrong currency, in the sentence that tells somebody
+// what they may ask for.
+const money = (v: number, currency: string) =>
+  (String(currency).toUpperCase() === "EUR" ? "€" : "$") +
   new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -345,8 +354,9 @@ export async function requestAdAccountWithdrawal(input: {
   if (amount > available.funded + 0.005) {
     return {
       ok: false,
-      error: `${acct.name ?? "This account"} has ${usd(
+      error: `${acct.name ?? "This account"} has ${money(
         available.funded,
+        accountCurrency,
       )} available — that already allows for any withdrawal still waiting on us.`,
     };
   }
@@ -439,8 +449,9 @@ export async function approveAdAccountWithdrawal(
     if (wanted > withoutThis + 0.005) {
       return {
         ok: false,
-        error: `This asks for ${usd(wanted)} and the account holds ${usd(
+        error: `This asks for ${money(wanted, wdCurrency)} and the account holds ${money(
           Math.max(withoutThis, 0),
+          wdCurrency,
         )}. Approving it would credit the wallet with money that was never on the account.`,
       };
     }

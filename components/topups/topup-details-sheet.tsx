@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { useAppContext } from "@/context/app-provider";
 import { CURRENCY_SYMBOLS, PLATFORMS, TOPUP_TYPES } from "@/lib/constants";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { createClient } from "@/lib/supabase/client";
 import { Topup } from "@/lib/types/topup";
 import { UserProfile } from "@/lib/types/user";
@@ -289,11 +290,27 @@ export function TopupDetailsSheet({
                   ${topup.amount_usd}
                 </p>
                 <p>
+                  {/* ── NOT A HARD "USD" ──────────────────────────────
+                      `topup_amount` has two meanings: on the CUSTOMER
+                      path the RPC stores the net in the PAYMENT currency
+                      and puts the dollar figure in `topup_usd`; the
+                      admin paths store dollars. lib/pure-topup-landed.ts
+                      is the discriminator, and this sheet ignored it.
+                      A customer-filed EUR 100 funding at 3% stores 97.00
+                      EUR: the queue card behind this sheet prints
+                      €97.00 and pressing Details printed $97.00. Two
+                      currencies for one number, one click apart, on the
+                      screen an admin reads before funding a supplier
+                      account by hand. */}
                   <span className="font-medium text-foreground">
                     Top-up Amount:{" "}
                   </span>
-                  {CURRENCY_SYMBOLS["USD"]}
-                  {topup.topup_amount}
+                  {(() => {
+                    const landed = landedOnAccount(topup);
+                    // A null amount is not a zero. Say so.
+                    if (landed.amount === null) return "—";
+                    return `${CURRENCY_SYMBOLS[landed.currency] ?? ""}${landed.amount.toFixed(2)}`;
+                  })()}
                 </p>
                 <p>
                   <span className="font-medium text-foreground">Fee:</span>{" "}
