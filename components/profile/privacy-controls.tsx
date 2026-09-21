@@ -131,9 +131,13 @@ export default function PrivacyControls({
       <div className="rounded-lg border border-destructive/40 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="font-medium text-destructive">Delete my account</p>
+          {/* The owner: "en vooral 7 years law claim weg". A legal claim
+              nobody here has checked does not belong on a customer screen.
+              "Blocks your login right away" stays only as long as it is
+              TRUE -- it goes when deletion becomes a request the admin
+              approves (docs/NEXT_SESSION_FIRST.md, R3). */}
           <p className="text-sm text-muted-foreground">
-            Blocks your login right away. Financial records are kept for 7
-            years by law.
+            Blocks your login right away.
           </p>
         </div>
         <Button
@@ -151,9 +155,8 @@ export default function PrivacyControls({
           <DialogHeader>
             <DialogTitle>Confirm account deletion</DialogTitle>
             <DialogDescription>
-              This immediately blocks your login and marks your profile
-              for deletion. A super-admin finalises the hard delete on
-              the anniversary date. You will lose access right away.
+              This immediately blocks your login and marks your account
+              for deletion. You will lose access right away.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
