@@ -225,9 +225,15 @@ export default function InvitesTable() {
                 <th>Client code</th>
                 <th>Sender</th>
                 <th>Recipient Email</th>
-                <th>Status</th>
+                {/* ── THE TWO DATES NEXT TO EACH OTHER ──────────────
+                    On a phone this table becomes a two-up card, and with
+                    Status sitting between them "Created on" paired with
+                    Status while "Expires on" was left alone on its own
+                    row. Those two dates are read TOGETHER -- how long is
+                    left -- and the one thing between them was a pill. */}
                 <th>Created on</th>
                 <th>Expires on</th>
+                <th>Status</th>
                 <th className="r">Action</th>
               </tr>
             </thead>
@@ -292,13 +298,13 @@ export default function InvitesTable() {
                         {invite.email || "—"}
                       </div>
                     </td>
+                    <td data-label="Created on">{dayjs(invite.created_at).format(DATE_TIME_FORMAT)}</td>
+                    <td data-label="Expires on">{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
                     <td data-label="Status">
                       <span className={`badge ${badge.cls}`}>
                         {badge.label}
                       </span>
                     </td>
-                    <td data-label="Created on">{dayjs(invite.created_at).format(DATE_TIME_FORMAT)}</td>
-                    <td data-label="Expires on">{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
                     <td data-label="Action" className="r">
                       {invite.status === "pending" ? (
                         /* ── AND A WAY TO GET THE LINK ────────────────

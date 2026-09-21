@@ -806,14 +806,19 @@ export const PSM_APP_CSS = `
     display:block;text-align:left;padding:9px 0 3px;border-top:0;
     min-height:0;
   }
-  /* ── A NOWRAP VALUE IN A HALF-WIDTH CELL ──────────────────────────
+  /* ── A DATE PAIR BELONGS ON ONE LINE ──────────────────────────────
      .billrange is white-space:nowrap, which is correct in a table where
      a column can be as wide as its content. In the two-up card each cell
      gets about 160px and "16-09-2026 -> 20-10-2026" wants 190, so it ran
-     straight under the Status badge beside it: two unrelated facts
-     printed on top of each other, on the screen where somebody checks
-     when a customer is billed. It wraps after the arrow instead. */
-  .psmapp .tbl.wide td .billrange{white-space:normal;flex-wrap:wrap;gap:2px 7px}
+     straight under the Status badge beside it.
+
+     Wrapping it after the arrow stopped the collision and made the pair
+     worse to read: the whole point of the arrow is that the two dates
+     are ONE fact, and you compare them at a glance. So the cell takes
+     the full width of the card instead and the range stays on its line.
+     Its neighbour moves up beside whatever follows. */
+  .psmapp .tbl.wide td:has(.billrange){grid-column:1 / -1}
+  .psmapp .tbl.wide td .billrange{white-space:nowrap}
   /* The chip and the pill are taller than plain text, so without this they
      push their own row taller than its neighbour and the rhythm breaks. */
   .psmapp .tbl.wide td .pfi,
