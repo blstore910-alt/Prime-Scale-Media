@@ -146,6 +146,7 @@ declare
   audited constant text[] := array[
     'wallets',
     'wallet_topups',
+    'wallet_exchanges',
     'top_ups',
     'topup_logs',
     'invoices',

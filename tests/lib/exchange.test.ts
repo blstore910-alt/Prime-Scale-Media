@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import {
   EXCHANGE_FEE_PCT,
+  exchangeQuote,
   getRate,
   landsAfterFee,
   neededFromAmount,
@@ -28,15 +29,61 @@ describe("getRate", () => {
 
 describe("landsAfterFee", () => {
   it("takes the fee off what arrives", () => {
-    assert.equal(
-      landsAfterFee(100, R),
-      Math.round(100 * R * (1 - EXCHANGE_FEE_PCT) * 100) / 100,
-    );
+    const q = exchangeQuote(100, R);
+    assert.equal(q.fee, 0.55); // round(92 * 0.006, 2)
+    assert.equal(q.lands, 91.45); // round(92 - 0.55, 2)
+    assert.equal(landsAfterFee(100, R), 91.45);
+  });
+
+  it("rounds the fee BEFORE subtracting, the way the server does", () => {
+    // ── THE CENT THIS FILE EXISTS FOR ──────────────────────────────
+    //
+    // wallet_exchange, read off live on 2026-09-21:
+    //     gross := p_amount * rate
+    //     fee   := round(gross * 0.006, 2)
+    //     net   := round(gross - fee, 2)
+    //
+    // The one-step form round(gross * 0.994, 2) is a DIFFERENT number.
+    // 50 EUR at 0.872361 is the amount I walked on production: the
+    // server credits 56.98, the one-step form says 56.97. The dashboard
+    // decided from one and the dialog from the other, which is how a
+    // customer gets offered a route that then refuses them.
+    const eurToUsd = getRate(0.872361, "EUR", "USD");
+    const q = exchangeQuote(50, eurToUsd);
+    assert.equal(q.fee, 0.34);
+    assert.equal(q.lands, 56.98);
+
+    const oneStep = Math.round(50 * eurToUsd * (1 - EXCHANGE_FEE_PCT) * 100) / 100;
+    assert.equal(oneStep, 56.97);
+    assert.notEqual(q.lands, oneStep);
+  });
+
+  it("fee and landed always add back up to the rounded gross", () => {
+    // The three lines the customer reads have to sum. Independent
+    // rounding is how a cent goes missing between them.
+    for (const amt of [2.72, 16.1, 50, 99.99, 100, 1234.56]) {
+      for (const base of [0.8, 0.872361, 0.92, 1.0, 1.087, 1.21]) {
+        for (const [from, to] of [
+          ["USD", "EUR"],
+          ["EUR", "USD"],
+        ] as const) {
+          const rate = getRate(base, from, to);
+          const q = exchangeQuote(amt, rate);
+          const grossCents = Math.round(Number((q.gross * 100).toPrecision(12)));
+          assert.equal(
+            Math.round((q.fee + q.lands) * 100),
+            grossCents,
+            `${amt} ${from}->${to} at ${base}: ${q.fee} + ${q.lands} != ${q.gross}`,
+          );
+        }
+      }
+    }
   });
 
   it("is 0 for nothing and for no rate", () => {
     assert.equal(landsAfterFee(0, R), 0);
     assert.equal(landsAfterFee(100, 0), 0);
+    assert.deepEqual(exchangeQuote(-5, R), { gross: 0, fee: 0, lands: 0 });
   });
 });
 
@@ -45,6 +92,28 @@ describe("neededFromAmount", () => {
     const rate = getRate(R, "USD", "EUR");
     const from = neededFromAmount(5, rate);
     assert.ok(landsAfterFee(from, rate) >= 5);
+  });
+
+  it("asks for the SMALLEST amount that still covers it", () => {
+    // Erring upward is right; erring upward by more than it takes is
+    // just taking a cent of somebody's money for no reason. The cent
+    // below the answer must genuinely fall short.
+    for (const need of [0.05, 5, 92, 199.99]) {
+      for (const base of [0.8, 0.872361, 0.92, 1.087]) {
+        for (const [from, to] of [
+          ["USD", "EUR"],
+          ["EUR", "USD"],
+        ] as const) {
+          const rate = getRate(base, from, to);
+          const amt = neededFromAmount(need, rate);
+          assert.ok(landsAfterFee(amt, rate) >= need);
+          assert.ok(
+            landsAfterFee(Number((amt - 0.01).toFixed(2)), rate) < need,
+            `need ${need} at ${base} ${from}->${to}: ${amt} is a cent too much`,
+          );
+        }
+      }
+    }
   });
 
   it("holds across amounts, rates and both directions", () => {

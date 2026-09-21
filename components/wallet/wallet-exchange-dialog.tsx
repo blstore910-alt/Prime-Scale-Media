@@ -13,9 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { userFacingErrorMessage } from "@/lib/pure-error";
-import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
+import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
-  EXCHANGE_FEE_PCT,
+  exchangeQuote,
   getRate,
   neededFromAmount,
 } from "@/lib/pure-exchange";
@@ -75,13 +75,23 @@ export default function WalletExchangeDialog({
   needLabel?: string | null;
 }) {
   const queryClient = useQueryClient();
+  // ── THE CUSTOMER-SIDE RATE READ, NOT THE ADMIN ONE ────────────────
+  //
+  // This was `useExchangeRates`, whose select is
+  // `"*, profile:user_profiles(*)"` — every column of `exchange_rates`
+  // plus an embedded profile, shipped to the customer's browser. And the
+  // dialog is mounted unconditionally on the dashboard, so it ran on
+  // every page load with the dialog shut. The dashboard card was moved
+  // to `useUsdToEur` for exactly this reason and the dialog was missed.
+  // `useUsdToEur` selects one column, `eur`, and returns null rather
+  // than 1 when it cannot be read.
   const {
-    exchangeRates,
+    rate: advEurRate,
     isLoading: ratesLoading,
     isError: ratesError,
-  } = useExchangeRates({ activeOnly: true });
+  } = useUsdToEur();
 
-  const eurRateRaw = Number(exchangeRates?.[0]?.eur ?? 0);
+  const eurRateRaw = Number(advEurRate ?? 0);
 
   const {
     register,
@@ -114,21 +124,27 @@ export default function WalletExchangeDialog({
       : 0;
   const toCurrency: Currency = fromCurrency === "USD" ? "EUR" : "USD";
   const rate = eurRateRaw ? getRate(eurRateRaw, fromCurrency, toCurrency) : 0;
-  const toAmount = rate ? Number((fromAmount * rate).toFixed(2)) : 0;
+  // Every figure below comes from the one helper that reproduces the
+  // server's own steps — gross, fee rounded to the cent, then net. The
+  // dialog used to pre-round the gross and take 0.6% of THAT, which is a
+  // different number from the one the database credits.
+  const quote = exchangeQuote(fromAmount, rate);
   const amountRegister = register("from_amount", {
     required: "Amount is required",
     valueAsNumber: true,
     min: {
-      value: 0,
-      message: "Amount must be 0 or greater",
+      // Zero passed the form and was refused by the RPC, so the only way
+      // to find out was a red toast.
+      value: 0.01,
+      message: "Enter an amount above zero",
     },
   });
   const hasUsd = usdBalance > 0;
   const hasEur = eurBalance > 0;
   const hasSingleBalance = (hasUsd && !hasEur) || (!hasUsd && hasEur);
 
-  const feeAmount = toAmount * EXCHANGE_FEE_PCT;
-  const exchangeableAmount = toAmount - feeAmount; // Amount after fee deduction
+  const feeAmount = quote.fee;
+  const exchangeableAmount = quote.lands;
 
   // ── WHAT THE CUSTOMER CAME HERE FOR ────────────────────────────────
   //
@@ -286,8 +302,11 @@ export default function WalletExchangeDialog({
   // An exchange is not reversible at the rate you got, so it gets asked
   // for twice. The first click only builds the confirmation; the money moves
   // from the modal.
-  const [confirming, setConfirming] = useState<FormValues | null>(null);
-  const onSubmit = (values: FormValues) => setConfirming(values);
+  const [confirming, setConfirming] = useState<{
+    values: FormValues;
+    rate: number;
+  } | null>(null);
+  const onSubmit = (values: FormValues) => setConfirming({ values, rate });
 
   // If the customer edits the form behind the modal, or it closes, drop the
   // pending confirmation — never let a confirmation outlive the figures it
@@ -295,6 +314,32 @@ export default function WalletExchangeDialog({
   useEffect(() => {
     if (!open) setConfirming(null);
   }, [open]);
+
+  // ── AND THAT INCLUDES THE RATE ─────────────────────────────────────
+  //
+  // The comment above says the confirmation must not outlive the figures
+  // it was built from, but the effect that implemented it watched only
+  // `open`. The modal read `rate` live while sending the amount captured
+  // at submit — so a rate that went unreadable while the modal sat there
+  // printed "1 USD = 0.000000 EUR", a fee of 0.00 and "Added to your
+  // wallet 0.00" over a live "Yes, exchange it" that still sent the real
+  // amount. Now the rate is captured too, and if it moves the
+  // confirmation goes rather than quietly becoming a different deal.
+  useEffect(() => {
+    if (!confirming) return;
+    if (rate === confirming.rate) return;
+    setConfirming(null);
+    toast.message(rate > 0 ? "The rate moved" : "We lost today's rate", {
+      description:
+        "Nothing has left your wallet. Check the figures and press Exchange again.",
+    });
+  }, [rate, confirming]);
+
+  // What the modal shows IS what the modal sends.
+  const confirmFrom: Currency = confirming?.values.from_currency ?? fromCurrency;
+  const confirmTo: Currency = confirmFrom === "USD" ? "EUR" : "USD";
+  const confirmAmount = Number(confirming?.values.from_amount ?? 0);
+  const confirmQuote = exchangeQuote(confirmAmount, confirming?.rate ?? 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -445,24 +490,24 @@ export default function WalletExchangeDialog({
           cta="Yes, exchange it"
           busy={isPending}
           busyLabel="Exchanging…"
-          onConfirm={() => confirming && mutate(confirming)}
+          onConfirm={() => confirming && mutate(confirming.values)}
         >
           <ConfirmFact
             label="Taken from your wallet"
-            value={`${fromAmount.toFixed(2)} ${fromCurrency}`}
+            value={`${confirmAmount.toFixed(2)} ${confirmFrom}`}
             strong
           />
           <ConfirmFact
             label="Rate"
-            value={`1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`}
+            value={`1 ${confirmFrom} = ${(confirming?.rate ?? 0).toFixed(6)} ${confirmTo}`}
           />
           <ConfirmFact
             label="Exchange fee (0.6%)"
-            value={`${feeAmount.toFixed(2)} ${toCurrency}`}
+            value={`${confirmQuote.fee.toFixed(2)} ${confirmTo}`}
           />
           <ConfirmFact
             label="Added to your wallet"
-            value={`${exchangeableAmount.toFixed(2)} ${toCurrency}`}
+            value={`${confirmQuote.lands.toFixed(2)} ${confirmTo}`}
             strong
           />
         </ConfirmModal>
