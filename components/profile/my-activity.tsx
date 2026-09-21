@@ -18,13 +18,32 @@ type Row = {
  * Last 20 audit_events where the caller was the actor. Gives the
  * user a self-service "was that me?" answer without needing to ask
  * an admin.
+ *
+ * ── ONLY THE TENANT OWNER CAN ACTUALLY READ THIS ────────────────────
+ *
+ * The one SELECT policy on `audit_events` is
+ *
+ *     using (public._is_super_admin_of(tenant_id))
+ *
+ * and that function is `tenants.owner_id = auth.uid()` — the owner, and
+ * nobody else. RLS FILTERS, it does not refuse: the query came back `[]`
+ * with no error, so `isError` was false and this rendered "Nothing here
+ * yet. Your changes will show up as you use the app." to every customer
+ * and every affiliate, for ever. A confident empty over a read that was
+ * never permitted, on the screen somebody opens when a figure has
+ * surprised them.
+ *
+ * So it renders for the one role that can see it, and nothing for the
+ * rest. A customer-facing account history is a real gap and is written
+ * up as one — it needs its own narrowed view, because `audit_events`
+ * carries `old_data`/`new_data` and those hold supplier figures.
  */
 export default function MyActivity() {
-  const { user } = useAppContext();
+  const { user, isSuperAdmin } = useAppContext();
 
   const { data, isLoading, isError } = useQuery<Row[]>({
     queryKey: ["my-activity", user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && isSuperAdmin,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -37,6 +56,8 @@ export default function MyActivity() {
       return (data ?? []) as Row[];
     },
   });
+
+  if (!isSuperAdmin) return null;
 
   return (
     <section className="space-y-4">

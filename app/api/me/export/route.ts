@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { exportOwnData } from "@/actions/gdpr-actions";
+import { createClient } from "@/lib/supabase/server";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -15,8 +16,20 @@ export const dynamic = "force-dynamic";
  * the user's downloads folder.
  */
 export async function GET(req: Request) {
-  const ip = callerIp(req);
-  const allowed = await rateLimitCheck(LIMITS.gdprExport, `ip:${ip}`);
+  // ── KEYED ON THE PERSON, NOT THE BUILDING ─────────────────────────
+  //
+  // This was `ip:${ip}` at 10 per hour. Two customers behind one office
+  // NAT — or one company's whole staff — shared a single budget, and the
+  // eleventh art. 20 request in an hour came back "Too many export
+  // requests" to somebody who had made none. Every comparable financial
+  // action keys on the user (`user:${uid}`, withdrawal-actions.ts).
+  // The IP stays as the fallback for a caller with no session, so an
+  // unauthenticated flood is still capped.
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id ?? null;
+  const bucket = uid ? `user:${uid}` : `ip:${callerIp(req)}`;
+  const allowed = await rateLimitCheck(LIMITS.gdprExport, bucket);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many export requests. Try again later." },

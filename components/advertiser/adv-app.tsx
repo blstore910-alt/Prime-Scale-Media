@@ -1,6 +1,5 @@
 "use client";
 
-import MyActivity from "@/components/profile/my-activity";
 import PrivacyControls from "@/components/profile/privacy-controls";
 
 import { copyText } from "@/lib/copy-text";
@@ -5512,18 +5511,19 @@ export default function AdvertiserApp() {
               </p>
               <PrivacyControls />
             </div>
-            {/* ── AND WHAT HAPPENED ON THEIR ACCOUNT ──────────────
-                MyActivity was mounted on /profile and nowhere else,
-                and /profile bounces every customer to their own
-                shell -- so the right to export and the right to be
-                forgotten came across in an earlier fix and the plain
-                "what has been done to my account" list did not. It
-                is the same question a customer asks first when a
-                figure surprises them. */}
-            <div className="card">
-              <h2>Your recent activity</h2>
-              <MyActivity />
-            </div>
+            {/* ── AND WHAT HAPPENED ON THEIR ACCOUNT: NOT YET ─────
+                This card used to sit here and it could never hold
+                anything. The only read policy on audit_events is the
+                tenant OWNER, and RLS filters rather than refuses, so
+                the list came back empty with no error and printed
+                "Nothing here yet. Your changes will show up as you
+                use the app." to a customer whose account had plenty
+                of history. The question is a real one -- it is the
+                first thing somebody asks when a figure surprises
+                them -- but answering it needs its own narrowed view,
+                because audit_events rows carry old_data/new_data and
+                those hold supplier figures. Written up rather than
+                faked. */}
           </div>
 
           {/* HELP */}
