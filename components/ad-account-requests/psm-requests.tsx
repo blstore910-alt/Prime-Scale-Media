@@ -487,10 +487,26 @@ export default function PsmRequests() {
                 // to an existing account so nobody retypes it blind.
                 const bm = ident?.value || made?.bm_id || "";
                 const bmLabel = ident?.value
-                  ? (ident?.label ?? "BM")
+                  ? (ident?.label ?? "BM ID")
                   : made?.bm_id
-                    ? "BM (their existing account)"
-                    : "BM";
+                    ? "BM ID (their existing account)"
+                    : "BM ID";
+                // ── AND THE NAME NEEDS THE SAME HONESTY ─────────────
+                //
+                // `acctName` is the SAME guess as the BM above -- the
+                // newest ad_accounts row for this advertiser and
+                // platform family. The BM line was given a label saying
+                // so; the name was printed bare. On a PENDING request
+                // for a second account that is the customer's EXISTING
+                // account code, sitting on the card with nothing
+                // explaining it, directly above a copy button.
+                //
+                // Once the request is completed the guess IS this
+                // request's account, so then the plain label is true.
+                const acctLabel =
+                  String(r.status ?? "") === "completed"
+                    ? "Acc name"
+                    : "Existing acc";
                 if (!acctName && !bm) return null;
                 return (
                   <div
@@ -505,6 +521,9 @@ export default function PsmRequests() {
                   >
                     {acctName ? (
                       <div style={{ minWidth: 0, fontWeight: 600 }}>
+                        <span style={{ color: "var(--faint)", fontWeight: 500 }}>
+                          {acctLabel}{" "}
+                        </span>
                         <CopyText value={acctName} what="account name" />
                       </div>
                     ) : null}
