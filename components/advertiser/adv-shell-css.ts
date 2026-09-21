@@ -392,6 +392,28 @@ export const ADV_CSS = `
   .jh-list svg{width:15px;height:15px;flex:0 0 auto;margin-top:2px;color:#6ee7b7}
   .joinhero .btn.grad{width:100%;max-width:19rem;justify-content:center}
   .jh-note{display:block;margin-top:11px;font-size:.76rem;color:rgba(255,255,255,.55)}
+  /* ── MONEY, FALLING ─────────────────────────────────────────────
+     Decoration on the one card that asks somebody to earn. It sits
+     UNDER everything (.joinhero>* is position:relative, this is
+     absolute) and never takes a click. */
+  .joinhero .moneyfx{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .joinhero .moneyfx span{position:absolute;top:-40px;font-family:var(--hd);font-weight:800;
+    color:rgba(255,255,255,.13);text-shadow:0 0 16px rgba(110,231,183,.3);
+    animation:mfall linear infinite;will-change:transform,opacity}
+  .joinhero .moneyfx span:nth-child(1){left:7%;font-size:1.15rem;animation-duration:14s;animation-delay:0s}
+  .joinhero .moneyfx span:nth-child(2){left:22%;font-size:.85rem;animation-duration:18s;animation-delay:-4s}
+  .joinhero .moneyfx span:nth-child(3){left:38%;font-size:1.45rem;animation-duration:16s;animation-delay:-9s}
+  .joinhero .moneyfx span:nth-child(4){left:54%;font-size:.9rem;animation-duration:20s;animation-delay:-2s}
+  .joinhero .moneyfx span:nth-child(5){left:70%;font-size:1.25rem;animation-duration:15s;animation-delay:-11s}
+  .joinhero .moneyfx span:nth-child(6){left:84%;font-size:.8rem;animation-duration:19s;animation-delay:-6s}
+  .joinhero .moneyfx span:nth-child(7){left:93%;font-size:1.05rem;animation-duration:17s;animation-delay:-14s}
+  @keyframes mfall{
+    0%{transform:translateY(0) rotate(0deg);opacity:0}
+    10%{opacity:1}
+    85%{opacity:1}
+    100%{transform:translateY(460px) rotate(200deg);opacity:0}
+  }
+  @media (prefers-reduced-motion:reduce){.joinhero .moneyfx{display:none}}
   .list-row .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}

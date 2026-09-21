@@ -110,6 +110,38 @@ export const AFF_CSS = `
   .jackpot-usd{font-size:.34em;font-weight:800;letter-spacing:-.01em;opacity:.85}
   @keyframes shine{0%{background-position:185% 0}55%,100%{background-position:-45% 0}}
   .jackpot .cur{font-size:.52em;vertical-align:.12em;margin-right:.04em;-webkit-text-fill-color:#ffcf6a;color:#ffcf6a}
+  /* ── COINS, RISING ──────────────────────────────────────────────
+     On the one screen an affiliate opens to see what they are owed.
+     Under .hero-inner (z-index 1), above the ribbon, never clickable. */
+  .hero .coins{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .hero .coins span{position:absolute;bottom:-32px;font-family:var(--font-sora);font-weight:800;
+    color:rgba(255,198,64,.5);text-shadow:0 0 14px rgba(255,170,40,.55);
+    animation:coinrise linear infinite;will-change:transform,opacity}
+  .hero .coins span:nth-child(1){left:6%;font-size:1rem;animation-duration:11s;animation-delay:0s}
+  .hero .coins span:nth-child(2){left:18%;font-size:.78rem;animation-duration:15s;animation-delay:-3s}
+  .hero .coins span:nth-child(3){left:31%;font-size:1.3rem;animation-duration:13s;animation-delay:-7s}
+  .hero .coins span:nth-child(4){left:45%;font-size:.86rem;animation-duration:17s;animation-delay:-1s}
+  .hero .coins span:nth-child(5){left:59%;font-size:1.15rem;animation-duration:12s;animation-delay:-9s}
+  .hero .coins span:nth-child(6){left:72%;font-size:.8rem;animation-duration:16s;animation-delay:-5s}
+  .hero .coins span:nth-child(7){left:86%;font-size:1.05rem;animation-duration:14s;animation-delay:-12s}
+  .hero .coins span:nth-child(8){left:95%;font-size:.75rem;animation-duration:18s;animation-delay:-8s}
+  @keyframes coinrise{
+    0%{transform:translateY(0) rotate(0deg) scale(.9);opacity:0}
+    12%{opacity:1}
+    82%{opacity:1}
+    100%{transform:translateY(-420px) rotate(240deg) scale(1.1);opacity:0}
+  }
+  /* A slow shine across the figure itself, so the number reads as the
+     prize it is rather than as a label. */
+  .jackpot::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.72) 50%,transparent 62%);
+    background-size:260% 100%;background-position:180% 0;
+    mix-blend-mode:overlay;animation:jshine 5.5s ease-in-out infinite}
+  @keyframes jshine{0%,62%{background-position:180% 0}100%{background-position:-60% 0}}
+  @media (prefers-reduced-motion:reduce){
+    .hero .coins{display:none}
+    .jackpot::after{animation:none;opacity:0}
+  }
   .hero-sub{color:rgba(255,255,255,.74);margin:14px auto 0;font-size:1.02rem;max-width:30ch}.hero-sub b{color:#fff}
   .rise-pill{display:inline-flex;align-items:center;gap:7px;margin-top:18px;padding:10px 17px;border-radius:99px;background:rgba(16,185,129,.16);color:#63f0c1;font-weight:700;font-size:.88rem;border:1px solid rgba(16,185,129,.42);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}.rise-pill svg{width:16px;height:16px}
   .hero-tiles{display:inline-flex;margin:22px auto 2px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:16px;overflow:hidden;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 16px 30px -18px rgba(0,0,0,.6)}

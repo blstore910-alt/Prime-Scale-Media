@@ -3325,6 +3325,17 @@ export default function AdvertiserApp() {
                 them. */}
             {!isAffiliate && !affiliateUnknown ? (
               <div className="joinhero">
+                {/* Money, drifting. Decoration only — aria-hidden, and it
+                    stops dead under prefers-reduced-motion. */}
+                <div className="moneyfx" aria-hidden="true">
+                  <span>€</span>
+                  <span>$</span>
+                  <span>€</span>
+                  <span>$</span>
+                  <span>€</span>
+                  <span>$</span>
+                  <span>€</span>
+                </div>
                 <span className="jh-ic">
                   <Ic name="i-gift" />
                 </span>

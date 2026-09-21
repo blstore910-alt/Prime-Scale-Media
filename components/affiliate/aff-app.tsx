@@ -735,6 +735,18 @@ export default function AffiliateApp() {
             <section className="hero">
               <div className="ribbon" />
               <div className="glow" />
+              {/* Coins, rising. Decoration only — aria-hidden, and it
+                  stops dead under prefers-reduced-motion. */}
+              <div className="coins" aria-hidden="true">
+                <span>€</span>
+                <span>$</span>
+                <span>€</span>
+                <span>$</span>
+                <span>€</span>
+                <span>$</span>
+                <span>€</span>
+                <span>$</span>
+              </div>
               <div className="hero-inner">
                 <p className="eyebrow">
                   <Ic name="i-spark" /> Your total earnings
