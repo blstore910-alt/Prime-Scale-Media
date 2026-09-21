@@ -66,7 +66,6 @@ export default function WithdrawDialog({
   const currency = (defaultCurrency ?? "USD").trim().toUpperCase() === "EUR"
     ? "EUR"
     : "USD";
-  const fundedIn = currency;
 
   // ── THE FIGURE THE SERVER WILL MEASURE THIS AGAINST ────────────────
   //
@@ -336,9 +335,13 @@ export default function WithdrawDialog({
               That is what we funded, less anything already asked back — it
               does not subtract what the account has spent, so we check the
               real balance before approving.
-              {fundedIn !== "USD"
-                ? " It comes back in USD, which is what the platform spends; exchange it in your wallet afterwards."
-                : ""}
+              {/* No "it comes back in USD" any more. It comes back in
+                  the account's own currency, into the matching wallet —
+                  that sentence belonged to the assumption this dialog
+                  has just stopped making. */}
+              {" It lands in your "}
+              {currency}
+              {" wallet."}
             </p>
           </div>
 
