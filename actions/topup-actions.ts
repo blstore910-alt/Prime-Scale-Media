@@ -1282,11 +1282,6 @@ export async function verifyAdTopup(
   // The owner's rule: the admin pushes it, with a button, and checks.
   // Verify is the record that the money is on the account; putting it
   // there is a separate, deliberate act. See pushAdTopupToSupplier.
-  const push = { enqueued: false, reason: "verify no longer pushes" } as {
-    enqueued: boolean;
-    reason: string;
-    heldByGate?: boolean;
-  };
 
   // ── AND TELL THE CUSTOMER ─────────────────────────────────────────
   //
@@ -1334,14 +1329,11 @@ export async function verifyAdTopup(
   return {
     ok: true,
     data,
-    // Verifying is the moment we learn the money is ours and the
-    // supplier should be funded. If that could not be queued for any
-    // reason other than the gate being shut, the admin needs to know
-    // now — not when the customer asks why their account is empty.
-    warning:
-      !push.enqueued && !push.heldByGate
-        ? `Verified, but the supplier was NOT told: ${push.reason}. Fund the account by hand.`
-        : undefined,
+    // No supplier warning here any more. Verifying does not push, so
+    // "the supplier was NOT told" is no longer news — it is the design.
+    // The admin was asked, on the checklist they just ticked, whether
+    // the money is on the account; the Push button and its own refusal
+    // message are where that conversation happens.
   };
 }
 
