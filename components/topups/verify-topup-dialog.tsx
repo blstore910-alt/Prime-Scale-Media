@@ -278,11 +278,6 @@ function VerifyTopupInvoice({
   const supplier = supplierFor(String(topup.account_id ?? ""));
 
   const steps = [
-    {
-      key: "figures",
-      title: "The figures match the customer's payment",
-      detail: `Paid ${formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}, ${formatCurrency(calculatedValues.netAmount, creditCurrency)} lands on the account.`,
-    },
     // ── THE API STEP IS STILL A STEP THE ADMIN DOES ───────────────
     //
     // This said "Pressing Verify queues the top-up with the supplier.
@@ -327,16 +322,27 @@ function VerifyTopupInvoice({
               Requested at: {dayjs(topup.created_at).format("D MMM, YYYY")}
             </p>
           </div>
-          <div className="text-right">
+          {/* ── ONE COLUMN, NOT A SCATTER ───────────────────────────
+              This was five items stacked right-aligned under each other
+              -- account name, the word "TOP UP", a status badge and a
+              supplier pill -- against a left column with two. It read as
+              a pile rather than a header.
+
+              The account is what this row IS, so it leads. The type is a
+              caption under it. The two badges share one line, which is
+              what badges are for, and they sit on the same baseline as
+              the top-up number on the left. */}
+          <div className="text-right space-y-1">
             <h4 className="font-semibold text-foreground">
               {(topup as unknown as { account_name?: string | null })
                 .account_name ||
                 topup.account?.name ||
                 "Unknown Account"}
             </h4>
-            <div className="text-xs text-muted-foreground uppercase mt-1 tracking-wider">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
               {topup.type.replace("-", " ")}
             </div>
+            <div className="flex items-center justify-end gap-2 flex-wrap pt-1">
             <Badge
               variant={topup.status === "completed" ? "default" : "secondary"}
               className={cn(
@@ -355,18 +361,14 @@ function VerifyTopupInvoice({
               )}
               {topup.status}
             </Badge>
-            {/* ── THE TOP-UP ITSELF IS DONE OVER THERE ───────────────
-                This dialog is where an admin decides to release the
-                money, and for every type but one that means opening
-                the supplier's own dashboard and moving it by hand.
-                Nothing on this screen said which supplier. Admin-only:
-                a customer never sees a supplier name. */}
+            {/* Admin-only: a customer never sees a supplier name. */}
             {topup.status === "pending" && (
-              <div className="mt-3 flex justify-end">
+              <>
                 <style>{SUPPLIER_PILL_CSS}</style>
-                <SupplierPill link={supplierFor(topup.account_id)} />
-              </div>
+                <SupplierPill link={supplierFor(topup.account_id)} compact />
+              </>
             )}
+            </div>
           </div>
         </div>
 
