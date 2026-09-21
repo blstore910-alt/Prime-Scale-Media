@@ -336,6 +336,8 @@ export const AFF_CSS = `
   .field{margin-bottom:14px}.field label{font-size:.8rem;font-weight:600;color:var(--txt-2);display:block;margin-bottom:6px}
   .field input{width:100%;font-family:var(--font-outfit);font-size:.92rem;border:1px solid var(--line-2);border-radius:11px;padding:11px 13px;background:var(--panel-2);color:var(--ink)}
   .field input:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
+  /* A box you cannot type in must not look like one you can. */
+  .field input:disabled{background:transparent;border-style:dashed;color:var(--faint);cursor:not-allowed}
   .subhead2{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin:18px 0 12px;padding-top:16px;border-top:1px solid var(--line)}.subhead2 svg{width:15px;height:15px;color:var(--primary)}
   .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .avpick{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:6px}
