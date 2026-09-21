@@ -722,7 +722,7 @@ export default function AccountsTable() {
       ) : paginatedAccounts.length ? (
         <div className="card" style={{ padding: 0 }}>
           <div className="tblwrap">
-            <table className="tbl wide">
+            <table className="tbl wide statustop">
               <thead>
                 <tr>
                   <th>Client Code</th>

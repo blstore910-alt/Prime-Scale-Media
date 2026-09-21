@@ -850,6 +850,24 @@ export const PSM_APP_CSS = `
      text it sits next to instead of setting the height for the whole
      row. */
   .psmapp .tbl.wide td{min-height:44px}
+  /* ── STATUS BELONGS BESIDE THE TITLE ─────────────────────────────
+     A status is one word and it was taking a labelled half-row with an
+     empty half next to it — the widest, emptiest line on the card, for
+     the shortest value on it. Beside the title it is read in the same
+     glance as the thing it describes, which is how a card is scanned,
+     and the card loses a row.
+
+     Opt-in per table (.statustop), because the first cell is a title
+     that normally spans the row and some lists genuinely need that
+     width. */
+  .psmapp .tbl.wide.statustop tr td:first-child{
+    grid-column:1;padding-right:10px;min-height:0
+  }
+  .psmapp .tbl.wide.statustop tr td[data-label="Status"]{
+    grid-column:2;grid-row:1;justify-self:end;align-self:start;
+    min-height:0;padding:4px 0 0;text-align:right
+  }
+  .psmapp .tbl.wide.statustop tr td[data-label="Status"]::before{display:none}
   .psmapp .tbl.wide td .pfi{width:22px;height:22px;border-radius:7px}
   .psmapp .tbl.wide td .pfi svg{width:13px;height:13px}
   /* The platform mark carries its family's colour, the way the requests
