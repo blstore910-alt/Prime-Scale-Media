@@ -5,7 +5,7 @@
 > that carries over is in this repo and pushed to `main`. Read this
 > section, then `CLAUDE.md`, then the per-journey state below.
 
-## THE NUMBER: 4 of 16 journeys closed (A1, A2, A3, A5).
+## THE NUMBER: 5 of 16 journeys closed (A1, A2, A3, A4, A5).
 
 ## How to start, in order
 
@@ -84,14 +84,14 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 
 # READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
-## THE NUMBER: 4 of 16 journeys closed (A1, A2, A3, A5).
+## THE NUMBER: 5 of 16 journeys closed (A1, A2, A3, A4, A5).
 
 | journey | state |
 |---|---|
 | A1 invite → signup → onboarding → dashboard | **CLOSED 2026-09-21.** Invite created as owner (every branch of the dialog opened first), link copied, signed up as PSM0006 in the pane, onboarding and dashboard walked. Figures agree: EUR 0 wallet, Prime EUR 200/mo, invoice 0006-125 EUR 200 open. The first-invoice question is answered: `trg_create_invoice_on_subscription_created` raises it, and it was raising ORPHANS — see below. PLAK 14/15/16/17 all applied |
 | **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
 | A3 ad-account request, €50 off the wallet | **CLOSED 2026-09-21.** Every dialog branch opened; the INCLUDED path proved end to end (wallet stayed €195, request reached both queues without a reload); and the €50 leg EXECUTED: €195.00 → €145.00 on the customer screen AND the owner's /wallets, with the statement line "Ad-account request fee −€50.00 Charged" appearing for the first time ever. Eight faults fixed; what is left is listed below and none of it is on this journey's money |
-| A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
+| A4 fund an ad account | **CLOSED 2026-09-21.** €100 at 3% → €3 fee, €97 lands, wallet €145 → €45 on BOTH screens; verified as owner; Funded to date €97 → €194; statement row On its way → On the account. Six faults fixed, nine open — see below |
 | **A5 invoice → Pay now** | **CLOSED 2026-09-21.** Invoice 0005-124 (€5.00) paid from the wallet as PSM0005 in the pane. €200.00 → €195.00 on the customer screen AND on the owner's /wallets; statement row −€5.00 dated 21 Sep; invoice Paid; clock 20 Sep → 20 Oct on both sides. Reconciles: €305 credited − €110 spent = €195 |
 | A6 … S3 | not started |
 
@@ -250,6 +250,108 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### A4 — CLOSED 2026-09-21
+
+Walked as PSM0005 in the pane with the owner in Chrome, both halves.
+
+| | |
+|---|---|
+| dialog quote | Out €100.00 · fee (3%, included) −€3.00 · lands €97.00 · wallet €145 → €45 |
+| confirm | "It leaves your wallet now. Money on an ad account can only come back through a withdrawal request, which we have to approve." |
+| after sending | wallet **€45.00**, statement `#000003 · Funded AA-PSM0005-EU-01 · −€100.00 · On its way` |
+| admin queue | `#3 · Pending · €97.00 · paid €100.00 · fee €3.00` |
+| verify dialog | Amount Received €100.00 · Fee 3% −€3.00 · Net Credit €97.00 |
+| after verifying | statement row → **On the account**, Funded to date €97 → **€194.00**, bell 4 → 5 |
+| owner /wallets | **45.00** |
+
+Arithmetic across the whole session for this advertiser: €195 − €50
+(request fee) − €100 (funding) = **€45**, and €97 + €97 = **€194**
+funded. Both screens agree at every step.
+
+#### Found by walking it, fixed and live
+
+- **A dollar figure on a euro account, twice.** The funding dialog
+  printed "about $111.19 at 0.872361 EUR per USD" under "Lands on the
+  account €97.00", on a card that says Currency EUR two rows up. The
+  figure existed because the SUPPLIER settles in dollars — the one thing
+  a customer must never be shown, by name or by settlement currency —
+  and it is unverifiable anyway because rates move. Removed from the
+  summary and the confirmation; the rate guard stays (`7304d58`).
+- **The admin's two biggest numbers were hard-coded `"USD"`.**
+  `verify-topup-dialog.tsx` passed a literal while `creditCurrency` sat
+  three lines below being used correctly. On a EUR 100 funding at 3% the
+  admin read "Net Credit **$97.00**" and then topped the supplier up by
+  hand from that number — about 13% short, every manual EUR top-up
+  (`f8381f7`).
+- **"Funded automatically" was false.** Nothing is pushed on its own and
+  the owner does not want it to be. On a card whose next control is
+  Verify, that green pill told the person about to press it that the
+  money was already there. Now "API available", which is a fact about
+  the TYPE (`f8381f7`).
+- **A tick-box with no question.** The first checklist step asked the
+  admin to confirm "the figures match the customer's payment". On a
+  WALLET top-up that is the whole job; on an ad-account funding there is
+  nothing to match — the money came out of a wallet that was verified
+  when it was topped up, and the figures were computed by the RPC. The
+  figures were already in the table directly above. Removed: a tick-box
+  for a question with no answer teaches people to tick without reading,
+  two boxes above one that matters (`a7abf31`).
+- **The verify header was a pile** — five right-aligned items stacked
+  against two on the left (`a7abf31`).
+- **Verify pushed to the supplier as a side effect.** Shut, a no-op;
+  armed, pressing Verify would have moved money at the supplier as a
+  consequence of recording that it had already moved. Split:
+  `pushAdTopupToSupplier` is its own admin action and its own button in
+  the checklist, above the tick that asks whether the money is on the
+  account. Walked live with the gate shut: **"Not pushed — supplier is
+  in mock mode — no real pushes. Fund it in the supplier's portal
+  instead."** Nothing happened, it said why, and it said what to do
+  instead (`ef73b9e`, `ec14d29`).
+
+#### A4 — still OPEN
+
+1. **`top_ups` never got the GRANT revoke.** `"Enable ALL for admins"
+   for all to authenticated using (_is_admin_of(tenant_id))` gives every
+   employee admin INSERT/UPDATE/DELETE on the funding row, with no
+   column trigger (`_fee_is_the_owners` is on `ad_accounts` only). One
+   line from devtools defeats `TOPUP_UPDATE_ALLOWED`, the
+   completed→pending refusal, `maintenanceGuard` and the owner-only fee
+   gate:
+   `update top_ups set fee=0, fee_amount=0, topup_amount=<gross>, status='completed'`.
+   Needs live confirmation of the grant, then the same revoke pattern
+   already used on `wallet_topups`, `wallets` and `ad_account_requests`
+   — but **UPDATE must stay**, the admin actions write with the caller's
+   session.
+2. **`top_up_admin_verify` is callable at `/rest/v1/rpc/`** and the
+   entire pricing gate for a funding lives in the TypeScript wrapper.
+   `rpc('top_up_admin_verify', { p_top_up_id, p_new_fee_percent: 0 })`
+   skips the floor, the ceiling, the tenant compare and the
+   already-completed re-read. `20260920290000` revoked exactly this for
+   two sibling RPCs; this one was not on the list. Body still unread.
+3. **The locked-account refusal on the customer path is browser-only.**
+   `top_up_create_for_advertiser` selects `id, fee` and never reads
+   `status`, so a direct RPC call funds a banned account — and the
+   withdrawal side refuses a locked account, so the money cannot come
+   back.
+4. The fee floor/ceiling is skipped entirely when `advertiser_id` is
+   null (`topup-actions.ts:1175` wraps the whole gate in `if`).
+5. `top_up_create_for_advertiser` does not reject a deactivated
+   advertiser.
+6. **"Funded to date" adds euros to dollars** and keeps whichever
+   currency arrived first under `.order("id")`.
+   `sumLandedByCurrency` exists for exactly this and is imported by
+   nothing but its test.
+7. The wallet statement books admin-filed ad-account top-ups as wallet
+   debits — no `wallet_debited` filter — so a bank transfer an admin
+   recorded straight onto an account shows as money leaving a wallet
+   that never moved.
+8. On the customer path an account with `fee = 0` and no plan resolves
+   to 0%, so the ad-account type's own 5–6% is never collected. Accounts
+   created from a request land with `fee = 0`.
+9. The dialog's fee is not rounded before it is subtracted, so its three
+   lines can fail to add up by a cent; and the percentage prints raw
+   ("3.3499999999999996%").
 
 ### A3 — walked 2026-09-21, NOT closed
 
