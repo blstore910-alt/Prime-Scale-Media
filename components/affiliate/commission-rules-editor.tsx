@@ -96,7 +96,8 @@ export default function CommissionRulesEditor({
   affiliate,
   rules,
   types,
-  canEdit,
+  canEdit: canEditAsOwner,
+  notSwitchedOn = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -106,7 +107,14 @@ export default function CommissionRulesEditor({
   types: AdAccountTypeRow[];
   /** Only the owner can save; the server refuses anyone else too. */
   canEdit: boolean;
+  /** The rules table is not in the database yet: nobody can save. */
+  notSwitchedOn?: boolean;
 }) {
+  // Two different reasons a field is locked, and the owner must be told
+  // the right one: walking it, the owner read "Only the account owner can
+  // change earning rules" -- about themselves -- when the real reason was
+  // that the table had not been pasted yet.
+  const canEdit = canEditAsOwner && !notSwitchedOn;
   const queryClient = useQueryClient();
   const affiliateId = affiliate?.id ?? null;
 
@@ -269,7 +277,12 @@ export default function CommissionRulesEditor({
           </DialogDescription>
         </DialogHeader>
 
-        {!canEdit ? (
+        {notSwitchedOn ? (
+          <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Saving rules is not switched on in the database yet. You can
+            look at them, not change them.
+          </div>
+        ) : !canEditAsOwner ? (
           <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
             Only the account owner can change earning rules.
           </div>

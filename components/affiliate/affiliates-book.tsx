@@ -124,7 +124,8 @@ export default function AffiliatesBook() {
           affiliate={editor.open ? editor.affiliate : null}
           rules={data.rules}
           types={data.types}
-          canEdit={isSuperAdmin && !data.rulesMissing}
+          canEdit={isSuperAdmin}
+          notSwitchedOn={data.rulesMissing}
         />
       ) : null}
     </div>
