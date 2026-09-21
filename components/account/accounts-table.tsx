@@ -54,6 +54,7 @@ import UpdateAccountDialog from "./update-account-dialog";
 import AccountMinTopupDialog from "./account-min-topup-dialog";
 import useUpdateAccount from "./use-update-account";
 import { useAccountSpend } from "@/hooks/use-account-spend";
+import { CURRENCY_SYMBOLS } from "@/lib/constants";
 import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
 import { CopyText } from "@/components/ui/copy-text";
 import { adAccountStatusView } from "@/lib/ad-account-status";
@@ -820,7 +821,7 @@ function PsmAdminAccountRow({
   account: AdAccount;
   onRowClick: (id: string) => void;
   onEdit: (account: AdAccount) => void;
-  spend?: { usd: number; count: number; lastAt: string | null };
+  spend?: { byCurrency: Record<string, number>; count: number; lastAt: string | null };
   spendUnknown?: boolean;
   nowMs: number;
   onOpenAdvertiser: (profileId: string) => void;
@@ -1090,11 +1091,30 @@ function PsmAdminAccountRow({
               : "Nothing funded on this account yet."
         }
       >
-        {/* USD, always, and said so in the heading. top_ups.topup_amount
-            is stored in USD by construction whatever the customer paid
-            in — so a dollar figure beside "CURRENCY EUR" is correct and
-            reads as a mistake unless the column says which it is. */}
-        {spendUnknown ? "—" : `$${(spend?.usd ?? 0).toFixed(2)}`}
+        {/* ── NOT A DOLLAR SIGN OVER EVERYTHING ──────────────────────
+            The comment that stood here said topup_amount "is stored in
+            USD by construction whatever the customer paid in". It is
+            not: that column carries the PAYMENT currency on the
+            customer's own path. AA-PSM0005-EU-01 is a EUR account
+            funded EUR 97 + EUR 97 with EUR 50 taken back, and this cell
+            read "$144.00" — the right number under the wrong flag, on
+            the screen an admin reads before approving a withdrawal.
+            Per currency now, and never added across them. */}
+        {spendUnknown
+          ? "—"
+          : (() => {
+              const legs = Object.entries(spend?.byCurrency ?? {}).filter(
+                ([, v]) => Math.abs(v) >= 0.005,
+              );
+              if (legs.length === 0) return `${CURRENCY_SYMBOLS.EUR}0.00`;
+              return legs
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(
+                  ([cur, v]) =>
+                    `${CURRENCY_SYMBOLS[cur] ?? cur + " "}${v.toFixed(2)}`,
+                )
+                .join(" · ");
+            })()}
       </td>
       <td data-label="Status" className="nw">
         <span

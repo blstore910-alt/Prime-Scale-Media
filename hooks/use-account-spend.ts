@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { pageAllRows } from "@/lib/page-all-rows";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 
 /**
  * What has been put ON each ad account, and when it last happened.
@@ -13,16 +14,30 @@ import { pageAllRows } from "@/lib/page-all-rows";
  * knows what an account actually burned today. So this sums COMPLETED
  * top-ups, and every place that shows it says what it is.
  *
- * Amounts: top_ups.topup_amount is the USD amount credited to the account
- * (topup_usd / amount_usd are the same money at different points in the
- * flow). Currency on the row is the currency the customer PAID in, not the
- * amount's unit — adding those together would be inventing a number.
+ * ── AMOUNTS: topup_amount IS NOT ALWAYS USD ─────────────────────────
+ *
+ * This file used to say it was, in as many words, and the Spend column
+ * printed a dollar sign over every figure on that basis. Walked on
+ * production: AA-PSM0005-EU-01 is a EUR account funded EUR 97 + EUR 97
+ * with EUR 50 taken back, and the column read "$144.00".
+ *
+ * `topup_amount` carries the PAYMENT currency on the customer's RPC path
+ * and dollars on the admin paths; `topup_usd` is the discriminator, and
+ * lib/pure-topup-landed.ts is the one place that knows it. So the sum is
+ * kept PER CURRENCY and never added across them — adding those together
+ * would be inventing a number, which is the one thing the old comment
+ * got right.
  *
  * `lastAt` drives the 30-day inactive rule in lib/ad-account-status.ts, so
  * it only counts completed top-ups too: a pending one is not activity, it
  * is a claim somebody still has to verify.
  */
-export type AccountSpend = { usd: number; count: number; lastAt: string | null };
+export type AccountSpend = {
+  /** What landed, per currency. Never summed across them. */
+  byCurrency: Record<string, number>;
+  count: number;
+  lastAt: string | null;
+};
 
 export function useAccountSpend(tenantId: string | null | undefined): {
   byAccount: Record<string, AccountSpend>;
@@ -53,7 +68,11 @@ export function useAccountSpend(tenantId: string | null | undefined): {
         const from = page * PAGE;
         const { data, error } = await supabase
           .from("top_ups")
-          .select("account_id, topup_amount, status, created_at")
+          // topup_usd and currency are the discriminator pair. Without
+          // them every row reads as an admin row, i.e. as dollars.
+          .select(
+            "account_id, topup_amount, topup_usd, currency, status, created_at",
+          )
           .eq("tenant_id", tenantId)
           .eq("status", "completed")
           // A deleted top-up is not spend. This feeds the Spend column on
@@ -105,7 +124,9 @@ export function useAccountSpend(tenantId: string | null | undefined): {
         }>((from, to) =>
           supabase
             .from("ad_account_withdrawals")
-            .select("ad_account_id, amount, status")
+            // The currency too: since plak 22 a withdrawal carries the
+            // currency of its ad account, so it comes off the right leg.
+            .select("ad_account_id, amount, currency, status")
             .eq("tenant_id", tenantId)
             .eq("status", "approved")
             .order("id", { ascending: true })
@@ -127,8 +148,12 @@ export function useAccountSpend(tenantId: string | null | undefined): {
             (w as { ad_account_id?: unknown }).ad_account_id ?? "",
           );
           if (!id) continue;
-          withdrawn[id] =
-            (withdrawn[id] ?? 0) +
+          const cur = String(
+            (w as { currency?: unknown }).currency ?? "USD",
+          ).toUpperCase();
+          const key = `${id}|${cur}`;
+          withdrawn[key] =
+            (withdrawn[key] ?? 0) +
             (Number((w as { amount?: unknown }).amount) || 0);
         }
       }
@@ -137,23 +162,36 @@ export function useAccountSpend(tenantId: string | null | undefined): {
       for (const row of rows) {
         const r = row as {
           account_id: string | null;
-          topup_amount: number | string | null;
           created_at: string | null;
         };
         if (!r.account_id) continue;
-        const acc = (out[r.account_id] ??= { usd: 0, count: 0, lastAt: null });
-        acc.usd += Number(r.topup_amount) || 0;
+        const acc = (out[r.account_id] ??= {
+          byCurrency: {},
+          count: 0,
+          lastAt: null,
+        });
+        const landed = landedOnAccount(
+          row as Parameters<typeof landedOnAccount>[0],
+        );
+        if (landed.amount !== null) {
+          acc.byCurrency[landed.currency] =
+            Math.round(
+              ((acc.byCurrency[landed.currency] ?? 0) + landed.amount) * 100,
+            ) / 100;
+        }
         acc.count += 1;
         if (r.created_at && (!acc.lastAt || r.created_at > acc.lastAt)) {
           acc.lastAt = r.created_at;
         }
       }
-      // Every withdrawal comes off, including one against an account
-      // with no completed top-up — that is a negative figure, and a
-      // negative figure is the truth worth showing.
-      for (const [id, amount] of Object.entries(withdrawn)) {
-        const acc = (out[id] ??= { usd: 0, count: 0, lastAt: null });
-        acc.usd -= amount;
+      // Every withdrawal comes off its own currency leg, including one
+      // against an account with no completed top-up — that is a negative
+      // figure, and a negative figure is the truth worth showing.
+      for (const [key, amount] of Object.entries(withdrawn)) {
+        const [id, cur] = key.split("|");
+        const acc = (out[id] ??= { byCurrency: {}, count: 0, lastAt: null });
+        acc.byCurrency[cur] =
+          Math.round(((acc.byCurrency[cur] ?? 0) - amount) * 100) / 100;
       }
       return out;
     },
