@@ -53,6 +53,10 @@ export default function useAffiliateStats(params: UseAffiliateStatsParams = {}) 
   >({
     queryKey: ["affiliate-stats", fromIso ?? "", toIso ?? ""],
     enabled: params.enabled ?? true,
+    // The commission is booked when an ADMIN verifies, in another
+    // session. The app client turns focus refetching off, so an affiliate
+    // with the tab open kept "Commission EUR 0,00" until a full reload.
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("affiliate_referral_stats", {
         p_from: fromIso,

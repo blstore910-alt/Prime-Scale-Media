@@ -285,9 +285,10 @@ export default function CommissionsTable() {
             style={{ fontSize: ".86rem", marginTop: 4 }}
           >
             A clawback reduces what an affiliate is owed without changing
-            any commission row. Check the affiliate&apos;s Earnings on
-            /affiliates before marking rows paid — that figure is net of
-            clawbacks and these are not.
+            any commission row. Take it off the unpaid rows below before
+            you pay. (The Earnings column on /affiliates is a lifetime
+            total — it does not go down when you pay, so it is not what
+            is owed.)
           </div>
         </div>
       ) : clawbacks.unknown ? (

@@ -80,7 +80,12 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
       }
 
       if (commissionType && commissionType !== "all") {
-        query = query.eq("type", commissionType);
+        // The accrual writes `pct`; older rows say `percentage`. Picking
+        // "Percentage" found nothing while the EUR 4.85 row was on screen.
+        query =
+          commissionType === "percentage"
+            ? query.in("type", ["pct", "percentage"])
+            : query.eq("type", commissionType);
       }
 
       if (search && search.trim() !== "") {

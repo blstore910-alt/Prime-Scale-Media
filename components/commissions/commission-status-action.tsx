@@ -63,6 +63,13 @@ export default function CommissionStatusAction({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["commissions"] });
+      // The dashboard's "Commissions paid" card reads stats-batch, cached
+      // for five minutes; it kept the old count after every Mark Paid.
+      queryClient.invalidateQueries({ queryKey: ["stats-batch"], exact: false });
+      queryClient.invalidateQueries({
+        queryKey: ["referral-links-with-details"],
+        exact: false,
+      });
       toast.success(`Commission marked as ${nextStatus}.`);
       setOpen(false);
     },

@@ -187,6 +187,7 @@ export default function UserAffiliates({
             userName={displayUserName}
             hasAffiliates={availableAffiliates.length > 0}
             isLoadingOptions={advertisersQuery.isLoading}
+            optionsFailed={advertisersQuery.isError}
           />
         )}
         {!referralLink ? (
@@ -497,9 +498,11 @@ function ReferralCommissionsTable({
   return (
     <div className="space-y-3 border-t pt-4">
       <div>
-        <h4 className="font-semibold">Commissions Paid</h4>
+        {/* It listed every row -- the unpaid EUR 4.85 too -- under a
+            heading that said they had all been paid. */}
+        <h4 className="font-semibold">Commissions</h4>
         <p className="text-sm text-muted-foreground">
-          Payments already recorded for this assigned affiliate.
+          Every commission on this referral, paid and unpaid.
         </p>
       </div>
 
@@ -626,10 +629,13 @@ function EmptyAffiliateState({
   userName,
   hasAffiliates,
   isLoadingOptions,
+  optionsFailed,
 }: {
   userName: string;
   hasAffiliates: boolean;
   isLoadingOptions: boolean;
+  /** The advertiser list could not be read -- NOT "there are none". */
+  optionsFailed?: boolean;
 }) {
   return (
     <div className="border-t pt-4">
@@ -638,7 +644,12 @@ function EmptyAffiliateState({
         The advertiser who referred {userName} (earns commission on their
         topups).
       </p>
-      {!isLoadingOptions && !hasAffiliates ? (
+      {optionsFailed ? (
+        <p className="mt-1 text-sm text-destructive">
+          We couldn&apos;t load the advertisers you can pick from. This is
+          not an empty list — reload and try again.
+        </p>
+      ) : !isLoadingOptions && !hasAffiliates ? (
         <p className="mt-1 text-sm text-muted-foreground">
           No other advertisers available to set as the referrer yet.
         </p>

@@ -39,10 +39,13 @@ import { compactRangeLabel } from "@/lib/pure-date-range-label";
 // two are kept: a referral CAN be agreed as one-time or monthly on the
 // link, and the day that reaches referral_commissions the filter should
 // already work rather than being discovered missing.
+// Plak 31 writes `pct` (and `onetime`); the detached wallet trigger wrote
+// `percentage`. "Percentage" matches both -- see use-commissions. Monthly
+// is gone: nothing has ever written it, so the option could only ever
+// return an empty list.
 const COMMISSION_TYPES = [
   { label: "Percentage", value: "percentage" },
   { label: "One-time", value: "onetime" },
-  { label: "Monthly", value: "monthly" },
 ];
 
 const CURRENCIES = [

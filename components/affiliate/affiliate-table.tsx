@@ -100,13 +100,24 @@ export default function AffiliatesTable() {
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
 
-      // Apply search filter on affiliate fields (sanitised — raw
-      // commas/parens would break out of the PostgREST .or() DSL).
+      // Search BOTH people on the link (sanitised — raw commas/parens
+      // would break out of the PostgREST .or() DSL). It matched only the
+      // affiliate, so typing the referred customer's code (PSM0007) said
+      // "No referral links found." about a link that is on the screen.
       if (debouncedSearch.trim()) {
         const s = safeIlikeTerm(debouncedSearch);
         if (s) {
           query = query.or(
-            `affiliate_advertiser_name.ilike."*${s}*",affiliate_advertiser_email.ilike."*${s}*",affiliate_advertiser_tenant_client_code.ilike."*${s}*"`
+            [
+              "affiliate_advertiser_name",
+              "affiliate_advertiser_email",
+              "affiliate_advertiser_tenant_client_code",
+              "referred_advertiser_name",
+              "referred_advertiser_email",
+              "referred_advertiser_tenant_client_code",
+            ]
+              .map((c) => `${c}.ilike."*${s}*"`)
+              .join(","),
           );
         }
       }
@@ -306,7 +317,9 @@ export default function AffiliatesTable() {
       ) : (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            No referral links found.
+            {debouncedSearch.trim()
+              ? `No referral links match “${debouncedSearch.trim()}”.`
+              : "No referral links yet."}
           </p>
         </div>
       )}

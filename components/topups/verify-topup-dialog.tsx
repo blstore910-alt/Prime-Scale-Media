@@ -224,6 +224,22 @@ function VerifyTopupInvoice({
       queryClient.invalidateQueries({
         queryKey: ["topup-details", vars.topupId],
       });
+      // ── AND EVERY SCREEN THE COMMISSION LANDS ON ─────────────────────
+      //
+      // Verifying is what books a referral commission (the trigger on
+      // top_ups). None of these were refreshed, so /commissions kept
+      // "No commissions yet." from the cache, the /affiliates Earnings
+      // column kept its dash and the dashboard card kept its old count
+      // for five minutes -- after the owner had just caused the row.
+      for (const key of [
+        "commissions",
+        "referral-links-with-details",
+        "admin-user-referral-commissions",
+        "affiliate-earnings-by-email",
+        "stats-batch",
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key], exact: false });
+      }
       onVerified(false);
     },
     onError: (err: Error) => {

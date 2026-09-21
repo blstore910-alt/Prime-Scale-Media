@@ -2116,6 +2116,10 @@ export default function AdvertiserApp() {
   const go = (v: View) => {
     setView(v);
     setNavOpen(false);
+    // Every view is rendered at once and switched with CSS, so opening
+    // Referrals re-read nothing: a commission booked since the app loaded
+    // stayed invisible until a reload. Opening it asks again.
+    if (v === "referrals") void aff.refetch();
     if (typeof window !== "undefined") {
       window.scrollTo(0, 0);
       // replaceState, not push: the in-app views are not browser history
@@ -3445,6 +3449,13 @@ export default function AdvertiserApp() {
                     <Ic name="i-check" /> Copy link
                   </button>
                 </div>
+              ) : affiliateLoading && !affiliateError ? (
+                /* Still asking. This used to print the FAILURE sentence
+                   while the read was in flight, so the first thing the
+                   Referrals screen said was that it could not check. */
+                <p className="cap" style={{ margin: 0 }}>
+                  Checking your referral link…
+                </p>
               ) : affiliateUnknown ? (
                 /* "Ask an admin to enable the affiliate program" is a
                    statement about this account's STATUS, and we do not know

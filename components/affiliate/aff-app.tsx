@@ -241,7 +241,12 @@ export default function AffiliateApp() {
   // The referral TABLE reports its own failure; the summary tiles above it
   // did not, so a failed read printed a commission of 0 directly above a
   // sentence saying the read failed.
-  const refsUnavailable = refs.isError || refs.isLoading;
+  // And when the account has no advertiser row the RPC answers with an
+  // empty list and no error (see portalInert below) -- F1 folded that into
+  // the Dashboard figures and missed this screen, which printed
+  // "Referrals 0 · EUR 0,00 commission" and "No referrals yet".
+  const refsUnavailable =
+    refs.isError || refs.isLoading || !profile?.advertiser?.[0]?.id;
 
   // Tier progression counts BOTH currencies — a USD-paid affiliate was
   // otherwise stuck at Starter with €0 — but they are CONVERTED now rather
@@ -468,6 +473,12 @@ export default function AffiliateApp() {
     // them as one. An affiliate whose referral read was refused pressed
     // Export and was told they have nothing -- about their own
     // customers, on the file they hand a bookkeeper.
+    if (portalInert) {
+      toast.error("Your account isn't finished yet, so there is nothing we can export", {
+        description: "This is not an empty list. Contact us and we'll complete it.",
+      });
+      return;
+    }
     if (refs.isError) {
       toast.error("We couldn't read your referrals, so there is nothing to export yet", {
         description: "This is not an empty list. Reload and try again.",
@@ -1266,6 +1277,14 @@ export default function AffiliateApp() {
                 <div className="card">
                   <p className="cap" style={{ margin: 0 }}>
                     Loading your referrals…
+                  </p>
+                </div>
+              ) : portalInert ? (
+                <div className="card">
+                  <p className="cap" style={{ margin: 0 }}>
+                    Your account isn&apos;t finished yet, so we can&apos;t
+                    show your referrals. This is not an empty list — contact
+                    us and we&apos;ll complete it.
                   </p>
                 </div>
               ) : refs.isError ? (
