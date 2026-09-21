@@ -874,9 +874,17 @@ export default function InviteForm() {
                         </Select>
                       )}
                     />
+                    {/* NOT "earns commission on their topups". Of the seven
+                        commission types on the Commission Setup dialog, four
+                        have nothing to do with a top-up: One Time, Monthly
+                        Fixed, and the two combinations built on them. Naming
+                        one of them here tells the owner the wrong thing about
+                        the other six, and top-ups are the one thing the
+                        affiliate copy must not promise. */}
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Linked as their affiliate on signup; earns commission on
-                      their topups. Only a super-admin can set this.
+                      Linked as their affiliate on signup, and paid on whatever
+                      terms are set under Commission. Only a super-admin can set
+                      this.
                     </p>
                   </div>
                 )}

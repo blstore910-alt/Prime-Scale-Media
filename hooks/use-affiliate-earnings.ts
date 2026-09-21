@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { pageAllRows } from "@/lib/page-all-rows";
 import { useQuery } from "@tanstack/react-query";
 
 /**
@@ -51,11 +52,27 @@ export function useAffiliateEarnings(
       // what happened the first time this shipped. components/affiliate/
       // affiliate-table.tsx already carried the same note; the status comes
       // from the base table and is merged in.
-      const { data, error } = await supabase
-        .from("referral_links_with_details")
-        .select("id, affiliate_advertiser_email, earnings_eur, earnings_usd")
-        .eq("tenant_id", tenantId);
-      if (error) throw error;
+      // ── PAGED, AND ORDERED ──────────────────────────────────────
+      //
+      // PostgREST caps a response at 1000 rows and says nothing about it.
+      // This is the only source of the Earnings column on the admin
+      // Affiliates tab — the column somebody pays from — so on a tenant
+      // with more links than that, an affiliate whose links sort past the
+      // cut read EUR 0.00 / USD 0.00 with no error and no notice. There
+      // was no .order() either, so WHICH thousand came back was
+      // unspecified and the same affiliate's figure moved between
+      // refreshes with no data changing. lib/page-all-rows.ts exists for
+      // exactly this and names two earlier incidents.
+      const paged = await pageAllRows<Record<string, unknown>>((from, to) =>
+        supabase
+          .from("referral_links_with_details")
+          .select("id, affiliate_advertiser_email, earnings_eur, earnings_usd")
+          .eq("tenant_id", tenantId)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (paged.error) throw new Error(paged.error);
+      const data = paged.rows;
 
       const ids = (data ?? [])
         .map((r) => (r as { id?: string }).id)

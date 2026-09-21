@@ -185,6 +185,14 @@ export default function AffiliateApp() {
     // reassurance: these carry commission and payout updates. The hook
     // exports isError for exactly this.
     isError: notifsError,
+    // ── AND "ALL CAUGHT UP" OVER A READ STILL IN FLIGHT ─────────────
+    //
+    // The rule above was applied to isError only, so the LOADING state
+    // and the genuinely-empty state rendered identically: the moment
+    // the screen opened it said "You're all caught up. New referrals,
+    // commission and payout updates will appear here." over a list that
+    // had not arrived. The hook returns isLoading too.
+    isLoading: notifsLoading,
     // Counted server-side so the badge stays honest past the 50-row cap.
     unreadCount,
     countError: notifsCountError,
@@ -258,7 +266,11 @@ export default function AffiliateApp() {
   // Without a rate the two cannot be put on one scale, and guessing parity
   // is the same bug wearing a confident face. The ladder then counts euros
   // only and SAYS so, rather than quietly inflating itself with dollars.
-  const { rate: usdToEur } = useUsdToEur();
+  const {
+    rate: usdToEur,
+    isLoading: rateLoading,
+    isError: rateError,
+  } = useUsdToEur();
   const tierBlind = lifetimeUsd > 0 && !usdToEur;
   const lifetimeCombined = lifetimeEur + (usdToEur ? lifetimeUsd * usdToEur : 0);
   const tierIndex = useMemo(() => {
@@ -276,6 +288,17 @@ export default function AffiliateApp() {
   // sidebar, the toolbar pill and the account menu at once — while the
   // tier card itself correctly showed a dash. Everything that prints the
   // tier now asks statsUnavailable first.
+  // ── AND THE RATE IS A SECOND INPUT TO THE SAME NUMBER ────────────
+  //
+  // statsUnavailable guards every tier surface, and it only watches the
+  // stats query. The rate is the other half: useUsdToEur returns null
+  // both while it is loading AND when there is no active rate row for
+  // the tenant, so lifetimeCombined counts euros only and tierIndex
+  // falls to 0. An affiliate earning in dollars was printed "Starter"
+  // on the sidebar, the toolbar pill, the account menu, the wallet
+  // badge and the tier card at once — the exact demotion the comment
+  // above says must never be rendered on a guess.
+  const tierUnknown = statsUnavailable || tierBlind;
   const tier = TIERS[tierIndex];
   const nextTier = TIERS[tierIndex + 1];
   const tierPct = nextTier
@@ -520,7 +543,7 @@ export default function AffiliateApp() {
           </div>
           <div className="who">
             {name}
-            <small>{statsUnavailable ? "Partner" : `${tier.name} partner`}</small>
+            <small>{tierUnknown ? "Partner" : `${tier.name} partner`}</small>
           </div>
         </div>
       </aside>
@@ -550,7 +573,13 @@ export default function AffiliateApp() {
               <Ic name="i-trend" />
               <span className="e">
                 <small>This month</small>
-                <b>{monthUnavailable ? dash : eur(monthEur)}</b>
+                {/* twoLeg, NOT eur(). This pill is rendered on all six
+                    views, and it was the one total on the screen that did
+                    not go through the helper written to stop exactly this:
+                    an affiliate whose referrals all fund in dollars read
+                    "This month €0.00" here while the earnings card two
+                    scrolls down read "+$1,000.00". Two answers, one page. */}
+                <b>{monthUnavailable ? dash : twoLeg(monthEur, monthUsd)}</b>
               </span>
             </button>
             <span className="tdiv" />
@@ -559,7 +588,7 @@ export default function AffiliateApp() {
               onClick={() => go("refs")}
               title="Your tier"
             >
-              <Ic name="i-trophy" /> {statsUnavailable ? dash : tier.name}
+              <Ic name="i-trophy" /> {tierUnknown ? dash : tier.name}
             </button>
             <span className="tdiv" />
             <button
@@ -626,7 +655,7 @@ export default function AffiliateApp() {
                     </span>
                     <span className="umenu-who">
                       <span className="nm">{name}</span>
-                      <span className="sub">{statsUnavailable ? "Partner" : `${tier.name} partner`}</span>
+                      <span className="sub">{tierUnknown ? "Partner" : `${tier.name} partner`}</span>
                     </span>
                   </div>
                   <button
@@ -1034,12 +1063,12 @@ export default function AffiliateApp() {
                       and told the same lie in the one channel that reads
                       fastest. `unknown` has no colour rule, so it falls to
                       the neutral default. */}
-                  <div className={`thmedal ${statsUnavailable ? "unknown" : tier.key}`}>
+                  <div className={`thmedal ${tierUnknown ? "unknown" : tier.key}`}>
                     <Ic name="i-medal" />
                   </div>
                   <div className="thinfo">
                     <div className="thname">
-                      {statsUnavailable ? "Your tier" : tier.name}
+                      {tierUnknown ? "Your tier" : tier.name}
                     </div>
                     <div className="thsub">
                       {statsUnavailable
@@ -1066,9 +1095,13 @@ export default function AffiliateApp() {
                           one. */}
                       {tierBlind ? (
                         <>
-                          Your USD earnings aren&apos;t counted here yet — we
-                          couldn&apos;t read today&apos;s rate. This shows
-                          your EUR progress only.
+                          Your USD earnings aren&apos;t counted here yet
+                          {rateError
+                            ? " — we couldn't read today's rate"
+                            : rateLoading
+                              ? " — we're still reading today's rate"
+                              : " — there is no rate set today"}
+                          . This shows your EUR progress only.
                         </>
                       ) : nextTier ? (
                         <>
@@ -1233,7 +1266,7 @@ export default function AffiliateApp() {
                       reading the same state, correctly said "Checking…".
                       A demotion is not something to render on a guess. */}
                   <span className="btag ghost2">
-                    <Ic name="i-trophy" /> {statsUnavailable ? "—" : tier.name}
+                    <Ic name="i-trophy" /> {tierUnknown ? "—" : tier.name}
                   </span>
                 </div>
                 {/* ── STILL OWED, NOT EARNED EVER ────────────────────
@@ -1497,12 +1530,16 @@ export default function AffiliateApp() {
                     <div className="t">
                       {notifsError
                         ? "We couldn't load your notifications"
-                        : "You're all caught up"}
+                        : notifsLoading
+                          ? "Loading your notifications…"
+                          : "You're all caught up"}
                     </div>
                     <div className="d">
                       {notifsError
                         ? "This is not an empty list — reload to try again."
-                        : "New referrals, commission and payout updates will appear here."}
+                        : notifsLoading
+                          ? "One moment."
+                          : "New referrals, commission and payout updates will appear here."}
                     </div>
                   </div>
                 </div>

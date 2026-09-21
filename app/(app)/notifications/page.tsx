@@ -24,6 +24,7 @@ import {
   getAdAccountRequestIdFromNotification,
   getTopupIdFromNotification,
   getWalletTopupIdFromNotification,
+  parseNotificationPayload,
 } from "@/components/notifications/notification-utils";
 import NotificationActionStatusDialog from "@/components/notifications/notification-action-status-dialog";
 import ConfirmModal from "@/components/ui/confirm-modal";
@@ -130,6 +131,27 @@ export default function NotificationsPage() {
 
     if (notification.type === "user_profile_created") {
       router.push("/users");
+      return;
+    }
+
+    // ── THE APPLICATION THAT COULD BE FILED AND NEVER ANSWERED ───────
+    //
+    // Walked on production. This notification says "Set their commission
+    // and approve or refuse it" — and it was not in this handler, so it
+    // fell through to the read-only sheet at the bottom, whose only
+    // control is Close. /affiliates (Referral Links) has a search box and
+    // nothing else. There was no approve and no refuse anywhere in the
+    // app: the customer could file an application that could never be
+    // answered.
+    //
+    // The terms live behind the Commission button on the advertiser's own
+    // row, and /users takes ?q=. So this lands the owner on that row.
+    if (notification.type === "affiliate_application") {
+      const p = parseNotificationPayload(notification) as {
+        client_code?: string | null;
+      };
+      const code = typeof p.client_code === "string" ? p.client_code.trim() : "";
+      router.push(code ? `/users?q=${encodeURIComponent(code)}` : "/users");
       return;
     }
 
