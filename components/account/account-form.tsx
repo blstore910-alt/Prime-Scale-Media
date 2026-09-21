@@ -438,7 +438,36 @@ export default function AccountForm({
       <form
         id="account-form"
         className="flex min-h-0 flex-1 flex-col"
-        onSubmit={handleSubmit(handleCreateAccount)}
+        // ── A FAILED SUBMIT MUST NOT LOOK LIKE NOTHING ──────────────
+        //
+        // Walked on production: Create Account did nothing at all. No
+        // toast, no error, dialog still open. The form was in fact
+        // correct — zod had refused it on "Timezone is required" — but
+        // the field area is its own scroll container, the error sits
+        // beside its field, and the field was above the fold. From the
+        // admin's seat the button is simply dead, and the only way to
+        // find out is to scroll up and read every label.
+        //
+        // The second argument to handleSubmit is the invalid path.
+        // Bring the first problem into view and name it.
+        onSubmit={handleSubmit(handleCreateAccount, (formErrors) => {
+          const first = Object.keys(formErrors)[0];
+          if (!first) return;
+          const message =
+            (formErrors[first as keyof typeof formErrors] as
+              | { message?: string }
+              | undefined)?.message ?? "Something on this form is missing.";
+          toast.error("Not created yet", { description: message });
+          // The field, or the control that stands in for it — a Radix
+          // Select renders a button, not an input with that name.
+          const node =
+            document.querySelector(`#account-form [name="${first}"]`) ??
+            document.querySelector(`#account-form [data-field="${first}"]`);
+          (node as HTMLElement | null)?.scrollIntoView({
+            block: "center",
+            behavior: "smooth",
+          });
+        })}
       >
         {/* The "Unsaved draft from ... Restore" strip used to sit here.
             Taken out at the owner's request: on a form people fill
