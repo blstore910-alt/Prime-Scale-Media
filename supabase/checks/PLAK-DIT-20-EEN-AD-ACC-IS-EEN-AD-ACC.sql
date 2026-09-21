@@ -216,8 +216,12 @@ select 2, 'per klant: inbegrepen / gebruikt OUD / gebruikt NIEUW',
     select string_agg(
              x.code || ': ' || x.incl::text || ' inbegrepen, was ' ||
              x.oud::text || ', wordt ' || x.nieuw::text ||
-             case when x.nieuw > x.incl and x.oud <= x.incl
-                  then '   <-- VOLGENDE AANVRAAG KOST NU GELD'
+             -- De vraag is of iemand van GRATIS naar BETAALD schuift,
+             -- en de motor test `v_used < v_included`. De eerste versie
+             -- hiervan vergeleek `nieuw > incl`, en zette daardoor een
+             -- pijl bij een klant met 0 inbegrepen -- die betaalde al.
+             case when x.oud < x.incl and x.nieuw >= x.incl
+                  then '   <-- WAS GRATIS, KOST NU GELD'
                   else '' end,
              E'
 ' order by x.code)
