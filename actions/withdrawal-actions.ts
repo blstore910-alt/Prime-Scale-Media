@@ -499,3 +499,108 @@ export async function rejectAdAccountWithdrawal(
   });
   return { ok: true, data: null };
 }
+
+/**
+ * The balance the PLATFORM actually holds for one ad account.
+ *
+ * ──────────────────────────────────────────────────────────────────────
+ * WHY THIS EXISTS
+ *
+ * The withdrawal ceiling on both sides of this journey is
+ * "everything we funded, minus everything already asked back". It does
+ * NOT subtract what the account has SPENT, because nothing anywhere
+ * read the real balance. So an account funded EUR 194 that has spent
+ * EUR 150 offers EUR 194 back, and the approve guard uses the same
+ * expression — it would credit the wallet with money the platform does
+ * not hold.
+ *
+ * The owner's rule: if there is an API, read it AND the admin approves;
+ * if there is no API, the admin checks it themselves and approves.
+ * Either way a person signs off. This is the first half.
+ *
+ * ── IT REFUSES RATHER THAN INVENTS ───────────────────────────────────
+ *
+ * In mock mode the adapter answers with a made-up figure. Printing that
+ * as "the balance at the platform" would be exactly the confident-wrong
+ * -number fault this whole sweep is about, on the screen where somebody
+ * releases money. So a balance is only ever returned when the supplier
+ * is genuinely `live`; every other state comes back as `available:
+ * false` with the reason, and the admin checks the portal.
+ * ──────────────────────────────────────────────────────────────────────
+ */
+export async function readAdAccountLiveBalance(adAccountId: string): Promise<
+  | { ok: true; data: { available: false; reason: string } }
+  | {
+      ok: true;
+      data: { available: true; amount: number; currency: string };
+    }
+  | { ok: false; error: string }
+> {
+  const res0 = await resolveAdminContext();
+  if (!res0.ok) return { ok: false, error: res0.error };
+  const { supabase, profile } = res0.ctx;
+
+  // The account has to be this tenant's before we go anywhere near the
+  // supplier with its id.
+  const { data: acct, error: acctError } = await supabase
+    .from("ad_accounts")
+    .select("id, tenant_id")
+    .eq("id", adAccountId)
+    .maybeSingle();
+  if (acctError) return { ok: false, error: safeErrorMessage(acctError) };
+  if (!acct) return { ok: false, error: "Ad account not found" };
+  if (acct.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const { supplier1Mode } = await import("@/lib/integrations/autopush");
+  const mode = supplier1Mode();
+  if (mode !== "live") {
+    return {
+      ok: true,
+      data: {
+        available: false,
+        reason: `the supplier is in ${mode || "mock"} mode, so there is no real balance to read \u2014 check it in the portal`,
+      },
+    };
+  }
+
+  // Only accounts that came from the supplier pool have an id there.
+  const { data: pool, error: poolError } = await supabase
+    .from("supplier_ad_accounts")
+    .select("external_id")
+    .eq("ad_account_id", adAccountId)
+    .eq("provider", "supplier1")
+    .maybeSingle();
+  if (poolError) return { ok: false, error: safeErrorMessage(poolError) };
+  if (!pool?.external_id) {
+    return {
+      ok: true,
+      data: {
+        available: false,
+        reason:
+          "this account is not supplier-managed, so there is no API to ask \u2014 check the balance by hand",
+      },
+    };
+  }
+
+  const { getSupplier1Adapter } = await import("@/lib/integrations/supplier1");
+  const res = await getSupplier1Adapter().getBalance(String(pool.external_id));
+  if (!res.ok) {
+    return {
+      ok: true,
+      data: {
+        available: false,
+        reason: `we could not read it just now (${res.error ?? "no reason given"}) \u2014 check the portal`,
+      },
+    };
+  }
+  return {
+    ok: true,
+    data: {
+      available: true,
+      amount: Number(res.data.balance_cents) / 100,
+      currency: String(res.data.currency ?? "USD").toUpperCase(),
+    },
+  };
+}

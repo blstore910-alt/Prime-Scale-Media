@@ -86,6 +86,24 @@ type ActionAsk = {
   // every single time. The customer asking for their own money back
   // was told "no" and nothing else.
   reasonFor?: RejectContext;
+  // ── DOES THIS ADD UP, BEFORE WE RELEASE IT ───────────────────────
+  //
+  // Approving a withdrawal credits the customer's wallet with money
+  // that has to come back off the ad account. If it is not there, PSM
+  // is out of pocket and nobody finds out until the books are done.
+  //
+  // The ceiling on both sides of this journey is "funded minus already
+  // asked back" and subtracts nothing for what the account has SPENT,
+  // so it is not an answer to that question. Set this and the modal
+  // asks the platform what it actually holds, states whether the
+  // amount is covered, and keeps the confirm dead until somebody ticks
+  // that they checked.
+  //
+  // The owner's rule: with an API we read it AND the admin approves;
+  // without one the admin checks it themselves and approves. Either
+  // way a person signs off, which is why the tick is not optional even
+  // when the figure comes back.
+  coverCheck?: { accountId: string; amount: number; currency: string };
   run: (reason?: string) => void;
 };
 
@@ -100,6 +118,42 @@ function ActionAskModal({
 }) {
   const [reason, setReason] = useState("");
   const needsReason = !!ask?.reasonFor;
+  const [checked, setChecked] = useState(false);
+  const [cover, setCover] = useState<
+    | { state: "loading" }
+    | { state: "known"; amount: number; currency: string }
+    | { state: "unknown"; reason: string }
+    | null
+  >(null);
+  useEffect(() => {
+    setChecked(false);
+    setCover(null);
+    const c = ask?.coverCheck;
+    if (!c) return;
+    let cancelled = false;
+    setCover({ state: "loading" });
+    (async () => {
+      const { readAdAccountLiveBalance } = await import(
+        "@/actions/withdrawal-actions"
+      );
+      const res = await readAdAccountLiveBalance(c.accountId);
+      if (cancelled) return;
+      if (!res.ok) {
+        setCover({ state: "unknown", reason: res.error });
+      } else if (res.data.available) {
+        setCover({
+          state: "known",
+          amount: res.data.amount,
+          currency: res.data.currency,
+        });
+      } else {
+        setCover({ state: "unknown", reason: res.data.reason });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ask]);
   // Cleared whenever a different question is asked, so last refusal's
   // sentence cannot be submitted against this row.
   useEffect(() => {
@@ -124,7 +178,9 @@ function ActionAskModal({
       // row that was already approved, producing a red "Approve failed"
       // toast for an action that had succeeded. psm-subscriptions.tsx does
       // it in this order; this copy did not.
-      disabled={needsReason && !reason.trim()}
+      disabled={
+        (needsReason && !reason.trim()) || (!!ask?.coverCheck && !checked)
+      }
       onConfirm={() => {
         const a = ask;
         const why = reason.trim();
@@ -135,6 +191,50 @@ function ActionAskModal({
       {(ask?.facts ?? []).map(([k, v]) => (
         <ConfirmFact key={k} label={k} value={v} strong={k === "Amount"} />
       ))}
+      {ask?.coverCheck ? (
+        <div className="mt-3 rounded-lg border bg-muted/20 p-3 text-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-muted-foreground">Balance at the platform</span>
+            <span className="font-semibold tabular-nums">
+              {cover?.state === "loading"
+                ? "checking…"
+                : cover?.state === "known"
+                  ? formatCurrency(cover.amount, cover.currency)
+                  : "not read"}
+            </span>
+          </div>
+          {/* The arithmetic, stated. Not "probably fine" -- either the
+              amount is covered by what the platform holds, or we do not
+              know, and both are worth saying out loud before money
+              leaves. */}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {cover?.state === "known"
+              ? cover.amount + 0.0001 >= ask.coverCheck.amount
+                ? `Covered — ${formatCurrency(ask.coverCheck.amount, ask.coverCheck.currency)} of ${formatCurrency(cover.amount, cover.currency)}.`
+                : `SHORT by ${formatCurrency(ask.coverCheck.amount - cover.amount, ask.coverCheck.currency)}. Approving credits the wallet with money the platform does not hold.`
+              : cover?.state === "unknown"
+                ? `We could not read it: ${cover.reason}.`
+                : "Asking the platform what it holds…"}
+          </p>
+          <label className="mt-3 flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              checked={checked}
+              disabled={busy}
+              onChange={(e) => setChecked(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium">
+                I have checked the balance myself
+              </span>
+              <span className="block text-muted-foreground">
+                This amount really is on the account and can come back.
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : null}
       {ask?.reasonFor ? (
         <div className="mt-3">
           <RejectReasonField
@@ -567,6 +667,13 @@ function WithdrawalsSection() {
                                           ),
                                         ],
                                       ],
+                                      coverCheck: w.ad_account_id
+                                        ? {
+                                            accountId: String(w.ad_account_id),
+                                            amount: Number(w.amount),
+                                            currency: w.currency,
+                                          }
+                                        : undefined,
                                       run: () => approve.mutate(w.id),
                                     })
                                   }
