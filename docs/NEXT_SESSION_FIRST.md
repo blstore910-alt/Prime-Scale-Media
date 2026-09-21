@@ -7,6 +7,9 @@
 
 ## THE NUMBER: 6 of 16 journeys closed (A1, A2, A3, A4, A5, A6).
 
+**A7 is walked and fixed EXCEPT the exchange, which is blocked on
+PLAK-23.** See the A7 block below.
+
 ## How to start, in order
 
 1. `git pull`. `main == feat/redesign-advertiser`; deploy is
@@ -44,6 +47,28 @@
 
 **WAITING on the owner — paste these first:**
 
+- **`PLAK-DIT-23-WISSELEN-HEEFT-NOOIT-GEWERKT.sql` — BLOCKS A7.**
+  `wallet_exchanges.created_by` references `user_profiles(id)` and the
+  live `wallet_exchange` RPC writes `auth.uid()` into it. Those are
+  never the same value, so EVERY exchange has always failed on the
+  foreign key — nobody has ever converted currency in this app. The
+  transaction rolls back whole, so no money was ever lost, but the
+  customer got the raw constraint name in a toast on their own wallet.
+  The plak changes ONE line (resolve the profile id, the way every
+  other RPC in this repo already does) and attaches the two triggers
+  `wallet_exchanges` was missing from both required lists.
+- **`PLAK-DIT-21-TOPUPS-SLOT.sql`.** Every employee admin can
+  `update top_ups set fee=0, status='completed'` from the console.
+  Row 6 asks for the `top_up_admin_verify` body.
+- **`PLAK-DIT-24-JE-EIGEN-RIJ-IS-NIET-VRIJ.sql`.** "It is your own row"
+  is not a lock on the COLUMNS. `user_profiles.role` IS guarded by
+  `_guard_user_profile_role`, but `status` and `is_active` are not — a
+  deactivated customer re-activates themselves with one PATCH, and
+  their token stays valid because Supabase auth knows nothing about
+  `user_profiles.status`. `tenant_id` is open on both `user_profiles`
+  and `companies`, so a row can be walked out of the tenant while its
+  owner still holds it. No revoke on insert/update: the server actions
+  write with the CALLER's session (same reason as plak 21).
 - **`PLAK-DIT-18-AANVRAAG-ZONDER-BETALEN.sql` — URGENT.** An advertiser
   can file an ad-account request through PostgREST without paying, into
   any tenant's queue, and author the `metadata.request_fee` that a later
@@ -250,6 +275,136 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### A7 — settings + EUR/USD exchange — walked 2026-09-21, BLOCKED
+
+Walked as PSM0005 in the pane. Everything on this journey is fixed and
+live EXCEPT the exchange itself, which cannot be closed from the app
+side at all.
+
+#### The blocker: nobody has EVER been able to exchange currency
+
+Pressing "Yes, exchange it" on 50 EUR gave, in a toast, on the
+customer's own wallet:
+
+```
+insert or update on table "wallet_exchanges" violates foreign key
+constraint "wallet_exchanges_created_by_fkey"
+```
+
+The wallet was untouched afterwards (EUR 95.00 / USD 0.00) — the whole
+transaction rolls back, so **no money has ever been lost to this**. But
+the read off live settles what it is:
+
+| | |
+|---|---|
+| the constraint | `created_by` -> `user_profiles(id)` |
+| what the RPC writes | `v_user_id`, i.e. `auth.uid()` |
+
+`user_profiles.id` is its own key with a separate `user_id` pointing at
+the auth user, so those two are never equal and the insert can never
+succeed. `wallet_topup_advertiser_create` and `wallet_precharge_create`
+both resolve the profile id first; only `wallet_exchange` skips it.
+**PLAK-23** is that one line. Re-walk 50 EUR -> USD after pasting and
+check the credited figure against the quoted 56.98.
+
+#### The cent that sent customers down a route they could not walk
+
+`wallet_exchange` (read off live) computes:
+
+```
+gross := p_amount * rate
+fee   := round(gross * 0.006, 2)
+net   := round(gross - fee, 2)
+```
+
+`lib/pure-exchange.ts` computed `round(gross * 0.994, 2)`, which is a
+DIFFERENT number — rounding the fee to the cent first and subtracting
+the rounded fee lands a cent higher about half the time. On 50 EUR at
+0.872361 the server credits 56.98 and the old helper said 56.97.
+
+That cent decided things. `otherWalletCovers` used the helper and the
+dialog used its own pre-rounded copy, so with USD 100.60 against a
+EUR 92.00 invoice the dashboard offered "Exchange to pay EUR 92.00"
+while the dialog disabled the Exchange button — a route that refuses
+you, on an invoice going past due. Everything now goes through
+`exchangeQuote`, which reproduces the server's three steps including
+Postgres-style rounding. Tests cover the divergence, the sum of the
+three displayed lines, and that `neededFromAmount` is the SMALLEST
+covering amount (`9442c29`).
+
+#### Also found by walking it, fixed and live
+
+- **The dialog read the rate with the ADMIN query.**
+  `useExchangeRates` selects `"*, profile:user_profiles(*)"` — every
+  column of `exchange_rates` into the customer's browser — and the
+  dialog is mounted unconditionally on the dashboard, so it ran on
+  every page load with the dialog shut. The dashboard card had been
+  moved to `useUsdToEur` for exactly this reason; the dialog was
+  missed (`9442c29`).
+- **The confirmation showed live figures and sent captured ones.** If
+  the rate went unreadable while the modal sat open it printed
+  "1 USD = 0.000000 EUR", fee 0.00 and "Added to your wallet 0.00"
+  over a live button that still sent the real amount. The rate is
+  captured with the amount now, and if it moves the confirmation is
+  withdrawn with a line saying so (`9442c29`).
+- **"Your recent activity" could never hold anything.** It reads
+  `audit_events`, whose only SELECT policy is the tenant OWNER, and it
+  was mounted in the customer AND affiliate shells. RLS filters rather
+  than refuses, so it came back `[]` with no error and printed
+  "Nothing here yet. Your changes will show up as you use the app." to
+  people with plenty of history — on the screen somebody opens when a
+  figure has surprised them (`0d923d1`).
+- **The GDPR export was rate-limited by IP**, 10/hour, so one office
+  NAT shared a budget and the eleventh art. 20 request refused
+  somebody who had made none. Keyed on the person now, IP only as the
+  fallback for a caller with no session (`0d923d1`).
+- **The company save was a blind overwrite.** An admin and the
+  customer may both write that row, and the form posts all ten fields
+  from the state it loaded on mount — so an admin's VAT correction was
+  silently reverted by the customer's next Save, on the row printed on
+  every invoice. `ifUpdatedAt` + `checkVersion` now, per CLAUDE.md
+  rule 4, with `companies.updated_at` read soft-missing because that
+  migration is hand-pasted (`32d22b0`).
+- **"Profile" in the avatar menu landed on the COMPANY form.** There
+  was no personal profile anywhere in the customer shell: a name typed
+  wrong at signup could never be corrected, and the only route to a new
+  password was "forgot password" for a password nobody had forgotten.
+  There is a "You" card now — name, sign-in email (read-only on
+  purpose: that column is a mirror, the login lives in Supabase auth)
+  and a button to `/auth/update-password`, which already asks for the
+  current password on a normal session (`f21b16f`).
+
+#### A7 — walked and CONFIRMED working
+
+- Company form loads populated, Save gives "Company saved", persists.
+- Notification preferences: toggling "Top-up completed" off survived a
+  full page reload. The catalogue drives the list, all 11 customer
+  types have a control, and the write is an owner-checked server action.
+- Wallet figures on the dashboard agree with the database: EUR 95.00 /
+  USD 0.00, plan Prime "Active · renews 20 Oct", 1 ad account.
+
+#### A7 — still OPEN
+
+1. **The exchange itself — PLAK-23.** Nothing else closes this journey.
+2. **`user_profiles` / `companies` column locks — PLAK-24.** A
+   deactivated customer can re-activate themselves; rows can be walked
+   out of the tenant.
+3. **The affiliate shell has the same "Profile" dead end.** The "You"
+   card was added to the advertiser shell only; `aff-app.tsx` still
+   sends "Profile" to a screen without one. Belongs to F1-F3.
+4. **Changing the sign-in email is a support job.** The box is
+   read-only and says so; doing it properly means touching Supabase
+   auth and re-verifying the address.
+5. **A customer-facing account history does not exist.** The removed
+   panel was the fake version. A real one needs its own narrowed view
+   because `audit_events` carries `old_data`/`new_data`, and those hold
+   supplier figures.
+6. `exchange_rates` ships every column to any profile in the tenant
+   (policy `exchange_rates_select`). `useUsdToEur` now asks for `eur`
+   only, so nothing leaks through the app — but a hand-written
+   PostgREST call still reads the whole row. Row 5 of the A7 agent's
+   block says whether a cost/margin column is on that table.
 
 ### A6 — CLOSED 2026-09-21
 
