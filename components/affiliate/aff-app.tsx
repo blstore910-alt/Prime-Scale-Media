@@ -821,9 +821,16 @@ export default function AffiliateApp() {
                     ever, with no error. The admin-side helper says this
                     plainly to the admin. The affiliate's own screen said
                     the opposite. */}
-                Advertisers who join through your link are linked to you. You
-                earn a percentage of every wallet top-up they make. The rate
-                is agreed per referral.
+                {/* Not "a percentage of every wallet top-up". Commission
+                    is not one shape -- some referrals pay on what the
+                    advertiser spends, some a monthly amount, some a
+                    one-off at the start. Naming top-ups promises the one
+                    arrangement this affiliate may not be on, and it is
+                    the sentence they will quote back. The terms are per
+                    referral, which is what to say. */}
+                Advertisers who join through your link are linked to you, and
+                you earn from what they do with us. Your terms are agreed per
+                referral.
               </p>
               <div className="linkrow">
                 <div className="linkbox">
@@ -1733,9 +1740,9 @@ export default function AffiliateApp() {
                     <div className="q">How do I earn?</div>
                     <div className="a">
                       Share your link. When an advertiser signs up through it,
-                      they&apos;re linked to you, and you earn a percentage of
-                      every wallet top-up they make. The rate is agreed per
-                      referral.
+                      they&apos;re linked to you, and you earn from what they do
+                      with us — the terms are agreed per referral, so check
+                      yours above.
                     </div>
                   </div>
                   <div>

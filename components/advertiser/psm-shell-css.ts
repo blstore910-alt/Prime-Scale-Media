@@ -497,7 +497,9 @@ export const PSM_APP_CSS = `
      card it wraps instead: two lines of pill is fine, a pill hanging over the
      border is not. */
   .psmapp .tbl.wide td .badge{white-space:normal;text-align:left;line-height:1.25}
-  .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px}
+  .psmapp .tbl.wide td[colspan]{display:block;text-align:center;padding:22px 2px;
+    font-weight:450;font-size:.85rem;color:var(--txt-2);line-height:1.55;
+    max-width:36ch;margin-inline:auto}
   .psmapp .tbl.wide td[colspan]::before{display:none}
   /* Rich cells — an avatar plus a name plus an email, or a row of action
      buttons — do not belong in the narrow right-hand value column, where
@@ -881,7 +883,18 @@ export const PSM_APP_CSS = `
   /* Same reason: a right-aligned money cell in a card sits under a
      left-aligned label. .r is for table columns, not for cards. */
   .psmapp .tbl.wide td.r > *{justify-self:start}
-  .psmapp .tbl.wide td[colspan]{grid-column:1 / -1;text-align:center;padding:22px 2px;box-shadow:none}
+  /* ── AN EMPTY STATE IS NOT A VALUE ────────────────────────────────
+     The "one voice" rule above gives every cell the VALUE treatment:
+     weight 600, ink. That is right for a figure and wrong for the one
+     cell that is a sentence -- "Nothing has moved yet. Top-ups,
+     exchanges, ad-account funding and anything paid from your wallet
+     show up here." came out centred, semibold and full-width, reading
+     like a headline announcing that nothing happened.
+     It is an aside. It gets aside typography, and a measure, so it does
+     not run the whole width of the card. */
+  .psmapp .tbl.wide td[colspan]{grid-column:1 / -1;text-align:center;padding:22px 2px;box-shadow:none;
+    font-weight:450;font-size:.85rem;color:var(--txt-2);line-height:1.55;
+    max-width:36ch;margin-inline:auto}
 
   /* ── Card inside a card ───────────────────────────────────────────
      On a phone every ROW became its own card, but the table is still

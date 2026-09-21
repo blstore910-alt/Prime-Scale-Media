@@ -3257,18 +3257,27 @@ export default function AdvertiserApp() {
                   <Ic name="i-gift" />
                 </span>
                 <h2>Get paid for the people you bring in</h2>
+                {/* ── DO NOT NAME THE THING THEY EARN ON ───────────
+                    This said "a percentage of every wallet top-up".
+                    Commission is not one shape: some arrangements pay on
+                    what the advertiser spends, some a monthly amount,
+                    some a one-off when they start. Naming top-ups
+                    promises the one arrangement this affiliate may not
+                    be on, and it is the sentence they will quote back.
+                    The rate is agreed per affiliate, so the page says
+                    that instead of picking one for them. */}
                 <p>
                   Share one link. Anyone who signs up through it is yours and
-                  stays yours, and you earn a percentage of every wallet
-                  top-up they make — for as long as they keep spending.
+                  stays yours — and you earn from what they do with us, for
+                  as long as they keep going.
                 </p>
                 <ul className="jh-list">
                   <li>
                     <Ic name="i-check" /> One link, yours for good
                   </li>
                   <li>
-                    <Ic name="i-check" /> Paid on every top-up, not just the
-                    first
+                    <Ic name="i-check" /> You keep earning, not just on their
+                    first month
                   </li>
                   <li>
                     <Ic name="i-check" /> Your rate agreed with us before you
@@ -5435,8 +5444,8 @@ export default function AdvertiserApp() {
                 </span>
               </h2>
               <p className="cap">
-                Share one link and earn a percentage of every wallet top-up
-                they make — for as long as they keep spending.
+                Share one link and earn from the advertisers you bring in —
+                for as long as they keep going. We agree your rate first.
               </p>
               {/* ── NOT A mailto: ─────────────────────────────────────
                   This used to set location.href to a mailto:. On a
