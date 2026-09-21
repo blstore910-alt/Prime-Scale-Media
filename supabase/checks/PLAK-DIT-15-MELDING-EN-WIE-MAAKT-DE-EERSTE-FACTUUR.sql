@@ -137,7 +137,6 @@ select 3, 'HEEFT factuur 0006-125 een periode (zonder: klok schuift niet)',
   coalesce((
     select 'nummer ' || coalesce(i.number::text, '?')
            || '  periode ' || coalesce(i.period_start::text, 'GEEN')
-           || '  t/m ' || coalesce(i.period_end::text, 'GEEN')
            || '  vervalt ' || coalesce(i.due_date::date::text, 'GEEN')
            || '  gemaakt ' || to_char(i.created_at, 'HH24:MI')
            || '  abonnement ' || case when i.subscription_id is null
