@@ -838,6 +838,25 @@ export const PSM_APP_CSS = `
      lets the label/value rhythm and the spacing do the separating — which is
      also calmer than a grid full of hairlines. */
   .psmapp .tbl.wide td{box-shadow:none}
+  /* ── ONE RHYTHM FOR BOTH COLUMNS ─────────────────────────────────
+     A cell holding a 26px platform chip is taller than the plain text
+     beside it, so every pair that contains one shifts its neighbour a
+     few pixels and the two columns drift further apart down the card.
+     Nothing is misaligned by much; it is misaligned by a LITTLE, on
+     every row, which is exactly what reads as untidy.
+
+     Every cell gets the same minimum box, so the pairs stay level
+     whatever is in them, and the chip comes down to the size of the
+     text it sits next to instead of setting the height for the whole
+     row. */
+  .psmapp .tbl.wide td{min-height:44px}
+  .psmapp .tbl.wide td .pfi{width:22px;height:22px;border-radius:7px}
+  .psmapp .tbl.wide td .pfi svg{width:13px;height:13px}
+  /* The platform mark carries its family's colour, the way the requests
+     queue already does, so the icon means something at a glance. */
+  .psmapp .pfi.meta{background:#eef3ff;color:#2f4fb3}
+  .psmapp .pfi.google{background:#eefaf1;color:#1f7a45}
+  .psmapp .pfi.tiktok{background:#f6efff;color:#6b3fb5}
   /* ── NOT SMALLER AND LIGHTER THAN THE ONE ALREADY CALLED WRONG ───
      This overrode its own earlier .66rem / --txt-2 declaration, landing
      at 9.92px against --faint, about 3.3:1 on white. The advertiser

@@ -34,6 +34,9 @@ import {
   Filter,
   Loader2,
   Monitor,
+  Infinity as InfinityIcon,
+  Chrome,
+  Music2,
   Pencil,
   Plus,
   Search,
@@ -55,6 +58,7 @@ import AccountMinTopupDialog from "./account-min-topup-dialog";
 import useUpdateAccount from "./use-update-account";
 import { useAccountSpend } from "@/hooks/use-account-spend";
 import { CURRENCY_SYMBOLS } from "@/lib/constants";
+import { platformFamily } from "@/lib/pure-platform-badge";
 import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
 import { CopyText } from "@/components/ui/copy-text";
 import { adAccountStatusView } from "@/lib/ad-account-status";
@@ -992,8 +996,21 @@ function PsmAdminAccountRow({
         <span
           style={{ display: "inline-flex", alignItems: "center", gap: 9 }}
         >
-          <span className="pfi">
-            <Monitor />
+          {/* ── THE PLATFORM'S OWN MARK ────────────────────────────
+              Every account, on every platform, carried the same monitor
+              glyph — so the icon told you nothing and the column read as
+              decoration. We do not ship other people's logos into an
+              admin screen, but the shapes are recognisable at 15px:
+              Meta's loop, Chrome's circle for Google, a note for TikTok.
+              Same treatment psm-requests.tsx already uses. */}
+          <span className={`pfi ${platformFamily(account.platform) ?? ""}`}>
+            {(() => {
+              const fam = platformFamily(account.platform);
+              if (fam === "meta") return <InfinityIcon />;
+              if (fam === "google") return <Chrome />;
+              if (fam === "tiktok") return <Music2 />;
+              return <Monitor />;
+            })()}
           </span>
           {platformLabel}
         </span>
@@ -1106,7 +1123,17 @@ function PsmAdminAccountRow({
               const legs = Object.entries(spend?.byCurrency ?? {}).filter(
                 ([, v]) => Math.abs(v) >= 0.005,
               );
-              if (legs.length === 0) return `${CURRENCY_SYMBOLS.EUR}0.00`;
+              // Nothing funded yet is still an amount in THIS account's
+              // currency. A hard euro sign here printed "EUR 0.00" on a
+              // USD account, which is the same fault one line up, just
+              // pointing the other way.
+              if (legs.length === 0) {
+                const own =
+                  String(account.currency ?? "").toUpperCase() === "USD"
+                    ? "USD"
+                    : "EUR";
+                return `${CURRENCY_SYMBOLS[own]}0.00`;
+              }
               return legs
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(
