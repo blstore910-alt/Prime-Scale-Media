@@ -36,6 +36,9 @@ const defaultValues = {
   supplier_fee_pct: "",
   advertiser_id: "",
   platform: "",
+  // The account is funded in this, and the customer's wallet picker
+  // matches on it. EUR by default: it is what this tenant bills in.
+  currency: "EUR" as "EUR" | "USD",
   airtable: false,
   start_date: new Date().toISOString(),
   timezone: "",
@@ -69,6 +72,9 @@ const validations = z
       ),
     advertiser_id: z.string().min(1, "Advertiser is required"),
     platform: z.string().min(1, "Platform is required"),
+    currency: z.enum(["EUR", "USD"], {
+      message: "Pick the currency this account is funded in",
+    }),
     airtable: z.boolean(),
     start_date: z.string().min(1, "Start date is required"),
     timezone: z.string().min(1, "Timezone is required"),
@@ -482,6 +488,28 @@ export default function AccountForm({
             id="platform-select"
             control={control}
             options={typeOptions}
+            placeholder="Select"
+          />
+
+          {/* ── THE CURRENCY, WHICH NO FORM HAD ────────────────────
+              Neither this form nor the update form carried one, and
+              createAdAccountAsAdmin falls back to "USD" — so every ad
+              account the app has ever made is a dollar account. A
+              customer holding euros cannot fund one: the funding dialog
+              picks the wallet from the account's currency, finds the
+              USD wallet at 0.00 and refuses. Walked on production:
+              AA-PSM0007-EU-01 came out USD for a customer with EUR 100
+              and $0. `currency` was in the insert allowlist the whole
+              time; nothing sent it. */}
+          <SelectField
+            label="Funded in"
+            name="currency"
+            id="account-currency"
+            control={control}
+            options={[
+              { label: "EUR — euro account", value: "EUR" },
+              { label: "USD — dollar account", value: "USD" },
+            ]}
             placeholder="Select"
           />
 

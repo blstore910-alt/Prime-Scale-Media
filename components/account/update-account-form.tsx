@@ -39,6 +39,9 @@ const validations = z
     fee: z.coerce.number().min(0).max(100),
     advertiser_id: z.string().min(1, "Advertiser is required"),
     platform: z.string().min(1, "Platform is required"),
+    currency: z.enum(["EUR", "USD"], {
+      message: "Pick the currency this account is funded in",
+    }),
     status: z.string().min(1),
     airtable: z.boolean(),
     start_date: z.string().min(1, "Start date is required"),
@@ -248,6 +251,11 @@ function getInitialValues(account: AdAccount): FormValues {
     fee: account.fee ?? 0,
     advertiser_id: account.advertiser_id ?? "",
     platform: account.platform ?? "",
+    // Whatever it is now; "" is not a valid choice, so a row that
+    // somehow carries neither falls back to the tenant's own currency
+    // rather than silently offering to make it dollars.
+    currency:
+      String(account.currency ?? "").toUpperCase() === "USD" ? "USD" : "EUR",
     // The stored value, not a boolean. A switch could only ever say
     // active/inactive, so "banned" and "disabled" had nowhere to live and
     // every account that was off for any reason read the same.
@@ -441,6 +449,26 @@ export default function UpdateAccountForm({
             options={typeOptions}
             placeholder="Select"
             disabled
+          />
+
+          {/* ── AND HERE, SO A WRONG ONE CAN BE PUT RIGHT ──────────
+              Neither form carried a currency, so every account the app
+              made came out USD and nothing could correct it. Changing
+              this on an account that has already been funded
+              reinterprets what those top-ups were in, so it is an
+              admin's judgement call, not a routine edit — but leaving
+              no control at all is how AA-PSM0007-EU-01 ended up a
+              dollar account for a customer holding euros. */}
+          <SelectField
+            label="Funded in"
+            name="currency"
+            id="update-account-currency"
+            control={control}
+            options={[
+              { label: "EUR — euro account", value: "EUR" },
+              { label: "USD — dollar account", value: "USD" },
+            ]}
+            placeholder="Select"
           />
 
           <InputField

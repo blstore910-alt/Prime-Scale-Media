@@ -376,6 +376,10 @@ const AD_ACCOUNT_UPDATE_ALLOWED = [
   "status",
   "platform",
   "advertiser_id",
+  // The currency an account is funded in. It was in the INSERT list and
+  // not here, so a wrong one could never be corrected -- and since no
+  // form sent it either, every account the app made came out USD.
+  "currency",
 ] as const;
 type AdAccountUpdateInput = Partial<
   Record<(typeof AD_ACCOUNT_UPDATE_ALLOWED)[number], unknown>
