@@ -44,24 +44,28 @@ agrees with the database to the cent. See the A7 block below.
 ## SQL: what is applied and what is waiting
 
 **Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
-5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 22, 23, 26.
+5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26,
+27, 28, 29. PLAK 24 landed its trigger; its `companies` policies FAILED
+(`42883 _is_own_advertiser does not exist`) — 24b replaces them.
 
 **WAITING on the owner — paste these first:**
 
-- **`PLAK-DIT-28-D1-METEN.sql` — READ-ONLY, blocks D1.** Fifteen
-  measurements. An employee admin can credit any wallet from the
-  console; before revoking anything, this says what live actually has,
-  because plak 21 may already have shut a door the admin actions still
-  use. Rows 14-15 return the two RPC bodies.
-- **`PLAK-DIT-27-AFFILIATE-TABELLEN-SLOT.sql`.** Same shape on the four
-  affiliate tables; safe to paste, revokes only what nothing uses.
-- **`PLAK-DIT-25-EEN-WISSEL-DIE-NOOIT-GEBEURDE.sql`.** A customer can
-  POST a fabricated row into `wallet_exchanges` on their own wallet —
-  the insert policy checks the wallet, never the amounts. No money
-  moves, but it pollutes the customer's statement, the admin table, the
-  financial report and `/api/stats/wallet`. Everything can be revoked
-  here: every caller-session touch is a SELECT and the only writer is
-  SECURITY DEFINER.
+- **`PLAK-DIT-30-WAAR-HOORT-COMMISSIE.sql` — READ-ONLY, blocks F2.**
+  A EUR 100 wallet top-up was credited and NO commission accrued. The
+  owner says that is right — commission belongs to an AD-ACCOUNT top-up,
+  not to filling the wallet — but TWO accrual triggers exist
+  (`_accrue_referral_commission` on `wallet_topups`, in the repo, and
+  `handle_referral_commission_on_topup` on `top_ups`, which is in NO
+  migration) and the whole accrual sits in
+  `exception when others then raise warning`. "Did not accrue" and "the
+  accrual threw" look identical from outside. Rows 1-2 return both
+  bodies.
+- **`PLAK-DIT-24B-COMPANIES-TENANT.sql`.** Plak 24 row 5 came back
+  `42883 function _is_own_advertiser(uuid) does not exist` — that helper
+  is in the repo and not on this database, so the `companies` policies
+  were never replaced and `tenant_id` is still writable by the customer.
+  24b uses the predicate live actually has.
+
 - **APPLIED 2026-09-21: `PLAK-DIT-23-WISSELEN-HEEFT-NOOIT-GEWERKT.sql`.**
   `wallet_exchanges.created_by` references `user_profiles(id)` and the
   live `wallet_exchange` RPC writes `auth.uid()` into it. Those are
@@ -72,23 +76,6 @@ agrees with the database to the cent. See the A7 block below.
   The plak changes ONE line (resolve the profile id, the way every
   other RPC in this repo already does) and attaches the two triggers
   `wallet_exchanges` was missing from both required lists.
-- **`PLAK-DIT-21-TOPUPS-SLOT.sql` — CORRECTED 21-09.** The first
-  version also revoked INSERT, which would have BROKEN production:
-  `topup-actions.ts` never uses the service client, so
-  `createTopupAsAdmin` writes with the caller's session and an admin
-  could no longer create any ad-account funding. It now revokes DELETE
-  only. Every employee admin can
-  `update top_ups set fee=0, status='completed'` from the console.
-  Row 6 asks for the `top_up_admin_verify` body.
-- **`PLAK-DIT-24-JE-EIGEN-RIJ-IS-NIET-VRIJ.sql`.** "It is your own row"
-  is not a lock on the COLUMNS. `user_profiles.role` IS guarded by
-  `_guard_user_profile_role`, but `status` and `is_active` are not — a
-  deactivated customer re-activates themselves with one PATCH, and
-  their token stays valid because Supabase auth knows nothing about
-  `user_profiles.status`. `tenant_id` is open on both `user_profiles`
-  and `companies`, so a row can be walked out of the tenant while its
-  owner still holds it. No revoke on insert/update: the server actions
-  write with the CALLER's session (same reason as plak 21).
 - **`READONLY_SQL=on` in Vercel.** The read-only role is in place and
   proven (`_ro` owned by `psm_readonly`, bypassrls on, counted 9
   wallets against 9 actual). The route `/api/dev/ro` is owner-only and
