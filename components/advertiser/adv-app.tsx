@@ -5304,14 +5304,24 @@ export default function AdvertiserApp() {
                       <span className="nic b">
                         <Ic name="i-bell" />
                       </span>
-                      <div>
-                        <div className="t">{copy.title}</div>
+                      {/* ── THE TIME WAS TAKING A THIRD OF THE ROW ─────
+                          `.tm` sat beside the text as its own flex item
+                          with margin-left:auto and nowrap, so on a phone
+                          "a few seconds ago" reserved about 110px and the
+                          message was squeezed into what was left -- a
+                          two-line title over a column half the width of
+                          the card. Title and time share the top line now;
+                          the message gets the whole width underneath. */}
+                      <div className="ntxt">
+                        <div className="nhead">
+                          <div className="t">{copy.title}</div>
+                          <span className="tm">
+                            {dayjs(n.created_at).fromNow()}
+                          </span>
+                          {!n.is_read && <span className="undot" />}
+                        </div>
                         <div className="d">{copy.description}</div>
                       </div>
-                      <span className="tm">
-                        {dayjs(n.created_at).fromNow()}
-                      </span>
-                      {!n.is_read && <span className="undot" />}
                     </div>
                   );
                 })

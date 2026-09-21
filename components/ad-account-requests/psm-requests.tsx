@@ -309,11 +309,16 @@ export default function PsmRequests() {
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <style>{`
-        .pmark{display:inline-flex;align-items:center;gap:6px;
-          padding:4px 10px 4px 7px;border-radius:999px;
+        /* The platform mark sat a size up from the currency badge
+           beside it, so two pills on one row read as two ranks. Same
+           height, same type size, same radius; only the icon and the
+           colour tell them apart. */
+        .pmark,.rpill{display:inline-flex;align-items:center;gap:6px;
+          min-height:24px;padding:0 10px;border-radius:999px;
           border:1px solid var(--line);background:var(--panel-2);
-          font-weight:700;font-size:.78rem;color:var(--ink)}
-        .pmark svg{width:14px;height:14px}
+          font-weight:700;font-size:.72rem;line-height:1;color:var(--ink)}
+        .pmark{padding-left:7px}
+        .pmark svg{width:13px;height:13px}
         .pmark.meta{border-color:#c9d9ff;background:#eef3ff;color:#2f4fb3}
         .pmark.google{border-color:#cfe6d6;background:#eefaf1;color:#1f7a45}
         .pmark.tiktok{border-color:#e2d3f5;background:#f6efff;color:#6b3fb5}
@@ -447,7 +452,7 @@ export default function PsmRequests() {
                     the card an admin approves from, not only in the
                     sheet behind it. */}
                 {r.currency ? (
-                  <span className="badge muted">
+                  <span className="rpill">
                     {String(r.currency).toUpperCase()}
                   </span>
                 ) : null}
@@ -503,10 +508,12 @@ export default function PsmRequests() {
                 //
                 // Once the request is completed the guess IS this
                 // request's account, so then the plain label is true.
-                const acctLabel =
-                  String(r.status ?? "") === "completed"
-                    ? "Acc name"
-                    : "Existing acc";
+                // The owner asked for one label. The status badge two
+                // rows up already says whether this request is done, so
+                // the label does not have to carry that too — and "Acc
+                // name" is what the field is called on every other
+                // screen.
+                const acctLabel = "Acc name";
                 if (!acctName && !bm) return null;
                 return (
                   <div

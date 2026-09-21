@@ -273,6 +273,46 @@ export async function createAdAccountAsAdmin(
     cleaned.currency = cur === "EUR" || cur === "USD" ? cur : "USD";
   }
 
+  // ── TWO ACCOUNTS WITH THE SAME NAME IS A TRAP ────────────────────
+  //
+  // Nothing in the schema stops it, and the owner's rule is that it must
+  // not happen: every screen that names an account — the customer's
+  // picker, the funding dialog, the withdrawal ceiling, the requests
+  // queue's "Acc name" line — identifies it by that string, and a
+  // duplicate makes all of them ambiguous. The requests queue already
+  // GUESSES which account a pending request means by looking up the
+  // newest one for that advertiser and platform; a second account with
+  // the same name makes that guess unanswerable.
+  //
+  // A read that FAILS is not a clean name. Refusing costs one retry;
+  // proceeding costs an ambiguity nobody can unpick afterwards.
+  {
+    const wanted = String(cleaned.name ?? "").trim();
+    if (wanted) {
+      const { data: clash, error: clashError } = await supabase
+        .from("ad_accounts")
+        .select("id, name")
+        .eq("tenant_id", profile.tenant_id)
+        .ilike("name", wanted)
+        .limit(1);
+      if (clashError) {
+        return {
+          ok: false,
+          error:
+            "We couldn't check whether that account name is already taken, so we'd rather not create it. Try again in a moment.",
+          code: "conflict",
+        };
+      }
+      if ((clash ?? []).length > 0) {
+        return {
+          ok: false,
+          error: `There is already an ad account called "${wanted}". Give this one a name of its own — every screen identifies an account by its name.`,
+          code: "invalid",
+        };
+      }
+    }
+  }
+
   const { data: inserted, error: insertError } = await supabase
     .from("ad_accounts")
     .insert(cleaned)

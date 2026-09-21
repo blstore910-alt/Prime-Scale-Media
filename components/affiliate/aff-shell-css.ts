@@ -336,7 +336,11 @@ export const AFF_CSS = `
   .nic.win{background:var(--win-soft);color:var(--win)}.nic.gold{background:var(--gold-soft);color:var(--gold-deep)}.nic.blue{background:var(--primary-tint);color:var(--primary-600)}
   .nic svg{width:19px;height:19px}
   .nrow .t{font-weight:600}.nrow .d{color:var(--txt-2);font-size:.85rem}.nrow .tm{margin-left:auto;color:var(--faint);font-size:.78rem;white-space:nowrap}
-  .undot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:6px;flex:0 0 auto}
+  .ntxt{flex:1 1 auto;min-width:0}
+  .nhead{display:flex;align-items:baseline;gap:10px}
+  .nhead .t{flex:1 1 auto;min-width:0}
+  .nrow .tm{margin-left:auto;flex:0 0 auto}
+  .undot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:0;flex:0 0 auto;align-self:center}
 
   /* settings */
   .field{margin-bottom:14px}.field label{font-size:.8rem;font-weight:600;color:var(--txt-2);display:block;margin-bottom:6px}

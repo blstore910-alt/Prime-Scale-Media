@@ -452,7 +452,11 @@ export const ADV_CSS = `
   .nic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}.nic svg{width:19px;height:19px}
   .nic.b{background:var(--primary-tint);color:var(--primary-600)}.nic.win{background:var(--win-soft);color:var(--win)}.nic.warn{background:var(--warn-soft);color:var(--warn)}
   .nrow .t{font-weight:700}.nrow .d{color:var(--txt-2);font-size:.85rem}.nrow .tm{margin-left:auto;color:var(--faint);font-size:.78rem;white-space:nowrap}
-  .undot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:6px;flex:0 0 auto}
+  .ntxt{flex:1 1 auto;min-width:0}
+  .nhead{display:flex;align-items:baseline;gap:10px}
+  .nhead .t{flex:1 1 auto;min-width:0}
+  .nrow .tm{margin-left:auto;flex:0 0 auto}
+  .undot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:0;flex:0 0 auto;align-self:center}
   .faq .q{font-family:var(--hd);font-weight:700;font-size:.98rem;margin-bottom:4px}.faq .a{color:var(--txt-2);font-size:.9rem}.faq>div{margin-bottom:12px}
   .steps{display:flex;flex-direction:column;gap:12px}.step{display:flex;gap:11px;align-items:flex-start}
   .step .si{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;background:var(--primary-tint);color:var(--primary-600);font-family:var(--hd);font-weight:800}

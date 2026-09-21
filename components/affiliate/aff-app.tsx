@@ -1547,14 +1547,21 @@ export default function AffiliateApp() {
                       <span className="nic blue">
                         <Ic name="i-bell" />
                       </span>
-                      <div>
-                        <div className="t">{copy.title}</div>
+                      {/* Title and time share the top line; the message
+                          gets the whole width underneath. Beside the
+                          text, the time reserved a third of the row on a
+                          phone and squeezed the message into a column
+                          half the width of the card. */}
+                      <div className="ntxt">
+                        <div className="nhead">
+                          <div className="t">{copy.title}</div>
+                          <span className="tm">
+                            {new Date(n.created_at).toLocaleDateString()}
+                          </span>
+                          {!n.is_read && <span className="undot" />}
+                        </div>
                         <div className="d">{copy.description}</div>
                       </div>
-                      <span className="tm">
-                        {new Date(n.created_at).toLocaleDateString()}
-                      </span>
-                      {!n.is_read && <span className="undot" />}
                     </div>
                   );
                 })
