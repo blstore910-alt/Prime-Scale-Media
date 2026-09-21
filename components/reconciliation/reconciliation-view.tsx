@@ -14,7 +14,7 @@ import {
 } from "@/lib/types/bank-ledger";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Loader2, Plus } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const DESTS: LedgerDestination[] = ["our_bank", "supplier"];
@@ -58,6 +58,10 @@ const RECON_CSS = `
 .psm-recon .check .cx{min-width:0}
 .psm-recon .check .ct{font-weight:700}
 .psm-recon .check .cd{color:var(--faint);font-size:.84rem}
+.psm-recon .check .cw{color:var(--warn);font-size:.8rem;margin-top:4px;line-height:1.35}
+.psm-recon .check.actionable{cursor:pointer;transition:border-color .14s,box-shadow .14s}
+.psm-recon .check.actionable:hover{border-color:var(--warn);box-shadow:var(--shadow-sm)}
+.psm-recon .check.actionable:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .psm-recon .check .cv{margin-left:auto;display:inline-flex;align-items:center;gap:10px;text-align:right;font-family:var(--hd);font-weight:800;white-space:nowrap}
 .psm-recon .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:12px}
 .psm-recon .dcard{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--panel);box-shadow:var(--shadow-sm)}
@@ -129,6 +133,29 @@ export default function ReconciliationView() {
     onError: (e: Error) =>
       toast.error("Failed to record entry", { description: e.message }),
   });
+
+  // ── "CHECK" WAS A LABEL OVER A DEAD END ───────────────────────────
+  //
+  // The hero said "1 to investigate" and the row said "Check", and
+  // there was nothing to press. The owner read it as a broken control:
+  // "ik kan hier niet eens wat checken, staat gewoon alleen Check".
+  //
+  // The gap has exactly one cause and one cure. Credited comes from the
+  // completed wallet top-ups; received comes from what somebody typed
+  // in off the bank statement. A gap means the bank side has not been
+  // entered. So pressing the row now FILLS IN that form with the
+  // currency and the missing amount and takes you to it.
+  const formRef = useRef<HTMLDivElement | null>(null);
+  const investigate = (r: { currency: string; gap: number }) => {
+    const cur = String(r.currency).toUpperCase();
+    if (cur === "EUR" || cur === "USD") setCurrency(cur as LedgerCurrency);
+    // A positive gap is money credited to wallets that the bank has not
+    // been recorded as receiving, so the entry to add is a deposit. A
+    // negative one is the other way round.
+    setDirection(r.gap >= 0 ? "deposit" : "withdrawal");
+    setAmount(Math.abs(r.gap).toFixed(2));
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const rows = reconQ.data?.rows ?? [];
   const mismatches = rows.filter((r) => Math.abs(r.gap) >= 0.01);
@@ -230,7 +257,29 @@ export default function ReconciliationView() {
             {rows.map((r) => {
               const ok = Math.abs(r.gap) < 0.01;
               return (
-                <div key={r.currency} className={`check ${ok ? "ok" : "warn"}`}>
+                <div
+                  key={r.currency}
+                  className={`check ${ok ? "ok" : "warn"}${ok ? "" : " actionable"}`}
+                  role={ok ? undefined : "button"}
+                  tabIndex={ok ? undefined : 0}
+                  title={
+                    ok
+                      ? undefined
+                      : "Record what the bank actually received for this currency"
+                  }
+                  onClick={ok ? undefined : () => investigate(r)}
+                  onKeyDown={
+                    ok
+                      ? undefined
+                      : (e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            investigate(r);
+                          }
+                        }
+                  }
+                >
                   <span className="cki">
                     {ok ? (
                       <CheckCircle2 size={18} />
@@ -244,6 +293,16 @@ export default function ReconciliationView() {
                       Credited {fmt(r.credited, r.currency)} · Received{" "}
                       {fmt(r.received, r.currency)}
                     </div>
+                    {/* The number alone does not say what to do about it.
+                        This row is the only place the difference is
+                        visible, so it is the place to say what it means. */}
+                    {ok ? null : (
+                      <div className="cw">
+                        {r.received === 0
+                          ? "Nothing has been entered from the bank statement for this currency yet — press to record it."
+                          : "The bank side is short by this much — press to record the missing entry."}
+                      </div>
+                    )}
                   </div>
                   <div className="cv">
                     <span
@@ -287,7 +346,7 @@ export default function ReconciliationView() {
       )}
 
       {/* Record an entry */}
-      <div className="card">
+      <div className="card" ref={formRef}>
         <h2>Record a bank entry</h2>
         <p className="muted" style={{ fontSize: ".9rem", margin: "6px 0 14px" }}>
           From the actual bank/supplier statement.
