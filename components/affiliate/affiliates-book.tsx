@@ -393,7 +393,6 @@ function AffiliateDetail({
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   const effectiveRows = [
-    { key: "topup|*", title: "Top-ups · all account types", source: "topup" as const, type: null as string | null },
     ...shownTypes.map((t) => ({ key: `topup|${t.slug}`, title: `Top-ups · ${t.label}`, source: "topup" as const, type: t.slug as string | null })),
     { key: "subscription|*", title: "Subscriptions · every paid invoice", source: "subscription" as const, type: null as string | null },
   ].map((r) => {

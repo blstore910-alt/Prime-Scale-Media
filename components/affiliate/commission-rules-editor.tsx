@@ -119,10 +119,13 @@ export default function CommissionRulesEditor({
   const queryClient = useQueryClient();
   const affiliateId = affiliate?.id ?? null;
 
+  // ── PER ACCOUNT TYPE, NO "ALL TYPES" ROW ──────────────────────────
+  // The owner, walking it: "all acc types mag niet bestaan, heb ik niks
+  // aan". Every rate is set per type. The engine still understands an
+  // all-types version (older rows); this editor folds one into the types
+  // on the next save and clears it, so nothing invisible keeps applying.
   const fields = useMemo<Field[]>(() => {
-    const list: Field[] = [
-      { key: "topup|*", source: "topup", type: null, label: "All account types" },
-    ];
+    const list: Field[] = [];
     const shown = types
       .filter((t) => t.is_active !== false)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -151,16 +154,31 @@ export default function CommissionRulesEditor({
     return m;
   }, [fields, rules, affiliateId]);
 
+  // An all-types version at THIS level, if one is still standing.
+  const legacyAll = useMemo(
+    () =>
+      pctAtLevel(rules, {
+        affiliateAdvertiserId: affiliateId,
+        source: "topup",
+        typeSlug: null,
+      }),
+    [rules, affiliateId],
+  );
+
   const [draft, setDraft] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
     const d: Record<string, string> = {};
     for (const f of fields) {
-      const v = initial[f.key];
+      // A type with no rate of its own starts at the all-types rate, if
+      // one stands: saving then writes it onto the type, where it is
+      // visible, and the all-types version is cleared.
+      const v =
+        initial[f.key] ?? (f.source === "topup" && f.type ? legacyAll : null);
       d[f.key] = v === null || v === undefined ? "" : String(v);
     }
     setDraft(d);
-  }, [open, fields, initial]);
+  }, [open, fields, initial, legacyAll]);
 
   const parsed = useMemo(() => {
     const out: Record<string, { ok: boolean; value: number | null }> = {};
@@ -230,8 +248,17 @@ export default function CommissionRulesEditor({
         before,
       });
     }
+    if (legacyAll !== null && list.length > 0) {
+      list.push({
+        source: "topup",
+        adAccountType: null,
+        pct: null,
+        label: "All account types (removed; set per type now)",
+        before: legacyAll,
+      });
+    }
     return list;
-  }, [fields, parsed, initial]);
+  }, [fields, parsed, initial, legacyAll]);
 
   const onetimeLine = (v: { amount: number; currency: string } | null) =>
     v ? `${v.currency} ${v.amount.toFixed(2)}` : "—";
