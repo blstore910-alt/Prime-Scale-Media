@@ -5,7 +5,7 @@
 > that carries over is in this repo and pushed to `main`. Read this
 > section, then `CLAUDE.md`, then the per-journey state below.
 
-## THE NUMBER: 2 of 16 journeys closed (A2, A5). A1 is one step short.
+## THE NUMBER: 3 of 16 journeys closed (A1, A2, A5).
 
 ## How to start, in order
 
@@ -40,18 +40,10 @@
 ## SQL: what is applied and what is waiting
 
 **Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
-5, 6, 7, 9, 10, 11b, 12, 14.
+5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17.
 
 **WAITING on the owner — paste these first:**
 
-- **`PLAK-DIT-15-MELDING-EN-WIE-MAAKT-DE-EERSTE-FACTUUR.sql`**. Two
-  things in one. (a) The paid-invoice notification: today the
-  auto-debit takes money and says nothing — `subscription_billing_run`
-  only notifies on FAILURE. The app half is already live (type
-  `subscription_invoice_paid`, catalogue entry, copy, preference
-  toggle); only the trigger is missing. (b) Four diagnostic rows that
-  answer **who creates the first invoice**, which is the open question
-  below.
 - **`READONLY_SQL=on` in Vercel.** The read-only role is in place and
   proven (`_ro` owned by `psm_readonly`, bypassrls on, counted 9
   wallets against 9 actual). The route `/api/dev/ro` is owner-only and
@@ -88,11 +80,11 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 
 # READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
-## THE NUMBER: 2 of 16 journeys closed (A2, A5).
+## THE NUMBER: 3 of 16 journeys closed (A1, A2, A5).
 
 | journey | state |
 |---|---|
-| A1 invite → signup → onboarding → dashboard | **WALKED 2026-09-21, one step short of closed.** Invite created as owner (every branch of the dialog opened first), link copied, signed up as PSM0006 in the pane, onboarding and dashboard walked. Figures agree: EUR 0 wallet, Prime EUR 200/mo, invoice 0006-125 EUR 200 open. NOT closed because the first-invoice question above is unanswered - see PLAK-15 |
+| A1 invite → signup → onboarding → dashboard | **CLOSED 2026-09-21.** Invite created as owner (every branch of the dialog opened first), link copied, signed up as PSM0006 in the pane, onboarding and dashboard walked. Figures agree: EUR 0 wallet, Prime EUR 200/mo, invoice 0006-125 EUR 200 open. The first-invoice question is answered: `trg_create_invoice_on_subscription_created` raises it, and it was raising ORPHANS — see below. PLAK 14/15/16/17 all applied |
 | **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
 | A3 ad-account request, €50 off the wallet | not started |
 | A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
@@ -254,6 +246,52 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### A1 — the one that was actively costing money (2026-09-21)
+
+**`create_invoice_for_subscription`, the trigger on `subscriptions`,
+raised the first invoice as an ORPHAN.** It put `subscription_id` inside
+the items JSON instead of in the column, and set no `period_start`.
+
+Everything hangs off that column:
+
+- The billing run's duplicate guard is
+  `where i.subscription_id = r.id and i.period_start = v_period`. It
+  matched nothing, so **PSM0006 was going to be billed EUR 200 twice
+  that night** — `next_payment_date` was still today, status active.
+- The collect loop filters `i.subscription_id is not null`, so the
+  invoice could never be auto-debited. PLAK-14's due date did not help;
+  it never entered the loop.
+- `_on_subscription_invoice_paid` tests the same thing, so **paying it
+  by hand did nothing either**: no reactivation, no clock advance, and
+  the notification PLAK-15 had just turned on never fired.
+
+Two more faults in the same body:
+
+- `v_amount::real` on a money value. `real` is single precision, so
+  EUR 99.99 becomes 99.98999786376953 — on the first invoice a customer
+  ever sees, in columns that have been `numeric` since 20260918200000.
+- **No perk applied.** The monthly run prices every invoice through
+  `advertiser_perks`, and PLAK-12 brought `change_subscription_amount`
+  into line. This trigger did not, so a customer with a discount got
+  their FIRST invoice at full list price.
+
+Fixed by **PLAK-16** (relink the rows that already existed, only where
+no other invoice covered the same period) and **PLAK-17** (the trigger:
+the column, the period, numeric, `_effective_subscription_amount`, and
+a guard so an existing invoice is not raised twice). Both applied, with
+`0` orphan subscription invoices left open.
+
+**E2E0001's two open EUR 500 invoices are NOT this fault** — both are
+linked, and they cover two different periods (2026-09-18 and
+2026-10-01). Invoice 114 has `due_date` 2026-09-08, which is BEFORE its
+own period starts, so it was hand-seeded rather than raised by the
+engine. E2E0001 is on a different tenant from PSM0001-0006 and does not
+appear in the owner's `/users` list.
+
+**Watch for:** `position('::real' in prosrc)` in a check matched the
+body's own comment saying the cast was gone. Check for the cast
+(`v_amount::real`), not the substring.
 
 ### A1 — agent findings NOT yet fixed
 
