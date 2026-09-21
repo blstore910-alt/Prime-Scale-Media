@@ -262,7 +262,7 @@ export default function WithdrawDialog({
                   className="text-xs font-semibold tabular-nums text-primary underline-offset-2 hover:underline"
                   onClick={() => setAmount(String(ceiling))}
                 >
-                  Max ${ceiling.toFixed(2)}
+                  Up to ${ceiling.toFixed(2)}
                 </button>
               )}
             </div>
@@ -288,10 +288,32 @@ export default function WithdrawDialog({
                 {currency}
               </span>
             </div>
+            {/* ── THIS FIGURE IS NOT A BALANCE, AND IT SAID SO ONLY
+                    FOR USD ACCOUNTS ────────────────────────────────────
+                The ceiling is everything we put on the account, minus
+                every withdrawal that has not been rejected. It does NOT
+                subtract what the account has SPENT -- nothing on either
+                side of this journey reads the live balance at the
+                platform.
+
+                So an account funded EUR 194 that has spent EUR 150 still
+                offers EUR 194 back. Labelling that "Max" reads as
+                "available", which is the one thing it is not. The honest
+                sentence existed, and was shown only when the account was
+                funded in dollars; a EUR account got the currency note
+                instead and no explanation of the figure at all.
+
+                Both now, always. And it says who checks: we do, before
+                approving -- which is the same principle as the supplier
+                push, where the admin verifies rather than the machine
+                assuming. */}
             <p className="text-xs text-muted-foreground">
+              That is what we funded, less anything already asked back — it
+              does not subtract what the account has spent, so we check the
+              real balance before approving.
               {fundedIn !== "USD"
-                ? "Comes back in USD, which is what the platform spends. Exchange it in your wallet afterwards."
-                : "What we funded, less anything already asked back."}
+                ? " It comes back in USD, which is what the platform spends; exchange it in your wallet afterwards."
+                : ""}
             </p>
           </div>
 

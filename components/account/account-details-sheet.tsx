@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/utils-pure";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -631,7 +632,10 @@ function TopupHistory({ account }: { account: AdAccount }) {
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Amount Paid</TableHead>
-              <TableHead>Topup Amount (USD)</TableHead>
+              {/* Not "(USD)". A customer-filed funding lands in the
+                  ACCOUNT's currency, and this account may well be in
+                  euros — which the panel two blocks up says out loud. */}
+              <TableHead>Landed on the account</TableHead>
               <TableHead>Fee</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -684,13 +688,30 @@ function TopupHistory({ account }: { account: AdAccount }) {
                     topup.currency ?? "EUR",
                   )}
                 </TableCell>
-                {/* topup_amount is a USD figure by construction —
-                    calculateTopupAmount divides the received amount by the
-                    rate and subtracts the fee (lib/utils-pure.ts). Labelling
-                    it with the PAYMENT currency's symbol turned $1,139.53
-                    into "€1,139.53", a ~16% misstatement on a money screen. */}
+                {/* ── topup_amount IS NOT ALWAYS DOLLARS ──────────────
+                    The comment that used to sit here said "topup_amount
+                    is a USD figure by construction", and that is true of
+                    the ADMIN paths only: calculateTopupAmount converts to
+                    USD first and stores dollars. The CUSTOMER's own RPC
+                    takes the fee in the PAYMENT currency and stores the
+                    net there, putting the dollar figure in `topup_usd`.
+
+                    So on a EUR account funded by the customer this cell
+                    printed "$97.00" next to "Amount Paid €100.00", on a
+                    sheet that states "Currency: EUR" a few rows above.
+                    Three statements about one payment, two of them
+                    wrong, on the customer's own screen.
+
+                    `topup_usd` present <=> customer row. That is the
+                    discriminator lib/pure-topup-landed.ts exists for,
+                    and it is not a guess. */}
                 <TableCell>
-                  {formatCurrency(Number(topup.topup_amount), "USD")}
+                  {(() => {
+                    const landed = landedOnAccount(topup);
+                    return landed.amount === null
+                      ? "—"
+                      : formatCurrency(landed.amount, landed.currency);
+                  })()}
                 </TableCell>
                 <TableCell>{topup.fee}%</TableCell>
                 <TableCell className="capitalize">
