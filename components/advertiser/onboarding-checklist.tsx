@@ -259,23 +259,25 @@ export default function OnboardingChecklist({
   if (allDone) {
     if (dismissed) return null;
     return (
-      <div className="card onb-done">
+      /* ── A STRIP, NOT A CARD ──────────────────────────────────────
+         This was a full .card: 22px of padding, a 38px tick, a heading
+         over a three-line sentence and a Dismiss button wedged against
+         the right edge — about 120px of green telling somebody that
+         nothing needs doing. Good news should take the least room on
+         the page, not the most. One line now, and it shines once. */
+      <div className="onb-done">
         <span className="onb-done-ic">
           <Ic name="i-check" />
         </span>
-        <div style={{ minWidth: 0 }}>
-          <div className="onb-done-t">You&apos;re all set</div>
-          <div className="onb-done-s">
-            Everything is in place — your account is ready to run.
-          </div>
-        </div>
+        <span className="onb-done-t">You&apos;re all set</span>
+        <span className="onb-done-s">your account is ready to run</span>
         <button
-          className="btn ghost sm"
-          style={{ marginLeft: "auto" }}
+          className="onb-done-x"
           aria-label="Dismiss"
+          title="Dismiss"
           onClick={() => persist({ dismissed: true })}
         >
-          Dismiss
+          &times;
         </button>
       </div>
     );

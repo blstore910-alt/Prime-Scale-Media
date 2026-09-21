@@ -804,12 +804,35 @@ export const ADV_CSS = `
     background:linear-gradient(90deg,var(--panel),var(--panel-2),var(--panel));
     background-size:200% 100%;animation:advskel 1.15s ease-in-out infinite}
   @media (prefers-reduced-motion:reduce){.onb-skel{animation:none}}
-  .onb-done{display:flex;align-items:center;gap:12px;
-    background:var(--win-soft);border:1px solid rgba(16,185,129,.22)}
-  .onb-done-ic{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
-    background:#fff;color:var(--win)}
-  .onb-done-t{font-family:var(--hd);font-weight:800}
-  .onb-done-s{color:var(--txt-2);font-size:.85rem}
+  /* ── GOOD NEWS TAKES THE LEAST ROOM ───────────────────────────────
+     A full card for "nothing needs doing" was about 120px of green at
+     the top of the dashboard. One strip, one line, and a single sheen
+     that crosses it when it appears so it still feels like an arrival. */
+  .onb-done{position:relative;overflow:hidden;display:flex;align-items:center;
+    gap:10px;padding:10px 12px 10px 10px;border-radius:14px;flex-wrap:wrap;
+    background:linear-gradient(100deg,#eafbf4,#d9f7ec 48%,#eafbf4);
+    border:1px solid rgba(16,185,129,.28);
+    box-shadow:0 12px 28px -22px rgba(16,185,129,.9)}
+  .onb-done::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.85) 50%,transparent 62%);
+    background-size:240% 100%;background-position:190% 0;
+    animation:onbsheen 2.6s ease-out 1}
+  @keyframes onbsheen{to{background-position:-70% 0}}
+  .onb-done-ic{width:26px;height:26px;border-radius:9px;flex:0 0 auto;display:grid;
+    place-items:center;background:var(--win);color:#fff;
+    box-shadow:0 0 0 3px rgba(16,185,129,.16);animation:onbpop .42s cubic-bezier(.2,1.5,.4,1) 1}
+  .onb-done-ic svg{width:15px;height:15px;stroke-width:3}
+  @keyframes onbpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .onb-done-t{font-family:var(--hd);font-weight:800;font-size:.95rem;color:#0b7a5a}
+  .onb-done-s{color:var(--txt-2);font-size:.85rem;min-width:0}
+  .onb-done-x{margin-left:auto;border:0;background:none;cursor:pointer;
+    color:rgba(11,122,90,.55);font-size:1.15rem;line-height:1;padding:2px 4px;
+    border-radius:7px;transition:.14s}
+  .onb-done-x:hover{color:#0b7a5a;background:rgba(16,185,129,.12)}
+  @media (prefers-reduced-motion:reduce){
+    .onb-done::after,.onb-done-ic{animation:none}
+    .onb-done::after{opacity:0}
+  }
   .seg2{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
   .seg2 button{border:0;background:none;font-family:var(--bd);font-weight:700;font-size:.86rem;color:var(--txt-2);padding:8px 16px;border-radius:8px;cursor:pointer}
   .seg2 button.on{background:var(--panel);color:var(--primary-600);box-shadow:0 1px 3px rgba(20,30,80,.16)}

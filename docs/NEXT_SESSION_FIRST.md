@@ -1,9 +1,15 @@
 # READ THIS FIRST — state of play, 2026-09-21 (evening)
 
-> **HANDOVER.** The owner's plan is nearly used up and a NEW Claude
-> session, possibly on a different account, picks this up. Everything
-> that carries over is in this repo and pushed to `main`. Read this
-> section, then `CLAUDE.md`, then the per-journey state below.
+> **HANDOVER.** A NEW Claude session, possibly on a different account,
+> picks this up. Everything that carries over is in this repo and pushed
+> to `main`.
+>
+> **The prompt to paste into that fresh session is
+> `docs/HANDOVER_PROMPT.md`.** It is self-contained: the standing
+> instruction, the state of play, the test accounts, the exact next
+> step, what the owner still has to decide, and the five traps that cost
+> this session the most time. Paste it, then read this file, then
+> `CLAUDE.md`.
 
 ## THE NUMBER: 7 of 16 journeys closed (A1-A7).
 
@@ -44,60 +50,19 @@ agrees with the database to the cent. See the A7 block below.
 ## SQL: what is applied and what is waiting
 
 **Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
-5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26,
-27, 28, 29. PLAK 24 landed its trigger; its `companies` policies FAILED
-(`42883 _is_own_advertiser does not exist`) — 24b replaces them.
+5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+(trigger only), 24b, 25, 26, 27, 28, 29, 30, 31.
 
-**WAITING on the owner — paste these first:**
+**NOTHING IS WAITING ON THE OWNER RIGHT NOW.** Every plak written this
+session has come back with its report. The next one will be written when
+a walk needs it.
 
-- **`PLAK-DIT-31-COMMISSIE-HOORT-BIJ-DE-AD-ACCOUNT-TOPUP.sql` — blocks
-  F2, and closes a regression plak 27 introduced.** Two triggers accrue
-  commission. The one on `wallet_topups` should not exist at all — the
-  owner's rule is that commission comes from an AD-ACCOUNT top-up, not
-  from filling the wallet — and it silently threw anyway (its whole body
-  is in `exception when others then raise warning`, and it writes
-  `type = 'percentage'` where the table and the other trigger use
-  `pct`). It is unhooked; the function stays.
-  The one on `top_ups` is the right place and had four holes: no status
-  filter on the referral link (a REJECTED link paid out), no check that
-  the top-up is completed, `v_amount REAL` (money in a float), and **no
-  SECURITY DEFINER** — which plak 27 made acute, because it revoked
-  `insert` on `referral_commissions` from `authenticated` and this
-  trigger runs as the caller with NO exception handler, so
-  `updateTopupAsAdmin` would now abort on a refused insert. Plus it
-  stamped `NEW.currency` over `topup_amount`, the dual-meaning column.
+**Still to set, not SQL:** `READONLY_SQL=on` in Vercel. The read-only
+role is in place and proven (`_ro` owned by `psm_readonly`, bypassrls
+on, 9 wallets counted against 9 actual). `/api/dev/ro` is owner-only and
+refuses until that env var is set. Until then every figure check costs
+the owner a paste.
 
-- **`PLAK-DIT-30-WAAR-HOORT-COMMISSIE.sql` — READ-ONLY, blocks F2.**
-  A EUR 100 wallet top-up was credited and NO commission accrued. The
-  owner says that is right — commission belongs to an AD-ACCOUNT top-up,
-  not to filling the wallet — but TWO accrual triggers exist
-  (`_accrue_referral_commission` on `wallet_topups`, in the repo, and
-  `handle_referral_commission_on_topup` on `top_ups`, which is in NO
-  migration) and the whole accrual sits in
-  `exception when others then raise warning`. "Did not accrue" and "the
-  accrual threw" look identical from outside. Rows 1-2 return both
-  bodies.
-- **`PLAK-DIT-24B-COMPANIES-TENANT.sql`.** Plak 24 row 5 came back
-  `42883 function _is_own_advertiser(uuid) does not exist` — that helper
-  is in the repo and not on this database, so the `companies` policies
-  were never replaced and `tenant_id` is still writable by the customer.
-  24b uses the predicate live actually has.
-
-- **APPLIED 2026-09-21: `PLAK-DIT-23-WISSELEN-HEEFT-NOOIT-GEWERKT.sql`.**
-  `wallet_exchanges.created_by` references `user_profiles(id)` and the
-  live `wallet_exchange` RPC writes `auth.uid()` into it. Those are
-  never the same value, so EVERY exchange has always failed on the
-  foreign key — nobody has ever converted currency in this app. The
-  transaction rolls back whole, so no money was ever lost, but the
-  customer got the raw constraint name in a toast on their own wallet.
-  The plak changes ONE line (resolve the profile id, the way every
-  other RPC in this repo already does) and attaches the two triggers
-  `wallet_exchanges` was missing from both required lists.
-- **`READONLY_SQL=on` in Vercel.** The read-only role is in place and
-  proven (`_ro` owned by `psm_readonly`, bypassrls on, counted 9
-  wallets against 9 actual). The route `/api/dev/ro` is owner-only and
-  refuses until that env var is set. Until then every figure check
-  costs the owner a paste.
 
 ## The open question that blocks A1
 
