@@ -1,10 +1,98 @@
-# READ THIS FIRST — state of play, 2026-09-21
+# READ THIS FIRST — state of play, 2026-09-21 (evening)
+
+> **HANDOVER.** The owner's plan is nearly used up and a NEW Claude
+> session, possibly on a different account, picks this up. Everything
+> that carries over is in this repo and pushed to `main`. Read this
+> section, then `CLAUDE.md`, then the per-journey state below.
+
+## THE NUMBER: 2 of 16 journeys closed (A2, A5). A1 is one step short.
+
+## How to start, in order
+
+1. `git pull`. `main == feat/redesign-advertiser`; deploy is
+   `git push origin feat/redesign-advertiser:main`, straight to
+   app.primescalemedia.com. Verify with
+   `curl -s https://app.primescalemedia.com/api/version` — it returns
+   the deployed short SHA.
+2. Gate before EVERY push:
+   `npx tsc --noEmit && npx next lint --max-warnings 0 && npm test`,
+   chained with `&&`, never piped through `tail` or `grep` (that masks
+   the exit code). 469 tests, all green as of this handover.
+3. **Two browsers, one session each.** One Chrome = one Supabase
+   session, so the owner and a customer CANNOT share a browser —
+   signing in as one signs the other out. Owner in Chrome
+   (`mcp__claude-in-chrome__*`), customer in the built-in pane
+   (`mcp__Claude_Browser__*`). Ask the owner to sign in; never type a
+   password and never create an account — that is theirs.
+4. **Paste-ready SQL lives in `supabase/checks/PLAK-DIT-*.sql`**, one
+   report table at the end (the editor shows only the last result set)
+   and NAMED dollar tags. The owner pastes them by hand and sends the
+   table back.
+
+## Test accounts
+
+| code | who | login | state |
+|---|---|---|---|
+| PSM0005 | Test Advertiser | `xifape4500@jobscai.com` | €195.00 wallet, Prime €5/mo, next 20 Oct, 1 ad account |
+| PSM0006 | John Doe (Trackbee) | `a1walk2609@robustq.com` | signed up 21 Sep, €0 wallet, Prime €200/mo, invoice 0006-125 open, due 24 Sep |
+| owner | Bart | the owner's own | super-admin |
+
+## SQL: what is applied and what is waiting
+
+**Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
+5, 6, 7, 9, 10, 11b, 12, 14.
+
+**WAITING on the owner — paste these first:**
+
+- **`PLAK-DIT-15-MELDING-EN-WIE-MAAKT-DE-EERSTE-FACTUUR.sql`**. Two
+  things in one. (a) The paid-invoice notification: today the
+  auto-debit takes money and says nothing — `subscription_billing_run`
+  only notifies on FAILURE. The app half is already live (type
+  `subscription_invoice_paid`, catalogue entry, copy, preference
+  toggle); only the trigger is missing. (b) Four diagnostic rows that
+  answer **who creates the first invoice**, which is the open question
+  below.
+- **`READONLY_SQL=on` in Vercel.** The read-only role is in place and
+  proven (`_ro` owned by `psm_readonly`, bypassrls on, counted 9
+  wallets against 9 actual). The route `/api/dev/ro` is owner-only and
+  refuses until that env var is set. Until then every figure check
+  costs the owner a paste.
+
+## The open question that blocks A1
+
+`create_subscription_from_invite` (live body captured 21 Sep, in the
+PLAK-15 header) creates the subscription with `next_payment_date =
+now()` and **creates no invoice**. The cron runs at 03:00
+(`vercel.json`). Yet PSM0006 signed up at 10:15 and had invoice
+0006-125 immediately. **Something on the live database raises it, and
+nothing in this repo does.**
+
+Why it matters: PLAK-10 made the clock advance only for an invoice with
+a real `period_start`. If that first invoice has none, paying it will
+not move `next_payment_date`, it stays at today, and tomorrow's run
+sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
+
+## Live-vs-repo drift found today (read this before trusting any migration)
+
+- **`get_invite_by_token` on live is NARROWED.** It returns
+  `affiliate_id, email, expires_at, id, role, status, tenant_id,
+  tenant_name` — no `token`. The repo still has `to_jsonb(i)`. That
+  difference broke EVERY invite signup with a 400 until it was fixed
+  app-side (the token now comes from the URL).
+- **`create_subscription_from_invite` on live** has a tenant filter on
+  the `auth.uid()` branch that the repo copy lacks, and does
+  `coalesce(v_inv.topup_fee_pct, 0)` — so a blank fee box became a
+  permanent 0%.
+- The lesson both times: **read the live body before reasoning about
+  behaviour.** Ask for one `pg_get_functiondef`.
+
+# READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
 ## THE NUMBER: 2 of 16 journeys closed (A2, A5).
 
 | journey | state |
 |---|---|
-| A1 invite → signup → onboarding → dashboard | not started |
+| A1 invite → signup → onboarding → dashboard | **WALKED 2026-09-21, one step short of closed.** Invite created as owner (every branch of the dialog opened first), link copied, signed up as PSM0006 in the pane, onboarding and dashboard walked. Figures agree: EUR 0 wallet, Prime EUR 200/mo, invoice 0006-125 EUR 200 open. NOT closed because the first-invoice question above is unanswered - see PLAK-15 |
 | **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
 | A3 ad-account request, €50 off the wallet | not started |
 | A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
@@ -114,6 +202,112 @@ was computed correctly.
   words beside them (a 1-line clamp on `.phead p` beat
   `.subcounts{display:flex}`), and the billing period ran under the
   Status badge (`white-space:nowrap` in a 160px card cell).
+
+### A1 — found by WALKING it, all fixed and live
+
+Not one of these came out of reading the code. They needed the browser.
+
+- **Nobody could sign up.** Every invite gave 400 `invite.token:
+  expected string, received undefined`. See the live-vs-repo note at the
+  top. Fixed: the token comes from the URL (`d6afa0a`).
+- **The sign-out button on the wrong-address invite card signed nobody
+  out** and rendered `{"ok":true}` in the tab. It was a form POST to
+  `/api/auth/sign-out`, which only clears the httpOnly `profile_id`
+  cookie — not the Supabase session. Open the link again, same card,
+  for ever. This is the FIRST screen a new customer sees when they open
+  their invite on a machine where somebody else is signed in
+  (`2d3cb3e`).
+- **"1 step left", permanently, on every set-up advertiser.** "Earn as
+  an affiliate" has `auto: false` for ever and was counted, so the meter
+  sat at 75% and "You're all set" was unreachable. The offer stays, the
+  count drops it (`d6afa0a`).
+- **The invite token was in every employee admin's browser**
+  (`select("*")` over an `_is_admin_of` policy). Token + the invitee's
+  own address IS that account, because the signup route passes
+  `email_confirm: true`. Named columns now; Copy-link asks per row
+  behind the owner guard (`6b0099a`).
+- **Three ways an invitation carried the wrong price**, each permanent
+  once the customer signs up: "Create another" sent an invite with NO
+  plan (free for ever, and EUR 50 per "included" ad account); the
+  currency choice survived the reset invisibly (USD 200 on a EUR 200
+  intention); and a CONVERTED price was stored as the agreed one
+  (`aaab1de`).
+- **A blank fee box meant 0, not "as the plan says".** The RPC stores
+  `coalesce(topup_fee_pct, 0)` into a NOT NULL DEFAULT 0 column, and 0
+  beats the ad-account type's default — every funding at 0% for ever
+  (`aaab1de`).
+- **A failed bootstrap burned the invitation** (accepted, no advertiser
+  row, nobody reissues) and a failed `create_subscription_from_invite`
+  was reported as "Welcome! Your account is ready." (`96aae51`).
+- **The first invoice had no due date**, so the collect loop
+  (`due_date is not null`) would never take it and dunning never fires.
+  Trigger fixed + backfilled by PLAK-14, applied.
+- **The signup form's "How did you hear about us?" list was white on
+  white** — a required field on the first screen a customer fills in
+  (`b606f55`).
+- UI, on the owner's own eye: PRIME/Active on two lines, "EUR 200.00 /
+  month" where "EUR 200 / month" reads as a price, a four-line pro-rata
+  essay on the card carrying the most expensive figure, status dots
+  glued to their words on mobile, a date pair split across two rows, and
+  empty-state sentences rendered in value typography.
+- **The affiliate promise named a model that is not always the deal.**
+  "a percentage of every wallet top-up" appeared on four surfaces;
+  commission is sometimes on spend, sometimes monthly, sometimes a
+  one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### A1 — agent findings NOT yet fixed
+
+Four scoped agents ran over A1 (money, dead ends, loading/empty/error,
+permissions). What they found that is still open:
+
+1. **`invitations` is writable by any employee admin through PostgREST**
+   (`invitations_write_admin for all using (_is_admin_of(tenant_id))`,
+   no table-level revoke). They can re-price a pending offer the owner
+   authored, or delete it. **The app side is ready** — both writes now
+   go through `createAdminClient()` — so the SQL is just
+   `revoke insert, update, delete on public.invitations from anon, authenticated;`
+   Postgres checks the GRANT before the policy, so reads are untouched.
+   NOT YET WRITTEN AS A PLAK.
+2. **Any admin can still READ every invitation's token** via
+   `invitations_select_admin`. Narrow the admin branch to
+   `_is_super_admin_of`, or revoke `select (token)` from
+   `authenticated` — the app no longer selects it either way.
+3. **`ensure_advertiser_and_wallet` / `create_subscription_from_invite`
+   may still be execute-able by `authenticated`.** The revoke is in
+   `20260920210000`, which is NOT in the applied ledger, and two later
+   definition files re-grant. One query settles it:
+   `select p.proname, has_function_privilege('authenticated', p.oid, 'execute') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('ensure_advertiser_and_wallet','create_subscription_from_invite');`
+4. **A customer can write `companies` directly** — the allowlist in
+   `actions/company-actions.ts` is advisory because
+   `companies_insert_owner` / `companies_update_owner` grant it. They
+   can move their own company row into another tenant.
+5. **Invite expiry is not enforced in `_invited_to`**, and nothing ever
+   writes `status='expired'`, so a months-old invitation still buys a
+   `user_profiles` row.
+6. **An expired invite's row still offers Copy link** (the badge is
+   computed client-side, the action keys off the stored status) **and
+   blocks a fresh invite** to the same address ("There's already a
+   pending invitation"). Two screens contradicting each other, and the
+   only way out is Cancel behind a "there is no un-cancel" modal.
+7. **`InviteExpired` still renders a "Create New Organization" button**
+   for an anonymous invitee, which 307s to a login they have no account
+   for — login to signup and back, no exit. The file's own comment says
+   this was removed; it was removed from one branch of the ternary only.
+8. **"This email already has an account — log in instead"** is wrong
+   advice: logging in does not accept the invitation, and there is no
+   reachable in-app surface for pending invites.
+9. **`walletLoading` is `isPending`**, so a profile with no advertiser
+   row gets a permanent shimmer on the checklist and the balance hero
+   under "Your wallet is still being set up. Reload in a moment."
+10. **The country field is free text.** PSM0006 has Country =
+    "Lelystad". VAT depends on country and the DST module below is
+    per-country, so this needs a picker before either can be trusted.
+11. **The first dashboard prints the LIST price**, not what will be
+    invoiced, when a discount perk exists and no invoice has been paid
+    yet.
+12. `numOrNull(monthly_fee, 0, 1_000_000)` returns null out of range and
+    the route still answers `success: true` — the same silent-null
+    outcome as the unpriced-invite fault, one guard away.
 
 ### PARKED — DST is a SUPPLIER COST that has to be re-billed weekly (owner, 2026-09-21)
 
