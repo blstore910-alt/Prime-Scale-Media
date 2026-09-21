@@ -3392,10 +3392,16 @@ export default function AdvertiserApp() {
                       ? "Application sent"
                       : "Join the affiliate program"}
                 </button>
+                {/* The bullet three lines up already says "Your rate
+                    agreed with us before you start". Saying it again
+                    directly under the button was the same sentence
+                    twice, two lines apart. Before applying, the note
+                    answers the other question — what happens next; after
+                    applying it carries the state. */}
                 <span className="jh-note">
                   {affiliateApplied
                     ? "We'll set your rate and let you know."
-                    : "We'll agree your rate with you before anything starts."}
+                    : "Takes a minute. Nothing changes on your account."}
                 </span>
               </div>
             ) : (

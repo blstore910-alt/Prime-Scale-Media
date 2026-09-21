@@ -168,3 +168,43 @@
     color: transparent;
   }
 }
+
+@layer components {
+  /* ── THE FLAG SAT HIGH IN ITS BOX ──────────────────────────────────
+     react-international-phone gives the country button its own height
+     and no vertical centring, while the number input beside it is h-9.
+     So the flag and the caret floated above the middle of a taller
+     control, which is what you notice first on the very first form a
+     new customer fills in. Same height, centred, and one shared border
+     radius so the two halves read as one field. */
+  .phone-input-container .react-international-phone-input-container {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+  }
+  .phone-input-container .react-international-phone-country-selector-button {
+    height: 2.25rem; /* h-9, exactly the input beside it */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 0.5rem;
+    border-right: 0;
+  }
+  .phone-input-container .react-international-phone-country-selector-button__button-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .phone-input-container .react-international-phone-flag-emoji {
+    display: block;
+    margin: 0;
+  }
+  .phone-input-container .react-international-phone-country-selector-button__dropdown-arrow {
+    margin: 0;
+    align-self: center;
+  }
+  .phone-input-container .react-international-phone-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
