@@ -370,10 +370,20 @@ export const ADV_CSS = `
      The one screen in the customer app that is selling something, so it
      gets the dark ground the balance hero has: everything else here is a
      white card, and a white card is what "another section" looks like. */
-  .joinhero{position:relative;overflow:hidden;border-radius:20px;padding:26px 22px 24px;
-    color:#fff;text-align:center;
+  .joinhero{position:relative;overflow:hidden;border-radius:20px;padding:28px 22px 26px;
+    color:#fff;text-align:center;isolation:isolate;
     background:linear-gradient(150deg,var(--navy1),var(--navy2) 55%,#1b2450);
-    box-shadow:0 24px 50px -28px rgba(20,30,80,.85)}
+    box-shadow:0 24px 50px -28px rgba(20,30,80,.85),0 0 0 1px rgba(255,207,106,.22) inset}
+  /* THE CABINET RING. A conic gradient turning behind the card, masked
+     to a 2px band, so the border chases light the way a machine does. */
+  .joinhero::before{content:"";position:absolute;inset:-60%;z-index:0;pointer-events:none;
+    background:conic-gradient(from 0deg,transparent 0 12%,rgba(255,207,106,.85) 18%,
+      transparent 26% 46%,rgba(124,92,255,.9) 54%,transparent 62% 84%,
+      rgba(110,231,183,.8) 92%,transparent 100%);
+    animation:jhspin 6s linear infinite}
+  .joinhero .jh-mask{position:absolute;inset:2px;z-index:0;border-radius:18px;pointer-events:none;
+    background:linear-gradient(150deg,var(--navy1),var(--navy2) 55%,#1b2450)}
+  @keyframes jhspin{to{transform:rotate(1turn)}}
   .joinhero::after{content:"";position:absolute;inset:-40% -20% auto;height:70%;
     background:radial-gradient(60% 100% at 50% 0,rgba(124,92,255,.5),transparent 70%);
     pointer-events:none}
@@ -392,28 +402,49 @@ export const ADV_CSS = `
   .jh-list svg{width:15px;height:15px;flex:0 0 auto;margin-top:2px;color:#6ee7b7}
   .joinhero .btn.grad{width:100%;max-width:19rem;justify-content:center}
   .jh-note{display:block;margin-top:11px;font-size:.76rem;color:rgba(255,255,255,.55)}
-  /* ── MONEY, FALLING ─────────────────────────────────────────────
-     Decoration on the one card that asks somebody to earn. It sits
-     UNDER everything (.joinhero>* is position:relative, this is
-     absolute) and never takes a click. */
+  /* ── THE MONEY ITSELF ───────────────────────────────────────────
+     Gold, lit, tumbling. Still pure decoration: aria-hidden, no
+     pointer events, under the content, and dead still under
+     prefers-reduced-motion. */
   .joinhero .moneyfx{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-  .joinhero .moneyfx span{position:absolute;top:-40px;font-family:var(--hd);font-weight:800;
-    color:rgba(255,255,255,.13);text-shadow:0 0 16px rgba(110,231,183,.3);
+  .joinhero .moneyfx span{position:absolute;top:-52px;font-family:var(--hd);font-weight:900;
+    background:linear-gradient(180deg,#fff3c4,#ffcf6a 45%,#e0951f);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 10px rgba(255,190,70,.75));
     animation:mfall linear infinite;will-change:transform,opacity}
-  .joinhero .moneyfx span:nth-child(1){left:7%;font-size:1.15rem;animation-duration:14s;animation-delay:0s}
-  .joinhero .moneyfx span:nth-child(2){left:22%;font-size:.85rem;animation-duration:18s;animation-delay:-4s}
-  .joinhero .moneyfx span:nth-child(3){left:38%;font-size:1.45rem;animation-duration:16s;animation-delay:-9s}
-  .joinhero .moneyfx span:nth-child(4){left:54%;font-size:.9rem;animation-duration:20s;animation-delay:-2s}
-  .joinhero .moneyfx span:nth-child(5){left:70%;font-size:1.25rem;animation-duration:15s;animation-delay:-11s}
-  .joinhero .moneyfx span:nth-child(6){left:84%;font-size:.8rem;animation-duration:19s;animation-delay:-6s}
-  .joinhero .moneyfx span:nth-child(7){left:93%;font-size:1.05rem;animation-duration:17s;animation-delay:-14s}
+  .joinhero .moneyfx span:nth-child(1){left:6%;font-size:1.5rem;animation-duration:7.5s;animation-delay:0s}
+  .joinhero .moneyfx span:nth-child(2){left:20%;font-size:1.05rem;animation-duration:9.5s;animation-delay:-2.2s}
+  .joinhero .moneyfx span:nth-child(3){left:35%;font-size:1.9rem;animation-duration:8.2s;animation-delay:-5.1s}
+  .joinhero .moneyfx span:nth-child(4){left:52%;font-size:1.15rem;animation-duration:10.5s;animation-delay:-1.1s}
+  .joinhero .moneyfx span:nth-child(5){left:68%;font-size:1.65rem;animation-duration:7.9s;animation-delay:-6.4s}
+  .joinhero .moneyfx span:nth-child(6){left:82%;font-size:1rem;animation-duration:9.9s;animation-delay:-3.3s}
+  .joinhero .moneyfx span:nth-child(7){left:93%;font-size:1.35rem;animation-duration:8.6s;animation-delay:-7.7s}
   @keyframes mfall{
-    0%{transform:translateY(0) rotate(0deg);opacity:0}
-    10%{opacity:1}
-    85%{opacity:1}
-    100%{transform:translateY(460px) rotate(200deg);opacity:0}
+    0%{transform:translateY(0) rotateY(0deg) rotate(0deg);opacity:0}
+    8%{opacity:1}
+    88%{opacity:1}
+    100%{transform:translateY(470px) rotateY(900deg) rotate(160deg);opacity:0}
   }
-  @media (prefers-reduced-motion:reduce){.joinhero .moneyfx{display:none}}
+  /* The icon gets a pulsing halo, so the eye lands there first. */
+  .joinhero .jh-ic{box-shadow:0 0 0 1px rgba(255,207,106,.4) inset,0 0 26px rgba(255,190,70,.45);
+    animation:jhpulse 2.4s ease-in-out infinite}
+  .joinhero .jh-ic svg{color:#ffcf6a}
+  @keyframes jhpulse{
+    0%,100%{box-shadow:0 0 0 1px rgba(255,207,106,.4) inset,0 0 18px rgba(255,190,70,.35)}
+    50%{box-shadow:0 0 0 1px rgba(255,207,106,.7) inset,0 0 38px rgba(255,190,70,.75)}
+  }
+  /* And a shine sweeping the button, the way a payout counter does. */
+  .joinhero .btn.grad{position:relative;overflow:hidden}
+  .joinhero .btn.grad::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.55) 50%,transparent 60%);
+    background-size:260% 100%;background-position:180% 0;
+    animation:jhsweep 3.2s ease-in-out infinite}
+  @keyframes jhsweep{0%,55%{background-position:180% 0}100%{background-position:-60% 0}}
+  @media (prefers-reduced-motion:reduce){
+    .joinhero .moneyfx{display:none}
+    .joinhero::before,.joinhero .jh-ic,.joinhero .btn.grad::after{animation:none}
+    .joinhero::before{opacity:.35}
+  }
   .list-row .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
   .list-row .ico svg{width:18px;height:18px}
   .list-row .amt{margin-left:auto;font-family:var(--hd);font-weight:800}

@@ -13,7 +13,8 @@ import AffiliateTableRow, {
 } from "@/components/affiliate/affiliate-table-row";
 import { formatCurrency } from "@/lib/utils";
 
-const EMPTY_VALUE = "N/A";
+// Same dash as the row beside it — see affiliate-table-row.tsx.
+const EMPTY_VALUE = "—";
 
 // Super-admin Referral Links list, ported to the mockup look. Reuses the
 // real referral_links_with_details query (+ live status merge), search,

@@ -3325,7 +3325,10 @@ export default function AdvertiserApp() {
                 them. */}
             {!isAffiliate && !affiliateUnknown ? (
               <div className="joinhero">
-                {/* Money, drifting. Decoration only — aria-hidden, and it
+                {/* The inner panel that turns the spinning conic gradient
+                    behind it into a 2px chasing border instead of a wash. */}
+                <div className="jh-mask" aria-hidden="true" />
+                {/* Money, tumbling. Decoration only — aria-hidden, and it
                     stops dead under prefers-reduced-motion. */}
                 <div className="moneyfx" aria-hidden="true">
                   <span>€</span>

@@ -26,7 +26,14 @@ export type ReferralLinkRow = {
   affiliate_advertiser_tenant_client_code: string | null;
 };
 
-const EMPTY_VALUE = "N/A";
+// ── A DASH, NOT "N/A" ────────────────────────────────────────────────
+//
+// A Topup-% link has no monthly and no one-time amount, and a link that
+// has not accrued yet has no earnings — so four of the seven money cells
+// on one card read "N/A", stacked. It is the right MEANING (we do not
+// have a value, which is not the same as zero) in the noisiest possible
+// spelling. An em dash says the same thing and disappears.
+const EMPTY_VALUE = "—";
 
 interface AffiliateTableRowProps {
   referral: ReferralLinkRow;
@@ -143,12 +150,12 @@ export default function AffiliateTableRow({
           prints N/A for a value we do not have. */}
       <td data-label="Earnings USD" className="r mono">
         {referral.earnings_usd == null
-          ? "N/A"
+          ? EMPTY_VALUE
           : formatCurrency(referral.earnings_usd as number, "USD")}
       </td>
       <td data-label="Earnings EUR" className="r mono">
         {referral.earnings_eur == null
-          ? "N/A"
+          ? EMPTY_VALUE
           : formatCurrency(referral.earnings_eur as number, "EUR")}
       </td>
       <td data-label="Status" className="r">
