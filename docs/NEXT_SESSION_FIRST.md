@@ -1,6 +1,6 @@
 # READ THIS FIRST — state of play, 2026-09-21
 
-## THE NUMBER: 1 of 16 journeys closed (A2).
+## THE NUMBER: 2 of 16 journeys closed (A2, A5).
 
 | journey | state |
 |---|---|
@@ -8,7 +8,7 @@
 | **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
 | A3 ad-account request, €50 off the wallet | not started |
 | A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
-| **A5 invoice → Pay now** | **in progress.** Invoice 124 (€5.00, period 2026-09-20) is open on PSM0005 and waiting to be paid. Sweep findings fixed — see below |
+| **A5 invoice → Pay now** | **CLOSED 2026-09-21.** Invoice 0005-124 (€5.00) paid from the wallet as PSM0005 in the pane. €200.00 → €195.00 on the customer screen AND on the owner's /wallets; statement row −€5.00 dated 21 Sep; invoice Paid; clock 20 Sep → 20 Oct on both sides. Reconciles: €305 credited − €110 spent = €195 |
 | A6 … S3 | not started |
 
 ### 2026-09-21 — THE ONE THAT MATTERED
@@ -65,14 +65,72 @@ file, used from JSX — safe, the module has finished by then).
   landed in a new tab as `{"error":"..."}`. Inline now gets a readable
   page, and the catch-all no longer leaks Supabase details.
 
-### Still OPEN on A5
+### A5 — how it was walked
 
-- Not yet walked as the customer: invoice 124 has not been paid. Needs
-  an advertiser session in the built-in pane (`xifape4500@jobscai.com`,
-  PSM0005). **One browser = one Supabase session**, so the owner has to
-  stay in Chrome and the customer in the pane.
-- After paying, `next_payment_date` moves from 18 Oct to 20 Oct
-  (period_start + 1 month). Put it back.
+Owner in Chrome, PSM0005 in the built-in pane (one browser is one
+Supabase session, so they cannot share one).
+
+Both entry points opened the same confirmation with the same figures
+(the card's "Pay €5.00 from wallet" and the invoice row's "Pay now"):
+"Your EUR wallet €200.00 → €195.00", "Due 27 Sep 2026". "Go back"
+changed nothing. Paying gave "Invoice paid from your wallet", the row
+flipped to Paid and the Pay control disappeared.
+
+Checked at both ends afterwards — customer screen, owner screen, and
+the arithmetic:
+
+| | |
+|---|---|
+| credited | €300 + €5 = €305 (matches "Wallet topups €305.00" on /users) |
+| spent | €100 ad-account funding + €5 (0005-121) + €5 (0005-124) = €110 |
+| balance | €195.00 on BOTH screens |
+| clock | 20 Oct 2026 on both (period_start + 1 month) |
+
+**NOT restored to 18 Oct**, contrary to what PLAK-9 promised. 20 Oct is
+where the engine put it for the period that was actually paid; hand
+-editing it back would bill the customer two days early over a date that
+was computed correctly.
+
+### Found and fixed while walking A5
+
+- **"Renews 20 Sep 2026" on the 21st.** next_payment_date only moves
+  when the invoice is PAID, so for up to the full seven days of grace
+  the card printed a past date as something still to come. Now
+  "Renewed … · invoice below", or "Due for renewal since …".
+- **PRIME and Active on two lines** with a band of empty card between
+  them. The pill was position:absolute in the corner; they are one
+  statement and now share a row — which also removed the phone-width
+  hack that pushed the name down to clear it.
+- **The PDF said "Void" where every screen says "Cancelled".** An
+  earlier pass fixed the pill colour and the "Nothing Due" line and left
+  the word. Now one helper, customer wording, for both.
+- **The auto-debit took money and said nothing.**
+  `subscription_billing_run` only notifies on FAILURE
+  (`subscription_past_due`); on success it counts and moves on. The fix
+  is in the trigger on `invoices.status='paid'`, because that is the one
+  place both routes pass — "Pay now" and the due-date collection.
+  `PLAK-DIT-13` **needs pasting**; the app half is live.
+- **Owner /subscriptions on a phone:** the status dots ran into the
+  words beside them (a 1-line clamp on `.phead p` beat
+  `.subcounts{display:flex}`), and the billing period ran under the
+  Status badge (`white-space:nowrap` in a 160px card cell).
+
+### Still OPEN
+
+- **`PLAK-DIT-13-MELDING-BIJ-INCASSO.sql` needs pasting.** Until then no
+  invoice payment notifies the customer, by either route.
+- **`READONLY_SQL=on` is not set in Vercel**, so `/api/dev/ro` still
+  refuses and every figure check still costs the owner a paste. The role
+  itself is in place and proven: `_ro` is owned by `psm_readonly`,
+  bypassrls is on, and it counted 9 wallets against 9 actual.
+- PLAK-11b's write probe proved nothing: `42601 syntax error at or near
+  "from"` came from the wrapper's own grammar (a DELETE cannot be a
+  subquery), not from permissions. The write path IS closed — no write
+  grants at all, plus the read-only transaction — but retest it through
+  the endpoint with a writing CTE, which a subquery does allow.
+- Two "Top-up Completed / Your top-up has been verified successfully."
+  notifications sit side by side in PSM0005's bell with identical text,
+  so the customer cannot tell which top-up each is about. Not on A5.
 - `wallet_exchange`'s body is not in this repo, so nothing here can say
   whether its 0.6% fee comes off the FROM side or the TO side. The
   dialog's own preview is what the customer decides on, and it is
