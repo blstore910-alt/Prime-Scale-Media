@@ -697,8 +697,17 @@ export const PSM_APP_CSS = `
      brevity. Write the short sentence; do not rely on the clamp. */
   .psmapp .phead{gap:10px}
   .psmapp .phead h1{font-size:1.3rem;line-height:1.2}
-  .psmapp .phead p{font-size:.85rem;margin-top:2px;
+  /* ── THE CLAMP IS FOR THE SUBTITLE, NOT FOR THE COUNTS ───────────
+     This matched EVERY <p> in the page header, and .subcounts is a <p>.
+     display:-webkit-box beat .psmapp .subcounts{display:flex} on
+     specificity, so on a phone the flex layout died and with it the
+     22px column gap: "1 active" and "1 inactive" ran together with
+     their status dots touching the words beside them. The 1-line clamp
+     would also have hidden the third and fourth count outright.
+     Desktop was fine, which is why it survived. */
+  .psmapp .phead p:not(.subcounts){font-size:.85rem;margin-top:2px;
     display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .psmapp .phead p.subcounts{font-size:.8rem;margin-top:4px}
   /* Page actions sit side by side instead of one full-width block each. */
   .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
   /* Header buttons keep their icons and drop their words on a phone. The
@@ -797,6 +806,14 @@ export const PSM_APP_CSS = `
     display:block;text-align:left;padding:9px 0 3px;border-top:0;
     min-height:0;
   }
+  /* ── A NOWRAP VALUE IN A HALF-WIDTH CELL ──────────────────────────
+     .billrange is white-space:nowrap, which is correct in a table where
+     a column can be as wide as its content. In the two-up card each cell
+     gets about 160px and "16-09-2026 -> 20-10-2026" wants 190, so it ran
+     straight under the Status badge beside it: two unrelated facts
+     printed on top of each other, on the screen where somebody checks
+     when a customer is billed. It wraps after the arrow instead. */
+  .psmapp .tbl.wide td .billrange{white-space:normal;flex-wrap:wrap;gap:2px 7px}
   /* The chip and the pill are taller than plain text, so without this they
      push their own row taller than its neighbour and the rhythm breaks. */
   .psmapp .tbl.wide td .pfi,
