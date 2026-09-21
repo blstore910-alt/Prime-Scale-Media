@@ -13,7 +13,9 @@ import type { SupplierLink } from "@/hooks/use-supplier-link";
  *
  * Three states, and they are all worth saying out loud:
  *  - a link  -> the pill, which opens their dashboard in a new tab
- *  - API     -> no hand top-up needed, so say that instead of a link
+ *  - API     -> there is an API for this type, so there is no supplier
+ *               dashboard to log into. It does NOT mean anything has
+ *               been funded: the admin still pushes it and checks.
  *  - nothing -> the type has no supplier recorded; point at where to
  *               put one rather than showing an empty space, because an
  *               empty space is what sent the admin guessing.
@@ -27,18 +29,27 @@ export default function SupplierPill({
 }) {
   if (!link) return null;
 
-  // ── API WINS OVER THE LINK ──────────────────────────────────────
+  // ── API WINS OVER THE LINK, BUT IT DOES NOT FUND ANYTHING ───────
   //
-  // This tested `apiEnabled && !url`, so a type that funds itself over
-  // the API but happens to have a dashboard URL on file still showed
-  // "go and do it by hand". If the API can do it, there is nothing for
-  // the admin to go and do — we still approve by hand for now, but the
-  // funding itself is not theirs to perform.
+  // This said "Funded automatically", which is not true and is not what
+  // the owner wants: nothing is pushed to the supplier on its own, and
+  // it should not be. The admin checks the top-up and pushes it
+  // themselves.
+  //
+  // On a card whose next control is "Verify", a green pill reading
+  // "Funded automatically" tells the person about to press it that the
+  // money is already on the account. It is not. So the pill says what
+  // is actually true about this ACCOUNT TYPE -- there is an API, so no
+  // supplier dashboard to go and log into -- and says nothing about
+  // whether anything has happened.
   if (link.apiEnabled) {
     return (
-      <span className="suppill auto" title="This type funds itself over the API">
+      <span
+        className="suppill auto"
+        title="This type can be funded through the API — an admin still pushes it and checks it"
+      >
         <Zap />
-        Funded automatically
+        API available
       </span>
     );
   }

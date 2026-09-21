@@ -283,12 +283,22 @@ function VerifyTopupInvoice({
       title: "The figures match the customer's payment",
       detail: `Paid ${formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}, ${formatCurrency(calculatedValues.netAmount, creditCurrency)} lands on the account.`,
     },
+    // ── THE API STEP IS STILL A STEP THE ADMIN DOES ───────────────
+    //
+    // This said "Pressing Verify queues the top-up with the supplier.
+    // Nothing to do by hand." Neither half is what the owner wants:
+    // nothing is pushed on its own, and the admin is supposed to push
+    // it and check it. A tick-box that claims the work is already done
+    // is how an account gets marked verified with no money on it.
+    //
+    // So the step asks the same thing the manual one asks -- did you
+    // put the money on -- and only reminds them the API is the way to
+    // do it for this type.
     supplier?.apiEnabled
       ? {
           key: "api",
-          title: "This account funds itself over the API",
-          detail:
-            "Pressing Verify queues the top-up with the supplier. Nothing to do by hand — we still approve it here for now.",
+          title: `I have funded the account${supplier?.label ? ` at ${supplier.label}` : ""}`,
+          detail: `This type has an API, so there is no dashboard to log into — push it and check that ${formatCurrency(calculatedValues.netAmount, creditCurrency)} is on the account.`,
         }
       : {
           key: "funded",
@@ -412,8 +422,21 @@ function VerifyTopupInvoice({
             <div className="col-span-2 text-right text-muted-foreground">
               {feePercentage}%
             </div>
+            {/* ── THE ACCOUNT'S OWN CURRENCY, NOT A HARD-CODED "USD" ──
+                These two cells are the biggest numbers on the screen an
+                admin presses Verify from, and they carried a dollar sign
+                whatever the funding was in. Three lines below, the same
+                component prints "the ad account is credited in EUR" off
+                `creditCurrency` -- which was sitting right here.
+
+                On a EUR 100 funding at 3% the admin read "Net Credit
+                $97.00" and then topped the supplier up by hand from that
+                figure: about 13% short, every manual EUR top-up. This is
+                the fault lib/pure-topup-landed.ts was written for; the
+                fix reached the queue card and the checklist sentence and
+                missed the two bold cells. */}
             <div className="col-span-4 text-right text-destructive">
-              - {formatCurrency(calculatedValues.feeAmount, "USD")}
+              - {formatCurrency(calculatedValues.feeAmount, creditCurrency)}
             </div>
 
             <Separator className="col-span-12 my-2" />
@@ -421,7 +444,7 @@ function VerifyTopupInvoice({
             {/* Total */}
             <div className="col-span-6 text-base font-bold">Net Credit</div>
             <div className="col-span-6 text-right text-base font-bold text-primary">
-              {formatCurrency(calculatedValues.netAmount, "USD")}
+              {formatCurrency(calculatedValues.netAmount, creditCurrency)}
             </div>
             {/* Says which currency is which, because two are on screen. */}
             <div className="col-span-12 mt-1 text-right text-xs text-muted-foreground">
