@@ -321,9 +321,10 @@ export default function AccountTopupForm({
   // funds $0". The customer's own path read exchange_rates nowhere --
   // and saving a new rate stands the old one down first, so "no active
   // rate" is a real state, not a theoretical one.
-  const { rate: usdRate, isError: rateReadFailed, isLoading: rateLoading } =
-    useUsdToEur();
-  const rateUnknown = rateReadFailed || rateLoading;
+  const { rate: usdRate, isLoading: rateLoading } = useUsdToEur();
+  // rateReadFailed/rateLoading still feed the guard below; the customer
+  // is no longer told a dollar figure, so there is nothing left to hide
+  // behind an "unknown rate" hint.
   // Only for a non-USD wallet: a USD top-up needs no conversion.
   const blockedByRate =
     selectedCurrency !== "USD" && !rateLoading && !usdRate;
@@ -581,8 +582,6 @@ export default function AccountTopupForm({
               remaining={remainingBalance}
               feePending={feeUnresolved}
               feeFailed={feeQuote.isError}
-              usdRate={usdRate}
-              rateUnknown={rateUnknown}
             />
           )}
 
@@ -698,15 +697,14 @@ export default function AccountTopupForm({
             the sum can be checked by eye: gross − fee = what lands. */}
         <ConfirmFact
           label="Lands on the account"
-          value={(() => {
-            const net = parseAmount(amount) - (parseAmount(amount) * fee) / 100;
-            const here = formatCurrency(net, selectedCurrency);
-            if (selectedCurrency === "USD") return here;
-            if (usdRate && usdRate > 0) {
-              return `${here} — about ${formatCurrency(net / usdRate, "USD")}`;
-            }
-            return here;
-          })()}
+          // One currency, the account's own. See the note on the
+          // summary row: a dollar figure on a euro account contradicts
+          // the same screen and leaks the supplier's settlement
+          // currency.
+          value={formatCurrency(
+            parseAmount(amount) - (parseAmount(amount) * fee) / 100,
+            selectedCurrency,
+          )}
           strong
         />
         <ConfirmFact
@@ -792,8 +790,6 @@ function BalanceSummary({
   fee_pct,
   feePending,
   feeFailed = false,
-  usdRate = null,
-  rateUnknown = false,
 }: {
   currency: CurrencyCode;
   balance: number;
@@ -811,8 +807,6 @@ function BalanceSummary({
   /** …and it failed rather than being still in flight. */
   feeFailed?: boolean;
   /** EUR per 1 USD, or null when it could not be read. */
-  usdRate?: number | null;
-  rateUnknown?: boolean;
 }) {
   // ── THE FEE COMES OUT OF THE AMOUNT, NOT ON TOP OF IT ──────────────
   //
@@ -832,12 +826,6 @@ function BalanceSummary({
   // bottom line. 1,000.00 - 30.00 = 970.00, and 0.00 - 1,000.00 is
   // obviously the balance minus the gross.
   const netInWallet = feePending ? null : amount;
-  const usdLanding =
-    currency === "USD"
-      ? amount
-      : usdRate && usdRate > 0
-        ? amount / usdRate
-        : null;
 
   const Row = ({
     label,
@@ -913,6 +901,23 @@ function BalanceSummary({
             is quoted in dollars and an admin reading over a shoulder
             will want it — but it is no longer the headline, and it is
             not shown at all when the account is already in dollars. */}
+          {/* ── NO DOLLAR FIGURE ON A EURO ACCOUNT ───────────────────
+              This printed "about $111.19 at 0.872361 EUR per USD" under
+              "Lands on the account €97.00" -- on a card that says, two
+              rows up, Currency EUR, and next to a "Funded to date"
+              figure in euros. The screen contradicted itself about the
+              customer's own money.
+
+              An ad account has ONE currency for its life. The dollar
+              figure exists because the SUPPLIER settles in dollars, and
+              the supplier is the one thing a customer must never be
+              shown -- not by name and not by its settlement currency.
+              It is also unverifiable: rates move, so it will not match
+              whatever the platform shows later.
+
+              The RATE still matters and the guard below still refuses
+              when it cannot be read; the customer just is not handed a
+              number in a currency their account does not have. */}
         <Row
           label="Lands on the account"
           value={
@@ -920,15 +925,7 @@ function BalanceSummary({
               ? "—"
               : formatCurrency(netInWallet, currency)
           }
-          hint={
-            netInWallet === null || currency === "USD"
-              ? null
-              : usdLanding !== null
-                ? `about ${formatCurrency(usdLanding, "USD")} at ${usdRate} ${currency} per USD`
-                : rateUnknown
-                  ? "we can't read today's rate, so we can't show the dollar value"
-                  : null
-          }
+          hint={null}
           tone="strong"
         />
         <div className="h-px bg-border" />
