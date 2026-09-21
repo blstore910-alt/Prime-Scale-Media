@@ -48,6 +48,10 @@ agrees with the database to the cent. See the A7 block below.
 
 **WAITING on the owner — paste these first:**
 
+- **`PLAK-DIT-26-F1-METEN.sql` — READ-ONLY, blocks F1.** Sixteen
+  measurements the repo cannot make. Row 1 is the big one: if
+  `wallet_topups.amount` is a float type, no affiliate commission has
+  ever accrued, silently. See the F1 block.
 - **`PLAK-DIT-25-EEN-WISSEL-DIE-NOOIT-GEBEURDE.sql`.** A customer can
   POST a fabricated row into `wallet_exchanges` on their own wallet —
   the insert policy checks the wallet, never the amounts. No money
@@ -283,6 +287,109 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### F1 — affiliate loop — walked 2026-09-21, NOT CLOSEABLE YET
+
+Walked on production: PSM0005 applied, the owner received it in Chrome,
+and the trail stops there. Four agents swept the journey (money, dead
+ends, states, permissions). The conclusion is not a list of bugs — **the
+journey is structurally incomplete**, and finishing it needs owner
+decisions, not fixes.
+
+#### Walked, and what happened
+
+| step | result |
+|---|---|
+| apply | works. Toast "Application sent. We'll set your commission and come back to you.", button goes dead, sub-line says what happens next. No fake success. |
+| owner receives it | works. Notification: "Test Advertiser (PSM0005) wants to join the affiliate program. Set their commission and approve or refuse it." |
+| owner answers it | **nowhere to.** Clicking the notification opened a sheet whose only control is **Close**. `/affiliates` (Referral Links) has a search box and nothing else. There is no approve and no refuse anywhere in the app. Routed to the applicant's row on `/users` (`b5124b2`) — that is where the terms live. |
+| set the commission | works. Commission Setup: type, percent, monthly, one-time, currency. Set PSM0005 to Percentage 10% EUR, "Commission setup updated." |
+| become an affiliate | **setting a commission does not do it.** An `active` `referral_links` row is what makes somebody an affiliate, and the ONLY way one is created is as a side effect of inviting SOMEBODY ELSE with them named as Referrer on the invite form. |
+| referral, commission, payout | could not be reached. |
+
+#### The three that stop the journey
+
+1. **The payout step has no surface for either role.** The string
+   "payout" does not occur anywhere in the 6,216-line advertiser shell,
+   and an advertiser-as-affiliate is redirected away from the affiliate
+   app (`my-referrals/page.tsx` sends `role === "advertiser"` to
+   `/dashboard?view=referrals`). The only Request-payout button is in
+   `aff-app.tsx`, rendered only for `role === "affiliate"` — and that
+   role has no `advertisers` row, so `affiliate_referral_stats` returns
+   zero rows and the button is permanently disabled with "Nothing
+   outstanding to request yet".
+2. **There is no payout record anywhere in the schema.** The button's
+   whole effect is `window.location.href = "mailto:…"`, followed by an
+   unconditional green toast. On a machine with no mail handler that is
+   silent. Nothing is written, no clock starts, and the only exit is the
+   owner happening to press Mark Paid on `/commissions`.
+3. **An application can be filed and never answered.** "Refuse" does not
+   exist anywhere in the repo, and nothing ever notifies the applicant
+   either way. Their own screen forgets they applied on reload —
+   `affiliateApplied` is local `useState`.
+
+#### Fixed and live (`b5124b2`)
+
+- The application notification now routes to the applicant's row on
+  `/users`, where Commission Setup is.
+- **The "This month" pill dropped the USD leg** and printed a euro sign
+  over it — on all six views. `twoLeg` exists for exactly this and this
+  one site did not use it.
+- **The payout mail asked for one currency** while the button enables on
+  either, defaulting to EUR: a dollar-only affiliate sent "I'd like to
+  request a payout of €0.00 in EUR".
+- **"You're all caught up" was printed during the in-flight read.**
+- **The tier was guessed off the rate too.** `statsUnavailable` guarded
+  every tier surface and watched only the stats query; `useUsdToEur`
+  returns null while loading AND when no rate exists, so a dollar-earning
+  affiliate was demoted to "Starter" on five surfaces at once.
+- **The admin Earnings column was capped at 1000 rows** with no
+  `order by`, so the same affiliate's figure moved between refreshes.
+- The Referrer help text said "earns commission on their topups"; four
+  of the seven commission types have nothing to do with a top-up.
+
+#### F1 — what the owner has to decide
+
+1. **What does "approve an affiliate" mean?** A link needs a referred
+   advertiser, so an applicant with no referrals cannot have one. Either
+   approval creates something else, or the answer to an application is
+   "you are approved, you get a link, and a link row appears when
+   somebody signs up through it".
+2. **Is a payout a record or an email?** Today it is an email with no
+   trace. If it should be a record, that is a table, a status and an
+   admin queue.
+3. **One Time, Monthly Fixed and the two combinations pay nothing.**
+   Only a percentage accrues. Four of the seven types are configurable
+   money that no code computes.
+
+#### F1 — measured by PLAK-26, then fixed
+
+`supabase/checks/PLAK-DIT-26-F1-METEN.sql` — read-only, one report,
+sixteen rows. It settles, in order of consequence:
+
+1. **`wallet_topups.amount`'s type.** If it is a float, the accrual does
+   `round(double precision, int)`, which does not exist in Postgres, and
+   the whole trigger sits inside `exception when others then raise
+   warning`. Then **no commission has ever accrued, for anybody, in
+   silence** — which would explain both existing affiliates reading
+   €0.00.
+2. Whether `referral_links_with_details` is `security_invoker`. If not,
+   every referral link in every tenant — both parties' names, emails,
+   commission terms and earnings — is readable by any session, and the
+   policy written to stop a referred customer reading their referrer's
+   terms is decorative.
+3. Whether `create_subscription_from_invite` is still granted to
+   `authenticated`. Both callers use the service client, so it can be
+   revoked outright; while it is granted, any invitation id sets the
+   caller's own plan and writes an `active` referral link with no
+   approval.
+4. Whether client codes are uppercase and unique — the referral link is
+   built from the raw code and matched upper-cased, so a lowercase code
+   drops the referral silently and a duplicate breaks the referred
+   person's email confirmation outright.
+5. Which of the three clawback bodies is live. One of them multiplies a
+   EUR commission by a USD ratio and can take 100% of an affiliate's
+   lifetime earnings on one withdrawal.
 
 ### A7 — CLOSED 2026-09-21
 
