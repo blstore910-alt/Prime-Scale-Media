@@ -12,6 +12,7 @@ import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 import {
   EXCHANGE_FEE_PCT,
@@ -247,7 +248,24 @@ export default function WalletExchangeDialog({
       reset();
     },
     onError: (err: Error) => {
-      toast.error("Exchange failed", { description: err.message });
+      // ── NOT THE RAW DATABASE MESSAGE ───────────────────────────────
+      //
+      // Walked on production: this printed
+      //   insert or update on table "wallet_exchanges" violates foreign
+      //   key constraint "wallet_exchanges_created_by_fkey"
+      // to the customer, in a toast, on their own wallet. A constraint
+      // name is not something anybody can act on, and it names internal
+      // tables and columns.
+      //
+      // userFacingErrorMessage is what make-query-client already uses
+      // for this class; it keeps a sentence we wrote and replaces one
+      // we did not.
+      toast.error("Exchange failed", {
+        description: userFacingErrorMessage(
+          err,
+          "We could not convert that just now. Nothing has left your wallet — try again, or tell us if it keeps happening.",
+        ),
+      });
       // ── AND DROP THE CONFIRMATION ──────────────────────────────────
       //
       // Same shape as the ad-account top-up and the wallet adjustment:
