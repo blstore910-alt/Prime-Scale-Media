@@ -3234,7 +3234,8 @@ export default function AdvertiserApp() {
                 <div
                   className="v"
                   style={{
-                    textTransform: "capitalize",
+                    // "No Plan" read like a product called Plan.
+                    textTransform: noPlan ? "none" : "capitalize",
                     color: dueSubInvoice ? "var(--warn)" : undefined,
                   }}
                 >
@@ -3277,7 +3278,7 @@ export default function AdvertiserApp() {
                               : ""
                           }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
                         : noPlan
-                          ? "Ad accounts come with a plan"
+                          ? "Not started yet"
                           : "No subscription"}
                 </div>
               </div>

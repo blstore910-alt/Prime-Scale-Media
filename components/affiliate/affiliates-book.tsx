@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { recalculateCommission } from "@/actions/commission-rule-actions";
 import { ArrowLeft, Search } from "lucide-react";
 import dayjs from "dayjs";
 
@@ -402,6 +404,10 @@ function AffiliateDetail({
     });
     return { ...r, pct: res?.pct ?? null, from: ruleLevelLabel(res?.level ?? null), own: res?.level === "own-type" || res?.level === "own-all" };
   });
+  const onetime = resolveCommissionRule(rules, {
+    affiliateAdvertiserId: advertiserId,
+    source: "onetime",
+  });
 
   const history = rules
     .filter((r) => r.affiliate_advertiser_id === advertiserId)
@@ -410,6 +416,8 @@ function AffiliateDetail({
   const calcLine = (c: BookCommission): string => {
     const t = c.topup_id ? topups.data?.get(c.topup_id) : null;
     const cur = String(c.currency ?? "EUR").toUpperCase();
+    if ((c.source ?? "") === "onetime") return "One-time bonus for a new customer";
+    if ((c.status ?? "") === "reversed") return c.note ?? "Reversed";
     if (c.base_amount !== null && c.base_amount !== undefined && c.pct !== null && c.pct !== undefined) {
       const base = formatCurrency(Number(c.base_amount), cur);
       if ((c.source ?? "topup") === "subscription") {
@@ -525,6 +533,21 @@ function AffiliateDetail({
                       </td>
                     </tr>
                   ))}
+                  <tr>
+                    <td data-label="On">One-time bonus · first top-up of each new customer</td>
+                    <td className="r" data-label="Share" style={{ fontWeight: 700 }}>
+                      {onetime?.amount != null
+                        ? formatCurrency(onetime.amount, onetime.currency ?? "EUR")
+                        : DASH}
+                    </td>
+                    <td data-label="Comes from">
+                      {onetime?.level === "own-all" ? (
+                        <span className="badge info">{ruleLevelLabel(onetime.level)}</span>
+                      ) : (
+                        <span className="muted">{ruleLevelLabel(onetime?.level ?? null)}</span>
+                      )}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -554,7 +577,7 @@ function AffiliateDetail({
                       for (const c of mine) {
                         const cur = String(c.currency ?? "EUR").toUpperCase();
                         const st = (c.status ?? "unpaid").toLowerCase();
-                        if (st === "on_hold") continue;
+                        if (st === "on_hold" || st === "reversed") continue;
                         earned[cur] = Math.round(((earned[cur] ?? 0) + Number(c.amount)) * 100) / 100;
                         if (st !== "paid") owed[cur] = Math.round(((owed[cur] ?? 0) + Number(c.amount)) * 100) / 100;
                       }
@@ -642,7 +665,9 @@ function AffiliateDetail({
                           </td>
                           <td data-label="Status">
                             {st === "on_hold" ? (
-                              <span className="badge pend" title={c.note ?? undefined}>On hold</span>
+                              <RecalculateButton commissionId={c.id} note={c.note ?? null} canEdit={canEdit} />
+                            ) : st === "reversed" ? (
+                              <span className="badge muted" title={c.note ?? undefined}>Reversed</span>
                             ) : (
                               <CommissionStatusAction
                                 commissionId={c.id}
@@ -679,9 +704,21 @@ function AffiliateDetail({
                   return (
                     <div key={r.id} className="list-row" style={{ justifyContent: "space-between" }}>
                       <span>
-                        {r.source === "subscription" ? "Subscriptions" : `Top-ups · ${typeLabel ?? "all account types"}`}
+                        {r.source === "subscription"
+                          ? "Subscriptions"
+                          : r.source === "onetime"
+                            ? "One-time bonus"
+                            : `Top-ups · ${typeLabel ?? "all account types"}`}
                         {": "}
-                        <b>{r.pct === null ? "cleared (uses the next rule down)" : pct(Number(r.pct))}</b>
+                        <b>
+                          {r.source === "onetime"
+                            ? r.amount === null || r.amount === undefined
+                              ? "cleared (uses the default)"
+                              : formatCurrency(Number(r.amount), String(r.currency ?? "EUR"))
+                            : r.pct === null
+                              ? "cleared (uses the next rule down)"
+                              : pct(Number(r.pct))}
+                        </b>
                       </span>
                       <span className="muted" style={{ fontSize: ".82rem", whiteSpace: "nowrap" }}>
                         from {dayjs(r.effective_from).format("D MMM YYYY, HH:mm")}
@@ -699,5 +736,47 @@ function AffiliateDetail({
         </>
       )}
     </>
+  );
+}
+
+// ── ON HOLD: THE SUPPLIER FEE WAS NOT RECORDED ──────────────────────────
+// The accrual refuses to guess a cost, so the row sits at 0 until the fee
+// is filled in (Settings -> Ad-account types, or the account's own cost).
+// Then this asks the database to calculate it the same way it would have.
+function RecalculateButton({
+  commissionId,
+  note,
+  canEdit,
+}: {
+  commissionId: string;
+  note: string | null;
+  canEdit: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const { mutate, isPending } = useMutation({
+    mutationFn: async () => {
+      const res = await recalculateCommission(commissionId);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      toast.success(
+        d.amount > 0
+          ? `Recalculated: ${formatCurrency(d.amount, d.currency ?? "EUR")}`
+          : "Recalculated: no profit on that top-up, so no commission",
+      );
+      queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
+    },
+    onError: (e: Error) => toast.error("Not recalculated", { description: e.message }),
+  });
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span className="badge pend" title={note ?? undefined}>On hold</span>
+      {canEdit ? (
+        <button className="btn ghost sm" onClick={() => mutate()} disabled={isPending}>
+          {isPending ? "Recalculating…" : "Recalculate"}
+        </button>
+      ) : null}
+    </span>
   );
 }

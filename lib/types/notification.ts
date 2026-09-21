@@ -19,7 +19,11 @@ export type NotificationType =
   | "request_fee_refunded"
   | "supplier_pool_changed"
   | "rate_limit_abuse"
-  | "affiliate_application";
+  | "affiliate_application"
+  // Plak 35: commission is booked on profit, per the owner's rules.
+  | "referral_commission_earned"
+  | "referral_commission_on_hold"
+  | "referral_commission_failed";
 
 export type NotificationAuthor = {
   id: string;
@@ -94,6 +98,23 @@ export type AffiliateApplicationNotificationPayload = {
 };
 
 export interface NotificationPayloadByType {
+  /** Plak 35: booked on profit (top-up), a paid plan invoice, or a new
+   *  customer's first top-up (one-time). Written by the accrual triggers. */
+  referral_commission_earned: {
+    amount?: number | string | null;
+    currency?: string | null;
+    client_code?: string | null;
+    source?: "topup" | "subscription" | "onetime" | string | null;
+  };
+  referral_commission_on_hold: {
+    topup_id?: string | null;
+    reason?: string | null;
+  };
+  referral_commission_failed: {
+    topup_id?: string | null;
+    invoice_id?: string | null;
+    error?: string | null;
+  };
   topup_completed: TopupCompletedNotificationPayload;
   topup_created: TopupCreatedNotificationPayload;
   ad_account_request_created: AdAccountRequestCreatedNotificationPayload;

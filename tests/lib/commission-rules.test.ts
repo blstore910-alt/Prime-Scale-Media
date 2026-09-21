@@ -20,6 +20,8 @@ function rule(p: Partial<CommissionRule>): CommissionRule {
     source: p.source ?? "topup",
     ad_account_type: p.ad_account_type ?? null,
     pct: p.pct === undefined ? 10 : p.pct,
+    amount: p.amount ?? null,
+    currency: p.currency ?? null,
     effective_from: p.effective_from ?? "2026-09-01T00:00:00Z",
     created_at: p.created_at ?? p.effective_from ?? "2026-09-01T00:00:00Z",
   };
@@ -148,4 +150,44 @@ test("cents round half away from zero on the decimal, like Postgres", () => {
   assert.equal(roundCents(1.005), 1.01);
   assert.equal(roundCents(-0.485), -0.49);
   assert.equal(roundCents(4.8499), 4.85);
+});
+
+test("one-time: a fixed amount with its currency, own rule over the default", () => {
+  const rules = [
+    rule({ source: "onetime", pct: null, amount: 25, currency: "EUR" } as Partial<CommissionRule>),
+    rule({
+      source: "onetime",
+      pct: null,
+      amount: 40,
+      currency: "USD",
+      affiliate_advertiser_id: AFF,
+    } as Partial<CommissionRule>),
+  ];
+  const at = "2026-09-21T12:00:00Z";
+  const own = resolveCommissionRule(rules, { affiliateAdvertiserId: AFF, source: "onetime", at });
+  assert.equal(own?.amount, 40);
+  assert.equal(own?.currency, "USD");
+  assert.equal(own?.level, "own-all");
+  const other = resolveCommissionRule(rules, { affiliateAdvertiserId: "x", source: "onetime", at });
+  assert.equal(other?.amount, 25);
+  assert.equal(other?.currency, "EUR");
+});
+
+test("one-time: clearing the affiliate's own amount falls back to the default", () => {
+  const rules = [
+    rule({ source: "onetime", pct: null, amount: 25, currency: "EUR" } as Partial<CommissionRule>),
+    rule({
+      source: "onetime", pct: null, amount: 40, currency: "EUR",
+      affiliate_advertiser_id: AFF, effective_from: "2026-09-02T00:00:00Z",
+    } as Partial<CommissionRule>),
+    rule({
+      source: "onetime", pct: null, amount: null, currency: null,
+      affiliate_advertiser_id: AFF, effective_from: "2026-09-10T00:00:00Z",
+    } as Partial<CommissionRule>),
+  ];
+  const r = resolveCommissionRule(rules, {
+    affiliateAdvertiserId: AFF, source: "onetime", at: "2026-09-20T00:00:00Z",
+  });
+  assert.equal(r?.amount, 25);
+  assert.equal(r?.level, "default-all");
 });

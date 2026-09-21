@@ -17,6 +17,25 @@ export type NotificationCatalogEntry = {
 // always reflects reality instead of dangling dead toggles.
 export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
   {
+    type: "referral_commission_earned",
+    label: "Commission earned",
+    description: "When somebody you referred earns you a commission.",
+    audience: "customer",
+  },
+  {
+    type: "referral_commission_on_hold",
+    label: "Commission on hold",
+    description:
+      "When a commission cannot be calculated because the supplier fee is not recorded.",
+    audience: "admin",
+  },
+  {
+    type: "referral_commission_failed",
+    label: "Commission not booked",
+    description: "When booking a referral commission failed and needs a look.",
+    audience: "admin",
+  },
+  {
     type: "affiliate_application",
     label: "Affiliate application",
     description:

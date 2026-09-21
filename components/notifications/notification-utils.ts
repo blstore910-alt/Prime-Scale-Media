@@ -295,6 +295,40 @@ export function getNotificationCopy(notification: Notification): {
         } wants to join the affiliate program. Set their commission and approve or refuse it.`,
       };
     }
+    case "referral_commission_earned": {
+      const p = parseNotificationPayload(notification) as {
+        amount?: number | string;
+        currency?: string;
+        client_code?: string | null;
+        source?: string;
+      };
+      const cur = String(p.currency ?? "EUR").toUpperCase();
+      const sym = cur === "USD" ? "$" : "€";
+      const amt = Number(p.amount);
+      const figure = Number.isFinite(amt) ? `${sym}${amt.toFixed(2)}` : "a commission";
+      const what =
+        p.source === "subscription"
+          ? "a subscription payment"
+          : p.source === "onetime"
+            ? "a new customer's first top-up"
+            : "a top-up";
+      return {
+        title: "You earned a commission",
+        description: `${figure} from ${what}${p.client_code ? ` by ${p.client_code}` : ""}.`,
+      };
+    }
+    case "referral_commission_on_hold":
+      return {
+        title: "Commission on hold",
+        description:
+          "A referral commission could not be calculated because the supplier fee is not recorded for that ad account or its type. Set it, then recalculate it on the affiliate's page.",
+      };
+    case "referral_commission_failed":
+      return {
+        title: "Commission not booked",
+        description:
+          "Booking a referral commission failed. The top-up or invoice itself went through — check the affiliate's page.",
+      };
     case "rate_limit_abuse":
       return {
         title: "Suspicious activity",

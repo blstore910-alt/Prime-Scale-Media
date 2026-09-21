@@ -21,6 +21,7 @@ import {
   type CommissionRuleChange,
 } from "@/actions/commission-rule-actions";
 import {
+  onetimeAtLevel,
   pctAtLevel,
   resolveCommissionRule,
   type CommissionRule,
@@ -170,7 +171,48 @@ export default function CommissionRulesEditor({
     return out;
   }, [draft, fields]);
 
-  const invalid = fields.some((f) => !parsed[f.key]?.ok);
+  // ── THE ONE-TIME BONUS ───────────────────────────────────────────
+  // A fixed amount, once per referred customer, when their first top-up
+  // is verified. Its own field: an amount with a currency, not a %.
+  const initialOnetime = useMemo(
+    () => onetimeAtLevel(rules, { affiliateAdvertiserId: affiliateId }),
+    [rules, affiliateId],
+  );
+  const [onetimeDraft, setOnetimeDraft] = useState<{ amount: string; currency: string }>({
+    amount: "",
+    currency: "EUR",
+  });
+  useEffect(() => {
+    if (!open) return;
+    setOnetimeDraft({
+      amount: initialOnetime ? String(initialOnetime.amount) : "",
+      currency: initialOnetime?.currency ?? "EUR",
+    });
+  }, [open, initialOnetime]);
+  const onetimeParsed = (() => {
+    const t = onetimeDraft.amount.trim().replace(",", ".");
+    if (t === "") return { ok: true as const, value: null as number | null };
+    const n = Number(t);
+    if (!Number.isFinite(n) || n < 0 || n > 100000) return { ok: false as const, value: null };
+    return { ok: true as const, value: Math.round(n * 100) / 100 };
+  })();
+  const onetimeInherited = (() => {
+    const without = rules.filter(
+      (r) => !(r.source === "onetime" && (r.affiliate_advertiser_id ?? null) === affiliateId),
+    );
+    const res = resolveCommissionRule(without, {
+      affiliateAdvertiserId: affiliateId ?? NOBODY,
+      source: "onetime",
+    });
+    return res && res.amount !== null ? { amount: res.amount, currency: res.currency ?? "EUR" } : null;
+  })();
+  const onetimeChanged =
+    onetimeParsed.ok &&
+    (onetimeParsed.value !== (initialOnetime?.amount ?? null) ||
+      (onetimeParsed.value !== null &&
+        onetimeDraft.currency !== (initialOnetime?.currency ?? "EUR")));
+
+  const invalid = fields.some((f) => !parsed[f.key]?.ok) || !onetimeParsed.ok;
 
   // Only what moved. The server stores each as a new version from now.
   const changes = useMemo(() => {
@@ -191,15 +233,32 @@ export default function CommissionRulesEditor({
     return list;
   }, [fields, parsed, initial]);
 
+  const onetimeLine = (v: { amount: number; currency: string } | null) =>
+    v ? `${v.currency} ${v.amount.toFixed(2)}` : "—";
+  const changeCount = changes.length + (onetimeChanged ? 1 : 0);
+
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       const res = await saveCommissionRules({
         affiliateAdvertiserId: affiliateId,
-        changes: changes.map(({ source, adAccountType, pct }) => ({
-          source,
-          adAccountType,
-          pct,
-        })),
+        changes: [
+          ...changes.map(({ source, adAccountType, pct }) => ({
+            source,
+            adAccountType,
+            pct,
+          })),
+          ...(onetimeChanged
+            ? [
+                {
+                  source: "onetime" as const,
+                  adAccountType: null,
+                  pct: null,
+                  amount: onetimeParsed.value,
+                  currency: onetimeDraft.currency,
+                },
+              ]
+            : []),
+        ],
       });
       if (!res.ok) throw new Error(res.error);
       return res.data;
@@ -308,7 +367,52 @@ export default function CommissionRulesEditor({
           </div>
         </section>
 
-        {changes.length > 0 ? (
+        <section className="space-y-1">
+          <h4 className="text-sm font-semibold">One-time bonus</h4>
+          <p className="text-xs text-muted-foreground">
+            A fixed amount, once per referred customer, when their first
+            top-up is verified.
+          </p>
+          <div className="flex items-start justify-between gap-3 py-2">
+            <div className="min-w-0 pt-2">
+              <div className="text-sm font-medium">Per new customer</div>
+              <div className="text-xs text-muted-foreground">
+                {onetimeDraft.amount.trim() === ""
+                  ? onetimeInherited
+                    ? `Blank — uses ${onetimeLine(onetimeInherited)} from the default`
+                    : "Blank — no bonus"
+                  : !onetimeParsed.ok
+                    ? "Between 0 and 100,000"
+                    : affiliate
+                      ? "Their own rule"
+                      : "Default"}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <select
+                aria-label="One-time bonus currency"
+                className="h-10 rounded-md border bg-background px-2 text-sm"
+                value={onetimeDraft.currency}
+                disabled={!canEdit || isPending}
+                onChange={(e) => setOnetimeDraft((d) => ({ ...d, currency: e.target.value }))}
+              >
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+              </select>
+              <Input
+                aria-label="One-time bonus amount"
+                className={`w-24 text-right ${onetimeParsed.ok ? "" : "border-destructive"}`}
+                inputMode="decimal"
+                placeholder={onetimeInherited ? String(onetimeInherited.amount) : "—"}
+                value={onetimeDraft.amount}
+                disabled={!canEdit || isPending}
+                onChange={(e) => setOnetimeDraft((d) => ({ ...d, amount: e.target.value }))}
+              />
+            </div>
+          </div>
+        </section>
+
+        {changeCount > 0 ? (
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
             <p className="font-medium">From the moment you save:</p>
             <ul className="mt-1 space-y-0.5">
@@ -318,6 +422,14 @@ export default function CommissionRulesEditor({
                   {c.pct === null ? "blank (uses the next rule down)" : fmtPct(c.pct)}
                 </li>
               ))}
+              {onetimeChanged ? (
+                <li>
+                  One-time bonus: {onetimeLine(initialOnetime)} →{" "}
+                  {onetimeParsed.value === null
+                    ? "blank (uses the default)"
+                    : onetimeLine({ amount: onetimeParsed.value, currency: onetimeDraft.currency })}
+                </li>
+              ) : null}
             </ul>
           </div>
         ) : null}
@@ -333,7 +445,7 @@ export default function CommissionRulesEditor({
           {canEdit ? (
             <Button
               onClick={() => mutate()}
-              disabled={isPending || invalid || changes.length === 0}
+              disabled={isPending || invalid || changeCount === 0}
             >
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save rules

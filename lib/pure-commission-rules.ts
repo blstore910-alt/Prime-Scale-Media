@@ -17,6 +17,8 @@
 //     all account types at once and per type. ("nee op de profit, alleen
 //     op de profit, dus supplier fee moet er af")
 //   * Subscriptions: a percentage of every paid subscription invoice.
+//   * One-time: a fixed amount, once per referred customer, when their
+//     FIRST top-up is verified ("1x eenmalig", F4).
 //   * A new rule applies to ALL of the affiliate's referred customers
 //     from now on, not only to customers who arrive later.
 //
@@ -27,7 +29,7 @@
 
 import { sameSlug } from "./pure-slug-key";
 
-export type CommissionSource = "topup" | "subscription";
+export type CommissionSource = "topup" | "subscription" | "onetime";
 
 export type CommissionRule = {
   id: string;
@@ -37,8 +39,12 @@ export type CommissionRule = {
   source: CommissionSource;
   /** Top-ups only. null = every account type. */
   ad_account_type: string | null;
-  /** null = "nothing at this level from now on" (the rule was cleared). */
+  /** null = "nothing at this level from now on" (the rule was cleared).
+   *  Percentage sources only (topup, subscription). */
   pct: number | string | null;
+  /** One-time only: the fixed amount, and its currency. */
+  amount?: number | string | null;
+  currency?: string | null;
   effective_from: string;
   created_at?: string | null;
   created_by?: string | null;
@@ -52,10 +58,19 @@ export type RuleLevel =
   | "default-all";
 
 export type ResolvedRule = {
+  /** The percentage; 0 for a one-time rule, which has an amount instead. */
   pct: number;
+  /** One-time only. */
+  amount: number | null;
+  currency: string | null;
   level: RuleLevel;
   rule: CommissionRule;
 };
+
+/** Whether a version SETS something, or clears its level. */
+function isSet(r: CommissionRule): boolean {
+  return r.source === "onetime" ? num(r.amount) !== null : num(r.pct) !== null;
+}
 
 function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
@@ -111,7 +126,7 @@ export function resolveCommissionRule(
   q: {
     affiliateAdvertiserId: string;
     source: CommissionSource;
-    /** The ad account's type slug; ignored for subscriptions. */
+    /** The ad account's type slug; ignored for subscriptions and one-time. */
     typeSlug?: string | null;
     /** When the event happened. Defaults to now. */
     at?: string | number | Date;
@@ -151,9 +166,17 @@ export function resolveCommissionRule(
       at,
     );
     if (!r) continue;
-    const pct = num(r.pct);
-    if (pct === null) continue; // cleared at this level
-    return { pct, level: l.level, rule: r };
+    if (!isSet(r)) continue; // cleared at this level
+    return {
+      pct: r.source === "onetime" ? 0 : (num(r.pct) ?? 0),
+      amount: r.source === "onetime" ? num(r.amount) : null,
+      currency:
+        r.source === "onetime"
+          ? String(r.currency ?? "EUR").toUpperCase()
+          : null,
+      level: l.level,
+      rule: r,
+    };
   }
   return null;
 }
@@ -185,6 +208,25 @@ export function pctAtLevel(
     at,
   );
   return r ? num(r.pct) : null;
+}
+
+/** The one-time amount set at ONE exact level right now, or null. */
+export function onetimeAtLevel(
+  rules: readonly CommissionRule[],
+  q: { affiliateAdvertiserId: string | null; at?: number },
+): { amount: number; currency: string } | null {
+  const at = q.at ?? Date.now();
+  const r = latestAt(
+    rules,
+    (x) =>
+      x.source === "onetime" &&
+      (x.affiliate_advertiser_id ?? null) === (q.affiliateAdvertiserId ?? null) &&
+      !x.ad_account_type,
+    at,
+  );
+  const amount = r ? num(r.amount) : null;
+  if (!r || amount === null) return null;
+  return { amount, currency: String(r.currency ?? "EUR").toUpperCase() };
 }
 
 /**

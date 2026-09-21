@@ -159,7 +159,9 @@ export function groupAffiliateBook(
     const a = byAffiliate.get(affId)!;
     a.commissions.push(c);
     const st = (c.status ?? "unpaid").toLowerCase();
-    if (st === "on_hold") continue; // not money yet
+    // Not money: on hold (profit unknown) or reversed (the top-up was
+    // undone). Counting either as owed would ask the owner to pay it.
+    if (st === "on_hold" || st === "reversed") continue;
     add(a.earned, c.currency, c.amount);
     if (st === "paid") add(a.paid, c.currency, c.amount);
     else add(a.owed, c.currency, c.amount);
@@ -264,7 +266,7 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         const { data, error } = await supabase
           .from("commission_rules")
           .select(
-            "id, tenant_id, affiliate_advertiser_id, source, ad_account_type, pct, effective_from, created_at, created_by",
+            "id, tenant_id, affiliate_advertiser_id, source, ad_account_type, pct, amount, currency, effective_from, created_at, created_by",
           )
           .eq("tenant_id", tenantId!)
           .order("effective_from", { ascending: true });

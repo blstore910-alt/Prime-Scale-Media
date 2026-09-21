@@ -10,8 +10,12 @@ export type CommissionRuleChange = {
   source: CommissionSource;
   /** Top-ups only; null = every account type. */
   adAccountType: string | null;
-  /** null clears this level from now on; the next level down applies. */
+  /** null clears this level from now on; the next level down applies.
+   *  Percentage sources only. */
   pct: number | null;
+  /** One-time only: a fixed amount (null clears) and its currency. */
+  amount?: number | null;
+  currency?: string | null;
 };
 
 // Postgres: relation does not exist. The table arrives with plak 35;
@@ -87,8 +91,44 @@ export async function saveCommissionRules(input: {
   const rows: Array<Record<string, unknown>> = [];
   for (const c of changes) {
     const source = c?.source;
-    if (source !== "topup" && source !== "subscription") {
+    if (source !== "topup" && source !== "subscription" && source !== "onetime") {
       return { ok: false, error: "Unknown commission source." };
+    }
+    if (source === "onetime") {
+      // A fixed amount, once per referred customer. No type, no percentage.
+      if (c.adAccountType) {
+        return { ok: false, error: "A one-time bonus is not set per account type." };
+      }
+      let amount: number | null = null;
+      let currency: string | null = null;
+      if (c.amount !== null && c.amount !== undefined) {
+        const n = Number(c.amount);
+        if (!Number.isFinite(n) || n < 0 || n > 100000) {
+          return { ok: false, error: "A one-time amount must be between 0 and 100,000." };
+        }
+        amount = Math.round(n * 100) / 100;
+        currency = String(c.currency ?? "").toUpperCase();
+        if (currency !== "EUR" && currency !== "USD") {
+          return { ok: false, error: "A one-time amount needs a currency: EUR or USD." };
+        }
+      }
+      const okey = "onetime|*";
+      if (seen.has(okey)) {
+        return { ok: false, error: "The same rule was changed twice." };
+      }
+      seen.add(okey);
+      rows.push({
+        tenant_id: profile.tenant_id,
+        affiliate_advertiser_id: affiliateId,
+        source,
+        ad_account_type: null,
+        pct: null,
+        amount,
+        currency,
+        effective_from: effectiveFrom,
+        created_by: profile.id,
+      });
+      continue;
     }
     let type: string | null = null;
     if (c.adAccountType) {
@@ -155,4 +195,42 @@ export async function saveCommissionRules(input: {
     };
   }
   return { ok: true, data: { saved: rows.length, effectiveFrom } };
+}
+
+/**
+ * Recalculate a commission that went ON HOLD because the supplier fee was
+ * not recorded. Only once the fee is filled in does this produce a
+ * figure; the database function refuses otherwise, and it refuses anyone
+ * but the tenant owner (it checks tenants.owner_id = auth.uid()).
+ *
+ * The session client on purpose: the function is SECURITY DEFINER and
+ * reads auth.uid() to decide who is asking.
+ */
+export async function recalculateCommission(
+  commissionId: string,
+): Promise<ActionResult<{ amount: number; currency: string | null }>> {
+  const auth = await resolveOwnerContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (typeof commissionId !== "string" || !commissionId) {
+    return { ok: false, error: "Invalid commission." };
+  }
+  const { data, error } = await auth.ctx.supabase.rpc(
+    "referral_commission_recalculate",
+    { p_commission_id: commissionId },
+  );
+  if (error) {
+    const msg = String(error.message ?? "");
+    if (/PGRST202|could not find the function|does not exist/i.test(msg)) {
+      return {
+        ok: false,
+        error: "Recalculating is not switched on in the database yet.",
+      };
+    }
+    return { ok: false, error: safeErrorMessage(error) };
+  }
+  const r = (data ?? {}) as { amount?: number | string; currency?: string | null };
+  return {
+    ok: true,
+    data: { amount: Number(r.amount ?? 0), currency: r.currency ?? null },
+  };
 }

@@ -139,6 +139,8 @@ export const COMMISSION_TYPE_LABELS: Record<string, string> = {
   monthly_pct: "Monthly + Topup %",
   onetime_pct: "One Time + Topup %",
   onetime: "One Time",
+  // Written by the subscription accrual (plak 35).
+  subscription_pct: "Subscription %",
   onetime_monthly: "One Time + Monthly",
 };
 

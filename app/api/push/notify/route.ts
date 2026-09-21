@@ -248,6 +248,27 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/users?role=affiliate",
       };
 
+    case "referral_commission_earned":
+      return {
+        title: "You earned a commission",
+        body: "Somebody you referred just earned you a commission.",
+        url: "/dashboard?view=referrals",
+      };
+
+    case "referral_commission_on_hold":
+      return {
+        title: "A commission is on hold",
+        body: "The supplier fee is not recorded for that account. Set it, then recalculate.",
+        url: "/affiliates",
+      };
+
+    case "referral_commission_failed":
+      return {
+        title: "A commission was not booked",
+        body: "The top-up or invoice went through; the commission needs a look.",
+        url: "/affiliates",
+      };
+
     case "supplier_pool_changed":
       return {
         title: "The ad-account pool changed",
