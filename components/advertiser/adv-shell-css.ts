@@ -703,6 +703,13 @@ export const ADV_CSS = `
     display:grid;place-items:center;cursor:pointer;padding:0;transition:.13s}
   .onb-tick:disabled{cursor:default}
   .onb-tick.on{border-color:var(--win);background:var(--win)}
+  /* An OFFER carries a dismiss, not an empty checkbox. Two identical
+     squares above the words "1 step left" read as a broken counter even
+     though the count was right — one of those squares was never a step. */
+  .onb-tick.is-opt{border:0;background:transparent;color:var(--faint);
+    font-size:1.05rem;line-height:1;display:grid;place-items:center;
+    width:24px;height:24px}
+  .onb-tick.is-opt:hover{color:var(--txt-2);background:var(--panel-2)}
   .onb-tick svg{width:15px;height:15px}
   .onb-ic{width:28px;height:28px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;
     background:var(--primary-tint);color:var(--primary-600)}

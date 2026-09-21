@@ -358,7 +358,17 @@ export default function OnboardingChecklist({
                  small squares floating alone on a line of their own. */
               <div key={s.id} className="onbrow">
                 <button
-                  className="onb-tick"
+                  /* ── AN OFFER IS NOT A STEP, SO IT IS NOT A BOX ──────
+                     The affiliate invitation is `optional` and correctly
+                     not counted — but it carried the same empty square
+                     as the real steps, so the card showed TWO unticked
+                     boxes above the words "1 step left". The count was
+                     right and the picture said otherwise, which reads as
+                     a broken counter.
+
+                     Its tick was never a step tick anyway: it dismisses
+                     the offer. So it looks like a dismiss now. */
+                  className={`onb-tick${s.optional ? " is-opt" : ""}`}
                   onClick={() => toggle(s)}
                   /* ── ONLY THE INFORMATIONAL STEP TAKES A TICK ────────
                      `auto` IS the "have they actually done it" flag, so
@@ -381,7 +391,10 @@ export default function OnboardingChecklist({
                       ? `Dismiss "${s.title}"`
                       : `${s.title} — ticks itself once you have done it`
                   }
-                />
+                  title={s.optional ? "Not interested — hide this" : undefined}
+                >
+                  {s.optional ? "×" : null}
+                </button>
                 <span className="onb-ic">
                   <Ic name={s.icon} />
                 </span>
