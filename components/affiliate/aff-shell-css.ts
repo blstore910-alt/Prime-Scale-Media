@@ -153,6 +153,12 @@ export const AFF_CSS = `
   .btn:disabled svg,.btn[disabled] svg{opacity:.7}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
+  /* A banner for the one thing the screen cannot answer by itself. Gold
+     rather than red: nothing is broken and nothing is lost, it is just
+     not finished. */
+  .notice{display:flex;flex-direction:column;gap:4px;background:var(--gold-soft);border:1px solid #f2d9a3;border-radius:16px;padding:14px 16px}
+  .notice b{font-family:var(--font-sora);font-size:.95rem;color:var(--gold-deep)}
+  .notice span{font-size:.85rem;line-height:1.5;color:var(--txt-2)}
   .invite{position:relative;border-radius:20px;padding:24px;overflow:hidden;background:linear-gradient(135deg,rgba(61,123,244,.11),rgba(24,184,206,.09)),var(--panel);border:1px solid var(--line-2);box-shadow:var(--shadow)}
   .invite h2{display:flex;align-items:center;gap:9px}.invite h2 svg{width:20px;height:20px;color:var(--primary)}
   .linkrow{display:flex;gap:9px;margin-top:14px;align-items:center}

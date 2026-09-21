@@ -252,12 +252,27 @@ export default function AffiliateApp() {
   // The earnings read failed, or has not landed yet. Either way the totals
   // below are 0 because there is nothing to add up — not because nothing was
   // earned — so every screen that states a figure has to say so instead.
-  const statsUnavailable = all.isError || all.isLoading;
+  // ── AND A THIRD REASON THE TOTALS ARE 0: THE RPC CANNOT ANSWER ───
+  //
+  // Measured on production 2026-09-21: two real profiles hold role
+  // `affiliate`, and a role-`affiliate` profile never gets an
+  // `advertisers` row (the wallet bootstrap returns early for any role
+  // but `advertiser`). `affiliate_referral_stats` resolves the caller
+  // with `select a.id from advertisers where a.user_id = auth.uid()`
+  // and returns with NO rows and NO error when that misses.
+  //
+  // So every guard below saw a successful, empty read and printed a
+  // confident zero: €0 lifetime, 0 referred, "No referrals yet", "No
+  // commission yet", and a Request-payout button disabled with
+  // "Nothing outstanding to request yet". None of it was true — the
+  // question was never asked. A dash and a sentence, not six zeros.
+  const portalInert = !profile?.advertiser?.[0]?.id;
+  const statsUnavailable = all.isError || all.isLoading || portalInert;
   // The MONTH figures come from a second, separate query, and nothing
   // consulted its state — so the topbar pill, the stat card and the
   // earnings summary all printed "this month €0" identically whether the
   // affiliate earned nothing, the read had not landed, or it failed.
-  const monthUnavailable = month.isError || month.isLoading;
+  const monthUnavailable = month.isError || month.isLoading || portalInert;
   // A figure we cannot vouch for is a dash. An affiliate who has earned
   // money must never be shown a zero because a read failed — and must
   // never be DEMOTED by one either, which is what the tier track did.
@@ -389,7 +404,10 @@ export default function AffiliateApp() {
 
   const copyLink = async () => {
     if (!referralLink) {
-      toast.error("Your referral link isn't set up yet.");
+      toast.error("Your referral link isn't set up yet", {
+        description:
+          "Your affiliate account isn't linked to a customer record yet — ask us to finish setting it up.",
+      });
       return;
     }
     try {
@@ -429,7 +447,10 @@ export default function AffiliateApp() {
     // No QR renderer is bundled, so rather than fake a QR that never
     // appears, copy the link so it can be pasted into any QR generator.
     if (!referralLink) {
-      toast.error("Your referral link isn't set up yet.");
+      toast.error("Your referral link isn't set up yet", {
+        description:
+          "Your affiliate account isn't linked to a customer record yet — ask us to finish setting it up.",
+      });
       return;
     }
     try {
@@ -695,6 +716,22 @@ export default function AffiliateApp() {
         <div className="content">
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
+            {/* ── SAY IT ONCE, AT THE TOP ────────────────────────────
+                Without this the dashes below are just as silent as the
+                zeros were: an affiliate sees a screen full of "—" and
+                has no idea whether it is a bad connection, a quiet
+                month, or an account that was never finished. */}
+            {portalInert && (
+              <div className="notice warn" style={{ marginBottom: 14 }}>
+                <b>Your affiliate account isn&apos;t finished yet.</b>
+                <span>
+                  It isn&apos;t linked to a customer record, so we
+                  can&apos;t show your referrals, your earnings or your
+                  link. Nothing is lost — ask us to finish it and
+                  everything appears here.
+                </span>
+              </div>
+            )}
             <section className="hero">
               <div className="ribbon" />
               <div className="glow" />
