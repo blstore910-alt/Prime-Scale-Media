@@ -118,6 +118,21 @@ const money2 = (n: number | string | null | undefined) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(n ?? 0));
+// ── A WHOLE PRICE DOES NOT NEED ".00" ──────────────────────────────
+//
+// For a RECORD -- an invoice line, a wallet movement, a confirmation --
+// two decimals always, because those are exact amounts and a missing
+// cent is a wrong figure.
+//
+// For the big price on the plan card it is noise: "EUR 200.00 / month"
+// reads like a total, "EUR 200 / month" reads like a price. The
+// decimals stay the moment there is anything in them, so EUR 99.50 is
+// still EUR 99.50 -- rounding that to EUR 100 is the exact fault
+// planMoney was fixed for.
+const moneyNeat = (n: number | string | null | undefined) => {
+  const s = money2(n);
+  return s.endsWith(".00") ? s.slice(0, -3) : s;
+};
 // A figure whose currency is not fixed by the screen it is on — an ad
 // account has its own, and printing every one of them in dollars is
 // how "Funded to date $97.00" ended up on a euro account.
@@ -1412,6 +1427,9 @@ export default function AdvertiserApp() {
   // better with it — but it is the two-decimal one now.
   const planMoney = (v: number | string | null | undefined) =>
     (planCur === "USD" ? "$" : "€") + money2(v);
+  /** The headline price. Whole amounts lose the ".00"; 99.50 keeps it. */
+  const planMoneyNeat = (v: number | string | null | undefined) =>
+    (planCur === "USD" ? "$" : "€") + moneyNeat(v);
   const planMoney2 = (v: number | string | null | undefined) =>
     (planCur === "USD" ? "$" : "€") + money2(v);
 
@@ -1625,6 +1643,9 @@ export default function AdvertiserApp() {
   const chargedCur = (lastChargedRow?.currency ?? planCur).toUpperCase();
   const chargedMoney = (v: number | string | null | undefined) =>
     (chargedCur === "USD" ? "$" : "€") + money2(v);
+  /** Same, for the headline. */
+  const chargedMoneyNeat = (v: number | string | null | undefined) =>
+    (chargedCur === "USD" ? "$" : "€") + moneyNeat(v);
   const dueBillAmount = dueSubInvoice
     ? `${dueSubSymbol}${money2(dueSubInvoice.total)}`
     : planMoney2(subscription?.amount);
@@ -4402,8 +4423,8 @@ export default function AdvertiserApp() {
                       (chargedUnknown
                         ? "Subscription"
                         : lastChargedAmount != null
-                          ? `${chargedMoney(lastChargedAmount)} / month`
-                          : `${planMoney(subscription.amount)} / month`)
+                          ? `${chargedMoneyNeat(lastChargedAmount)} / month`
+                          : `${planMoneyNeat(subscription.amount)} / month`)
                     : "Subscription"}
                 </div>
                 <div className="meta">
@@ -4428,7 +4449,17 @@ export default function AdvertiserApp() {
                     : "—"}
                 </div>
                 <div
-                  style={{ opacity: 0.82, fontSize: ".78rem", marginTop: 16 }}
+                  /* Small print, and it should look like it: one calm
+                     line under the price rather than a four-line block
+                     of body copy on the card that carries the most
+                     expensive figure on the screen. */
+                  style={{
+                    opacity: 0.66,
+                    fontSize: ".74rem",
+                    lineHeight: 1.5,
+                    marginTop: 14,
+                    maxWidth: "36ch",
+                  }}
                 >
                   {/* No "ask an admin to do it by hand". Every plan change
                       settles against the invoice it affects, so pointing a
@@ -4451,10 +4482,8 @@ export default function AdvertiserApp() {
                       days. Telling a customer it is pro-rata on the one
                       screen where they decide is the sentence that
                       makes them keep the wrong amount in the wallet. */}
-                  A change is charged straight away, as the difference
-                  between the old and the new monthly amount — not split
-                  by the days left in the month. Ask us and we will tell
-                  you the figure first.
+                  Switch anytime — you pay the difference straight away,
+                  never a part-month. Ask us for the figure first.
                 </div>
               </div>
               <div className="card">
