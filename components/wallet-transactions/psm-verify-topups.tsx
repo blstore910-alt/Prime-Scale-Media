@@ -23,6 +23,7 @@ import { useAdvertiserCommunities } from "@/hooks/use-advertiser-communities";
 import { CommunityPill } from "@/components/community/community-pill";
 import TablePagination from "../ui/table-pagination";
 import { formatPaymentReference } from "@/lib/payment-reference";
+import { CopyText } from "@/components/ui/copy-text";
 import {
   useMatchedDeposits,
   type MatchedDeposit,
@@ -519,16 +520,34 @@ export default function PsmVerifyTopups({
                       it now shows what they actually wrote. An admin
                       matching by eye was comparing two different strings and
                       had to know that the prefix was ours. */}
-                  <span className="mono" style={{ fontWeight: 600 }}>
-                    {formatPaymentReference(
-                      (
-                        t.advertiser as
-                          | { tenant_client_code?: string }
-                          | undefined
-                      )?.tenant_client_code,
-                      t.reference_no,
-                    ) || "—"}
-                  </span>
+                  {/* Copy on click, no icon — the value IS the button.
+                      A reference is retyped into a banking app or pasted
+                      into a reply to the customer, and selecting it by
+                      hand on a phone catches the line above. */}
+                  <CopyText
+                    mono
+                    what="reference"
+                    value={
+                      formatPaymentReference(
+                        (
+                          t.advertiser as
+                            | { tenant_client_code?: string }
+                            | undefined
+                        )?.tenant_client_code,
+                        t.reference_no,
+                      ) || ""
+                    }
+                    label={
+                      formatPaymentReference(
+                        (
+                          t.advertiser as
+                            | { tenant_client_code?: string }
+                            | undefined
+                        )?.tenant_client_code,
+                        t.reference_no,
+                      ) || "—"
+                    }
+                  />
                 </div>
                 {/* DID THE MONEY ACTUALLY ARRIVE? Everything above this
                     line is what the CUSTOMER said. This is the only thing

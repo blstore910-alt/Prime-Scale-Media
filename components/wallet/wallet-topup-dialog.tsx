@@ -40,7 +40,6 @@ import {
   Loader2,
   CheckCircle2,
   ArrowLeft,
-  Check,
   Copy,
   FileImage,
 } from "lucide-react";
@@ -1058,12 +1057,12 @@ export default function WalletTopupDialog({
                         className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         aria-label={`Copy reference ${formatPaymentReference(clientCode, referenceNo)}`}
                       >
+                        {/* No icon. The reference IS the button, and the
+                            line under it already says what pressing it
+                            does. An icon beside a 20-character code just
+                            puts the target somewhere other than the thing
+                            you are looking at. */}
                         {formatPaymentReference(clientCode, referenceNo)}
-                        {refCopied ? (
-                          <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                        ) : (
-                          <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        )}
                       </button>
                       <p className="mt-2 text-center text-xs text-muted-foreground">
                         {refCopied ? "Copied" : "Tap to copy"}
@@ -1424,12 +1423,9 @@ export default function WalletTopupDialog({
                       className="flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40"
                       aria-label={`Copy reference ${formatPaymentReference(clientCode, filedReference)}`}
                     >
+                      {/* No icon — see the same button on the details
+                          step. The line under it carries the state. */}
                       {formatPaymentReference(clientCode, filedReference)}
-                      {refCopied ? (
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                      ) : (
-                        <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      )}
                     </button>
                     <p className="mt-2 text-center text-xs text-muted-foreground">
                       {refCopied
