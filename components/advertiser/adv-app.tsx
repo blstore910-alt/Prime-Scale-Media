@@ -12,6 +12,8 @@ import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { humanSlug, sameSlug } from "@/lib/pure-slug-key";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
+import { getRate, neededFromAmount, otherWalletCovers } from "@/lib/pure-exchange";
 import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
@@ -223,8 +225,23 @@ export default function AdvertiserApp() {
   // consistent and in the wrong direction. Reversing it costs the 0.6%
   // again plus the spread.
   const [exchangeFrom, setExchangeFrom] = useState<"EUR" | "USD">("USD");
-  const openExchange = (cur: "EUR" | "USD") => {
+  // ── AND WHAT IT WAS OPENED FOR ──────────────────────────────────────
+  //
+  // "Exchange to pay EUR 5.00" opened a dialog that knew nothing about
+  // five euros: an empty amount box, and the customer left to do the
+  // conversion and the 0.6% fee in their head. A cent short and the
+  // payment they came to make is refused anyway.
+  const [exchangeNeed, setExchangeNeed] = useState<{
+    amount: number;
+    currency: "EUR" | "USD";
+    label: string;
+  } | null>(null);
+  const openExchange = (
+    cur: "EUR" | "USD",
+    need?: { amount: number; currency: "EUR" | "USD"; label: string } | null,
+  ) => {
     setExchangeFrom(cur);
+    setExchangeNeed(need ?? null);
     setExchangeOpen(true);
   };
   const [exchangeOpen, setExchangeOpen] = useState(false);
@@ -950,6 +967,16 @@ export default function AdvertiserApp() {
 
   const eurBal = Number(wallet?.eur_balance ?? 0);
   const usdBal = Number(wallet?.usd_balance ?? 0);
+  // ── THE RATE, ON THIS SCREEN ──────────────────────────────────────
+  //
+  // It used to live only inside the exchange dialog, so the billing card
+  // could not answer "would the other wallet actually cover this?" and
+  // asked `other > 0` instead — offering an exchange to somebody holding
+  // a cent, and removing the top-up route while it did.
+  //
+  // activeOnly, same as the dialog, so both screens quote one rate.
+  const { exchangeRates: advRates } = useExchangeRates({ activeOnly: true });
+  const eurRateRaw = Number(advRates?.[0]?.eur ?? 0);
   // When the wallet read fails, `wallet` is undefined and both balances fall
   // to 0 — which renders as a confident "€0.00". Show "—" instead: an unknown
   // balance and an empty one are very different things to tell a customer.
@@ -1453,9 +1480,16 @@ export default function AdvertiserApp() {
         i.status !== "void" &&
         (i.type === "subscription" || i.type === "subscription_adjustment"),
     )
+    // ── OLDEST FIRST, BECAUSE THAT IS THE ONE THAT HURTS ────────────
+    //
+    // This sorted newest-first and then took [0], so a customer with two
+    // open invoices was shown the one raised YESTERDAY while the one
+    // from last month sat past due, being dunned, waiting to be
+    // auto-debited. Paying in the order they were raised is also the
+    // order the nightly collect loop works in.
     .sort(
       (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     );
   const dueSubInvoice = unpaidSubInvoices[0];
   // ── AND HOW MANY THERE ARE ────────────────────────────────────────
@@ -1655,6 +1689,19 @@ export default function AdvertiserApp() {
   // No rate is held on this screen, so this only asks whether the OTHER
   // wallet has anything in it at all: enough to be worth offering, and
   // the exchange dialog does the arithmetic honestly with a real rate.
+  // ── AND `> 0` IS NOT "COVERS IT" ──────────────────────────────────
+  //
+  // This asked only whether the other wallet held ANYTHING. A customer
+  // owing EUR 200 with one cent in USD was shown "Exchange to pay
+  // EUR 200.00" — and because the button is one control, offering the
+  // exchange TOOK AWAY the top-up route that was the real answer. They
+  // press it, convert a cent, and land back on an invoice they still
+  // cannot pay.
+  //
+  // It now asks the real question, at the real rate, after the real fee.
+  // `null` from otherWalletCovers means the rate has not been read; that
+  // is not "no", so the caller keeps both routes visible rather than
+  // printing a confident refusal over a read that never completed.
   const canExchangeToPay = (
     inv:
       | { total?: number | string | null; currency?: string | null; items?: unknown }
@@ -1664,7 +1711,30 @@ export default function AdvertiserApp() {
     if (!inv || canPayInvoice(inv)) return false;
     const want = invCurrency(inv);
     const other = want === "USD" ? eurBal : usdBal;
-    return Number(other) > 0;
+    if (!(Number(other) > 0)) return false;
+    const rate = getRate(eurRateRaw, want === "USD" ? "EUR" : "USD", want);
+    const covers = otherWalletCovers(Number(inv.total) || 0, Number(other), rate);
+    // Unknown rate: the dialog does the arithmetic honestly with a live
+    // one, so let them through — and the secondary link below keeps the
+    // top-up route on the screen either way.
+    return covers !== false;
+  };
+
+  /** What the other wallet must give up for this invoice. Null if we cannot say. */
+  const exchangeNeedFor = (
+    inv: { total?: number | string | null; currency?: string | null } | null | undefined,
+  ) => {
+    if (!inv) return null;
+    const want = invCurrency(inv);
+    const total = Number(inv.total) || 0;
+    if (total <= 0) return null;
+    return {
+      amount: total,
+      currency: want,
+      label: "to pay this invoice",
+      from: (want === "USD" ? "EUR" : "USD") as "EUR" | "USD",
+      fromAmount: neededFromAmount(total, getRate(eurRateRaw, want === "USD" ? "EUR" : "USD", want)),
+    };
   };
 
   const canPayInvoice = (
@@ -4423,7 +4493,17 @@ export default function AdvertiserApp() {
                     : invLoading
                       ? "Looking up this month…"
                       : dueSubInvoice
-                        ? "Pay it from your wallet whenever suits you — or leave it, and we'll take it from your wallet on the due date."
+                        ? // ── DO NOT PROMISE A DATE THAT IS NOT THERE ──
+                          // This printed "we'll take it from your wallet
+                          // on the due date" directly above a row that
+                          // read "Due date not set" — one sentence telling
+                          // the customer not to worry, sitting on top of
+                          // the field saying nobody knows when.
+                          unpaidSubCount > 1
+                          ? `You have ${unpaidSubCount} invoices open, together ${unpaidSubText}. The oldest is below — pay that one first.`
+                          : dueBillDate
+                            ? "Pay it from your wallet whenever suits you — or leave it, and we'll take it from your wallet on the due date."
+                            : "Pay it from your wallet whenever suits you. This one carries no due date, so nothing will be taken automatically — if that looks wrong, tell us."
                         : "Nothing owed right now. We'll raise the next one automatically."}
                 </p>
                 {subscription &&
@@ -4559,10 +4639,18 @@ export default function AdvertiserApp() {
                             // exchange rather than a transfer they do
                             // not need to make.
                             if (canExchangeToPay(dueSubInvoice)) {
+                              const n = exchangeNeedFor(dueSubInvoice);
                               openExchange(
                                 invCurrency(dueSubInvoice) === "USD"
                                   ? "EUR"
                                   : "USD",
+                                n
+                                  ? {
+                                      amount: n.amount,
+                                      currency: n.currency,
+                                      label: n.label,
+                                    }
+                                  : null,
                               );
                               return;
                             }
@@ -4600,6 +4688,51 @@ export default function AdvertiserApp() {
                         <Ic name="i-refresh" /> Couldn&apos;t load your invoices
                         — reload
                       </button>
+                    ) : null}
+                    {/* ── ONE CONTROL MUST NOT TAKE THE OTHER AWAY ─────
+                        The primary button is Pay, or Exchange, or Top up —
+                        one of three, chosen for them. So a customer offered
+                        the exchange no longer had a way to top up, and one
+                        offered a top-up was never told the money was
+                        already sitting in the other wallet. Whichever of
+                        the two is not the primary goes here, quietly. */}
+                    {dueSubInvoice && !canPayInvoice(dueSubInvoice) ? (
+                      canExchangeToPay(dueSubInvoice) ? (
+                        <button
+                          className="linkish"
+                          style={{
+                            display: "block",
+                            margin: "10px auto 0",
+                            fontSize: ".82rem",
+                          }}
+                          onClick={() => go("wallet")}
+                        >
+                          Or top up your {invCurrency(dueSubInvoice)} wallet
+                          instead
+                        </button>
+                      ) : (eurBal > 0 || usdBal > 0) ? (
+                        <button
+                          className="linkish"
+                          style={{
+                            display: "block",
+                            margin: "10px auto 0",
+                            fontSize: ".82rem",
+                          }}
+                          onClick={() => {
+                            const n = exchangeNeedFor(dueSubInvoice);
+                            openExchange(
+                              invCurrency(dueSubInvoice) === "USD" ? "EUR" : "USD",
+                              n
+                                ? { amount: n.amount, currency: n.currency, label: n.label }
+                                : null,
+                            );
+                          }}
+                        >
+                          Or exchange from your{" "}
+                          {invCurrency(dueSubInvoice) === "USD" ? "EUR" : "USD"}{" "}
+                          wallet
+                        </button>
+                      ) : null
                     ) : null}
                   </>
                 ) : subError ? (
@@ -4645,9 +4778,85 @@ export default function AdvertiserApp() {
                      say why there is nothing to pay and give them the
                      way to ask. */
                   <>
+                    {/* ── A PAUSED PLAN IS NOT NO PLAN ──────────────
+                        `subscription` is null for anything outside
+                        active/past_due — paused, cancelled, inactive —
+                        and this branch then told the customer "there is no
+                        plan on your account yet, so nothing is being
+                        charged" while an unpaid invoice sat in the table
+                        below it with a live Pay button. Two statements
+                        about their money, on one screen, contradicting
+                        each other.
+
+                        What is TRUE for all of those states is that
+                        nothing NEW is being charged. What is owed is a
+                        separate fact, and it gets its own line and its own
+                        button. */}
+                    {dueSubInvoice ? (
+                      <>
+                        <p className="cap" style={{ margin: 0 }}>
+                          No plan is running on your account right now, so
+                          nothing new is being charged — but{" "}
+                          {unpaidSubCount > 1
+                            ? `${unpaidSubCount} invoices are still open, together ${unpaidSubText}.`
+                            : `an invoice of ${dueSubSymbol}${money2(dueSubInvoice.total)} is still open.`}
+                        </p>
+                        <button
+                          className="btn block grad"
+                          style={{ marginTop: 14 }}
+                          onClick={() => {
+                            if (!canPayInvoice(dueSubInvoice)) {
+                              if (canExchangeToPay(dueSubInvoice)) {
+                                const n = exchangeNeedFor(dueSubInvoice);
+                                openExchange(
+                                  invCurrency(dueSubInvoice) === "USD" ? "EUR" : "USD",
+                                  n
+                                    ? { amount: n.amount, currency: n.currency, label: n.label }
+                                    : null,
+                                );
+                                return;
+                              }
+                              go("wallet");
+                              return;
+                            }
+                            askToPay(dueSubInvoice);
+                          }}
+                        >
+                          <Ic
+                            name={
+                              canPayInvoice(dueSubInvoice)
+                                ? "i-wallet"
+                                : canExchangeToPay(dueSubInvoice)
+                                  ? "i-refresh"
+                                  : "i-plus"
+                            }
+                          />{" "}
+                          {canPayInvoice(dueSubInvoice)
+                            ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
+                            : canExchangeToPay(dueSubInvoice)
+                              ? `Exchange to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
+                              : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
+                        </button>
+                        <a
+                          className="linkish"
+                          style={{
+                            display: "block",
+                            margin: "10px auto 0",
+                            fontSize: ".82rem",
+                            textAlign: "center",
+                          }}
+                          href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                            "Plan for " + (referralCode || "my account"),
+                          )}`}
+                        >
+                          Ask us about restarting your plan
+                        </a>
+                      </>
+                    ) : (
+                      <>
                     <p className="cap" style={{ margin: 0 }}>
-                      Nothing to pay right now — there is no plan on your
-                      account yet, so nothing is being charged.
+                      Nothing to pay right now — no plan is running on your
+                      account, so nothing is being charged.
                     </p>
                     <p
                       className="cap"
@@ -4666,6 +4875,8 @@ export default function AdvertiserApp() {
                     >
                       <Ic name="i-mail" /> Ask us to set up a plan
                     </a>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -4855,10 +5066,18 @@ export default function AdvertiserApp() {
                                         // than a transfer they do not
                                         // need to make.
                                         if (canExchangeToPay(inv)) {
+                                          const n = exchangeNeedFor(inv);
                                           openExchange(
                                             invCurrency(inv) === "USD"
                                               ? "EUR"
                                               : "USD",
+                                            n
+                                              ? {
+                                                  amount: n.amount,
+                                                  currency: n.currency,
+                                                  label: "to pay this invoice",
+                                                }
+                                              : null,
                                           );
                                           return;
                                         }
@@ -5412,6 +5631,9 @@ export default function AdvertiserApp() {
         walletId={wallet?.id ?? null}
         usdBalance={usdBal}
         eurBalance={eurBal}
+        needAmount={exchangeNeed?.amount ?? null}
+        needCurrency={exchangeNeed?.currency ?? null}
+        needLabel={exchangeNeed?.label ?? null}
       />
       <CreateTopupDialog
         open={acctTopupOpen}

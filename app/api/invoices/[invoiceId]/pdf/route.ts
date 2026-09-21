@@ -4,6 +4,7 @@ import {
   invoiceNumber,
 } from "@/lib/payment-reference";
 import { createClient } from "@/lib/supabase/server";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { readFile } from "fs/promises";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -894,6 +895,61 @@ async function buildInvoicePdf(
   }
 }
 
+/**
+ * A refusal a person can read, when a person is looking at it.
+ *
+ * ──────────────────────────────────────────────────────────────────────
+ * The View button is a plain `window.open` of this route with ?inline=1 —
+ * deliberately, because opening the tab inside the click handler is what
+ * keeps a pop-up blocker out of it. The consequence nobody followed up on
+ * is that every refusal here lands in a NEW TAB as raw JSON:
+ *
+ *     {"error":"Invoice not found"}
+ *
+ * A customer who clicked View on their own invoice gets a blank white tab
+ * with a line of code in it. So when the browser is going to RENDER the
+ * response, send it something a browser renders.
+ *
+ * The JSON shape is unchanged for the download path, which parses it.
+ * ──────────────────────────────────────────────────────────────────────
+ */
+function refuse(request: NextRequest, message: string, status: number) {
+  const inline = request.nextUrl.searchParams.get("inline") === "1";
+  if (!inline) {
+    return NextResponse.json({ error: message }, { status });
+  }
+  const safe = message.replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;",
+  );
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Invoice unavailable</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center;
+         justify-content:center; background:#f6f7fb; color:#101426;
+         font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  @media (prefers-color-scheme: dark) { body { background:#0b0d16; color:#e8eaf2; } }
+  .b { max-width:34rem; padding:2rem 1.5rem; text-align:center; }
+  h1 { font-size:1.15rem; margin:0 0 .5rem; }
+  p { margin:0; color:#5b6076; }
+  @media (prefers-color-scheme: dark) { p { color:#9aa0b8; } }
+</style></head>
+<body><div class="b">
+  <h1>We couldn&#39;t open that invoice</h1>
+  <p>${safe}</p>
+  <p style="margin-top:1rem">Close this tab and try again from your Invoices list &mdash; if it keeps happening, tell us and we&#39;ll send it to you.</p>
+</div></body></html>`;
+  return new NextResponse(html, {
+    status,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store, max-age=0",
+    },
+  });
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ invoiceId: string }> },
@@ -906,7 +962,7 @@ export async function GET(
 
     const { data: auth, error: authError } = await supabase.auth.getUser();
     if (authError || !auth.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return refuse(request, "You need to be signed in to read an invoice.", 401);
     }
 
     const { data: profiles, error: profileError } = await supabase
@@ -921,7 +977,7 @@ export async function GET(
 
     if (profileError) throw profileError;
     if (!profiles?.length) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 403 });
+      return refuse(request, "We couldn't find your account.", 403);
     }
 
     const activeProfile =
@@ -939,7 +995,7 @@ export async function GET(
       (activeProfile.status ?? "active") === "inactive" ||
       (activeProfile.status ?? "") === "pending_erasure"
     ) {
-      return NextResponse.json({ error: "Account inactive" }, { status: 403 });
+      return refuse(request, "This account is not active.", 403);
     }
 
     // Tenant match alone is NOT authorization here. Every advertiser in a
@@ -969,7 +1025,7 @@ export async function GET(
 
       const ownIds = (ownAdvertisers ?? []).map((a: { id: string }) => a.id);
       if (!ownIds.length) {
-        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+        return refuse(request, "That invoice isn't on your account.", 404);
       }
       invoiceQuery = invoiceQuery.in("advertiser_id", ownIds);
     }
@@ -978,10 +1034,7 @@ export async function GET(
 
     if (invoiceError) throw invoiceError;
     if (!invoice) {
-      return NextResponse.json(
-        { error: "Invoice not found for this tenant" },
-        { status: 404 },
-      );
+      return refuse(request, "That invoice isn't on your account.", 404);
     }
 
     // Attach the tenant-level company row as the issuer party on the
@@ -1058,8 +1111,13 @@ export async function GET(
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to generate invoice PDF";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // safeErrorMessage, not error.message: a Supabase error carries
+    // details/hint/row, and this one is handed straight to the customer.
+    console.error("invoice pdf failed:", safeErrorMessage(error));
+    return refuse(
+      request,
+      "Something went wrong while preparing that invoice.",
+      500,
+    );
   }
 }

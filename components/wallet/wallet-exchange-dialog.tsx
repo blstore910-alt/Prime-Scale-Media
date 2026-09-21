@@ -13,6 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
+import {
+  EXCHANGE_FEE_PCT,
+  getRate,
+  neededFromAmount,
+} from "@/lib/pure-exchange";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -26,14 +31,12 @@ type FormValues = {
   from_amount: number;
 };
 
-// exchange_rates.eur stores "1 USD = N EUR" (USD-based, matches RPC + stats).
-// USD → EUR: multiply by rate.  EUR → USD: divide by rate.
-const getRate = (baseEurRate: number, from: Currency, to: Currency) => {
-  if (from === to) return 1;
-  if (from === "USD" && to === "EUR") return baseEurRate;
-  if (from === "EUR" && to === "USD") return 1 / baseEurRate;
-  return 1;
-};
+// getRate, the fee and the "how much must I convert" arithmetic all moved
+// to lib/pure-exchange.ts. They lived here as private consts, so the only
+// screen that could answer "would the other wallet cover this?" was this
+// dialog — and by then the customer has already been sent somewhere. The
+// billing card asked the cruder `other > 0` instead and offered
+// "Exchange to pay EUR 200.00" to somebody holding one cent.
 
 export default function WalletExchangeDialog({
   open,
@@ -42,6 +45,9 @@ export default function WalletExchangeDialog({
   initialFrom = "USD",
   usdBalance,
   eurBalance,
+  needAmount = null,
+  needCurrency = null,
+  needLabel = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,6 +56,22 @@ export default function WalletExchangeDialog({
   initialFrom?: Currency;
   usdBalance: number;
   eurBalance: number;
+  /**
+   * ── WHY THE DIALOG NEEDS TO KNOW WHAT IT WAS OPENED FOR ───────────
+   *
+   * The billing card sends a customer here with "Exchange to pay
+   * EUR 5.00" — and then the dialog opened on an empty amount box with
+   * no idea that five euros was the point. They had to convert the
+   * invoice figure into the other currency themselves, in their head,
+   * including a 0.6% fee, and a cent short means the payment they came
+   * to make is refused.
+   *
+   * With these three the dialog can say what is needed, prefill the
+   * amount that lands it, and show the shortfall closing.
+   */
+  needAmount?: number | null;
+  needCurrency?: Currency | null;
+  needLabel?: string | null;
 }) {
   const queryClient = useQueryClient();
   const {
@@ -104,8 +126,28 @@ export default function WalletExchangeDialog({
   const hasEur = eurBalance > 0;
   const hasSingleBalance = (hasUsd && !hasEur) || (!hasUsd && hasEur);
 
-  const feeAmount = toAmount * 0.006;
+  const feeAmount = toAmount * EXCHANGE_FEE_PCT;
   const exchangeableAmount = toAmount - feeAmount; // Amount after fee deduction
+
+  // ── WHAT THE CUSTOMER CAME HERE FOR ────────────────────────────────
+  //
+  // Only when the shortfall is in the currency this conversion lands in.
+  // Opening Exchange from the wallet card passes nothing and none of
+  // this renders.
+  const need =
+    needAmount != null && needAmount > 0 && needCurrency ? needAmount : null;
+  const needIsTarget = need != null && needCurrency === toCurrency;
+  const needRate = needIsTarget
+    ? getRate(eurRateRaw, toCurrency === "USD" ? "EUR" : "USD", toCurrency)
+    : 0;
+  const needFrom = needIsTarget ? neededFromAmount(need, needRate) : 0;
+  const needSymbol = needCurrency === "USD" ? "$" : "€";
+  const fromSymbol = fromCurrency === "USD" ? "$" : "€";
+  // Is there even enough on the other side to do it? Saying so before
+  // they type is the difference between a closed loop and a refusal.
+  const haveOnFromSide = fromCurrency === "USD" ? usdBalance : eurBalance;
+  const needIsReachable = needIsTarget && needFrom > 0 && haveOnFromSide >= needFrom;
+  const shortOf = needIsTarget && need != null ? Math.max(0, Math.round((need - exchangeableAmount) * 100) / 100) : 0;
 
   useEffect(() => {
     if (!open) {
@@ -128,6 +170,24 @@ export default function WalletExchangeDialog({
       setValue("from_currency", "EUR", { shouldDirty: true });
     }
   }, [open, hasUsd, hasEur, setValue, initialFrom]);
+
+  // ── AND PREFILL THE AMOUNT THAT ACTUALLY LANDS IT ──────────────────
+  //
+  // Rounded UP to the cent by neededFromAmount, because rounding down is
+  // how "exactly enough" becomes a cent short and the invoice it was
+  // meant for is refused anyway.
+  //
+  // It waits for the rate: the rates query is async, so on the first
+  // render needRate is 0 and the requirement is unknowable. Filling in a
+  // figure computed from a rate of zero would be the confident-zero
+  // fault, in a box the customer is about to press a money button
+  // under.
+  useEffect(() => {
+    if (!open) return;
+    if (!needIsTarget || needFrom <= 0) return;
+    setValue("from_amount", needFrom, { shouldDirty: true });
+    // needFrom is derived from needRate, which arrives with the rates.
+  }, [open, needIsTarget, needFrom, setValue]);
 
   const { mutate, isPending } = useMutation({
     mutationKey: ["wallet-exchange", walletId],
@@ -227,6 +287,30 @@ export default function WalletExchangeDialog({
             Convert between USD and EUR using the latest exchange rate.
           </DialogDescription>
         </DialogHeader>
+        {/* ── WHY THEY ARE HERE ──────────────────────────────────────
+            The billing card sends somebody here with "Exchange to pay
+            EUR 5.00" and this dialog used to open on an empty box that
+            knew nothing about five euros. They had to do the conversion
+            and the 0.6% fee in their head, and a cent short means the
+            payment they came for is refused anyway. */}
+        {need != null && needIsTarget ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
+            <div className="font-medium text-foreground">
+              You need {needSymbol}
+              {need.toFixed(2)}
+              {needLabel ? ` ${needLabel}` : ""}.
+            </div>
+            <div className="mt-1 text-muted-foreground">
+              {ratesLoading
+                ? "Working out what that costs in your other wallet…"
+                : ratesError || !needRate
+                  ? "We couldn't read today's rate, so we can't fill the amount in for you — type it and the figures below will follow."
+                  : needIsReachable
+                    ? `Converting ${fromSymbol}${needFrom.toFixed(2)} lands it, fee included. That is filled in below.`
+                    : `Your ${fromCurrency} wallet holds ${fromSymbol}${haveOnFromSide.toFixed(2)}, and ${fromSymbol}${needFrom.toFixed(2)} is what it would take — so this won't cover it on its own.`}
+            </div>
+          </div>
+        ) : null}
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-2">
             <Label htmlFor="from-currency">From currency</Label>
@@ -281,6 +365,27 @@ export default function WalletExchangeDialog({
                 {rate ? `${exchangeableAmount.toFixed(2)} ${toCurrency}` : "-"}
               </span>
             </div>
+            {/* Does this actually close the gap they came to close?
+                A figure that is "internally consistent and 3 cents
+                short" is exactly the kind of near-miss that sends the
+                customer back through the whole loop. */}
+            {needIsTarget && need != null && fromAmount > 0 && rate ? (
+              <div className="mt-2 flex items-center justify-between border-t pt-2">
+                <span>Covers the {needSymbol}
+                  {need.toFixed(2)} you need</span>
+                <span
+                  className={
+                    shortOf > 0
+                      ? "font-medium text-destructive"
+                      : "font-medium text-emerald-600 dark:text-emerald-400"
+                  }
+                >
+                  {shortOf > 0
+                    ? `${needSymbol}${shortOf.toFixed(2)} short`
+                    : "Yes"}
+                </span>
+              </div>
+            ) : null}
             <div className="mt-2 flex items-center justify-between text-xs">
               <span>Available balance</span>
               <span>
