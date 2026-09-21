@@ -58,6 +58,21 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     description: "When a new monthly subscription invoice is issued.",
     audience: "customer",
   },
+  // ── AND THE MONEY GOING OUT, WHICH SAID NOTHING AT ALL ───────────
+  //
+  // subscription_billing_run only writes a notification when the
+  // collection FAILS. On success it counts v_charged and moves on, so
+  // the auto-debit took money out of a wallet on a day the customer did
+  // not choose and the app never mentioned it. They found out by
+  // comparing a balance to what they remembered -- the same fault that
+  // wallet_topup_completed was written to fix for money coming IN.
+  {
+    type: "subscription_invoice_paid",
+    label: "Invoice paid from your wallet",
+    description:
+      "When an invoice is settled from your wallet — whether you pressed Pay or we collected it on the due date.",
+    audience: "customer",
+  },
   {
     type: "subscription_past_due",
     label: "Subscription past due",

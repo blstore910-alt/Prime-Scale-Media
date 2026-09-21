@@ -8,6 +8,7 @@ export type NotificationType =
   | "wallet_topup_created"
   | "integration_failure"
   | "subscription_invoice"
+  | "subscription_invoice_paid"
   | "subscription_past_due"
   | "subscription_changed"
   | "supplier_low_balance"
@@ -100,6 +101,14 @@ export interface NotificationPayloadByType {
   wallet_topup_created: WalletTopupCreatedNotificationPayload;
   integration_failure: IntegrationFailureNotificationPayload;
   subscription_invoice: SubscriptionInvoiceNotificationPayload;
+  /** An invoice settled from the wallet — pressed by them, or collected
+      by the due-date run, which is the case they cannot see coming. */
+  subscription_invoice_paid: {
+    invoice_id?: string | null;
+    number?: string | number | null;
+    amount?: number | string | null;
+    currency?: string | null;
+  };
   subscription_past_due: SubscriptionInvoiceNotificationPayload;
   subscription_changed: SubscriptionChangedNotificationPayload;
   supplier_low_balance: SupplierLowBalanceNotificationPayload;

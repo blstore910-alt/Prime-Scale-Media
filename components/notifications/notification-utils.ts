@@ -239,6 +239,25 @@ export function getNotificationCopy(notification: Notification): {
         description:
           "Your monthly invoice is ready. Pay it from your wallet whenever suits you — if it is still open on its due date we take it from your wallet automatically.",
       };
+    // ── THE ONE THE AUTO-DEBIT NEVER SENT ──────────────────────────
+    //
+    // With the figure and the invoice in it, because the customer may
+    // not have pressed anything: on the due date the collect loop takes
+    // it by itself. "Some money left your wallet" is not a notice.
+    case "subscription_invoice_paid": {
+      const p = parseNotificationPayload(notification);
+      const amount = asString(p.amount);
+      const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
+      const number = asString(p.number);
+      const sym = currency === "USD" ? "$" : "€";
+      const what = number ? ` for invoice ${number}` : "";
+      return {
+        title: "Invoice paid from your wallet",
+        description: amount
+          ? `We took ${sym}${Number(amount).toFixed(2)} from your ${currency} wallet${what}.`
+          : `Your invoice has been settled from your wallet${what}.`,
+      };
+    }
     case "subscription_past_due":
       return {
         title: "Subscription past due",
