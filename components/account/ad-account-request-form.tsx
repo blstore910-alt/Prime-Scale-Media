@@ -269,7 +269,7 @@ export default function AdAccountRequestForm({
     enabled: !!advertiserId && !!profile?.tenant_id,
     queryFn: async () => {
       const supabase = createClient();
-      const [w, r, plan, reqs, perks] = await Promise.all([
+      const [w, r, plan, reqs, accts, perks] = await Promise.all([
         supabase
           .from("wallets")
           .select("usd_balance, eur_balance")
@@ -286,10 +286,21 @@ export default function AdAccountRequestForm({
           .select("included_ad_accounts")
           .eq("advertiser_id", advertiserId)
           .maybeSingle(),
-        // Non-rejected requests count toward the included allowance.
+        // Requests that have NOT yet become an account.
         supabase
           .from("ad_account_requests")
           .select("id, status")
+          .eq("advertiser_id", advertiserId),
+        // ── AND THE ACCOUNTS THEY ALREADY HOLD ────────────────────
+        //
+        // The allowance used to count REQUESTS only, so an account an
+        // admin set up by hand -- which leaves no request row -- used
+        // none of it. A customer on a one-account plan could hold two
+        // and be charged for neither. The owner's rule: an ad account
+        // is an ad account, wherever it came from.
+        supabase
+          .from("ad_accounts")
+          .select("id")
           .eq("advertiser_id", advertiserId),
         // A free_ad_account_requests perk also makes the request free once
         // the plan allowance is used up — mirror ad_account_request_create_paid
@@ -348,7 +359,7 @@ export default function AdAccountRequestForm({
       // The other three ARE load-bearing: the wallet balance, the rate
       // and the request count each decide a figure on screen, so a
       // failure has to be an unknown price rather than a wrong one.
-      const failed = [w, r, reqs].find((res) => res.error);
+      const failed = [w, r, reqs, accts].find((res) => res.error);
       if (failed?.error) throw failed.error;
 
       // ── AND A ROW maybeSingle() COULD NOT SEE IS NOT A ZERO ───────
@@ -376,10 +387,23 @@ export default function AdAccountRequestForm({
       // EUR 50 -- or refused with "Insufficient wallet balance" if the
       // wallet was short. The screen has to lose that argument, not
       // win it.
-      const used = (reqs.data ?? []).filter(
+      // ── WHAT THEY HOLD, PLUS WHAT IS STILL COMING ────────────────
+      //
+      // Accounts they already have (however they got them) plus
+      // requests that have not turned into one yet. A COMPLETED request
+      // is deliberately not counted here -- it produced an account, and
+      // that account is in the first number. Counting both would charge
+      // for the same account twice.
+      //
+      // Same arithmetic as ad_account_request_create_paid, and no
+      // lower(): the SQL compares raw, so one request stored as
+      // "Rejected" must not make the screen count one fewer than the
+      // server and print "Included in your plan" over a EUR 50 debit.
+      const openRequests = (reqs.data ?? []).filter(
         (x: { status: string | null }) =>
-          !["rejected", "cancelled"].includes(x.status ?? ""),
+          !["completed", "rejected", "cancelled"].includes(x.status ?? ""),
       ).length;
+      const used = (accts.data ?? []).length + openRequests;
       const nowMs = new Date().getTime();
       const hasFreePerk = (perkRows ?? []).some(
         (p: {
