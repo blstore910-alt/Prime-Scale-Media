@@ -90,7 +90,27 @@ export default function InvitesTable() {
       const end = start + perPage - 1;
       const { data, error, count } = await supabase
         .from("invitations")
-        .select("*, sender:user_profiles(id, full_name, email)", {
+        // ── NAMED COLUMNS, BECAUSE ONE OF THEM IS A CREDENTIAL ────────
+        //
+        // `select("*")` pulled `token` into every employee admin's
+        // browser. A token plus the invitee's own email IS the account:
+        // POST /api/accept-invite/signup with that email and a password
+        // of your choosing creates a CONFIRMED auth user, a profile, an
+        // advertiser row and a wallet -- no mailbox access needed,
+        // because the route passes email_confirm: true.
+        //
+        // The RLS policy is admin-wide (`_is_admin_of`), so this was
+        // never the owner's alone. The list does not need the token; the
+        // Copy-link button asks for it one row at a time through an
+        // owner-only RPC.
+        //
+        // Anything else `*` was quietly carrying -- commission_rate,
+        // commission_amount, affiliate_id, what PSM pays the referrer --
+        // stops travelling too.
+        .select(
+          "id, tenant_id, email, role, status, created_at, expires_at, " +
+            "sender_profile_id, sender:user_profiles(id, full_name, email)",
+          {
           count: "exact",
         })
         .eq("tenant_id", profile?.tenant_id)
@@ -356,16 +376,20 @@ export default function InvitesTable() {
                           <button
                             className="btn ghost sm"
                             onClick={async () => {
-                              const token = String(
-                                (invite as { token?: string | null }).token ?? "",
+                              // The token is NOT on the row any more: it
+                              // is a credential, and the list is read by
+                              // every employee admin. Ask for it here,
+                              // one row at a time, behind the owner
+                              // guard.
+                              const { getInviteLinkToken } = await import(
+                                "@/actions/invite-actions"
                               );
-                              if (!token) {
-                                toast.error(
-                                  "This invitation has no link on it — cancel it and send a fresh one.",
-                                );
+                              const res = await getInviteLinkToken(invite.id);
+                              if (!res.ok) {
+                                toast.error(res.error);
                                 return;
                               }
-                              const link = `${window.location.origin}/invite/accept?token=${token}`;
+                              const link = `${window.location.origin}/invite/accept?token=${res.data.token}`;
                               const ok = await copyText(link);
                               // copyText can fail -- an insecure origin, a
                               // browser that refuses without a gesture it

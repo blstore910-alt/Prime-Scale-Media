@@ -3,7 +3,7 @@ import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { firstName } from "@/lib/display-name";
 import { sendEmail } from "@/lib/email-sender";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -320,7 +320,28 @@ export async function POST(request: NextRequest) {
         : null,
     };
 
-    const { error } = await supabase.from("invitations").insert(payload);
+    // ── THE WRITE GOES THROUGH THE ADMIN CLIENT ──────────────────────
+    //
+    // Not because the caller lacks the right -- apiRequireOwner() has
+    // already established they are the owner -- but so that the live
+    // database can REVOKE insert/update/delete on `invitations` from
+    // `authenticated` without breaking this route.
+    //
+    // It has to, because the RLS policy is `invitations_write_admin
+    // for all using (_is_admin_of(tenant_id))`: any active employee
+    // admin can insert, update or delete an invitation straight from
+    // the browser console with the anon key. They can re-price a
+    // pending offer the owner authored -- monthly_fee 0, topup_fee_pct
+    // 0, their own affiliate_id -- and create_subscription_from_invite
+    // writes exactly those numbers on accept. The owner guard on this
+    // route is not the boundary; the GRANT is, and Postgres checks it
+    // before the policy.
+    //
+    // Every field of `payload` is built from the owner's own profile
+    // and the validated body above; nothing from the caller is spread
+    // in.
+    const adminDb = await createAdminClient();
+    const { error } = await adminDb.from("invitations").insert(payload);
 
     if (error) {
       return NextResponse.json(
