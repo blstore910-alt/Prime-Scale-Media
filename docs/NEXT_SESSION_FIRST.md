@@ -5,7 +5,7 @@
 > that carries over is in this repo and pushed to `main`. Read this
 > section, then `CLAUDE.md`, then the per-journey state below.
 
-## THE NUMBER: 5 of 16 journeys closed (A1, A2, A3, A4, A5).
+## THE NUMBER: 6 of 16 journeys closed (A1, A2, A3, A4, A5, A6).
 
 ## How to start, in order
 
@@ -40,7 +40,7 @@
 ## SQL: what is applied and what is waiting
 
 **Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
-5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17.
+5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 22.
 
 **WAITING on the owner — paste these first:**
 
@@ -84,7 +84,7 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 
 # READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
-## THE NUMBER: 5 of 16 journeys closed (A1, A2, A3, A4, A5).
+## THE NUMBER: 6 of 16 journeys closed (A1, A2, A3, A4, A5, A6).
 
 | journey | state |
 |---|---|
@@ -93,7 +93,7 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 | A3 ad-account request, €50 off the wallet | **CLOSED 2026-09-21.** Every dialog branch opened; the INCLUDED path proved end to end (wallet stayed €195, request reached both queues without a reload); and the €50 leg EXECUTED: €195.00 → €145.00 on the customer screen AND the owner's /wallets, with the statement line "Ad-account request fee −€50.00 Charged" appearing for the first time ever. Eight faults fixed; what is left is listed below and none of it is on this journey's money |
 | A4 fund an ad account | **CLOSED 2026-09-21.** €100 at 3% → €3 fee, €97 lands, wallet €145 → €45 on BOTH screens; verified as owner; Funded to date €97 → €194; statement row On its way → On the account. Six faults fixed, nine open — see below |
 | **A5 invoice → Pay now** | **CLOSED 2026-09-21.** Invoice 0005-124 (€5.00) paid from the wallet as PSM0005 in the pane. €200.00 → €195.00 on the customer screen AND on the owner's /wallets; statement row −€5.00 dated 21 Sep; invoice Paid; clock 20 Sep → 20 Oct on both sides. Reconciles: €305 credited − €110 spent = €195 |
-| A6 … S3 | not started |
+| A6 money back off an ad account | **CLOSED 2026-09-21.** Both branches walked: rejected with a reason (no money moved, ceiling restored), then approved — wallet €45.00 → **€95.00** in EUR, USD wallet untouched, owner /wallets agrees. Nine faults fixed, six open — see below |
 
 ### 2026-09-21 — THE ONE THAT MATTERED
 
@@ -250,6 +250,111 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### A6 — CLOSED 2026-09-21
+
+Walked as PSM0005 in the pane with the owner in Chrome, both branches.
+
+| | |
+|---|---|
+| request | €50.00 off AA-PSM0005-EU-01, confirmation in euros |
+| reject branch | WD-927138 rejected with a written reason; no money moved; the ceiling went back to €194.00 (a rejected request correctly stops counting) |
+| approve branch | cover check read honestly ("not read — the supplier is in mock mode"), tick required, confirm dead until ticked |
+| customer wallet | €45.00 → **€95.00** |
+| USD wallet | **$0.00** — nothing landed in the wrong one |
+| statement | `Returned from an ad account · €50.00 · Credited` |
+| owner /wallets | **95.00** |
+
+Whole-session arithmetic for PSM0005: €305 credited − €100 funding − €5
+− €5 subscription − €50 request fee − €100 funding + €50 withdrawal =
+**€95**. Agrees at both ends.
+
+#### The one that took two layers to fix
+
+**A euro account gave euros back as dollars** — €194 in, "$194" out,
+about €25 a round trip. It sat on TWO layers and fixing either alone
+did nothing:
+
+1. **The app** assumed an ad-account balance is always USD.
+   `withdraw-dialog.tsx` said so in its own comment, and
+   `withdrawal-actions.ts` had `const accountCurrency = "USD"`. The
+   ceiling summed `top_ups.topup_amount` raw and called it dollars —
+   but that column is USD only on the ADMIN paths; the customer's RPC
+   stores the landed amount in the PAYMENT currency and puts the dollar
+   figure in `topup_usd`. Measured: 194.00 against 222.38 on the same
+   account (`64bdf83`).
+2. **A database trigger.** `trg_withdrawal_is_always_usd` did
+   `new.currency := 'USD'` unconditionally on insert AND on update of
+   that column, so the app's corrected EUR was overwritten on the way
+   in. It had been added for a real exploit — the RPC took `p_currency`
+   from the caller, so $1,000 of balance requested as EUR 1,000
+   credited `eur_balance` by 1,000 — but on the same false premise,
+   written into its own comment: *"an ad account is funded in USD by
+   construction"*. PLAK-22 keeps the currency out of the caller's hands
+   AND reads it off the ad account, and refuses an account in a
+   currency no wallet exists for (approve branches only on USD/EUR and
+   would otherwise succeed without moving money).
+
+**Nobody was ever hurt:** `asked_back` was 0 before this, and the
+report confirmed no approved withdrawal has ever carried a currency
+that did not match its account.
+
+#### Also found and fixed
+
+- **The ceiling was never a balance.** It is "funded minus already
+  asked back" and subtracts nothing for what the account has SPENT —
+  and the approve guard used the same expression. Labelled "Max", which
+  reads as available. The honest sentence existed but was shown only
+  for USD-funded accounts (`d32b5a0`).
+- **Now the approval states whether it is covered.**
+  `readAdAccountLiveBalance` asks the platform, and refuses rather than
+  invents: in mock mode the adapter answers with a made-up figure, so a
+  balance is returned only when the supplier is genuinely `live`. The
+  modal prints "Covered — X of Y" or "SHORT by X", and the confirm stays
+  dead until an admin ticks that they checked it themselves. Per the
+  owner: with an API we read it AND the admin approves; without one the
+  admin checks and approves (`f09e1f0`).
+- **Every approval fired a false alarm.** The "Take it off the ad
+  account by hand" warning fired whenever the push did not queue,
+  without asking why — and the gate is shut on production by design, so
+  it fired on every single approval. All three top-up call sites
+  already test `heldByGate`; this one was missed (`c79e5d9`).
+- **A reject template for a product that does not exist** — it asked for
+  bank details before money "can be returned", but an ad-account
+  withdrawal goes to the WALLET and there is no wallet-to-bank payout
+  here. It went out verbatim as the notification body (`c79e5d9`).
+- **`topup_usd` missing from two selects**, so `landedOnAccount` read
+  every row as an admin row and printed dollars over a euro account —
+  on the account details sheet and in the withdrawal ceiling
+  (`b8748ed`, `64bdf83`).
+
+#### A6 — still OPEN
+
+1. **`ad_account_withdrawal_approve` is callable at `/rest/v1/rpc/`** and
+   the balance check exists only in the TypeScript wrapper. Any active
+   admin can credit a wallet with whatever `amount` says. Same shape as
+   `top_up_admin_verify` (PLAK-21 row 6).
+2. **`ad_account_withdrawals` has no table-level REVOKE.** Not
+   exploitable as the repo stands — the only policy is `for select` —
+   but `top_ups` and `wallet_topups` both carry an `"Enable ALL for
+   admins" for all to authenticated` that the repo never wrote, so the
+   day one is added here the GRANT is already in place. Revoking
+   insert/update/delete would break nothing: both writers are SECURITY
+   DEFINER RPCs and every caller-session touch is a SELECT. This is the
+   opposite of `top_ups`, where UPDATE had to stay.
+3. **`reason` is one column for two authors.** The RPC does
+   `reason = coalesce(p_reason, reason)`, so an admin's rejection
+   overwrites the note the customer wrote — and the customer can read
+   the row.
+4. **Nothing ever writes `cancelled`**, and there is no customer-side
+   cancel, so one mistaken request freezes the account's balance until
+   an admin rejects it.
+5. **A rejected withdrawal disappears from the customer's statement**
+   entirely — walked and confirmed: after WD-927138 was rejected, no
+   trace of it remained on their side.
+6. `components/withdrawals/withdrawals-table.tsx` is imported by
+   nothing and still drops the rejection reason. Belongs in
+   `docs/UNREACHABLE.md`.
 
 ### A4 — CLOSED 2026-09-21
 
