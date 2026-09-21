@@ -129,6 +129,21 @@ export default function PsmVerifyAdTopups() {
     perPage,
   });
 
+  const shownCount = (topups ?? []).length;
+  // ── AND WALK BACK IF THIS PAGE NO LONGER EXISTS ──────────────────
+  //
+  // Verify the last item on page 2 and the refetch asks for rows 12-23
+  // of a queue that now has 12. It comes back empty, the empty card
+  // renders, and an admin reads "nothing to do" over a queue with a
+  // full first page. Clamp to the last page that exists.
+  useEffect(() => {
+    if (isLoading) return;
+    if (page <= 1) return;
+    if (shownCount > 0) return;
+    if (total <= 0) return;
+    setPage(Math.max(1, Math.ceil(total / perPage)));
+  }, [isLoading, page, total, shownCount]);
+
   // ── WHERE THIS ONE IS ACTUALLY FUNDED ──────────────────────────────
   //
   // Only one ad-account type tops up over the API; the rest are done by
@@ -413,7 +428,16 @@ export default function PsmVerifyAdTopups() {
         </div>
       )}
 
-      {!isLoading && topups?.length && total > perPage ? (
+            {/* ── THE PAGER MUST NOT VANISH WITH THE LAST ROW ────────────
+          This was gated on the CURRENT PAGE having rows. Work the last
+          item on page 2 and the refetch comes back empty, so the empty
+          card renders AND the pager disappears — leaving a queue that
+          says there is nothing to do while twelve items sit on page 1,
+          with no control on screen to get back. Only a filter change or
+          a reload escaped. The gate is `total`, which is the whole
+          queue, not the slice. The clamp above walks the page back so
+          this cannot be reached in the first place. */}
+      {!isLoading && total > perPage ? (
         <div className="my-4 px-4">
           <TablePagination
             page={page}
