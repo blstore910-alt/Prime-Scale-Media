@@ -115,6 +115,33 @@ was computed correctly.
   `.subcounts{display:flex}`), and the billing period ran under the
   Status badge (`white-space:nowrap` in a 160px card cell).
 
+### PARKED — reconciliation beyond the wallet side (owner asked 2026-09-21)
+
+Not on any of the sixteen journeys, so NOT before go-live. Recorded so
+it is not re-derived.
+
+The owner wants /reconciliation to cover the OUTGOING side too: what we
+top up to ad accounts, DST off our own wallet, everything from
+RockAds/the supplier, and what leaves through Wise. Today the screen
+only compares "credited to wallets" against "received", which is why
+PSM0005 reads **EUR credited €305.00 · received €0.00 · Check** —
+correct, because nothing has been entered in the ledger by hand.
+
+What each piece would actually take:
+
+| source | state today | missing |
+|---|---|---|
+| ad-account top-ups | the credited side is already in `top_ups` | only the wiring into this screen |
+| RockAds / supplier balance | adapter is live-wired (app.gradyn.io/api, per-account balance works) | nothing to READ it; auto-push stays off by the owner's own rule |
+| Wise | **off on production** | three env vars + a webhook URL — `docs/WISE_SETUP.md` |
+| DST | **does not exist** | a new module: rate per country, charged on spend |
+
+So reading RockAds and joining `top_ups` needs no new infrastructure.
+Wise needs the three env vars. DST has to be built.
+
+Meanwhile the manual ledger on that screen already takes the outgoing
+side: `Withdrawal (out)` against `Supplier bank`.
+
 ### Still OPEN
 
 - **`PLAK-DIT-13-MELDING-BIJ-INCASSO.sql` needs pasting.** Until then no
