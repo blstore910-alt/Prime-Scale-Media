@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { pageAllRows, pageAllRowsTolerant } from "@/lib/page-all-rows";
 import { enqueueSupplierWithdrawPush } from "@/lib/integrations/enqueue";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { resolveAdminContext, resolveUserContext } from "./_shared";
 import {
@@ -65,7 +66,12 @@ async function throttleFinancial(
 async function fundedUsd(
   supabase: Awaited<ReturnType<typeof createClient>>,
   adAccountId: string,
-): Promise<{ ok: true; funded: number } | { ok: false; error: string }> {
+  /** The account's OWN currency. What lands on it is what can come off it. */
+  accountCurrency: string,
+): Promise<
+  | { ok: true; funded: number; otherCurrency: number }
+  | { ok: false; error: string }
+> {
   const [topups, withdrawals] = await Promise.all([
     // ── A STRUCK-OUT TOP-UP IS NOT FUNDING ───────────────────────────
     // is_deleted is the only way to strike out a COMPLETED top-up, and
@@ -78,11 +84,19 @@ async function fundedUsd(
     // PAGED, because PostgREST caps a response at 1,000 rows. Missing
     // top-ups only under-counts (fails closed); missing WITHDRAWALS
     // inflates the balance, which fails open.
-    pageAllRowsTolerant<{ topup_amount: unknown }>(
+    // topup_usd AND currency, because topup_amount alone is ambiguous:
+    // it is USD on the admin paths and the PAYMENT currency on the
+    // customer's own. landedOnAccount reads topup_usd to tell them
+    // apart, and without these three columns it cannot.
+    pageAllRowsTolerant<{
+      topup_amount: unknown;
+      topup_usd: unknown;
+      currency: unknown;
+    }>(
       (from, to) =>
         supabase
           .from("top_ups")
-          .select("topup_amount")
+          .select("topup_amount, topup_usd, currency")
           .eq("account_id", adAccountId)
           .eq("status", "completed")
           .not("is_deleted", "is", true)
@@ -91,7 +105,7 @@ async function fundedUsd(
       (from, to) =>
         supabase
           .from("top_ups")
-          .select("topup_amount")
+          .select("topup_amount, topup_usd, currency")
           .eq("account_id", adAccountId)
           .eq("status", "completed")
           .order("id", { ascending: true })
@@ -122,10 +136,33 @@ async function fundedUsd(
     };
   }
 
-  const inUsd = topups.rows.reduce(
-    (sum, r) => sum + (Number(r.topup_amount) || 0),
-    0,
-  );
+  // ── SUM THE ROWS THAT ARE IN THIS ACCOUNT'S OWN CURRENCY ──────────
+  //
+  // This summed `topup_amount` raw and called the result USD. For a
+  // customer-filed row that column is the PAYMENT currency: a EUR
+  // account funded EUR 100 at 3% stores 97.00 EUR, and the dollar
+  // figure lives in topup_usd. So the ceiling was euros wearing a
+  // dollar sign — AA-PSM0005-EU-01 holds EUR 194.00 and the withdrawal
+  // path offered "$194.00", which approving would have credited as 194
+  // dollars for 194 euros.
+  //
+  // landedOnAccount is the discriminator and it is not a guess:
+  // topup_usd present <=> the customer filed it, and then topup_amount
+  // is in `currency`.
+  //
+  // Rows in ANOTHER currency are counted separately rather than
+  // converted. Converting here would be this app's second exchange
+  // rate, and the wallet is the only place allowed to change one
+  // currency into another.
+  let inCurrency = 0;
+  let otherCurrency = 0;
+  for (const r of topups.rows) {
+    const landed = landedOnAccount(r as Parameters<typeof landedOnAccount>[0]);
+    const amt = Number(landed.amount) || 0;
+    if (landed.currency === accountCurrency) inCurrency += amt;
+    else otherCurrency += amt;
+  }
+  const inUsd = inCurrency;
   // Pending counts against the balance too. Two requests for the whole
   // balance are each valid on their own and only one of them is.
   const outUsd = withdrawals.rows.reduce((sum, r) => {
@@ -135,7 +172,7 @@ async function fundedUsd(
     return sum + (Number(row.amount) || 0);
   }, 0);
 
-  return { ok: true, funded: inUsd - outUsd };
+  return { ok: true, funded: inUsd - outUsd, otherCurrency };
 }
 
 const usd = (v: number) =>
@@ -268,22 +305,36 @@ export async function requestAdAccountWithdrawal(input: {
   // in euros converts it in their wallet afterwards, where a real rate is
   // applied and recorded — which is the only place in this app that is
   // allowed to change one currency into another.
+  // ── THE ACCOUNT'S OWN CURRENCY, NOT A HARD-CODED USD ─────────────
+  //
+  // This pinned the withdrawal to USD whatever the account was, on the
+  // premise that "the balance on an ad account is held in USD". The
+  // data says otherwise: a customer-filed funding stores the landed
+  // amount in the PAYMENT currency (EUR 194.00 on AA-PSM0005-EU-01)
+  // and the dollar figure separately in topup_usd (222.38).
+  //
+  // So the old rule handed back the euro NUMBER as dollars: EUR 194 in,
+  // USD 194 out, about EUR 25 short, every round trip. And it
+  // contradicted the account's own screen, which says Currency: EUR.
+  //
+  // An ad account has one currency for its life. What went on in euros
+  // comes back in euros, into the EUR wallet — which is exactly what
+  // ad_account_withdrawal_approve already does: it branches on the
+  // withdrawal's currency and credits eur_balance or usd_balance. The
+  // RPC was right; only the caller was wrong.
   const fundedIn = (acct.currency ?? "USD").trim().toUpperCase();
-  const accountCurrency = "USD";
+  const accountCurrency = fundedIn === "EUR" ? "EUR" : "USD";
   if (input.currency !== accountCurrency) {
     return {
       ok: false,
-      error:
-        fundedIn === "USD"
-          ? `Money on ${acct.name ?? "this account"} is held in USD, so it comes back as USD.`
-          : `${acct.name ?? "This account"} was funded in ${fundedIn}, but the balance on it is held in USD — that is what the platform spends. It comes back as USD; you can exchange it in your wallet afterwards.`,
+      error: `${acct.name ?? "This account"} is in ${accountCurrency}, so money comes back in ${accountCurrency}. Exchange it in your wallet afterwards if you need the other one.`,
     };
   }
 
   // What is on it. A cent of tolerance, because these are numeric
   // columns summed in JS and an exact-equality refusal on a full
   // withdrawal would be a bug of its own.
-  const available = await fundedUsd(supabase, input.ad_account_id);
+  const available = await fundedUsd(supabase, input.ad_account_id, accountCurrency);
   if (!available.ok) return { ok: false, error: available.error };
   if (available.funded <= 0.005) {
     return {
@@ -366,7 +417,17 @@ export async function approveAdAccountWithdrawal(
   const wanted = Number(row.amount) || 0;
   const accountId = String(row.ad_account_id ?? "");
   if (accountId) {
-    const available = await fundedUsd(supabase, accountId);
+    // The withdrawal's OWN currency, which is the account's — the same
+    // one ad_account_withdrawal_approve branches on when it credits the
+    // wallet. Comparing a euro amount against a dollar ceiling is how
+    // this went wrong on the request side.
+    const wdCurrency =
+      String((row as { currency?: unknown }).currency ?? "USD")
+        .trim()
+        .toUpperCase() === "EUR"
+        ? "EUR"
+        : "USD";
+    const available = await fundedUsd(supabase, accountId, wdCurrency);
     if (!available.ok) return { ok: false, error: available.error };
     // This row's own amount is inside `funded` already (it is pending),
     // so add it back before comparing — otherwise every withdrawal

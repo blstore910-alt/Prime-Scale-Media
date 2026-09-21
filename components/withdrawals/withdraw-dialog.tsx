@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requestAdAccountWithdrawal } from "@/actions/withdrawal-actions";
 import { createClient } from "@/lib/supabase/client";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -43,14 +44,29 @@ export default function WithdrawDialog({
   // The dialog then said "Comes back as EUR" while the server, which now
   // reads the currency off the account, refused the mismatch. The customer
   // could not withdraw at all, and the error contradicted the screen.
-  // ALWAYS USD, whatever the account was funded in. The balance on an ad
-  // account is top_ups.topup_amount and that column is USD for every
-  // payment currency — so a EUR account's balance is a USD figure, and
-  // showing "Comes back as EUR" beside it is how the 1:1 exploit survived
-  // the fix that was meant to close it. defaultCurrency is kept only to
-  // tell the customer what they funded with.
-  const currency = "USD";
-  const fundedIn = (defaultCurrency ?? "USD").toUpperCase();
+  // ── THE ACCOUNT'S OWN CURRENCY ────────────────────────────────────
+  //
+  // This was pinned to USD on the premise that "topup_amount is USD for
+  // every payment currency". It is not: that column is USD on the ADMIN
+  // create paths and the PAYMENT currency on the customer's own RPC,
+  // which puts the dollar figure in topup_usd instead —
+  // lib/pure-topup-landed.ts exists to tell them apart.
+  //
+  // Measured on production: AA-PSM0005-EU-01 is a EUR account holding
+  // EUR 194.00, with topup_usd summing to 222.38. The dialog offered
+  // "Max $194.00" and approving would have credited 194 DOLLARS for 194
+  // euros — about EUR 25 short, every round trip, on a screen that says
+  // Currency: EUR two panels away.
+  //
+  // An ad account has one currency for its life. What went on in euros
+  // comes back in euros. ad_account_withdrawal_approve already branches
+  // on the withdrawal's currency and credits eur_balance or usd_balance
+  // accordingly, so the RPC was right all along and only its caller was
+  // wrong.
+  const currency = (defaultCurrency ?? "USD").trim().toUpperCase() === "EUR"
+    ? "EUR"
+    : "USD";
+  const fundedIn = currency;
 
   // ── THE FIGURE THE SERVER WILL MEASURE THIS AGAINST ────────────────
   //
@@ -71,7 +87,10 @@ export default function WithdrawDialog({
       const supabase = createClient();
       const put = await supabase
         .from("top_ups")
-        .select("topup_amount")
+        // topup_usd and currency as well: without them landedOnAccount
+        // cannot tell a customer row from an admin one and reads every
+        // amount as dollars.
+        .select("topup_amount, topup_usd, currency")
         .eq("account_id", adAccountId)
         .eq("status", "completed")
         .not("is_deleted", "is", true);
@@ -81,10 +100,15 @@ export default function WithdrawDialog({
         .select("amount, status")
         .eq("ad_account_id", adAccountId);
       if (off.error) throw off.error;
-      const onAcct = (put.data ?? []).reduce(
-        (a, r) => a + (Number((r as { topup_amount?: unknown }).topup_amount) || 0),
-        0,
-      );
+      // Only what landed in THIS account's currency. Rows in another
+      // one are not converted here — the wallet's exchange is the only
+      // place in this app allowed to turn one currency into another.
+      const onAcct = (put.data ?? []).reduce((a, r) => {
+        const landed = landedOnAccount(
+          r as Parameters<typeof landedOnAccount>[0],
+        );
+        return landed.currency === currency ? a + (Number(landed.amount) || 0) : a;
+      }, 0);
       const taken = (off.data ?? [])
         .filter((r) => {
           const st = String((r as { status?: unknown }).status ?? "").toLowerCase();
@@ -262,7 +286,8 @@ export default function WithdrawDialog({
                   className="text-xs font-semibold tabular-nums text-primary underline-offset-2 hover:underline"
                   onClick={() => setAmount(String(ceiling))}
                 >
-                  Up to ${ceiling.toFixed(2)}
+                  Up to {currency === "EUR" ? "€" : "$"}
+                  {ceiling.toFixed(2)}
                 </button>
               )}
             </div>
