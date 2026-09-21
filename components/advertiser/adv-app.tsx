@@ -9,7 +9,7 @@ import { useAppContext } from "@/context/app-provider";
 import PlatformMark from "@/components/psm/platform-mark";
 import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
-import { humanSlug, sameSlug } from "@/lib/pure-slug-key";
+import { customerPlatformName } from "@/lib/pure-platform-badge";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
@@ -36,7 +36,6 @@ import {
 } from "@/lib/pure-company-complete";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
-import { PLATFORMS } from "@/lib/constants";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -146,24 +145,17 @@ const money2sym = (
 // Support inbox for the "contact us" actions. Change here if it differs.
 const SUPPORT_EMAIL = "contact@primescalemedia.com";
 
-// ── A CUSTOMER MUST NEVER READ A DATABASE VALUE ────────────────────
+// ── A CUSTOMER READS THE NETWORK, NEVER THE TYPE ───────────────────
 //
-// This looked the slug up in PLATFORMS and fell back to the slug
-// itself. Two vocabularies reach it: PLATFORMS holds `eu-meta-psm`,
-// while the ad-account REQUEST form writes `meta-ads` / `tiktok-ads` /
-// `google-ads` -- in no list at all. So the Requests screen printed
-// "meta-ads" to the customer, on the row describing the account they
-// asked us for. And /settings/ad-account-types is data-driven, so a
-// type created there is missing from PLATFORMS by construction: the
-// fallback is the NORMAL path for anything new, not an edge case.
+// `platform` on an ad account is the TYPE slug (`eu-meta-psm`), and this
+// looked it up in PLATFORMS -- so every account tile said "Meta-EU-PSM"
+// under the customer's own account name: our region, our routing, our
+// price tier. The owner found it there more than once. Before that it
+// fell back to the raw slug and printed "meta-ads" on Requests.
 //
-// sameSlug, not ===, for the same reason the fee resolver uses it: the
-// settings screen slugifies from a label and the word order differs.
-const platformLabel = (p: string | null) => {
-  const known = PLATFORMS.find((x) => sameSlug(x.value, p))?.label;
-  if (known) return known;
-  return humanSlug(p) || "—";
-};
+// Now the network name only ("Meta", "TikTok", "Google"), and nothing at
+// all for a platform we cannot name -- never the slug.
+const platformLabel = (p: string | null) => customerPlatformName(p) ?? "";
 
 
 // Every status an ad account can hold, and NOT an "anything else is fine"
@@ -2549,7 +2541,9 @@ export default function AdvertiserApp() {
           </span>
           <div style={{ minWidth: 0 }}>
             <div className="nm">{a.name || "Ad account"}</div>
-            <div className="sub">{platformLabel(a.platform)}</div>
+            {platformLabel(a.platform) ? (
+              <div className="sub">{platformLabel(a.platform)}</div>
+            ) : null}
           </div>
           <span style={{ marginLeft: "auto" }}>
             <span className={`badge ${b.cls}`}>{b.label}</span>
@@ -4439,7 +4433,7 @@ export default function AdvertiserApp() {
                               {dayjs(r.created_at).format("D MMM YYYY")}
                             </td>
                             <td data-label="Platform">
-                              {platformLabel(r.platform)}
+                              {platformLabel(r.platform) || "—"}
                               {r.rejection_reason ? (
                                 <span
                                   style={{

@@ -41,6 +41,26 @@ export function platformFamily(slug: unknown): PlatformFamily {
 }
 
 /**
+ * What a CUSTOMER may read for a platform slug: the network, nothing
+ * else.
+ *
+ * `ad_accounts.platform` holds the ad-account TYPE slug (`eu-meta-psm`,
+ * `hk-meta-premium`), and the type is ours: its region, its supplier
+ * routing, its price tier. The advertiser app looked the slug up in
+ * PLATFORMS and printed "Meta-EU-PSM" under the customer's own account --
+ * the owner found it there more than once.
+ *
+ * So this never returns a type label and never returns the raw slug (a
+ * new type's slug carries the same internals). A family we know becomes
+ * its name; anything else is null, and the caller prints nothing rather
+ * than a guess.
+ */
+export function customerPlatformName(slug: unknown): string | null {
+  const family = platformFamily(slug);
+  return family === "other" ? null : FAMILY_LABEL[family];
+}
+
+/**
  * What to print for a platform slug.
  *
  * `known` is the label from the tenant's own type list when the slug is

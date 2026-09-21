@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  customerPlatformName,
   platformFamily,
   platformLabel,
 } from "../../lib/pure-platform-badge.ts";
@@ -82,4 +83,19 @@ test("the pill says something useful even when half the record is blank", () => 
   assert.equal(supplierPillLabel(null, null), "supplier");
   assert.equal(supplierUrlHost("https://app.example.com/x?y=1"), "app.example.com");
   assert.equal(supplierUrlHost("javascript:alert(1)"), "");
+});
+
+test("a customer reads the network, never the type or the slug", () => {
+  // The tile under AA-PSM0007-EU-01 printed "Meta-EU-PSM".
+  assert.equal(customerPlatformName("eu-meta-psm"), "Meta");
+  assert.equal(customerPlatformName("eu-meta-psm-gh"), "Meta");
+  assert.equal(customerPlatformName("hk-meta-business-green"), "Meta");
+  assert.equal(customerPlatformName("meta-ads"), "Meta");
+  assert.equal(customerPlatformName("google-ads"), "Google");
+  assert.equal(customerPlatformName("tiktok"), "TikTok");
+  // A platform we cannot name prints nothing -- never its slug, which
+  // carries the same internals a type label does.
+  assert.equal(customerPlatformName("taboola-eu-psm"), null);
+  assert.equal(customerPlatformName(""), null);
+  assert.equal(customerPlatformName(null), null);
 });
