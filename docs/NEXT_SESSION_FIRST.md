@@ -362,6 +362,65 @@ decisions, not fixes.
    Only a percentage accrues. Four of the seven types are configurable
    money that no code computes.
 
+#### F1 — MEASURED 2026-09-21 (plak 26 came back)
+
+| | |
+|---|---|
+| `wallet_topups.amount` | **numeric** — the accrual does NOT throw. The worst theory is dead. |
+| `referral_commissions.amount` | numeric(14,2) |
+| the three views | **all `security_invoker=on`** — the cross-tenant read is NOT live |
+| client codes | 8 of 8 uppercase, 0 duplicates — attribution is not broken |
+| `create_subscription_from_invite` | already revoked from `authenticated` |
+| **referral links** | **0. None, ever.** |
+| commission rows | 0 |
+| owed | 0.00 / 0.00 |
+| role-`affiliate` profiles with no advertiser row | **2** |
+| live clawback body | **20260920240000** — share x LIFETIME |
+| applications filed | 1 (mine) |
+
+**Nobody has been hurt by any of this**: there is no referral, no
+commission and no money on this journey. That makes now the cheapest
+possible moment to fix it.
+
+#### F1 — the two that are live and wrong
+
+1. **All four tables grant DELETE, INSERT and UPDATE to
+   `authenticated`**, under `for all ... using (_is_admin_of(tenant_id))`
+   policies that test WHO owns the row and nothing about WHAT is
+   written. From an employee admin's console: approve yourself at 90%,
+   point a real customer's referral at your own advertiser row, reopen a
+   settled commission, invent one, or delete the evidence.
+   **PLAK-27** revokes every verb no caller session uses
+   (`referral_clawbacks` entirely, `referral_commissions` insert+delete,
+   `referral_links` delete, `affiliates` insert+delete). The UPDATE
+   holes need a column guard — the shape of `_guard_user_profile_role` —
+   and that is a separate plak that must land before an affiliate earns.
+2. **The live clawback multiplies a EUR commission pot by a USD ratio.**
+   `v_share = p_amount / v_volume` where both are ad-account figures in
+   dollars, and `v_gross` is the commission pot, which for a EUR-funding
+   customer is the EUR pot. Worked example from the sweep: EUR 100,000
+   topped up at 2% = EUR 2,000 commission; USD 5,000 of ad-account
+   funding, USD 5,000 withdrawn -> share 1.0000 -> **EUR 2,000 clawed
+   back** where the proportional answer is EUR 92. The denominator is
+   also `sum(top_ups.topup_amount)` raw, which is the dual-meaning column
+   `lib/pure-topup-landed.ts` exists for, so it adds euros to dollars
+   before it starts.
+   **NOT rewritten.** The right formula depends on what a clawback means
+   in this business — see the owner questions above. Nothing is at risk
+   today (0 commissions), but it must be settled before the first
+   accrual.
+
+#### F1 — fixed since (`ceaee9f`)
+
+**The two role-`affiliate` users were shown a portal that can never
+answer.** Their profile has no `advertisers` row, so
+`affiliate_referral_stats` returns zero rows with no error, and every
+guard read that as a successful empty: EUR 0 lifetime, 0 referred, "No
+referrals yet", "No commission yet", payout disabled with "Nothing
+outstanding to request yet". `portalInert` now folds into
+`statsUnavailable`, so those become dashes, with one line at the top
+saying the account is not finished.
+
 #### F1 — measured by PLAK-26, then fixed
 
 `supabase/checks/PLAK-DIT-26-F1-METEN.sql` — read-only, one report,
