@@ -5,6 +5,7 @@ import {
 } from "@/lib/payment-reference";
 import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { invoiceStatusView } from "@/lib/invoice-status";
 import { readFile } from "fs/promises";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -369,7 +370,23 @@ function buildInvoiceHtml(
     : "";
   const normalizedStatus = compactText(invoice.status).toLowerCase();
   const isPaid = normalizedStatus === "paid";
-  const statusText = formatLabel(normalizedStatus) || "Unpaid";
+  // ── AND THE WORD ITSELF, NOT JUST THE COLOUR ──────────────────────
+  //
+  // The previous pass fixed the PILL COLOUR and the "Nothing Due" line
+  // and left the word alone: formatLabel("void") prints "Void", while
+  // lib/invoice-status.ts prints "Cancelled" to a customer on every
+  // screen in the app. So the document they keep disagreed with the
+  // screen they read it from, using a word most people would have to
+  // look up.
+  //
+  // customer: true because a PDF invoice IS the customer's copy,
+  // whoever pressed Download. One helper, so the two cannot drift
+  // apart again.
+  const statusText =
+    invoiceStatusView(normalizedStatus, {
+      customer: true,
+      dueDate: invoice.due_date ?? null,
+    }).label || "Due";
   // ── A VOID INVOICE IS NOT A DEBT ────────────────────────────────────
   //
   // `isPaid ? "paid" : "unpaid"` printed "Void" in the red unpaid style
