@@ -65,6 +65,19 @@ export const useCreateAdAccountRequest = () => {
       qc.invalidateQueries({ queryKey: ["ad-account-requests"] });
       qc.invalidateQueries({ queryKey: ["wallet"], exact: false });
       qc.invalidateQueries({ queryKey: ["request-fee-preview"] });
+      // ── AND THE STATEMENT LINE FOR WHAT JUST LEFT ──────────────────
+      //
+      // `adv-request-charges` feeds the wallet statement's row for this
+      // charge, and nothing in the repo invalidated it. The shell never
+      // remounts (the views are CSS-toggled), refetchOnWindowFocus is
+      // off and staleTime is not a refetch trigger -- so that query
+      // never ran again, while `wallet` above DOES get invalidated and
+      // the balance drops within the second.
+      //
+      // The customer watched EUR 500 become EUR 450 with no line
+      // anywhere explaining it. That is verbatim the fault the query was
+      // added to fix.
+      qc.invalidateQueries({ queryKey: ["adv-request-charges"], exact: false });
       toast.success(
         // Not "the fee was charged": the RPC sets the fee to 0 and debits
         // nothing when the request is covered by the plan or a perk, and the

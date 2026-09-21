@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isUrlLike } from "@/lib/url-field";
-import { Resolver, useForm, Control, Controller } from "react-hook-form";
+import { Resolver, useForm, Control, Controller, Path } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useRef, useState } from "react";
 import InputField from "../form/input-field";
@@ -310,8 +310,61 @@ export default function AdAccountRequestForm({
       // granted for free. The code below already handles feePreview being
       // undefined correctly (see feeEnough) — so make a partial failure
       // behave like the total failure it effectively is.
-      const failed = [w, r, plan, reqs, perks].find((res) => res.error);
+      // ── BUT A MISSING TABLE IS NOT A FAILED READ ──────────────────
+      //
+      // `advertiser_plans` and `advertiser_perks` are both added by
+      // hand-pasted migrations, and CLAUDE.md's rule is explicit:
+      // anything reading something a pending migration has not added
+      // must hold when it is absent. actions/topup-actions.ts already
+      // does exactly this for the perks read.
+      //
+      // Treating 42P01 / 42703 as fatal here is worse than useless: the
+      // card then reads "Checking what this request costs…" for ever,
+      // the confirm says "Worked out when you submit", and because
+      // feeEnough lets an UNKNOWN preview through, the submit button
+      // stays live. The customer confirms a EUR 50 debit without the
+      // app ever stating the price or their balance, with the
+      // insufficient-balance gate switched off.
+      //
+      // Absent table or absent column: no plan, no perks. Anything else
+      // still throws.
+      const softMissing = (e: { code?: string } | null) =>
+        e?.code === "42P01" || e?.code === "42703" || e?.code === "PGRST205";
+      const planRow = plan.error
+        ? softMissing(plan.error)
+          ? null
+          : (() => {
+              throw plan.error;
+            })()
+        : plan.data;
+      const perkRows = perks.error
+        ? softMissing(perks.error)
+          ? []
+          : (() => {
+              throw perks.error;
+            })()
+        : perks.data;
+
+      // The other three ARE load-bearing: the wallet balance, the rate
+      // and the request count each decide a figure on screen, so a
+      // failure has to be an unknown price rather than a wrong one.
+      const failed = [w, r, reqs].find((res) => res.error);
       if (failed?.error) throw failed.error;
+
+      // ── AND A ROW maybeSingle() COULD NOT SEE IS NOT A ZERO ───────
+      //
+      // maybeSingle() returns null WITHOUT an error both for "no row"
+      // and for "RLS refused". For the wallet that turned into
+      // "Balance: EUR 0.00 -> EUR -50.00" and "Not enough balance --
+      // top up before requesting", with the submit AND the confirm both
+      // disabled, for a customer holding thousands. A refused read
+      // presented as a zero balance, stopping the journey dead.
+      //
+      // No wallet row means the price is UNKNOWN, which the rest of this
+      // component already knows how to say.
+      if (!w.data) {
+        throw new Error("We could not read your wallet balance just now.");
+      }
 
       // ── THE SAME COMPARISON THE SQL MAKES, CASE AND ALL ───────────
       //
@@ -328,7 +381,7 @@ export default function AdAccountRequestForm({
           !["rejected", "cancelled"].includes(x.status ?? ""),
       ).length;
       const nowMs = new Date().getTime();
-      const hasFreePerk = (perks.data ?? []).some(
+      const hasFreePerk = (perkRows ?? []).some(
         (p: {
           remaining: number | null;
           expires_at: string | null;
@@ -342,7 +395,7 @@ export default function AdAccountRequestForm({
         usd: Number(w.data?.usd_balance ?? 0),
         eur: Number(w.data?.eur_balance ?? 0),
         rate: Number(r.data?.eur) || 0.86,
-        included: Number(plan.data?.included_ad_accounts ?? 0),
+        included: Number(planRow?.included_ad_accounts ?? 0),
         used,
         hasFreePerk,
       };
@@ -389,6 +442,50 @@ export default function AdAccountRequestForm({
     userScope: profile?.id ?? null,
   });
   useUnsavedChangesWarning(isDirty);
+
+  // ── AND THE DRAFT HAS TO BE READ BACK ─────────────────────────────
+  //
+  // The form SAVED a draft and never restored one. `draft.hasDraft` and
+  // `draft.restoredDraft` were referenced nowhere, so the whole thing
+  // was write-only: platform, timezone, the Business Manager id, the
+  // profile link, the website and the notes all went when the dialog
+  // closed, and reopening showed blank defaults.
+  //
+  // Escape or a tap on the dimmed area unmounts it, and
+  // useUnsavedChangesWarning is a beforeunload handler -- it does not
+  // fire on a dialog close. Reproduced by closing it on production:
+  // everything typed, gone.
+  //
+  // CLAUDE.md names this form as one of the four that must never lose
+  // typing, and both siblings (wallet-topup-dialog,
+  // company-onboarding-form) already restore. This one did not.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return;
+    if (!draft.hasDraft || !draft.restoredDraft) return;
+    restored.current = true;
+    const v = draft.restoredDraft.values as Partial<FormValues>;
+    // One field at a time, so a draft written by an older version of
+    // this form cannot push an unknown key into the resolver.
+    (
+      [
+        "platform",
+        "currency",
+        "timezone",
+        "facebook_business_manager_id",
+        "personal_facebook_profile_link",
+        "website_url",
+        "notes",
+      ] as const
+    ).forEach((k) => {
+      const val = v[k as keyof FormValues];
+      if (typeof val === "string" && val !== "") {
+        setValue(k as Path<FormValues>, val as never, { shouldDirty: true });
+      }
+    });
+    draft.dismissDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.hasDraft, draft.restoredDraft]);
 
   // ── THE CURRENCY FOLLOWS THE PLATFORM, BOTH WAYS ──────────────────
   //
