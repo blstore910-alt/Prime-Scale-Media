@@ -107,8 +107,25 @@ const HEARD_FROM = [
 
 export default function InviteSignUpForm({
   invite,
+  token,
 }: {
   invite: UserInvitation;
+  /**
+   * The token out of the URL.
+   *
+   * NOT read off `invite`. The signup route requires `invite.token`, and
+   * this form used to rely on get_invite_by_token echoing that column
+   * back. The LIVE function does not -- it returns affiliate_id, email,
+   * expires_at, id, role, status, tenant_id and tenant_name, narrowed at
+   * some point (correctly: `to_jsonb(i)` hands the whole row to anyone
+   * holding the link). The repo's copy still has the wide version, so
+   * nothing in this codebase could see the difference.
+   *
+   * Result: 400 "Invalid request body", issue `invite.token: expected
+   * string, received undefined`, on EVERY invite signup. Nobody could
+   * join.
+   */
+  token: string;
   className?: string;
 }) {
   const router = useRouter();
@@ -143,7 +160,8 @@ export default function InviteSignUpForm({
       lastName: values.lastName,
       tenant_id: invite.tenant_id,
       role: invite.role,
-      invite,
+      // The token comes from the URL, not from the read. See the prop.
+      invite: { ...invite, token },
       referral_status: values.referral_status,
       referred_by:
         values.referral_status === "referred" ? values.referred_by : null,

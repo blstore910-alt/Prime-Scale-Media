@@ -98,5 +98,23 @@ export default async function Page({ searchParams }: PageProps) {
   // width, exactly as the sign-in page does. The extra flex wrapper that used
   // to be here fought that: a second full-height centring context inside one
   // that was already centring.
-  return <InviteSignUpForm invite={invite} />;
+  // ── THE TOKEN COMES FROM THE URL, NOT FROM THE RPC'S ANSWER ────────
+  //
+  // The form posts the invitation back to /api/accept-invite/signup,
+  // which requires `invite.token`. It used to rely on
+  // get_invite_by_token echoing the column back inside its jsonb.
+  //
+  // The LIVE function does not: it returns
+  // affiliate_id, email, expires_at, id, role, status, tenant_id,
+  // tenant_name -- narrowed at some point, correctly, because
+  // `to_jsonb(i)` hands the whole row to anyone holding the link. The
+  // repo's copy still has the wide version, so nothing here could see
+  // it. The result was a 400 "Invalid request body" on every single
+  // invite signup: nobody could join.
+  //
+  // The token is in the query string this page already read. Passing it
+  // explicitly is both the fix and the right shape -- the client should
+  // never have depended on a read echoing back the credential it was
+  // called with.
+  return <InviteSignUpForm invite={invite} token={token} />;
 }

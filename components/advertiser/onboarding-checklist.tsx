@@ -59,6 +59,21 @@ type Step = {
   // An optional invitation to go and look at something does not: once you
   // have looked, it is finished with, and leaving it there is clutter.
   removeWhenDone?: boolean;
+  // ── NOT PART OF SETTING THE ACCOUNT UP ────────────────────────────
+  //
+  // "Earn as an affiliate" is a standing offer, not a step. It has
+  // `auto: false` for ever, so while it was counted a fully set-up
+  // advertiser read "1 step left" at 75% on the meter, permanently,
+  // and the "You're all set" card was unreachable from data alone.
+  //
+  // Worse, the thing it asks for does not complete it: its CTA opens
+  // the affiliate hero, and pressing "Join the affiliate program" there
+  // sends a real application and toasts "Application sent" -- while the
+  // step still says "Earn as an affiliate · 1 step left". The only
+  // control that ticks it is an empty unlabelled circle.
+  //
+  // So it stays on the list as an offer and stops being counted.
+  optional?: boolean;
 };
 
 type Persisted = { manual: string[]; dismissed: boolean; collapsed: boolean };
@@ -196,14 +211,22 @@ export default function OnboardingChecklist({
       view: "referrals",
       auto: false, // informational — completed by a manual tick
       removeWhenDone: true,
+      optional: true,
     },
   ];
 
   const isDone = (s: Step) => s.auto || manual.includes(s.id);
   // What the list shows. The affiliate invitation leaves once it is ticked.
   const visible = steps.filter((s) => !(s.removeWhenDone && isDone(s)));
-  const doneCount = visible.filter(isDone).length;
-  const remaining = visible.length - doneCount;
+  // ── THE COUNT IS OF SETUP STEPS, NOT OF EVERYTHING ON THE LIST ────
+  //
+  // `visible.length` included the affiliate offer, which can never
+  // auto-complete, so the meter sat at 75% and "1 step left" for every
+  // advertiser who had finished setting up. The offer still shows; it
+  // is just no longer counted as work outstanding.
+  const counted = visible.filter((s) => !s.optional);
+  const doneCount = counted.filter(isDone).length;
+  const remaining = counted.length - doneCount;
   const allDone = remaining === 0;
 
   const toggle = (s: Step) => {
@@ -258,7 +281,10 @@ export default function OnboardingChecklist({
     );
   }
 
-  const pct = visible.length ? (doneCount / visible.length) * 100 : 0;
+  // Against the COUNTED steps, for the same reason: the meter was
+  // measuring progress against a row that can never be completed by
+  // doing anything.
+  const pct = counted.length ? (doneCount / counted.length) * 100 : 0;
 
   return (
     <section className="card onb">
