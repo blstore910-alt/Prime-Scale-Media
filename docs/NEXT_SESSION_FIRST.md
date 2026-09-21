@@ -5,10 +5,11 @@
 > that carries over is in this repo and pushed to `main`. Read this
 > section, then `CLAUDE.md`, then the per-journey state below.
 
-## THE NUMBER: 6 of 16 journeys closed (A1, A2, A3, A4, A5, A6).
+## THE NUMBER: 7 of 16 journeys closed (A1-A7).
 
-**A7 is walked and fixed EXCEPT the exchange, which is blocked on
-PLAK-23.** See the A7 block below.
+**A7 closed 2026-09-21.** PLAK-23 landed and the first successful
+exchange in this app's history was walked end to end; every figure
+agrees with the database to the cent. See the A7 block below.
 
 ## How to start, in order
 
@@ -43,11 +44,18 @@ PLAK-23.** See the A7 block below.
 ## SQL: what is applied and what is waiting
 
 **Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
-5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 22.
+5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 22, 23.
 
 **WAITING on the owner — paste these first:**
 
-- **`PLAK-DIT-23-WISSELEN-HEEFT-NOOIT-GEWERKT.sql` — BLOCKS A7.**
+- **`PLAK-DIT-25-EEN-WISSEL-DIE-NOOIT-GEBEURDE.sql`.** A customer can
+  POST a fabricated row into `wallet_exchanges` on their own wallet —
+  the insert policy checks the wallet, never the amounts. No money
+  moves, but it pollutes the customer's statement, the admin table, the
+  financial report and `/api/stats/wallet`. Everything can be revoked
+  here: every caller-session touch is a SELECT and the only writer is
+  SECURITY DEFINER.
+- **APPLIED 2026-09-21: `PLAK-DIT-23-WISSELEN-HEEFT-NOOIT-GEWERKT.sql`.**
   `wallet_exchanges.created_by` references `user_profiles(id)` and the
   live `wallet_exchange` RPC writes `auth.uid()` into it. Those are
   never the same value, so EVERY exchange has always failed on the
@@ -109,7 +117,7 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 
 # READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
-## THE NUMBER: 6 of 16 journeys closed (A1, A2, A3, A4, A5, A6).
+## THE NUMBER: 7 of 16 journeys closed (A1-A7).
 
 | journey | state |
 |---|---|
@@ -276,13 +284,25 @@ Not one of these came out of reading the code. They needed the browser.
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
 
-### A7 — settings + EUR/USD exchange — walked 2026-09-21, BLOCKED
+### A7 — CLOSED 2026-09-21
 
-Walked as PSM0005 in the pane. Everything on this journey is fixed and
-live EXCEPT the exchange itself, which cannot be closed from the app
-side at all.
+Walked as PSM0005 in the pane, both branches of the dialog, and every
+figure checked against the database.
 
-#### The blocker: nobody has EVER been able to exchange currency
+| | |
+|---|---|
+| USD branch | 10 USD at 0.872361 -> fee 0.05 -> **8.67 EUR**, Exchange button dead (balance is 0.00 USD) |
+| EUR branch | 50 EUR -> fee **0.34 USD** -> **56.98 USD**; confirmation repeated the same four lines |
+| after | EUR **45.00** / USD **56.98** on screen |
+| database | `45.00 EUR / 56.98 USD` — same |
+| the row | `50 EUR -> 56.98 USD, rate 0.872361, fee 0.34, created_by filled` |
+| reconciles | gross 57.3157, fee + net = 57.32 = the rounded gross |
+| audit | 1 row written by the trigger this plak attached |
+
+#### The blocker that had to be cleared first: nobody had EVER exchanged
+
+**`wallet_exchanges` held 0 rows.** Not "it broke today" — it had never
+once worked, for anybody, in the life of this app.
 
 Pressing "Yes, exchange it" on 50 EUR gave, in a toast, on the
 customer's own wallet:
@@ -384,9 +404,33 @@ covering amount (`9442c29`).
 - Wallet figures on the dashboard agree with the database: EUR 95.00 /
   USD 0.00, plan Prime "Active · renews 20 Oct", 1 ad account.
 
+#### Found AFTER the exchange finally worked
+
+- **The statement row did not reconcile with itself.** The first
+  successful exchange printed `Exchanged EUR 50.00 to USD at 0.8724`
+  beside `USD 56.98`, and 50 x 0.8724 is 43.62.
+  `wallet_exchanges.exchange_rate` stores "1 USD = N EUR" whichever way
+  the money went, and the row printed it raw — so an EUR -> USD
+  conversion showed the rate for the other direction. `rateForDirection`
+  now prints it the way it went, with both currencies named. And
+  `fee_amount` was not even in the select while the ADMIN table has
+  always shown it: the customer got the only version of their own
+  record that does not add up (`275bb26`).
+- **The amount box started on a literal `0`** you have to delete first —
+  type 10 over it and you get 010, with the figures below following
+  along (`275bb26`).
+
 #### A7 — still OPEN
 
-1. **The exchange itself — PLAK-23.** Nothing else closes this journey.
+1. **A customer can file a wallet exchange that never happened —
+   PLAK-25.** `wallet_exchanges` grants DELETE, INSERT, UPDATE to
+   `authenticated`, and the insert policy checks only that the wallet is
+   yours, never the AMOUNTS. No money moves (only the RPC touches
+   balances) but the row lands on the customer's statement, the admin
+   table, the financial report and `/api/stats/wallet`. This is the
+   OPPOSITE of plak 21: every caller-session touch of this table is a
+   SELECT and the only writer is SECURITY DEFINER, so it can be shut
+   completely.
 2. **`user_profiles` / `companies` column locks — PLAK-24.** A
    deactivated customer can re-activate themselves; rows can be walked
    out of the tenant.
