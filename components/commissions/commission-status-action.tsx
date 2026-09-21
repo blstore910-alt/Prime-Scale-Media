@@ -66,6 +66,7 @@ export default function CommissionStatusAction({
       // The dashboard's "Commissions paid" card reads stats-batch, cached
       // for five minutes; it kept the old count after every Mark Paid.
       queryClient.invalidateQueries({ queryKey: ["stats-batch"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
       queryClient.invalidateQueries({
         queryKey: ["referral-links-with-details"],
         exact: false,

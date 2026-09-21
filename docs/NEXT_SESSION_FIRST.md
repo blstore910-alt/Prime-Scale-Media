@@ -1,3 +1,22 @@
+# OWNER REQUESTS, 2026-09-21 (late) — the build list, in the owner's words
+
+Asked during the F2 walk. None of these is optional; the order is mine.
+
+| # | request | state |
+|---|---|---|
+| R1 | **Commission rules.** Per affiliate (and a default for all), set what they earn FROM NOW ON — what is already earned stays. Top-ups: % of **our PROFIT only** ("supplier fee moet er af"), settable per ad-account type. Subscriptions: % of every paid invoice. A new rule applies to ALL their referred customers from that moment. | building — `lib/pure-commission-rules.ts` (tested), `actions/commission-rule-actions.ts`; DB = plak 35 |
+| R2 | **/affiliates = list of affiliates** → click → all their referrals, their rules per account type / subscription, every commission with its calculation, detailed. | building |
+| R3 | **Account deletion is a REQUEST to the admin**, not an immediate lock. Remove "Blocks your login right away. Financial records are kept for 7 years by law." Only after the admin approves is the account closed. | waiting on plak 33 row 11 (notification types) |
+| R4 | **"Push to supplier" must say it succeeded**, and then we check in Rockads ourselves. Found: the button can never succeed today — it pushes to the `supplier1` channel (not Rockads), the gate is off, EUR accounts are refused by design, and the enqueue requires `completed` while the dialog only opens for `pending`. The RockAds deposit call is deliberately NOT implemented (`lib/integrations/rockads-api.ts`). The step text "there is no dashboard to log into" is wrong — they check in Rockads. | needs owner decision: build the real Rockads deposit, or drop the button |
+| R5 | **Sub-users**: several people (e.g. two partners) on ONE advertiser or affiliate account. "Dat zijn er heel veel." | backlog — big: auth, roles, RLS, every `advertisers.user_id` read |
+| R6 | **Change email**: a user can change their own login email, or an admin does it for them. | backlog |
+| R7 | Customers must NEVER see the ad-account TYPE (e.g. "Meta-EU-PSM"). | **DONE `38f293b`** — `customerPlatformName` |
+| R8 | **No plan → the customer picks one themselves**: the 3 standard plans + a yearly option, then pay. BUT a customer with a discount, in a community, or whose plan the owner already chose at onboarding gets NO choice — straight to that plan and paying. Affiliates are not advertisers: no plan choice for them, only once the owner switches on "advertiser mode" for that affiliate. | backlog — needs a start-subscription RPC (subscription + first invoice + pay from wallet) |
+| R9 | Every "message us" button is WhatsApp to +31 6 15300300. | **DONE `ebc1933`** — `lib/whatsapp.ts` |
+| R10 | "Prime" shown with no subscription; ad accounts requestable without a plan. | **DONE `1ffdeb4`** (screen); the server check in `ad_account_request_create_paid` waits on plak 33 row 16 |
+
+Also fixed on the owner's word this session: verify-dialog header alignment (`1c1607c`), the "You're all set" strip (`81b761b`), every red button in the app was invisible (`fae43d2`).
+
 # READ THIS FIRST — state of play, 2026-09-21 (evening)
 
 > **HANDOVER.** A NEW Claude session, possibly on a different account,

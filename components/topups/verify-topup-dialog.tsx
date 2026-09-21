@@ -236,6 +236,7 @@ function VerifyTopupInvoice({
         "referral-links-with-details",
         "admin-user-referral-commissions",
         "affiliate-earnings-by-email",
+        "affiliate-book",
         "stats-batch",
       ]) {
         queryClient.invalidateQueries({ queryKey: [key], exact: false });

@@ -39,6 +39,7 @@ export default function ReferralStatusAction({
       // views key on "affiliates". Invalidate both so the row refetches.
       queryClient.invalidateQueries({ queryKey: ["referral-links-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["affiliates"] });
+      queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
       toast.success(
         next === "active" ? "Affiliate approved" : "Affiliate rejected",
       );
