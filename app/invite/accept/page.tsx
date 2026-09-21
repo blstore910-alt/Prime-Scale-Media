@@ -1,5 +1,6 @@
 import InviteAccept from "@/components/invites/invite-accept";
 import InviteExpired from "@/components/invites/invite-expired";
+import SignOutAndReturn from "@/components/invites/sign-out-and-return";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -106,14 +107,20 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
             open the link again from the inbox it arrived in.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            <form action="/api/auth/sign-out" method="post">
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-              >
-                Sign out
-              </button>
-            </form>
+            {/* ── THE BUTTON THE CARD TELLS THEM TO PRESS ──────────
+                This was a plain form POST to /api/auth/sign-out. Two
+                faults, and the second is the one that mattered: a form
+                POST NAVIGATES to the route and renders its answer, so
+                they landed on a blank page reading {"ok":true} -- and
+                that route only clears the httpOnly profile_id cookie,
+                not the Supabase session. It did not sign anybody out.
+                Open the link again and the same card came back, with no
+                way past it short of clearing cookies by hand.
+
+                This is the first screen a new customer sees when they
+                open their invite on a machine where somebody else is
+                signed in. */}
+            <SignOutAndReturn token={token} />
             <a
               href="/dashboard"
               className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium"
