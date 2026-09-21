@@ -10,56 +10,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, Loader2, LogOut, ShieldAlert } from "lucide-react";
+import { Loader2, LogOut, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { requestOwnErasure, signOutAllDevices } from "@/actions/gdpr-actions";
-import { downloadBlob } from "@/lib/download-blob";
 
 /**
- * Two GDPR-mandated controls the user can trigger themselves:
- *
- *  - Download my data (right to portability, art. 20)
- *  - Request account deletion (right to erasure, art. 17)
+ * Two controls the customer can trigger themselves: end every session,
+ * and ask for the account to be deleted.
  *
  * The delete flow is two-step: this button only asks the server to
  * mark the profile pending_erasure. The actual hard delete is a
  * super-admin action on the anniversary date (see the privacy doc).
+ *
+ * ── "DOWNLOAD MY DATA" IS DELIBERATELY NOT HERE ──────────────────────
+ *
+ * The owner asked for it to go: a raw JSON dump is not something a
+ * customer of this product wants, and it made this block three long
+ * paragraphs on a phone. `/api/me/export` and `exportOwnData` are
+ * untouched, so putting the button back is one card.
+ *
+ * ── AND THERE WAS A SECOND HEADING ──────────────────────────────────
+ *
+ * Both shells wrap this in a card already headed "Your data" with a
+ * sentence under it, and this component printed "Privacy" with a second
+ * sentence saying nearly the same thing. `heading` lets /profile, which
+ * has no wrapper, keep one.
  */
-export default function PrivacyControls() {
-  const [downloading, setDownloading] = useState(false);
+export default function PrivacyControls({
+  heading = true,
+}: {
+  heading?: boolean;
+}) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
-
-  async function download() {
-    setDownloading(true);
-    try {
-      const res = await fetch("/api/me/export", { cache: "no-store" });
-      if (!res.ok) throw new Error(`Export failed (${res.status})`);
-      const blob = await res.blob();
-      // An empty body is not an export. A 200 carrying nothing would
-      // have saved a 0-byte file and been announced as a success.
-      if (!blob || blob.size === 0) {
-        throw new Error("The export came back empty.");
-      }
-      const stamp = new Date().toISOString().slice(0, 10);
-      // downloadBlob, not an inline anchor: revoking the object URL on
-      // the next line races the download in every browser, and this
-      // handler then said "Data export downloaded" unconditionally. A
-      // customer exercising a data-protection right was told their file
-      // had arrived when it had not.
-      downloadBlob(blob, `psm-export-${stamp}.json`);
-      toast.success("Data export downloaded", {
-        description: "Check your downloads folder — it is a .json file.",
-      });
-    } catch (err) {
-      toast.error("Could not download export", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setDownloading(false);
-    }
-  }
 
   async function submitErasure() {
     setRequesting(true);
@@ -97,25 +81,26 @@ export default function PrivacyControls() {
   }
 
   return (
-    <section className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold">Privacy</h3>
-        <p className="text-sm text-muted-foreground">
-          Your rights under GDPR. You can download everything we have on
-          file, or ask us to delete your account.
-        </p>
-      </div>
-
-      <div className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <section className="space-y-3">
+      {heading ? (
         <div>
+          <h3 className="text-lg font-semibold">Your data</h3>
+          <p className="text-sm text-muted-foreground">
+            Sign out everywhere, or ask us to delete your account.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="rounded-lg border px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="font-medium">Sign out of all devices</p>
           <p className="text-sm text-muted-foreground">
-            Invalidates every session on every browser and device.
-            Useful if you lost a device or think someone else has access.
+            Ends every session, everywhere.
           </p>
         </div>
         <Button
           variant="outline"
+          className="shrink-0"
           onClick={async () => {
             setSigningOutAll(true);
             try {
@@ -143,36 +128,17 @@ export default function PrivacyControls() {
         </Button>
       </div>
 
-      <div className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <p className="font-medium">Download my data</p>
-          <p className="text-sm text-muted-foreground">
-            A JSON file with every record where you are the data subject
-            (profile, wallet, top-ups, invoices, companies, notifications,
-            invitations).
-          </p>
-        </div>
-        <Button onClick={download} disabled={downloading}>
-          {downloading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4 mr-2" />
-          )}
-          Download
-        </Button>
-      </div>
-
-      <div className="rounded-lg border border-destructive/40 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+      <div className="rounded-lg border border-destructive/40 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="font-medium text-destructive">Delete my account</p>
           <p className="text-sm text-muted-foreground">
-            Your login is blocked immediately. A super-admin performs the
-            hard delete after the fiscal retention window. Financial
-            records may be kept for 7 years by law.
+            Blocks your login right away. Financial records are kept for 7
+            years by law.
           </p>
         </div>
         <Button
           variant="destructive"
+          className="shrink-0"
           onClick={() => setConfirmOpen(true)}
         >
           <ShieldAlert className="h-4 w-4 mr-2" />

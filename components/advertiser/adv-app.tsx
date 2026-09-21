@@ -5675,10 +5675,12 @@ export default function AdvertiserApp() {
             <div className="card">
               <h2>Your data</h2>
               <p className="cap" style={{ margin: "0 0 12px" }}>
-                Take a copy of everything we hold about you, sign out
-                everywhere, or ask us to delete your account.
+                Sign out everywhere, or ask us to delete your account.
               </p>
-              <PrivacyControls />
+              {/* heading={false}: this card already has one. The component
+                  printed a second, "Privacy", with a sentence saying
+                  nearly the same thing as the one above it. */}
+              <PrivacyControls heading={false} />
             </div>
             {/* ── AND WHAT HAPPENED ON THEIR ACCOUNT: NOT YET ─────
                 This card used to sit here and it could never hold
