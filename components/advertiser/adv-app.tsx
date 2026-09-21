@@ -29,6 +29,7 @@ import {
   AD_ACCOUNT_CUSTOMER_COLUMNS,
   AD_ACCOUNT_CORE_COLUMNS,
 } from "@/lib/ad-account-columns";
+import { rateForDirection } from "@/lib/pure-exchange";
 import {
   isCompanyComplete,
   missingCompanyFields,
@@ -754,6 +755,7 @@ export default function AdvertiserApp() {
       from_amount: number | string | null;
       to_amount: number | string | null;
       exchange_rate: number | string | null;
+      fee_amount: number | string | null;
     }[]
   >({
     queryKey: ["adv-wallet-exchanges", wallet?.id],
@@ -763,7 +765,12 @@ export default function AdvertiserApp() {
       const { data, error } = await supabase
         .from("wallet_exchanges")
         .select(
-          "id, created_at, from_currency, to_currency, from_amount, to_amount, exchange_rate",
+          // fee_amount was NOT here, so the row showed EUR 50.00 going
+          // out and USD 56.98 arriving with the 0.34 that explains the
+          // gap mentioned nowhere. The ADMIN table has always selected
+          // and shown it; the customer got the version of their own
+          // record that does not add up.
+          "id, created_at, from_currency, to_currency, from_amount, to_amount, exchange_rate, fee_amount",
         )
         .eq("wallet_id", wallet!.id)
         .order("created_at", { ascending: false })
@@ -4023,12 +4030,39 @@ export default function AdvertiserApp() {
                                 Exchanged {sym(x.from_currency)}
                                 {money2(x.from_amount)} to{" "}
                                 {x.to_currency}
-                                {x.exchange_rate
-                                  ? ` at ${// The rate, at the precision it is STORED at. money2 printed 0.8612
-                          // as "0.86", so the row did not reconcile: the amounts
-                          // beside it are exact and the rate they came from was not.
-                          Number(x.exchange_rate).toFixed(4)}`
-                                  : ""}
+                                {/* ── THE RATE, IN THE DIRECTION IT WENT ──
+                                    exchange_rate is stored as "1 USD = N
+                                    EUR" whichever way the money moved, and
+                                    this printed it raw. Walked on
+                                    production: "Exchanged EUR 50.00 to USD
+                                    at 0.8724" beside "USD 56.98" -- and
+                                    50 x 0.8724 is 43.62. Three numbers on
+                                    one row, two of them right. Printed
+                                    both ways round now, with the fee that
+                                    explains the rest of the gap. */}
+                                {(() => {
+                                  const shown = rateForDirection(
+                                    x.from_currency === "USD" ? "USD" : "EUR",
+                                    Number(x.exchange_rate),
+                                  );
+                                  const fee = Number(x.fee_amount);
+                                  const hasFee = Number.isFinite(fee) && fee > 0;
+                                  if (!shown && !hasFee) return null;
+                                  return (
+                                    <div
+                                      className="cap"
+                                      style={{ marginTop: 2 }}
+                                    >
+                                      {shown
+                                        ? `1 ${x.from_currency} = ${shown.toFixed(6)} ${x.to_currency}`
+                                        : ""}
+                                      {shown && hasFee ? " · " : ""}
+                                      {hasFee
+                                        ? `fee ${sym(x.to_currency)}${money2(fee)}`
+                                        : ""}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               <td
                                 data-label="Amount"

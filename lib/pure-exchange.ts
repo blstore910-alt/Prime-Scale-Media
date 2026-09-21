@@ -131,6 +131,27 @@ export function neededFromAmount(need: number, rate: number): number {
 }
 
 /**
+ * The rate to PRINT on a statement row.
+ *
+ * ── THE ROW DID NOT RECONCILE WITH ITSELF ────────────────────────────
+ *
+ * `wallet_exchanges.exchange_rate` stores whatever `exchange_rates.eur`
+ * held at the time, which is always "1 USD = N EUR" — the SAME number
+ * whichever way the money went. The statement printed it raw, so an
+ * EUR -> USD conversion read:
+ *
+ *     Exchanged EUR 50.00 to USD at 0.8724        USD 56.98
+ *
+ * Walked on production. 50 x 0.8724 is 43.62, not 56.98, so a customer
+ * checking their own row gets a third number. The rate they actually
+ * got was 1.146314, the reciprocal.
+ */
+export function rateForDirection(from: Currency, storedRate: number): number {
+  if (!Number.isFinite(storedRate) || storedRate <= 0) return 0;
+  return from === "USD" ? storedRate : 1 / storedRate;
+}
+
+/**
  * Would converting the other wallet cover this invoice?
  *
  * `null` means UNKNOWN — no rate has been read. That is not "no": the

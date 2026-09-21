@@ -4,6 +4,7 @@ import {
   EXCHANGE_FEE_PCT,
   exchangeQuote,
   getRate,
+  rateForDirection,
   landsAfterFee,
   neededFromAmount,
   otherWalletCovers,
@@ -132,6 +133,33 @@ describe("neededFromAmount", () => {
         }
       }
     }
+  });
+});
+
+describe("rateForDirection", () => {
+  it("prints the rate the customer actually got, both ways", () => {
+    // Stored is always "1 USD = N EUR", whichever way the money went.
+    assert.equal(rateForDirection("USD", 0.872361), 0.872361);
+    assert.equal(
+      Number(rateForDirection("EUR", 0.872361).toFixed(6)),
+      1.146314,
+    );
+  });
+
+  it("the printed rate reproduces the row's own gross", () => {
+    // The fault: "Exchanged EUR 50.00 to USD at 0.8724" beside "USD
+    // 56.98", where 50 x 0.8724 is 43.62. from x printed-rate must land
+    // on the gross the fee was taken off.
+    const stored = 0.872361;
+    const shown = rateForDirection("EUR", stored);
+    const q = exchangeQuote(50, shown);
+    assert.equal(q.lands, 56.98);
+    assert.ok(Math.abs(50 * shown - (q.fee + q.lands)) < 0.005);
+  });
+
+  it("an unreadable stored rate is 0, not parity", () => {
+    assert.equal(rateForDirection("EUR", 0), 0);
+    assert.equal(rateForDirection("USD", Number.NaN), 0);
   });
 });
 

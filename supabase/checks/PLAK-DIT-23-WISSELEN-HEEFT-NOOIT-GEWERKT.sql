@@ -3,7 +3,7 @@
 -- =====================================================================
 -- Gelopen op productie als PSM0005: 50 EUR wisselen gaf
 --
---   insert or update on table "wallet_exchanges" violates foreign key
+--   insert orQ update on table "wallet_exchanges" violates foreign key
 --   constraint "wallet_exchanges_created_by_fkey"
 --
 -- woordelijk, in een toast, op de wallet van de klant. Er is niets

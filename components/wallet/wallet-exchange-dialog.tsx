@@ -112,7 +112,11 @@ export default function WalletExchangeDialog({
       // costs the 0.6% again plus the spread. Top up was fixed for this
       // exact fault; Exchange was not.
       from_currency: initialFrom === "EUR" ? "EUR" : "USD",
-      from_amount: 0,
+      // NOT 0. The box rendered a literal "0" that the customer has to
+      // delete first -- type 10 on top of it and you get 010, and the
+      // figures below follow that. Empty, with the placeholder doing
+      // the explaining.
+      from_amount: undefined,
     },
   });
 
