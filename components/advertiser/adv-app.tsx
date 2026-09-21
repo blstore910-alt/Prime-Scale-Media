@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { humanSlug, sameSlug } from "@/lib/pure-slug-key";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
-import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
+import useUsdToEur from "@/hooks/use-usd-to-eur";
 import { getRate, neededFromAmount, otherWalletCovers } from "@/lib/pure-exchange";
 import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -974,9 +974,14 @@ export default function AdvertiserApp() {
   // asked `other > 0` instead — offering an exchange to somebody holding
   // a cent, and removing the top-up route while it did.
   //
-  // activeOnly, same as the dialog, so both screens quote one rate.
-  const { exchangeRates: advRates } = useExchangeRates({ activeOnly: true });
-  const eurRateRaw = Number(advRates?.[0]?.eur ?? 0);
+  // use-usd-to-eur, NOT the settings hook the dialog uses. That one is
+  // `select("*, profile:user_profiles(*)")` — an admin query, joining
+  // other people's profiles, fired from a customer's dashboard. This one
+  // asks for the single `eur` column and returns NULL rather than 1 when
+  // it cannot be read, which is what keeps an unread rate from behaving
+  // like parity.
+  const { rate: advEurRate } = useUsdToEur();
+  const eurRateRaw = Number(advEurRate ?? 0);
   // When the wallet read fails, `wallet` is undefined and both balances fall
   // to 0 — which renders as a confident "€0.00". Show "—" instead: an unknown
   // balance and an empty one are very different things to tell a customer.
@@ -1464,6 +1469,36 @@ export default function AdvertiserApp() {
     },
   });
 
+  // ── DECLARED BEFORE THE FIRST THING THAT CALLS IT ────────────────
+  //
+  // This sat TWENTY LINES BELOW the reduce in unpaidSubByCurrency, which
+  // calls it. A `const` arrow function is in its temporal dead zone
+  // until that line runs, so the call threw
+  //
+  //     ReferenceError: Cannot access 'invCurrency' before initialization
+  //
+  // and took down the whole customer app with Next's "Application error:
+  // a client-side exception has occurred".
+  //
+  // It went unnoticed because `.reduce` on an EMPTY array never calls its
+  // callback. Every advertiser with nothing outstanding was fine; the
+  // first one to have a single unpaid invoice could not open the app at
+  // all — not the billing page, the WHOLE app, because the views are
+  // CSS-toggled and all of them render.
+  //
+  // tsc does not catch it: the reference is inside a callback, so it
+  // cannot prove the callback runs immediately.
+  const invCurrency = (inv: {
+    currency?: string | null;
+    items?: unknown;
+  } | null | undefined): "USD" | "EUR" =>
+    ((inv?.currency as string | null | undefined) ?? "EUR")
+      .toString()
+      .trim()
+      .toUpperCase() === "USD"
+      ? "USD"
+      : "EUR";
+
   // ── AND THE FILTER HAS TO AGREE WITH THE QUERY ───────────────────
   //
   // The query above was widened to include subscription_adjustment,
@@ -1531,16 +1566,6 @@ export default function AdvertiserApp() {
   // so two rows in this same component disagreed about one invoice.
   // .trim() as well: lib/pure-invoice-currency trims and this did not,
   // so " usd " resolved to EUR here and USD there.
-  const invCurrency = (inv: {
-    currency?: string | null;
-    items?: unknown;
-  } | null | undefined): "USD" | "EUR" =>
-    ((inv?.currency as string | null | undefined) ?? "EUR")
-      .toString()
-      .trim()
-      .toUpperCase() === "USD"
-      ? "USD"
-      : "EUR";
   const dueSubSymbol = invCurrency(dueSubInvoice) === "USD" ? "$" : "€";
 
   // Hand the customer their own invoice. Same route the admin list uses;
