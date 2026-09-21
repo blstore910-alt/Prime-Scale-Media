@@ -554,6 +554,9 @@ export async function createTopupAsAdmin(
     cleaned.amount_usd = amountUSD.toFixed(2);
   }
 
+  // The session writes, ON PURPOSE: plak 34's trg_guard_top_ups_session_write
+  // checks every session write (tenant of the advertiser and the account)
+  // and a service-key write would skip it.
   const { data: inserted, error: insertError } = await supabase
     .from("top_ups")
     .insert(cleaned)
@@ -1000,6 +1003,21 @@ export async function updateTopupAsAdmin(
     // Undoing a verify is a real thing an admin needs, and it has its own
     // RPC that reverses the money. This action is not it.
     const was = String(existing.status ?? "");
+    // ── NOR DOES REJECTED ─────────────────────────────────────────────
+    //
+    // Only completed -> anything was refused. So {status: "completed"}
+    // on a REJECTED funding revived it: commission booked on money the
+    // customer got back, a supplier push queued, and the row counted
+    // toward the withdrawal ceiling. A rejected funding is finished; a
+    // new one is a new row.
+    if (was === "rejected" && s !== "rejected") {
+      return {
+        ok: false,
+        error:
+          "This top-up was rejected and the customer has their money back. It cannot be reopened — create a new one instead.",
+        code: "invalid",
+      };
+    }
     if (was === "completed" && s !== "completed") {
       return {
         ok: false,
@@ -1008,6 +1026,22 @@ export async function updateTopupAsAdmin(
         code: "invalid",
       };
     }
+  }
+  // ── A COMPLETED FUNDING IS NOT STRUCK OUT HERE ─────────────────────
+  //
+  // is_deleted on a completed row hid it from every list while its money
+  // stayed split and its commission stayed owed: the affiliate is paid
+  // on a funding nobody can see any more. Undo the verification first.
+  if (
+    cleaned.is_deleted === true &&
+    String(existing.status ?? "") === "completed"
+  ) {
+    return {
+      ok: false,
+      error:
+        "This top-up is completed — its money has moved and any referral commission is booked on it. Undo the verification instead of deleting it.",
+      code: "invalid",
+    };
   }
   if (Object.keys(cleaned).length === 0) {
     return { ok: false, error: "No updatable fields" };
@@ -1022,6 +1056,9 @@ export async function updateTopupAsAdmin(
   // Count the rows — see wroteSomething(). An edit to a top-up that silently
   // did not save would be written to the log below as though it had, so the
   // log would disagree with the row it describes.
+  // The session writes so plak 34's column guard applies to it too: only
+  // type, notes, status and is_deleted may change, and a completed or
+  // rejected row keeps its status -- the same rules as above, twice.
   const { data: updatedTopup, error: updateError } = await supabase
     .from("top_ups")
     .update(cleaned)

@@ -740,8 +740,9 @@ function AffiliateDetail({
 }
 
 // ── ON HOLD: THE SUPPLIER FEE WAS NOT RECORDED ──────────────────────────
-// The accrual refuses to guess a cost, so the row sits at 0 until the fee
-// is filled in (Settings -> Ad-account types, or the account's own cost).
+// The accrual refuses to guess a cost, so the row sits at 0 until the
+// account TYPE has a supplier fee (Settings -> Finance -> Ad-account types;
+// the owner: "leverancierskost moet uit de ad acc type data komen").
 // Then this asks the database to calculate it the same way it would have.
 function RecalculateButton({
   commissionId,

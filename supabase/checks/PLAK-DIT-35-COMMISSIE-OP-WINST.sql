@@ -21,8 +21,9 @@
 --      rekenen -- en twee unieke indexen: één commissie per funding en
 --      één per factuur.
 --   4  De funding-trigger boekt nu: % van (onze fee - leverancierskost op
---      wat landde). Leverancierskost onbekend? Dan GEEN gok: een rij
---      "on hold" van 0 en een melding aan de eigenaar. Geen winst, geen
+--      wat landde). De leverancierskost komt uit het accounttype
+--      (Settings -> Finance -> Ad-account types). Niet ingevuld? Dan GEEN
+--      gok: een rij "on hold" van 0 en een melding aan de eigenaar. Geen winst, geen
 --      commissie. Plus: link alleen binnen DEZE tenant (plak 33: een
 --      funding op een andere tenant boekte op diens link), en hij vuurt
 --      nu ook bij een funding die meteen als 'completed' wordt aangemaakt.
@@ -223,8 +224,11 @@ begin
 end;
 $blk2$;
 
--- De leverancierskost voor een account: eerst het account zelf, dan zijn
--- type. NULL = niet ingevuld, wat NIET 0 is.
+-- De leverancierskost komt uit het ACCOUNTTYPE, zoals ingesteld op
+-- Settings -> Finance -> Ad-account types (ad_account_type_suppliers).
+-- De eigenaar, 21-09: "leverancierskost moet uit de ad acc type data
+-- komen van settings". Een losse waarde per account telt NIET mee.
+-- NULL = niet ingevuld, wat NIET 0 is: dan gaat de commissie on hold.
 create or replace function public._supplier_fee_pct_for(p_account uuid, p_tenant uuid)
 returns numeric
 language plpgsql
@@ -238,11 +242,6 @@ declare
 begin
   if p_account is null then
     return null;
-  end if;
-  select c.supplier_fee_pct into v_pct
-    from public.ad_account_costs c where c.ad_account_id = p_account;
-  if v_pct is not null then
-    return v_pct;
   end if;
   select x.platform into v_type from public.ad_accounts x where x.id = p_account;
   if v_type is null or to_regclass('public.ad_account_type_suppliers') is null then
@@ -409,7 +408,7 @@ begin
       values
         (v_link.id, v_link.tenant_id, 'pct', 'topup', 0, v_currency, 'on_hold', new.id,
          v_rule.pct, v_rule.rule_id, v_fee,
-         'Supplier fee not recorded for this ad account or its type. Set it, then recalculate.');
+         'Supplier fee not set for this account type (Settings > Finance > Ad-account types). Set it, then recalculate.');
       insert into public.notifications (recipient_user_id, tenant_id, type, payload)
       select t.owner_id, t.id, 'referral_commission_on_hold',
              jsonb_build_object('topup_id', new.id, 'reason', 'supplier_fee_missing')

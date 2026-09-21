@@ -342,7 +342,7 @@ export function getNotificationCopy(notification: Notification): {
       return {
         title: "Commission on hold",
         description:
-          "A referral commission could not be calculated because the supplier fee is not recorded for that ad account or its type. Set it, then recalculate it on the affiliate's page.",
+          "A referral commission could not be calculated because that account type has no supplier fee. Set it in Settings → Finance → Ad-account types, then press Recalculate on the affiliate's page.",
       };
     case "referral_commission_failed":
       return {

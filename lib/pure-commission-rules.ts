@@ -251,7 +251,10 @@ export type TopupProfit = {
 
 /**
  * Our profit on one top-up: the fee we took, minus what the supplier
- * charges us to put the landed amount on the account.
+ * charges us to put the landed amount on the account. The supplier's
+ * percentage is the ACCOUNT TYPE's, from Settings -> Finance -> Ad-account
+ * types (the owner: "leverancierskost moet uit de ad acc type data komen
+ * van settings") -- never a per-account figure.
  *
  * A supplier fee that is not recorded is NOT zero. Treating it as zero
  * would pay the affiliate a share of money the supplier keeps, so the

@@ -272,7 +272,7 @@ function buildPushFromRecord(record: NotificationRecord) {
     case "referral_commission_on_hold":
       return {
         title: "A commission is on hold",
-        body: "The supplier fee is not recorded for that account. Set it, then recalculate.",
+        body: "That account type has no supplier fee in Settings. Set it, then recalculate.",
         url: "/affiliates",
       };
 
