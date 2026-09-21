@@ -346,7 +346,7 @@ export const AFF_CSS = `
   .avopt.sel{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
   .avopt.more{display:grid;place-items:center;background:var(--panel-2);border:2px dashed var(--line-2);color:var(--faint)}
   .avopt.more svg{width:42%;height:42%}.avopt.more:hover{border-color:var(--primary);color:var(--primary-600);transform:translateY(-2px)}
-  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid var(--line)}.toggle-row:first-child{border-top:0}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid var(--line)}.toggle-row>div:first-child{min-width:0}.toggle-row:first-child{border-top:0}
   .toggle-row .t{font-weight:600;font-size:.92rem}.toggle-row .d{color:var(--faint);font-size:.82rem}
   .sw{width:44px;height:26px;border-radius:99px;background:var(--line-2);position:relative;cursor:pointer;flex:0 0 auto;transition:.18s;border:0}
   .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:.18s}

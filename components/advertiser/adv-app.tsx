@@ -41,6 +41,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useRouter } from "next/navigation";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 import { useEffect, useRef, useState } from "react";
 import BalanceHero from "./balance-hero";
 import { toast } from "sonner";
@@ -213,6 +214,7 @@ function subStatusLabel(status: string | null | undefined): string {
 export default function AdvertiserApp() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
+  const meRouter = useRouter();
   const [view, setView] = useState<View>("dash");
   // Where the bell was pressed from, so pressing it again returns there.
   const viewBeforeNotifs = useRef<View>("dash");
@@ -910,6 +912,47 @@ export default function AdvertiserApp() {
     country: "",
   });
   const [savingComp, setSavingComp] = useState(false);
+
+  // ── THE PROFILE THE AVATAR MENU PROMISES ──────────────────────────
+  //
+  // Walked on production: the menu behind the avatar has an item called
+  // "Profile", and it lands on this Settings screen, which holds the
+  // COMPANY. There was no personal profile anywhere in the customer
+  // shell — so somebody who signed up with a typo in their own name
+  // could never correct it, and the only route to a new password was
+  // "forgot password" on the sign-in screen, for a password they have
+  // not forgotten. updateOwnProfileAndCompany has taken a `profile`
+  // half since it was written; nothing on this screen ever sent it.
+  const [me, setMe] = useState({ full_name: "" });
+  const [savingMe, setSavingMe] = useState(false);
+  useEffect(() => {
+    setMe({ full_name: profile?.full_name ?? "" });
+  }, [profile?.full_name]);
+  const saveMe = async () => {
+    setSavingMe(true);
+    try {
+      const res = await updateOwnProfileAndCompany({
+        profile: { full_name: me.full_name.trim() },
+      });
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Name saved");
+      // The header, the welcome line and the avatar initials all read
+      // the profile from the shell's own context, so a save that does
+      // not refresh leaves the old name on screen next to the new one
+      // in the box.
+      meRouter.refresh();
+    } catch (e) {
+      toast.error("Could not save your name", {
+        description: userFacingErrorMessage(
+          e,
+          "Nothing was changed. Try again, or tell us if it keeps happening.",
+        ),
+      });
+    } finally {
+      setSavingMe(false);
+    }
+  };
+
   useEffect(() => {
     if (company)
       setComp({
@@ -5268,6 +5311,75 @@ export default function AdvertiserApp() {
               </div>
             </div>
             <div className="grid2">
+              {/* ── "PROFILE" IN THE AVATAR MENU LANDED HERE ──────────
+                  ...and "here" was the COMPANY form. There was no
+                  personal profile anywhere in the customer shell, so a
+                  name typed wrong at signup stayed wrong for ever -- on
+                  the welcome line, in the avatar initials and on every
+                  message we send -- and the only way to a new password
+                  was "forgot password" on the sign-in screen, for a
+                  password nobody had forgotten. */}
+              <div className="card">
+                <h2>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ic name="i-user" /> You
+                  </span>
+                </h2>
+                <p className="cap" style={{ margin: "4px 0 12px" }}>
+                  Your name is what we put on anything we send you.
+                </p>
+                <div className="field">
+                  <label>Your name</label>
+                  <input
+                    placeholder="Your name"
+                    value={me.full_name}
+                    onChange={(e) =>
+                      setMe({ full_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label>Sign-in email</label>
+                  {/* READ-ONLY ON PURPOSE. `email` is in
+                      PROFILE_SELF_ALLOWED and the server would happily
+                      write it -- but that column is a MIRROR. The login
+                      lives in Supabase auth, so an editable box here
+                      would say "Saved" and then leave somebody signing
+                      in with the old address, with no way to work out
+                      why. Changing it is a support job until it is done
+                      properly. */}
+                  <input value={profile?.email ?? ""} readOnly disabled />
+                  <p className="cap" style={{ marginTop: 6 }}>
+                    This is how you sign in. Ask us if it needs to change.
+                  </p>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    marginTop: 12,
+                  }}
+                >
+                  <button
+                    className="btn sm"
+                    onClick={saveMe}
+                    disabled={savingMe || !me.full_name.trim()}
+                  >
+                    {savingMe ? "Saving…" : "Save name"}
+                  </button>
+                  <a className="btn sm ghost" href="/auth/update-password">
+                    Change password
+                  </a>
+                </div>
+              </div>
               <div className="card">
                 <h2>
                   <span
