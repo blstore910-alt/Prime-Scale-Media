@@ -307,6 +307,7 @@ function VerifyTopupInvoice({
         "Verifying marks it completed and sends them a notification. It cannot be undone from this screen.",
     },
   ];
+  const [pushing, setPushing] = useState(false);
   const allTicked = steps.every((st) => ticked[st.key]);
 
   return (
@@ -485,6 +486,62 @@ function VerifyTopupInvoice({
                 {step.detail ? (
                   <span className="block text-muted-foreground">
                     {step.detail}
+                  </span>
+                ) : null}
+                {/* ── THE PUSH IS A PRESS, NOT A SIDE EFFECT ────────
+                    Verifying used to enqueue the supplier push itself.
+                    Shut, that was a no-op; armed, it would have moved
+                    money at the supplier as a side effect of recording
+                    that the money had already moved.
+                    The admin pushes it here, then checks the account,
+                    then ticks. */}
+                {step.key === "api" ? (
+                  <span
+                    className="mt-2 block"
+                    onClick={(e) => {
+                      // Inside a <label>: without this the press also
+                      // toggles the tick it sits under.
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={pushing || isPending}
+                      onClick={async () => {
+                        setPushing(true);
+                        try {
+                          const { pushAdTopupToSupplier } = await import(
+                            "@/actions/topup-actions"
+                          );
+                          const res = await pushAdTopupToSupplier(
+                            String(topup.id),
+                          );
+                          if (!res.ok) {
+                            toast.error(res.error);
+                          } else if (res.data.enqueued) {
+                            toast.success(
+                              "Queued with the supplier — check the account in a moment.",
+                            );
+                          } else {
+                            // The ordinary state today: both switches are
+                            // shut. Say WHY rather than a bare failure,
+                            // because "nothing happened" is the one
+                            // outcome an admin must not misread.
+                            toast.warning(
+                              `Not pushed — ${res.data.reason}. Fund it in the supplier's portal instead.`,
+                              { duration: 9000 },
+                            );
+                          }
+                        } finally {
+                          setPushing(false);
+                        }
+                      }}
+                    >
+                      {pushing ? "Pushing…" : "Push to supplier"}
+                    </Button>
                   </span>
                 ) : null}
               </span>

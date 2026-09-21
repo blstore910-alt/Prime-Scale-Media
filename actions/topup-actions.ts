@@ -1271,13 +1271,22 @@ export async function verifyAdTopup(
   });
   if (error) return { ok: false, error: error.message };
 
-  // Idempotent on the top-up id, and a no-op unless BOTH auto-push switches
-  // are armed — so this cannot fund anything while the gate is shut, and
-  // re-verifying cannot fund it twice.
-  const push = await enqueueSupplierTopupPush(supabase, {
-    topupId,
-    tenantId: profile.tenant_id,
-  });
+  // ── VERIFY NO LONGER PUSHES ANYTHING ──────────────────────────────
+  //
+  // This used to enqueue the supplier push itself. It was a no-op while
+  // both auto-push switches were shut, so nothing has ever been funded
+  // this way — but the moment they were armed, pressing Verify would
+  // have moved money at the supplier as a side effect of recording that
+  // it had already moved.
+  //
+  // The owner's rule: the admin pushes it, with a button, and checks.
+  // Verify is the record that the money is on the account; putting it
+  // there is a separate, deliberate act. See pushAdTopupToSupplier.
+  const push = { enqueued: false, reason: "verify no longer pushes" } as {
+    enqueued: boolean;
+    reason: string;
+    heldByGate?: boolean;
+  };
 
   // ── AND TELL THE CUSTOMER ─────────────────────────────────────────
   //
@@ -1577,4 +1586,66 @@ export async function rejectAdTopup(
   }
 
   return { ok: true, data: null };
+}
+
+/**
+ * Push ONE verified ad-account top-up to the supplier, by hand.
+ *
+ * ──────────────────────────────────────────────────────────────────────
+ * WHY THIS IS A BUTTON AND NOT A SIDE EFFECT
+ *
+ * `verifyAdTopup` used to enqueue this itself. While both auto-push
+ * switches were shut that was a no-op, so nothing was ever funded that
+ * way — but armed, it would have moved money at the supplier as a side
+ * effect of recording that the money had already moved. Those are two
+ * different statements and they deserve two different presses.
+ *
+ * The owner's rule, verbatim in substance: matching is fine, but the
+ * admin still checks everything by hand, and even the API push is
+ * theirs to make — with a button, and then they check.
+ *
+ * SAFETY IS UNCHANGED. `enqueueSupplierTopupPush` refuses unless BOTH
+ * `SUPPLIER1_MODE=live` and `SUPPLIER1_AUTOPUSH=on`, and it is
+ * idempotent on the top-up id, so pressing twice cannot fund twice.
+ * With the gate shut this returns the reason and does nothing, which is
+ * the state production is in today.
+ * ──────────────────────────────────────────────────────────────────────
+ */
+export async function pushAdTopupToSupplier(
+  topupId: string,
+): Promise<ActionResult<{ enqueued: boolean; reason: string }>> {
+  const ctx = await requireAdminCtx();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+  const { supabase, profile } = ctx;
+
+  // The row has to be this tenant's, and it has to be settled — pushing
+  // money for a top-up that was never verified is the thing this whole
+  // split exists to prevent.
+  const { data: row, error: readError } = await supabase
+    .from("top_ups")
+    .select("id, tenant_id, status")
+    .eq("id", topupId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: safeErrorMessage(readError) };
+  if (!row) return { ok: false, error: "Top-up not found" };
+  if (row.tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "Forbidden" };
+  }
+  // PENDING is the right moment: the wallet was debited when the customer
+  // created this, so pending means the money has left them and is not yet
+  // on the account. That is exactly what a push is for, and it is what
+  // the admin does BEFORE ticking "I have funded the account" and
+  // verifying. Only a rejected one has nothing to push.
+  if (String(row.status ?? "") === "rejected") {
+    return {
+      ok: false,
+      error: "That top-up was rejected — there is nothing to push.",
+    };
+  }
+
+  const push = await enqueueSupplierTopupPush(supabase, {
+    topupId,
+    tenantId: profile.tenant_id,
+  });
+  return { ok: true, data: { enqueued: push.enqueued, reason: push.reason } };
 }
