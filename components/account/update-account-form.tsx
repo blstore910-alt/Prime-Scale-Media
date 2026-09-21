@@ -392,6 +392,11 @@ export default function UpdateAccountForm({
           fee: values.fee,
           advertiser_id: values.advertiser_id,
           platform: values.platform,
+          // Added with the field itself. The payload here is built by
+          // hand, so a new control that is not listed saves silently:
+          // the dropdown moves, the toast says "updated successfully"
+          // and the column never changes.
+          currency: values.currency,
           status: values.status,
           timezone: values.timezone,
           notes: values.notes || null,
@@ -460,7 +465,7 @@ export default function UpdateAccountForm({
               no control at all is how AA-PSM0007-EU-01 ended up a
               dollar account for a customer holding euros. */}
           <SelectField
-            label="Funded in"
+            label="Currency"
             name="currency"
             id="update-account-currency"
             control={control}

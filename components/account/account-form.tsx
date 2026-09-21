@@ -502,7 +502,7 @@ export default function AccountForm({
               and $0. `currency` was in the insert allowlist the whole
               time; nothing sent it. */}
           <SelectField
-            label="Funded in"
+            label="Currency"
             name="currency"
             id="account-currency"
             control={control}
