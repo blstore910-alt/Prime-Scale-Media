@@ -245,6 +245,25 @@ const AUTH_CSS = `
 .psmauth .inp input{padding-left:38px}
 .psmauth input::placeholder{color:var(--faint)}
 .psmauth input:focus,.psmauth select:focus{outline:0;border-color:var(--primary);background:var(--panel);box-shadow:0 0 0 3px var(--primary-tint)}
+/* ── THE DROPDOWN LIST ITSELF ──────────────────────────────
+   The rule above styles the CLOSED select. The open list is drawn by
+   the operating system, and on Windows it took the light text colour
+   from the select and painted the list on its own WHITE background:
+   white on white, an empty rectangle where the options should be. The
+   one option you could read was the highlighted row, because that gets
+   the system's selection colours.
+
+   This is "How did you hear about us?" on the signup form — a required
+   field on the first screen a new customer ever fills in, so they
+   cannot finish signing up.
+
+   Two things fix it, and both are needed. color-scheme tells the OS to
+   draw its native list dark, which also covers the scrollbar and the
+   hover row. The explicit option colours cover the browsers that ignore
+   it and paint the list themselves. */
+.psmauth select{color-scheme:dark}
+.psmauth select option{background:#141a2e;color:#e8eaf2}
+.psmauth select option:checked{background:#2f5ae6;color:#fff}
 .psmauth .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 /* ── Sign-up extras ──────────────────────────────────────────────────
    The invite sign-up used shadcn Card/Input/Button, which put a WHITE card
