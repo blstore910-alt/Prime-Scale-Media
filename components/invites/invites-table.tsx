@@ -22,6 +22,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { userFacingErrorMessage } from "@/lib/pure-error";
+import { copyText } from "@/lib/copy-text";
 
 // Maps an invitation status to a mockup badge variant + label. Kept
 // local so the shared InvitationStatusBadge (used outside the admin
@@ -300,13 +301,58 @@ export default function InvitesTable() {
                     <td data-label="Expires on">{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
                     <td data-label="Action" className="r">
                       {invite.status === "pending" ? (
-                        <button
-                          className="btn ghost sm"
-                          disabled={isPending}
-                          onClick={() => setCancelling(invite)}
-                        >
-                          {isPending ? "…" : "Cancel"}
-                        </button>
+                        /* ── AND A WAY TO GET THE LINK ────────────────
+                           The only action on a pending invite was Cancel.
+                           So when the email did not arrive -- spam, a
+                           typo in the address, a corporate filter -- the
+                           admin saw "Pending" and had nothing: no link,
+                           no resend, no way to read the token. The only
+                           move left was to cancel and send a second
+                           invite to the same address and hope.
+
+                           The token IS the authorization, and it is
+                           already on the row this table selects. Handing
+                           it to the admin who created the invitation
+                           costs nothing and closes the dead end: they
+                           can paste it into a chat, a different mailbox,
+                           or read it out. Same URL the email carries. */
+                        <div className="actrow">
+                          <button
+                            className="btn ghost sm"
+                            onClick={async () => {
+                              const token = String(
+                                (invite as { token?: string | null }).token ?? "",
+                              );
+                              if (!token) {
+                                toast.error(
+                                  "This invitation has no link on it — cancel it and send a fresh one.",
+                                );
+                                return;
+                              }
+                              const link = `${window.location.origin}/invite/accept?token=${token}`;
+                              const ok = await copyText(link);
+                              // copyText can fail -- an insecure origin, a
+                              // browser that refuses without a gesture it
+                              // recognises. Saying "Copied" either way is
+                              // how somebody pastes an empty clipboard to
+                              // a customer.
+                              toast[ok ? "success" : "error"](
+                                ok
+                                  ? "Invite link copied — it works until it expires or is cancelled."
+                                  : "Couldn't copy. Select the address bar link manually instead.",
+                              );
+                            }}
+                          >
+                            Copy link
+                          </button>
+                          <button
+                            className="btn ghost sm"
+                            disabled={isPending}
+                            onClick={() => setCancelling(invite)}
+                          >
+                            {isPending ? "…" : "Cancel"}
+                          </button>
+                        </div>
                       ) : (
                         /* An accepted or cancelled invite has no action, and
                            an empty cell under an "ACTION" label is a label
