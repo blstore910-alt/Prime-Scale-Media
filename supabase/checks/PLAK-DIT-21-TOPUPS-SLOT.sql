@@ -26,18 +26,26 @@
 --
 -- ── WAT DIT WEL EN NIET DOET ─────────────────────────────────────────
 --
--- ALLEEN INSERT en DELETE worden ingetrokken. NIET update: de
--- adminacties (`updateTopupAsAdmin`, `verifyAdTopup`,
--- `rejectAdTopup`) schrijven met de SESSIE VAN DE BELLER, dus een
--- revoke op update sloopt de wachtrij. Voor een gewone adverteerder is
--- schrijven sowieso al dicht: er is geen enkele write-policy die een
--- niet-admin noemt.
+-- ALLEEN DELETE wordt ingetrokken.
 --
--- Dat laat het UPDATE-gat open. Dat is bewust: het dichtdoen vraagt of
--- een kolomtrigger (zoals `_fee_is_the_owners` op ad_accounts) of het
--- verplaatsen van die schrijfacties naar de service-client, en dat
--- tweede kan pas als ik weet wat `top_up_admin_verify` van zijn beller
--- verwacht. Zie regel 6.
+-- LET OP -- DIT IS AANGEPAST OP 21-09. De eerste versie trok ook INSERT
+-- in, en dat zou productie hebben gesloopt: `topup-actions.ts` gebruikt
+-- NERGENS createAdminClient, alles loopt via `await createClient()`.
+-- `createTopupAsAdmin` (regel 557) en `bulkCreateTopupsAsAdmin` schrijven
+-- dus met de SESSIE VAN DE BELLER, en zonder insert kan een admin geen
+-- enkele ad-account-funding meer aanmaken.
+--
+-- UPDATE blijft om dezelfde reden: `updateTopupAsAdmin`, `verifyAdTopup`
+-- en `rejectAdTopup` schrijven allemaal met de bellersessie.
+--
+-- Voor een gewone adverteerder is schrijven sowieso al dicht: er is geen
+-- enkele write-policy die een niet-admin noemt.
+--
+-- Dat laat het INSERT- en UPDATE-gat open. Dat is bewust: het dichtdoen
+-- vraagt of een kolomtrigger (zoals `_fee_is_the_owners` op ad_accounts)
+-- of het verplaatsen van die schrijfacties naar de service-client, en
+-- dat tweede kan pas als ik weet wat `top_up_admin_verify` van zijn
+-- beller verwacht. Zie regel 6.
 --
 -- ── EN DE RPC ────────────────────────────────────────────────────────
 --
@@ -76,8 +84,10 @@ select 'voor',
 
 do $blk0$
 begin
-  execute 'revoke insert, delete on public.top_ups from authenticated';
-  execute 'revoke insert, delete on public.top_ups from anon';
+  -- NIET insert. Zie de kop: createTopupAsAdmin schrijft met de sessie
+  -- van de beller en zou daarmee stuk gaan.
+  execute 'revoke delete on public.top_ups from authenticated';
+  execute 'revoke delete on public.top_ups from anon';
   insert into _tu values ('revoke', 'gelukt');
 exception when others then
   insert into _tu values ('revoke', 'MISLUKT: ' || sqlstate || ' ' || sqlerrm);
@@ -93,7 +103,7 @@ union all
 select 2, 'intrekken gelukt',
   coalesce((select v from _tu where k = 'revoke' limit 1), '?')
 union all
-select 3, 'schrijfrechten NA deze plak (UPDATE hoort te blijven)',
+select 3, 'schrijfrechten NA deze plak (INSERT en UPDATE horen te BLIJVEN)',
   coalesce((
     select string_agg(distinct privilege_type, ', ' order by privilege_type)
       from information_schema.role_table_grants

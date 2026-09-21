@@ -44,7 +44,7 @@ agrees with the database to the cent. See the A7 block below.
 ## SQL: what is applied and what is waiting
 
 **Applied and confirmed** (report table came back): PLAK-NU, 2, 3B, 4,
-5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 22, 23.
+5, 6, 7, 9, 10, 11b, 12, 14, 15, 16, 17, 18, 19, 20, 22, 23, 26.
 
 **WAITING on the owner — paste these first:**
 
@@ -55,10 +55,6 @@ agrees with the database to the cent. See the A7 block below.
   use. Rows 14-15 return the two RPC bodies.
 - **`PLAK-DIT-27-AFFILIATE-TABELLEN-SLOT.sql`.** Same shape on the four
   affiliate tables; safe to paste, revokes only what nothing uses.
-- **`PLAK-DIT-26-F1-METEN.sql` — READ-ONLY, blocks F1.** Sixteen
-  measurements the repo cannot make. Row 1 is the big one: if
-  `wallet_topups.amount` is a float type, no affiliate commission has
-  ever accrued, silently. See the F1 block.
 - **`PLAK-DIT-25-EEN-WISSEL-DIE-NOOIT-GEBEURDE.sql`.** A customer can
   POST a fabricated row into `wallet_exchanges` on their own wallet —
   the insert policy checks the wallet, never the amounts. No money
@@ -76,7 +72,12 @@ agrees with the database to the cent. See the A7 block below.
   The plak changes ONE line (resolve the profile id, the way every
   other RPC in this repo already does) and attaches the two triggers
   `wallet_exchanges` was missing from both required lists.
-- **`PLAK-DIT-21-TOPUPS-SLOT.sql`.** Every employee admin can
+- **`PLAK-DIT-21-TOPUPS-SLOT.sql` — CORRECTED 21-09.** The first
+  version also revoked INSERT, which would have BROKEN production:
+  `topup-actions.ts` never uses the service client, so
+  `createTopupAsAdmin` writes with the caller's session and an admin
+  could no longer create any ad-account funding. It now revokes DELETE
+  only. Every employee admin can
   `update top_ups set fee=0, status='completed'` from the console.
   Row 6 asks for the `top_up_admin_verify` body.
 - **`PLAK-DIT-24-JE-EIGEN-RIJ-IS-NIET-VRIJ.sql`.** "It is your own row"
@@ -88,10 +89,6 @@ agrees with the database to the cent. See the A7 block below.
   and `companies`, so a row can be walked out of the tenant while its
   owner still holds it. No revoke on insert/update: the server actions
   write with the CALLER's session (same reason as plak 21).
-- **`PLAK-DIT-18-AANVRAAG-ZONDER-BETALEN.sql` — URGENT.** An advertiser
-  can file an ad-account request through PostgREST without paying, into
-  any tenant's queue, and author the `metadata.request_fee` that a later
-  rejection refunds. See the A3 section.
 - **`READONLY_SQL=on` in Vercel.** The read-only role is in place and
   proven (`_ro` owned by `psm_readonly`, bypassrls on, counted 9
   wallets against 9 actual). The route `/api/dev/ro` is owner-only and
