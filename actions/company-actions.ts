@@ -2,11 +2,13 @@
 
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { maintenanceGuard, wroteSomething } from "./_shared";
+import {
+  ActionResult,
+  checkVersion,
+  maintenanceGuard,
+  wroteSomething,
+} from "./_shared";
 
-type ActionResult<T = null> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
 
 const COMPANY_ALLOWED = [
   "name",
@@ -229,6 +231,20 @@ const COMPANY_ADMIN_EXTRA: readonly string[] = [] as const;
 export async function updateOwnProfileAndCompany(input: {
   profile?: ProfileSelfInput;
   company?: CompanyInput;
+  /**
+   * ── SO TWO PEOPLE DO NOT SILENTLY UNDO EACH OTHER ─────────────────
+   *
+   * `companies_update_owner` lets the customer AND an admin of the
+   * tenant write the same row, and this form posts all ten fields from
+   * the state it loaded when the view first mounted. So an admin
+   * correcting a VAT number was reverted by the customer's next Save,
+   * with nothing said on either screen — the blind overwrite CLAUDE.md
+   * rule 4 exists for, on the row that is printed on every invoice.
+   *
+   * Optional: a caller that does not track the version passes nothing
+   * and behaves exactly as before.
+   */
+  ifUpdatedAt?: string | null;
 }): Promise<ActionResult> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
@@ -316,6 +332,14 @@ export async function updateOwnProfileAndCompany(input: {
         .is("advertiser_id", null)
         .maybeSingle();
       if (existing?.id) {
+        if (!(await checkVersion(supabase, "companies", existing.id, input.ifUpdatedAt))) {
+          return {
+            ok: false,
+            error:
+              "Somebody else changed these company details while this form was open. Reload the page to see their version before saving yours.",
+            code: "conflict",
+          };
+        }
         const { data: rows, error } = await supabase
           .from("companies")
           .update(cleaned)
@@ -354,6 +378,14 @@ export async function updateOwnProfileAndCompany(input: {
         .eq("advertiser_id", adv.id)
         .maybeSingle();
       if (existing?.id) {
+        if (!(await checkVersion(supabase, "companies", existing.id, input.ifUpdatedAt))) {
+          return {
+            ok: false,
+            error:
+              "Somebody else changed these company details while this form was open. Reload the page to see their version before saving yours.",
+            code: "conflict",
+          };
+        }
         const { data: rows, error } = await supabase
           .from("companies")
           .update(cleaned)

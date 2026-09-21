@@ -857,15 +857,33 @@ export default function AdvertiserApp() {
     enabled: !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
+      // registration_no and website_url are in COMPANY_ALLOWED and are
+      // posted back by saveCompany, so leaving them OUT of this select
+      // meant they came back as "" and every save wiped them. The
+      // registration number is printed on the invoice PDF and it is the
+      // field /complete-profile's own gate tests — so wiping it makes
+      // that page reappear for ever.
+      const COLS =
+        "name, vat_no, country, is_not_vat, official_email, phone, address, state, zipcode, registration_no, website_url, billings(address, state, country, zipcode)";
+      // ── ASK FOR updated_at, AND HOLD IF IT IS NOT THERE YET ────────
+      //
+      // `companies.updated_at` is added by 20260901460000, and migrations
+      // on this project are pasted by hand whenever somebody gets to it.
+      // A select naming a column that does not exist does not degrade —
+      // it throws 42703 and PostgREST's message lands on the screen that
+      // asked for it. So the concurrency guard stays dark until the
+      // migration lands, instead of taking the company card with it.
+      const withVersion = await supabase
+        .from("companies")
+        .select(`updated_at, ${COLS}`)
+        .eq("advertiser_id", advertiserId)
+        .maybeSingle();
+      if (!withVersion.error) {
+        return (withVersion.data ?? null) as Record<string, unknown> | null;
+      }
       const { data, error } = await supabase
         .from("companies")
-        // registration_no and website_url are in COMPANY_ALLOWED and are
-        // posted back by saveCompany, so leaving them OUT of this select
-        // meant they came back as "" and every save wiped them. The
-        // registration number is printed on the invoice PDF and it is the
-        // field /complete-profile's own gate tests — so wiping it makes
-        // that page reappear for ever.
-        .select("name, vat_no, country, is_not_vat, official_email, phone, address, state, zipcode, registration_no, website_url, billings(address, state, country, zipcode)")
+        .select(COLS)
         .eq("advertiser_id", advertiserId)
         .maybeSingle();
       if (error) throw error;
@@ -910,7 +928,12 @@ export default function AdvertiserApp() {
   const saveCompany = async () => {
     setSavingComp(true);
     try {
-      const res = await updateOwnProfileAndCompany({ company: comp });
+      // The version this form was built from. Without it an admin's
+      // correction on the same row is silently reverted by this Save.
+      const res = await updateOwnProfileAndCompany({
+        company: comp,
+        ifUpdatedAt: (company?.updated_at as string | undefined) ?? null,
+      });
       if (!res.ok) throw new Error(res.error);
       await queryClient.invalidateQueries({
         queryKey: ["adv-company"],
