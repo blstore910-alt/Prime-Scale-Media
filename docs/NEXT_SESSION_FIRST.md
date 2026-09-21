@@ -48,6 +48,13 @@ agrees with the database to the cent. See the A7 block below.
 
 **WAITING on the owner — paste these first:**
 
+- **`PLAK-DIT-28-D1-METEN.sql` — READ-ONLY, blocks D1.** Fifteen
+  measurements. An employee admin can credit any wallet from the
+  console; before revoking anything, this says what live actually has,
+  because plak 21 may already have shut a door the admin actions still
+  use. Rows 14-15 return the two RPC bodies.
+- **`PLAK-DIT-27-AFFILIATE-TABELLEN-SLOT.sql`.** Same shape on the four
+  affiliate tables; safe to paste, revokes only what nothing uses.
 - **`PLAK-DIT-26-F1-METEN.sql` — READ-ONLY, blocks F1.** Sixteen
   measurements the repo cannot make. Row 1 is the big one: if
   `wallet_topups.amount` is a float type, no affiliate commission has
@@ -287,6 +294,91 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### D1 — admin queues — walked 2026-09-21, NOT CLOSED
+
+Walked as the owner in Chrome. The reject-with-a-reason requirement
+**works end to end** on the ad-account-request queue; the blockers are
+elsewhere.
+
+#### Walked, on production
+
+| step | result |
+|---|---|
+| reject a request | Reject dialog offers five reason templates AND a free field, "This is shown to the customer. Say what was wrong and what they can do about it." Confirm is dead on an empty reason (`!trimmedReason`). |
+| the reason | reaches the customer **verbatim**: "Your request fee is back — We couldn't set this account up, so the fee is back in your wallet. &lt;the admin's words&gt;" |
+| the money | EUR 50 refunded: wallet **45.00 -> 95.00**, statement line `Ad-account request refunded +EUR 50.00 Returned` |
+| the queue | row flipped to Rejected, bell 7 -> 8 |
+
+#### Found by walking it, fixed and live
+
+- **Eight bank deposits under "Nothing waiting on you."** `/wallet-topups`
+  -> Deposits showed eight cards badged "Waiting to be matched" — EUR
+  500, 500, 618, 630, 500, 250, 250, 250 — above a header reading
+  "Nothing waiting on you", a tile reading 0 and a tab badge reading 0.
+  Over EUR 3,100 of real bank money nobody has claimed, on the screen an
+  admin scans to decide whether there is work. `suggestedCount` counted
+  only `suggested`; `unmatched` and `ambiguous` both need a human and
+  neither has a suggestion to count (`7686241`).
+- **"Received money from Handy Products with reference"** — end of
+  sentence, because that payment has none. It escaped the filter because
+  the SENDER is also missing, so there was no name to strip (`7686241`).
+- **A euro with a dollar sign, twice.** The funding details sheet printed
+  `Top-up Amount` with a hard `CURRENCY_SYMBOLS["USD"]` while the card
+  behind it printed EUR — two currencies for one number, one click apart.
+  And `withdrawal-actions` had a `usd()` helper with a literal `$` in
+  both refusal messages, in the file whose own header explains the
+  ceiling is in the account's currency (`c25f813`).
+- **An ad-account name could be used twice.** Nothing stopped it, and
+  every screen identifies an account by that string — including the
+  requests queue, which GUESSES which account a pending request means by
+  looking up the newest one for that advertiser and platform. Refused
+  now, and refused too when the check itself cannot be read (`ece13d1`).
+
+#### D1 — the one that matters most, NOT yet fixed
+
+**An employee admin can credit any wallet with two lines from the
+browser console.** `wallet_topups` carries
+`for all to authenticated using (_is_admin_of(tenant_id))` with a
+`with check` that tests WHO and never WHAT, no table-level revoke, and a
+trigger that credits the wallet on entering `completed`:
+
+```js
+insert into wallet_topups (…, status:'pending') ; update … set status='completed'
+```
+
+No function is called, so every check in `wallet_topup_admin_verify` is
+skipped and `approved_by` stays NULL — no screen shows who did it. Same
+shape on `top_ups` (defeats the owner-only fee gate) and on
+`ad_account_requests` (a rejection without the EUR 50 refund, which then
+can never be refunded because the RPC refuses an already-rejected row).
+
+**Measured first, not patched blind — `PLAK-DIT-28-D1-METEN.sql`.** Two
+earlier plakken (4 and 21) touch these same tables and nothing in the
+repo says whether either was ever pasted. If plak 21 IS applied, `insert`
+on `top_ups` is already revoked and admin top-up creation is already
+dead, because `createTopupAsAdmin` writes with the caller's session.
+Rows 14-15 return the two function bodies I need, because EXECUTE cannot
+be revoked on either (the wrapper calls them with the caller's session
+and they read `auth.uid()` themselves) — the gate belongs INSIDE.
+
+#### D1 — still OPEN
+
+1. `MAINTENANCE_MODE=true` does not freeze the wallet top-up queue:
+   `hooks/use-update-transaction.ts` calls the verify/reject/undo RPCs
+   straight from a client component, so no `maintenanceGuard()`. The
+   ad-account queue freezes and the larger money-in event does not.
+2. `ad_account_withdrawal_approve`'s balance ceiling is TypeScript only.
+   `_withdrawal_within_the_account` already computes it for the REQUEST;
+   lifting that into the approve path is mechanical.
+3. Rejecting a withdrawal overwrites the customer's own reason — one
+   `reason` column for two authors — and `/withdrawals` never shows it.
+4. The three `/withdrawals` lists are unpaged, so past 1000 rows the
+   OLDEST request disappears first, under "No withdrawal requests yet."
+5. `wallet_topup_admin_reject` accepts a NULL reason; only the dialog
+   enforces one.
+6. The Review dialog shows "Request Fee" with no amount, and dumps raw
+   metadata (`meta-ads`, `false`, "Request Fee Free Source").
 
 ### F1 — affiliate loop — walked 2026-09-21, NOT CLOSEABLE YET
 
