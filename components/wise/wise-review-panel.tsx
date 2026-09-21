@@ -242,7 +242,21 @@ function usefulDescription(
     .replace(/reference/gi, " ")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
-  return rest.length > 2 ? description : null;
+  if (rest.length <= 2) return null;
+  // ── AND DO NOT PRINT A SENTENCE THAT STOPS MID-AIR ────────────────
+  //
+  // Walked on production: "Received money from Handy Products with
+  // reference" — and then nothing, because that payment carries no
+  // reference. It survives the filter above because the SENDER is also
+  // missing from the payment record, so there is no name to strip and
+  // the leftover is the payer's name out of the description itself.
+  // That name is worth keeping: it is the only sender information this
+  // deposit has. The dangling clause is not.
+  const shown = description
+    .replace(/\s*with\s+reference\s*$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return shown.length > 2 ? shown : null;
 }
 
 function money(currency: string, cents: number): string {
@@ -876,6 +890,27 @@ Statement tried: ${p.attempts.join(" | ")}`
   const suggestedCount = allRows.filter(
     (r) => r.status === "suggested" && !r.archived_at,
   ).length;
+  // ── AND THE ONES WITH NO SUGGESTION TO CONFIRM ────────────────────
+  //
+  // Walked on production 2026-09-21: eight deposits rendered with the
+  // badge "Waiting to be matched" -- EUR 500, 500, 618, 630, 500, 250,
+  // 250, 250 -- above a header reading "Nothing waiting on you" and a
+  // tile reading 0 Waiting for you. Over EUR 3,100 of real bank money
+  // that nobody has claimed, on the screen an admin scans to decide
+  // whether there is anything to do.
+  //
+  // suggestedCount counts `suggested` only, which is right for a badge
+  // that says "to confirm" -- there is a suggestion to accept. It is
+  // the wrong number for "is anybody waiting on a person", because
+  // `unmatched` and `ambiguous` both need a human and neither has a
+  // suggestion to count. The card itself says so: "Match it by hand, or
+  // leave it until they file a top-up."
+  const byHandCount = allRows.filter(
+    (r) =>
+      !r.archived_at &&
+      (r.status === "unmatched" || r.status === "ambiguous"),
+  ).length;
+  const anyWaiting = suggestedCount + byHandCount;
   // A boolean, not the array: `data ?? []` is a new array on every render,
   // so depending on it re-ran the effect every time. The ref below made
   // that harmless, but a dependency that always changes is a trap for
@@ -1041,8 +1076,19 @@ Statement tried: ${p.attempts.join(" | ")}`
               <span className="muted" style={{ fontSize: ".88rem" }}>
                 {isError ? "We couldn't read the deposits" : "Checking…"}
               </span>
-            ) : suggestedCount > 0 ? (
-              <span className="badge pend">{suggestedCount} to confirm</span>
+            ) : anyWaiting > 0 ? (
+              <>
+                {suggestedCount > 0 && (
+                  <span className="badge pend">
+                    {suggestedCount} to confirm
+                  </span>
+                )}
+                {byHandCount > 0 && (
+                  <span className="badge due">
+                    {byHandCount} to match by hand
+                  </span>
+                )}
+              </>
             ) : (
               <span className="muted" style={{ fontSize: ".88rem" }}>
                 Nothing waiting on you
@@ -1090,7 +1136,10 @@ Statement tried: ${p.attempts.join(" | ")}`
             </button>
           </div>
         </div>
-        <WiseTiles waiting={suggestedCount} waitingUnknown={isError || isLoading} />
+        {/* The tile says "Waiting for you", so it counts everything a
+            person has to touch -- not just the ones with a suggestion
+            ready to accept. */}
+        <WiseTiles waiting={anyWaiting} waitingUnknown={isError || isLoading} />
         <div className="wsearch">
           <Search />
           <input
