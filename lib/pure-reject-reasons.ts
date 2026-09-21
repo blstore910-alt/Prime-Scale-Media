@@ -119,9 +119,21 @@ const WITHDRAWAL: RejectTemplate[] = [
     short: "Account under review",
     text: "This ad account is under review at the moment, so nothing can be moved off it. We will let you know as soon as that is finished.",
   },
+  // ── NOT A BANK PAYOUT ─────────────────────────────────────────────
+  //
+  // This template asked for "company and bank details on file before
+  // money can be returned". Money off an ad account goes to the
+  // customer's WALLET, in this app, and there is no wallet-to-bank
+  // withdrawal in this product at all — so the sentence asked a
+  // customer to complete something that would change nothing, to
+  // unblock something that was never blocked on it. It went out
+  // verbatim as the notification body.
+  //
+  // What an admin actually needs in its place is the company, because
+  // an invoice cannot be raised without one.
   {
-    short: "Bank details missing",
-    text: "We need your company and bank details on file before money can be returned. Please complete them under Settings and request this again.",
+    short: "Company missing",
+    text: "We need your company details on file before we can move money on your account. Please complete them under Settings and request this again.",
   },
   {
     short: "Duplicate",

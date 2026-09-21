@@ -493,9 +493,23 @@ export async function approveAdAccountWithdrawal(
   return {
     ok: true,
     data: null,
-    warning: pushed.enqueued
-      ? undefined
-      : `The wallet is credited, but the supplier was not told to take it off the ad account: ${pushed.reason}. Do that by hand, or the money is on both.`,
+    // ── A SHUT GATE IS NOT NEWS ───────────────────────────────────
+    //
+    // This warned whenever the push did not queue, without asking WHY.
+    // The auto-push gate is shut on production and is meant to be, so
+    // every single approval threw a twenty-second orange "Take it off
+    // the ad account by hand" — which teaches a desk working through a
+    // queue to dismiss the one toast that matters on the day the gate
+    // IS armed and a push genuinely fails.
+    //
+    // All three top-up call sites already test heldByGate for exactly
+    // this reason; enqueue.ts says it in its own comment: the shut gate
+    // is "the ordinary state and nobody needs telling". This one was
+    // missed.
+    warning:
+      pushed.enqueued || pushed.heldByGate
+        ? undefined
+        : `The wallet is credited, but the supplier was not told to take it off the ad account: ${pushed.reason}. Do that by hand, or the money is on both.`,
   };
 }
 
