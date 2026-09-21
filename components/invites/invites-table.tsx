@@ -38,6 +38,16 @@ const INVITE_BADGE: Record<
   cancelled: { cls: "info", label: "Cancelled" },
 };
 
+// The two kinds of account an invitation can create. Written out rather
+// than capitalised from the raw value, so a role nobody has seen before
+// prints as itself instead of being dressed up as a known one.
+const ROLE_LABEL: Record<string, string> = {
+  advertiser: "Advertiser",
+  affiliate: "Affiliate",
+  admin: "Admin",
+  super_admin: "Owner",
+};
+
 export default function InvitesTable() {
   const supabase = createClient();
   const { profile } = useAppContext();
@@ -233,6 +243,15 @@ export default function InvitesTable() {
                     left -- and the one thing between them was a pill. */}
                 <th>Created on</th>
                 <th>Expires on</th>
+                {/* ── WHAT KIND OF INVITE THIS IS ───────────────────
+                    The list showed who sent it, to whom, and when, and
+                    never said whether the person was being invited as an
+                    advertiser or as an affiliate. Those are two entirely
+                    different accounts -- one gets a plan, a wallet and a
+                    subscription, the other a referral link -- and the
+                    only way to find out was to wait for them to sign up
+                    and see what appeared. */}
+                <th>Type</th>
                 <th>Status</th>
                 <th className="r">Action</th>
               </tr>
@@ -300,6 +319,17 @@ export default function InvitesTable() {
                     </td>
                     <td data-label="Created on">{dayjs(invite.created_at).format(DATE_TIME_FORMAT)}</td>
                     <td data-label="Expires on">{dayjs(invite.expires_at).format(DATE_TIME_FORMAT)}</td>
+                    <td data-label="Type">
+                      {ROLE_LABEL[String(invite.role ?? "").toLowerCase()] ?? (
+                        /* An unrecognised role prints AS IT IS. A blank
+                           cell, or a confident "Advertiser" over a value
+                           nobody has seen before, is how a wrong account
+                           type gets created and nobody notices. */
+                        <span className="muted">
+                          {String(invite.role ?? "—")}
+                        </span>
+                      )}
+                    </td>
                     <td data-label="Status">
                       <span className={`badge ${badge.cls}`}>
                         {badge.label}
