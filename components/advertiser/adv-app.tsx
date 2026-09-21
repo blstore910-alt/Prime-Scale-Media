@@ -4643,7 +4643,16 @@ export default function AdvertiserApp() {
                           : dueBillDate
                             ? "Pay it from your wallet whenever suits you — or leave it, and we'll take it from your wallet on the due date."
                             : "Pay it from your wallet whenever suits you. This one carries no due date, so nothing will be taken automatically — if that looks wrong, tell us."
-                        : "Nothing owed right now. We'll raise the next one automatically."}
+                        : /* ── AND NOT A PROMISE WE DO NOT KEEP ──────
+                             "We'll raise the next one automatically" is
+                             true of somebody on a plan and false of
+                             somebody without one — and it printed for
+                             both, directly above a block explaining that
+                             no plan is running. Two sentences, same
+                             card, opposite claims. */
+                          subscription && Number(subscription.amount ?? 0) > 0
+                          ? "Nothing owed right now. We'll raise the next one automatically."
+                          : "Nothing owed right now."}
                 </p>
                 {subscription &&
                 Number(subscription.amount ?? 0) > 0 &&
@@ -4993,17 +5002,18 @@ export default function AdvertiserApp() {
                       </>
                     ) : (
                       <>
+                    {/* ── ONE LINE, NOT THREE ────────────────────────
+                        This card carried four paragraphs that said the
+                        same thing three times: "nothing owed", then
+                        "nothing to pay, no plan is running", then "ad
+                        accounts come with a plan, ask us and we will
+                        price it with you" — above a button that already
+                        says "Ask us to set up a plan". What the customer
+                        needs is why they cannot request an account yet.
+                        The button says the rest. */}
                     <p className="cap" style={{ margin: 0 }}>
-                      Nothing to pay right now — no plan is running on your
-                      account, so nothing is being charged.
-                    </p>
-                    <p
-                      className="cap"
-                      style={{ margin: "6px 0 0", color: "var(--faint)" }}
-                    >
-                      Ad accounts come with a plan, so you will need one
-                      before you can request an account. Ask us to set it
-                      up and we will price it with you.
+                      You have no plan yet — that is where your included ad
+                      accounts come from.
                     </p>
                     <a
                       className="btn block ghost"
