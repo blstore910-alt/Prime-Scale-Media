@@ -50,6 +50,23 @@ agrees with the database to the cent. See the A7 block below.
 
 **WAITING on the owner — paste these first:**
 
+- **`PLAK-DIT-31-COMMISSIE-HOORT-BIJ-DE-AD-ACCOUNT-TOPUP.sql` — blocks
+  F2, and closes a regression plak 27 introduced.** Two triggers accrue
+  commission. The one on `wallet_topups` should not exist at all — the
+  owner's rule is that commission comes from an AD-ACCOUNT top-up, not
+  from filling the wallet — and it silently threw anyway (its whole body
+  is in `exception when others then raise warning`, and it writes
+  `type = 'percentage'` where the table and the other trigger use
+  `pct`). It is unhooked; the function stays.
+  The one on `top_ups` is the right place and had four holes: no status
+  filter on the referral link (a REJECTED link paid out), no check that
+  the top-up is completed, `v_amount REAL` (money in a float), and **no
+  SECURITY DEFINER** — which plak 27 made acute, because it revoked
+  `insert` on `referral_commissions` from `authenticated` and this
+  trigger runs as the caller with NO exception handler, so
+  `updateTopupAsAdmin` would now abort on a refused insert. Plus it
+  stamped `NEW.currency` over `topup_amount`, the dual-meaning column.
+
 - **`PLAK-DIT-30-WAAR-HOORT-COMMISSIE.sql` — READ-ONLY, blocks F2.**
   A EUR 100 wallet top-up was credited and NO commission accrued. The
   owner says that is right — commission belongs to an AD-ACCOUNT top-up,
