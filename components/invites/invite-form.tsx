@@ -282,6 +282,34 @@ export default function InviteForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.inviteUserOpen, plans]);
 
+  // ── A RESET HAS TO RESET THE THINGS THAT ARE NOT IN THE FORM ─────
+  //
+  // "Create another" called form.reset() and nothing else. Two pieces
+  // of state live outside the form, and both survived:
+  //
+  //   * didAutoPrime.current — only cleared when the dialog CLOSES. So
+  //     the second invite opened with plan_id "" and all three fee
+  //     boxes blank, and the prime effect never re-ran. Nothing
+  //     validates a fee (monthly_fee is .optional()), so it posted
+  //     nulls, create_subscription_from_invite hit `if v_fee <= 0 then
+  //     return` and that customer got NO SUBSCRIPTION AT ALL — free
+  //     for ever, and charged EUR 50 for each ad account they were sold
+  //     as included. The invite email says nothing either: the plan
+  //     lines are only printed for non-null values.
+  //
+  //   * planCurrency — component state, and the only place it is ever
+  //     shown is the "Bills in" chips, which render only when a PLAN is
+  //     picked. So: pick Prime, press the USD chip, press "Create
+  //     another", type 200 into the blank Monthly fee box, send. That
+  //     invite carries plan_currency USD and the customer is billed
+  //     USD 200 against a EUR 200 intention — invoiced and auto-debited
+  //     from a USD wallet they have never funded.
+  const resetForNextInvite = () => {
+    form.reset();
+    didAutoPrime.current = false;
+    setPlanCurrency("EUR");
+  };
+
   async function onSubmit(values: InviteFormValues) {
     try {
       form.clearErrors();
@@ -300,6 +328,12 @@ export default function InviteForm() {
       const effectivePlanId = isAdvertiser
         ? values.community_id || values.plan_id || null
         : null;
+      // Whatever the admin actually picked, for the blanks below.
+      const planFallback = isAdvertiser
+        ? (values.community_id
+            ? communities.find((x) => x.id === values.community_id)
+            : tiers.find((x) => x.id === values.plan_id)) ?? null
+        : null;
       const res = await fetch("/api/send-invite", {
         body: JSON.stringify({
           email: values.email,
@@ -314,11 +348,31 @@ export default function InviteForm() {
             isSuperAdmin && isAdvertiser ? values.affiliate_id || null : null,
           // Plan (advertiser only) — pre-filled from a preset, adjustable.
           plan_id: effectivePlanId,
-          monthly_fee: isAdvertiser ? values.monthly_fee ?? null : null,
+          // ── A BLANK BOX MEANS "AS THE PLAN SAYS", NOT "ZERO" ───────
+          //
+          // These went out as null, and the RPC stores
+          // `coalesce(v_inv.topup_fee_pct, 0)` into a NOT NULL DEFAULT 0
+          // column. resolveEffectiveFeePct then tests `plan.topup_fee_pct
+          // != null` — and 0 is not null — so the stored zero BEATS the
+          // ad-account type's own default and every funding for that
+          // customer is charged 0% for ever. At a 3% plan that is
+          // EUR 300 per EUR 10,000 funded, silently.
+          //
+          // included_ad_accounts has the same shape in the other
+          // direction: a blank box becomes 0 included, and they are
+          // charged EUR 50 for each account that was sold to them as
+          // part of the plan.
+          //
+          // Clearing a box is not a statement that the number is zero.
+          // If a plan or community is chosen, its own figure is what the
+          // blank means; type a 0 to actually mean zero.
+          monthly_fee: isAdvertiser ? values.monthly_fee ?? planFallback?.monthly_fee ?? null : null,
           included_ad_accounts: isAdvertiser
-            ? values.included_ad_accounts ?? null
+            ? values.included_ad_accounts ?? planFallback?.included_ad_accounts ?? null
             : null,
-          topup_fee_pct: isAdvertiser ? values.topup_fee_pct ?? null : null,
+          topup_fee_pct: isAdvertiser
+            ? values.topup_fee_pct ?? planFallback?.topup_fee_pct ?? null
+            : null,
           plan_currency: isAdvertiser ? planCurrency : null,
         }),
         method: "POST",
@@ -411,7 +465,7 @@ export default function InviteForm() {
                 variant="outline"
                 onClick={() => {
                   setCreatedLink(null);
-                  form.reset();
+                  resetForNextInvite();
                 }}
               >
                 Create another
@@ -420,7 +474,7 @@ export default function InviteForm() {
                 type="button"
                 onClick={() => {
                   setCreatedLink(null);
-                  form.reset();
+                  resetForNextInvite();
                   dispatch("close-invite-user");
                 }}
               >
@@ -559,11 +613,34 @@ export default function InviteForm() {
                         // reaching — saving a rate stands the old one down
                         // first — and the top-up path REFUSES in it rather
                         // than pricing. So does this.
-                        const unpriceable =
-                          !!price &&
-                          !price.pinned &&
-                          c !== (String(p?.currency ?? "EUR").toUpperCase() === "USD" ? "USD" : "EUR") &&
-                          !(Number(eurToUsd) > 0);
+                        // ── A CONVERSION IS A SUGGESTION, NOT A PRICE ──
+                        //
+                        // This only refused when there was NO rate. With
+                        // a rate present it happily wrote the converted,
+                        // rounded figure into monthly_fee and shipped it
+                        // as the agreed price — the only warning being a
+                        // "~" whose own tooltip says "this is a
+                        // conversion, not a chosen price".
+                        //
+                        // lib/pure-plan-price.ts states the rule that
+                        // breaks: conversion is only ever a suggestion
+                        // shown to the admin. And it is not an edge case
+                        // — monthly_fee_usd is seeded only for USD-base
+                        // plans, so every EUR plan has none until an
+                        // owner pins one. At 0.86 the EUR 200 plan
+                        // becomes $235 against the owner's stated $225,
+                        // a different number every time the rate moves,
+                        // so two customers on "the same plan" end up on
+                        // different subscriptions.
+                        //
+                        // So: no pinned price in that currency, no chip.
+                        // Pin one in Settings → Finance → Plans.
+                        const isBase =
+                          c ===
+                          (String(p?.currency ?? "EUR").toUpperCase() === "USD"
+                            ? "USD"
+                            : "EUR");
+                        const unpriceable = !!price && !price.pinned && !isBase;
                         return (
                           <button
                             key={c}
@@ -571,7 +648,7 @@ export default function InviteForm() {
                             disabled={unpriceable}
                             title={
                               unpriceable
-                                ? "No exchange rate is published, and no price is set for this currency — publish a rate or pin a price first."
+                                ? "No price is set for this plan in this currency. A converted figure is a suggestion, not a price — pin one in Settings → Finance → Plans first."
                                 : undefined
                             }
                             onClick={() => {
