@@ -44,6 +44,10 @@
 
 **WAITING on the owner — paste these first:**
 
+- **`PLAK-DIT-18-AANVRAAG-ZONDER-BETALEN.sql` — URGENT.** An advertiser
+  can file an ad-account request through PostgREST without paying, into
+  any tenant's queue, and author the `metadata.request_fee` that a later
+  rejection refunds. See the A3 section.
 - **`READONLY_SQL=on` in Vercel.** The read-only role is in place and
   proven (`_ro` owned by `psm_readonly`, bypassrls on, counted 9
   wallets against 9 actual). The route `/api/dev/ro` is owner-only and
@@ -86,7 +90,7 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 |---|---|
 | A1 invite → signup → onboarding → dashboard | **CLOSED 2026-09-21.** Invite created as owner (every branch of the dialog opened first), link copied, signed up as PSM0006 in the pane, onboarding and dashboard walked. Figures agree: EUR 0 wallet, Prime EUR 200/mo, invoice 0006-125 EUR 200 open. The first-invoice question is answered: `trg_create_invoice_on_subscription_created` raises it, and it was raising ORPHANS — see below. PLAK 14/15/16/17 all applied |
 | **A2 wallet top-up** | **CLOSED.** €300 filed as PSM0005 after walking all four transfer currencies, verified as owner, balance 300.00 = sum of movements 300.00. Then €1,000 filed and rejected with a template reason — row Rejected, balance untouched, reason reached the bell |
-| A3 ad-account request, €50 off the wallet | not started |
+| A3 ad-account request, €50 off the wallet | **WALKED, not closed.** Every dialog branch opened; the INCLUDED path proved end to end (wallet stayed €195, request reached both queues without a reload); the €50 quote verified (€195 → €145) but the debit NOT executed. Six faults fixed, ten open — see below. **PLAK-18 is urgent** |
 | A4 fund an ad account | walked, figures agree (€100 at 3% → €3 fee, €97 lands, €200 left, screen and server identical). NOT closed: design pass and the sweep's remaining findings |
 | **A5 invoice → Pay now** | **CLOSED 2026-09-21.** Invoice 0005-124 (€5.00) paid from the wallet as PSM0005 in the pane. €200.00 → €195.00 on the customer screen AND on the owner's /wallets; statement row −€5.00 dated 21 Sep; invoice Paid; clock 20 Sep → 20 Oct on both sides. Reconciles: €305 credited − €110 spent = €195 |
 | A6 … S3 | not started |
@@ -246,6 +250,109 @@ Not one of these came out of reading the code. They needed the browser.
   "a percentage of every wallet top-up" appeared on four surfaces;
   commission is sometimes on spend, sometimes monthly, sometimes a
   one-off. Rewritten to the terms being per referral (`12a8918`).
+
+### A3 — walked 2026-09-21, NOT closed
+
+Walked as PSM0005 in the pane with the owner in Chrome. What was proved:
+
+- Every branch of the request dialog opened first. **Meta** offers EUR+USD
+  with the Facebook fields; **TikTok** and **Google** are USD-only and swap
+  in their own fields (Business Center ID / TikTok Account Email /
+  Countries, and Google Email). Data-driven and correct.
+- The **included** path: "Included in your plan — no fee · 1 of 2 included
+  ad accounts left". Confirm modal read Platform Meta / Currency EUR /
+  **Cost: Included in your plan**, no supplier named anywhere. Sent it —
+  the request reached the admin queue (Pending · Meta · EUR · BM
+  123456789012345) AND the customer's Requests view **without a reload**,
+  and the wallet stayed at **EUR 195.00**. Correct end to end.
+- The **EUR 50** path quotes correctly: with the pending request counted,
+  reopening the dialog reads "Ad-account request fee: €50 · Charged from
+  your wallet when you submit. **Balance: €195.00 → €145.00**". So the
+  allowance count DOES include pending requests.
+
+**Not done: the EUR 50 leg was never executed.** Quote verified, debit
+not. That is what remains before A3 can close.
+
+#### Found by walking it, fixed and live
+
+- **The currency latched to USD.** Open on Meta (EUR), tap TikTok to see
+  what it is (USD is its only option and is selected for you), tap back
+  to Meta — EUR returns as a *choice* and USD stays *selected*. The
+  radios sit below the fold while you read the platform list, so nothing
+  says what happened. An ad account keeps its currency for life (`11b7456`).
+- **"Send the request" did nothing at all.** `timezone` is the only
+  required field with no default; `select-field.tsx` never forwarded
+  `field.ref`, so react-hook-form could not focus or scroll to it. No
+  confirmation, no error, nothing. Reproduced on production (`af67745`).
+- **The form saved a draft it never read back.** Escape or a tap outside
+  loses platform, timezone, BM id, profile link, website and notes.
+  CLAUDE.md names this form as one of the four that must never lose
+  typing; both siblings already restored (`af67745`).
+- **The price quote was all-or-nothing and failed OPEN.** Any one of five
+  sub-reads erroring left the card on "Checking what this request
+  costs…" for ever, the confirm on "Worked out when you submit" — and
+  because `feeEnough` lets an unknown preview through, **the submit
+  button stayed live**. A EUR 50 debit confirmed with no price and no
+  balance shown, insufficient-balance gate off. `advertiser_plans` and
+  `advertiser_perks` are hand-pasted, so 42P01/42703 now means "none
+  yet" (`af67745`).
+- **A wallet row `maybeSingle()` could not see became EUR 0.00** plus
+  "Not enough balance", with submit and confirm both disabled, for a
+  customer holding thousands (`af67745`).
+- **`adv-request-charges` was invalidated by nothing**, so the balance
+  dropped EUR 50 within a second and no statement line ever appeared
+  (`af67745`).
+
+#### A3 — still OPEN
+
+1. **`PLAK-DIT-18-AANVRAAG-ZONDER-BETALEN.sql` — paste this.** An
+   advertiser can INSERT into `ad_account_requests` straight through
+   PostgREST (`ad_account_requests_insert_owner`, no table revoke). The
+   EUR 50 is charged *inside* the RPC and enforced nowhere else, so the
+   request reaches the queue with the wallet untouched — and the WITH
+   CHECK binds only `advertiser_id`, so `tenant_id` is free and the row
+   can land in ANOTHER tenant's queue. Then
+   `ad_account_request_reject_refund` reads the refund amount out of that
+   same customer-written `metadata.request_fee`: file with
+   `{"request_fee": 100000}`, have an admin press Reject, and EUR 100,000
+   is credited. PLAK-18 revokes INSERT and DELETE only — **not UPDATE**,
+   because the admin actions write with the caller's session.
+2. **The EUR 50 never appears on any customer surface.** The statement
+   reads `charged_amount / charged_currency / charged_at` and
+   `ad_account_request_create_paid` does not write them (its own check
+   migration `20260920250000` reported `NOT WRITING`, with 7 historic
+   unrecorded charges). `actions/finance-report-actions.ts` never touches
+   `ad_account_requests` at all, so the Financial report and its CSV are
+   EUR 50 out per request. **Needs the live RPC body — PLAK-18 row 6.**
+3. **`request_fee_refunded_at` is not in the RPC's right-hand-wins key
+   list**, so a customer passing it in `p_metadata` pre-stamps the row and
+   their own refund is skipped — the fee was really taken and the admin
+   is told "No fee was charged for this one". Survives the revoke, because
+   this goes through the legitimate RPC. **PLAK-18 row 7.**
+4. **`ad_accounts.notes` and `.metadata` are readable by the advertiser**
+   through PostgREST. The app treats both as admin-only and says why —
+   notes is where an operator writes a supplier account number and the
+   rate we pay. A column-level revoke would break admins too (they are
+   also `authenticated`), so the fix is the one the repo already used for
+   `supplier_fee_pct`: move them to an admin-only table.
+5. **The allowance counts REQUESTS, not accounts.** An account an admin
+   creates by hand consumes none of it, so a customer on a
+   one-account plan can hold two and be charged for neither.
+6. **No cancel and no amend, anywhere**, and the 90-second twin trigger
+   refuses the corrected re-file — while the admin queue offers a
+   "Cancelled" filter no row can ever hold.
+7. **An admin can hand an account to a deactivated customer**;
+   `createAdAccountAsAdmin` never checks the advertiser's
+   `is_active`/`status`, and a completed request can no longer be
+   rejected, so the fee cannot be returned.
+8. **`maintenanceGuard()` does not cover this journey's money mover** —
+   `ad_account_request_create_paid` is called straight from the browser,
+   so `MAINTENANCE_MODE=true` does not freeze the EUR 50 debit.
+9. The admin fee-invoice dialog prices USD off a hardcoded `0.86`
+   instead of the tenant's rate (a third copy of that constant).
+10. Neither the admin queue nor the customer's Requests view shows the
+    amount, so an admin pressing Reject cannot see what is about to
+    leave PSM's account.
 
 ### A1 — the one that was actively costing money (2026-09-21)
 
