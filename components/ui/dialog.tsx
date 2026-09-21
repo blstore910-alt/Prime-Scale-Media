@@ -92,7 +92,13 @@ const DialogContent = React.forwardRef<
             top-up, the ad-account request, the fund form) silently loses
             the centring, and the handle drops to the left edge of the
             sheet. An auto margin centres it under both. */
-          className="sticky top-0 z-10 mx-auto -mt-1.5 mb-0.5 h-1.5 w-11 shrink-0 rounded-full bg-[color:var(--line-2,rgba(20,30,80,.18))] sm:hidden"
+          /* ABSOLUTE IN THE TOP PADDING, NOT STICKY IN THE FLOW. Sticky
+             kept it pinned over whatever scrolled under it, and in the
+             flow it landed on the title ("Fund this ad account", the
+             rules editor) -- the owner saw a grey bar through text twice.
+             The sheet has 20px of top padding; the bar sits at 8px and is
+             6px tall, so it can never touch the first line. */
+          className="pointer-events-none absolute left-1/2 top-2 z-10 h-1.5 w-11 -translate-x-1/2 rounded-full bg-[color:var(--line-2,rgba(20,30,80,.18))] sm:hidden"
       />
       {children}
       {/* 36px, not 32: this is the control people reach for by mistake
