@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { banksForAccountTypes } from "@/lib/bank-routing";
 import { copyText } from "@/lib/copy-text";
 import { DEFAULT_MIN_TOPUP } from "@/lib/min-topup";
@@ -116,18 +115,18 @@ function convertWalletToTransfer(
 // union still carries "muxue" so historical top-ups and their stored bank
 // details keep rendering — it is simply never offered and nothing routes to
 // it. (Its Airwallex instant-transfer channel goes with it.)
-const BANK_GROUP_OPTIONS: { value: BankGroup; title: string; sub: string }[] = [
-  {
-    value: "turlit",
-    title: "TURLIT LLC",
-    sub: "Meta-EU-PSM · Meta-HK · Google · TikTok · Taboola · Snapchat",
-  },
-  {
-    value: "zanel",
-    title: "ZANEL ENTERPRISE",
-    sub: "Meta-EU-PSM-GH · USD only",
-  },
-];
+// ── THE ROUTING MAP IS OURS ──────────────────────────────────────────
+//
+// There used to be a BANK_GROUP_OPTIONS table here, rendered as a picker,
+// and each option carried the ad-account families it serves —
+// "Meta-EU-PSM · Meta-HK · Google · TikTok · Taboola · Snapchat". That is
+// our routing map printed on a customer screen: which platforms we run,
+// how they are split across two legal entities, and which of those a
+// competitor would have to ask for. It is gone, and so is the choice —
+// the customer is told where to send their money, never asked to work it
+// out. `bankBeneficiary()` names the resolved one.
+/** Where a transfer goes when their accounts cannot tell us. */
+const DEFAULT_BANK_GROUP: BankGroup = "turlit";
 
 
 export default function WalletTopupDialog({
@@ -217,24 +216,38 @@ export default function WalletTopupDialog({
   //
   // We do not know where their money goes yet, so we say so and ask —
   // which is what the copy below already does for the other two cases.
+  // ── AND WHEN WE CANNOT TELL, WE PICK ─────────────────────────────
+  //
+  // Everything above stays true: a customer on Meta-EU-PSM-GH belongs at
+  // ZANEL and the wrong beneficiary is a real transfer to the wrong legal
+  // entity. What changed is who answers it. Handing a brand-new customer
+  // a list of our beneficiary companies and asking them to route their
+  // own payment asks a question they have no way to answer — their first
+  // transfer is the one they have least basis to doubt.
+  //
+  // So: when their accounts tell us, we follow them. When they cannot —
+  // no accounts yet, or a type nobody mapped — we name the default and
+  // SAY that we could not work it out, so a customer who was given a
+  // different one knows to use it. The only time a choice is still
+  // offered is when they genuinely hold accounts in BOTH families, which
+  // is a real fork and not a guess.
   const routingUnknown =
     accountsUnknown || routed.length === 0;
-  const bankChoices = routingUnknown
-    ? BANK_GROUP_OPTIONS.map((o) => o.value)
-    : routed;
-  const soleBank = bankChoices.length === 1 ? bankChoices[0] : null;
+  // ── ONE DESTINATION, WORKED OUT, NEVER ASKED ─────────────────────
+  //
+  // The customer is never shown a choice of beneficiary. They have no
+  // way to answer it — on their first transfer least of all — and the
+  // list of options was also our routing map. Their accounts decide it;
+  // when their accounts cannot, the default does, and the line above
+  // says so, so anybody who was given a different one knows to use it.
+  const resolvedBank: BankGroup = routingUnknown
+    ? DEFAULT_BANK_GROUP
+    : (routed[0] ?? DEFAULT_BANK_GROUP);
   // One possible destination: set it rather than ask. Also corrects a
   // restored draft that names a bank this advertiser has no accounts at.
   useEffect(() => {
-    if (soleBank && bankGroup !== soleBank) setBankGroup(soleBank);
-    else if (
-      bankChoices.length > 1 &&
-      !bankChoices.includes(bankGroup)
-    ) {
-      setBankGroup(bankChoices[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soleBank, bankChoices.join(","), bankGroup]);
+    if (bankGroup !== resolvedBank) setBankGroup(resolvedBank);
+  }, [resolvedBank, bankGroup]);
   // The currency the advertiser will physically transfer in (picks the bank
   // account shown). Defaults to the wallet currency.
   const [transferCurrency, setTransferCurrency] =
@@ -855,46 +868,15 @@ export default function WalletTopupDialog({
                     there was nothing to decide and no reason to see the
                     others. The destination follows from the accounts they
                     hold, so it is worked out rather than asked. */}
-                {bankChoices.length > 1 ? (
-                  <div className="space-y-3">
-                    <Label>Which accounts are you funding?</Label>
-                    {routingUnknown && (
-                      <p className="text-xs text-muted-foreground">
-                        {accountTypeSlugs.length === 0
-                          ? "You don't have an ad account yet, so we can't tell which of our accounts your transfer should go to. Use the one we gave you — and if you weren't given one, ask us before you send anything."
-                          : "We could not work this out from your ad accounts, so please pick the one you were given. If you are not sure, ask us before you send anything."}
-                      </p>
-                    )}
-                    <RadioGroup
-                      value={bankGroup}
-                      onValueChange={(val: BankGroup) => setBankGroup(val)}
-                      className="grid gap-3"
-                    >
-                      {BANK_GROUP_OPTIONS.filter((o) =>
-                        bankChoices.includes(o.value),
-                      ).map((opt) => (
-                        <div key={opt.value}>
-                          <RadioGroupItem
-                            value={opt.value}
-                            id={`bankgroup-${opt.value}`}
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor={`bankgroup-${opt.value}`}
-                            className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                          >
-                            <span className="font-semibold text-base">
-                              {opt.title}
-                            </span>
-                            <span className="mt-1.5 text-xs text-muted-foreground leading-snug">
-                              {opt.sub}
-                            </span>
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                ) : null}
+                {/* Said once, wherever the destination came from. */}
+                {routingUnknown && (
+                  <p className="text-xs text-muted-foreground">
+                    {accountTypeSlugs.length === 0
+                      ? "You don't have an ad account with us yet, so we've put our usual account below. If we gave you a different one, use that — and ask us if you're not sure."
+                      : "We couldn't work the destination out from your ad accounts, so we've put our usual one below. If we gave you a different one, use that — and ask us if you're not sure."}
+                  </p>
+                )}
+
 
                 <div className="space-y-3">
                   <Label>Transfer currency</Label>
