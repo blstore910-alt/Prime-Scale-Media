@@ -13,6 +13,12 @@ import { pageAllRows } from "@/lib/page-all-rows";
 import { humanSlug, sameSlug } from "@/lib/pure-slug-key";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
+import {
+  unpaidSubscriptionInvoices,
+  unpaidTotalsByCurrency,
+  unpaidTotalsText,
+  walletCurrencyOf,
+} from "@/lib/pure-invoice-due";
 import { getRate, neededFromAmount, otherWalletCovers } from "@/lib/pure-exchange";
 import TaxRatesDialog from "./tax-rates-dialog";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -1469,35 +1475,16 @@ export default function AdvertiserApp() {
     },
   });
 
-  // ── DECLARED BEFORE THE FIRST THING THAT CALLS IT ────────────────
-  //
-  // This sat TWENTY LINES BELOW the reduce in unpaidSubByCurrency, which
-  // calls it. A `const` arrow function is in its temporal dead zone
-  // until that line runs, so the call threw
-  //
-  //     ReferenceError: Cannot access 'invCurrency' before initialization
-  //
-  // and took down the whole customer app with Next's "Application error:
-  // a client-side exception has occurred".
-  //
-  // It went unnoticed because `.reduce` on an EMPTY array never calls its
-  // callback. Every advertiser with nothing outstanding was fine; the
-  // first one to have a single unpaid invoice could not open the app at
-  // all — not the billing page, the WHOLE app, because the views are
-  // CSS-toggled and all of them render.
-  //
-  // tsc does not catch it: the reference is inside a callback, so it
-  // cannot prove the callback runs immediately.
-  const invCurrency = (inv: {
-    currency?: string | null;
-    items?: unknown;
-  } | null | undefined): "USD" | "EUR" =>
-    ((inv?.currency as string | null | undefined) ?? "EUR")
-      .toString()
-      .trim()
-      .toUpperCase() === "USD"
-      ? "USD"
-      : "EUR";
+  // One answer to "which wallet pays this", from lib/pure-invoice-due,
+  // where it is tested. It used to be a local const arrow function
+  // declared twenty lines BELOW the reduce that calls it — a temporal
+  // dead zone that threw "Cannot access 'invCurrency' before
+  // initialization" and replaced the whole customer app with Next's
+  // "Application error". It hid because .reduce on an EMPTY array never
+  // calls its callback, so it only fired for a customer who actually had
+  // an unpaid invoice.
+  const invCurrency = walletCurrencyOf;
+
 
   // ── AND THE FILTER HAS TO AGREE WITH THE QUERY ───────────────────
   //
@@ -1508,64 +1495,15 @@ export default function AdvertiserApp() {
   // widening a no-op: dueSubInvoice could never be an adjustment, the
   // "Plan change" label was dead code, and the card still read "This
   // month is paid" over a EUR 50 adjustment due in seven days.
-  const unpaidSubInvoices = (dueInvoices ?? [])
-    .filter(
-      (i) =>
-        i.status !== "paid" &&
-        i.status !== "void" &&
-        (i.type === "subscription" || i.type === "subscription_adjustment"),
-    )
-    // ── OLDEST FIRST, BECAUSE THAT IS THE ONE THAT HURTS ────────────
-    //
-    // This sorted newest-first and then took [0], so a customer with two
-    // open invoices was shown the one raised YESTERDAY while the one
-    // from last month sat past due, being dunned, waiting to be
-    // auto-debited. Paying in the order they were raised is also the
-    // order the nightly collect loop works in.
-    .sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
+  // All three come from lib/pure-invoice-due now, where the non-empty
+  // path is covered by tests: which invoices are open (oldest first,
+  // adjustments included because the collect loop takes those too), the
+  // total per currency, and the sentence for it.
+  const unpaidSubInvoices = unpaidSubscriptionInvoices(dueInvoices ?? []);
   const dueSubInvoice = unpaidSubInvoices[0];
-  // ── AND HOW MANY THERE ARE ────────────────────────────────────────
-  //
-  // The comment on unpaidSubInvoices promises "the count below says
-  // plainly when more than one is open". That render site never
-  // existed: `.length` was computed and printed nowhere, so a customer
-  // with two open invoices read the newest one's figure as the whole
-  // amount owed — EUR 5.00 on screen while EUR 205 was due, and the
-  // nightly run collects both.
   const unpaidSubCount = unpaidSubInvoices.length;
-  // ── PER CURRENCY, BECAUSE A SUM ACROSS THEM IS NOT A NUMBER ──────
-  //
-  // My own first pass added these up with one reduce and printed the
-  // newest invoice's symbol on the result: a EUR 200 invoice beside a
-  // USD 500 one came out as "EUR 700.00", a figure that exists in no
-  // currency. And the mixed case is not hypothetical — changing a plan
-  // to another currency is exactly what produces it.
-  const unpaidSubByCurrency = unpaidSubInvoices.reduce<Record<string, number>>(
-    (acc, i) => {
-      const cur = invCurrency(i);
-      acc[cur] = Math.round(((acc[cur] ?? 0) + (Number(i.total) || 0)) * 100) / 100;
-      return acc;
-    },
-    {},
-  );
-  const unpaidSubText = Object.entries(unpaidSubByCurrency)
-    .map(([cur, amt]) => `${cur === "USD" ? "$" : "€"}${money2(amt)}`)
-    .join(" + ");
-  // invoices.currency first, items[0] only as a fallback — the same order
-  // the paying RPC uses. The modal was fixed for this and the CARD and the
-  // amount column were not, so one invoice could read €120 on the button
-  // and $120 in the confirmation it opened.
-  // ...and the line item is NOT consulted. invoice_pay_from_wallet reads
-  // `upper(coalesce(v_inv.currency,'EUR'))`; an items[0] saying USD over
-  // a NULL column made this button promise a dollar payment from the USD
-  // wallet while euros left the EUR one. The wallet statement's own
-  // invoice row a few hundred lines down already uses the column alone,
-  // so two rows in this same component disagreed about one invoice.
-  // .trim() as well: lib/pure-invoice-currency trims and this did not,
-  // so " usd " resolved to EUR here and USD there.
+  const unpaidSubByCurrency = unpaidTotalsByCurrency(unpaidSubInvoices);
+  const unpaidSubText = unpaidTotalsText(unpaidSubByCurrency);
   const dueSubSymbol = invCurrency(dueSubInvoice) === "USD" ? "$" : "€";
 
   // Hand the customer their own invoice. Same route the admin list uses;
