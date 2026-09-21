@@ -119,7 +119,7 @@ begin
         'start_date', NEW.start_date
       )
     ),
-    v_amount,          -- GEEN ::real. Dat is single precision.
+    v_amount,          -- numeric, GEEN single-precision cast meer
     v_amount,
     NEW.advertiser_id,
     v_type,
@@ -144,9 +144,12 @@ select 1 as nr, 'zet de trigger subscription_id in de KOLOM' as item,
      limit 1
   ), 'functie bestaat niet') as antwoord
 union all
-select 2, 'staat er nog een ::real cast op een geldbedrag',
+-- `position('::real' in prosrc)` vond zijn eigen commentaarregel -- de
+-- body zei "GEEN ::real" en de test las dat als een cast. Zoek naar de
+-- cast zelf.
+select 2, 'staat er nog een cast op een geldbedrag',
   coalesce((
-    select case when position('::real' in p.prosrc) > 0
+    select case when position('v_amount::real' in p.prosrc) > 0
                 then 'JA - NIET GOED, zeg het meteen'
                 else 'nee - weg' end
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
