@@ -248,6 +248,20 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/users?role=affiliate",
       };
 
+    case "account_deletion_requested":
+      return {
+        title: "A customer asked to delete their account",
+        body: "Approve or decline it on their page.",
+        url: "/users",
+      };
+
+    case "account_deletion_declined":
+      return {
+        title: "About your deletion request",
+        body: "We answered your request — open the app to read why.",
+        url: "/dashboard?view=notif",
+      };
+
     case "referral_commission_earned":
       return {
         title: "You earned a commission",

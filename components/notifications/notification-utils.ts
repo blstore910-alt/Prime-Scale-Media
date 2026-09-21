@@ -317,6 +317,27 @@ export function getNotificationCopy(notification: Notification): {
         description: `${figure} from ${what}${p.client_code ? ` by ${p.client_code}` : ""}.`,
       };
     }
+    case "account_deletion_requested": {
+      const p = parseNotificationPayload(notification) as {
+        name?: string | null;
+        client_code?: string | null;
+      };
+      return {
+        title: "Account deletion request",
+        description: `${p.name || "A customer"}${
+          p.client_code ? ` (${p.client_code})` : ""
+        } asked us to delete their account. Approve or decline it on their page.`,
+      };
+    }
+    case "account_deletion_declined": {
+      const p = parseNotificationPayload(notification) as { reason?: string | null };
+      return {
+        title: "About your deletion request",
+        description: p.reason
+          ? `We haven't deleted your account yet: ${p.reason}`
+          : "We haven't deleted your account yet. Message us and we'll explain.",
+      };
+    }
     case "referral_commission_on_hold":
       return {
         title: "Commission on hold",

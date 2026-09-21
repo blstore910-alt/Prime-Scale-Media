@@ -113,6 +113,10 @@ template literal, JSX restructuring. Then sequentially, never both at
 once — together they double the Vercel queue.
 
 The owner does **not** want preview URLs and does not test on them.
+**Never push the branch itself** (`git push origin feat/redesign-advertiser`)
+— every branch push builds a Vercel preview. The ONLY push is
+`git push origin feat/redesign-advertiser:main`. (2026-09-21: a session
+pushed both after every deploy; the owner had to say it twice.)
 
 Testing happens on the real URL, after promoting. Preview talks to the
 **same Supabase database**, so a write there is a write on live data — it

@@ -23,7 +23,10 @@ export type NotificationType =
   // Plak 35: commission is booked on profit, per the owner's rules.
   | "referral_commission_earned"
   | "referral_commission_on_hold"
-  | "referral_commission_failed";
+  | "referral_commission_failed"
+  // Plak 36: deleting an account is a request the owner decides.
+  | "account_deletion_requested"
+  | "account_deletion_declined";
 
 export type NotificationAuthor = {
   id: string;
@@ -98,6 +101,13 @@ export type AffiliateApplicationNotificationPayload = {
 };
 
 export interface NotificationPayloadByType {
+  account_deletion_requested: {
+    profile_id?: string | null;
+    name?: string | null;
+    email?: string | null;
+    client_code?: string | null;
+  };
+  account_deletion_declined: { reason?: string | null };
   /** Plak 35: booked on profit (top-up), a paid plan invoice, or a new
    *  customer's first top-up (one-time). Written by the accrual triggers. */
   referral_commission_earned: {

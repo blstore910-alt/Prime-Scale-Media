@@ -281,16 +281,25 @@ export async function exportOwnData(): Promise<
 }
 
 /**
- * requestOwnErasure — GDPR "right to be forgotten".
+ * requestOwnErasure — ask us to delete the account. A REQUEST, not a lock.
  *
- * Marks the caller's profile as `pending_erasure`. Does NOT actually
- * delete anything: erasure is a two-step process to protect against
- * accidental button-clicks AND to give the super-admin the required
- * 30-day window to satisfy retention obligations (tax law overrides
- * GDPR in many cases). See docs/PRIVACY_AND_DATA_LIFECYCLE.md for the
- * playbook the super-admin runs on the anniversary.
+ * The owner, 2026-09-21: "niet direct verwijderen, moet een request komen
+ * bij admin, daarna pas". This used to write status = pending_erasure and
+ * is_active = false on the spot: the customer pressed the button and was
+ * locked out, and nobody here knew it had happened.
+ *
+ * Now it records WHEN they asked (user_profiles.erasure_requested_at) and
+ * tells the tenant owner, through account_deletion_request_submit (plak
+ * 36). The account stays open. The owner approves -- which is the old lock
+ * -- or declines with a reason the customer receives
+ * (decideAccountDeletion below).
+ *
+ * If the function is not in the database yet this REFUSES rather than
+ * falling back to the old immediate lock.
  */
-export async function requestOwnErasure(): Promise<ActionResult> {
+export async function requestOwnErasure(): Promise<
+  ActionResult<{ alreadySent: boolean; requestedAt: string | null }>
+> {
   const mm = maintenanceGuard();
   if (!mm.ok) return mm;
 
@@ -299,53 +308,73 @@ export async function requestOwnErasure(): Promise<ActionResult> {
   if (userError || !userData.user) {
     return { ok: false, error: "Unauthorized" };
   }
+  const cookieStore = await cookies();
+  const chosen = cookieStore.get("profile_id")?.value ?? null;
 
-  // ── THE OWNER CANNOT ERASE THE OWNER ────────────────────────────
-  //
-  // This had no role check and writes status = pending_erasure,
-  // is_active = false on EVERY profile row the caller holds. /profile is
-  // reachable by admins, so the tenant owner sees "Request deletion" —
-  // and pressing it locks them out permanently: requireSuperAdmin then
-  // sends them to /inactive, every server action refuses them,
-  // hardDeleteUser is super-admin-only so they cannot undo it, and
-  // toggleAdminStatus refuses a self-target AND needs a super-admin
-  // caller, so no employee admin can restore them either. The tenant is
-  // left with no owner and no path back short of hand-written SQL.
-  //
-  // GDPR does not require a controller to be able to erase itself out of
-  // its own tenancy. Refused, with the thing to do instead.
-  const { data: ownedTenant } = await supabase
-    .from("tenants")
-    .select("id")
-    .eq("owner_id", userData.user.id)
-    .limit(1)
-    .maybeSingle();
-  if (ownedTenant?.id) {
-    return {
-      ok: false,
-      error:
-        "This account owns the organisation, so it cannot delete itself — everyone would lose access. Transfer ownership first, or contact us and we will do it for you.",
-    };
+  const { data, error } = await supabase.rpc("account_deletion_request_submit", {
+    p_profile_id: chosen,
+  });
+  if (error) {
+    const msg = String(error.message ?? "");
+    if (/PGRST202|could not find the function|does not exist/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          "Deletion requests aren't switched on yet. Message us on WhatsApp and we'll handle it.",
+      };
+    }
+    return { ok: false, error: "We couldn't send your request just now. Try again shortly." };
   }
+  const r = (data ?? {}) as {
+    ok?: boolean;
+    error?: string;
+    already_sent?: boolean;
+    requested_at?: string | null;
+  };
+  if (r.ok !== true) {
+    return { ok: false, error: r.error ?? "We couldn't send your request just now." };
+  }
+  return {
+    ok: true,
+    data: { alreadySent: r.already_sent === true, requestedAt: r.requested_at ?? null },
+  };
+}
 
-  // Count the rows. This is a legal request: telling someone their erasure
-  // was registered when nothing was written leaves them believing a right
-  // was exercised that was not, and the clock they think is running is not.
-  // A profile can have several rows across tenants, so "at least one" is the
-  // test rather than exactly one.
-  const { data: rows, error } = await supabase
-    .from("user_profiles")
-    .update({
-      status: "pending_erasure",
-      is_active: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userData.user.id)
-    .select("id");
-  if (error) return { ok: false, error: error.message };
-  const wrote = wroteSomething(rows);
-  if (!wrote.ok) return wrote;
-  return { ok: true, data: null };
+/**
+ * The owner's answer to a deletion request. Approve = the account is
+ * closed (pending_erasure, login blocked). Decline = the request lapses and
+ * the customer gets the reason. The database function checks that the
+ * caller owns the tenant; this action checks the session first so the
+ * error is a sentence rather than a code.
+ */
+export async function decideAccountDeletion(
+  profileId: string,
+  approve: boolean,
+  reason?: string,
+): Promise<ActionResult<{ approved: boolean }>> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return mm;
+  if (typeof profileId !== "string" || !profileId) {
+    return { ok: false, error: "Invalid profile." };
+  }
+  if (!approve && !(reason ?? "").trim()) {
+    return { ok: false, error: "Say why, so the customer knows." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("account_deletion_decide", {
+    p_profile_id: profileId,
+    p_approve: approve,
+    p_reason: approve ? null : (reason ?? "").trim(),
+  });
+  if (error) {
+    const msg = String(error.message ?? "");
+    if (/PGRST202|could not find the function|does not exist/i.test(msg)) {
+      return { ok: false, error: "Deletion requests aren't switched on in the database yet." };
+    }
+    return { ok: false, error: msg || "The decision was not saved." };
+  }
+  const r = (data ?? {}) as { ok?: boolean; approved?: boolean };
+  return { ok: true, data: { approved: r.approved === true } };
 }
 
 /**

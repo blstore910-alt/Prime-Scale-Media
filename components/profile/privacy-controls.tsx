@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import dayjs from "dayjs";
+import { useAppContext } from "@/context/app-provider";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,6 +48,28 @@ export default function PrivacyControls({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
+  const { profile } = useAppContext();
+  const queryClient = useQueryClient();
+
+  // Has this person already asked? A column plak 36 adds; until then the
+  // read fails on the missing column and we simply do not know -- the
+  // button stays, and the server answers "already sent" if it was.
+  const requested = useQuery({
+    queryKey: ["erasure-requested", profile?.id ?? ""],
+    enabled: !!profile?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("erasure_requested_at")
+        .eq("id", profile!.id)
+        .maybeSingle();
+      if (error) return null;
+      return ((data as { erasure_requested_at?: string | null } | null)
+        ?.erasure_requested_at ?? null) as string | null;
+    },
+  });
+  const requestedAt = requested.data ?? null;
 
   async function submitErasure() {
     setRequesting(true);
@@ -58,22 +84,23 @@ export default function PrivacyControls({
     try {
       const result = await requestOwnErasure();
       if (!result.ok) {
-        toast.error("Erasure request failed", { description: result.error });
+        toast.error("Your request was not sent", { description: result.error });
         return;
       }
+      // A REQUEST, not a lock: they stay signed in. The owner approves or
+      // declines it, and they hear back either way.
       toast.success(
-        "Erasure requested. You'll be signed out; a super-admin will finalise.",
+        result.data.alreadySent ? "You already asked" : "Request sent",
+        { description: "We'll contact you before anything is deleted." },
       );
       setConfirmOpen(false);
-      setTimeout(() => {
-        window.location.href = "/auth/login";
-      }, 1500);
+      queryClient.invalidateQueries({ queryKey: ["erasure-requested"], exact: false });
     } catch (err) {
       toast.error("Erasure request failed", {
         description:
           err instanceof Error
             ? err.message
-            : "Something went wrong. Nothing has been erased — try again.",
+            : "Something went wrong. Nothing was sent — try again.",
       });
     } finally {
       setRequesting(false);
@@ -131,32 +158,33 @@ export default function PrivacyControls({
       <div className="rounded-lg border border-destructive/40 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="font-medium text-destructive">Delete my account</p>
-          {/* The owner: "en vooral 7 years law claim weg". A legal claim
-              nobody here has checked does not belong on a customer screen.
-              "Blocks your login right away" stays only as long as it is
-              TRUE -- it goes when deletion becomes a request the admin
-              approves (docs/NEXT_SESSION_FIRST.md, R3). */}
+          {/* A request we review, not a switch (the owner, 21-09: "moet
+              een request komen bij admin, daarna pas"). No legal claims:
+              "7 years by law" was one nobody here had checked. */}
           <p className="text-sm text-muted-foreground">
-            Blocks your login right away.
+            {requestedAt
+              ? `You asked on ${dayjs(requestedAt).format("D MMM YYYY")}. We'll contact you before anything is deleted.`
+              : "We review your request and contact you. Your account stays open until then."}
           </p>
         </div>
         <Button
           variant="destructive"
           className="shrink-0"
           onClick={() => setConfirmOpen(true)}
+          disabled={!!requestedAt}
         >
           <ShieldAlert className="h-4 w-4 mr-2" />
-          Request deletion
+          {requestedAt ? "Request sent" : "Request deletion"}
         </Button>
       </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm account deletion</DialogTitle>
+            <DialogTitle>Ask us to delete your account?</DialogTitle>
             <DialogDescription>
-              This immediately blocks your login and marks your account
-              for deletion. You will lose access right away.
+              We review your request and contact you. Nothing is deleted,
+              and you stay signed in, until then.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -173,7 +201,7 @@ export default function PrivacyControls({
               disabled={requesting}
             >
               {requesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Yes, request deletion
+              Send request
             </Button>
           </DialogFooter>
         </DialogContent>

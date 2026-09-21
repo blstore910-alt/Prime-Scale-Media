@@ -20,6 +20,8 @@ import UserAffiliates from "./user-affiliates";
 import UserSubscriptionDetails from "./user-subscription-details";
 import UserWalletTopups from "./user-wallet-topups";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import { useAppContext } from "@/context/app-provider";
+import { decideAccountDeletion } from "@/actions/gdpr-actions";
 
 // The sheet renders in a Radix portal OUTSIDE the `.psmapp` shell, so the
 // mockup's scoped classes and font variables aren't in scope here. This
@@ -394,6 +396,14 @@ export default function UserDetailsSheet({
         {/* Data */}
         {!isLoading && !isError && data && (
           <div className="uds-body">
+            <DeletionRequestCard
+              profileId={profileId}
+              requestedAt={
+                (data as { erasure_requested_at?: string | null })
+                  .erasure_requested_at ?? null
+              }
+              status={(data as { status?: string | null }).status ?? null}
+            />
             {/* Profile / status */}
             <div className="uds-card">
               <div className="uds-kv">
@@ -576,5 +586,119 @@ export default function UserDetailsSheet({
 
       </SheetContent>
     </Sheet>
+  );
+}
+
+// ── A DELETION REQUEST WAITS FOR THE OWNER ──────────────────────────────
+// The customer's "Request deletion" no longer locks them out on the spot
+// (the owner, 21-09: "moet een request komen bij admin, daarna pas"). It
+// lands here. Approve closes the account; decline needs a reason, which the
+// customer receives. The database function checks that the caller owns the
+// tenant; the buttons are only offered to the owner.
+function DeletionRequestCard({
+  profileId,
+  requestedAt,
+  status,
+}: {
+  profileId: string | null;
+  requestedAt: string | null;
+  status: string | null;
+}) {
+  const { isSuperAdmin } = useAppContext();
+  const queryClient = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!profileId || !requestedAt) return null;
+  const closed = (status ?? "") === "pending_erasure";
+
+  const decide = async (approve: boolean) => {
+    setBusy(true);
+    try {
+      const res = await decideAccountDeletion(profileId, approve, reason);
+      if (!res.ok) {
+        toast.error("Not saved", { description: res.error });
+        return;
+      }
+      toast.success(
+        approve
+          ? "Account closed. Their login is blocked."
+          : "Request declined. They have been told why.",
+      );
+      setConfirm(false);
+      setDeclining(false);
+      setReason("");
+      queryClient.invalidateQueries({ queryKey: ["user", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="uds-card" style={{ borderColor: "rgba(229,72,77,.45)" }}>
+      <div style={{ fontWeight: 700, color: "#c0392b" }}>
+        {closed ? "Account closed on their request" : "Asked to delete their account"}
+      </div>
+      <div className="uds-muted" style={{ fontSize: ".86rem", marginTop: 4 }}>
+        Requested {dayjs(requestedAt).format("D MMM YYYY, HH:mm")}.
+        {closed ? " Their login is blocked." : " Their account is still open."}
+      </div>
+      {!closed && isSuperAdmin ? (
+        declining ? (
+          <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+            <textarea
+              aria-label="Why you are declining"
+              placeholder="Why — the customer reads this"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              style={{
+                width: "100%",
+                borderRadius: 10,
+                border: "1px solid var(--line-2, #d8ddec)",
+                padding: "8px 10px",
+                font: "inherit",
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="btn ghost sm" onClick={() => setDeclining(false)} disabled={busy}>
+                Back
+              </button>
+              <button className="btn sm" onClick={() => decide(false)} disabled={busy || !reason.trim()}>
+                {busy ? "Saving…" : "Decline and tell them"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn ghost sm" onClick={() => setDeclining(true)} disabled={busy}>
+              Decline
+            </button>
+            <button
+              className="btn sm"
+              style={{ background: "#e5484d" }}
+              onClick={() => setConfirm(true)}
+              disabled={busy}
+            >
+              Approve deletion
+            </button>
+          </div>
+        )
+      ) : null}
+      <ConfirmModal
+        open={confirm}
+        onOpenChange={setConfirm}
+        title="Close this account?"
+        lead="Their login is blocked straight away. Money and invoices stay on record."
+        cta="Close the account"
+        busyLabel="Closing…"
+        tone="danger"
+        onConfirm={() => void decide(true)}
+        busy={busy}
+      />
+    </div>
   );
 }

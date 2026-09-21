@@ -17,6 +17,18 @@ export type NotificationCatalogEntry = {
 // always reflects reality instead of dangling dead toggles.
 export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
   {
+    type: "account_deletion_requested",
+    label: "Account deletion request",
+    description: "When a customer asks us to delete their account.",
+    audience: "admin",
+  },
+  {
+    type: "account_deletion_declined",
+    label: "Deletion request answered",
+    description: "When we could not delete your account yet, with the reason.",
+    audience: "customer",
+  },
+  {
     type: "referral_commission_earned",
     label: "Commission earned",
     description: "When somebody you referred earns you a commission.",
