@@ -193,7 +193,27 @@ export default function InviteSignUpForm({
         router.push("/auth/login");
         return;
       }
-      toast.success("Welcome! Your account is ready.");
+      // ── NOT "READY" IF THE PLAN DID NOT ATTACH ──────────────────
+      //
+      // create_subscription_from_invite is best-effort on the server:
+      // a failure there must not strand a created account. But it used
+      // to be logged and nothing else, so this said "Welcome! Your
+      // account is ready." over a write that failed -- and the customer
+      // then found a Plan tile reading "No subscription", a dead
+      // Request-an-ad-account button telling them their plan has to be
+      // active first, and no way to make either true.
+      //
+      // The account IS created, so this is not an error. It is just not
+      // the whole truth, and the difference is something they can act
+      // on.
+      if (data?.planAttached === false) {
+        toast.warning(
+          "Your account is created, but we could not set up your plan — tell us and we will finish it.",
+          { duration: 10000 },
+        );
+      } else {
+        toast.success("Welcome! Your account is ready.");
+      }
       // ── AN ADVERTISER NEEDS THEIR COMPANY BEFORE ANYTHING ELSE ──
       //
       // The existing-user accept path sends advertisers to

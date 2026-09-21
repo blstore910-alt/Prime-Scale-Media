@@ -115,6 +115,41 @@ was computed correctly.
   `.subcounts{display:flex}`), and the billing period ran under the
   Status badge (`white-space:nowrap` in a 160px card cell).
 
+### PARKED — DST is a SUPPLIER COST that has to be re-billed weekly (owner, 2026-09-21)
+
+Owner, verbatim in substance: *at RockAds we also pay DST, and they said
+it comes off OUR wallet, so we have to invoice each customer ourselves,
+weekly.*
+
+This is not a tax setting. It changes the money model, so write it down
+properly before anyone builds it:
+
+1. **It is our cost first.** The supplier debits DST from PSM's own
+   balance, not from the advertiser's wallet and not from the ad
+   account. Nothing in the app currently records a cost on our side of
+   the ledger at all — `/reconciliation` only compares wallet credits
+   against bank receipts.
+2. **It has to be recharged, per advertiser.** The advertiser whose
+   spend caused it owes their share. That is a NEW invoice type (a
+   `dst` line, payable from the wallet like any other), raised
+   **weekly**, not monthly — so it does not fit the existing
+   subscription cadence and must not be bolted onto it.
+3. **The rate is per country**, and the country comes from the ad
+   account, not from the advertiser's company.
+4. **The supplier's name must never appear on it.** Not in the invoice,
+   not in the PDF, not in the JSON behind the page. Same rule as
+   everywhere else.
+
+**What to find out FIRST, before writing any code:** does the supplier's
+API expose DST as its own line (amount, period, per ad account), or only
+as a movement in our balance? If it is only a balance movement, there is
+nothing to attribute per customer and the whole feature rests on a
+manual entry — which changes the design completely. Nobody has checked
+this yet, and it is the one question that decides the shape.
+
+Also: cost data never goes on a customer-readable row. A DST cost line
+belongs in an admin-only table; the customer sees only the recharge.
+
 ### PARKED — reconciliation beyond the wallet side (owner asked 2026-09-21)
 
 Not on any of the sixteen journeys, so NOT before go-live. Recorded so

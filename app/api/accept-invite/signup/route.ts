@@ -226,8 +226,31 @@ export async function POST(request: NextRequest) {
         "signup advertiser/wallet bootstrap failed:",
         safeErrorMessage(bootstrapError),
       );
+      // ── AND PUT THE INVITATION BACK ─────────────────────────────
+      //
+      // The compare-and-swap to `accepted` runs fifty lines up, BEFORE
+      // this call. So a failure here used to burn the invitation: an
+      // auth user and a user_profiles row exist, there is no
+      // `advertisers` row and no wallet, /invite/accept renders
+      // InviteExpired, and the admin's Invites screen says Accepted so
+      // nobody reissues it. Logging in lands them on a dashboard whose
+      // queries are all disabled -- a permanent shimmer over "Your
+      // wallet is still being set up. Reload in a moment."
+      //
+      // The sibling route at app/api/accept-invite/route.ts restores it
+      // and says why; this one never got the same treatment. Restoring
+      // makes the next press a real retry.
+      await supabase
+        .from("invitations")
+        .update({ status: "pending" })
+        .eq("id", validInvite.id)
+        .eq("status", "accepted");
       return NextResponse.json(
-        { success: false, message: "Server error" },
+        {
+          success: false,
+          message:
+            "We could not finish setting up your account. Your invitation is still valid — press Join again.",
+        },
         { status: 500 },
       );
     }
@@ -239,6 +262,22 @@ export async function POST(request: NextRequest) {
       "create_subscription_from_invite",
       { p_invite_id: validInvite.id },
     );
+    // ── AND IT IS REPORTED, NOT JUST LOGGED ─────────────────────────
+    //
+    // Best-effort is right -- a plan that did not attach must not
+    // strand a created account -- but nothing surfaced it afterwards,
+    // so the form toasted "Welcome! Your account is ready." over a
+    // write that failed.
+    //
+    // What that customer then sees: the Plan tile reads "No
+    // subscription", Request-an-ad-account is dead with the reason
+    // "Your plan has to be active first", and the minimum top-up drops
+    // to zero. A green tick over a failed write, on the only screen
+    // that answers "what am I paying".
+    //
+    // The account IS created, so this stays a 200 -- but the client is
+    // told, and tells them.
+    const planAttached = !subError;
     if (subError) {
       console.error(
         "signup subscription-from-invite failed:",
@@ -251,7 +290,7 @@ export async function POST(request: NextRequest) {
     // client set no browser session and only risked a spurious 500.
     const redirectUrl = new URL("/dashboard", request.url);
     const res = NextResponse.json(
-      { success: true, message: "User created", redirectUrl },
+      { success: true, message: "User created", redirectUrl, planAttached },
       { status: 200 },
     );
 
