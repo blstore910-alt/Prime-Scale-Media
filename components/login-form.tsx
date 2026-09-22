@@ -45,6 +45,31 @@ export function LoginForm() {
   });
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // "Email not confirmed" is a state with a way out, not just an error:
+  // the confirmation mail can be sent again from right here.
+  const [resend, setResend] = useState<"idle" | "sending" | "sent">("idle");
+  const notConfirmed = !!error && /email not confirmed/i.test(error);
+  const resendConfirmation = async () => {
+    if (!email.trim()) return;
+    setResend("sending");
+    try {
+      const supabase = createClient();
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      });
+      if (resendError) throw resendError;
+      setResend("sent");
+    } catch (e) {
+      setResend("idle");
+      setError(
+        e instanceof Error && /seconds|rate/i.test(e.message)
+          ? "Just sent one — wait a minute before asking again."
+          : "We couldn't send it again just now. Try again in a minute.",
+      );
+    }
+  };
   const [isPending, startTransition] = useTransition();
   const searchParams = useSearchParams();
   const reason = searchParams?.get("reason");
@@ -276,7 +301,28 @@ export function LoginForm() {
           </Link>
         </div>
 
-        {error && <p className="err">{error}</p>}
+        {error && (
+          <p className="err">
+            {notConfirmed
+              ? "Your email is not confirmed yet. Open the link in the email we sent you — or get a fresh one:"
+              : error}
+          </p>
+        )}
+        {notConfirmed ? (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={resendConfirmation}
+            disabled={resend !== "idle"}
+            style={{ marginBottom: 8 }}
+          >
+            {resend === "sending"
+              ? "Sending…"
+              : resend === "sent"
+                ? "Sent — check your inbox (and spam)"
+                : "Send the confirmation email again"}
+          </button>
+        ) : null}
 
         <button className="btn" type="submit" disabled={isPending}>
           {isPending ? "Signing in…" : "Sign in"}
