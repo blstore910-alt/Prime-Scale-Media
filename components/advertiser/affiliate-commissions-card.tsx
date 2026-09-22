@@ -29,6 +29,9 @@ type Row = {
   amount: number | string | null;
   currency: string;
   status: string;
+  /** Meta / Google / TikTok for a top-up -- the network, never the
+   *  account type (plak 40). Absent before that plak. */
+  network?: string | null;
 };
 
 type Sort = "newest" | "oldest" | "largest";
@@ -244,7 +247,14 @@ export default function AffiliateCommissionsCard({
                       {r.referred_advertiser_code}
                     </span>
                   </td>
-                  <td data-label="From">{kindBadge(r.kind)}</td>
+                  <td data-label="From">
+                    {kindBadge(r.kind)}
+                    {r.kind === "topup" && r.network ? (
+                      <span style={{ marginLeft: 6, color: "var(--faint)", fontSize: ".8rem" }}>
+                        {r.network}
+                      </span>
+                    ) : null}
+                  </td>
                   <td
                     data-label="Amount"
                     className="r mono"
