@@ -122,9 +122,9 @@ export function emailLayout(input: EmailLayoutInput): string {
     `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr>`,
     // alt "PSM" on a navy tile: where a client blocks images, a neat
     // monogram instead of an empty frame.
-    `<td valign="middle" style="padding-right:8px;"><img src="${ASSETS}/rocket-mark.png" width="60" height="60" alt="PSM" ` +
-      `style="display:block;width:60px;height:60px;border:0;border-radius:16px;background:#0a0e24;` +
-      `font:800 14px/60px ${FONT};color:#ffffff;text-align:center;"></td>`,
+    `<td valign="middle" style="padding-right:12px;"><img src="${ASSETS}/rocket-mark.png" width="48" height="48" alt="PSM" ` +
+      `style="display:block;width:48px;height:48px;border:0;border-radius:12px;background:#0a0e24;` +
+      `box-shadow:0 0 22px rgba(91,141,255,.45);font:800 13px/48px ${FONT};color:#ffffff;text-align:center;"></td>`,
     `<td valign="middle" style="text-align:left;">` +
       `<div style="font:800 18px/1.2 ${FONT};letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
       `<div style="margin-top:2px;font:500 12px/1.4 ${FONT};color:#9db8ff;">Advertiser &amp; affiliate platform</div></td>`,
