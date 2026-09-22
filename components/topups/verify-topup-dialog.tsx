@@ -307,17 +307,20 @@ function VerifyTopupInvoice({
     // So the step asks the same thing the manual one asks -- did you
     // put the money on -- and only reminds them the API is the way to
     // do it for this type.
-    supplier?.apiEnabled
-      ? {
-          key: "api",
-          title: `I have funded the account${supplier?.label ? ` at ${supplier.label}` : ""}`,
-          detail: `This type has an API, so there is no dashboard to log into — push it and check that ${formatCurrency(calculatedValues.netAmount, creditCurrency)} is on the account.`,
-        }
-      : {
-          key: "funded",
-          title: `I have funded the account${supplier?.label ? ` at ${supplier.label}` : ""}`,
-          detail: `${formatCurrency(calculatedValues.netAmount, creditCurrency)} is on the account now.`,
-        },
+    // ── ONE STEP, THE SAME FOR EVERY TYPE, UNTIL THE PUSH IS REAL ────
+    //
+    // The API branch said "there is no dashboard to log into -- push it",
+    // over a "Push to supplier" button that could never succeed: it goes
+    // to a different supplier channel, the gate is off, EUR accounts are
+    // refused, and it needs `completed` while this dialog only opens for
+    // `pending`. The owner: we fund it in Rockads ourselves and check it;
+    // the real Rockads deposit is built later, for the real test (R4 in
+    // docs/NEXT_SESSION_FIRST.md). So the step says exactly that.
+    {
+      key: "funded",
+      title: `I have funded the account${supplier?.label ? ` at ${supplier.label}` : ""}`,
+      detail: `Put ${formatCurrency(calculatedValues.netAmount, creditCurrency)} on it${supplier?.label ? ` in ${supplier.label}` : ""}, then check it is there.`,
+    },
     {
       key: "tell",
       title: "The customer will be told",
