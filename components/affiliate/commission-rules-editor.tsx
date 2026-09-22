@@ -99,6 +99,7 @@ export default function CommissionRulesEditor({
   types,
   canEdit: canEditAsOwner,
   notSwitchedOn = false,
+  approve,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -110,6 +111,15 @@ export default function CommissionRulesEditor({
   canEdit: boolean;
   /** The rules table is not in the database yet: nobody can save. */
   notSwitchedOn?: boolean;
+  /**
+   * APPROVING an application (the owner, 22-09: "als ik approve doe moet er
+   * een modal komen met de rules, default pre-filled"). The fields start at
+   * what this affiliate would earn -- the defaults -- so the rate is chosen
+   * at the moment of approving. Only a field changed away from the default
+   * becomes their own rule; the rest keeps following the default. The
+   * button approves, with or without changes.
+   */
+  approve?: { onApprove: () => Promise<void> };
 }) {
   // Two different reasons a field is locked, and the owner must be told
   // the right one: walking it, the owner read "Only the account owner can
@@ -173,6 +183,7 @@ export default function CommissionRulesEditor({
     [rules, affiliateId],
   );
 
+  const approving = !!approve;
   const [draft, setDraft] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
@@ -181,12 +192,16 @@ export default function CommissionRulesEditor({
       // A type with no rate of its own starts at the all-types rate, if
       // one stands: saving then writes it onto the type, where it is
       // visible, and the all-types version is cleared.
-      const v =
+      let v =
         initial[f.key] ?? (f.source === "topup" && f.type ? legacyAll : null);
+      // Approving: start from what they would earn -- the default.
+      if (approving && (v === null || v === undefined)) {
+        v = inherited(rules, affiliateId, f).pct;
+      }
       d[f.key] = v === null || v === undefined ? "" : String(v);
     }
     setDraft(d);
-  }, [open, fields, initial, legacyAll]);
+  }, [open, fields, initial, legacyAll, approving, rules, affiliateId]);
 
   const parsed = useMemo(() => {
     const out: Record<string, { ok: boolean; value: number | null }> = {};
@@ -208,13 +223,24 @@ export default function CommissionRulesEditor({
     amount: "",
     currency: "EUR",
   });
+  const onetimeInheritedForPrefill = useMemo(() => {
+    const without = rules.filter(
+      (r) => !(r.source === "onetime" && (r.affiliate_advertiser_id ?? null) === affiliateId),
+    );
+    const res = resolveCommissionRule(without, {
+      affiliateAdvertiserId: affiliateId ?? NOBODY,
+      source: "onetime",
+    });
+    return res && res.amount !== null ? { amount: res.amount, currency: res.currency ?? "EUR" } : null;
+  }, [rules, affiliateId]);
   useEffect(() => {
     if (!open) return;
+    const start = initialOnetime ?? (approving ? onetimeInheritedForPrefill : null);
     setOnetimeDraft({
-      amount: initialOnetime ? String(initialOnetime.amount) : "",
-      currency: initialOnetime?.currency ?? "EUR",
+      amount: start ? String(start.amount) : "",
+      currency: start?.currency ?? "EUR",
     });
-  }, [open, initialOnetime]);
+  }, [open, initialOnetime, approving, onetimeInheritedForPrefill]);
   const onetimeParsed = (() => {
     const t = onetimeDraft.amount.trim().replace(",", ".");
     if (t === "") return { ok: true as const, value: null as number | null };
@@ -232,7 +258,14 @@ export default function CommissionRulesEditor({
     });
     return res && res.amount !== null ? { amount: res.amount, currency: res.currency ?? "EUR" } : null;
   })();
+  const onetimeSameAsDefault =
+    approving &&
+    initialOnetime === null &&
+    onetimeParsed.ok &&
+    onetimeParsed.value === (onetimeInherited?.amount ?? null) &&
+    (onetimeParsed.value === null || onetimeDraft.currency === (onetimeInherited?.currency ?? "EUR"));
   const onetimeChanged =
+    !onetimeSameAsDefault &&
     onetimeParsed.ok &&
     (onetimeParsed.value !== (initialOnetime?.amount ?? null) ||
       (onetimeParsed.value !== null &&
@@ -248,6 +281,9 @@ export default function CommissionRulesEditor({
       if (!p?.ok) continue;
       const before = initial[f.key] ?? null;
       if (p.value === before) continue;
+      // Approving: a field left at the default stays ON the default -- it
+      // is not copied into an own rule that would stop following it.
+      if (approving && before === null && p.value === inherited(rules, affiliateId, f).pct) continue;
       list.push({
         source: f.source,
         adAccountType: f.type,
@@ -271,7 +307,7 @@ export default function CommissionRulesEditor({
       });
     }
     return list;
-  }, [fields, parsed, initial, legacyAll]);
+  }, [fields, parsed, initial, legacyAll, approving, rules, affiliateId]);
 
   const onetimeLine = (v: { amount: number; currency: string } | null) =>
     v ? `${v.currency} ${v.amount.toFixed(2)}` : "—";
@@ -279,6 +315,11 @@ export default function CommissionRulesEditor({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
+      // Approving without changing anything: approve, keep the defaults.
+      if (approve && changeCount === 0) {
+        await approve.onApprove();
+        return { effectiveFrom: new Date().toISOString(), approvedOnly: true as const };
+      }
       const res = await saveCommissionRules({
         affiliateAdvertiserId: affiliateId,
         changes: [
@@ -301,9 +342,25 @@ export default function CommissionRulesEditor({
         ],
       });
       if (!res.ok) throw new Error(res.error);
+      // The rules first, then the approval: a rate saved for somebody who
+      // is not approved yet is harmless; an approval without the rate the
+      // owner just typed would not be.
+      if (approve) await approve.onApprove();
       return res.data;
     },
     onSuccess: (data) => {
+      if (approve) {
+        toast.success(`${affiliate?.label ?? "They"} ${affiliate ? "is" : "are"} an affiliate now`, {
+          description:
+            changeCount > 0
+              ? `Their link is live, with their own rate from ${dayjs(data.effectiveFrom).format("D MMM YYYY, HH:mm")}.`
+              : "Their link is live, on your default rates.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
+        queryClient.invalidateQueries({ queryKey: ["affiliates-waiting"], exact: false });
+        onOpenChange(false);
+        return;
+      }
       toast.success("Rules saved", {
         description: `They apply from ${dayjs(data.effectiveFrom).format("D MMM YYYY, HH:mm")}. Commission already earned has not changed.`,
       });
@@ -315,7 +372,11 @@ export default function CommissionRulesEditor({
     },
   });
 
-  const title = affiliate ? `What ${affiliate.label} earns` : "Default earning rules";
+  const title = approve
+    ? `Approve ${affiliate?.label ?? "this affiliate"}`
+    : affiliate
+      ? `What ${affiliate.label} earns`
+      : "Default earning rules";
 
   const renderField = (f: Field) => {
     const inh = inherited(rules, affiliateId, f);
@@ -369,12 +430,23 @@ export default function CommissionRulesEditor({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {affiliate
-              ? "Their own rules. A blank field uses the default."
-              : "For every affiliate who has no rule of their own."}{" "}
-            A change applies from the moment you save, to every future
-            top-up and paid invoice of all their referred customers.
-            Commission already earned never changes.
+            {approve ? (
+              <>
+                What they earn, filled in with your defaults. Change anything
+                to give them their own rate — what you leave as it is keeps
+                following the default. Approving switches their referral
+                link on.
+              </>
+            ) : (
+              <>
+                {affiliate
+                  ? "Their own rules. A blank field uses the default."
+                  : "For every affiliate who has no rule of their own."}{" "}
+                A change applies from the moment you save, to every future
+                top-up and paid invoice of all their referred customers.
+                Commission already earned never changes.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -533,10 +605,14 @@ export default function CommissionRulesEditor({
           {canEdit ? (
             <Button
               onClick={() => mutate()}
-              disabled={isPending || invalid || changeCount === 0}
+              disabled={isPending || invalid || (!approve && changeCount === 0)}
             >
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save rules
+              {approve
+                ? changeCount > 0
+                  ? "Approve with these rules"
+                  : "Approve on the default rules"
+                : "Save rules"}
             </Button>
           ) : null}
         </DialogFooter>

@@ -81,7 +81,8 @@ export default function AffiliatesBook() {
   const book = useAffiliateBook(tenantId);
 
   const [editor, setEditor] = useState<
-    { open: false } | { open: true; affiliate: { id: string; label: string } | null }
+    | { open: false }
+    | { open: true; affiliate: { id: string; label: string } | null; approving?: boolean }
   >({ open: false });
 
   if (!profile) {
@@ -118,6 +119,16 @@ export default function AffiliatesBook() {
         />
       ) : (
         <Overview
+          onApproveApplication={(m) =>
+            setEditor({
+              open: true,
+              affiliate: {
+                id: m.advertiserId,
+                label: [m.name, m.code].filter(Boolean).join(" · ") || "this advertiser",
+              },
+              approving: true,
+            })
+          }
           affiliates={data.affiliates}
           members={data.members}
           upgrades={data.upgrades}
@@ -138,6 +149,16 @@ export default function AffiliatesBook() {
           types={data.types}
           canEdit={isSuperAdmin}
           notSwitchedOn={data.rulesMissing}
+          approve={
+            editor.open && editor.approving && editor.affiliate
+              ? {
+                  onApprove: async () => {
+                    const res = await decideAffiliateApplication(editor.affiliate!.id, true, null);
+                    if (!res.ok) throw new Error(res.error);
+                  },
+                }
+              : undefined
+          }
         />
       ) : null}
     </div>
@@ -166,11 +187,13 @@ function WaitingForYou({
   upgrades,
   pending,
   canDecide,
+  onApproveApplication,
 }: {
   applications: AffiliateMember[];
   upgrades: UpgradeRequest[];
   pending: { link: BookLink; affiliate: AffiliateSummary }[];
   canDecide: boolean;
+  onApproveApplication: (m: AffiliateMember) => void;
 }) {
   const n = applications.length + upgrades.length + pending.length;
   if (n === 0) return null;
@@ -214,7 +237,7 @@ function WaitingForYou({
                 </td>
                 <td className="r" data-label="Decide">
                   {canDecide ? (
-                    <ApplicationDecision member={m} />
+                    <ApplicationDecision member={m} onApprove={() => onApproveApplication(m)} />
                   ) : (
                     <span className="badge pend">Waiting for the owner</span>
                   )}
@@ -386,7 +409,14 @@ function UpgradeDecision({
   );
 }
 
-function ApplicationDecision({ member }: { member: AffiliateMember }) {
+function ApplicationDecision({
+  member,
+  onApprove,
+}: {
+  member: AffiliateMember;
+  /** Opens the rules, prefilled with the defaults; approving happens there. */
+  onApprove: () => void;
+}) {
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState<"approve" | "refuse" | null>(null);
   const [reason, setReason] = useState("");
@@ -416,7 +446,7 @@ function ApplicationDecision({ member }: { member: AffiliateMember }) {
       <button className="btn ghost sm" disabled={decide.isPending} onClick={() => setAsking("refuse")}>
         Refuse
       </button>
-      <button className="btn sm" disabled={decide.isPending} onClick={() => setAsking("approve")}>
+      <button className="btn sm" disabled={decide.isPending} onClick={onApprove}>
         {decide.isPending ? "…" : "Approve"}
       </button>
       <ConfirmModal
@@ -472,6 +502,7 @@ function Overview({
   rulesMissing,
   canDecide,
   onDefaults,
+  onApproveApplication,
 }: {
   affiliates: AffiliateSummary[];
   members: AffiliateMember[];
@@ -479,6 +510,7 @@ function Overview({
   rulesMissing: boolean;
   canDecide: boolean;
   onDefaults: () => void;
+  onApproveApplication: (m: AffiliateMember) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -556,6 +588,7 @@ function Overview({
         upgrades={upgrades}
         pending={pending}
         canDecide={canDecide}
+        onApproveApplication={onApproveApplication}
       />
 
       <div className="stats">
