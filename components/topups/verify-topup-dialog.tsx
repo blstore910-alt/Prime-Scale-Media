@@ -16,11 +16,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
-import Copyable from "@/components/psm/copyable";
 import {
   AlertCircle,
   Check,
   CheckCircle2,
+  Copy,
   Loader2,
   MinusCircle,
 } from "lucide-react";
@@ -294,6 +294,11 @@ function VerifyTopupInvoice({
   // by react-query's cache.
   const { supplierFor } = useSupplierLinks([String(topup.account_id ?? "")]);
   const supplier = supplierFor(String(topup.account_id ?? ""));
+  const accountName = String(
+    (topup as unknown as { account_name?: string | null }).account_name ||
+      topup.account?.name ||
+      "",
+  ).trim();
 
   const steps = [
     // ── THE API STEP IS STILL A STEP THE ADMIN DOES ───────────────
@@ -345,7 +350,13 @@ function VerifyTopupInvoice({
             Now the same two rows at every width: the number with its
             status, then the account with its supplier. Both badges are
             the same height and shape, so they read as a pair. */}
-        <div className="bg-muted/30 p-5 sm:p-6 space-y-4">
+        {/* The owner, on the second pass: the copy icon was huge and under
+            the name (Copyable's styles live in the app shell, and a dialog
+            renders outside it), and "API available" belongs beside
+            "Pending", the same size. So: the number with both pills on the
+            right, then the account name with a small copy button right
+            after it. */}
+        <div className="bg-muted/30 p-5 sm:p-6 space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="font-bold text-lg text-primary tracking-tight leading-tight">
@@ -355,52 +366,63 @@ function VerifyTopupInvoice({
                 Requested {dayjs(topup.created_at).format("D MMM YYYY")}
               </p>
             </div>
-            <Badge
-              variant={topup.status === "completed" ? "default" : "secondary"}
-              className={cn(
-                "shrink-0 rounded-full px-2.5 py-1 capitalize",
-                topup.status === "completed" &&
-                  "bg-green-500 hover:bg-green-600",
-                topup.status === "pending" &&
-                  "bg-yellow-500 hover:bg-yellow-600",
-                topup.status === "rejected" &&
-                  "bg-destructive hover:bg-destructive/90",
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+              <Badge
+                variant={topup.status === "completed" ? "default" : "secondary"}
+                className={cn(
+                  "h-7 rounded-full px-2.5 text-[.78rem] font-bold capitalize",
+                  topup.status === "completed" &&
+                    "bg-green-500 hover:bg-green-600",
+                  topup.status === "pending" &&
+                    "bg-yellow-500 hover:bg-yellow-600",
+                  topup.status === "rejected" &&
+                    "bg-destructive hover:bg-destructive/90",
+                )}
+              >
+                {topup.status === "completed" ? (
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                ) : (
+                  <MinusCircle className="w-3 h-3 mr-1" />
+                )}
+                {topup.status}
+              </Badge>
+              {/* Admin-only: a customer never sees a supplier name. */}
+              {topup.status === "pending" && (
+                <>
+                  <style>{`${SUPPLIER_PILL_CSS}
+.vt-pill .suppill{height:28px;padding:0 10px 0 9px}`}</style>
+                  <span className="vt-pill">
+                    <SupplierPill link={supplierFor(topup.account_id)} compact />
+                  </span>
+                </>
               )}
-            >
-              {topup.status === "completed" ? (
-                <CheckCircle2 className="w-3 h-3 mr-1" />
-              ) : (
-                <MinusCircle className="w-3 h-3 mr-1" />
-              )}
-              {topup.status}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              {/* Click to copy: it is what the admin pastes into the
-                  supplier's portal to find the account. */}
-              <h4 className="font-semibold text-foreground truncate">
-                <Copyable
-                  value={
-                    (topup as unknown as { account_name?: string | null })
-                      .account_name ||
-                    topup.account?.name ||
-                    ""
-                  }
-                  label="account"
-                />
-              </h4>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                {topup.type.replace("-", " ")}
-              </div>
             </div>
-            {/* Admin-only: a customer never sees a supplier name. */}
-            {topup.status === "pending" && (
-              <span className="shrink-0">
-                <style>{SUPPLIER_PILL_CSS}</style>
-                <SupplierPill link={supplierFor(topup.account_id)} compact />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-semibold text-foreground truncate">
+                {accountName || "Unknown Account"}
               </span>
-            )}
+              {accountName ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(accountName).then(
+                      () => toast.success(`${accountName} copied`),
+                      () => toast.error("Couldn't copy — select it by hand"),
+                    );
+                  }}
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={`Copy ${accountName}`}
+                  title="Copy"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              {topup.type.replace("-", " ")}
+            </div>
           </div>
         </div>
 
@@ -484,14 +506,20 @@ function VerifyTopupInvoice({
                     ) / 100;
                   const margin =
                     Math.round((calculatedValues.feeAmount - cost) * 100) / 100;
+                  // One line (the owner): the type name is already the
+                  // account's, so it is left out here.
                   return (
-                    <>
-                      {supplier.typeLabel || "Supplier"} takes {supplier.feePct}% ={" "}
-                      {formatCurrency(cost, creditCurrency)} · our margin{" "}
-                      <b className={margin < 0 ? "text-destructive" : "text-foreground"}>
-                        {formatCurrency(margin, creditCurrency)}
-                      </b>
-                    </>
+                    <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                      <span>
+                        Supplier {supplier.feePct}% = {formatCurrency(cost, creditCurrency)}
+                      </span>
+                      <span>
+                        Our margin{" "}
+                        <b className={margin < 0 ? "text-destructive" : "text-foreground"}>
+                          {formatCurrency(margin, creditCurrency)}
+                        </b>
+                      </span>
+                    </div>
                   );
                 })()
               )}
