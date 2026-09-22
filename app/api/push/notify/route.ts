@@ -283,6 +283,27 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/dashboard?view=referrals",
       };
 
+    case "affiliate_upgrade_requested":
+      return {
+        title: "An affiliate wants to advertise too",
+        body: "Approve or refuse it on Affiliates.",
+        url: "/affiliates",
+      };
+
+    case "affiliate_upgrade_approved":
+      return {
+        title: "You can advertise now",
+        body: "Open the app — your advertiser dashboard is ready.",
+        url: "/dashboard",
+      };
+
+    case "affiliate_upgrade_refused":
+      return {
+        title: "About advertising with us",
+        body: "Open the app to read our answer.",
+        url: "/dashboard?view=notif",
+      };
+
     case "affiliate_refused":
       return {
         title: "About your affiliate application",

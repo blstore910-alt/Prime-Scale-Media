@@ -91,6 +91,24 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    type: "affiliate_upgrade_requested",
+    label: "Affiliate wants to advertise",
+    description: "When an affiliate asks to run their own ad accounts too.",
+    audience: "admin",
+  },
+  {
+    type: "affiliate_upgrade_approved",
+    label: "Advertising switched on",
+    description: "When your account can run its own ad accounts too.",
+    audience: "customer",
+  },
+  {
+    type: "affiliate_upgrade_refused",
+    label: "Advertising request answered",
+    description: "When we could not switch advertising on yet, with the reason.",
+    audience: "customer",
+  },
+  {
     type: "topup_completed",
     label: "Top-up completed",
     description: "When one of your top-ups is confirmed and credited.",

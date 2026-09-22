@@ -33,7 +33,11 @@ export type NotificationType =
   | "referral_approved"
   | "referral_rejected"
   | "affiliate_approved"
-  | "affiliate_refused";
+  | "affiliate_refused"
+  // Plak 43: an affiliate account asking to advertise too.
+  | "affiliate_upgrade_requested"
+  | "affiliate_upgrade_approved"
+  | "affiliate_upgrade_refused";
 
 export type NotificationAuthor = {
   id: string;
@@ -136,6 +140,14 @@ export interface NotificationPayloadByType {
   referral_rejected: { client_code?: string | null };
   affiliate_approved: Record<string, never>;
   affiliate_refused: { reason?: string | null };
+  affiliate_upgrade_requested: {
+    advertiser_id?: string | null;
+    client_code?: string | null;
+    name?: string | null;
+    email?: string | null;
+  };
+  affiliate_upgrade_approved: Record<string, never>;
+  affiliate_upgrade_refused: { reason?: string | null };
   /** Plak 35: booked on profit (top-up), a paid plan invoice, or a new
    *  customer's first top-up (one-time). Written by the accrual triggers. */
   referral_commission_earned: {

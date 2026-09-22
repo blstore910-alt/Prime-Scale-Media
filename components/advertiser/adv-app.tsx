@@ -12,6 +12,11 @@ import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
+import RangePicker, {
+  rangeCaption,
+  rangeDates,
+  type AffRange,
+} from "@/components/advertiser/range-picker";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
@@ -222,6 +227,8 @@ export default function AdvertiserApp() {
   // A referral picked on the Referrals screen: the commission list below
   // narrows to them.
   const [refFocus, setRefFocus] = useState<string | null>(null);
+  // The period for the Referrals stats, rows and commission list.
+  const [affRange, setAffRange] = useState<AffRange>({ key: "all" });
   const meRouter = useRouter();
   const [view, setView] = useState<View>("dash");
   // Where the bell was pressed from, so pressing it again returns there.
@@ -840,6 +847,15 @@ export default function AdvertiserApp() {
     enabled: !!advertiserId && isAffiliate,
   });
   const affMonthUnavailable = affMonth.isError || affMonth.isLoading;
+  // The period picked on the Referrals tab. All time is the same read as
+  // `aff` above (same key), so it costs nothing extra.
+  const affPeriod = rangeDates(affRange);
+  const affRanged = useAffiliateStats({
+    from: affPeriod.from,
+    to: affPeriod.to,
+    enabled: !!advertiserId && isAffiliate,
+  });
+  const affRangedUnavailable = affRanged.isError || affRanged.isLoading;
   // Waiting = signed up through the link, not approved yet (plak 42).
   // Active = approved and has funded at least once.
   const affWaiting = aff.rows.filter(
@@ -3595,8 +3611,33 @@ export default function AdvertiserApp() {
               </div>
             </section>
 
-            {/* Four figures, each one the sum of the list below it. */}
-            <div className="stats xstats">
+            {/* ── THE PERIOD ─────────────────────────────────────────
+                Every figure from here down covers the same days: the
+                four stats, each referral's row, the commission list and
+                its totals. The card above stays all time. */}
+            <RangePicker
+              value={affRange}
+              onChange={(next) => setAffRange(next)}
+              busy={affRanged.isFetching && !affRanged.isLoading}
+            />
+
+            {/* Four figures, each one the sum of the list below it. Dimmed
+                while the new period is on its way, so last period's
+                figures are never read as this one's. */}
+            <div className={`stats xstats${affRanged.isPlaceholderData ? " busy" : ""}`}>
+              <div className="stat g-blue">
+                <div className="k">
+                  <span className="ci b">
+                    <Ic name="i-trend" />
+                  </span>{" "}
+                  Earned
+                </div>
+                <div className="v win">
+                  {affRangedUnavailable
+                    ? "—"
+                    : twoLeg(affRanged.totals.earnings_eur, affRanged.totals.earnings_usd)}
+                </div>
+              </div>
               <div className="stat g-gold">
                 <div className="k">
                   <span className="ci g">
@@ -3605,7 +3646,9 @@ export default function AdvertiserApp() {
                   To be paid
                 </div>
                 <div className="v gold">
-                  {affUnavailable ? "—" : twoLeg(aff.payable.eur, aff.payable.usd)}
+                  {affRangedUnavailable
+                    ? "—"
+                    : twoLeg(affRanged.payable.eur, affRanged.payable.usd)}
                 </div>
               </div>
               <div className="stat g-win">
@@ -3616,39 +3659,26 @@ export default function AdvertiserApp() {
                   Paid out
                 </div>
                 <div className="v">
-                  {affUnavailable || aff.payable.isLifetime
+                  {affRangedUnavailable || affRanged.payable.isLifetime
                     ? "—"
                     : twoLeg(
                         Math.max(
                           0,
                           Math.round(
-                            ((Number(aff.totals.earnings_eur) || 0) -
-                              (Number(aff.totals.unpaid_eur) || 0)) *
+                            ((Number(affRanged.totals.earnings_eur) || 0) -
+                              (Number(affRanged.totals.unpaid_eur) || 0)) *
                               100,
                           ) / 100,
                         ),
                         Math.max(
                           0,
                           Math.round(
-                            ((Number(aff.totals.earnings_usd) || 0) -
-                              (Number(aff.totals.unpaid_usd) || 0)) *
+                            ((Number(affRanged.totals.earnings_usd) || 0) -
+                              (Number(affRanged.totals.unpaid_usd) || 0)) *
                               100,
                           ) / 100,
                         ),
                       )}
-                </div>
-              </div>
-              <div className="stat g-blue">
-                <div className="k">
-                  <span className="ci b">
-                    <Ic name="i-trend" />
-                  </span>{" "}
-                  This month
-                </div>
-                <div className="v win">
-                  {affMonthUnavailable
-                    ? "—"
-                    : twoLeg(affMonth.totals.earnings_eur, affMonth.totals.earnings_usd)}
                 </div>
               </div>
               <div className="stat g-purple">
@@ -3659,9 +3689,9 @@ export default function AdvertiserApp() {
                   Spend driven
                 </div>
                 <div className="v">
-                  {affUnavailable
+                  {affRangedUnavailable
                     ? "—"
-                    : twoLeg(aff.totals.spend_eur, aff.totals.spend_usd)}
+                    : twoLeg(affRanged.totals.spend_eur, affRanged.totals.spend_usd)}
                 </div>
               </div>
             </div>
@@ -3689,7 +3719,7 @@ export default function AdvertiserApp() {
                       <Ic name="i-copy" /> Copy link
                     </button>
                     <a
-                      className="btn ghost sm"
+                      className="btn ghost sm wa"
                       href={`https://wa.me/?text=${encodeURIComponent(
                         `Advertise with Prime Scale Media — sign up through my link: ${referralLink}`,
                       )}`}
@@ -3733,12 +3763,12 @@ export default function AdvertiserApp() {
                 <h2>
                   <Ic name="i-user" /> Your referrals
                 </h2>
-                {!affUnavailable ? (
-                  <span className="xl-count">{aff.rows.length}</span>
+                {!affRangedUnavailable ? (
+                  <span className="xl-count">{affRanged.rows.length}</span>
                 ) : null}
               </div>
-              {aff.rows.length ? (
-                aff.rows.map((r) => {
+              {affRanged.rows.length ? (
+                affRanged.rows.map((r) => {
                   const waiting = String(r.link_status ?? "active") === "pending";
                   const topups = Number(r.topup_count) || 0;
                   return (
@@ -3786,9 +3816,9 @@ export default function AdvertiserApp() {
                 })
               ) : (
                 <p className="xl-empty">
-                  {aff.isError
+                  {affRanged.isError
                     ? "We couldn't read your referrals just now — this is not a zero. Reload to try again."
-                    : aff.isLoading
+                    : affRanged.isLoading
                       ? "Loading your referrals…"
                       : "No referrals yet — share your link and they appear here."}
                 </p>
@@ -3799,6 +3829,9 @@ export default function AdvertiserApp() {
                 enabled={!!advertiserId}
                 focusCode={refFocus}
                 onClearFocus={() => setRefFocus(null)}
+                from={affPeriod.from}
+                to={affPeriod.to}
+                periodLabel={rangeCaption(affRange)}
               />
             </div>
               </>

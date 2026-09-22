@@ -166,3 +166,83 @@ export async function decideAffiliateApplication(
   }
   return { ok: true, data: null };
 }
+
+/**
+ * An affiliate asking to advertise with us too (plak 43).
+ *
+ * The owner: an affiliate account is "only the affiliate portal, with the
+ * option to add advertiser". The request is a timestamp on their own
+ * advertisers row plus a notification to the owner; the function builds
+ * both itself, from the caller's own row.
+ */
+export async function requestAdvertiserUpgrade(): Promise<
+  ActionResult<{ alreadySent: boolean }>
+> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false, error: mm.error };
+
+  const supabase = await createClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return { ok: false, error: "Please sign in and try again." };
+  }
+
+  const { data, error } = await supabase.rpc("affiliate_upgrade_request");
+  if (error) {
+    if (/PGRST202|could not find the function/i.test(String(error.message ?? ""))) {
+      return {
+        ok: false,
+        error: "This isn't switched on yet — message us on WhatsApp and we'll set it up.",
+      };
+    }
+    return { ok: false, error: "We couldn't send your request just now. Try again shortly." };
+  }
+  const result = (Array.isArray(data) ? data[0] : data) as
+    | { ok?: boolean; error?: string; already_sent?: boolean }
+    | null;
+  if (!result || result.ok !== true) {
+    return {
+      ok: false,
+      error: result?.error ?? "We couldn't send your request just now. Try again shortly.",
+    };
+  }
+  return { ok: true, data: { alreadySent: result.already_sent === true } };
+}
+
+/**
+ * The owner turns advertiser mode on for an affiliate -- answering their
+ * request, or on their own initiative -- or refuses a request with a
+ * reason. Owner-only in the database (affiliate_upgrade_decide).
+ */
+export async function decideAdvertiserUpgrade(
+  advertiserId: string,
+  approve: boolean,
+  reason?: string | null,
+): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false, error: mm.error };
+  if (typeof advertiserId !== "string" || advertiserId.length === 0) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const why = String(reason ?? "").trim();
+  if (!approve && !why) {
+    return { ok: false, error: "Say why, so they know." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("affiliate_upgrade_decide", {
+    p_advertiser_id: advertiserId,
+    p_approve: approve,
+    p_reason: approve ? null : why,
+  });
+  if (error) {
+    if (/PGRST202|could not find the function/i.test(String(error.message ?? ""))) {
+      return {
+        ok: false,
+        error: "Advertiser mode is not switched on in the database yet (plak 43).",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data: null };
+}

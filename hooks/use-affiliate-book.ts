@@ -80,6 +80,15 @@ export type AffiliateMember = {
   code: string | null;
 };
 
+/** An affiliate who asked to advertise with us too (plak 43). */
+export type UpgradeRequest = {
+  advertiserId: string;
+  requestedAt: string;
+  name: string | null;
+  email: string | null;
+  code: string | null;
+};
+
 export type AffiliateSummary = {
   affiliateId: string;
   /** Their program status; null when there is none on record. */
@@ -102,6 +111,8 @@ export type AffiliateBook = {
   members: AffiliateMember[];
   /** The status column is not there yet (plak 42) -- not "nobody applied". */
   statusMissing: boolean;
+  /** Affiliates asking to advertise too; [] before plak 43. */
+  upgrades: UpgradeRequest[];
   rules: CommissionRule[];
   /** The rules table is not there yet (plak 35) -- not "no rules". */
   rulesMissing: boolean;
@@ -371,6 +382,40 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         }
       }
 
+      // Affiliates asking to advertise too (plak 43). Its own read, so a
+      // column that is not there yet cannot take the applications with it.
+      let upgrades: UpgradeRequest[] = [];
+      {
+        const { data, error } = await supabase
+          .from("advertisers")
+          .select("id, tenant_client_code, upgrade_requested_at, profile:user_profiles(full_name, email)")
+          .eq("tenant_id", tenantId!)
+          .not("upgrade_requested_at", "is", null);
+        if (error) {
+          if (!isMissingColumn(error.message)) throw new Error(error.message);
+        } else {
+          type UpgradeRow = {
+            id: string;
+            tenant_client_code: string | null;
+            upgrade_requested_at: string;
+            profile:
+              | { full_name: string | null; email: string | null }
+              | { full_name: string | null; email: string | null }[]
+              | null;
+          };
+          upgrades = ((data ?? []) as unknown as UpgradeRow[]).map((r) => {
+            const prof = Array.isArray(r.profile) ? r.profile[0] : r.profile;
+            return {
+              advertiserId: r.id,
+              requestedAt: r.upgrade_requested_at,
+              name: prof?.full_name ?? null,
+              email: prof?.email ?? null,
+              code: r.tenant_client_code,
+            };
+          });
+        }
+      }
+
       const { data: typesData, error: typesErr } = await supabase
         .from("ad_account_types")
         .select("slug, label, sort_order, is_active")
@@ -382,6 +427,7 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         affiliates: groupAffiliateBook(links, commissionsRes.rows, rules, members),
         members,
         statusMissing,
+        upgrades,
         rules,
         rulesMissing,
         calcMissing,

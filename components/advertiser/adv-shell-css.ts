@@ -1340,6 +1340,8 @@ export const ADV_CSS = `
   .xstats .stat.g-gold{--xg:rgba(239,176,44,.26)}.xstats .stat.g-win{--xg:rgba(16,185,129,.22)}
   .xstats .stat.g-blue{--xg:rgba(58,111,255,.2)}.xstats .stat.g-purple{--xg:rgba(139,92,246,.22)}
   .xstats .stat .v.gold{color:#a9740b}.xstats .stat .v.win{color:var(--win)}
+  .xstats.busy .stat .v{opacity:.4;transition:opacity .15s}
+  .xlist.busy .xrow,.xlist.busy .xl-sum b{opacity:.4;transition:opacity .15s}
 
 /* The link, quiet: a tool, not the headline. */
   .xshare{padding:14px 16px}
@@ -1353,6 +1355,8 @@ export const ADV_CSS = `
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .xs-acts{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
   .xs-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
+  .xs-acts .btn svg{flex:0 0 auto;width:16px;height:16px}
+  .xs-acts .btn.wa svg{color:#1faa53}
 
 /* Lists as rows, not as a card per line: one line of name, one line of
    detail, the money on the right. A phone showed four label/value pairs
@@ -1391,4 +1395,65 @@ export const ADV_CSS = `
   .xl-tools .seg2 button{padding:6px 10px;font-size:.78rem}
   .xl-sum{display:flex;gap:14px;flex-wrap:wrap;padding:0 16px 10px;font-size:.82rem;color:var(--txt-2)}
   .xl-sum b{color:var(--ink)}
+
+/* ── THE PERIOD: one control for every figure under it ─────────────────
+   A glass bar of pills; the chosen one lit with the brand gradient.
+   Scrolls sideways on a phone instead of wrapping into two rows. */
+  .xrange{display:flex;flex-direction:column;gap:8px}
+  .xr-bar{display:flex;gap:4px;padding:5px;border-radius:16px;overflow-x:auto;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+    background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.78));
+    border:1px solid var(--line);
+    box-shadow:0 12px 28px -20px rgba(20,30,80,.5),inset 0 1px 0 #fff}
+  .xr-bar::-webkit-scrollbar{display:none}
+  .xr-opt{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:0;background:none;
+    font:inherit;font-weight:700;font-size:.8rem;color:var(--txt-2);padding:9px 13px;border-radius:12px;
+    cursor:pointer;white-space:nowrap;transition:color .15s,background .15s,box-shadow .2s,transform .15s}
+  .xr-opt:hover{color:var(--ink);background:var(--panel-2)}
+  .xr-opt:active{transform:scale(.97)}
+  .xr-opt.on{color:#fff;background:linear-gradient(135deg,var(--primary) 0%,#7c5cff 100%);
+    box-shadow:0 8px 18px -8px rgba(58,111,255,.8),inset 0 1px 0 rgba(255,255,255,.28)}
+  .xr-opt svg{width:14px;height:14px}
+  .xr-meta{display:flex;align-items:center;gap:7px;padding:0 6px;font-size:.76rem;color:var(--faint)}
+  .xr-meta b{color:var(--ink);font-weight:700}
+  .xr-meta .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--win);
+    box-shadow:0 0 0 3px rgba(16,185,129,.18)}
+  .xr-meta .dot.busy{background:var(--gold);box-shadow:0 0 0 3px rgba(239,176,44,.2);animation:xrpulse 1s ease-in-out infinite}
+  @keyframes xrpulse{50%{opacity:.35}}
+  .xr-busy{margin-left:auto;font-weight:600}
+  .xr-custom{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:10px 12px;border-radius:14px;
+    background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);animation:xrin .18s ease}
+  @keyframes xrin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .xr-custom label{display:flex;flex-direction:column;gap:4px;flex:1 1 120px;min-width:0;font-size:.64rem;
+    font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .xr-custom input{border:1px solid var(--line-2);border-radius:11px;padding:8px 10px;font:inherit;
+    font-size:.86rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel-2);min-width:0}
+  .xr-custom input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
+  .xr-custom .btn{flex:0 0 auto}
+  @media (prefers-reduced-motion:reduce){.xr-meta .dot.busy,.xr-custom{animation:none}}
+
+/* Filters as chips with their own count: the count on a chip is the
+   number of rows it shows. */
+  .xchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 16px 8px;-webkit-overflow-scrolling:touch}
+  .xchips::-webkit-scrollbar{display:none}
+  .xchip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);
+    background:var(--panel);font:inherit;font-weight:700;font-size:.78rem;color:var(--txt-2);
+    padding:6px 11px 6px 9px;border-radius:99px;cursor:pointer;
+    transition:border-color .15s,color .15s,background .15s,box-shadow .15s}
+  .xchip:hover{border-color:rgba(58,111,255,.5);color:var(--primary-600)}
+  .xchip.on{background:var(--primary-tint);border-color:rgba(58,111,255,.5);color:var(--primary-600);
+    box-shadow:0 0 0 3px rgba(58,111,255,.12)}
+  .xchip svg{width:14px;height:14px;flex:0 0 auto}
+  .xchip .n{min-width:18px;padding:1px 6px;border-radius:99px;font-size:.66rem;font-weight:800;
+    text-align:center;background:var(--panel-2);color:var(--faint)}
+  .xchip.on .n{background:#fff;color:var(--primary-600)}
+  .xl-tools2{display:flex;align-items:center;gap:6px;padding:0 16px 10px}
+  .xl-tools2 .xchips{padding:0;flex:1 1 auto;min-width:0}
+  .xsel{position:relative;display:inline-flex;align-items:center;flex:0 0 auto}
+  .xsel select{appearance:none;-webkit-appearance:none;border:1px solid var(--line-2);background:var(--panel);
+    font:inherit;font-weight:700;font-size:.78rem;color:var(--txt-2);padding:6px 28px 6px 11px;
+    border-radius:99px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  .xsel select:hover{border-color:rgba(58,111,255,.5)}
+  .xsel select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
+  .xsel .ic{position:absolute;right:9px;width:13px;height:13px;pointer-events:none;color:var(--faint)}
 `  + refineCss(".advapp");

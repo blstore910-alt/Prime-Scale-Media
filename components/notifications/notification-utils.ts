@@ -369,6 +369,33 @@ export function getNotificationCopy(notification: Notification): {
         description: `We couldn't count ${p.client_code || "a recent sign-up"} as your referral. Message us if you think this is wrong.`,
       };
     }
+    case "affiliate_upgrade_requested": {
+      const p = parseNotificationPayload(notification) as {
+        name?: string | null;
+        client_code?: string | null;
+      };
+      return {
+        title: "An affiliate wants to advertise too",
+        description: `${p.name || "An affiliate"}${
+          p.client_code ? ` (${p.client_code})` : ""
+        } asked to run their own ad accounts. Approve or refuse it on Affiliates.`,
+      };
+    }
+    case "affiliate_upgrade_approved":
+      return {
+        title: "You can advertise now",
+        description:
+          "Advertising is switched on for your account. Reload the app to open your advertiser dashboard — your referrals and earnings are all still there.",
+      };
+    case "affiliate_upgrade_refused": {
+      const p = parseNotificationPayload(notification) as { reason?: string | null };
+      return {
+        title: "About advertising with us",
+        description: p.reason
+          ? `Not yet: ${p.reason} You can ask again whenever you like.`
+          : "We couldn't switch advertising on yet. You can ask again whenever you like.",
+      };
+    }
     case "affiliate_approved":
       return {
         title: "You're an affiliate",

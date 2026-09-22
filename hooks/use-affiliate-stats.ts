@@ -54,10 +54,13 @@ export default function useAffiliateStats(params: UseAffiliateStatsParams = {}) 
   const fromIso = params.from ? new Date(`${params.from}T00:00:00`).toISOString() : null;
   const toIso = params.to ? new Date(`${params.to}T23:59:59.999`).toISOString() : null;
 
-  const { data, isLoading, isError, error, refetch } = useQuery<
+  const { data, isLoading, isError, error, refetch, isFetching, isPlaceholderData } = useQuery<
     AffiliateReferralStat[]
   >({
     queryKey: ["affiliate-stats", fromIso ?? "", toIso ?? ""],
+    // Switching the period keeps the last figures on screen (marked as
+    // updating by the caller) instead of blanking every tile in between.
+    placeholderData: (prev) => prev,
     enabled: params.enabled ?? true,
     // The commission is booked when an ADMIN verifies, in another
     // session. The app client turns focus refetching off, so an affiliate
@@ -121,5 +124,15 @@ export default function useAffiliateStats(params: UseAffiliateStatsParams = {}) 
     isLifetime: !totals.hasUnpaid,
   };
 
-  return { rows, totals, payable, isLoading, isError, error, refetch };
+  return {
+    rows,
+    totals,
+    payable,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+    isPlaceholderData,
+  };
 }

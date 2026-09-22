@@ -6,7 +6,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { recalculateCommission } from "@/actions/commission-rule-actions";
-import { decideAffiliateApplication } from "@/actions/affiliate-application-actions";
+import {
+  decideAdvertiserUpgrade,
+  decideAffiliateApplication,
+} from "@/actions/affiliate-application-actions";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { ArrowLeft, Search } from "lucide-react";
 import dayjs from "dayjs";
@@ -26,6 +29,7 @@ import {
   type BookCommission,
   type BookLink,
   type MoneyByCurrency,
+  type UpgradeRequest,
 } from "@/hooks/use-affiliate-book";
 import CommissionRulesEditor from "./commission-rules-editor";
 import ReferralStatusAction from "./referral-status-action";
@@ -116,6 +120,7 @@ export default function AffiliatesBook() {
         <Overview
           affiliates={data.affiliates}
           members={data.members}
+          upgrades={data.upgrades}
           rulesMissing={data.rulesMissing}
           canDecide={isSuperAdmin}
           onDefaults={() => setEditor({ open: true, affiliate: null })}
@@ -158,14 +163,16 @@ function RulesMissingNotice() {
 // number of rows under it.
 function WaitingForYou({
   applications,
+  upgrades,
   pending,
   canDecide,
 }: {
   applications: AffiliateMember[];
+  upgrades: UpgradeRequest[];
   pending: { link: BookLink; affiliate: AffiliateSummary }[];
   canDecide: boolean;
 }) {
-  const n = applications.length + pending.length;
+  const n = applications.length + upgrades.length + pending.length;
   if (n === 0) return null;
   return (
     <div className="card" style={{ padding: 0 }}>
@@ -214,6 +221,34 @@ function WaitingForYou({
                 </td>
               </tr>
             ))}
+            {upgrades.map((u) => (
+              <tr key={`upg-${u.advertiserId}`}>
+                <td data-label="Who">
+                  <div style={{ fontWeight: 700 }}>
+                    {u.name || DASH}{" "}
+                    <span className="mono muted" style={{ fontSize: ".78rem" }}>
+                      {u.code}
+                    </span>
+                  </div>
+                  <div className="muted" style={{ fontSize: ".8rem" }}>
+                    {u.email || DASH}
+                  </div>
+                </td>
+                <td data-label="What">Affiliate who wants to advertise too</td>
+                <td data-label="Since">{dayjs(u.requestedAt).format("D MMM YYYY")}</td>
+                <td className="r" data-label="Decide">
+                  {canDecide ? (
+                    <UpgradeDecision
+                      advertiserId={u.advertiserId}
+                      who={[u.name, u.code].filter(Boolean).join(" · ") || "—"}
+                      canRefuse
+                    />
+                  ) : (
+                    <span className="badge pend">Waiting for the owner</span>
+                  )}
+                </td>
+              </tr>
+            ))}
             {pending.map(({ link: l, affiliate: a }) => (
               <tr key={`ref-${l.id}`}>
                 <td data-label="Who">
@@ -255,6 +290,98 @@ function WaitingForYou({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// Advertiser mode for an affiliate account: the same login, code, wallet
+// and referrals, with the advertiser app on top. Answering a request can
+// refuse (with a reason they are told); switching it on from their page
+// cannot -- there is nothing to refuse.
+function UpgradeDecision({
+  advertiserId,
+  who,
+  canRefuse,
+}: {
+  advertiserId: string;
+  who: string;
+  canRefuse: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [asking, setAsking] = useState<"approve" | "refuse" | null>(null);
+  const [reason, setReason] = useState("");
+
+  const decide = useMutation({
+    mutationFn: async (approve: boolean) => {
+      const res = await decideAdvertiserUpgrade(advertiserId, approve, approve ? null : reason);
+      if (!res.ok) throw new Error(res.error);
+      return approve;
+    },
+    onSuccess: (approve) => {
+      queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["affiliate-who", advertiserId] });
+      setReason("");
+      toast.success(approve ? "Advertiser mode is on" : "Request refused", {
+        description: approve
+          ? "Next time they open the app they get the advertiser dashboard, with their referrals still in it."
+          : "They see your reason in their affiliate portal.",
+      });
+    },
+    onError: (e: Error) => toast.error("Couldn't save that", { description: e.message }),
+  });
+
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      {canRefuse ? (
+        <button className="btn ghost sm" disabled={decide.isPending} onClick={() => setAsking("refuse")}>
+          Refuse
+        </button>
+      ) : null}
+      <button className="btn sm" disabled={decide.isPending} onClick={() => setAsking("approve")}>
+        {decide.isPending ? "…" : canRefuse ? "Approve" : "Turn on advertiser mode"}
+      </button>
+      <ConfirmModal
+        open={!!asking}
+        onOpenChange={(next) => {
+          if (!next && !decide.isPending) setAsking(null);
+        }}
+        title={asking === "refuse" ? "Refuse this request?" : "Let them advertise too?"}
+        lead={
+          asking === "refuse"
+            ? "They are told, with your reason, and can ask again later."
+            : "Their account becomes an advertiser account: same login, same code, same wallet, and their referrals and earnings stay. They set up their company and plan like any new advertiser."
+        }
+        cta={asking === "refuse" ? "Yes, refuse" : "Yes, turn it on"}
+        tone={asking === "refuse" ? "danger" : undefined}
+        busy={decide.isPending}
+        busyLabel="Saving…"
+        disabled={asking === "refuse" && !reason.trim()}
+        onConfirm={() => {
+          if (asking) decide.mutate(asking === "approve");
+          setAsking(null);
+        }}
+      >
+        <ConfirmFact label="Affiliate" value={who} />
+        {asking === "refuse" ? (
+          <label style={{ display: "grid", gap: 6, marginTop: 10, fontSize: ".86rem" }}>
+            <span style={{ fontWeight: 600 }}>Why (they see this)</span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="e.g. let's talk first — message us on WhatsApp"
+              style={{
+                border: "1px solid var(--line-2, #e5e7eb)",
+                borderRadius: 10,
+                padding: "8px 10px",
+                font: "inherit",
+                resize: "vertical",
+              }}
+            />
+          </label>
+        ) : null}
+      </ConfirmModal>
     </div>
   );
 }
@@ -341,12 +468,14 @@ function ApplicationDecision({ member }: { member: AffiliateMember }) {
 function Overview({
   affiliates,
   members,
+  upgrades,
   rulesMissing,
   canDecide,
   onDefaults,
 }: {
   affiliates: AffiliateSummary[];
   members: AffiliateMember[];
+  upgrades: UpgradeRequest[];
   rulesMissing: boolean;
   canDecide: boolean;
   onDefaults: () => void;
@@ -422,7 +551,12 @@ function Overview({
 
       {rulesMissing ? <RulesMissingNotice /> : null}
 
-      <WaitingForYou applications={applications} pending={pending} canDecide={canDecide} />
+      <WaitingForYou
+        applications={applications}
+        upgrades={upgrades}
+        pending={pending}
+        canDecide={canDecide}
+      />
 
       <div className="stats">
         <div className="stat">
@@ -561,15 +695,16 @@ function AffiliateDetail({
       const supabase = createClient();
       const { data, error } = await supabase
         .from("advertisers")
-        .select("id, tenant_id, tenant_client_code, profile:user_profiles(full_name, email)")
+        .select("id, tenant_id, tenant_client_code, profile:user_profiles(full_name, email, role)")
         .eq("id", advertiserId)
         .maybeSingle();
       if (error) throw error;
+      type WhoProfile = { full_name: string | null; email: string | null; role?: string | null };
       return data as unknown as {
         id: string;
         tenant_id: string;
         tenant_client_code: string | null;
-        profile: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null;
+        profile: WhoProfile | WhoProfile[] | null;
       } | null;
     },
   });
@@ -693,6 +828,9 @@ function AffiliateDetail({
           <p>{email || DASH}</p>
         </div>
         <div className="pacts">
+          {canEdit && String(whoProfile?.role ?? "").toLowerCase() === "affiliate" && !otherTenant ? (
+            <UpgradeDecision advertiserId={advertiserId} who={label} canRefuse={false} />
+          ) : null}
           <button
             className="btn sm"
             onClick={() => onEdit(label)}

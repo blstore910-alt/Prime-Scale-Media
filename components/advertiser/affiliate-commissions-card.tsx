@@ -104,25 +104,40 @@ export default function AffiliateCommissionsCard({
   enabled,
   focusCode,
   onClearFocus,
+  from = null,
+  to = null,
+  periodLabel,
 }: {
   enabled: boolean;
   /** A referral picked in the table above -- the list narrows to them. */
   focusCode: string | null;
   onClearFocus: () => void;
+  /** The period picked above the stats (yyyy-mm-dd, inclusive); null = all time. */
+  from?: string | null;
+  to?: string | null;
+  /** "1 – 22 Sep 2026" -- said beside the totals, so they are never read as all-time. */
+  periodLabel?: string;
 }) {
   const [sort, setSort] = useState<Sort>("newest");
   const [kind, setKind] = useState<KindFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
 
+  // The same widening as useAffiliateStats: a date is a whole local day.
+  const fromIso = from ? new Date(`${from}T00:00:00`).toISOString() : null;
+  const toIso = to ? new Date(`${to}T23:59:59.999`).toISOString() : null;
+
   const q = useQuery({
-    queryKey: ["affiliate-commissions"],
+    queryKey: ["affiliate-commissions", fromIso ?? "", toIso ?? ""],
     enabled,
     refetchOnWindowFocus: true,
+    // Keep the previous period on screen while the next one loads, so the
+    // list does not blink empty between two pills.
+    placeholderData: (prev) => prev,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase.rpc("affiliate_commission_list", {
-        p_from: null,
-        p_to: null,
+        p_from: fromIso,
+        p_to: toIso,
       });
       if (error) {
         if (/PGRST202|could not find the function|does not exist/i.test(String(error.message))) {
@@ -136,8 +151,19 @@ export default function AffiliateCommissionsCard({
 
   const all = useMemo(() => q.data?.rows ?? [], [q.data]);
 
+  const focused = useMemo(
+    () => all.filter((r) => (focusCode ? r.referred_advertiser_code === focusCode : true)),
+    [all, focusCode],
+  );
+  // Each chip's count is the number of rows it would show, given the OTHER
+  // filter -- so pressing a chip never disagrees with its own number.
+  const kindCount = (k: KindFilter) =>
+    focused.filter((r) => (k === "all" || r.kind === k) && (status === "all" || r.status === status)).length;
+  const statusCount = (st: StatusFilter) =>
+    focused.filter((r) => (st === "all" || r.status === st) && (kind === "all" || r.kind === kind)).length;
+
   const rows = useMemo(() => {
-    let list = all.filter((r) => (focusCode ? r.referred_advertiser_code === focusCode : true));
+    let list = focused;
     if (kind !== "all") list = list.filter((r) => r.kind === kind);
     if (status !== "all") list = list.filter((r) => r.status === status);
     const byTime = (r: Row) => Date.parse(r.created_at) || 0;
@@ -149,7 +175,7 @@ export default function AffiliateCommissionsCard({
           : byTime(b) - byTime(a),
     );
     return list;
-  }, [all, focusCode, kind, status, sort]);
+  }, [focused, kind, status, sort]);
 
   // Totals of what is on screen, so a number is always the sum of the rows
   // under it. Reversed and still-processing rows are shown but not money.
@@ -160,7 +186,7 @@ export default function AffiliateCommissionsCard({
   const dash = q.isLoading || q.isError || q.data?.missing;
 
   return (
-    <div className="card xlist">
+    <div className={`card xlist${q.isPlaceholderData ? " busy" : ""}`}>
       <div className="xl-head">
         <h2>
           <Ic name="i-wallet" /> Every commission
@@ -179,39 +205,59 @@ export default function AffiliateCommissionsCard({
         {!dash ? <span className="xl-count">{rows.length}</span> : null}
       </div>
 
-      <div className="xl-tools">
-        <div className="seg2" role="group" aria-label="Kind">
-          {(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => (
+      <div className="xchips" role="group" aria-label="Kind">
+        {(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => (
+          <button
+            key={k}
+            type="button"
+            className={`xchip${kind === k ? " on" : ""}`}
+            aria-pressed={kind === k}
+            onClick={() => setKind(k)}
+          >
+            {k === "all" ? (
+              <Ic name="i-grid" />
+            ) : k === "topup" ? (
+              <PlatformMark slug="meta" className="pmark" />
+            ) : k === "subscription" ? (
+              <Ic name="i-receipt" />
+            ) : (
+              <Ic name="i-gift" />
+            )}
+            {k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Plans" : "Bonus"}
+            {!dash ? <span className="n">{kindCount(k)}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div className="xl-tools2">
+        <div className="xchips" role="group" aria-label="Status">
+          {(["all", "owed", "paid"] as StatusFilter[]).map((st) => (
             <button
-              key={k}
+              key={st}
               type="button"
-              className={kind === k ? "on" : ""}
-              onClick={() => setKind(k)}
+              className={`xchip${status === st ? " on" : ""}`}
+              aria-pressed={status === st}
+              onClick={() => setStatus(st)}
             >
-              {k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Plans" : "Bonus"}
+              {st === "all" ? "Any status" : st === "owed" ? "To be paid" : "Paid"}
+              {!dash ? <span className="n">{statusCount(st)}</span> : null}
             </button>
           ))}
         </div>
-        <select
-          aria-label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as StatusFilter)}
-        >
-          <option value="all">Any status</option>
-          <option value="owed">To be paid</option>
-          <option value="paid">Paid</option>
-        </select>
-        <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="largest">Largest first</option>
-        </select>
+        <label className="xsel">
+          <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="largest">Largest</option>
+          </select>
+          <Ic name="i-chev" />
+        </label>
       </div>
 
       {/* Totals of what is on screen, so a number is always the sum of
           the rows under it. Reversed and still-processing rows are shown
           but are not money. */}
       <div className="xl-sum">
+        {periodLabel ? <span style={{ color: "var(--faint)" }}>{periodLabel}</span> : null}
         <span>
           Earned <b>{dash ? "—" : money(earned)}</b>
         </span>

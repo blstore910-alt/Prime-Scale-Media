@@ -21,6 +21,7 @@ import { AFF_CSS } from "./aff-shell-css";
 import { AffIcons, Ic } from "./aff-icons";
 import { openWhatsapp } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
+import AdvertiseTooCard from "./advertise-too-card";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import { downloadCsv } from "@/lib/download-blob";
 import { isCustomerVisibleType } from "@/lib/notification-catalog";
@@ -957,6 +958,8 @@ export default function AffiliateApp() {
                 </button>
               </div>
             </div>
+            {/* The other half of an affiliate account: advertising too. */}
+            <AdvertiseTooCard advertiserId={profile?.advertiser?.[0]?.id} />
           </div>
 
           {/* MY REFERRALS */}
