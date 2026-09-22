@@ -7,6 +7,7 @@ import { jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { csvSafe } from "@/lib/csv-safe";
+import useAffiliatePayouts from "@/hooks/use-affiliate-payouts";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -230,6 +231,7 @@ export default function AffiliateApp() {
   // Payout details. These were six uncontrolled inputs and the button sent a
   // hard-coded empty template, so everything typed — including the IBAN — was
   // silently thrown away. Held in state and interpolated into the mail body.
+  const [requesting, setRequesting] = useState(false);
   const [payout, setPayout] = useState({
     holder: "",
     accountType: "",
@@ -275,7 +277,12 @@ export default function AffiliateApp() {
   // "Nothing outstanding to request yet". None of it was true — the
   // question was never asked. A dash and a sentence, not six zeros.
   const portalInert = !profile?.advertiser?.[0]?.id;
-  const statsUnavailable = all.isError || all.isLoading || portalInert;
+  // isPending, not isLoading: react-query v5 reports isLoading FALSE for a
+  // query that is switched off, and every figure under it printed 0,00.
+  const statsUnavailable = all.isError || all.isPending || portalInert;
+  // What they have asked for, and whether one is still with us.
+  const payouts = useAffiliatePayouts(!portalInert);
+  const openPayout = payouts.rows.find((p) => p.status === "requested");
   // The MONTH figures come from a second, separate query, and nothing
   // consulted its state — so the topbar pill, the stat card and the
   // earnings summary all printed "this month €0" identically whether the
@@ -1375,7 +1382,9 @@ export default function AffiliateApp() {
                     what is in it. The hook already computes `payable`
                     for exactly this and it was used only in the modal;
                     lifetime keeps its own line underneath. */}
-                <div className="l">Still owed to you</div>
+                <div className="l">
+                  {all.payable.isLifetime ? "Earned to date" : "Still owed to you"}
+                </div>
                 <div className="bpots">
                   {/* The button below is already disabled when the balance
                       is unknown, for exactly this reason — but the two
@@ -1401,8 +1410,11 @@ export default function AffiliateApp() {
                   </div>
                 </div>
                 <div className="sub">
-                  Payouts are processed manually by the PSM team — request one
-                  and we settle it to your account.
+                  {openPayout
+                    ? `Requested ${new Date(openPayout.requested_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: ${
+                        openPayout.currency
+                      } ${Number(openPayout.amount).toFixed(2)} — we confirm it here the moment it is transferred.`
+                    : "Payouts are processed manually by the PSM team — request one and we settle it to your account."}
                 </div>
                 <div className="bactions">
                   {/* Disabled while the balance is unknown. The payout mail
@@ -1419,16 +1431,24 @@ export default function AffiliateApp() {
                     // not on there being anything to ask for.
                     disabled={
                       statsUnavailable ||
+                      !!openPayout ||
                       (all.payable.eur <= 0 && all.payable.usd <= 0)
                     }
                     title={
                       statsUnavailable
                         ? "Your balance couldn't be loaded — reload before requesting a payout."
-                        : all.payable.eur <= 0 && all.payable.usd <= 0
-                          ? "Nothing outstanding to request yet"
-                          : "Request a payout"
+                        : openPayout
+                          ? "You already have a request with us"
+                          : all.payable.eur <= 0 && all.payable.usd <= 0
+                            ? "Nothing outstanding to request yet"
+                            : "Request a payout"
                     }
-                    onClick={() => setPayOpen(true)}
+                    onClick={() => {
+                      // Open on the currency the money is actually in.
+                      if (all.payable.eur <= 0 && all.payable.usd > 0) setShowEurUsd("USD");
+                      else if (all.payable.usd <= 0 && all.payable.eur > 0) setShowEurUsd("EUR");
+                      setPayOpen(true);
+                    }}
                   >
                     <Ic name="i-download" /> Request payout
                   </button>
@@ -2008,56 +2028,81 @@ export default function AffiliateApp() {
                 justifyContent: "center",
                 marginTop: 12,
               }}
-              onClick={() => {
-                // Payouts are processed manually — actually deliver the
-                // request to the team (a prefilled email) instead of a
-                // toast that persists nothing and notifies nobody.
-                // Two decimals, NOT the rounding helper the hero uses.
-                // eur()/usd() are Math.round for display — fine on a big
-                // number, not fine in a sentence somebody pays from:
-                // €1,249.55 became "€1,250", which is 45 cents of invented
-                // money inside a payment instruction.
+              disabled={requesting}
+              onClick={async () => {
+                // Two decimals, NOT the rounding helper the hero uses:
+                // €1,249.55 became "€1,250" in a payment instruction.
                 const exact = (n: number) =>
                   (Number(n) || 0).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   });
-                // The outstanding figure, matching the line above. Asking
-                // for lifetime gross means asking for money already paid.
                 const amount =
                   showEurUsd === "EUR"
                     ? `€${exact(all.payable.eur)}`
                     : `$${exact(all.payable.usd)}`;
+
+                // THE REQUEST IS A RECORD, not a chat message: the server
+                // freezes the amount by attaching the exact commission
+                // rows to it. WhatsApp stays as the fallback for a
+                // database that has not had plak 50 yet.
+                if (!payouts.missing) {
+                  setRequesting(true);
+                  try {
+                    const { requestAffiliatePayout } = await import(
+                      "@/actions/payout-actions"
+                    );
+                    const res = await requestAffiliatePayout(showEurUsd, {
+                      holder: payout.holder,
+                      accountType: payout.accountType,
+                      taxId: payout.taxId,
+                      address: payout.address,
+                      iban: payout.iban,
+                      bic: payout.bic,
+                    });
+                    if (!res.ok) {
+                      toast.error(res.error);
+                      return;
+                    }
+                    setPayOpen(false);
+                    toast.success(
+                      `Payout requested: ${res.data.currency} ${res.data.amount.toFixed(2)}`,
+                      { description: "We confirm it here the moment it is transferred." },
+                    );
+                    await payouts.refetch();
+                    void all.refetch();
+                  } catch {
+                    toast.error("We couldn't send that just now. Try again shortly.");
+                  } finally {
+                    setRequesting(false);
+                  }
+                  return;
+                }
+
                 const subject = `Payout request — ${amount} (${showEurUsd})`;
-                const body = (
+                const body =
                   `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\n` +
-                    `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n` +
-                    // Which basis the figure came from, so whoever reads
-                    // it knows whether to check it against the ledger
-                    // before paying.
-                    `Basis: ${
-                      all.payable.isLifetime
-                        ? "lifetime earned - outstanding figure unavailable, please verify"
-                        : "outstanding, already net of anything paid"
-                    }\n\nThank you.`
-                );
+                  `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n` +
+                  `Basis: ${
+                    all.payable.isLifetime
+                      ? "lifetime earned - outstanding figure unavailable, please verify"
+                      : "outstanding, already net of anything paid"
+                  }\n\nThank you.`;
                 openWhatsapp(`${subject}\n\n${body}`);
                 setPayOpen(false);
                 toast.success("Opening WhatsApp to send the payout request.");
               }}
             >
-              <Ic name="i-download" /> Request payout
+              <Ic name="i-download" />{" "}
+              {requesting ? "Sending…" : "Request payout"}
             </button>
-            {/* SAY WHAT ACTUALLY HAPPENS. The button's entire effect is
-                window.location.href = mailto:… — it opens an email. It
-                writes no record, creates no invoice and starts no clock,
-                and on a desktop with no mail handler the navigation is
-                silent. "Paid to your account within 7 days" is a promise
-                nothing in this codebase keeps, printed directly under the
-                control that is supposed to keep it. */}
+            {/* SAY WHAT ACTUALLY HAPPENS. It used to say "this opens an
+                email" while opening WhatsApp, and wrote nothing down
+                either way. */}
             <p className="mnote">
-              This opens an email to us. We reply with the payout details
-              once we have checked the balance.
+              {payouts.missing
+                ? "This opens WhatsApp with your request. Payout records are being switched on; until then we settle by hand."
+                : "We record the request with the exact amount, and you can follow it here. Your payout details from Settings travel with it."}
             </p>
           </div>
         </div>

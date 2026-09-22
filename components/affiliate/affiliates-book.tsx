@@ -136,6 +136,7 @@ export default function AffiliatesBook() {
           members={data.members}
           upgrades={data.upgrades}
           rulesMissing={data.rulesMissing}
+          linkStatusUnknown={data.linkStatusUnknown}
           canDecide={isSuperAdmin}
           onDefaults={() => setEditor({ open: true, affiliate: null })}
         />
@@ -191,15 +192,29 @@ function WaitingForYou({
   pending,
   canDecide,
   onApproveApplication,
+  statusUnknown,
 }: {
   applications: AffiliateMember[];
   upgrades: UpgradeRequest[];
   pending: { link: BookLink; affiliate: AffiliateSummary }[];
   canDecide: boolean;
   onApproveApplication: (m: AffiliateMember) => void;
+  /** The referral-link statuses could not be read: the list may be short. */
+  statusUnknown?: boolean;
 }) {
   const n = applications.length + upgrades.length + pending.length;
-  if (n === 0) return null;
+  if (n === 0 && !statusUnknown) return null;
+  if (n === 0 && statusUnknown) {
+    return (
+      <div className="card">
+        <h2>Waiting for you</h2>
+        <p className="cap" style={{ margin: "6px 0 0" }}>
+          We couldn&apos;t read which referrals are waiting for approval —
+          this is not &ldquo;none&rdquo;. Reload to try again.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="card" style={{ padding: 0 }}>
       <div style={{ padding: "16px 18px 6px" }}>
@@ -503,6 +518,7 @@ function Overview({
   members,
   upgrades,
   rulesMissing,
+  linkStatusUnknown,
   canDecide,
   onDefaults,
   onApproveApplication,
@@ -511,6 +527,8 @@ function Overview({
   members: AffiliateMember[];
   upgrades: UpgradeRequest[];
   rulesMissing: boolean;
+  /** The referral-link statuses could not be read. */
+  linkStatusUnknown?: boolean;
   canDecide: boolean;
   onDefaults: () => void;
   onApproveApplication: (m: AffiliateMember) => void;
@@ -592,6 +610,7 @@ function Overview({
         pending={pending}
         canDecide={canDecide}
         onApproveApplication={onApproveApplication}
+        statusUnknown={linkStatusUnknown}
       />
 
       {/* Money they asked for, above the book that explains it. One row

@@ -118,6 +118,8 @@ export type AffiliateBook = {
   rulesMissing: boolean;
   /** The calculation columns are not there yet -- not "no calculation". */
   calcMissing: boolean;
+  /** The status of the referral links could not be read -- not "none pending". */
+  linkStatusUnknown: boolean;
   types: AdAccountTypeRow[];
 };
 
@@ -146,11 +148,18 @@ function add(m: MoneyByCurrency, currency: string | null, amount: unknown) {
   m[c] = Math.round(((m[c] ?? 0) + n) * 100) / 100;
 }
 
+export type BookClawback = {
+  referral_link_id: string;
+  amount: number | string | null;
+  currency: string | null;
+};
+
 export function groupAffiliateBook(
   links: BookLink[],
   commissions: BookCommission[],
   rules: CommissionRule[],
   members: AffiliateMember[] = [],
+  clawbacks: BookClawback[] = [],
 ): AffiliateSummary[] {
   const byAffiliate = new Map<string, AffiliateSummary>();
   const linkToAffiliate = new Map<string, string>();
@@ -192,18 +201,63 @@ export function groupAffiliateBook(
     else if (st === "rejected") a.referrals.rejected += 1;
   }
 
+  // ── THE SAME ARITHMETIC THE AFFILIATE'S OWN SCREEN DOES ───────────
+  //
+  // affiliate_referral_stats subtracts referral_clawbacks per LINK and
+  // floors at zero, and it leaves rejected links out altogether. This
+  // book did neither, so the owner's "Still owed" could be hundreds
+  // above what the affiliate's portal showed them for the same money --
+  // and the owner pays from this screen.
+  const linkStatus = new Map<string, string>();
+  for (const l of links) linkStatus.set(l.id, (l.status ?? "active").toLowerCase());
+
+  const clawByLink = new Map<string, MoneyByCurrency>();
+  for (const cb of clawbacks) {
+    const m = clawByLink.get(cb.referral_link_id) ?? {};
+    add(m, cb.currency, cb.amount);
+    clawByLink.set(cb.referral_link_id, m);
+  }
+
+  const perLink = new Map<
+    string,
+    { earned: MoneyByCurrency; owed: MoneyByCurrency; paid: MoneyByCurrency }
+  >();
   for (const c of commissions) {
     const affId = linkToAffiliate.get(c.referral_link_id);
     if (!affId) continue;
+    // A rejected referral earns nothing: the affiliate's own screens
+    // drop it, so the owner's must too.
+    if (linkStatus.get(c.referral_link_id) === "rejected") continue;
     const a = byAffiliate.get(affId)!;
     a.commissions.push(c);
     const st = (c.status ?? "unpaid").toLowerCase();
     // Not money: on hold (profit unknown) or reversed (the top-up was
     // undone). Counting either as owed would ask the owner to pay it.
     if (st === "on_hold" || st === "reversed") continue;
-    add(a.earned, c.currency, c.amount);
-    if (st === "paid") add(a.paid, c.currency, c.amount);
-    else add(a.owed, c.currency, c.amount);
+    const b = perLink.get(c.referral_link_id) ?? { earned: {}, owed: {}, paid: {} };
+    add(b.earned, c.currency, c.amount);
+    if (st === "paid") add(b.paid, c.currency, c.amount);
+    else add(b.owed, c.currency, c.amount);
+    perLink.set(c.referral_link_id, b);
+  }
+
+  for (const [linkId, b] of perLink) {
+    const affId = linkToAffiliate.get(linkId);
+    if (!affId) continue;
+    const a = byAffiliate.get(affId)!;
+    const cb = clawByLink.get(linkId) ?? {};
+    const currencies = new Set([
+      ...Object.keys(b.earned),
+      ...Object.keys(b.owed),
+      ...Object.keys(b.paid),
+      ...Object.keys(cb),
+    ]);
+    for (const cur of currencies) {
+      const back = cb[cur] ?? 0;
+      add(a.earned, cur, Math.max((b.earned[cur] ?? 0) - back, 0));
+      add(a.owed, cur, Math.max((b.owed[cur] ?? 0) - back, 0));
+      add(a.paid, cur, b.paid[cur] ?? 0);
+    }
   }
 
   // An APPROVED affiliate belongs in the book before their first customer
@@ -310,6 +364,24 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         throw new Error(
           "There are more commissions than this screen can read at once — tell us and we'll page it.",
         );
+      }
+
+      // What has been taken back. Absent table = nothing to subtract;
+      // any other failure is a read we could not make, and money must not
+      // be reported as if it had succeeded.
+      let clawbacks: BookClawback[] = [];
+      {
+        const { data, error } = await supabase
+          .from("referral_clawbacks")
+          .select("referral_link_id, amount, currency")
+          .eq("tenant_id", tenantId!);
+        if (error) {
+          if (!isMissingColumn(error.message) && !/42P01/.test(error.message)) {
+            throw new Error(error.message);
+          }
+        } else {
+          clawbacks = (data ?? []) as BookClawback[];
+        }
       }
 
       let rulesMissing = false;
@@ -426,7 +498,7 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
       if (typesErr) throw new Error(typesErr.message);
 
       return {
-        affiliates: groupAffiliateBook(links, commissionsRes.rows, rules, members),
+        affiliates: groupAffiliateBook(links, commissionsRes.rows, rules, members, clawbacks),
         members,
         statusMissing,
         // The status read failed: every count is 0 and the waiting list is
