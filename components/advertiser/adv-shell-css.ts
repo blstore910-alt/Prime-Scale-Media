@@ -1454,20 +1454,23 @@ export const ADV_CSS = `
    A glass bar of pills; the chosen one lit with the brand gradient.
    Scrolls sideways on a phone instead of wrapping into two rows. */
   .xrange{display:flex;flex-direction:column;gap:8px}
-  .xr-bar{display:flex;gap:4px;padding:5px;border-radius:16px;overflow-x:auto;scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;
+  /* Every option in view, aligned in a grid: three by two on a phone, one
+     row of six on a wider screen. Nothing to scroll sideways for -- the
+     owner: "dit is weer niet mooi" about a bar cut off at "Last 30 d". */
+  .xr-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:5px;border-radius:16px;
     background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.78));
     border:1px solid var(--line);
     box-shadow:0 12px 28px -20px rgba(20,30,80,.5),inset 0 1px 0 #fff}
   .xr-bar::-webkit-scrollbar{display:none}
-  .xr-opt{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:0;background:none;
-    font:inherit;font-weight:700;font-size:.8rem;color:var(--txt-2);padding:9px 13px;border-radius:12px;
+  .xr-opt{min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;background:none;
+    font:inherit;font-weight:700;font-size:.78rem;color:var(--txt-2);padding:9px 6px;border-radius:12px;
     cursor:pointer;white-space:nowrap;transition:color .15s,background .15s,box-shadow .2s,transform .15s}
   .xr-opt:hover{color:var(--ink);background:var(--panel-2)}
   .xr-opt:active{transform:scale(.97)}
   .xr-opt.on{color:#fff;background:linear-gradient(135deg,var(--primary) 0%,#7c5cff 100%);
     box-shadow:0 8px 18px -8px rgba(58,111,255,.8),inset 0 1px 0 rgba(255,255,255,.28)}
-  .xr-opt svg{width:14px;height:14px}
+  .xr-opt svg{width:14px;height:14px;flex:0 0 auto}
+  @media (min-width:640px){.xr-bar{grid-template-columns:repeat(6,minmax(0,1fr))}}
   .xr-meta{display:flex;align-items:center;gap:7px;padding:0 6px;font-size:.76rem;color:var(--faint)}
   .xr-meta b{color:var(--ink);font-weight:700}
   .xr-meta .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--win);

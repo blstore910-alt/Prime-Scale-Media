@@ -3693,7 +3693,10 @@ export default function AdvertiserApp() {
                   Paid out
                 </div>
                 <div className="v">
-                  {affRangedUnavailable || affRanged.payable.isLifetime
+                  {/* Nothing referred is nothing paid: with no rows there is
+                      no "unpaid" column to read, and a dash there read as
+                      "we don't know" next to three honest zeros. */}
+                  {affRangedUnavailable || (affRanged.payable.isLifetime && affRanged.rows.length > 0)
                     ? "—"
                     : legs(
                         Math.max(
