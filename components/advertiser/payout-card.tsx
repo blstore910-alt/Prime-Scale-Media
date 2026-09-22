@@ -208,16 +208,31 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
   // The bar already says how much and how far; this line only carries
   // what the bar cannot -- that a request is already with us, or that
   // two currencies TOGETHER would reach the floor.
+  // Open ONLY because the two pots are added up -- neither reaches 200 on
+  // its own. Then the card has to say so, or the green and the open button
+  // sit over two bars that both still read as short.
+  const openOnlyTogether =
+    canRequest &&
+    available.length > 1 &&
+    owed.EUR < MIN_PER_CURRENCY &&
+    owed.USD < MIN_PER_CURRENCY;
   const requestHint = blockedByOpen || (!available.length && waitingGroups.length)
     ? "Your request is with us. The next one can go out once it is settled."
-    : !available.length || canRequest
+    : !available.length
       ? null
-      : available.length > 1 && rate
-        ? `Together that is about ${formatCurrency(bestEur, "EUR")} — payouts start at ${formatCurrency(
-            MIN_PER_CURRENCY,
+      : openOnlyTogether && rate
+        ? `Converted into one currency that is about ${formatCurrency(
+            bestEur,
             "EUR",
-          )}.`
-        : null;
+          )} — enough for a payout.`
+        : canRequest
+          ? null
+          : available.length > 1 && rate
+            ? `Together that is about ${formatCurrency(bestEur, "EUR")} — payouts start at ${formatCurrency(
+                MIN_PER_CURRENCY,
+                "EUR",
+              )}.`
+            : null;
   void shortBy;
 
   const startRequest = () => {
@@ -423,7 +438,13 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
                     <span className="foot">
                       {owed[c] >= MIN_PER_CURRENCY
                         ? "ready to pay out"
-                        : `${formatCurrency(round2(MIN_PER_CURRENCY - owed[c]), c)} to go`}
+                        : canRequest
+                          ? /* The card is green and the button is open because
+                               the two pots TOGETHER clear the floor. Saying
+                               "EUR 80,00 to go" underneath that contradicts the
+                               button right above it. */
+                            "goes together with the other currency"
+                          : `${formatCurrency(round2(MIN_PER_CURRENCY - owed[c]), c)} to go`}
                     </span>
                   </div>
                 );
@@ -441,7 +462,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
           <button className="btn grad" disabled={!canRequest} onClick={startRequest}>
             <Ic name="i-download" /> Request payout
           </button>
-          {!canRequest && requestHint ? <p className="xp-hint">{requestHint}</p> : null}
+          {requestHint ? <p className="xp-hint">{requestHint}</p> : null}
         </>
       )}
 
