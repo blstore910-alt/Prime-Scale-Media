@@ -197,22 +197,54 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
       </div>
 
       {openRequest ? (
+        /* IN FLIGHT. Money on its way to them deserves the cabinet
+           treatment, not a yellow warning box -- the owner: "die moet 10x
+           mooier, geel past niet". Dark, with the amount lit and the three
+           steps showing where it stands. */
         <div className="xp-open">
-          <div className="xp-amt">
-            <span className="v">
-              {formatCurrency(Number(openRequest.amount), openRequest.currency)}
+          <span className="xo-aur a" aria-hidden="true" />
+          <span className="xo-aur b" aria-hidden="true" />
+          <div className="xo-head">
+            <span className="xo-pill">
+              <span className="dot" /> {STATUS_LABEL.requested}
             </span>
-            <span className="badge pend xs">{STATUS_LABEL.requested}</span>
+            <span className="xo-when">
+              {dayjs(openRequest.requested_at).format("D MMM, HH:mm")}
+            </span>
           </div>
-          <p className="cap">
-            Requested {dayjs(openRequest.requested_at).format("D MMM YYYY, HH:mm")} ·{" "}
+          <div className="xo-amt">
+            {(() => {
+              const t = formatCurrency(Number(openRequest.amount), openRequest.currency);
+              return (
+                <>
+                  <span className="cur">{t.charAt(0)}</span>
+                  {t.slice(1)}
+                </>
+              );
+            })()}
+          </div>
+          <div className="xo-sub">
             {openRequest.commission_count}{" "}
-            {openRequest.commission_count === 1 ? "commission" : "commissions"}
+            {openRequest.commission_count === 1 ? "commission" : "commissions"} in this
+            payout
             {Number(openRequest.clawback_amount) > 0
               ? ` · ${formatCurrency(Number(openRequest.clawback_amount), openRequest.currency)} returned volume settled`
               : ""}
-            .
-          </p>
+          </div>
+          <ol className="xo-steps">
+            <li className="done">
+              <span className="s-dot" />
+              Requested
+            </li>
+            <li className="now">
+              <span className="s-dot" />
+              We check it
+            </li>
+            <li>
+              <span className="s-dot" />
+              Transferred
+            </li>
+          </ol>
           <div className="xp-acts">
             <button
               className="btn ghost sm"

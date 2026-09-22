@@ -1569,14 +1569,46 @@ export const ADV_CSS = `
   .xp-leg .l{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
   .xp-leg .v{font-family:var(--hd);font-weight:800;font-size:1.15rem;letter-spacing:-.02em;color:#0e8f66}
   .xpay .btn.grad{width:100%;justify-content:center}
-  .xp-open{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;
-    background:var(--warn-soft);border:1px solid rgba(239,176,44,.45)}
-  .xp-open .cap{margin:0}
-  .xp-amt{display:flex;align-items:center;gap:8px}
-  .xp-amt .v{font-family:var(--hd);font-weight:800;font-size:1.3rem;letter-spacing:-.02em;color:#8a5a00}
-  .xp-acts{display:flex;gap:8px;flex-wrap:wrap}
+/* A payout in flight: the cabinet, not a warning box. */
+  .xp-open{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:10px;
+    padding:16px;border-radius:18px;color:#eef1ff;
+    background:radial-gradient(120% 140% at 12% 0%,#20265c 0%,#141a40 45%,#0d1130 100%);
+    box-shadow:0 20px 44px -26px rgba(20,24,80,.9),inset 0 1px 0 rgba(255,255,255,.08)}
+  .xo-aur{position:absolute;border-radius:50%;filter:blur(30px);pointer-events:none;opacity:.5}
+  .xo-aur.a{width:150px;height:150px;right:-40px;top:-50px;background:rgba(124,92,255,.75);
+    animation:xoA 9s ease-in-out infinite alternate}
+  .xo-aur.b{width:130px;height:130px;left:-30px;bottom:-60px;background:rgba(16,185,129,.55);
+    animation:xoB 11s ease-in-out infinite alternate}
+  @keyframes xoA{to{transform:translate(-14px,10px) scale(1.12)}}
+  @keyframes xoB{to{transform:translate(12px,-10px) scale(1.1)}}
+  .xo-head{position:relative;display:flex;align-items:center;gap:8px}
+  .xo-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;
+    font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#ffe8b0}
+  .xo-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 0 rgba(239,176,44,.6);animation:xoPulse 1.8s ease-out infinite}
+  @keyframes xoPulse{70%{box-shadow:0 0 0 7px rgba(239,176,44,0)}100%{box-shadow:0 0 0 0 rgba(239,176,44,0)}}
+  .xo-when{margin-left:auto;font-size:.74rem;color:rgba(238,241,255,.6)}
+  .xo-amt{position:relative;font-family:var(--hd);font-weight:800;font-size:2rem;letter-spacing:-.03em;
+    line-height:1.05;color:#fff;text-shadow:0 8px 28px rgba(124,92,255,.45)}
+  .xo-amt .cur{font-size:.62em;margin-right:2px;color:var(--gold)}
+  .xo-sub{position:relative;font-size:.78rem;color:rgba(238,241,255,.7)}
+  .xo-steps{position:relative;list-style:none;display:flex;gap:6px;margin:2px 0 2px;padding:0}
+  .xo-steps li{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;
+    font-size:.66rem;font-weight:700;letter-spacing:.02em;color:rgba(238,241,255,.45);white-space:nowrap}
+  .xo-steps .s-dot{display:block;height:3px;border-radius:3px;background:rgba(255,255,255,.14)}
+  .xo-steps li.done{color:rgba(238,241,255,.85)}
+  .xo-steps li.done .s-dot{background:linear-gradient(90deg,#34d399,#10b981)}
+  .xo-steps li.now{color:#fff}
+  .xo-steps li.now .s-dot{background:linear-gradient(90deg,#5b8dff,#8b5cf6);
+    box-shadow:0 0 12px rgba(124,92,255,.8)}
+  .xp-acts{position:relative;display:flex;gap:8px;flex-wrap:wrap}
   .xp-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
-  .xp-acts .btn.wa svg{color:#1faa53}
+  .xp-open .btn.ghost{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+    color:#eef1ff;box-shadow:none}
+  .xp-open .btn.ghost:hover{background:rgba(255,255,255,.16)}
+  .xp-acts .btn.wa svg{color:#4ade80}
+  @media (prefers-reduced-motion:reduce){.xo-aur,.xo-pill .dot{animation:none}}
   .xp-hist{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
   .xp-h{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--txt-2);min-width:0}
   .xp-h .d{color:var(--faint);flex:0 0 auto}
