@@ -1,3 +1,24 @@
+# THE NUMBER: 8 of 16 journeys closed (A1-A7, F2) — 2026-09-22
+
+## F2 — CLOSED 2026-09-22: referral in -> commission arises -> matches the database
+
+**Walked on production with three sessions:** owner in Chrome, PSM0007 (referred customer) and PSM0005 (affiliate) in the pane.
+
+| check | result |
+|---|---|
+| rules | supplier fee per type set in Settings (Meta-EU-PSM-RA 2%, -GH 2.5%, rest 0%); default rules saved in /affiliates (20% of profit per type, 20% per paid subscription invoice, no one-time) from 22-09 11:31 |
+| the funding | PSM0007 funds EUR 50 on AA-PSM0007-EU-01 (fee 3%), owner verifies (#000005) |
+| database, plak 38 | commission **EUR 0.11**, source topup, unpaid: profit 0.53 = fee 1.50 − supplier 2% of 48.50 (0.97), × 20% (default-type rule). Same figure the tested TS twin predicts. earnings_eur on the link 4.96 = sum of rows 4.96. PSM0007 wallet 0.00 |
+| owner screens | /affiliates: EUR 4.96 earned/owed; the row reads "20% of profit €0.53 (fee €1.50 − supplier 2% = €0.97) €0.11"; /commissions lists 0.11 and 4.85 unpaid; Verify showed "Supplier 2% = €0.97 · Our margin €0.53" before verifying |
+| customer PSM0007 | wallet 100 − 50 − 50 = **0.00**; Funded to date **97.00**; no commission data anywhere on their screens |
+| affiliate PSM0005 | notification "You earned a commission — €0.11 from a top-up by PSM0007"; Commission €4.96, Spend driven €97.00; Every commission: two rows "Top-up · Meta" 0.11 / 4.85 "To be paid", totals Earned 4.96 / To be paid 4.96 / Paid 0.00; sort (largest / oldest), filters (Subscriptions → nothing, Paid → nothing) and click-a-referral focus all verified |
+
+**The old EUR 4.85** (booked 21-09 under the old rule, 10% of what landed) stays, per the owner: "wat hij tot nu toe verdiende blijft".
+
+**Fixed on this journey (4-agent sweep + walk):** commission on PROFIT with versioned rules (plak 35, `lib/pure-commission-rules.ts` 13 tests) incl. subscriptions and one-time; tenant filter on the accrual; accrual on INSERT-as-completed; reversal when a completed funding is undone; old clawbacks off; stats RPC on active links + landed spend + clawbacks in range; commission screens refresh after verify / mark paid / on focus; "Percentage" filter; labels; loading ≠ error; /affiliates = one row per affiliate + detail page; affiliate sees every commission (plak 39) but never our margin, the type or the % (plak 39/40); notifications earned / on hold / failed. **Security found and closed on the way:** customer could complete their own top_ups (plak 34) and their own WALLET top-ups = free money (plak 37); invitee could edit their invitation; customer could write their advertisers row; ad-account request without fee/plan; affiliate could read our margin (plak 39).
+
+**Carried, not F2:** `?ref=` signup ordering + pending-link notification (F1); `paid_at` for "commissions paid" by payment date, Mark Paid naming the affiliate (F3); "Spend driven" is shown to affiliates — the owner has not said whether that reveals too much (ask at F3).
+
 # OWNER REQUESTS, 2026-09-21 (late) — the build list, in the owner's words
 
 Asked during the F2 walk. None of these is optional; the order is mine.
