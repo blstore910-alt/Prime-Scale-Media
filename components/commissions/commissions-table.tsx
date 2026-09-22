@@ -13,7 +13,6 @@ import { Loader2, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
-import CommissionStatusAction from "./commission-status-action";
 import CommissionsFilters from "./commissions-filters";
 import useCommissions from "./use-commissions";
 import { emptyRow } from "@/components/ui/empty-row";
@@ -245,7 +244,8 @@ export default function CommissionsTable() {
     perPage,
   });
 
-  const colCount = isAdmin ? 7 : 5;
+  // One fewer for the admin since the per-row Mark Paid column went.
+  const colCount = isAdmin ? 6 : 5;
 
   return (
     <div
@@ -333,7 +333,6 @@ export default function CommissionsTable() {
                 <th>Commission Type</th>
                 <th>Status</th>
                 <th className="r">Date</th>
-                {isAdmin && <th className="r">Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -410,16 +409,6 @@ export default function CommissionsTable() {
                             <td data-label="Date" className="r muted">
                               {formatDate(commission.created_at)}
                             </td>
-                            {isAdmin && (
-                              <td data-label="Action" className="r">
-                                <CommissionStatusAction
-                                  commissionId={commission.id}
-                                  status={commission.status}
-                                  amount={commission.amount}
-                                  currency={commission.currency}
-                                />
-                              </td>
-                            )}
                           </tr>
                         );
                       })

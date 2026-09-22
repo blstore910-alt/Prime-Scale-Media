@@ -25,7 +25,6 @@ import {
 } from "@/hooks/use-affiliate-book";
 import CommissionRulesEditor from "./commission-rules-editor";
 import ReferralStatusAction from "./referral-status-action";
-import CommissionStatusAction from "@/components/commissions/commission-status-action";
 
 // ── THE AFFILIATE BOOK ──────────────────────────────────────────────────
 //
@@ -677,14 +676,13 @@ function AffiliateDetail({
                               <RecalculateButton commissionId={c.id} note={c.note ?? null} canEdit={canEdit} />
                             ) : st === "reversed" ? (
                               <span className="badge muted" title={c.note ?? undefined}>Reversed</span>
+                            ) : st === "paid" ? (
+                              <span className="badge ok">Paid</span>
                             ) : (
-                              <CommissionStatusAction
-                                commissionId={c.id}
-                                status={c.status}
-                                amount={c.amount}
-                                currency={c.currency}
-                                affiliate={code}
-                              />
+                              // No Mark Paid per row (the owner: "hoef geen
+                              // mark paid, dat moeten we in bulk doen"). An
+                              // affiliate is paid out in one go -- F3.
+                              <span className="badge pend">Unpaid</span>
                             )}
                           </td>
                         </tr>
