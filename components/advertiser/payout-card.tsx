@@ -412,7 +412,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
             <p className="xp-empty">
               {waitingGroups.length
                 ? "Everything you are owed is in that request. What you earn from now on can be asked for once it is settled."
-                : "Nothing waiting to be paid yet — commission lands here as your referrals fund their accounts."}
+                : "This is where you ask to be paid. As soon as you have €200 or $200 in commission, the button below opens."}
             </p>
           )}
           {/* The button stays, and says why it cannot be pressed. A
@@ -856,6 +856,17 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
             </div>
 
             <div className="mfoot xp-vfoot">
+              {/* Their invoice, written for them from the payout itself
+                  — the owner: "invoice met referral earning auto created
+                  met zijn bedrijfsgegevens". */}
+              <a
+                className="btn ghost"
+                href={`/api/payouts/${view[0].id}/invoice`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Ic name="i-receipt" /> Invoice
+              </a>
               {view[0].status === "requested" ? (
                 <button
                   className="btn ghost"

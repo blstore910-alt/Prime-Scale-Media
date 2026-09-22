@@ -251,6 +251,15 @@ export default function PayoutQueue({
                             >
                               Send back
                             </Button>
+                            <Button size="sm" variant="ghost" asChild>
+                              <a
+                                href={`/api/payouts/${first.id}/invoice`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Invoice
+                              </a>
+                            </Button>
                           </div>
                         ) : (
                           <span className="badge pend">Waiting for the owner</span>
@@ -327,6 +336,16 @@ export default function PayoutQueue({
                       </td>
                       <td data-label="Reference / reason" style={{ fontSize: ".8rem" }}>
                         {first.reference || first.reason || DASH}
+                        <div>
+                          <a
+                            href={`/api/payouts/${first.id}/invoice`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: ".78rem" }}
+                          >
+                            Invoice
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   );
