@@ -10,6 +10,14 @@
 
 **Verified on production:** PSM0005 Referrals: all time €4.96 earned = €4.85 + €0.11, €4.96 to be paid, spend €97.00; This month (1–22 Sep) the same; Last month (Aug) €0.00 everywhere and an empty list; chip counts 2/2/0/0. Owner /affiliates: 1 affiliate, €4.96 earned/owed.
 
+**Plak 44 applied:** the policy that let an affiliate read the full advertisers row of their referred customers is gone (advertisers select: admins + self; user_profiles select: admin + own).
+
+**Plak 45 — approve counts back, PROVEN on real data (rolled back):** PSM0005 referred by PSM0008 with a link dated just before their first funding, approved as the owner: fundings #000002 and #000003 each fee 3.00 − supplier 2% of 97.00 (1.94) = profit 1.06 × 20% = **0.21**; invoice 124 (EUR 5.00, paid 21 Sep) × 20% = **1.00**; invoice 121 (18 Sep) correctly NOT booked (before the link). Booked 1.42 = 0.21 + 0.21 + 1.00, exactly what the RPC reported. Nothing left behind.
+
+**Found on the walk and fixed (`459aaa2`):** the confirmation link reached /auth/confirm with no code (token already used — scanner / second click / other browser). The address was confirmed but the profile, wallet and referral are only made there, so signing in led to "create an organisation". Now `lib/auth/finalize-signup.ts` finishes the account from /auth/confirm, the sign-in action and /onboard. **Also fixed:** password reset always demanded the current password (read `user.amr`, which does not exist) — a dead end for exactly the people who need it.
+
+**Waiting on the owner:** paste the six auth mails from `supabase/email-templates/` (token_hash links that work in any browser), sender name "Prime Scale Media", and make sure Redirect URLs include `https://app.primescalemedia.com/**`.
+
 **Still to walk (needs the owner — account creation is theirs):** a new signup through PSM0005's link -> pending -> owner approves -> commission booked for what they did meanwhile, checked against the DB; a standalone affiliate (PSM0008/9) signing in -> portal with a working link; "Advertise with us too" -> owner approves -> role advertiser.
 
 ## F2 — CLOSED 2026-09-22: referral in -> commission arises -> matches the database
