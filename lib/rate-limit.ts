@@ -79,6 +79,15 @@ export const LIMITS = {
   // per user so a runaway script or accidental button-mash doesn't
   // knock over the DB.
   gdprExport: { bucket: "gdpr-export", max: 10, windowSeconds: 3600 },
+  // Asking to join the affiliate program, and asking to advertise too.
+  // A refused application can be sent again -- that is deliberate -- and
+  // every send files a notification with the owner, so this stops the
+  // loop that would bury their queue. Keyed per user.
+  affiliateApplication: {
+    bucket: "affiliate-application",
+    max: 5,
+    windowSeconds: 3600,
+  },
   // Customer-initiated financial requests (wallet top-up, ad-account
   // request, ad-account withdrawal). Generous for a human, but stops a
   // scripted/compromised account from flooding the admin queue. Keyed

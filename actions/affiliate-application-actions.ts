@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { maintenanceGuard } from "./_shared";
 
 type ActionResult<T = null> =
@@ -71,6 +72,17 @@ export async function applyForAffiliateProgram(): Promise<
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
     return { ok: false, error: "Please sign in and try again." };
+  }
+
+  // A refused application may be sent again -- and each one files a
+  // notification with the owner. Without a limit, refuse -> reapply in a
+  // loop buries their queue (and wipes the reason they were refused).
+  // Errs open on an unreachable limiter, like every other bucket here.
+  if (!(await rateLimitCheck(LIMITS.affiliateApplication, `user:${userData.user.id}`))) {
+    return {
+      ok: false,
+      error: "You've sent this a few times already. Give us a moment to look at it.",
+    };
   }
 
   // Which of the caller's profiles they are acting as. The function
