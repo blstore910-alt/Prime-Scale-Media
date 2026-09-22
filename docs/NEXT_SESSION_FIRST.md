@@ -1,5 +1,7 @@
 # THE NUMBER: 9 of 16 journeys closed (A1-A7, F2, F3) — 2026-09-22
 
+> F4 is walked for two of the three kinds; the one-time bonus is the open one.
+
 > F1 is walked end to end and checked against the database; only the standalone-affiliate portal is unwalked (needs a login for PSM0008/0009 — the same blocker holds F3's portal half).
 
 ## F1 — IN PROGRESS 2026-09-22: invitation / link -> signup -> portal with a working link
@@ -35,6 +37,29 @@
 "Active" in the cabinet means *has funded at least once*, which is why Piet counts as referred but not active. A newly approved affiliate has **no row of their own** in `referral_links` (rows are per referred customer); the link works off `tenant_client_code`, and `findReferrer` accepts him because his status is `approved`.
 
 **Still to walk (needs the owner — account creation and passwords are theirs):** a signup through **Piet's** link (proves a freshly approved affiliate's link, same code path as the one just proven); a standalone affiliate (PSM0008/9) signing in -> portal with a working link; "Advertise with us too" -> owner approves -> role advertiser.
+
+## F4 — IN PROGRESS 2026-09-22: every kind of commission
+
+**The owner's rules, set on the walk (22-09, 22:29):** top-ups 20% of profit per ad-account type, **subscriptions 50%** of every paid invoice, **the first top-up of a new customer is ours** (0%), and **no one-time bonus by default** ("geen one time bonus default, first top ups is voor ons").
+
+**Walked on production, both sides:**
+
+| kind | what was done | what came out |
+|---|---|---|
+| subscription | new EUR 10 plan for PSM0007 (referred by PSM0005), activated → invoice 0007-130, marked paid | +EUR 5.00 — the book says "50% of €10.00 invoice"; earned 4.96 → 9.96 |
+| subscription | same for Piet (PSM0010, also referred by PSM0005) → invoice 0010-131, marked paid | +EUR 5.00; earned 9.96 → **14.96**, still owed 10.00, and the affiliate's own screen agrees to the cent (4 commissions, Earned 14.96 / To be paid 10.00 / Paid 4.96) |
+| top-up | proven in F2 (EUR 0.11 = 20% of EUR 0.53 profit) and still explained on the row | unchanged |
+| one-time bonus | set EUR 10 for PSM0005 only (not the default), then paid Piet's invoice | **did NOT book** — plak 58 is the read-out, and books it once if it is due |
+
+**Fixed in the database for this journey (plak 55, applied):** a bulk top-up made EVERY row count as "the first" (they share one `created_at`), so a 0% first-top-up rule wiped the commission on all of them — now the comparison is on (moment, id); the welcome bonus could only ever fall on a first top-up, never came back after a reversal and could not be given retroactively — it is one function now, called from the top-up AND the paid invoice; a reversed commission blocked the re-booking of a re-verified top-up; VAT would have been paid out the day an invoice carries any; and a 0% rule raised a false "commission on hold" alarm.
+
+**Fixed in the database for this journey (plak 56, applied):** an employee admin could mint commission from nothing — write a paid invoice or a completed top-up with their own amount, set our supplier cost to 0% or 100%, or rename a type's slug so the supplier cost hangs on nothing. Money columns are the owner's now; verifying and marking paid stays their work.
+
+**Found on the walk, fixed (plak 57, applied):** changing a subscription amount did nothing and said `permission denied for function change_subscription_amount` — the grant line of migration `20260917200000` was never pasted. The same plak read every money RPC: only `wise_confirm_suggestion` is still un-callable (the Wise feed is off anyway) and the emergency brake has never run here.
+
+**Screens fixed on this journey:** the commission card printed EUR 0,00 for a read that never ran; the three sums excluded rows the list shows (now said out loud); subscription commissions could not be filtered for at all; `on_hold` and `reversed` wore the same amber "awaiting payment" badge with a green amount in the owner's ledger; the clawback banner said nothing while it was still loading; the per-customer column was gross under netted totals; a failed identity read rendered a full page of zeroes.
+
+**Open:** the one-time bonus (plak 58), and then the first-top-up-is-ours rule walked on a brand-new customer's first funding.
 
 ## F3 — CLOSED 2026-09-22: payout request -> owner sees it -> settled
 
