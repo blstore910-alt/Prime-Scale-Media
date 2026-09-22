@@ -109,14 +109,27 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [view, setView] = useState<AffiliatePayout[] | null>(null);
 
-  const owed: Record<Cur, number> = { EUR: owedEur, USD: owedUsd };
-  const available = (["EUR", "USD"] as Cur[]).filter((c) => owed[c] > 0.005);
-
   const last = payouts.rows[0];
   const waiting = useMemo(
     () => payouts.rows.filter((p) => p.status === "requested"),
     [payouts.rows],
   );
+
+  // WHAT IS STILL FREE TO ASK FOR. A commission that is already in an open
+  // request is still "unpaid" in the stats -- correctly, nobody has been
+  // paid yet -- so without this the screen showed "€4.96 waiting for us"
+  // and "€4.96 ready, request payout" at the same time, and pressing the
+  // button just failed.
+  const inFlight: Record<Cur, number> = { EUR: 0, USD: 0 };
+  for (const p of waiting) {
+    const c = String(p.currency).toUpperCase() as Cur;
+    if (c === "EUR" || c === "USD") inFlight[c] = round2(inFlight[c] + (Number(p.amount) || 0));
+  }
+  const owed: Record<Cur, number> = {
+    EUR: Math.max(round2(owedEur - inFlight.EUR), 0),
+    USD: Math.max(round2(owedUsd - inFlight.USD), 0),
+  };
+  const available = (["EUR", "USD"] as Cur[]).filter((c) => owed[c] > 0.005);
   // Asked for together is one transfer: shown as one.
   const waitingGroups = useMemo(() => {
     const by = new Map<string, AffiliatePayout[]>();
@@ -371,7 +384,12 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
             <Ic name="i-download" /> Request payout
           </button>
         </>
-      ) : waitingGroups.length ? null : (
+      ) : waitingGroups.length ? (
+        <p className="cap">
+          Everything you are owed is in the request above. Anything earned from
+          now on can be asked for once this one is settled.
+        </p>
+      ) : (
         <p className="cap">
           Nothing to pay out yet. Commission appears here as your referrals fund
           their accounts.
