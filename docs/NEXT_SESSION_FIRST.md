@@ -1,6 +1,6 @@
-# THE NUMBER: 8 of 16 journeys closed (A1-A7, F2) — 2026-09-22
+# THE NUMBER: 9 of 16 journeys closed (A1-A7, F2, F3) — 2026-09-22
 
-> F1 is walked end to end and checked against the database; only the standalone-affiliate portal is unwalked (needs a login). F3 is BUILT and live but dark until plak 50 is pasted, and unwalked.
+> F1 is walked end to end and checked against the database; only the standalone-affiliate portal is unwalked (needs a login for PSM0008/0009 — the same blocker holds F3's portal half).
 
 ## F1 — IN PROGRESS 2026-09-22: invitation / link -> signup -> portal with a working link
 
@@ -36,7 +36,26 @@
 
 **Still to walk (needs the owner — account creation and passwords are theirs):** a signup through **Piet's** link (proves a freshly approved affiliate's link, same code path as the one just proven); a standalone affiliate (PSM0008/9) signing in -> portal with a working link; "Advertise with us too" -> owner approves -> role advertiser.
 
-## F3 — BUILT 2026-09-22, waiting on plak 50 and a walk: payout request -> owner sees it -> settled
+## F3 — CLOSED 2026-09-22: payout request -> owner sees it -> settled
+
+**Walked on production with two sessions** (owner in Chrome, PSM0005 in the pane), after plaks 50, 51, 52 and 53 were applied. Every figure checked against the database with plak 54:
+
+| what the screen said | what plak 54 read back |
+|---|---|
+| PSM0005 asks for €4.96, card flips to "Waiting for us", 2 commissions | payout **#1** EUR 4.96 `requested` 19:23 |
+| owner's /affiliates shows "Payouts waiting (1)" with the bank details, marks it paid with a reference | `paid` 19:47, reference "TEST-WALKTHROUGH-2209 (geen echte overboeking)", commission_count 2 |
+| affiliate: To be paid €0.00, Paid out €4.96, both rows "Paid", history "Payout #1" | EUR 4.85 + EUR 0.11 both `paid`, `paid_at` 19:47, both hanging on payout #1 — 4.85 + 0.11 = 4.96 to the cent |
+| owner's book: Still owed €0.00 | 0 unpaid commission rows left for PSM0005 |
+| both bells rang | `affiliate_payout_requested` ×1, `affiliate_payout_paid` ×1 |
+| "Self-billed invoice · Payout #1" opens with their company, IBAN and partner code | generated from the payout row itself (`/api/payouts/<id>/invoice`) |
+
+**Built for this journey, on the owner's word:** pick which balance to be paid (EUR, USD or both) and how to receive it — two banks (only offered to somebody who actually earned in both) or everything converted to one currency at the tenant's rate minus 0.6%; a floor of **200 per currency received** (EUR 150 + USD 150 passes when converted into one, not as two transfers); the request button stays put and says how much is still missing; last time's bank details are prefilled per affiliate; "View request" shows exactly what was submitted; **Payout #n** per tenant, one number per request even when it covers two currencies; and a self-billed invoice per payout.
+
+**Not verified, and why:** the USD leg and the conversion were only seen as a preview in the dialog (€4.96 → $5.69 − 0.6% = $5.66) — no dollar payout has been run, because no test affiliate holds USD commission; the EUR 200 floor could not be exercised upward (this payout was EUR 4.96 and predates the rule); and the standalone affiliate portal (`aff-app`) is unwalked, like F1's last step, until there is a login for PSM0008/0009.
+
+**One thing for the owner:** the self-billed invoice names **TURLIT LLC, 30 N Gould St** as our company — that is the tenant company row on /settings/general, the same one your customer invoices use. Change it there and the payout invoice follows. (The two active exchange rates turned out to be one per tenant — Prime Scale Media 0.87236, the E2E test tenant 0.86317 — so nothing to fix.)
+
+## F3 — the sweeps behind it
 
 **What it was.** "Request payout" opened WhatsApp with a sentence in it. Nothing was recorded — no amount, no date, no status. The owner had no queue, the affiliate could not see anything, the IBAN they typed under Settings was never stored, and the only control that marks a commission paid (`CommissionStatusAction` → `setCommissionStatus`) is mounted on **no route at all**: `commission-row.tsx` and `commission-card.tsx` are imported by nothing. So no commission in this database could ever become `paid`, `unpaid_*` stayed equal to lifetime earnings for ever, and the affiliate's wallet kept asking for money that may already have been transferred.
 
