@@ -258,6 +258,19 @@ export function getNotificationCopy(notification: Notification): {
           : `Your invoice has been settled from your wallet${what}.`,
       };
     }
+    case "subscription_invoice_due_soon": {
+      const p = parseNotificationPayload(notification);
+      const amount = asString(p.amount);
+      const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
+      const sym = currency === "USD" ? "$" : "€";
+      const due = asString((p as { due_date?: unknown }).due_date);
+      return {
+        title: "Your invoice is due soon",
+        description: `${amount ? `${sym}${Number(amount).toFixed(2)}` : "Your invoice"} is taken from your ${currency} wallet${
+          due ? ` on ${String(due).slice(0, 10)}` : " on the due date"
+        }. Make sure it holds enough — or pay it now under Billing.`,
+      };
+    }
     case "subscription_past_due":
       return {
         title: "Subscription past due",

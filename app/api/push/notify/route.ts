@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import webpush from "web-push";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { sendBillingEmail } from "@/lib/billing-emails";
+import { BILLING_EMAIL_TYPES } from "@/lib/pure-billing-email";
 
 export const runtime = "nodejs";
 
@@ -137,6 +139,14 @@ function buildPushFromRecord(record: NotificationRecord) {
         // run takes it whether they acted or not.
         body:
           "Your monthly subscription invoice is ready. We take it from your wallet on the due date if it is still open.",
+        url: "/dashboard?view=billing",
+      };
+    }
+
+    case "subscription_invoice_due_soon": {
+      return {
+        title: "Your invoice is due soon",
+        body: "We take it from your wallet on the due date. Make sure it holds enough — or pay it now.",
         url: "/dashboard?view=billing",
       };
     }
@@ -483,6 +493,26 @@ export async function POST(req: Request) {
       );
       if (seats.length > 0 && !anyLive) {
         return NextResponse.json({ ok: true, skipped: "recipient inactive" });
+      }
+    }
+
+    // 3a-ter) ── A BILLING NOTICE IS ALSO AN EMAIL ──────────────────
+    // New invoice, due soon, not collected: the owner wants these in the
+    // inbox too, so nobody learns about a debit from their bank. Sent at
+    // most once per notification (lib/billing-emails.ts), and never the
+    // reason this webhook fails -- the push below still goes out.
+    if (record.type && BILLING_EMAIL_TYPES.has(record.type)) {
+      try {
+        const outcome = await sendBillingEmail(supabase, {
+          id: record.id,
+          recipient_user_id: record.recipient_user_id,
+          tenant_id: record.tenant_id,
+          type: record.type,
+          payload: record.payload,
+        });
+        if (outcome !== "sent") console.info("[billing-email]", record.id, outcome);
+      } catch (e) {
+        console.warn("[billing-email] failed", record.id, safeErrorMessage(e));
       }
     }
 

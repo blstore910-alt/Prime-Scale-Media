@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isMaintenanceMode } from "@/actions/_shared";
 import { isCronAuthorised } from "@/lib/cron-auth";
+import { createDueSoonReminders } from "@/lib/billing-reminders";
 
 // Daily Vercel Cron target (vercel.json). Generates due subscription
 // invoices, auto-debits the ones past their 7-day grace, and marks
@@ -48,6 +49,16 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await supabase.rpc("subscription_billing_run");
+
+  // "Due in a few days" -- one reminder per open subscription invoice,
+  // turned into a push and an email by the notification webhook. Its own
+  // try: a reminder that fails must never read as a failed billing run.
+  let reminders: unknown = null;
+  try {
+    reminders = await createDueSoonReminders(supabase);
+  } catch (e) {
+    reminders = { error: e instanceof Error ? e.message : "unknown" };
+  }
   if (error) {
     // ── A FAILED BILLING RUN MUST NOT BE SILENT ─────────────────────
     //
@@ -102,5 +113,5 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, summary: data });
+  return NextResponse.json({ ok: true, summary: data, reminders });
 }

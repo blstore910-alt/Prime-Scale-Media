@@ -159,6 +159,12 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    type: "subscription_invoice_due_soon",
+    label: "Invoice due soon",
+    description: "A few days before an open invoice is taken from your wallet.",
+    audience: "customer",
+  },
+  {
     type: "subscription_past_due",
     label: "Subscription past due",
     description: "When a subscription payment couldn't be collected.",

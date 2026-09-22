@@ -10,6 +10,7 @@ export type NotificationType =
   | "subscription_invoice"
   | "subscription_invoice_paid"
   | "subscription_past_due"
+  | "subscription_invoice_due_soon"
   | "subscription_changed"
   | "supplier_low_balance"
   | "billing_run_failed"
@@ -181,6 +182,14 @@ export interface NotificationPayloadByType {
     currency?: string | null;
   };
   subscription_past_due: SubscriptionInvoiceNotificationPayload;
+  /** A few days before the due-date run takes an open invoice. */
+  subscription_invoice_due_soon: {
+    invoice_id?: string | null;
+    number?: string | number | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    due_date?: string | null;
+  };
   subscription_changed: SubscriptionChangedNotificationPayload;
   supplier_low_balance: SupplierLowBalanceNotificationPayload;
   /** The nightly billing run refused. Nobody was invoiced or
