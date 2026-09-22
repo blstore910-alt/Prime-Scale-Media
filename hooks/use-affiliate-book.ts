@@ -317,11 +317,22 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
       // A status we could not read is UNKNOWN, never a confident "active"
       // -- the accrual pays only on active (see affiliate-table.tsx).
       if (links.length) {
-        const { data: st, error: stErr } = await supabase
-          .from("referral_links")
-          .select("id, status")
-          .eq("tenant_id", tenantId!);
-        if (stErr && !isMissingColumn(stErr.message)) {
+        // PAGED. PostgREST stops at 1,000 rows without saying so: past
+        // that, every link on the later pages became "unknown" -- not
+        // counted active, dropped from the approval queue -- while
+        // linkStatusUnknown stayed false, so nothing on screen said why.
+        const stRes = await pageAllRows<{ id: string; status: string | null }>(
+          (from, to) =>
+            supabase
+              .from("referral_links")
+              .select("id, status")
+              .eq("tenant_id", tenantId!)
+              .order("id", { ascending: true })
+              .range(from, to),
+        );
+        const stErr = stRes.error ? { message: stRes.error } : null;
+        const st = stRes.rows;
+        if ((stErr && !isMissingColumn(stErr.message)) || stRes.truncated) {
           for (const l of links) l.status = "unknown";
           linkStatusUnknown = true;
         } else if (!stErr) {
@@ -371,16 +382,27 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
       // be reported as if it had succeeded.
       let clawbacks: BookClawback[] = [];
       {
-        const { data, error } = await supabase
-          .from("referral_clawbacks")
-          .select("referral_link_id, amount, currency")
-          .eq("tenant_id", tenantId!);
-        if (error) {
-          if (!isMissingColumn(error.message) && !/42P01/.test(error.message)) {
-            throw new Error(error.message);
+        // Paged for the same reason as the statuses: a clawback past the
+        // thousandth row would silently not be subtracted, and the owner
+        // pays from this figure.
+        const res = await pageAllRows<BookClawback>((from, to) =>
+          supabase
+            .from("referral_clawbacks")
+            .select("referral_link_id, amount, currency")
+            .eq("tenant_id", tenantId!)
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
+        if (res.error) {
+          if (!isMissingColumn(res.error) && !/42P01/.test(res.error)) {
+            throw new Error(res.error);
           }
+        } else if (res.truncated) {
+          throw new Error(
+            "There are more clawbacks than this screen can read at once — tell us and we'll page it.",
+          );
         } else {
-          clawbacks = (data ?? []) as BookClawback[];
+          clawbacks = res.rows;
         }
       }
 

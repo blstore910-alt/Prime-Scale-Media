@@ -213,6 +213,7 @@ export default function CommissionsTable() {
     dateRangeToTime,
   ]);
 
+
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
   const { commissions, total, isLoading, isError, error } = useCommissions({
     currency: currency === "all" ? undefined : currency,
@@ -243,6 +244,18 @@ export default function CommissionsTable() {
     page,
     perPage,
   });
+  // ── A PAGE PAST THE END IS NOT AN EMPTY LEDGER ────────────────────
+  //
+  // ?page= arrives from the URL (a bookmark, the back button, a link
+  // somebody shared) and nothing compared it with how many pages there
+  // are. Page 9 of 4 rendered "No commissions yet." beside a pager
+  // showing four real pages -- a sentence about the whole ledger, from a
+  // read that simply landed past its last row.
+  useEffect(() => {
+    if (isLoading || isError) return;
+    const last = Math.max(1, Math.ceil((total ?? 0) / perPage));
+    if (page > last) setPage(last);
+  }, [page, perPage, total, isLoading, isError]);
 
   // One fewer for the admin since the per-row Mark Paid column went.
   const colCount = isAdmin ? 6 : 5;
