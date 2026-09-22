@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { finalizeSignup, signupMetadata } from "@/lib/auth/finalize-signup";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -32,6 +33,25 @@ export default async function Page() {
   const pendingInvites = invites?.filter(
     (invite) => invite.status === "pending"
   );
+
+  // ── A SELF-SIGNUP WHOSE ACCOUNT WAS NEVER FINISHED ──────────────────
+  // Signed in, no profile, and the sign-up form recorded which
+  // organisation they signed up to: finish the account (profile, wallet,
+  // referral) instead of offering to create an organisation. See
+  // lib/auth/finalize-signup.ts for how this state comes about.
+  if (!profiles.length && !pendingInvites.length) {
+    const { data: me } = await supabase.auth.getUser();
+    const meta = me?.user ? signupMetadata(me.user) : null;
+    if (me?.user?.email && meta?.tenantSlug) {
+      const done = await finalizeSignup({
+        user: { id: me.user.id, email: me.user.email, user_metadata: me.user.user_metadata },
+        tenantSlug: meta.tenantSlug,
+        referralCode: meta.referralCode,
+        signupReferralCode: meta.referralCode,
+      });
+      if (done.ok) redirect(done.path);
+    }
+  }
 
   if (!profiles.length && !pendingInvites.length) redirect("/organization/new");
   if (!profiles.length && pendingInvites.length) redirect("/invite/list");

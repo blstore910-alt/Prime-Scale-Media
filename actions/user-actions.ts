@@ -6,6 +6,7 @@ import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { finalizeSignup, signupMetadata } from "@/lib/auth/finalize-signup";
 
 export async function changeProfile(profileId: string, pathname: string) {
   const supabase = await createClient();
@@ -79,10 +80,36 @@ export async function loginUser(formData: FormData) {
     return { error: error.message };
   }
 
-  const { data: profiles } = await supabase
+  let { data: profiles } = await supabase
     .from("user_profiles")
     .select("id, role")
     .eq("user_id", data.user.id);
+
+  // ── A CONFIRMED SIGN-UP WITH NO ACCOUNT YET: FINISH IT NOW ──────────
+  // The confirmation link is where a self-signup gets its profile, wallet
+  // and referral. When that link reached us without a code -- a mail
+  // scanner opened it first, a second click, another browser -- the
+  // address was confirmed but nothing was made, and this sign-in sent the
+  // person to "create an organisation". A successful sign-in means the
+  // address is confirmed, so the account is finished here instead.
+  if (!profiles?.length) {
+    const meta = signupMetadata(data.user);
+    if (meta.tenantSlug && data.user.email) {
+      const done = await finalizeSignup({
+        user: { id: data.user.id, email: data.user.email, user_metadata: data.user.user_metadata },
+        tenantSlug: meta.tenantSlug,
+        referralCode: meta.referralCode,
+        signupReferralCode: meta.referralCode,
+      });
+      if (done.ok) {
+        const again = await supabase
+          .from("user_profiles")
+          .select("id, role")
+          .eq("user_id", data.user.id);
+        profiles = again.data;
+      }
+    }
+  }
 
   const cookieStore = await cookies();
 

@@ -22,7 +22,7 @@ const KNOWN_ERRORS: Record<string, string> = {
   "Invalid session data":
     "Your session couldn't be verified. Try signing in again.",
   "No confirmation token provided":
-    "The confirmation link is incomplete. Ask for a fresh invite or password-reset email.",
+    "This link had no code left in it — it was probably used already (some mail apps open links to scan them). If you confirmed your email, just log in: we finish your account when you do. Otherwise ask for a new link.",
 };
 
 function safeMessage(raw: string | undefined): string {
