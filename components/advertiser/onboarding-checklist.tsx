@@ -107,6 +107,19 @@ function saveState(advertiserId: string | null, state: Persisted) {
       storageKey(advertiserId),
       JSON.stringify(state),
     );
+    // ── AND UNDER THE PRE-LOAD KEY TOO ──────────────────────────────
+    //
+    // The owner, 22-09: "deze melding zie ik steeds weer komen terwijl
+    // ik wegklik". The dashboard renders before the advertiser row has
+    // arrived, so `advertiserId` is null for the first frames and a
+    // dismissal in that window was filed under `psm-onboarding-anon`.
+    // The next render — with the real id — looked under a different key,
+    // found nothing, and the strip came back. Writing both keys, and
+    // carrying an "anon" dismissal over on load, closes it from both
+    // sides.
+    if (advertiserId && state.dismissed) {
+      window.localStorage.setItem(storageKey(null), JSON.stringify(state));
+    }
   } catch {
     /* ignore quota / disabled storage */
   }
@@ -133,6 +146,12 @@ export default function OnboardingChecklist({
   // agree (avoids a hydration mismatch).
   useEffect(() => {
     const s = loadState(advertiserId);
+    // A dismissal that landed before the advertiser row arrived belongs
+    // to this account: carry it over once, so it is not asked again.
+    if (advertiserId && !s.dismissed && loadState(null).dismissed) {
+      s.dismissed = true;
+      saveState(advertiserId, s);
+    }
     setManual(s.manual);
     setDismissed(s.dismissed);
     setCollapsed(s.collapsed);
