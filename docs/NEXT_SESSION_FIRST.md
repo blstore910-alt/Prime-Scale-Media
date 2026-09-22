@@ -18,6 +18,8 @@
 
 **Waiting on the owner:** paste the six auth mails from `supabase/email-templates/` (token_hash links that work in any browser), sender name "Prime Scale Media", and make sure Redirect URLs include `https://app.primescalemedia.com/**`.
 
+**Emails (owner, 22-09: "meer pro, alle emails" + "email reminder voor subscription"):** one layout (`lib/pure-email-layout.ts`: starfield hero `public/email/hero-bg.jpg`, real logo `public/email/psm-logo-dark.png`, glowing button, 1-2-3 steps, WhatsApp footer). Supabase auth mails generated to `supabase/email-templates/` (token_hash links -> /auth/confirm, work in any browser) — the owner pastes them. Subscription mails (`lib/pure-billing-email.ts`, sent from the notification webhook by `lib/billing-emails.ts`, at most once per notification via `notification_emails` = **plak 47, applied**): new invoice, **due soon** (new, created by the 03:00 UTC billing cron for invoices due tomorrow..+3 days, one per invoice), past due. **CHECK AFTER 23-09 03:00 UTC:** plak 47 row 2 listed E2E0001 #120 EUR 500 due 25-09 and PSM0006 #125 EUR 200 due 24-09 — both should have a `subscription_invoice_due_soon` notification and a `notification_emails` row; ask the owner for one SQL to confirm and whether the mail arrived.
+
 **Still to walk (needs the owner — account creation is theirs):** a new signup through PSM0005's link -> pending -> owner approves -> commission booked for what they did meanwhile, checked against the DB; a standalone affiliate (PSM0008/9) signing in -> portal with a working link; "Advertise with us too" -> owner approves -> role advertiser.
 
 ## F2 — CLOSED 2026-09-22: referral in -> commission arises -> matches the database
