@@ -102,3 +102,24 @@ PY
 ```
 
 An importer is still not a route — see `docs/ROUTE_MAP.md`.
+
+## Removed 2026-09-22 — the per-row "Mark paid" (commission-status-action)
+
+`components/commissions/commission-status-action.tsx`, `commission-row.tsx`
+and `commission-card.tsx` were imported by nothing: the row and the card
+were orphaned in the port to the PSM look, and the action was their only
+consumer. So `setCommissionStatus` — the only writer that could move a
+commission to `paid` — was unreachable from every screen, which is why no
+commission in this database could ever be settled.
+
+They are gone rather than re-mounted, for two reasons. F3 settles in bulk
+through a payout record (`affiliate_payouts`, plak 50-53): a per-row Mark
+Paid outside a payout would leave money marked paid with no transfer,
+no reference and no date behind it. And plak 50 revoked
+`insert, update, delete` on `referral_commissions` from `authenticated`,
+so that control could no longer work anyway — it would have failed with
+`42501 permission denied`.
+
+`actions/referral-actions.ts:setCommissionStatus` is still in the tree and
+now has no caller. Leave it there or delete it with its tests; do not
+mount a new button on it without a payout row behind the money.
