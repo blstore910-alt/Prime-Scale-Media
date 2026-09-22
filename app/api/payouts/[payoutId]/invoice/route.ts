@@ -252,6 +252,15 @@ export async function GET(
   .print{position:fixed;right:18px;top:18px;background:#3a6fff;color:#fff;border:0;border-radius:10px;
     padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 10px 24px -12px rgba(58,111,255,.8)}
   @media print{body{background:#fff}.sheet{box-shadow:none;margin:0;max-width:none;padding:0}.print{display:none}}
+  @media (max-width:640px){
+    .sheet{margin:12px;padding:22px 18px;border-radius:12px}
+    .top{flex-direction:column;gap:10px}
+    .top .small{text-align:left}
+    h1{font-size:1.2rem}
+    .parties{grid-template-columns:1fr;gap:16px}
+    .totals div{min-width:0;width:100%}
+    .print{position:static;display:block;width:calc(100% - 24px);margin:12px auto 0}
+  }
 </style></head>
 <body>
 <button class="print" onclick="window.print()">Save as PDF</button>
