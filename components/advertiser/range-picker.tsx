@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 
 import { Ic } from "@/components/advertiser/adv-icons";
@@ -22,12 +22,14 @@ export type AffRange = {
   to?: string | null;
 };
 
+// All time first: it is the default, and the chosen pill must be the one
+// in view on a phone, where the bar scrolls sideways.
 const LABELS: Record<Exclude<RangeKey, "custom">, string> = {
+  all: "All time",
   month: "This month",
   last: "Last month",
   "30d": "Last 30 days",
   year: "This year",
-  all: "All time",
 };
 
 /** The period as dates (inclusive), or nulls for "all time". */
@@ -86,9 +88,16 @@ export default function RangePicker({
 
   const draftOk = !!draftFrom && !!draftTo && draftFrom <= draftTo;
 
+  // Bring the chosen pill into view when it changes.
+  const barRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const on = barRef.current?.querySelector<HTMLElement>(".xr-opt.on");
+    on?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [value.key]);
+
   return (
     <div className="xrange">
-      <div className="xr-bar" role="tablist" aria-label="Period">
+      <div className="xr-bar" role="tablist" aria-label="Period" ref={barRef}>
         {(Object.keys(LABELS) as Exclude<RangeKey, "custom">[]).map((k) => (
           <button
             key={k}

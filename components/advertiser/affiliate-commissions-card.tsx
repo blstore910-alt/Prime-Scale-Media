@@ -314,7 +314,9 @@ export default function AffiliateCommissionsCard({
         <p className="xl-empty">
           {all.length
             ? "Nothing matches these filters."
-            : "No commission yet — it appears here the moment one is earned."}
+            : from || to
+              ? "No commission in this period."
+              : "No commission yet — it appears here the moment one is earned."}
         </p>
       )}
     </div>
