@@ -31,7 +31,8 @@
  * writes, including the driver's own error messages.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, chmodSync } from "node:fs";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
@@ -49,24 +50,24 @@ const SETUP = [
   "Not wired up yet. Two steps, once.",
   "",
   "1. Make a read-only login on the database",
-  "   Paste supabase/checks/PLAK-DIT-59-LEESACCOUNT.sql into the Supabase",
-  "   SQL editor, after putting your own password in the line it points at.",
-  "   It reports whether that login can see past row-level security; if it",
-  "   cannot, it says so and tells you to use the postgres string instead.",
+  "   Open supabase/checks/PLAK-DIT-59-LEESACCOUNT.sql, put a password of",
+  "   your own on the ONE line marked <== VERANDER DIT, and paste the whole",
+  "   file into the Supabase SQL editor. Row 5 of the table it prints says",
+  "   whether that login can see past row-level security; if it cannot, it",
+  "   says so, and you use the postgres string instead.",
   "",
-  "2. Put the connection string in .env.check",
-  "   Supabase -> Project Settings -> Database -> Connection string ->",
-  '   "Session pooler". Copy it, and swap in the user and password you just',
-  "   made. Through the pooler the user carries the project reference after",
-  "   a dot:",
+  "2. Hand the connection string over, once",
   "",
-  "   " +
-    VAR +
-    "=postgresql://psm_check.abcdefghijklm:YOURPASSWORD" +
-    "@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require",
+  "      npm run check -- --init",
   "",
-  "   There is an example in .env.check.example. Git ignores .env.check, and",
-  "   this script never prints what is in it.",
+  "   It asks for the string, does not show it while you paste, writes it",
+  "   to .env.check (which git ignores) and tries it straight away.",
+  "",
+  "   The string is in Supabase -> Project Settings -> Database ->",
+  '   Connection string -> "Session pooler". Swap in the user and the',
+  "   password from step 1 -- through the pooler the user carries the",
+  "   project reference after a dot: psm_check.abcdefghijklm, not plain",
+  "   psm_check.",
   "",
   'Then: npm run check -- "select now()"',
 ].join("\n");
@@ -241,9 +242,103 @@ function printTable(result, mask) {
   console.log(`${n} row${n === 1 ? "" : "s"}`);
 }
 
+// -- wiring it up, once ----------------------------------------------
+/** Ask for one line without ever showing it or storing it anywhere. */
+function askHidden(question) {
+  return new Promise((done) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    // readline echoes what is typed; this is the standard way to stop it
+    // for one question. The prompt itself still prints.
+    let shown = false;
+    rl._writeToOutput = (s) => {
+      if (!shown) {
+        process.stdout.write(s);
+        if (s.includes(question)) shown = true;
+      }
+    };
+    rl.question(question, (answer) => {
+      rl.close();
+      process.stdout.write("\n");
+      done(answer.trim());
+    });
+  });
+}
+
+function maskUrl(url) {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.username}:********@${u.host}${u.pathname}`;
+  } catch {
+    return "(unreadable string)";
+  }
+}
+
+async function init() {
+  if (!process.stdin.isTTY) {
+    console.error("Run this in your own terminal: npm run check -- --init");
+    return 2;
+  }
+  console.log("Wiring up a read-only connection to the database.\n");
+  if (existsSync(ENV_FILE)) {
+    const yes = await askHidden(".env.check already exists. Replace it? (y/N) ");
+    if (yes.toLowerCase() !== "y") {
+      console.log("Left alone.");
+      return 0;
+    }
+  }
+  console.log("Paste the connection string. It is NOT shown while you type,");
+  console.log("and it is never printed back.\n");
+  const url = await askHidden("connection string: ");
+
+  if (!url) {
+    console.error("Nothing pasted.");
+    return 2;
+  }
+  if (!/^postgres(ql)?:\/\//i.test(url)) {
+    console.error("That does not look like a connection string; it should start with postgresql://");
+    return 2;
+  }
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    console.error("That string cannot be read as a URL. If the password contains @ : / ? # or %,");
+    console.error("percent-encode it (@ = %40, : = %3A, / = %2F, ? = %3F, # = %23, % = %25).");
+    return 2;
+  }
+  if (/YOUR-?PASSWORD|\[.*\]/i.test(parsed.password ?? "")) {
+    console.error("The password is still the placeholder from the dashboard. Put the real one in.");
+    return 2;
+  }
+  if (!parsed.password) {
+    console.error("There is no password in that string.");
+    return 2;
+  }
+
+  writeFileSync(
+    ENV_FILE,
+    [
+      "# Read-only database access for `npm run check`. Git ignores this file.",
+      "# Written by: npm run check -- --init",
+      `${VAR}=${url}`,
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  try {
+    chmodSync(ENV_FILE, 0o600);
+  } catch {
+    /* Windows does not do POSIX modes; the file is still git-ignored */
+  }
+  console.log(`Saved to .env.check: ${maskUrl(url)}\n`);
+  console.log("Trying it...\n");
+
+  return await main(["select now() as now, current_user as who"]);
+}
+
 // -- main ------------------------------------------------------------
-async function main() {
-  const argv = process.argv.slice(2);
+async function main(override) {
+  const argv = override ?? process.argv.slice(2);
   if (argv.includes("--help") || argv.includes("-h")) {
     console.log(SETUP);
     return 0;
@@ -257,6 +352,7 @@ async function main() {
     );
     return 0;
   }
+  if (argv.includes("--init")) return await init();
 
   const asJson = argv.includes("--json");
   const rest = argv.filter((a) => a !== "--json");
