@@ -546,7 +546,11 @@ function AffiliateDetail({
                   <tr>
                     <td data-label="On">First top-up of each new customer</td>
                     <td className="r" data-label="Share" style={{ fontWeight: 700 }}>
-                      {firstTopup ? pct(firstTopup.pct) : "as above"}
+                      {firstTopup && firstTopup.pct === 0
+                        ? "No commission"
+                        : firstTopup
+                          ? pct(firstTopup.pct)
+                          : "as above"}
                     </td>
                     <td data-label="Comes from">
                       {firstTopup ? (

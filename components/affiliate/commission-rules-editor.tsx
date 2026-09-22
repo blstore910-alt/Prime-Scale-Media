@@ -256,7 +256,7 @@ export default function CommissionRulesEditor({
           f.source === "subscription"
             ? "Subscriptions"
             : f.source === "first_topup"
-              ? "First top-up of each new customer"
+              ? "No commission on first top-ups"
               : f.label,
         before,
       });
@@ -409,18 +409,47 @@ export default function CommissionRulesEditor({
           </div>
         </section>
 
+        {/* ── A TICK, NOT A PERCENTAGE ─────────────────────────────
+            The owner: "0% klinkt als een rare regel, maak er gewoon een
+            vinkje van". Stored as a first_topup rule of 0% (ticked) or a
+            cleared one (unticked) -- the engine does not change. */}
         <section className="space-y-1">
-          <h4 className="text-sm font-semibold">
-            First top-up of each new customer
-          </h4>
-          <p className="text-xs text-muted-foreground">
-            Its own share of our profit on a customer&apos;s first top-up,
-            instead of the type rate. 0% = that fee is all ours. Blank = the
-            first top-up earns like any other.
-          </p>
-          <div className="divide-y">
-            {fields.filter((f) => f.source === "first_topup").map(renderField)}
-          </div>
+          {(() => {
+            const key = "first_topup|*";
+            const ticked = (draft[key] ?? "").trim() === "0";
+            const fromDefault =
+              affiliate && initial[key] === null
+                ? resolveCommissionRule(rules, {
+                    affiliateAdvertiserId: NOBODY,
+                    source: "first_topup",
+                  })
+                : null;
+            return (
+              <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                  checked={ticked}
+                  disabled={!canEdit || isPending}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, [key]: e.target.checked ? "0" : "" }))
+                  }
+                />
+                <span>
+                  <span className="font-medium">
+                    No commission on a new customer&apos;s first top-up
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    That first fee is all ours; every top-up after it earns
+                    as set above.
+                    {fromDefault && fromDefault.pct === 0 && !ticked
+                      ? " The default already does this for everyone."
+                      : ""}
+                  </span>
+                </span>
+              </label>
+            );
+          })()}
         </section>
 
         <section className="space-y-1">
@@ -474,8 +503,11 @@ export default function CommissionRulesEditor({
             <ul className="mt-1 space-y-0.5">
               {changes.map((c) => (
                 <li key={`${c.source}|${c.adAccountType ?? "*"}`}>
-                  {c.label}: {fmtPct(c.before)} →{" "}
-                  {c.pct === null ? "blank (uses the next rule down)" : fmtPct(c.pct)}
+                  {c.source === "first_topup"
+                    ? `${c.label}: ${c.before === 0 ? "on" : "off"} → ${c.pct === 0 ? "on" : "off"}`
+                    : `${c.label}: ${fmtPct(c.before)} → ${
+                        c.pct === null ? "blank (uses the next rule down)" : fmtPct(c.pct)
+                      }`}
                 </li>
               ))}
               {onetimeChanged ? (
