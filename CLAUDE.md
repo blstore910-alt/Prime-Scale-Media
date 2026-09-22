@@ -224,9 +224,28 @@ explaining why. Trailer: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@
 
 ## Local build
 
-`.env.local` doesn't exist in the checkout — `npm run build` fails
-locally on prerender. `npx tsc --noEmit`, `npx next lint`, and
-`npm test` all work; use those to validate.
+`npx tsc --noEmit`, `npx next lint` and `npm test` are the fast gate,
+but they do NOT run `next build` — and some errors exist only there.
+2026-09-22: two deploys failed on Vercel with a green gate, because a
+`"use server"` file may export only async functions (`export function
+isPayoutsMissing` in `actions/payout-actions.ts`). Production kept
+serving the previous build, so nothing broke; the work simply was not
+live, and `/api/version` still showed the old sha.
+
+A real build DOES run locally with placeholder env vars — the old note
+here said it could not:
+
+```bash
+printf 'NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=dummy\nSUPABASE_SERVICE_ROLE_KEY=dummy\n' > .env.local && npx next build; rm -f .env.local
+```
+
+It takes ~3 minutes and reaches the route table. Run it before pushing a
+NEW server action, route or page — and delete `.env.local` afterwards.
+
+**After every push, check what is actually live:** `curl -s
+https://app.primescalemedia.com/api/version` returns the deployed sha.
+Polling GitHub's commit statuses unauthenticated runs into the 60/hour
+limit and then hangs on "none" for ever.
 
 ## Docs to know
 

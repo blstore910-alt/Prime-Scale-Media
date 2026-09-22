@@ -22,8 +22,15 @@ type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string
 
 const MISSING = /PGRST202|could not find the function|does not exist|schema cache/i;
 
-/** The database has not had plak 50 yet — the feature stays dark. */
-export function isPayoutsMissing(message: string): boolean {
+/**
+ * The database has not had plak 50 yet — the feature stays dark.
+ *
+ * NOT exported: a "use server" file may export only async functions, and
+ * Next refuses the BUILD over it. That is how two deploys failed while
+ * tsc, lint and the tests were all green — the gate does not run
+ * `next build`, so this class of error only shows up on Vercel.
+ */
+function isPayoutsMissing(message: string): boolean {
   return MISSING.test(message);
 }
 
