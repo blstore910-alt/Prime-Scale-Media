@@ -290,10 +290,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
         </span>
         <div>
           <h2>Getting paid</h2>
-          <p className="cap">
-            You choose what to be paid and in which currency. We transfer it and
-            confirm it here.
-          </p>
+          <p className="cap">Choose what to be paid, and in which currency.</p>
         </div>
       </div>
 
@@ -557,10 +554,12 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
                           .join(" + ")}
                       </b>
                     </div>
-                    <p className="note">
-                      Today&apos;s rate. We confirm the exact figure when we
-                      transfer it.
-                    </p>
+                    {legs.some((l) => l.rate) ? (
+                      <p className="note">
+                        Live rate: 1 USD = {Number(legs.find((l) => l.rate)?.rate ?? 0).toFixed(4)}{" "}
+                        EUR. We confirm the exact figure when we transfer it.
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 
