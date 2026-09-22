@@ -34,10 +34,10 @@ import type { PayoutDetails } from "@/actions/payout-actions";
 // afterwards.
 
 const FEE_PCT = 0.6;
-// The owner, 22-09: "minimaal 200 eur per payout". Checked here so the
-// button says so before it is pressed, and again in the RPC so it is a
-// rule and not a suggestion.
-const MIN_EUR = 200;
+// The owner, 22-09: "200 usd of 200 eur ondergrens" — per TRANSFER, so
+// per currency they receive. Checked here so the button says so before it
+// is pressed, and again in the RPC so it is a rule and not a suggestion.
+const MIN_PER_CURRENCY = 200;
 
 type Cur = "EUR" | "USD";
 
@@ -193,23 +193,29 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
     );
   }
 
-  // Worth of everything ready, on one scale, so a EUR 120 + USD 100
-  // balance is not refused for being "under 200" in each pot.
-  const readyEur = round2(owed.EUR + (rate ? owed.USD * rate : 0));
+  // Can they reach 200 in SOME currency? Either pot on its own, or both
+  // of them converted into one. That is exactly what the RPC checks.
+  const bestEur = round2(owed.EUR + (rate ? owed.USD * rate : 0));
+  const bestUsd = round2(owed.USD + (rate ? owed.EUR / rate : 0));
+  const reachable = Math.max(
+    owed.EUR >= MIN_PER_CURRENCY ? 1 : 0,
+    owed.USD >= MIN_PER_CURRENCY ? 1 : 0,
+    bestEur >= MIN_PER_CURRENCY || bestUsd >= MIN_PER_CURRENCY ? 1 : 0,
+  );
   const blockedByOpen = available.some((c) => inFlight[c] > 0);
-  const canRequest = available.length > 0 && !blockedByOpen && readyEur >= MIN_EUR;
-  const requestHint = !available.length
-    ? blockedByOpen || waitingGroups.length
-      ? "Your request is with us. The next one can go out once it is settled."
-      : null
-    : blockedByOpen
-      ? "Your request is with us. The next one can go out once it is settled."
-      : readyEur < MIN_EUR
-        ? `Payouts start at ${formatCurrency(MIN_EUR, "EUR")}. You have ${
-            rate || owed.USD <= 0
-              ? formatCurrency(readyEur, "EUR")
-              : `${formatCurrency(owed.EUR, "EUR")} + ${formatCurrency(owed.USD, "USD")}`
-          } — ${formatCurrency(Math.max(round2(MIN_EUR - readyEur), 0), "EUR")} to go.`
+  const canRequest = available.length > 0 && !blockedByOpen && reachable === 1;
+  const shortBy = Math.max(round2(MIN_PER_CURRENCY - bestEur), 0);
+  const requestHint = blockedByOpen || (!available.length && waitingGroups.length)
+    ? "Your request is with us. The next one can go out once it is settled."
+    : !available.length
+      ? null
+      : !canRequest
+        ? `A payout starts at ${formatCurrency(MIN_PER_CURRENCY, "EUR")} or ${formatCurrency(
+            MIN_PER_CURRENCY,
+            "USD",
+          )}. You have ${available
+            .map((c) => formatCurrency(owed[c], c))
+            .join(" + ")}${shortBy > 0 ? ` — ${formatCurrency(shortBy, "EUR")} to go` : ""}.`
         : null;
 
   const startRequest = () => {
