@@ -3550,14 +3550,21 @@ export default function AdvertiserApp() {
                       const u = Number(aff.totals.earnings_usd) || 0;
                       const usdLeads = u > 0 && e === 0;
                       const lead = usdLeads ? usd(u) : eur(e);
+                      // Euros and dollars are never added: a second
+                      // currency is its own line, lit the same way.
                       return (
-                        <h2 className="xh-amt">
-                          <span className="cur">{lead.charAt(0)}</span>
-                          {lead.slice(1)}
+                        <>
+                          <h2 className="xh-amt">
+                            <span className="cur">{lead.charAt(0)}</span>
+                            {lead.slice(1)}
+                          </h2>
                           {!usdLeads && u > 0 ? (
-                            <span className="usd"> · {usd(u)}</span>
+                            <p className="xh-amt xh-amt2">
+                              <span className="cur">$</span>
+                              {usd(u).slice(1)}
+                            </p>
                           ) : null}
-                        </h2>
+                        </>
                       );
                     })()}
                     <div className="xh-tiles">

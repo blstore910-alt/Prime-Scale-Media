@@ -1310,6 +1310,7 @@ export const ADV_CSS = `
   .xh-amt .cur{font-size:.52em;vertical-align:.14em;margin-right:.04em;
     -webkit-text-fill-color:#ffcf6a;color:#ffcf6a}
   .xh-amt .usd{font-size:.36em;letter-spacing:-.01em;opacity:.85}
+  .xh-amt2{margin-top:6px;font-size:clamp(1.5rem,7.5vw,2.6rem)}
   .xh-sub{margin:10px auto 0;max-width:32ch;font-size:.8rem;line-height:1.45;color:rgba(255,255,255,.7)}
   .xh-tiles{display:inline-flex;margin:18px auto 0;border-radius:16px;overflow:hidden;
     background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
