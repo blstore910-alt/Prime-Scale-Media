@@ -414,6 +414,10 @@ function AffiliateDetail({
     affiliateAdvertiserId: advertiserId,
     source: "onetime",
   });
+  const firstTopup = resolveCommissionRule(rules, {
+    affiliateAdvertiserId: advertiserId,
+    source: "first_topup",
+  });
 
   const history = rules
     .filter((r) => r.affiliate_advertiser_id === advertiserId)
@@ -539,6 +543,27 @@ function AffiliateDetail({
                       </td>
                     </tr>
                   ))}
+                  <tr>
+                    <td data-label="On">First top-up of each new customer</td>
+                    <td className="r" data-label="Share" style={{ fontWeight: 700 }}>
+                      {firstTopup ? pct(firstTopup.pct) : "as above"}
+                    </td>
+                    <td data-label="Comes from">
+                      {firstTopup ? (
+                        firstTopup.level === "own-all" ? (
+                          <span className="badge info">
+                            own rule{firstTopup.pct === 0 ? " — the fee is ours" : ""}
+                          </span>
+                        ) : (
+                          <span className="muted">
+                            default{firstTopup.pct === 0 ? " — the fee is ours" : ""}
+                          </span>
+                        )
+                      ) : (
+                        <span className="muted">no separate rule — the type rate applies</span>
+                      )}
+                    </td>
+                  </tr>
                   <tr>
                     <td data-label="On">One-time bonus · first top-up of each new customer</td>
                     <td className="r" data-label="Share" style={{ fontWeight: 700 }}>
@@ -715,7 +740,9 @@ function AffiliateDetail({
                           ? "Subscriptions"
                           : r.source === "onetime"
                             ? "One-time bonus"
-                            : `Top-ups · ${typeLabel ?? "all account types"}`}
+                            : r.source === "first_topup"
+                              ? "First top-up of each new customer"
+                              : `Top-ups · ${typeLabel ?? "all account types"}`}
                         {": "}
                         <b>
                           {r.source === "onetime"

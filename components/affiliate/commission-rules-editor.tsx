@@ -138,6 +138,14 @@ export default function CommissionRulesEditor({
       type: null,
       label: "Every plan",
     });
+    // The first top-up of each new customer can have its own share --
+    // 0% = that fee is all ours (the owner, for the NSA community).
+    list.push({
+      key: "first_topup|*",
+      source: "first_topup",
+      type: null,
+      label: "First top-up",
+    });
     return list;
   }, [types]);
 
@@ -244,7 +252,12 @@ export default function CommissionRulesEditor({
         source: f.source,
         adAccountType: f.type,
         pct: p.value,
-        label: f.source === "subscription" ? "Subscriptions" : f.label,
+        label:
+          f.source === "subscription"
+            ? "Subscriptions"
+            : f.source === "first_topup"
+              ? "First top-up of each new customer"
+              : f.label,
         before,
       });
     }
@@ -315,7 +328,9 @@ export default function CommissionRulesEditor({
           <div className="text-xs text-muted-foreground">
             {blank
               ? inh.pct === null
-                ? "Blank — earns nothing here"
+                ? f.source === "first_topup"
+                  ? "Blank — same as any other top-up"
+                  : "Blank — earns nothing here"
                 : `Blank — uses ${fmtPct(inh.pct)} from ${inh.from}`
               : !p?.ok
                 ? "Between 0 and 100"
@@ -391,6 +406,20 @@ export default function CommissionRulesEditor({
           </h4>
           <div className="divide-y">
             {fields.filter((f) => f.source === "subscription").map(renderField)}
+          </div>
+        </section>
+
+        <section className="space-y-1">
+          <h4 className="text-sm font-semibold">
+            First top-up of each new customer
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            Its own share of our profit on a customer&apos;s first top-up,
+            instead of the type rate. 0% = that fee is all ours. Blank = the
+            first top-up earns like any other.
+          </p>
+          <div className="divide-y">
+            {fields.filter((f) => f.source === "first_topup").map(renderField)}
           </div>
         </section>
 

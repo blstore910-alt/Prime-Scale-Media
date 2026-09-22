@@ -191,3 +191,25 @@ test("one-time: clearing the affiliate's own amount falls back to the default", 
   assert.equal(r?.amount, 25);
   assert.equal(r?.level, "default-all");
 });
+
+test("first top-up: its own rule wins on the first top-up only, 0% means all ours", async () => {
+  const { resolveTopupRule } = await import("../../lib/pure-commission-rules.ts");
+  const NSA = "adv-nsa";
+  const rules = [
+    rule({ pct: 20, ad_account_type: "eu-meta-psm" }),
+    rule({ pct: 0, source: "first_topup", affiliate_advertiser_id: NSA }),
+  ];
+  const at = "2026-09-22T12:00:00Z";
+  const first = resolveTopupRule(rules, { affiliateAdvertiserId: NSA, typeSlug: "eu-meta-psm", isFirstTopup: true, at });
+  assert.equal(first?.pct, 0);
+  assert.equal(first?.source, "first_topup");
+  assert.equal(commissionOn(0.53, first?.pct), 0);
+  const second = resolveTopupRule(rules, { affiliateAdvertiserId: NSA, typeSlug: "eu-meta-psm", isFirstTopup: false, at });
+  assert.equal(second?.pct, 20);
+  assert.equal(second?.source, "topup");
+  // Another affiliate has no first-top-up rule: their first top-up is a
+  // normal one.
+  const other = resolveTopupRule(rules, { affiliateAdvertiserId: "someone", typeSlug: "eu-meta-psm", isFirstTopup: true, at });
+  assert.equal(other?.pct, 20);
+  assert.equal(other?.source, "topup");
+});

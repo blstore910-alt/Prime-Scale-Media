@@ -19,6 +19,10 @@
 //   * Subscriptions: a percentage of every paid subscription invoice.
 //   * One-time: a fixed amount, once per referred customer, when their
 //     FIRST top-up is verified ("1x eenmalig", F4).
+//   * First top-up: its own share of profit on each referred customer's
+//     FIRST top-up, instead of the type rule. 0% = the first top-up's fee
+//     is entirely ours ("eerste topup fee is volledig voor ons, daarna
+//     alles qua commissies" -- the owner, for the NSA community).
 //   * A new rule applies to ALL of the affiliate's referred customers
 //     from now on, not only to customers who arrive later.
 //
@@ -29,7 +33,7 @@
 
 import { sameSlug } from "./pure-slug-key";
 
-export type CommissionSource = "topup" | "subscription" | "onetime";
+export type CommissionSource = "topup" | "subscription" | "onetime" | "first_topup";
 
 export type CommissionRule = {
   id: string;
@@ -140,6 +144,7 @@ export function resolveCommissionRule(
         : typeof q.at === "number"
           ? q.at
           : time(q.at);
+  // Only the plain top-up rule is per account type.
   const type = q.source === "topup" ? q.typeSlug ?? null : null;
 
   const levels: Array<{
@@ -227,6 +232,41 @@ export function onetimeAtLevel(
   const amount = r ? num(r.amount) : null;
   if (!r || amount === null) return null;
   return { amount, currency: String(r.currency ?? "EUR").toUpperCase() };
+}
+
+/**
+ * The rule for one top-up, knowing whether it is the customer's FIRST.
+ *
+ * On a first top-up a first-top-up rule, if one is set at any level,
+ * wins over the type rule -- including a 0%, which is the point: "the
+ * first top-up's fee is entirely ours". Without one, the type rule
+ * applies as on any other top-up. The SQL twin is
+ * public._topup_commission_calc (plak 41).
+ */
+export function resolveTopupRule(
+  rules: readonly CommissionRule[],
+  q: {
+    affiliateAdvertiserId: string;
+    typeSlug: string | null;
+    isFirstTopup: boolean;
+    at?: string | number | Date;
+  },
+): (ResolvedRule & { source: "topup" | "first_topup" }) | null {
+  if (q.isFirstTopup) {
+    const first = resolveCommissionRule(rules, {
+      affiliateAdvertiserId: q.affiliateAdvertiserId,
+      source: "first_topup",
+      at: q.at,
+    });
+    if (first) return { ...first, source: "first_topup" };
+  }
+  const plain = resolveCommissionRule(rules, {
+    affiliateAdvertiserId: q.affiliateAdvertiserId,
+    source: "topup",
+    typeSlug: q.typeSlug,
+    at: q.at,
+  });
+  return plain ? { ...plain, source: "topup" } : null;
 }
 
 /**

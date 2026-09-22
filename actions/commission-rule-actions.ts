@@ -91,7 +91,12 @@ export async function saveCommissionRules(input: {
   const rows: Array<Record<string, unknown>> = [];
   for (const c of changes) {
     const source = c?.source;
-    if (source !== "topup" && source !== "subscription" && source !== "onetime") {
+    if (
+      source !== "topup" &&
+      source !== "subscription" &&
+      source !== "onetime" &&
+      source !== "first_topup"
+    ) {
       return { ok: false, error: "Unknown commission source." };
     }
     if (source === "onetime") {
@@ -132,6 +137,8 @@ export async function saveCommissionRules(input: {
     }
     let type: string | null = null;
     if (c.adAccountType) {
+      // Only the plain top-up rule is per account type; subscriptions and
+      // the first-top-up rule apply to every type.
       if (source !== "topup") {
         return {
           ok: false,
