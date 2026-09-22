@@ -58,6 +58,7 @@ import useNotificationPreferences from "@/hooks/use-notification-preferences";
 import type { NotificationType } from "@/lib/types/notification";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
+import AffiliateCommissionsCard from "./affiliate-commissions-card";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
 import InvoiceDocButtons from "@/components/invoices/invoice-doc-buttons";
 import { formatPaymentReference } from "@/lib/payment-reference";
@@ -208,6 +209,9 @@ function subStatusLabel(status: string | null | undefined): string {
 export default function AdvertiserApp() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
+  // A referral picked on the Referrals screen: the commission list below
+  // narrows to them.
+  const [refFocus, setRefFocus] = useState<string | null>(null);
   const meRouter = useRouter();
   const [view, setView] = useState<View>("dash");
   // Where the bell was pressed from, so pressing it again returns there.
@@ -2140,7 +2144,10 @@ export default function AdvertiserApp() {
     // Every view is rendered at once and switched with CSS, so opening
     // Referrals re-read nothing: a commission booked since the app loaded
     // stayed invisible until a reload. Opening it asks again.
-    if (v === "referrals") void aff.refetch();
+    if (v === "referrals") {
+      void aff.refetch();
+      queryClient.invalidateQueries({ queryKey: ["affiliate-commissions"] });
+    }
     if (typeof window !== "undefined") {
       window.scrollTo(0, 0);
       // replaceState, not push: the in-app views are not browser history
@@ -3585,7 +3592,20 @@ export default function AdvertiserApp() {
                   <tbody>
                     {aff.rows.length ? (
                       aff.rows.map((r) => (
-                        <tr key={r.referred_advertiser_id}>
+                        <tr
+                          key={r.referred_advertiser_id}
+                          onClick={() => {
+                            // Every commission behind this row, one tap away.
+                            setRefFocus(r.referred_advertiser_code || null);
+                            if (typeof document !== "undefined") {
+                              document
+                                .getElementById("aff-commissions")
+                                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                          title="Show every commission from this referral"
+                        >
                           <td data-label="Advertiser" style={{ fontWeight: 600 }}>
                             {r.referred_advertiser_name || "Advertiser"}
                           </td>
@@ -3628,6 +3648,13 @@ export default function AdvertiserApp() {
                   </tbody>
                 </table>
               </div>
+            </div>
+            <div id="aff-commissions">
+              <AffiliateCommissionsCard
+                enabled={!!advertiserId}
+                focusCode={refFocus}
+                onClearFocus={() => setRefFocus(null)}
+              />
             </div>
               </>
             )}
