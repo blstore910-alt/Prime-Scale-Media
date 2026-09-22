@@ -3733,7 +3733,7 @@ export default function AdvertiserApp() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <WhatsappIcon /> Share on WhatsApp
+                      <WhatsappIcon /> WhatsApp
                     </a>
                   </div>
                 </>
