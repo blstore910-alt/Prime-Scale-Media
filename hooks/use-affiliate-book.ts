@@ -51,7 +51,7 @@ export type BookCommission = {
   fee_amount?: number | null;
   supplier_fee_pct?: number | null;
   supplier_cost?: number | null;
-  invoice_id?: string | null;
+  subscription_invoice_id?: string | null;
   note?: string | null;
 };
 
@@ -93,7 +93,11 @@ const LINK_COLUMNS =
 const COMMISSION_BASE =
   "id, created_at, referral_link_id, type, amount, currency, status, topup_id";
 const COMMISSION_CALC =
-  ", source, base_amount, pct, fee_amount, supplier_fee_pct, supplier_cost, invoice_id, note";
+  // subscription_invoice_id, NOT invoice_id: plak 35 reused the column
+  // that was already there. Asking for a column that does not exist sent
+  // this read to its fallback, and every row -- the new EUR 0.11 too --
+  // read "Old rule" on the owner's screen.
+  ", source, base_amount, pct, fee_amount, supplier_fee_pct, supplier_cost, subscription_invoice_id, note";
 
 // The select strings are built from parts, so supabase-js cannot infer the
 // row shape from them; this is the shape they ask for.

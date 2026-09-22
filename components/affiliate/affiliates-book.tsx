@@ -450,7 +450,7 @@ function AffiliateDetail({
       const t = topups.data?.get(c.topup_id);
       return t?.number ? `Top-up #${String(t.number).padStart(6, "0")}` : "Top-up";
     }
-    if (c.invoice_id || (c.source ?? "") === "subscription") return "Subscription invoice";
+    if (c.subscription_invoice_id || (c.source ?? "") === "subscription") return "Subscription invoice";
     return DASH;
   };
 
