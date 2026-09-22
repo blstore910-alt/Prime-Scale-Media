@@ -7,14 +7,20 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { InvitationStatus, UserInvitation } from "@/lib/types/invite";
-import { UserProfile } from "@/lib/types/user";
+import { InvitationStatus } from "@/lib/types/invite";
 import { getInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 
+// Only what this card needs. The page used to hand over the whole
+// invitation row -- token included -- and the whole sender profile.
 type InviteAcceptProps = {
-  invite: UserInvitation;
-  sender: UserProfile | null;
+  invite: {
+    id: string;
+    role: string;
+    tenant_id: string | null;
+    tenant: { id: string; name: string } | null;
+  };
+  sender: { full_name: string | null } | null;
 };
 
 export default function InviteAccept({ sender, invite }: InviteAcceptProps) {

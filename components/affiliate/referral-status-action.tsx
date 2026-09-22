@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import { formatCurrency } from "@/lib/utils";
 
 // Approve / reject control for a referral link. Only interactive
 // while the link is pending; once active or rejected it just shows
@@ -28,21 +29,43 @@ export default function ReferralStatusAction({
     "active" | "rejected" | null
   >(null);
 
+  const [reason, setReason] = useState("");
+
   const { mutate, isPending } = useMutation({
     mutationFn: async (next: "active" | "rejected") => {
       setPendingAction(next);
-      const res = await setReferralLinkStatus(referralLinkId, next);
+      const res = await setReferralLinkStatus(
+        referralLinkId,
+        next,
+        undefined,
+        next === "rejected" ? reason : null,
+      );
       if (!res.ok) throw new Error(res.error);
+      return res.data;
     },
-    onSuccess: (_data, next) => {
+    onSuccess: (decision, next) => {
       // The affiliate table keys on "referral-links-with-details"; other
       // views key on "affiliates". Invalidate both so the row refetches.
       queryClient.invalidateQueries({ queryKey: ["referral-links-with-details"] });
       queryClient.invalidateQueries({ queryKey: ["affiliates"] });
       queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
-      toast.success(
-        next === "active" ? "Affiliate approved" : "Affiliate rejected",
-      );
+      queryClient.invalidateQueries({ queryKey: ["commissions"], exact: false });
+      setReason("");
+      if (next === "rejected") {
+        toast.success("Referral refused");
+        return;
+      }
+      // Say what approving booked, so the number can be checked against
+      // the Commissions list of this affiliate.
+      const legs = [
+        decision?.bookedEur ? formatCurrency(decision.bookedEur, "EUR") : null,
+        decision?.bookedUsd ? formatCurrency(decision.bookedUsd, "USD") : null,
+      ].filter(Boolean);
+      toast.success("Referral approved", {
+        description: legs.length
+          ? `${legs.join(" + ")} booked for what this customer already did.`
+          : "Nothing to book yet — commission starts with their next top-up or paid invoice.",
+      });
     },
     onError: (err: Error) => {
       toast.error("Couldn't update affiliate", { description: err.message });
@@ -105,7 +128,7 @@ export default function ReferralStatusAction({
         disabled={isPending}
         onClick={() => setAsking("rejected")}
       >
-        {isPending && pendingAction === "rejected" ? "…" : "Reject"}
+        {isPending && pendingAction === "rejected" ? "…" : "Refuse"}
       </button>
       <button
         className="btn sm"
@@ -121,17 +144,18 @@ export default function ReferralStatusAction({
           if (!next && !isPending) setAsking(null);
         }}
         title={
-          asking === "rejected" ? "Reject this affiliate?" : "Approve this affiliate?"
+          asking === "rejected" ? "Refuse this referral?" : "Approve this referral?"
         }
         lead={
           asking === "rejected"
-            ? "They stop earning on every future top-up from this customer, and there is no way back to pending from inside the app."
-            : "Commission starts accruing on this customer's top-ups from now on."
+            ? "The affiliate earns nothing from this customer. The customer stays yours; you can set a referrer for them later."
+            : "The affiliate earns from this customer from now on — and everything the customer already did since they signed up is booked straight away, with the rules as they are now."
         }
-        cta={asking === "rejected" ? "Yes, reject" : "Yes, approve"}
+        cta={asking === "rejected" ? "Yes, refuse" : "Yes, approve"}
         tone={asking === "rejected" ? "danger" : undefined}
         busy={isPending}
         busyLabel="Saving…"
+        disabled={asking === "rejected" && !reason.trim()}
         onConfirm={() => {
           if (asking) mutate(asking);
           setAsking(null);
@@ -139,6 +163,25 @@ export default function ReferralStatusAction({
       >
         <ConfirmFact label="Affiliate" value={affiliateName ?? "—"} />
         <ConfirmFact label="Referred customer" value={referredName ?? "—"} />
+        {asking === "rejected" ? (
+          <label style={{ display: "grid", gap: 6, marginTop: 10, fontSize: ".86rem" }}>
+            <span style={{ fontWeight: 600 }}>Why (kept on record)</span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="e.g. they were already our customer"
+              style={{
+                border: "1px solid var(--line-2, #e5e7eb)",
+                borderRadius: 10,
+                padding: "8px 10px",
+                font: "inherit",
+                resize: "vertical",
+              }}
+            />
+          </label>
+        ) : null}
       </ConfirmModal>
     </div>
   );

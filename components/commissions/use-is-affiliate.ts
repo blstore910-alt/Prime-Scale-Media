@@ -2,6 +2,17 @@ import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
+// A column the live table has not got (before plak 42) answers 42703 or a
+// schema-cache miss. That is "not switched on", never "not an affiliate".
+const MISSING = /42703|does not exist|schema cache|PGRST20\d/i;
+
+type AffiliateState = {
+  isAffiliate: boolean;
+  /** Their application, when they have one open or were refused. */
+  application: "applied" | "refused" | null;
+  refusalReason: string | null;
+};
+
 export default function useIsAffiliate() {
   const { profile } = useAppContext();
 
@@ -9,69 +20,74 @@ export default function useIsAffiliate() {
     profile?.role === "advertiser" ? profile?.advertiser?.[0]?.id : undefined;
   const tenantId = profile?.tenant_id;
 
-  const {
-    data: isAffiliate,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data, isLoading, isError } = useQuery<AffiliateState>({
     queryKey: ["is-affiliate", advertiserId, tenantId],
     enabled: !!advertiserId,
+    // Approving happens in the owner's session. Asking again when the
+    // customer comes back to the tab is how they see it without a reload.
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const supabase = createClient();
-      // Query the base table (not the *_with_details view — that view
-      // predates the status column and doesn't expose it) so we can
-      // require an APPROVED link. A pending/rejected referral must NOT
-      // make an advertiser count as an affiliate. RLS lets an advertiser
-      // read their own referral_links rows.
-      // ── THE CHICKEN AND THE EGG ──────────────────────────────────
+
+      // ── THE OWNER'S ANSWER COMES FIRST (plak 42) ────────────────────
       //
-      // This counted ACTIVE referral links, which is "has already been
-      // credited with somebody", not "is an affiliate". So the owner
-      // could approve someone, set their commission, and that person
-      // opened Affiliate program to find the JOIN offer — not their
-      // link. The only way to create their first link is for an admin
-      // to name them the referrer of an ALREADY-EXISTING referred
-      // advertiser, so the person who was just approved could not
-      // recruit anybody themselves. Pressing Join again answered "You
-      // are already on the affiliate program", which closed the circle.
+      // An affiliate is somebody the owner approved. That is a status on
+      // their own advertisers row now -- applied, approved or refused --
+      // and it is also what remembers that they applied: the button used
+      // to keep that in component state, so a reload offered "Join" again
+      // to somebody whose application was on the owner's desk.
+      const { data: row, error: rowError } = await supabase
+        .from("advertisers")
+        .select("affiliate_status, affiliate_refusal_reason")
+        .eq("id", advertiserId)
+        .maybeSingle();
+      if (rowError && !MISSING.test(rowError.message)) throw rowError;
+      if (!rowError) {
+        const r = (row ?? {}) as {
+          affiliate_status?: string | null;
+          affiliate_refusal_reason?: string | null;
+        };
+        const status = String(r.affiliate_status ?? "").toLowerCase();
+        if (status === "approved") {
+          return { isAffiliate: true, application: null, refusalReason: null };
+        }
+        if (status === "applied") {
+          return { isAffiliate: false, application: "applied", refusalReason: null };
+        }
+        if (status === "refused") {
+          return {
+            isAffiliate: false,
+            application: "refused",
+            refusalReason: r.affiliate_refusal_reason ?? null,
+          };
+        }
+      }
+
+      // ── NO STATUS ON RECORD: THE SIGNALS FROM BEFORE ───────────────
       //
-      // An affiliate is somebody the owner has agreed terms with. That
-      // lives on their advertisers row, where the Commission dialog
-      // writes it and where assignAffiliateToAdvertiser copies it from.
-      // Either signal is enough: terms agreed, or a link already live.
+      // Before plak 42, or for somebody the owner set up by hand: a live
+      // referral link, or commission terms agreed on their row. Plak 42
+      // marks everybody who has either as approved, so after it this is
+      // the rare case, not the rule.
       let query = supabase
         .from("referral_links")
         .select("id", { count: "exact", head: true })
         .eq("affiliate_advertiser_id", advertiserId)
         .eq("status", "active");
-
       if (tenantId) {
         query = query.eq("tenant_id", tenantId);
       }
-
       const { count, error } = await query;
-      if (!error && (count ?? 0) > 0) return true;
+      if (!error && (count ?? 0) > 0) {
+        return { isAffiliate: true, application: null, refusalReason: null };
+      }
 
       // THROW, do not return false. Returning false resolves the query
       // SUCCESSFULLY with the answer "no", so react-query caches it, never
       // retries, and isError stays false — an entitlement denied on an
       // unknown, permanently, until the tab is closed.
-      //
-      // What that cost: an APPROVED affiliate whose referral_links read
-      // blipped (network, RLS, a tenant filter) was told "Your referral
-      // link isn't set up yet — ask an admin to enable the affiliate
-      // program for your account." They contact support about an account
-      // that works, and reloading the page does not clear it.
       if (error) throw error;
 
-      // No link yet. Have terms been agreed? commission_type is on the
-      // advertisers row; "none" and null both mean no arrangement, and
-      // an advertiser may read their own row.
-      //
-      // A column the live table has not got answers 42703, and that
-      // must NOT be reported as "you are not an affiliate" — it is an
-      // unknown. The link count above already answered false for the
-      // ordinary case, so this returns false only when the read worked.
       const { data: terms, error: termsError } = await supabase
         .from("advertisers")
         .select("commission_type, commission_pct, commission_onetime, commission_monthly")
@@ -79,30 +95,26 @@ export default function useIsAffiliate() {
         .maybeSingle();
 
       if (termsError) {
-        // A missing column is "no terms recorded", not a failure worth
-        // throwing over — the feature simply stays dark. Anything else
-        // is a read we could not make, and an entitlement must not be
-        // denied on a read we could not make.
-        if (!/42703|does not exist|schema cache|PGRST20\d/i.test(termsError.message)) {
-          throw termsError;
-        }
-        return false;
+        // A missing column is "no terms recorded"; anything else is a read
+        // we could not make, and an entitlement must not be denied on it.
+        if (!MISSING.test(termsError.message)) throw termsError;
+        return { isAffiliate: false, application: null, refusalReason: null };
       }
 
-      const row = (terms ?? {}) as {
+      const t = (terms ?? {}) as {
         commission_type?: string | null;
         commission_pct?: number | string | null;
         commission_onetime?: number | string | null;
         commission_monthly?: number | string | null;
       };
-      const type = String(row.commission_type ?? "").trim().toLowerCase();
+      const type = String(t.commission_type ?? "").trim().toLowerCase();
       const hasType = type !== "" && type !== "none";
       const hasFigure =
-        Number(row.commission_pct) > 0 ||
-        Number(row.commission_onetime) > 0 ||
-        Number(row.commission_monthly) > 0;
+        Number(t.commission_pct) > 0 ||
+        Number(t.commission_onetime) > 0 ||
+        Number(t.commission_monthly) > 0;
 
-      return hasType || hasFigure;
+      return { isAffiliate: hasType || hasFigure, application: null, refusalReason: null };
     },
     // A blip is a blip. Three tries before anybody is told they are not an
     // affiliate.
@@ -110,7 +122,19 @@ export default function useIsAffiliate() {
   });
 
   if (profile?.role === "admin")
-    return { isAffiliate: true, isLoading: false, isError: false };
+    return {
+      isAffiliate: true,
+      isLoading: false,
+      isError: false,
+      application: null,
+      refusalReason: null,
+    };
 
-  return { isAffiliate: !!isAffiliate, isLoading, isError };
+  return {
+    isAffiliate: !!data?.isAffiliate,
+    isLoading,
+    isError,
+    application: data?.application ?? null,
+    refusalReason: data?.refusalReason ?? null,
+  };
 }

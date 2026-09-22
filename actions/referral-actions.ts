@@ -66,6 +66,33 @@ async function resolveOwnerCtx() {
   return ctx;
 }
 
+// A function plak 42 has not added yet. Only then is the old direct
+// write used; any other error is the database refusing, and is said.
+function isMissingFunction(message: string | null | undefined): boolean {
+  return /PGRST202|could not find the function/i.test(String(message ?? ""));
+}
+
+export type ReferralDecision = {
+  /** What approving booked straight away, per currency (0 when nothing). */
+  bookedEur: number;
+  bookedUsd: number;
+  topups: number;
+  invoices: number;
+};
+
+function readDecision(data: unknown): ReferralDecision {
+  const r = (Array.isArray(data) ? data[0] : data) as
+    | { booked_eur?: unknown; booked_usd?: unknown; topups?: unknown; invoices?: unknown }
+    | null;
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v) * 100) / 100 : 0);
+  return {
+    bookedEur: n(r?.booked_eur),
+    bookedUsd: n(r?.booked_usd),
+    topups: Math.trunc(n(r?.topups)),
+    invoices: Math.trunc(n(r?.invoices)),
+  };
+}
+
 // ─────────────────────────────────────────
 // referral_commissions: admin toggle paid/unpaid
 // ─────────────────────────────────────────
@@ -177,7 +204,7 @@ type AssignAffiliateInput = {
 
 export async function assignAffiliateToAdvertiser(
   input: AssignAffiliateInput,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string | null; decision: ReferralDecision | null }>> {
   if (
     !input?.referred_advertiser_id ||
     !input?.affiliate_advertiser_id ||
@@ -238,15 +265,46 @@ export async function assignAffiliateToAdvertiser(
     return { ok: false, error: "Forbidden" };
   }
 
-  // Prevent duplicate links per referred advertiser.
-  const { data: existing } = await supabase
+  // Prevent duplicate links per referred advertiser. A read that failed
+  // is not "no referrer yet" -- it used to fall through to the insert.
+  const { data: existingRows, error: existingError } = await supabase
     .from("referral_links")
-    .select("id")
-    .eq("referred_advertiser_id", referred.id)
-    .limit(1)
-    .maybeSingle();
-  if (existing?.id) {
-    return { ok: false, error: "Advertiser already has an affiliate" };
+    .select("id, status")
+    .eq("referred_advertiser_id", referred.id);
+  if (existingError) {
+    return {
+      ok: false,
+      error: "We couldn't check whether this customer already has a referrer. Try again.",
+    };
+  }
+  if (
+    (existingRows ?? []).some(
+      (r) => String((r as { status?: string | null }).status ?? "active").toLowerCase() !== "rejected",
+    )
+  ) {
+    return { ok: false, error: "This customer already has a referrer." };
+  }
+
+  // ── ONE STEP, IN THE DATABASE (plak 42) ─────────────────────────────
+  // referral_link_assign links them and approves at once: choosing the
+  // referrer IS the approval. Commission is booked from the moment of
+  // linking, with the rules of now -- nothing from before the link.
+  // Session writes of a link's status are refused by the database from
+  // plak 42 on, so the direct insert below is only for before it.
+  {
+    const { data: assigned, error: assignError } = await supabase.rpc(
+      "referral_link_assign",
+      {
+        p_referred_advertiser_id: referred.id,
+        p_affiliate_advertiser_id: affiliate.id,
+      },
+    );
+    if (!assignError) {
+      return { ok: true, data: { id: null, decision: readDecision(assigned) } };
+    }
+    if (!isMissingFunction(assignError.message)) {
+      return { ok: false, error: assignError.message };
+    }
   }
 
   const { data: inserted, error: insertError } = await supabase
@@ -269,7 +327,7 @@ export async function assignAffiliateToAdvertiser(
     .select("id")
     .single();
   if (insertError) return { ok: false, error: insertError.message };
-  return { ok: true, data: { id: inserted.id } };
+  return { ok: true, data: { id: inserted.id, decision: null } };
 }
 
 // ─────────────────────────────────────────
@@ -281,7 +339,8 @@ export async function setReferralLinkStatus(
   referralLinkId: string,
   status: "active" | "rejected",
   ifUpdatedAt?: string,
-): Promise<ActionResult> {
+  reason?: string | null,
+): Promise<ActionResult<ReferralDecision | null>> {
   if (typeof referralLinkId !== "string" || referralLinkId.length === 0) {
     return { ok: false, error: "Invalid input" };
   }
@@ -313,6 +372,32 @@ export async function setReferralLinkStatus(
       ok: false,
       error: "This referral link was changed by someone else. Reload and retry.",
     };
+  }
+
+  // ── APPROVING COUNTS BACK (plak 42) ───────────────────────────────
+  // The owner: "if I approve, everything they earned counts, also from
+  // before I approved". referral_link_decide turns the link on and books
+  // every completed top-up and paid subscription invoice of this
+  // customer since they were linked, with the rules of NOW. Refusing
+  // needs a reason, so it is on record.
+  {
+    if (status === "rejected" && !String(reason ?? "").trim()) {
+      return { ok: false, error: "Say why, so it is on record." };
+    }
+    const { data: decided, error: decideError } = await supabase.rpc(
+      "referral_link_decide",
+      {
+        p_link_id: referralLinkId,
+        p_approve: status === "active",
+        p_reason: status === "rejected" ? String(reason ?? "").trim() : null,
+      },
+    );
+    if (!decideError) {
+      return { ok: true, data: status === "active" ? readDecision(decided) : null };
+    }
+    if (!isMissingFunction(decideError.message)) {
+      return { ok: false, error: decideError.message };
+    }
   }
 
   // Count the rows. This is the switch that makes someone an affiliate at

@@ -242,8 +242,9 @@ function AssignAffiliateDialog({
         affiliate_advertiser_id: values.affiliateAdvertiserId,
       });
       if (!result.ok) throw new Error(result.error);
+      return result.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["admin-user-referral-link", advertiser.id],
@@ -251,8 +252,20 @@ function AssignAffiliateDialog({
         queryClient.invalidateQueries({
           queryKey: ["referral-links-with-details"],
         }),
+        queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false }),
       ]);
-      toast.success("Affiliate assigned successfully.");
+      // Setting a referrer counts from now: nothing before the link is
+      // booked, so the toast says what WAS booked (normally nothing).
+      const d = data?.decision;
+      const legs = [
+        d?.bookedEur ? formatCurrency(d.bookedEur, "EUR") : null,
+        d?.bookedUsd ? formatCurrency(d.bookedUsd, "USD") : null,
+      ].filter(Boolean);
+      toast.success("Referrer set", {
+        description: legs.length
+          ? `${legs.join(" + ")} booked.`
+          : "They earn from this customer's next top-up or paid invoice.",
+      });
       form.reset();
       setOpen(false);
     },

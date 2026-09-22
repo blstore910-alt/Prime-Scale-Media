@@ -1230,6 +1230,15 @@ export default function AffiliateApp() {
                       <div>
                         <div className="who">
                           {r.referred_advertiser_name || "Advertiser"}
+                          {String(r.link_status ?? "active") === "pending" ? (
+                            <span
+                              className="badge pending"
+                              style={{ marginLeft: 8 }}
+                              title="We check every new referral. What they do in the meantime counts once it is approved."
+                            >
+                              Waiting for approval
+                            </span>
+                          ) : null}
                         </div>
                         <div className="code">
                           {r.referred_advertiser_code || "—"}
@@ -1531,6 +1540,11 @@ export default function AffiliateApp() {
                     <div>
                       <div style={{ fontWeight: 600 }}>
                         {r.referred_advertiser_name || "Advertiser"}
+                        {String(r.link_status ?? "active") === "pending" ? (
+                          <span className="badge pending" style={{ marginLeft: 8 }}>
+                            Waiting for approval
+                          </span>
+                        ) : null}
                       </div>
                       <div style={{ color: "var(--faint)", fontSize: ".83rem" }}>
                         {r.topup_count} top-ups ·{" "}

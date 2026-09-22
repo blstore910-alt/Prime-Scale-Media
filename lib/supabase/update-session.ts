@@ -11,7 +11,9 @@ export const trackReferralCookie = (
   const existingReferralCode = request.cookies.get("ref")?.value;
   const existingTenantSlug = request.cookies.get("tenant")?.value;
 
-  if (referralCode && !existingReferralCode) {
+  // The newest link wins: a cookie from an older affiliate's link must
+  // not outlive the one the person clicked today.
+  if (referralCode && referralCode !== existingReferralCode) {
     response.cookies.set("ref", referralCode, {
       httpOnly: true,
       secure: true,
@@ -20,7 +22,7 @@ export const trackReferralCookie = (
       maxAge: 60 * 60 * 24 * 30,
     });
   }
-  if (tenantSlug && !existingTenantSlug) {
+  if (tenantSlug && tenantSlug !== existingTenantSlug) {
     response.cookies.set("tenant", tenantSlug, {
       httpOnly: true,
       secure: true,

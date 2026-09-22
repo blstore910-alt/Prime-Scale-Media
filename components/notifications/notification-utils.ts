@@ -292,7 +292,7 @@ export function getNotificationCopy(notification: Notification): {
         title: "Affiliate application",
         description: `${who}${
           p.client_code ? ` (${p.client_code})` : ""
-        } wants to join the affiliate program. Set their commission and approve or refuse it.`,
+        } wants to join the affiliate program. Approve or refuse it on Affiliates.`,
       };
     }
     case "referral_commission_earned": {
@@ -315,6 +315,72 @@ export function getNotificationCopy(notification: Notification): {
       return {
         title: "You earned a commission",
         description: `${figure} from ${what}${p.client_code ? ` by ${p.client_code}` : ""}.`,
+      };
+    }
+    case "referral_pending": {
+      const p = parseNotificationPayload(notification) as {
+        name?: string | null;
+        client_code?: string | null;
+        affiliate_name?: string | null;
+        affiliate_code?: string | null;
+      };
+      const who = [p.name, p.client_code ? `(${p.client_code})` : null].filter(Boolean).join(" ") || "A new customer";
+      const via = p.affiliate_name || p.affiliate_code || "an affiliate";
+      return {
+        title: "New referral to approve",
+        description: `${who} signed up through ${via}'s link. Approve or refuse it on Affiliates — what they already did is booked when you approve.`,
+      };
+    }
+    case "referral_joined": {
+      const p = parseNotificationPayload(notification) as {
+        client_code?: string | null;
+        pending?: boolean | null;
+      };
+      return {
+        title: "Someone joined through your link",
+        description: `${p.client_code || "A new customer"} signed up through your link.${
+          p.pending ? " We check every new referral — what they do in the meantime counts once it is approved." : ""
+        }`,
+      };
+    }
+    case "referral_approved": {
+      const p = parseNotificationPayload(notification) as {
+        client_code?: string | null;
+        booked_eur?: number | string | null;
+        booked_usd?: number | string | null;
+      };
+      const eur = Number(p.booked_eur);
+      const usd = Number(p.booked_usd);
+      const legs = [
+        Number.isFinite(eur) && eur > 0 ? `€${eur.toFixed(2)}` : null,
+        Number.isFinite(usd) && usd > 0 ? `$${usd.toFixed(2)}` : null,
+      ].filter(Boolean);
+      return {
+        title: "Your referral is approved",
+        description: `${p.client_code || "Your referral"} counts for you now.${
+          legs.length ? ` ${legs.join(" + ")} was booked for what they already did.` : ""
+        }`,
+      };
+    }
+    case "referral_rejected": {
+      const p = parseNotificationPayload(notification) as { client_code?: string | null };
+      return {
+        title: "About a referral",
+        description: `We couldn't count ${p.client_code || "a recent sign-up"} as your referral. Message us if you think this is wrong.`,
+      };
+    }
+    case "affiliate_approved":
+      return {
+        title: "You're an affiliate",
+        description: "Your referral link is on. Share it from Referrals — everyone who signs up through it is yours.",
+      };
+    case "affiliate_refused": {
+      const p = parseNotificationPayload(notification) as { reason?: string | null };
+      return {
+        title: "About your affiliate application",
+        description: p.reason
+          ? `Not this time: ${p.reason} You can apply again whenever you like.`
+          : "We couldn't accept your application this time. You can apply again whenever you like.",
       };
     }
     case "account_deletion_requested": {

@@ -4,9 +4,11 @@ import { redirect } from "next/navigation";
 export default async function Page() {
   const supabase = await createClient();
 
+  // Named columns: `token` is no longer readable by a session (plak 42),
+  // and select() is select(*).
   const { data: invites, error: invitesError } = await supabase
     .from("invitations")
-    .select();
+    .select("id, status");
 
   const { data: profiles, error: profilesError } = await supabase
     .from("user_profiles")

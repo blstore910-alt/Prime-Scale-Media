@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { recalculateCommission } from "@/actions/commission-rule-actions";
+import { decideAffiliateApplication } from "@/actions/affiliate-application-actions";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { ArrowLeft, Search } from "lucide-react";
 import dayjs from "dayjs";
 
@@ -19,8 +21,10 @@ import {
 } from "@/lib/pure-commission-rules";
 import {
   useAffiliateBook,
+  type AffiliateMember,
   type AffiliateSummary,
   type BookCommission,
+  type BookLink,
   type MoneyByCurrency,
 } from "@/hooks/use-affiliate-book";
 import CommissionRulesEditor from "./commission-rules-editor";
@@ -111,7 +115,9 @@ export default function AffiliatesBook() {
       ) : (
         <Overview
           affiliates={data.affiliates}
+          members={data.members}
           rulesMissing={data.rulesMissing}
+          canDecide={isSuperAdmin}
           onDefaults={() => setEditor({ open: true, affiliate: null })}
         />
       )}
@@ -144,13 +150,205 @@ function RulesMissingNotice() {
   );
 }
 
+// ── WAITING FOR YOU ─────────────────────────────────────────────────────
+//
+// Two things only the owner can answer, in one list with one count: people
+// who asked to become an affiliate, and customers who signed up through
+// somebody's link and wait for approval. The count in the heading is the
+// number of rows under it.
+function WaitingForYou({
+  applications,
+  pending,
+  canDecide,
+}: {
+  applications: AffiliateMember[];
+  pending: { link: BookLink; affiliate: AffiliateSummary }[];
+  canDecide: boolean;
+}) {
+  const n = applications.length + pending.length;
+  if (n === 0) return null;
+  return (
+    <div className="card" style={{ padding: 0 }}>
+      <div style={{ padding: "16px 18px 6px" }}>
+        <h2>Waiting for you ({n})</h2>
+        <p className="cap" style={{ margin: "4px 0 8px" }}>
+          People who asked to become an affiliate, and customers who signed up
+          through somebody&apos;s link. Approving a customer also books what
+          they already did since signing up, with the rules as they are now.
+        </p>
+      </div>
+      <div className="tblwrap">
+        <table className="tbl wide">
+          <thead>
+            <tr>
+              <th>Who</th>
+              <th>What</th>
+              <th>Since</th>
+              <th className="r">Decide</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applications.map((m) => (
+              <tr key={`app-${m.advertiserId}`}>
+                <td data-label="Who">
+                  <div style={{ fontWeight: 700 }}>
+                    {m.name || DASH}{" "}
+                    <span className="mono muted" style={{ fontSize: ".78rem" }}>
+                      {m.code}
+                    </span>
+                  </div>
+                  <div className="muted" style={{ fontSize: ".8rem" }}>
+                    {m.email || DASH}
+                  </div>
+                </td>
+                <td data-label="What">Wants to become an affiliate</td>
+                <td data-label="Since">
+                  {m.appliedAt ? dayjs(m.appliedAt).format("D MMM YYYY") : DASH}
+                </td>
+                <td className="r" data-label="Decide">
+                  {canDecide ? (
+                    <ApplicationDecision member={m} />
+                  ) : (
+                    <span className="badge pend">Waiting for the owner</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {pending.map(({ link: l, affiliate: a }) => (
+              <tr key={`ref-${l.id}`}>
+                <td data-label="Who">
+                  <div style={{ fontWeight: 700 }}>
+                    {l.referred_advertiser_name || DASH}{" "}
+                    <span className="mono muted" style={{ fontSize: ".78rem" }}>
+                      {l.referred_advertiser_tenant_client_code}
+                    </span>
+                  </div>
+                  <div className="muted" style={{ fontSize: ".8rem" }}>
+                    {l.referred_advertiser_email || DASH}
+                  </div>
+                </td>
+                <td data-label="What">
+                  Signed up through {a.name || a.code || "an affiliate"}{" "}
+                  <span className="mono muted" style={{ fontSize: ".78rem" }}>
+                    {a.name ? a.code : ""}
+                  </span>
+                </td>
+                <td data-label="Since">{dayjs(l.created_at).format("D MMM YYYY")}</td>
+                <td className="r" data-label="Decide">
+                  {canDecide ? (
+                    <ReferralStatusAction
+                      referralLinkId={l.id}
+                      status={l.status}
+                      affiliateName={[a.name, a.code].filter(Boolean).join(" · ") || null}
+                      referredName={
+                        [l.referred_advertiser_name, l.referred_advertiser_tenant_client_code]
+                          .filter(Boolean)
+                          .join(" · ") || null
+                      }
+                    />
+                  ) : (
+                    <span className="badge pend">Waiting for the owner</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ApplicationDecision({ member }: { member: AffiliateMember }) {
+  const queryClient = useQueryClient();
+  const [asking, setAsking] = useState<"approve" | "refuse" | null>(null);
+  const [reason, setReason] = useState("");
+
+  const decide = useMutation({
+    mutationFn: async (approve: boolean) => {
+      const res = await decideAffiliateApplication(member.advertiserId, approve, approve ? null : reason);
+      if (!res.ok) throw new Error(res.error);
+      return approve;
+    },
+    onSuccess: (approve) => {
+      queryClient.invalidateQueries({ queryKey: ["affiliate-book"], exact: false });
+      setReason("");
+      toast.success(approve ? "Affiliate approved" : "Application refused", {
+        description: approve
+          ? "Their referral link is on, with the default rules. Open them to give them their own."
+          : "They see your reason on their Referrals page.",
+      });
+    },
+    onError: (e: Error) => toast.error("Couldn't save that", { description: e.message }),
+  });
+
+  const who = [member.name, member.code].filter(Boolean).join(" · ") || "—";
+
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <button className="btn ghost sm" disabled={decide.isPending} onClick={() => setAsking("refuse")}>
+        Refuse
+      </button>
+      <button className="btn sm" disabled={decide.isPending} onClick={() => setAsking("approve")}>
+        {decide.isPending ? "…" : "Approve"}
+      </button>
+      <ConfirmModal
+        open={!!asking}
+        onOpenChange={(next) => {
+          if (!next && !decide.isPending) setAsking(null);
+        }}
+        title={asking === "refuse" ? "Refuse this application?" : "Make them an affiliate?"}
+        lead={
+          asking === "refuse"
+            ? "They are told, with your reason, and can apply again later."
+            : "Their referral link switches on with the default rules. Everyone who signs up through it waits here for your approval."
+        }
+        cta={asking === "refuse" ? "Yes, refuse" : "Yes, approve"}
+        tone={asking === "refuse" ? "danger" : undefined}
+        busy={decide.isPending}
+        busyLabel="Saving…"
+        disabled={asking === "refuse" && !reason.trim()}
+        onConfirm={() => {
+          if (asking) decide.mutate(asking === "approve");
+          setAsking(null);
+        }}
+      >
+        <ConfirmFact label="Advertiser" value={who} />
+        {asking === "refuse" ? (
+          <label style={{ display: "grid", gap: 6, marginTop: 10, fontSize: ".86rem" }}>
+            <span style={{ fontWeight: 600 }}>Why (they see this)</span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="e.g. we are not taking new affiliates this month"
+              style={{
+                border: "1px solid var(--line-2, #e5e7eb)",
+                borderRadius: 10,
+                padding: "8px 10px",
+                font: "inherit",
+                resize: "vertical",
+              }}
+            />
+          </label>
+        ) : null}
+      </ConfirmModal>
+    </div>
+  );
+}
+
 function Overview({
   affiliates,
+  members,
   rulesMissing,
+  canDecide,
   onDefaults,
 }: {
   affiliates: AffiliateSummary[];
+  members: AffiliateMember[];
   rulesMissing: boolean;
+  canDecide: boolean;
   onDefaults: () => void;
 }) {
   const router = useRouter();
@@ -189,6 +387,25 @@ function Overview({
 
   const open = (id: string) => router.push(`${pathname}?a=${encodeURIComponent(id)}`);
 
+  const applications = useMemo(
+    () =>
+      members
+        .filter((m) => m.status === "applied")
+        .sort((x, y) => String(x.appliedAt ?? "").localeCompare(String(y.appliedAt ?? ""))),
+    [members],
+  );
+  const pending = useMemo(
+    () =>
+      affiliates
+        .flatMap((a) =>
+          a.links
+            .filter((l) => (l.status ?? "").toLowerCase() === "pending")
+            .map((l) => ({ link: l, affiliate: a })),
+        )
+        .sort((x, y) => x.link.created_at.localeCompare(y.link.created_at)),
+    [affiliates],
+  );
+
   return (
     <>
       <div className="phead phead-actions">
@@ -204,6 +421,8 @@ function Overview({
       </div>
 
       {rulesMissing ? <RulesMissingNotice /> : null}
+
+      <WaitingForYou applications={applications} pending={pending} canDecide={canDecide} />
 
       <div className="stats">
         <div className="stat">
@@ -296,7 +515,7 @@ function Overview({
           <p className="muted" style={{ margin: 0 }}>
             {q.trim()
               ? `No affiliate or customer matches “${q.trim()}”.`
-              : "No affiliates yet. An affiliate appears here once somebody is referred by them."}
+              : "No affiliates yet. Approve an application, or set a referrer on a customer, and they appear here."}
           </p>
         </div>
       )}

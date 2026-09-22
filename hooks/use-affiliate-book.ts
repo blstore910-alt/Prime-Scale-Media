@@ -64,8 +64,26 @@ export type AdAccountTypeRow = {
 
 export type MoneyByCurrency = Record<string, number>;
 
+/**
+ * Where somebody stands on the affiliate program (plak 42): applied and
+ * waiting, approved, or refused with a reason. Before plak 42 there is no
+ * such column and nobody has a status -- see `statusMissing`.
+ */
+export type AffiliateMember = {
+  advertiserId: string;
+  status: "applied" | "approved" | "refused";
+  appliedAt: string | null;
+  decidedAt: string | null;
+  refusalReason: string | null;
+  name: string | null;
+  email: string | null;
+  code: string | null;
+};
+
 export type AffiliateSummary = {
   affiliateId: string;
+  /** Their program status; null when there is none on record. */
+  status: AffiliateMember["status"] | null;
   name: string | null;
   email: string | null;
   code: string | null;
@@ -80,6 +98,10 @@ export type AffiliateSummary = {
 
 export type AffiliateBook = {
   affiliates: AffiliateSummary[];
+  /** Everybody with a program status, applicants and refused included. */
+  members: AffiliateMember[];
+  /** The status column is not there yet (plak 42) -- not "nobody applied". */
+  statusMissing: boolean;
   rules: CommissionRule[];
   /** The rules table is not there yet (plak 35) -- not "no rules". */
   rulesMissing: boolean;
@@ -117,6 +139,7 @@ export function groupAffiliateBook(
   links: BookLink[],
   commissions: BookCommission[],
   rules: CommissionRule[],
+  members: AffiliateMember[] = [],
 ): AffiliateSummary[] {
   const byAffiliate = new Map<string, AffiliateSummary>();
   const linkToAffiliate = new Map<string, string>();
@@ -126,6 +149,7 @@ export function groupAffiliateBook(
     if (!a) {
       a = {
         affiliateId: id,
+        status: null,
         name: seed?.name ?? null,
         email: seed?.email ?? null,
         code: seed?.code ?? null,
@@ -169,6 +193,17 @@ export function groupAffiliateBook(
     add(a.earned, c.currency, c.amount);
     if (st === "paid") add(a.paid, c.currency, c.amount);
     else add(a.owed, c.currency, c.amount);
+  }
+
+  // An APPROVED affiliate belongs in the book before their first customer
+  // arrives -- that is when the owner sets their rules. Applicants and
+  // refused people are listed where they are decided, not here.
+  for (const m of members) {
+    if (m.status === "approved") {
+      ensure(m.advertiserId, { name: m.name, email: m.email, code: m.code });
+    }
+    const a = byAffiliate.get(m.advertiserId);
+    if (a) a.status = m.status;
   }
 
   for (const r of rules) {
@@ -288,6 +323,54 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         }
       }
 
+      // Who applied, who is approved, who was refused (plak 42). A missing
+      // column is "not switched on", never "nobody applied".
+      let statusMissing = false;
+      let members: AffiliateMember[] = [];
+      {
+        const { data, error } = await supabase
+          .from("advertisers")
+          .select(
+            "id, tenant_client_code, affiliate_status, affiliate_applied_at, affiliate_decided_at, affiliate_refusal_reason, profile:user_profiles(full_name, email)",
+          )
+          .eq("tenant_id", tenantId!)
+          .not("affiliate_status", "is", null);
+        if (error) {
+          if (isMissingColumn(error.message)) statusMissing = true;
+          else throw new Error(error.message);
+        } else {
+          type MemberRow = {
+            id: string;
+            tenant_client_code: string | null;
+            affiliate_status: string | null;
+            affiliate_applied_at: string | null;
+            affiliate_decided_at: string | null;
+            affiliate_refusal_reason: string | null;
+            profile:
+              | { full_name: string | null; email: string | null }
+              | { full_name: string | null; email: string | null }[]
+              | null;
+          };
+          members = ((data ?? []) as unknown as MemberRow[])
+            .filter((r) =>
+              ["applied", "approved", "refused"].includes(String(r.affiliate_status ?? "")),
+            )
+            .map((r) => {
+              const prof = Array.isArray(r.profile) ? r.profile[0] : r.profile;
+              return {
+                advertiserId: r.id,
+                status: r.affiliate_status as AffiliateMember["status"],
+                appliedAt: r.affiliate_applied_at,
+                decidedAt: r.affiliate_decided_at,
+                refusalReason: r.affiliate_refusal_reason,
+                name: prof?.full_name ?? null,
+                email: prof?.email ?? null,
+                code: r.tenant_client_code,
+              };
+            });
+        }
+      }
+
       const { data: typesData, error: typesErr } = await supabase
         .from("ad_account_types")
         .select("slug, label, sort_order, is_active")
@@ -296,7 +379,9 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
       if (typesErr) throw new Error(typesErr.message);
 
       return {
-        affiliates: groupAffiliateBook(links, commissionsRes.rows, rules),
+        affiliates: groupAffiliateBook(links, commissionsRes.rows, rules, members),
+        members,
+        statusMissing,
         rules,
         rulesMissing,
         calcMissing,

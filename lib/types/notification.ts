@@ -26,7 +26,14 @@ export type NotificationType =
   | "referral_commission_failed"
   // Plak 36: deleting an account is a request the owner decides.
   | "account_deletion_requested"
-  | "account_deletion_declined";
+  | "account_deletion_declined"
+  // Plak 42: a referral waits for the owner; approving counts back.
+  | "referral_pending"
+  | "referral_joined"
+  | "referral_approved"
+  | "referral_rejected"
+  | "affiliate_approved"
+  | "affiliate_refused";
 
 export type NotificationAuthor = {
   id: string;
@@ -108,6 +115,27 @@ export interface NotificationPayloadByType {
     client_code?: string | null;
   };
   account_deletion_declined: { reason?: string | null };
+  /** To the owner: somebody signed up through an affiliate's link. */
+  referral_pending: {
+    link_id?: string | null;
+    affiliate_advertiser_id?: string | null;
+    affiliate_code?: string | null;
+    affiliate_name?: string | null;
+    client_code?: string | null;
+    name?: string | null;
+  };
+  /** To the affiliate: a new customer through their link. */
+  referral_joined: { client_code?: string | null; pending?: boolean | null };
+  /** To the affiliate: approved, with what that booked at once. */
+  referral_approved: {
+    client_code?: string | null;
+    name?: string | null;
+    booked_eur?: number | string | null;
+    booked_usd?: number | string | null;
+  };
+  referral_rejected: { client_code?: string | null };
+  affiliate_approved: Record<string, never>;
+  affiliate_refused: { reason?: string | null };
   /** Plak 35: booked on profit (top-up), a paid plan invoice, or a new
    *  customer's first top-up (one-time). Written by the accrual triggers. */
   referral_commission_earned: {

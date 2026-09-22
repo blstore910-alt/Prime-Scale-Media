@@ -306,8 +306,14 @@ export default function AdvertiserApp() {
     isAffiliate,
     isError: affiliateError,
     isLoading: affiliateLoading,
+    application: affiliateApplication,
+    refusalReason: affiliateRefusal,
   } = useIsAffiliate();
   const affiliateUnknown = affiliateError || affiliateLoading;
+  // Applied is what the DATABASE says (plak 42), or this press -- the
+  // local flag alone was forgotten on reload and offered "Join" again.
+  const applicationOpen = affiliateApplied || affiliateApplication === "applied";
+  const applicationRefused = !applicationOpen && affiliateApplication === "refused";
 
   const {
     data: wallet,
@@ -3403,7 +3409,7 @@ export default function AdvertiserApp() {
                 </ul>
                 <button
                   className="btn grad"
-                  disabled={applying || affiliateApplied}
+                  disabled={applying || applicationOpen}
                   onClick={async () => {
                     setApplying(true);
                     try {
@@ -3416,6 +3422,7 @@ export default function AdvertiserApp() {
                         return;
                       }
                       setAffiliateApplied(true);
+                      queryClient.invalidateQueries({ queryKey: ["is-affiliate"] });
                       toast.success(
                         res.data.alreadySent
                           ? "You've already applied — we're still looking at it."
@@ -3433,9 +3440,11 @@ export default function AdvertiserApp() {
                   <Ic name="i-gift" />{" "}
                   {applying
                     ? "Sending…"
-                    : affiliateApplied
+                    : applicationOpen
                       ? "Application sent"
-                      : "Join the affiliate program"}
+                      : applicationRefused
+                        ? "Apply again"
+                        : "Join the affiliate program"}
                 </button>
                 {/* The bullet three lines up already says "Your rate
                     agreed with us before you start". Saying it again
@@ -3444,9 +3453,11 @@ export default function AdvertiserApp() {
                     answers the other question — what happens next; after
                     applying it carries the state. */}
                 <span className="jh-note">
-                  {affiliateApplied
+                  {applicationOpen
                     ? "We'll set your rate and let you know."
-                    : "Takes a minute. Nothing changes on your account."}
+                    : applicationRefused
+                      ? `Not this time${affiliateRefusal ? `: ${affiliateRefusal}` : "."} You can apply again whenever you like.`
+                      : "Takes a minute. Nothing changes on your account."}
                 </span>
               </div>
             ) : (
@@ -3608,6 +3619,15 @@ export default function AdvertiserApp() {
                         >
                           <td data-label="Advertiser" style={{ fontWeight: 600 }}>
                             {r.referred_advertiser_name || "Advertiser"}
+                            {String(r.link_status ?? "active") === "pending" ? (
+                              <span
+                                className="badge pend"
+                                style={{ marginLeft: 8 }}
+                                title="We check every new referral. What they do in the meantime counts once it is approved."
+                              >
+                                Waiting for approval
+                              </span>
+                            ) : null}
                           </td>
                           <td data-label="Code" className="mono">
                             {r.referred_advertiser_code || "—"}
@@ -5732,7 +5752,7 @@ export default function AdvertiserApp() {
                   where they are standing, it is. */}
               <button
                 className="btn ghost sm"
-                disabled={applying || affiliateApplied}
+                disabled={applying || applicationOpen}
                 onClick={async () => {
                   setApplying(true);
                   try {
@@ -5745,6 +5765,7 @@ export default function AdvertiserApp() {
                       return;
                     }
                     setAffiliateApplied(true);
+                    queryClient.invalidateQueries({ queryKey: ["is-affiliate"] });
                     toast.success(
                       res.data.alreadySent
                         ? "You've already applied — we're still looking at it."
@@ -5761,15 +5782,22 @@ export default function AdvertiserApp() {
               >
                 {applying
                   ? "Sending…"
-                  : affiliateApplied
+                  : applicationOpen
                     ? "Application sent"
-                    : "Join the affiliate program"}
+                    : applicationRefused
+                      ? "Apply again"
+                      : "Join the affiliate program"}
               </button>
-              {affiliateApplied && (
+              {applicationOpen ? (
                 <p className="cap" style={{ margin: "8px 0 0" }}>
                   We&apos;ll set your commission and let you know.
                 </p>
-              )}
+              ) : applicationRefused ? (
+                <p className="cap" style={{ margin: "8px 0 0" }}>
+                  Not this time{affiliateRefusal ? `: ${affiliateRefusal}` : "."} You
+                  can apply again whenever you like.
+                </p>
+              ) : null}
             </div>
             {/* -- GDPR, WHERE THE CUSTOMER CAN ACTUALLY REACH IT ------
                 These two controls - download my data (art. 20) and

@@ -19,8 +19,11 @@ export default async function Page({ searchParams }: PageProps) {
   // response and isn't yet readable on this same request — which used to
   // bounce a brand-new prospect to /auth/login and drop the referral. Fall
   // back to the query params so the first click works.
-  const referralCode = cookieStore.get("ref")?.value ?? ref;
-  const tenantSlug = cookieStore.get("tenant")?.value ?? t;
+  // The link in the address bar wins over a cookie from an OLDER link:
+  // somebody who clicked affiliate A's link last month and B's today
+  // signed up as A's -- the cookie was never replaced.
+  const referralCode = ref?.toUpperCase() ?? cookieStore.get("ref")?.value;
+  const tenantSlug = t ?? cookieStore.get("tenant")?.value;
 
   if (!token) {
     if (!referralCode || !tenantSlug) {

@@ -55,6 +55,42 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    type: "referral_pending",
+    label: "New referral to approve",
+    description: "When somebody signs up through an affiliate's link and waits for your approval.",
+    audience: "admin",
+  },
+  {
+    type: "referral_joined",
+    label: "Someone joined through your link",
+    description: "When a new customer signs up through your referral link.",
+    audience: "customer",
+  },
+  {
+    type: "referral_approved",
+    label: "Referral approved",
+    description: "When we approve somebody you referred, with what was booked for you.",
+    audience: "customer",
+  },
+  {
+    type: "referral_rejected",
+    label: "Referral not counted",
+    description: "When we cannot count somebody as your referral.",
+    audience: "customer",
+  },
+  {
+    type: "affiliate_approved",
+    label: "Affiliate application approved",
+    description: "When your referral link is switched on.",
+    audience: "customer",
+  },
+  {
+    type: "affiliate_refused",
+    label: "Affiliate application answered",
+    description: "When we could not accept your application, with the reason.",
+    audience: "customer",
+  },
+  {
     type: "topup_completed",
     label: "Top-up completed",
     description: "When one of your top-ups is confirmed and credited.",

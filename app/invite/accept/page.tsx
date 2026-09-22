@@ -1,7 +1,7 @@
 import InviteAccept from "@/components/invites/invite-accept";
 import InviteExpired from "@/components/invites/invite-expired";
 import SignOutAndReturn from "@/components/invites/sign-out-and-return";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -47,9 +47,23 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     redirect(`/auth/sign-up?token=${token}`);
   }
 
-  const { data, error } = await supabase
+  // ── THE TOKEN IS NOT A SESSION COLUMN ANY MORE (plak 42) ───────────
+  //
+  // Every employee admin could read the token of every open invitation,
+  // and token + the invitee's email is enough for
+  // /api/accept-invite/signup to create the account with a password of
+  // the reader's choosing. `select (token)` is now revoked from
+  // sessions, and a WHERE on a column needs that same right -- so this
+  // read goes through the service client. It is no wider than before:
+  // whoever holds the link already holds the token, and the email is
+  // still checked against the signed-in account below before anything
+  // renders. Named columns, so the token itself never reaches the page.
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("invitations")
-    .select("*, tenant:tenants(*), sender_profile:user_profiles(*)")
+    .select(
+      "id, email, role, status, tenant_id, expires_at, affiliate_id, tenant:tenants(id, name), sender_profile:user_profiles(full_name)",
+    )
     .eq("token", token)
     .maybeSingle();
 
@@ -151,5 +165,21 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     );
   }
 
-  return <InviteAccept sender={data.sender_profile} invite={data} />;
+  const sender = (
+    Array.isArray(data.sender_profile) ? data.sender_profile[0] : data.sender_profile
+  ) as { full_name?: string | null } | null;
+  const tenant = (Array.isArray(data.tenant) ? data.tenant[0] : data.tenant) as
+    | { id: string; name: string }
+    | null;
+  return (
+    <InviteAccept
+      sender={sender ? { full_name: sender.full_name ?? null } : null}
+      invite={{
+        id: data.id,
+        role: data.role,
+        tenant_id: data.tenant_id,
+        tenant,
+      }}
+    />
+  );
 }

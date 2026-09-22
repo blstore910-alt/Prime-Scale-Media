@@ -122,3 +122,47 @@ export async function applyForAffiliateProgram(): Promise<
 
   return { ok: true, data: { alreadySent: result.already_sent === true } };
 }
+
+/**
+ * The owner's answer to an application (plak 42).
+ *
+ * The application used to be a notification and nothing else: the owner
+ * had no button to answer it, and the applicant's own screen forgot they
+ * had applied the moment they reloaded. It is a status on their
+ * advertiser row now, and affiliate_application_decide is the only way
+ * it moves -- owner-only in the database, not just here. Approving turns
+ * on their link with the default rules; refusing needs a reason, which
+ * they are told.
+ */
+export async function decideAffiliateApplication(
+  advertiserId: string,
+  approve: boolean,
+  reason?: string | null,
+): Promise<ActionResult> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false, error: mm.error };
+  if (typeof advertiserId !== "string" || advertiserId.length === 0) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const why = String(reason ?? "").trim();
+  if (!approve && !why) {
+    return { ok: false, error: "Say why, so they know." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("affiliate_application_decide", {
+    p_advertiser_id: advertiserId,
+    p_approve: approve,
+    p_reason: approve ? null : why,
+  });
+  if (error) {
+    if (/PGRST202|could not find the function/i.test(String(error.message ?? ""))) {
+      return {
+        ok: false,
+        error: "Answering applications is not switched on in the database yet (plak 42).",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data: null };
+}

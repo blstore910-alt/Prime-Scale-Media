@@ -62,11 +62,20 @@ export function SignUpForm({
 
   const onSubmit = async (data: SignUpFormData) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      // ── BACK THROUGH /auth/confirm, WITH THE LINK'S OWN t AND ref ──
+      // This was the bare origin. With Supabase's default template the
+      // confirmation lands on the redirect with ?code=..., and only
+      // /auth/confirm turns that into a profile, a wallet and the
+      // referral -- the home page does none of it.
+      const confirmUrl = new URL("/auth/confirm", window.location.origin);
+      if (tenantSlug) confirmUrl.searchParams.set("t", tenantSlug);
+      if (referralCode) confirmUrl.searchParams.set("ref", referralCode);
+
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: confirmUrl.toString(),
           data: {
             display_name: `${data.firstName} ${data.lastName}`,
             first_name: data.firstName,
@@ -77,6 +86,17 @@ export function SignUpForm({
         },
       });
       if (error) throw error;
+      // ── AN ADDRESS THAT ALREADY HAS AN ACCOUNT ──────────────────────
+      // Supabase answers a sign-up for a known address with a user that
+      // has NO identities and no error (so nobody can probe which
+      // addresses exist) -- and sends no email. The form then said
+      // "check your inbox" for a mail that never comes.
+      if (signUpData?.user && (signUpData.user.identities ?? []).length === 0) {
+        toast.error("This email already has an account", {
+          description: "Sign in instead — or use “Forgot password” if you can't.",
+        });
+        return;
+      }
       router.push("/auth/sign-up-success");
     } catch (error) {
       console.error(safeErrorMessage(error));

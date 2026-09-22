@@ -31,6 +31,12 @@ export type AffiliateReferralStat = {
    */
   unpaid_usd?: number | null;
   unpaid_eur?: number | null;
+  /**
+   * "pending" while the owner has not approved this customer yet (plak
+   * 42); "active" after. Absent before plak 42, when only active links
+   * were returned at all.
+   */
+  link_status?: string | null;
 };
 
 export type UseAffiliateStatsParams = {

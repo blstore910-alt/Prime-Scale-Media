@@ -244,8 +244,50 @@ function buildPushFromRecord(record: NotificationRecord) {
     case "affiliate_application":
       return {
         title: "Someone wants to join the affiliate programme",
-        body: "Set their commission and approve or refuse it.",
-        url: "/users?role=affiliate",
+        body: "Approve or refuse it on Affiliates.",
+        url: "/affiliates",
+      };
+
+    case "referral_pending":
+      return {
+        title: "A new referral to approve",
+        body: "Somebody signed up through an affiliate's link.",
+        url: "/affiliates",
+      };
+
+    case "referral_joined":
+      return {
+        title: "Someone joined through your link",
+        body: "A new customer signed up through your referral link.",
+        url: "/dashboard?view=referrals",
+      };
+
+    case "referral_approved":
+      return {
+        title: "Your referral is approved",
+        body: "They count for you now — open Referrals to see what was booked.",
+        url: "/dashboard?view=referrals",
+      };
+
+    case "referral_rejected":
+      return {
+        title: "About a referral",
+        body: "Open the app to read more.",
+        url: "/dashboard?view=notif",
+      };
+
+    case "affiliate_approved":
+      return {
+        title: "You're an affiliate",
+        body: "Your referral link is on. Share it from Referrals.",
+        url: "/dashboard?view=referrals",
+      };
+
+    case "affiliate_refused":
+      return {
+        title: "About your affiliate application",
+        body: "Open the app to read our answer.",
+        url: "/dashboard?view=notif",
       };
 
     case "account_deletion_requested":
