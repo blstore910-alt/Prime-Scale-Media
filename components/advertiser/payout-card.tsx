@@ -382,26 +382,40 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
           </button>
         </>
       ) : waitingGroups.length ? (
-        <p className="cap">
-          Everything you are owed is in the request above. Anything earned from
-          now on can be asked for once this one is settled.
+        <p className="xp-note">
+          Everything you are owed is in that request. What you earn from now on
+          can be asked for once it is settled.
         </p>
       ) : (
-        <p className="cap">
-          Nothing to pay out yet. Commission appears here as your referrals fund
-          their accounts.
-        </p>
+        <div className="xp-empty">
+          <span className="ic">
+            <Ic name="i-check" />
+          </span>
+          <div>
+            <b>Nothing waiting to be paid</b>
+            <span>
+              New commission lands here as your referrals fund their accounts.
+            </span>
+          </div>
+        </div>
       )}
 
       {/* ── WHAT HAPPENED BEFORE ───────────────────────────────────── */}
       {history.length ? (
         <div className="xp-hist">
+          <div className="xp-hh">Earlier payouts</div>
           {history.map((p) => (
             <button className="xp-h" key={p.id} onClick={() => setView([p])}>
-              <span className="d">
-                {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
+              <span className={`hi ${p.status}`}>
+                <Ic name={p.status === "paid" ? "i-check" : "i-x"} />
               </span>
-              <span className="m">{receives(p)}</span>
+              <span className="mid">
+                <span className="m">{receives(p)}</span>
+                <span className="d">
+                  {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
+                  {p.reference || p.reason ? ` · ${p.reference || p.reason}` : ""}
+                </span>
+              </span>
               <span
                 className={`badge xs ${
                   p.status === "paid" ? "ok" : p.status === "rejected" ? "due" : "muted"
@@ -409,7 +423,6 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
               >
                 {STATUS_LABEL[p.status] ?? p.status}
               </span>
-              <span className="r">{p.reference || p.reason || "View"}</span>
             </button>
           ))}
         </div>

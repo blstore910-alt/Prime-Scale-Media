@@ -1668,11 +1668,32 @@ export const ADV_CSS = `
   .xp-vfoot{flex-wrap:wrap}
   .xp-vfoot .btn{flex:1 1 auto;justify-content:center}
   .xp-vfoot .btn.wa svg{color:#1faa53}
-  .xp-hist{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
-  .xp-h{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--txt-2);min-width:0}
-  .xp-h .d{color:var(--faint);flex:0 0 auto}
-  .xp-h .m{font-weight:800;color:var(--ink);flex:0 0 auto}
-  .xp-h .r{margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.74rem;color:var(--faint)}
+  .xp-note{margin:0;font-size:.82rem;color:var(--txt-2);padding:10px 12px;border-radius:13px;
+    background:var(--panel-2);border:1px solid var(--line)}
+  .xp-empty{display:flex;align-items:flex-start;gap:11px;padding:14px;border-radius:15px;
+    background:linear-gradient(180deg,var(--win-soft),var(--panel) 90%);border:1px solid rgba(16,185,129,.28)}
+  .xp-empty .ic{width:30px;height:30px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
+    background:var(--win);color:#fff}
+  .xp-empty .ic svg{width:16px;height:16px}
+  .xp-empty div{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .xp-empty b{font-size:.9rem}
+  .xp-empty span{font-size:.8rem;color:var(--txt-2)}
+  .xp-hist{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--line);padding-top:12px}
+  .xp-hh{font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+    padding:0 2px 4px}
+  .xp-h{display:flex;align-items:center;gap:10px;width:100%;min-width:0;padding:9px 10px;border-radius:13px;
+    border:1px solid transparent;background:none;font:inherit;text-align:left;cursor:pointer;
+    transition:background .12s,border-color .12s}
+  .xp-h:hover{background:var(--panel-2);border-color:var(--line)}
+  .xp-h .hi{width:28px;height:28px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;color:#fff}
+  .xp-h .hi svg{width:14px;height:14px}
+  .xp-h .hi.paid{background:var(--win)}
+  .xp-h .hi.rejected{background:var(--danger,#e5484d)}
+  .xp-h .hi.cancelled{background:var(--faint)}
+  .xp-h .mid{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1 1 auto}
+  .xp-h .m{font-family:var(--hd);font-weight:800;font-size:.92rem;color:var(--ink)}
+  .xp-h .d{font-size:.74rem;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .xp-h .badge{flex:0 0 auto}
   .xp-cur{display:flex;gap:6px;margin-bottom:12px}
   .xp-cur button{flex:1 1 0;border:1px solid var(--line-2);background:var(--panel-2);font:inherit;font-weight:700;
     font-size:.82rem;color:var(--txt-2);padding:10px;border-radius:12px;cursor:pointer;white-space:nowrap}
