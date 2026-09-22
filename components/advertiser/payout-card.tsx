@@ -721,11 +721,35 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
               </button>
             </div>
 
+            <div className="xp-rhead">
+              <span
+                className={`badge ${
+                  view[0].status === "paid"
+                    ? "ok"
+                    : view[0].status === "rejected"
+                      ? "due"
+                      : view[0].status === "requested"
+                        ? "pend"
+                        : "muted"
+                }`}
+              >
+                {STATUS_LABEL[view[0].status] ?? view[0].status}
+              </span>
+              <span className="when">
+                {dayjs(view[0].requested_at).format("D MMM YYYY, HH:mm")}
+              </span>
+            </div>
+
+            <div className="xp-hero">
+              <span className="l">You receive</span>
+              <span className="v">
+                {Object.entries(sumOf(view))
+                  .map(([c, a]) => formatCurrency(a, c))
+                  .join(" + ")}
+              </span>
+            </div>
+
             <div className="xp-view">
-              <div className="row">
-                <span>Asked on</span>
-                <b>{dayjs(view[0].requested_at).format("D MMM YYYY, HH:mm")}</b>
-              </div>
               {view.map((p) => {
                 const dst = String(p.payout_currency ?? p.currency).toUpperCase();
                 const converted = dst !== String(p.currency).toUpperCase();
@@ -756,21 +780,9 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
                   </div>
                 );
               })}
-              <div className="row big">
-                <span>You receive</span>
-                <b>
-                  {Object.entries(sumOf(view))
-                    .map(([c, a]) => formatCurrency(a, c))
-                    .join(" + ")}
-                </b>
-              </div>
               <div className="row">
                 <span>Commissions in it</span>
                 <b>{view.reduce((n, p) => n + (Number(p.commission_count) || 0), 0)}</b>
-              </div>
-              <div className="row">
-                <span>State</span>
-                <b>{STATUS_LABEL[view[0].status] ?? view[0].status}</b>
               </div>
               {view[0].reference ? (
                 <div className="row">
@@ -786,8 +798,9 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
               ) : null}
             </div>
 
-            <div className="subhead2" style={{ marginTop: 14 }}>
-              <Ic name="i-building" /> The details you gave us
+            <div className="xp-sec">
+              <Ic name="i-building" />
+              <span>The details you gave us</span>
             </div>
             <div className="xp-view">
               {Object.entries(detailsOf(view[0]))
@@ -807,27 +820,13 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
 
             <div className="mfoot xp-vfoot">
               {view[0].status === "requested" ? (
-                <>
-                  <a
-                    className="btn ghost wa"
-                    href={whatsappUrl(
-                      `Hi PSM team, about my payout request of ${Object.entries(sumOf(view))
-                        .map(([c, a]) => formatCurrency(a, c))
-                        .join(" + ")}.`,
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <WhatsappIcon /> Ask about it
-                  </a>
-                  <button
-                    className="btn ghost"
-                    disabled={cancelling === view[0].id}
-                    onClick={() => cancel(view[0].id)}
-                  >
-                    {cancelling === view[0].id ? "Withdrawing…" : "Withdraw request"}
-                  </button>
-                </>
+                <button
+                  className="btn ghost"
+                  disabled={cancelling === view[0].id}
+                  onClick={() => cancel(view[0].id)}
+                >
+                  {cancelling === view[0].id ? "Withdrawing…" : "Withdraw request"}
+                </button>
               ) : null}
               <button className="btn" onClick={() => setView(null)}>
                 Close

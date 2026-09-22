@@ -1648,6 +1648,17 @@ export const ADV_CSS = `
     font-size:.82rem;font-weight:700;color:var(--ink)}
   .xp-calc .tot b{margin-left:auto;font-family:var(--hd);font-weight:800;font-size:1.05rem}
   .xp-calc .note{margin:0;font-size:.72rem;color:var(--faint)}
+  .xp-rhead{display:flex;align-items:center;gap:8px;margin:-4px 0 12px}
+  .xp-rhead .when{margin-left:auto;font-size:.76rem;color:var(--faint)}
+  .xp-hero{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:16px;margin-bottom:12px;
+    background:radial-gradient(120% 140% at 10% 0%,#20265c,#0f1433);color:#fff;
+    box-shadow:0 18px 38px -28px rgba(20,24,80,.9)}
+  .xp-hero .l{font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:rgba(238,241,255,.6)}
+  .xp-hero .v{font-family:var(--hd);font-weight:800;font-size:1.7rem;letter-spacing:-.02em}
+  .xp-sec{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:.78rem;font-weight:800;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+  .xp-sec svg{width:15px;height:15px;flex:0 0 auto;color:var(--primary-600)}
   .xp-view{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border-radius:15px;
     background:var(--panel-2);border:1px solid var(--line)}
   .xp-view .row{display:flex;align-items:baseline;gap:10px;font-size:.82rem;color:var(--txt-2)}
