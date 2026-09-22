@@ -13,12 +13,12 @@ import {
   Download,
   FileText,
   Gift,
+  Handshake,
   HelpCircle,
   History,
   LayoutGrid,
   type LucideIcon,
   LogOut,
-  Mail,
   Menu,
   Monitor,
   Boxes,
@@ -64,7 +64,7 @@ const TITLES: Record<string, string> = {
   "/promotions": "Promotions",
   "/manual": "Manual",
   "/reconciliation": "Reconciliation",
-  "/affiliates": "Referral Links",
+  "/affiliates": "Affiliates",
   "/commissions": "Referral Commissions",
   "/settings/finance": "Settings",
   "/activity-logs": "Activity Logs",
@@ -190,7 +190,9 @@ export default function AdminShell({
       title: "Owner",
       items: [
         { title: "Reconciliation", href: "/reconciliation", icon: Scale },
-        { title: "Referral Links", href: "/affiliates", icon: Mail },
+        // The page is the affiliate book -- one row per affiliate, their
+        // referrals and rules -- so the menu says "Affiliates".
+        { title: "Affiliates", href: "/affiliates", icon: Handshake },
         { title: "Commissions", href: "/commissions", icon: Coins },
         { title: "Settings", href: "/settings/finance", icon: Settings },
         { title: "Activity Logs", href: "/activity-logs", icon: History },

@@ -3447,7 +3447,17 @@ export default function AdvertiserApp() {
                 So the whole screen is the offer until they are in. The
                 figures come back the moment there is something to put in
                 them. */}
-            {!isAffiliate && !affiliateUnknown && (applicationOpen || applicationRefused) ? (
+            {affiliateLoading && !affiliateError ? (
+              // Still asking where they stand. A quiet placeholder -- not the
+              // affiliate screen, which flashed for a second before "Application
+              // received" replaced it (the owner saw it on PH).
+              <div className="card xload" aria-busy="true" aria-label="Loading">
+                <span className="sk w40" />
+                <span className="sk w90" />
+                <span className="sk w70" />
+                <span className="sk btn" />
+              </div>
+            ) : !isAffiliate && !affiliateUnknown && (applicationOpen || applicationRefused) ? (
               // Applied, or refused: an answer, not the offer again with
               // its button greyed out (the owner: "erg lelijk").
               <AffiliateApplicationCard

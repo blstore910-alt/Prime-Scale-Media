@@ -1441,6 +1441,14 @@ export const ADV_CSS = `
   .appcard .btn.wa svg{color:#1faa53}
   .ac-help{width:100%;justify-content:center}
   @media (prefers-reduced-motion:reduce){.ac-steps li.now .dot{animation:none}}
+  .xload{display:flex;flex-direction:column;gap:12px;padding:22px 18px}
+  .xload .sk{display:block;height:13px;border-radius:8px;
+    background:linear-gradient(90deg,var(--panel-2) 0%,#e6eaf6 45%,var(--panel-2) 90%);background-size:220% 100%;
+    animation:xsk 1.2s linear infinite}
+  .xload .sk.w40{width:40%;height:18px}.xload .sk.w90{width:90%}.xload .sk.w70{width:70%}
+  .xload .sk.btn{width:100%;height:40px;border-radius:12px;margin-top:6px}
+  @keyframes xsk{from{background-position:120% 0}to{background-position:-100% 0}}
+  @media (prefers-reduced-motion:reduce){.xload .sk{animation:none}}
 
 /* ── THE PERIOD: one control for every figure under it ─────────────────
    A glass bar of pills; the chosen one lit with the brand gradient.

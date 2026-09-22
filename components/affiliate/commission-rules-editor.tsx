@@ -184,6 +184,11 @@ export default function CommissionRulesEditor({
   );
 
   const approving = !!approve;
+  // An affiliate's editor shows NUMBERS, not grey placeholders: every field
+  // starts at what they earn now (their own rate, or the default). The owner:
+  // "default pre filled". Only a field moved away from the default becomes
+  // their own rule.
+  const prefill = approving || affiliateId !== null;
   const [draft, setDraft] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!open) return;
@@ -194,14 +199,14 @@ export default function CommissionRulesEditor({
       // visible, and the all-types version is cleared.
       let v =
         initial[f.key] ?? (f.source === "topup" && f.type ? legacyAll : null);
-      // Approving: start from what they would earn -- the default.
-      if (approving && (v === null || v === undefined)) {
+      // Start from what they earn now -- the default where they have no rule.
+      if (prefill && (v === null || v === undefined)) {
         v = inherited(rules, affiliateId, f).pct;
       }
       d[f.key] = v === null || v === undefined ? "" : String(v);
     }
     setDraft(d);
-  }, [open, fields, initial, legacyAll, approving, rules, affiliateId]);
+  }, [open, fields, initial, legacyAll, prefill, rules, affiliateId]);
 
   const parsed = useMemo(() => {
     const out: Record<string, { ok: boolean; value: number | null }> = {};
@@ -235,12 +240,12 @@ export default function CommissionRulesEditor({
   }, [rules, affiliateId]);
   useEffect(() => {
     if (!open) return;
-    const start = initialOnetime ?? (approving ? onetimeInheritedForPrefill : null);
+    const start = initialOnetime ?? (prefill ? onetimeInheritedForPrefill : null);
     setOnetimeDraft({
       amount: start ? String(start.amount) : "",
       currency: start?.currency ?? "EUR",
     });
-  }, [open, initialOnetime, approving, onetimeInheritedForPrefill]);
+  }, [open, initialOnetime, prefill, onetimeInheritedForPrefill]);
   const onetimeParsed = (() => {
     const t = onetimeDraft.amount.trim().replace(",", ".");
     if (t === "") return { ok: true as const, value: null as number | null };
@@ -259,7 +264,7 @@ export default function CommissionRulesEditor({
     return res && res.amount !== null ? { amount: res.amount, currency: res.currency ?? "EUR" } : null;
   })();
   const onetimeSameAsDefault =
-    approving &&
+    prefill &&
     initialOnetime === null &&
     onetimeParsed.ok &&
     onetimeParsed.value === (onetimeInherited?.amount ?? null) &&
@@ -283,7 +288,7 @@ export default function CommissionRulesEditor({
       if (p.value === before) continue;
       // Approving: a field left at the default stays ON the default -- it
       // is not copied into an own rule that would stop following it.
-      if (approving && before === null && p.value === inherited(rules, affiliateId, f).pct) continue;
+      if (prefill && before === null && p.value === inherited(rules, affiliateId, f).pct) continue;
       list.push({
         source: f.source,
         adAccountType: f.type,
@@ -307,7 +312,7 @@ export default function CommissionRulesEditor({
       });
     }
     return list;
-  }, [fields, parsed, initial, legacyAll, approving, rules, affiliateId]);
+  }, [fields, parsed, initial, legacyAll, prefill, rules, affiliateId]);
 
   const onetimeLine = (v: { amount: number; currency: string } | null) =>
     v ? `${v.currency} ${v.amount.toFixed(2)}` : "—";
@@ -387,17 +392,23 @@ export default function CommissionRulesEditor({
         <div className="min-w-0 pt-2">
           <div className="text-sm font-medium truncate">{f.label}</div>
           <div className="text-xs text-muted-foreground">
-            {blank
-              ? inh.pct === null
-                ? f.source === "first_topup"
-                  ? "Blank — same as any other top-up"
-                  : "Blank — earns nothing here"
-                : `Blank — uses ${fmtPct(inh.pct)} from ${inh.from}`
-              : !p?.ok
-                ? "Between 0 and 100"
-                : affiliate
-                  ? "Their own rule"
-                  : "Default"}
+            {!p?.ok ? (
+              "Between 0 and 100"
+            ) : !affiliate ? (
+              blank ? "Earns nothing here" : "Default for everyone"
+            ) : blank ? (
+              inh.pct === null ? "Earns nothing here" : `Uses the default (${fmtPct(inh.pct)})`
+            ) : initial[f.key] !== null && p.value === initial[f.key] ? (
+              <span className="font-medium text-primary">
+                Own rate{inh.pct !== null && inh.pct !== p.value ? ` · default ${fmtPct(inh.pct)}` : ""}
+              </span>
+            ) : p.value === inh.pct ? (
+              "Default"
+            ) : (
+              <span className="font-medium text-primary">
+                Own rate from now{inh.pct !== null ? ` · default ${fmtPct(inh.pct)}` : ""}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -440,11 +451,10 @@ export default function CommissionRulesEditor({
             ) : (
               <>
                 {affiliate
-                  ? "Their own rules. A blank field uses the default."
-                  : "For every affiliate who has no rule of their own."}{" "}
-                A change applies from the moment you save, to every future
-                top-up and paid invoice of all their referred customers.
-                Commission already earned never changes.
+                  ? "What they earn now. Change a number to give them their own rate."
+                  : "What every affiliate earns, unless they have their own rate."}{" "}
+                Changes count from the moment you save; what is already
+                earned never changes.
               </>
             )}
           </DialogDescription>
