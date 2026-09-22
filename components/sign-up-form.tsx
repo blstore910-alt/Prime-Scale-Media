@@ -154,6 +154,15 @@ export function SignUpForm({
         });
         return;
       }
+      // For "Check your inbox": where the mail went, and where a resend
+      // should point. sessionStorage, not the URL -- an address in a query
+      // string ends up in logs.
+      try {
+        sessionStorage.setItem("psm_signup_email", data.email);
+        sessionStorage.setItem("psm_signup_redirect", confirmUrl.toString());
+      } catch {
+        // Private mode: the next screen works without them.
+      }
       router.push("/auth/sign-up-success");
     } catch (error) {
       console.error(safeErrorMessage(error));

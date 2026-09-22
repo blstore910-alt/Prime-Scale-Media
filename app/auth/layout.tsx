@@ -265,6 +265,24 @@ const AUTH_CSS = `
 .psmauth select option{background:#141a2e;color:#e8eaf2}
 .psmauth select option:checked{background:#2f5ae6;color:#fff}
 .psmauth .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+/* ── "Check your inbox" ──────────────────────────────────────────────
+   An envelope that floats and a green dot that pings: something is on
+   its way. Frozen under reduced motion by the rule at the end. */
+.psmauth .inbox{position:relative;width:74px;height:74px;margin:2px auto 16px;border-radius:22px;
+  display:grid;place-items:center;background:var(--brand);
+  box-shadow:0 18px 40px -16px rgba(124,92,255,.8),inset 0 1px 0 rgba(255,255,255,.3);
+  animation:psmfloat 3.2s ease-in-out infinite}
+.psmauth .inbox svg{width:34px;height:34px;stroke:#fff}
+.psmauth .inbox .ping{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;
+  background:var(--win);border:3px solid #fff;animation:psmping 1.8s ease-out infinite}
+@keyframes psmfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes psmping{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55)}100%{box-shadow:0 0 0 14px rgba(16,185,129,0)}}
+.psmauth .steps3{list-style:none;margin:4px 0 16px;padding:0;display:grid;gap:9px;text-align:left}
+.psmauth .steps3 li{display:flex;align-items:center;gap:11px;font-size:.9rem;color:var(--txt-2)}
+.psmauth .steps3 .n{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;
+  font-family:var(--hd);font-weight:800;font-size:.8rem;color:var(--primary-600);background:var(--primary-tint)}
+.psmauth .inbox-card .btn svg{width:17px;height:17px}
+.psmauth .inbox-card .btn+.btn{margin-top:9px}
 /* ── Sign-up extras ──────────────────────────────────────────────────
    The invite sign-up used shadcn Card/Input/Button, which put a WHITE card
    inside this dark shell — so the .psmauth input rule (light-on-dark, below)
@@ -401,6 +419,9 @@ const AUTH_CSS = `
   .psmauth .whoami{background:rgba(91,141,255,.12);border-color:rgba(91,141,255,.3);color:#fff;padding:9px 11px;margin-bottom:12px}
   .psmauth .whoami svg{color:#9db8ff}
   .psmauth .whoami small{color:#9db8ff}
+  .psmauth .steps3 li{color:rgba(255,255,255,.82)}
+  .psmauth .steps3 .n{background:rgba(91,141,255,.16);color:#9db8ff}
+  .psmauth .inbox .ping{border-color:#0b1026}
   .psmauth .eye{color:rgba(255,255,255,.5)}
   .psmauth .eye:hover{color:#fff;background:rgba(255,255,255,.1)}
   .psmauth .pwbar i{background:rgba(255,255,255,.14)}
