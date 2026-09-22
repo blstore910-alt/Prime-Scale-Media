@@ -2,12 +2,7 @@ import { isMaintenanceMode } from "@/actions/_shared";
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { firstName } from "@/lib/display-name";
 import { sendEmail } from "@/lib/email-sender";
-import {
-  emailLayout,
-  emailPanel,
-  emailParagraph,
-  escapeHtml,
-} from "@/lib/pure-email-layout";
+import { emailLayout, emailPanel, escapeHtml } from "@/lib/pure-email-layout";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
@@ -401,12 +396,12 @@ export async function POST(request: NextRequest) {
     const org = escapeHtml(tenant.name);
     const html = emailLayout({
       preheader: `${senderName} invited you to ${tenant.name} — accept to set up your account.`,
+      eyebrow: "You're invited",
       title: `${who} invited you to ${org}`,
-      bodyHtml:
-        emailParagraph(
-          "Accept the invitation to set up your account. You will be asked for your company details before anything is billed.",
-        ) + (planLines.length ? emailPanel("Your plan", planLines.join(" &middot; ")) : ""),
+      lead: "Accept the invitation to set up your account. You add your company details before anything is billed.",
       cta: { label: "Accept invitation", href: inviteLink },
+      steps: ["Accept &amp; set a password", "Add your company", "Top up &amp; launch"],
+      bodyHtml: planLines.length ? emailPanel("Your plan", planLines.join(" &middot; ")) : "",
       footnoteHtml: `This link is valid for ${INVITE_VALID_DAYS} days. Did not expect this invitation? Ignore this email — nothing happens until you accept it.`,
     });
 

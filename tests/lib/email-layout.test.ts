@@ -12,11 +12,12 @@ test("the button and the fallback link both point at the CTA", () => {
     preheader: "p",
     title: "Confirm your email",
     bodyHtml: emailParagraph("hi"),
+    steps: ["One", "Two", "Three"],
     cta: { label: "Confirm my email", href: "{{ .ConfirmationURL }}" },
   });
   // Supabase fills the placeholder: it must survive untouched, twice.
   assert.equal(html.split("{{ .ConfirmationURL }}").length - 1, 3);
-  assert.match(html, /Confirm my email<\/a>/);
+  assert.match(html, /Confirm my email &rarr;<\/a>/);
 });
 
 test("no leftover template syntax, no style block (Gmail strips it)", () => {

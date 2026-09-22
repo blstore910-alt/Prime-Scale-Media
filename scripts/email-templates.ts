@@ -12,7 +12,7 @@
 // them in when it sends.
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { emailLayout, emailPanel, emailParagraph } from "../lib/pure-email-layout";
+import { emailLayout, emailPanel } from "../lib/pure-email-layout";
 
 type Template = { file: string; name: string; subject: string; html: string };
 
@@ -27,6 +27,8 @@ const CONFIRM = "https://app.primescalemedia.com/auth/confirm";
 const link = (type: string, next?: string) =>
   `${CONFIRM}?token_hash={{ .TokenHash }}&type=${type}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
 
+const WHITE_B = (html: string) => `<b style="color:#ffffff;">${html}</b>`;
+
 const templates: Template[] = [
   {
     file: "confirm-signup.html",
@@ -34,13 +36,12 @@ const templates: Template[] = [
     subject: "Confirm your email — Prime Scale Media",
     html: emailLayout({
       preheader: "One click and your Prime Scale Media account is ready.",
+      eyebrow: "One step left",
       title: "Confirm your email",
-      bodyHtml:
-        emailParagraph("Welcome to Prime Scale Media. Press the button to confirm <b>{{ .Email }}</b> and open your account.") +
-        emailParagraph("After that you add your company details, and you can top up and run your ad accounts."),
+      lead: `Welcome to Prime Scale Media. Press the button to confirm ${WHITE_B("{{ .Email }}")} and your account is ready.`,
       cta: { label: "Confirm my email", href: link("email") },
-      footnoteHtml:
-        "Did not sign up? Ignore this email — no account is created without this click.",
+      steps: ["Confirm your email", "Add your company", "Top up &amp; launch"],
+      footnoteHtml: "Did not sign up? Ignore this email — no account is created without this click.",
     }),
   },
   {
@@ -49,9 +50,11 @@ const templates: Template[] = [
     subject: "You're invited to Prime Scale Media",
     html: emailLayout({
       preheader: "Accept the invitation to set up your Prime Scale Media account.",
-      title: "You're invited to Prime Scale Media",
-      bodyHtml: emailParagraph("Accept the invitation to set up your account for <b>{{ .Email }}</b>."),
+      eyebrow: "You're invited",
+      title: "Join Prime Scale Media",
+      lead: `Accept the invitation to set up your account for ${WHITE_B("{{ .Email }}")}.`,
       cta: { label: "Accept invitation", href: link("invite") },
+      steps: ["Accept", "Set your password", "Open your dashboard"],
       footnoteHtml: "Did not expect this invitation? Ignore this email — nothing happens until you accept it.",
     }),
   },
@@ -61,9 +64,10 @@ const templates: Template[] = [
     subject: "Your sign-in link — Prime Scale Media",
     html: emailLayout({
       preheader: "Your one-time link to sign in to Prime Scale Media.",
-      title: "Sign in to Prime Scale Media",
-      bodyHtml: emailParagraph("Press the button to sign in as <b>{{ .Email }}</b>. The link works once."),
-      cta: { label: "Sign in", href: link("email") },
+      eyebrow: "Sign in",
+      title: "Your sign-in link",
+      lead: `Press the button to sign in as ${WHITE_B("{{ .Email }}")}. The link works once.`,
+      cta: { label: "Sign me in", href: link("email") },
       footnoteHtml: "Did not ask for this? Ignore this email — nobody can sign in without the link.",
     }),
   },
@@ -73,11 +77,11 @@ const templates: Template[] = [
     subject: "Confirm your new email address — Prime Scale Media",
     html: emailLayout({
       preheader: "Confirm the new email address for your Prime Scale Media account.",
-      title: "Confirm your new email address",
-      bodyHtml:
-        emailParagraph("You asked to change the email address of your account.") +
-        emailPanel("From → to", "{{ .Email }} &rarr; {{ .NewEmail }}"),
+      eyebrow: "Security",
+      title: "Confirm your new address",
+      lead: "You asked to change the email address of your account.",
       cta: { label: "Confirm new address", href: link("email_change") },
+      bodyHtml: emailPanel("From → to", "{{ .Email }} &rarr; {{ .NewEmail }}"),
       footnoteHtml: "Did not ask for this? Ignore this email — your address stays as it is — and message us on WhatsApp.",
     }),
   },
@@ -87,8 +91,9 @@ const templates: Template[] = [
     subject: "Reset your password — Prime Scale Media",
     html: emailLayout({
       preheader: "Choose a new password for your Prime Scale Media account.",
+      eyebrow: "Security",
       title: "Reset your password",
-      bodyHtml: emailParagraph("Press the button to choose a new password for <b>{{ .Email }}</b>."),
+      lead: `Press the button to choose a new password for ${WHITE_B("{{ .Email }}")}.`,
       cta: { label: "Choose a new password", href: link("recovery", "/auth/update-password") },
       footnoteHtml: "Did not ask for this? Ignore this email — your password stays the same.",
     }),
@@ -99,13 +104,13 @@ const templates: Template[] = [
     subject: "Your verification code — Prime Scale Media",
     html: emailLayout({
       preheader: "Your Prime Scale Media verification code.",
+      eyebrow: "Security",
       title: "Your verification code",
-      bodyHtml:
-        emailParagraph("Enter this code in the app to confirm it is you:") +
-        emailPanel(
-          "Code",
-          '<span style="font-size:26px;letter-spacing:.3em;font-weight:800;">{{ .Token }}</span>',
-        ),
+      lead: "Enter this code in the app to confirm it is you.",
+      bodyHtml: emailPanel(
+        "Code",
+        '<span style="font-size:30px;letter-spacing:.32em;font-weight:800;">{{ .Token }}</span>',
+      ),
       footnoteHtml: "Did not ask for this? Ignore this email and message us on WhatsApp.",
     }),
   },
