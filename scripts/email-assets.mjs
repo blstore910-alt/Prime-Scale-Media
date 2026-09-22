@@ -18,13 +18,13 @@ const mark = `
 <svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 88 88">
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#141a48"/>
+      <stop offset="0" stop-color="#0c1030"/>
       <stop offset="1" stop-color="#0a0e24"/>
     </linearGradient>
   </defs>
-  <rect x="0" y="0" width="88" height="88" rx="22" fill="url(#tile)"/>
-  <rect x="0.75" y="0.75" width="86.5" height="86.5" rx="21.3" fill="none" stroke="#5B8DFF" stroke-opacity=".6" stroke-width="1.5"/>
-  <g transform="translate(18 18) scale(2.1667)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="0" y="0" width="88" height="88" rx="24" fill="url(#tile)"/>
+  <rect x="1" y="1" width="86" height="86" rx="23" fill="none" stroke="#5B8DFF" stroke-opacity=".35" stroke-width="2"/>
+  <g transform="translate(20 20) scale(2)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
     <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
     <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
@@ -97,10 +97,11 @@ const launch = `
   </g>
 </svg>`;
 
-// Sized for their place in the mail: the mark shows at 48px, the launch at
+// Sized for their place in the mail: the mark shows at 40px (the sign-in
+// page's 44px tile, 24px rocket -- same proportions), the launch at
 // 250px -- 3x and 2x are plenty, and a mail should stay light.
 await sharp(Buffer.from(mark), { density: 72 * 3 })
-  .resize(144, 144)
+  .resize(120, 120)
   .png({ compressionLevel: 9 })
   .toFile("public/email/rocket-mark.png");
 await sharp(Buffer.from(launch), { density: 72 * 3 })

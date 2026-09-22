@@ -122,12 +122,14 @@ export function emailLayout(input: EmailLayoutInput): string {
     `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr>`,
     // alt "PSM" on a navy tile: where a client blocks images, a neat
     // monogram instead of an empty frame.
-    `<td valign="middle" style="padding-right:12px;"><img src="${ASSETS}/rocket-mark.png" width="48" height="48" alt="PSM" ` +
-      `style="display:block;width:48px;height:48px;border:0;border-radius:12px;background:#0a0e24;` +
-      `box-shadow:0 0 22px rgba(91,141,255,.45);font:800 13px/48px ${FONT};color:#ffffff;text-align:center;"></td>`,
+    // The sign-in page's lockup, to scale: a 40px tile, the name, and the
+    // subtitle in the same quiet grey.
+    `<td valign="middle" style="padding-right:11px;"><img src="${ASSETS}/rocket-mark.png" width="40" height="40" alt="PSM" ` +
+      `style="display:block;width:40px;height:40px;border:0;border-radius:11px;background:#0a0e24;` +
+      `box-shadow:0 0 22px rgba(91,141,255,.5);font:800 11px/40px ${FONT};color:#ffffff;text-align:center;"></td>`,
     `<td valign="middle" style="text-align:left;">` +
-      `<div style="font:800 18px/1.2 ${FONT};letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
-      `<div style="margin-top:2px;font:500 12px/1.4 ${FONT};color:#9db8ff;">Advertiser &amp; affiliate platform</div></td>`,
+      `<div style="font:800 16px/1.2 ${FONT};letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
+      `<div style="margin-top:2px;font:500 11px/1.4 ${FONT};color:#9ba1b8;">Advertiser &amp; affiliate platform</div></td>`,
     `</tr></table>`,
     `<img src="${ASSETS}/launch.png" width="250" alt="" ` +
       `style="display:block;margin:6px auto 0;width:250px;max-width:72%;height:auto;border:0;">`,
