@@ -251,7 +251,11 @@ export default function AffiliateApp() {
   // the Dashboard figures and missed this screen, which printed
   // "Referrals 0 · EUR 0,00 commission" and "No referrals yet".
   const refsUnavailable =
-    refs.isError || refs.isLoading || !profile?.advertiser?.[0]?.id;
+    refs.isError || refs.isPending || !profile?.advertiser?.[0]?.id;
+  // The previous period's figures stay on screen while the new ones load
+  // (placeholderData). Dimmed, so last month's commission is never read
+  // as this month's.
+  const refsStale = refs.isPlaceholderData || (refs.isFetching && !refs.isPending);
 
   // Tier progression counts BOTH currencies — a USD-paid affiliate was
   // otherwise stuck at Starter with €0 — but they are CONVERTED now rather
@@ -287,7 +291,7 @@ export default function AffiliateApp() {
   // consulted its state — so the topbar pill, the stat card and the
   // earnings summary all printed "this month €0" identically whether the
   // affiliate earned nothing, the read had not landed, or it failed.
-  const monthUnavailable = month.isError || month.isLoading || portalInert;
+  const monthUnavailable = month.isError || month.isPending || portalInert;
   // A figure we cannot vouch for is a dash. An affiliate who has earned
   // money must never be shown a zero because a read failed — and must
   // never be DEMOTED by one either, which is what the tier track did.
@@ -800,8 +804,11 @@ export default function AffiliateApp() {
                       <span className="cur">€</span>—
                     </h1>
                     <p className="eyebrow" style={{ opacity: 0.9 }}>
-                      We couldn&apos;t load your earnings just now. This is NOT
-                      a zero — pull down to retry.
+                      {all.isError
+                        ? "We couldn't load your earnings just now. This is NOT a zero — reload to try again."
+                        : portalInert
+                          ? "Your affiliate account isn't finished yet — we're on it."
+                          : "Counting your earnings…"}
                     </p>
                   </>
                 ) : (
@@ -1001,7 +1008,7 @@ export default function AffiliateApp() {
                 <Ic name="i-download" /> Export (current range)
               </button>
             </div>
-            <div className="sumbar">
+            <div className={`sumbar${refsStale ? " stale" : ""}`}>
               <div className="c">
                 <div className="l">
                   <span className="ci b">
@@ -1215,6 +1222,7 @@ export default function AffiliateApp() {
             <div className="refhead">
               <h2>
                 Your referrals{" "}
+                {refsStale ? <span className="muted2">· updating…</span> : null}
                 {/* The one figure on this screen that was not guarded
                     by refsUnavailable -- so a failed read printed
                     "· 0 active" over a list that says it could not be
@@ -1224,7 +1232,10 @@ export default function AffiliateApp() {
                 </span>
               </h2>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div
+              className={refsStale ? "stale" : undefined}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
               {refs.rows.length ? (
                 refs.rows.map((r) => (
                   <div className="rrow" key={r.referred_advertiser_id}>
@@ -1410,11 +1421,13 @@ export default function AffiliateApp() {
                   </div>
                 </div>
                 <div className="sub">
-                  {openPayout
-                    ? `Requested ${new Date(openPayout.requested_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: ${
-                        openPayout.currency
-                      } ${Number(openPayout.amount).toFixed(2)} — we confirm it here the moment it is transferred.`
-                    : "Payouts are processed manually by the PSM team — request one and we settle it to your account."}
+                  {payouts.isPending
+                    ? "Checking whether a payout is already with us…"
+                    : openPayout
+                      ? `Requested ${new Date(openPayout.requested_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: ${
+                          openPayout.currency
+                        } ${Number(openPayout.amount).toFixed(2)} — we confirm it here the moment it is transferred.`
+                      : "Payouts are processed manually by the PSM team — request one and we settle it to your account."}
                 </div>
                 <div className="bactions">
                   {/* Disabled while the balance is unknown. The payout mail
@@ -1431,6 +1444,7 @@ export default function AffiliateApp() {
                     // not on there being anything to ask for.
                     disabled={
                       statsUnavailable ||
+                      payouts.isPending ||
                       !!openPayout ||
                       (all.payable.eur <= 0 && all.payable.usd <= 0)
                     }
@@ -1463,10 +1477,10 @@ export default function AffiliateApp() {
                 <h2>How payouts work</h2>
                 <p className="cap">
                   Your wallet holds the commission you&apos;ve earned.
-                  Requesting a payout sends us an email; we check the
-                  balance, confirm the details with you and pay it out by
-                  hand. Payouts are always manual — nothing leaves
-                  automatically.
+                  Requesting a payout records it with the exact amount and
+                  the details from this page; we check it, transfer it by
+                  hand and confirm it here with our reference. Payouts are
+                  always manual — nothing leaves automatically.
                 </p>
                 <div
                   style={{
@@ -2061,6 +2075,17 @@ export default function AffiliateApp() {
                       bic: payout.bic,
                     });
                     if (!res.ok) {
+                      // Not switched on after all (the read had not landed
+                      // when we decided): send it the human way rather
+                      // than showing an error and recording nothing.
+                      if (/switched on/i.test(res.error)) {
+                        openWhatsapp(
+                          `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\nAffiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}`,
+                        );
+                        setPayOpen(false);
+                        toast.success("Opening WhatsApp to send the payout request.");
+                        return;
+                      }
                       toast.error(res.error);
                       return;
                     }

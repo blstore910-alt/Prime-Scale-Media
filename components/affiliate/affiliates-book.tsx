@@ -137,6 +137,7 @@ export default function AffiliatesBook() {
           upgrades={data.upgrades}
           rulesMissing={data.rulesMissing}
           linkStatusUnknown={data.linkStatusUnknown}
+          tenantId={tenantId}
           canDecide={isSuperAdmin}
           onDefaults={() => setEditor({ open: true, affiliate: null })}
         />
@@ -519,6 +520,7 @@ function Overview({
   upgrades,
   rulesMissing,
   linkStatusUnknown,
+  tenantId,
   canDecide,
   onDefaults,
   onApproveApplication,
@@ -529,6 +531,8 @@ function Overview({
   rulesMissing: boolean;
   /** The referral-link statuses could not be read. */
   linkStatusUnknown?: boolean;
+  /** Cache scope for the payout queue. */
+  tenantId?: string | null;
   canDecide: boolean;
   onDefaults: () => void;
   onApproveApplication: (m: AffiliateMember) => void;
@@ -618,6 +622,7 @@ function Overview({
           was built from. */}
       <PayoutQueue
         canDecide={canDecide}
+        tenantId={tenantId}
         nameOf={(id) => {
           const a = affiliates.find((x) => x.affiliateId === id);
           return { name: a?.name ?? "Affiliate", code: a?.code ?? "" };

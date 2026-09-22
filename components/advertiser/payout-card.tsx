@@ -26,6 +26,8 @@ import type { PayoutDetails } from "@/actions/payout-actions";
 type Props = {
   /** Their own advertiser row — payouts are read by RLS, this only gates. */
   enabled: boolean;
+  /** Cache scope, so two identities never share a payout list. */
+  scope?: string | null;
   owedEur: number;
   owedUsd: number;
   /** The owed figure could not be read (or is lifetime, not outstanding). */
@@ -55,9 +57,9 @@ function detailsOf(p: AffiliatePayout | undefined): PayoutDetails {
   };
 }
 
-export default function PayoutCard({ enabled, owedEur, owedUsd, owedUnknown }: Props) {
+export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnknown }: Props) {
   const queryClient = useQueryClient();
-  const payouts = useAffiliatePayouts(enabled);
+  const payouts = useAffiliatePayouts(enabled, scope);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [currency, setCurrency] = useState<"EUR" | "USD">(owedUsd > 0 && owedEur <= 0 ? "USD" : "EUR");
@@ -78,6 +80,25 @@ export default function PayoutCard({ enabled, owedEur, owedUsd, owedUnknown }: P
   const available = (["EUR", "USD"] as const).filter((c) => owed[c] > 0.005);
 
   if (!enabled) return null;
+
+  // No answer yet. Not "no payouts" and not "the feature is off": either
+  // would put a live Request button in front of somebody who may already
+  // have one waiting.
+  if (payouts.isPending) {
+    return (
+      <div className="card xpay">
+        <div className="xp-top">
+          <span className="ci g">
+            <Ic name="i-download" />
+          </span>
+          <div>
+            <h2>Getting paid</h2>
+            <p className="cap">Checking what is ready to be paid out…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Plak 50 is not in yet: say so, and keep the human route open. Never a
   // button that cannot work, and never silence about money.

@@ -273,6 +273,9 @@ export const AFF_CSS = `
   .expbtn:hover{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 10px 22px -12px rgba(61,123,244,.7);transform:translateY(-1px)}.expbtn:hover svg{color:#fff}
   .filters-l{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
+  /* The previous period's figures, while the new ones are on their way:
+     dimmed, so nothing is read as current that is not. */
+  .stale{opacity:.45;transition:opacity .15s}
   .sumbar{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm)}
   .sumbar .c{padding:15px 18px;border-right:1px solid var(--line)}.sumbar .c:last-child{border-right:0}
   .sumbar .l{font-size:.72rem;font-weight:600;color:var(--faint);display:flex;align-items:center;gap:7px}.sumbar .l svg{width:15px;height:15px}

@@ -39,25 +39,49 @@ export type PayoutsState = {
   missing: boolean;
 };
 
-export function useAffiliatePayouts(enabled: boolean) {
+const COLUMNS =
+  "id, tenant_id, affiliate_advertiser_id, currency, amount, commission_count, clawback_amount, status, method, details, reason, reference, requested_at, decided_at, paid_at";
+
+/**
+ * @param scope who is asking — a tenant id for the owner's queue, an
+ *   advertiser id for one affiliate. It is part of the cache key: the same
+ *   hook serves both, and without it a profile switch inside the cache
+ *   window could paint one identity's payouts as the other's.
+ */
+export function useAffiliatePayouts(enabled: boolean, scope?: string | null) {
   const q = useQuery<PayoutsState>({
-    queryKey: ["affiliate-payouts"],
+    queryKey: ["affiliate-payouts", scope ?? ""],
     enabled,
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
+      // TWO READS, because a single `limit` would cut the queue off: with
+      // fifty settled payouts in front of it, a request that is genuinely
+      // waiting would simply not be in the owner's list -- no count, no
+      // notice. Everything still waiting, plus the recent history.
+      const waiting = await supabase
         .from("affiliate_payouts")
-        .select(
-          "id, tenant_id, affiliate_advertiser_id, currency, amount, commission_count, clawback_amount, status, method, details, reason, reference, requested_at, decided_at, paid_at",
-        )
+        .select(COLUMNS)
+        .eq("status", "requested")
+        .order("requested_at", { ascending: false });
+      if (waiting.error) {
+        if (MISSING.test(waiting.error.message)) return { rows: [], missing: true };
+        throw waiting.error;
+      }
+      const settled = await supabase
+        .from("affiliate_payouts")
+        .select(COLUMNS)
+        .neq("status", "requested")
         .order("requested_at", { ascending: false })
         .limit(50);
-      if (error) {
-        if (MISSING.test(error.message)) return { rows: [], missing: true };
-        throw error;
-      }
-      return { rows: (data ?? []) as AffiliatePayout[], missing: false };
+      if (settled.error) throw settled.error;
+      return {
+        rows: [
+          ...((waiting.data ?? []) as AffiliatePayout[]),
+          ...((settled.data ?? []) as AffiliatePayout[]),
+        ],
+        missing: false,
+      };
     },
   });
 

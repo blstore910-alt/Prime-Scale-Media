@@ -43,12 +43,15 @@ function detailLines(p: AffiliatePayout): string[] {
 export default function PayoutQueue({
   canDecide,
   nameOf,
+  tenantId,
 }: {
   canDecide: boolean;
   nameOf: (advertiserId: string) => { name: string; code: string };
+  /** Cache scope: the owner's queue is per tenant. */
+  tenantId?: string | null;
 }) {
   const queryClient = useQueryClient();
-  const payouts = useAffiliatePayouts(true);
+  const payouts = useAffiliatePayouts(true, tenantId);
   const [asking, setAsking] = useState<{ p: AffiliatePayout; action: "paid" | "reject" } | null>(
     null,
   );

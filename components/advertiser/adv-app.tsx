@@ -3780,6 +3780,7 @@ export default function AdvertiserApp() {
                 owed, not what a filter happens to show. */}
             <PayoutCard
               enabled={isAffiliate}
+              scope={advertiserId ?? null}
               owedEur={Number(aff.payable.eur) || 0}
               owedUsd={Number(aff.payable.usd) || 0}
               owedUnknown={affUnavailable || (aff.payable.isLifetime && aff.rows.length > 0)}
