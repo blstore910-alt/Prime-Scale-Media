@@ -1569,11 +1569,16 @@ export const ADV_CSS = `
   .xp-leg .l{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
   .xp-leg .v{font-family:var(--hd);font-weight:800;font-size:1.15rem;letter-spacing:-.02em;color:#0e8f66}
   .xpay .btn.grad{width:100%;justify-content:center}
-/* A payout in flight: the cabinet, not a warning box. */
-  .xp-open{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:10px;
-    padding:16px;border-radius:18px;color:#eef1ff;
+/* ── A PAYOUT IN FLIGHT ────────────────────────────────────────────────
+   One card you can open, not a row of buttons: the owner, "doe view
+   request en withdraw request niet overal wat buttons proppen". */
+  .xp-open{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:9px;width:100%;
+    padding:16px;border-radius:18px;border:0;text-align:left;font:inherit;color:#eef1ff;cursor:pointer;
     background:radial-gradient(120% 140% at 12% 0%,#20265c 0%,#141a40 45%,#0d1130 100%);
-    box-shadow:0 20px 44px -26px rgba(20,24,80,.9),inset 0 1px 0 rgba(255,255,255,.08)}
+    box-shadow:0 20px 44px -26px rgba(20,24,80,.9),inset 0 1px 0 rgba(255,255,255,.08);
+    transition:transform .15s,box-shadow .2s}
+  .xp-open:hover{transform:translateY(-2px);box-shadow:0 26px 50px -26px rgba(20,24,80,.95)}
+  .xp-open:active{transform:scale(.995)}
   .xo-aur{position:absolute;border-radius:50%;filter:blur(30px);pointer-events:none;opacity:.5}
   .xo-aur.a{width:150px;height:150px;right:-40px;top:-50px;background:rgba(124,92,255,.75);
     animation:xoA 9s ease-in-out infinite alternate}
@@ -1583,32 +1588,75 @@ export const ADV_CSS = `
   @keyframes xoB{to{transform:translate(12px,-10px) scale(1.1)}}
   .xo-head{position:relative;display:flex;align-items:center;gap:8px}
   .xo-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;
-    font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+    font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
     background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#ffe8b0}
   .xo-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);
     box-shadow:0 0 0 0 rgba(239,176,44,.6);animation:xoPulse 1.8s ease-out infinite}
   @keyframes xoPulse{70%{box-shadow:0 0 0 7px rgba(239,176,44,0)}100%{box-shadow:0 0 0 0 rgba(239,176,44,0)}}
   .xo-when{margin-left:auto;font-size:.74rem;color:rgba(238,241,255,.6)}
-  .xo-amt{position:relative;font-family:var(--hd);font-weight:800;font-size:2rem;letter-spacing:-.03em;
-    line-height:1.05;color:#fff;text-shadow:0 8px 28px rgba(124,92,255,.45)}
+  .xo-amt{position:relative;display:block;font-family:var(--hd);font-weight:800;font-size:1.9rem;
+    letter-spacing:-.03em;line-height:1.05;color:#fff;text-shadow:0 8px 28px rgba(124,92,255,.45)}
   .xo-amt .cur{font-size:.62em;margin-right:2px;color:var(--gold)}
-  .xo-sub{position:relative;font-size:.78rem;color:rgba(238,241,255,.7)}
-  .xo-steps{position:relative;list-style:none;display:flex;gap:6px;margin:2px 0 2px;padding:0}
-  .xo-steps li{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;
-    font-size:.66rem;font-weight:700;letter-spacing:.02em;color:rgba(238,241,255,.45);white-space:nowrap}
+  .xo-amt .plus{font-size:.6em;color:rgba(238,241,255,.55);font-weight:700}
+  .xo-sub{position:relative;display:block;font-size:.78rem;color:rgba(238,241,255,.72)}
+  .xo-steps{position:relative;display:flex;gap:6px;margin-top:2px}
+  .xo-steps .st{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px;
+    font-size:.64rem;font-weight:700;color:rgba(238,241,255,.45);white-space:nowrap}
   .xo-steps .s-dot{display:block;height:3px;border-radius:3px;background:rgba(255,255,255,.14)}
-  .xo-steps li.done{color:rgba(238,241,255,.85)}
-  .xo-steps li.done .s-dot{background:linear-gradient(90deg,#34d399,#10b981)}
-  .xo-steps li.now{color:#fff}
-  .xo-steps li.now .s-dot{background:linear-gradient(90deg,#5b8dff,#8b5cf6);
+  .xo-steps .st.done{color:rgba(238,241,255,.85)}
+  .xo-steps .st.done .s-dot{background:linear-gradient(90deg,#34d399,#10b981)}
+  .xo-steps .st.now{color:#fff}
+  .xo-steps .st.now .s-dot{background:linear-gradient(90deg,#5b8dff,#8b5cf6);
     box-shadow:0 0 12px rgba(124,92,255,.8)}
-  .xp-acts{position:relative;display:flex;gap:8px;flex-wrap:wrap}
-  .xp-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
-  .xp-open .btn.ghost{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
-    color:#eef1ff;box-shadow:none}
-  .xp-open .btn.ghost:hover{background:rgba(255,255,255,.16)}
-  .xp-acts .btn.wa svg{color:#4ade80}
-  @media (prefers-reduced-motion:reduce){.xo-aur,.xo-pill .dot{animation:none}}
+  .xo-more{position:relative;display:inline-flex;align-items:center;gap:6px;margin-top:2px;
+    font-size:.78rem;font-weight:700;color:rgba(238,241,255,.75)}
+  .xo-more svg{width:14px;height:14px;transition:transform .15s}
+  .xp-open:hover .xo-more{color:#fff}
+  .xp-open:hover .xo-more svg{transform:translateX(3px)}
+  @media (prefers-reduced-motion:reduce){.xo-aur,.xo-pill .dot{animation:none}
+    .xp-open:hover{transform:none}.xp-open:hover .xo-more svg{transform:none}}
+
+/* The three steps of the request, and what each one asks. */
+  .xp-steps{display:flex;gap:5px;margin:0 0 14px}
+  .xp-steps span{flex:1 1 0;height:3px;border-radius:3px;background:var(--line-2);transition:background .2s}
+  .xp-steps span.on{background:linear-gradient(90deg,var(--primary),#8b5cf6)}
+  .xp-pick{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+  .xp-p{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:15px;cursor:pointer;
+    border:1px solid var(--line-2);background:var(--panel);font:inherit;color:inherit;text-align:left;
+    transition:border-color .15s,box-shadow .2s,background .2s}
+  .xp-p .c{font-size:.7rem;font-weight:800;letter-spacing:.08em;color:var(--faint)}
+  .xp-p .a{font-family:var(--hd);font-weight:800;font-size:1.05rem;color:var(--ink)}
+  .xp-p .tick{margin-left:auto;font-weight:800;color:var(--primary-600)}
+  .xp-p.on{border-color:rgba(58,111,255,.55);background:linear-gradient(180deg,#f4f7ff,var(--panel) 80%);
+    box-shadow:0 0 0 3px rgba(58,111,255,.12)}
+  .xp-p.on .c{color:var(--primary-600)}
+  .xp-ways{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .xp-w{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:15px;cursor:pointer;
+    border:1px solid var(--line-2);background:var(--panel);font:inherit;color:inherit;text-align:left;
+    transition:border-color .15s,box-shadow .2s,background .2s}
+  .xp-w b{font-size:.92rem}
+  .xp-w small{font-size:.78rem;color:var(--txt-2);line-height:1.35}
+  .xp-w.on{border-color:rgba(58,111,255,.55);background:linear-gradient(180deg,#f4f7ff,var(--panel) 80%);
+    box-shadow:0 0 0 3px rgba(58,111,255,.12)}
+  .xp-w:disabled{opacity:.5;cursor:not-allowed}
+  .xp-calc{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:15px;
+    background:var(--panel-2);border:1px solid var(--line);margin-bottom:12px}
+  .xp-calc .row{display:flex;align-items:baseline;gap:8px;font-size:.82rem;color:var(--txt-2);flex-wrap:wrap}
+  .xp-calc .row b{margin-left:auto;font-family:var(--hd);font-weight:800;color:var(--ink);white-space:nowrap}
+  .xp-calc .fx{font-size:.76rem;color:var(--faint)}
+  .xp-calc .tot{display:flex;align-items:baseline;gap:8px;border-top:1px solid var(--line);padding-top:8px;
+    font-size:.82rem;font-weight:700;color:var(--ink)}
+  .xp-calc .tot b{margin-left:auto;font-family:var(--hd);font-weight:800;font-size:1.05rem}
+  .xp-calc .note{margin:0;font-size:.72rem;color:var(--faint)}
+  .xp-view{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border-radius:15px;
+    background:var(--panel-2);border:1px solid var(--line)}
+  .xp-view .row{display:flex;align-items:baseline;gap:10px;font-size:.82rem;color:var(--txt-2)}
+  .xp-view .row b{margin-left:auto;text-align:right;color:var(--ink);word-break:break-word}
+  .xp-view .row.big{border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:var(--ink)}
+  .xp-view .row.big b{font-family:var(--hd);font-weight:800;font-size:1.1rem}
+  .xp-vfoot{flex-wrap:wrap}
+  .xp-vfoot .btn{flex:1 1 auto;justify-content:center}
+  .xp-vfoot .btn.wa svg{color:#1faa53}
   .xp-hist{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
   .xp-h{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--txt-2);min-width:0}
   .xp-h .d{color:var(--faint);flex:0 0 auto}

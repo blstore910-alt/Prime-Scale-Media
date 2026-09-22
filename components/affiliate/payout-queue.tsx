@@ -22,6 +22,34 @@ import useAffiliatePayouts, { type AffiliatePayout } from "@/hooks/use-affiliate
 
 const DASH = "—";
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Requests made together are one transfer, so they are one row here. */
+function groupRows(rows: AffiliatePayout[]): AffiliatePayout[][] {
+  const by = new Map<string, AffiliatePayout[]>();
+  for (const p of rows) {
+    const k = String(p.group_id ?? p.id);
+    by.set(k, [...(by.get(k) ?? []), p]);
+  }
+  return [...by.values()];
+}
+
+/** What we actually transfer, per bank currency. */
+function receives(g: AffiliatePayout[]): Record<string, number> {
+  const per: Record<string, number> = {};
+  for (const p of g) {
+    const cur = String(p.payout_currency ?? p.currency).toUpperCase();
+    per[cur] = round2((per[cur] ?? 0) + (Number(p.payout_amount ?? p.amount) || 0));
+  }
+  return per;
+}
+
+function moneyList(per: Record<string, number>): string {
+  return Object.entries(per)
+    .map(([c, a]) => formatCurrency(a, c))
+    .join(" + ");
+}
+
 function detailLines(p: AffiliatePayout): string[] {
   const d = (p.details ?? {}) as Record<string, string>;
   const out: string[] = [];
@@ -52,7 +80,7 @@ export default function PayoutQueue({
 }) {
   const queryClient = useQueryClient();
   const payouts = useAffiliatePayouts(true, tenantId);
-  const [asking, setAsking] = useState<{ p: AffiliatePayout; action: "paid" | "reject" } | null>(
+  const [asking, setAsking] = useState<{ g: AffiliatePayout[]; action: "paid" | "reject" } | null>(
     null,
   );
   const [busy, setBusy] = useState(false);
@@ -60,11 +88,11 @@ export default function PayoutQueue({
   const [reference, setReference] = useState("");
 
   const waiting = useMemo(
-    () => payouts.rows.filter((p) => p.status === "requested"),
+    () => groupRows(payouts.rows.filter((p) => p.status === "requested")),
     [payouts.rows],
   );
   const settled = useMemo(
-    () => payouts.rows.filter((p) => p.status !== "requested").slice(0, 8),
+    () => groupRows(payouts.rows.filter((p) => p.status !== "requested")).slice(0, 8),
     [payouts.rows],
   );
 
@@ -89,7 +117,7 @@ export default function PayoutQueue({
     setBusy(true);
     try {
       const { decideAffiliatePayout } = await import("@/actions/payout-actions");
-      const res = await decideAffiliatePayout(asking.p.id, asking.action, {
+      const res = await decideAffiliatePayout(asking.g[0].id, asking.action, {
         reason: reason.trim() || undefined,
         reference: reference.trim() || undefined,
       });
@@ -99,7 +127,7 @@ export default function PayoutQueue({
       }
       toast.success(
         asking.action === "paid"
-          ? `Marked paid: ${formatCurrency(Number(asking.p.amount), asking.p.currency)}`
+          ? `Marked paid: ${moneyList(receives(asking.g))}`
           : "Sent back with your reason",
         {
           description:
@@ -136,17 +164,23 @@ export default function PayoutQueue({
               <thead>
                 <tr>
                   <th>Who</th>
-                  <th className="r">Amount</th>
+                  <th className="r">Transfer</th>
                   <th>Where it goes</th>
                   <th>Asked</th>
                   <th className="r">Decide</th>
                 </tr>
               </thead>
               <tbody>
-                {waiting.map((p) => {
-                  const who = nameOf(p.affiliate_advertiser_id);
+                {waiting.map((g) => {
+                  const first = g[0];
+                  const who = nameOf(first.affiliate_advertiser_id);
+                  const per = receives(g);
+                  const commissions = g.reduce(
+                    (n, p) => n + (Number(p.commission_count) || 0),
+                    0,
+                  );
                   return (
-                    <tr key={p.id}>
+                    <tr key={String(first.group_id ?? first.id)}>
                       <td data-label="Who">
                         <div style={{ fontWeight: 700 }}>
                           {who.name || DASH}{" "}
@@ -155,36 +189,53 @@ export default function PayoutQueue({
                           </span>
                         </div>
                         <div className="muted" style={{ fontSize: ".8rem" }}>
-                          {p.commission_count}{" "}
-                          {p.commission_count === 1 ? "commission" : "commissions"}
-                          {Number(p.clawback_amount) > 0
-                            ? ` · ${formatCurrency(Number(p.clawback_amount), p.currency)} returned`
+                          {commissions} {commissions === 1 ? "commission" : "commissions"}
+                          {g.some((p) => Number(p.clawback_amount) > 0)
+                            ? " · returned volume settled"
                             : ""}
                         </div>
                       </td>
-                      <td className="r" data-label="Amount" style={{ fontWeight: 800 }}>
-                        {formatCurrency(Number(p.amount), p.currency)}
+                      <td className="r" data-label="Transfer" style={{ fontWeight: 800 }}>
+                        {moneyList(per)}
+                        <div className="muted" style={{ fontSize: ".76rem", fontWeight: 500 }}>
+                          {g
+                            .map((p) => {
+                              const dst = String(p.payout_currency ?? p.currency).toUpperCase();
+                              const src = formatCurrency(Number(p.amount) || 0, p.currency);
+                              return dst === String(p.currency).toUpperCase()
+                                ? `${src}`
+                                : `${src} → ${dst} @ ${Number(p.fx_rate ?? 0).toFixed(4)} − ${Number(
+                                    p.fx_fee_pct ?? 0,
+                                  )}%`;
+                            })
+                            .join(" · ")}
+                        </div>
                       </td>
                       <td data-label="Where it goes" style={{ fontSize: ".8rem" }}>
-                        {detailLines(p).length ? (
-                          detailLines(p).map((l) => <div key={l}>{l}</div>)
+                        {detailLines(first).length ? (
+                          detailLines(first).map((l) => <div key={l}>{l}</div>)
                         ) : (
                           <span className="muted">No details given</span>
                         )}
                       </td>
                       <td data-label="Asked">
-                        {dayjs(p.requested_at).format("D MMM YYYY, HH:mm")}
+                        {dayjs(first.requested_at).format("D MMM YYYY, HH:mm")}
                       </td>
                       <td className="r" data-label="Decide">
                         {canDecide ? (
                           <div
-                            style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              justifyContent: "flex-end",
+                              flexWrap: "wrap",
+                            }}
                           >
                             <Button
                               size="sm"
                               onClick={() => {
                                 setReference("");
-                                setAsking({ p, action: "paid" });
+                                setAsking({ g, action: "paid" });
                               }}
                             >
                               Mark as paid
@@ -194,7 +245,7 @@ export default function PayoutQueue({
                               variant="outline"
                               onClick={() => {
                                 setReason("");
-                                setAsking({ p, action: "reject" });
+                                setAsking({ g, action: "reject" });
                               }}
                             >
                               Send back
@@ -230,10 +281,11 @@ export default function PayoutQueue({
                 </tr>
               </thead>
               <tbody>
-                {settled.map((p) => {
-                  const who = nameOf(p.affiliate_advertiser_id);
+                {settled.map((g) => {
+                  const first = g[0];
+                  const who = nameOf(first.affiliate_advertiser_id);
                   return (
-                    <tr key={p.id}>
+                    <tr key={String(first.group_id ?? first.id)}>
                       <td data-label="Who">
                         <div style={{ fontWeight: 700 }}>
                           {who.name || DASH}{" "}
@@ -243,26 +295,32 @@ export default function PayoutQueue({
                         </div>
                       </td>
                       <td className="r" data-label="Amount" style={{ fontWeight: 800 }}>
-                        {formatCurrency(Number(p.amount), p.currency)}
+                        {moneyList(receives(g))}
                       </td>
                       <td data-label="State">
                         <span
                           className={`badge ${
-                            p.status === "paid" ? "ok" : p.status === "rejected" ? "due" : "muted"
+                            first.status === "paid"
+                              ? "ok"
+                              : first.status === "rejected"
+                                ? "due"
+                                : "muted"
                           }`}
                         >
-                          {p.status === "paid"
+                          {first.status === "paid"
                             ? "Paid"
-                            : p.status === "rejected"
+                            : first.status === "rejected"
                               ? "Sent back"
                               : "Withdrawn"}
                         </span>
                       </td>
                       <td data-label="When">
-                        {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
+                        {dayjs(first.paid_at ?? first.decided_at ?? first.requested_at).format(
+                          "D MMM YYYY",
+                        )}
                       </td>
                       <td data-label="Reference / reason" style={{ fontSize: ".8rem" }}>
-                        {p.reference || p.reason || DASH}
+                        {first.reference || first.reason || DASH}
                       </td>
                     </tr>
                   );
@@ -298,15 +356,34 @@ export default function PayoutQueue({
           <>
             <ConfirmFact
               label="Affiliate"
-              value={`${nameOf(asking.p.affiliate_advertiser_id).name} · ${nameOf(asking.p.affiliate_advertiser_id).code}`}
+              value={`${nameOf(asking.g[0].affiliate_advertiser_id).name} · ${nameOf(asking.g[0].affiliate_advertiser_id).code}`}
             />
-            <ConfirmFact
-              label="Amount"
-              value={formatCurrency(Number(asking.p.amount), asking.p.currency)}
-            />
+            <ConfirmFact label="You transfer" value={moneyList(receives(asking.g))} />
+            {asking.g.some(
+              (p) =>
+                String(p.payout_currency ?? p.currency).toUpperCase() !==
+                String(p.currency).toUpperCase(),
+            ) ? (
+              <ConfirmFact
+                label="Converted"
+                value={asking.g
+                  .filter(
+                    (p) =>
+                      String(p.payout_currency ?? p.currency).toUpperCase() !==
+                      String(p.currency).toUpperCase(),
+                  )
+                  .map(
+                    (p) =>
+                      `${formatCurrency(Number(p.amount) || 0, p.currency)} at ${Number(
+                        p.fx_rate ?? 0,
+                      ).toFixed(4)} − ${Number(p.fx_fee_pct ?? 0)}%`,
+                  )
+                  .join(" · ")}
+              />
+            ) : null}
             <ConfirmFact
               label="Commissions"
-              value={`${asking.p.commission_count} row${asking.p.commission_count === 1 ? "" : "s"}`}
+              value={`${asking.g.reduce((n, p) => n + (Number(p.commission_count) || 0), 0)} rows`}
             />
             {asking.action === "paid" ? (
               <div style={{ marginTop: 10 }}>

@@ -17,6 +17,16 @@ const MISSING = /42P01|does not exist|schema cache|PGRST20\d/i;
 
 export type AffiliatePayout = {
   id: string;
+  /** Requests made together (plak 51); absent before it. */
+  group_id?: string | null;
+  /** What the affiliate receives it in. */
+  payout_currency?: string | null;
+  /** EUR per 1 USD, when we converted. */
+  fx_rate?: number | string | null;
+  fx_fee_pct?: number | string | null;
+  fx_fee_amount?: number | string | null;
+  /** What they receive after conversion and fee. */
+  payout_amount?: number | string | null;
   tenant_id: string;
   affiliate_advertiser_id: string;
   currency: string;
@@ -39,8 +49,14 @@ export type PayoutsState = {
   missing: boolean;
 };
 
-const COLUMNS =
+const BASE_COLUMNS =
   "id, tenant_id, affiliate_advertiser_id, currency, amount, commission_count, clawback_amount, status, method, details, reason, reference, requested_at, decided_at, paid_at";
+// Plak 51. Asked for first and dropped on 42703, so the screen works
+// before that migration lands instead of breaking on it.
+const COLUMNS =
+  BASE_COLUMNS +
+  ", group_id, payout_currency, fx_rate, fx_fee_pct, fx_fee_amount, payout_amount";
+const MISSING_COLUMN = /42703|column .* does not exist/i;
 
 /**
  * @param scope who is asking — a tenant id for the owner's queue, an
@@ -59,26 +75,36 @@ export function useAffiliatePayouts(enabled: boolean, scope?: string | null) {
       // fifty settled payouts in front of it, a request that is genuinely
       // waiting would simply not be in the owner's list -- no count, no
       // notice. Everything still waiting, plus the recent history.
-      const waiting = await supabase
-        .from("affiliate_payouts")
-        .select(COLUMNS)
-        .eq("status", "requested")
-        .order("requested_at", { ascending: false });
+      const read = (cols: string, open: boolean) =>
+        open
+          ? supabase
+              .from("affiliate_payouts")
+              .select(cols)
+              .eq("status", "requested")
+              .order("requested_at", { ascending: false })
+          : supabase
+              .from("affiliate_payouts")
+              .select(cols)
+              .neq("status", "requested")
+              .order("requested_at", { ascending: false })
+              .limit(50);
+
+      let cols = COLUMNS;
+      let waiting = await read(cols, true);
+      if (waiting.error && MISSING_COLUMN.test(waiting.error.message)) {
+        cols = BASE_COLUMNS;
+        waiting = await read(cols, true);
+      }
       if (waiting.error) {
         if (MISSING.test(waiting.error.message)) return { rows: [], missing: true };
         throw waiting.error;
       }
-      const settled = await supabase
-        .from("affiliate_payouts")
-        .select(COLUMNS)
-        .neq("status", "requested")
-        .order("requested_at", { ascending: false })
-        .limit(50);
+      const settled = await read(cols, false);
       if (settled.error) throw settled.error;
       return {
         rows: [
-          ...((waiting.data ?? []) as AffiliatePayout[]),
-          ...((settled.data ?? []) as AffiliatePayout[]),
+          ...((waiting.data ?? []) as unknown as AffiliatePayout[]),
+          ...((settled.data ?? []) as unknown as AffiliatePayout[]),
         ],
         missing: false,
       };

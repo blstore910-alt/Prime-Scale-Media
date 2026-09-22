@@ -47,6 +47,39 @@ export type PayoutDetails = {
   note?: string;
 };
 
+/** Only the fields the payout form asks for, trimmed. Never the whole
+ *  object the caller happens to send. */
+function cleanDetails(details: PayoutDetails): PayoutDetails {
+  const clean: PayoutDetails = {};
+  const keys: (keyof PayoutDetails)[] = [
+    "holder",
+    "accountType",
+    "taxId",
+    "address",
+    "iban",
+    "bic",
+    "bankName",
+    "accountNumber",
+    "routing",
+    "note",
+  ];
+  for (const k of keys) {
+    const v = details?.[k];
+    if (typeof v === "string" && v.trim()) clean[k] = v.trim().slice(0, 200);
+  }
+  return clean;
+}
+
+export type PayoutLeg = {
+  currency: string;
+  amount: number;
+  paysIn: string;
+  rate: number | null;
+  fee: number;
+  receives: number;
+  commissions: number;
+};
+
 export type PayoutRequested = {
   payoutId: string;
   amount: number;
@@ -68,29 +101,9 @@ export async function requestAffiliatePayout(
     return { ok: false, error: "Please sign in and try again." };
   }
 
-  // Only the fields the payout form asks for, trimmed. Never the whole
-  // object the caller happens to send.
-  const clean: PayoutDetails = {};
-  const keys: (keyof PayoutDetails)[] = [
-    "holder",
-    "accountType",
-    "taxId",
-    "address",
-    "iban",
-    "bic",
-    "bankName",
-    "accountNumber",
-    "routing",
-    "note",
-  ];
-  for (const k of keys) {
-    const v = details?.[k];
-    if (typeof v === "string" && v.trim()) clean[k] = v.trim().slice(0, 200);
-  }
-
   const { data, error } = await supabase.rpc("affiliate_payout_request", {
     p_currency: currency,
-    p_details: clean,
+    p_details: cleanDetails(details),
   });
   if (error) {
     if (isPayoutsMissing(error.message)) {
@@ -117,6 +130,99 @@ export async function requestAffiliatePayout(
       currency: String(r.currency ?? currency).toUpperCase(),
       commissions: Number(r.commissions) || 0,
       clawbacks: Number(r.clawbacks) || 0,
+    },
+  };
+}
+
+/**
+ * Ask for a payout in one or both currencies, and say how to receive it.
+ *
+ * `payIn` is "EUR" or "USD" (we convert the other leg at the tenant's
+ * rate, minus 0.6%) or "SAME" (each currency to its own bank). Falls back
+ * to the single-currency RPC where plak 51 is not in yet.
+ */
+export async function requestAffiliatePayoutMulti(
+  currencies: ("EUR" | "USD")[],
+  payIn: "EUR" | "USD" | "SAME",
+  details: PayoutDetails,
+): Promise<
+  ActionResult<{ groupId: string; legs: PayoutLeg[]; total: number; paysIn: string | null }>
+> {
+  const mm = maintenanceGuard();
+  if (!mm.ok) return { ok: false, error: mm.error };
+
+  const supabase = await createClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return { ok: false, error: "Please sign in and try again." };
+  }
+  if (!currencies.length) {
+    return { ok: false, error: "Pick what you want paid out." };
+  }
+
+  const { data, error } = await supabase.rpc("affiliate_payout_request_multi", {
+    p_currencies: currencies,
+    p_payout_currency: payIn,
+    p_details: cleanDetails(details),
+  });
+  if (error) {
+    if (isPayoutsMissing(error.message)) {
+      // Plak 51 is not in yet: one currency, in its own currency,
+      // through the function that IS there.
+      const single = await requestAffiliatePayout(currencies[0], details);
+      if (!single.ok) return single;
+      return {
+        ok: true,
+        data: {
+          groupId: single.data.payoutId,
+          total: single.data.amount,
+          paysIn: single.data.currency,
+          legs: [
+            {
+              currency: single.data.currency,
+              amount: single.data.amount,
+              paysIn: single.data.currency,
+              rate: null,
+              fee: 0,
+              receives: single.data.amount,
+              commissions: single.data.commissions,
+            },
+          ],
+        },
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  const r = (data ?? {}) as {
+    group_id?: string;
+    total?: number | string;
+    pays_in?: string | null;
+    rows?: {
+      currency?: string;
+      amount?: number | string;
+      pays_in?: string;
+      rate?: number | string | null;
+      fee?: number | string;
+      receives?: number | string;
+      commissions?: number;
+    }[];
+  };
+  return {
+    ok: true,
+    data: {
+      groupId: String(r.group_id ?? ""),
+      total: Number(r.total) || 0,
+      paysIn: r.pays_in ?? null,
+      legs: (r.rows ?? []).map((x) => ({
+        currency: String(x.currency ?? "EUR").toUpperCase(),
+        amount: Number(x.amount) || 0,
+        paysIn: String(x.pays_in ?? x.currency ?? "EUR").toUpperCase(),
+        rate: x.rate === null || x.rate === undefined ? null : Number(x.rate),
+        fee: Number(x.fee) || 0,
+        receives: Number(x.receives) || 0,
+        commissions: Number(x.commissions) || 0,
+      })),
     },
   };
 }
