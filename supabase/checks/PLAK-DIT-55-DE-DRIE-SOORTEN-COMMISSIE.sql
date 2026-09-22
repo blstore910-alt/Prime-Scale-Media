@@ -486,31 +486,50 @@ end
 $blk7$;
 
 -- ── F. WAT ER NU STAAT (alleen lezen) ────────────────────────────────
+--  MET EEN VANGNET. Een rapportregel die faalt, draaide in de editor de
+--  hele plak terug -- de reparatie hierboven was dan weg zonder dat je
+--  het zag. Een rapport mag nooit de fix kunnen slopen.
 do $blk8$
 declare v_txt text;
 begin
-  select coalesce(string_agg(x.src || ': ' || x.n::text || ' rijen, ' ||
-                             upper(x.cur) || ' ' || to_char(x.som, 'FM999G999G990D00'),
-                             ' · ' order by x.src), 'geen commissies')
-    into v_txt
-    from (
-      select coalesce(rc.source, 'topup') as src,
-             coalesce(rc.currency, 'EUR') as cur,
-             count(*) as n, sum(rc.amount) as som
-        from public.referral_commissions rc
-       where coalesce(rc.status, 'unpaid') <> 'reversed'
-       group by 1, 2
-    ) x;
+  begin
+    select coalesce(string_agg(x.src || ': ' || x.n::text || ' rijen, ' ||
+                               upper(x.cur) || ' ' || to_char(x.som, 'FM999G999G990D00'),
+                               ' · ' order by x.src), 'geen commissies')
+      into v_txt
+      from (
+        select coalesce(rc.source, 'topup') as src,
+               coalesce(rc.currency, 'EUR') as cur,
+               count(*) as n, sum(rc.amount) as som
+          from public.referral_commissions rc
+         where coalesce(rc.status, 'unpaid') <> 'reversed'
+         group by 1, 2
+      ) x;
+  exception when others then
+    v_txt := 'niet te lezen: ' || sqlerrm;
+  end;
   insert into _p55 values (6, 'commissies per soort', v_txt);
 
-  select coalesce(string_agg(r.source || coalesce(' · ' || r.ad_account_type, '') ||
-                             ': ' || coalesce(r.pct::text || '%', to_char(r.amount, 'FM990D00')) ||
-                             coalesce(' (' || a.tenant_client_code || ')', ' (standaard)'),
-                             ' · ' order by r.source), 'GEEN REGELS')
-    into v_txt
-    from public.commission_rules r
-    left join public.advertisers a on a.id = r.affiliate_advertiser_id
-   where coalesce(r.effective_to, 'infinity'::timestamptz) > now();
+  begin
+    -- De regel die NU geldt is de nieuwste per (affiliate, soort, type)
+    -- met een ingangsdatum die al voorbij is. commission_rules heeft
+    -- geen einddatum: een nieuwe rij vervangt de oude.
+    select coalesce(string_agg(y.txt, ' · ' order by y.txt), 'GEEN REGELS')
+      into v_txt
+      from (
+        select distinct on (r.affiliate_advertiser_id, r.source, coalesce(r.ad_account_type, ''))
+               r.source || coalesce(' · ' || r.ad_account_type, '') || ': ' ||
+               coalesce(r.pct::text || '%', to_char(r.amount, 'FM990D00') || ' ' || coalesce(r.currency, '')) ||
+               coalesce(' (' || a.tenant_client_code || ')', ' (standaard)') as txt
+          from public.commission_rules r
+          left join public.advertisers a on a.id = r.affiliate_advertiser_id
+         where r.effective_from <= now()
+         order by r.affiliate_advertiser_id, r.source, coalesce(r.ad_account_type, ''),
+                  r.effective_from desc
+      ) y;
+  exception when others then
+    v_txt := 'niet te lezen: ' || sqlerrm;
+  end;
   insert into _p55 values (7, 'regels die nu gelden', v_txt);
 end
 $blk8$;
