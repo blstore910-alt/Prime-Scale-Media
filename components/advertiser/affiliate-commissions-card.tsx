@@ -6,6 +6,8 @@ import dayjs from "dayjs";
 
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
+import PlatformMark from "@/components/psm/platform-mark";
+import { Ic } from "@/components/advertiser/adv-icons";
 
 // ── EVERY COMMISSION, AND NOTHING ABOUT OUR MARGIN ──────────────────────
 //
@@ -44,17 +46,37 @@ const KIND_LABEL: Record<string, string> = {
   onetime: "Welcome bonus",
 };
 
-function kindBadge(kind: string) {
-  const cls = kind === "subscription" ? "info" : kind === "onetime" ? "pend" : "ok";
-  return <span className={`badge ${cls}`}>{KIND_LABEL[kind] ?? "Commission"}</span>;
+// What the commission came from, as a mark: the network's own logo for a
+// top-up (Meta, never the account type), a receipt for a plan invoice, a
+// gift for the welcome bonus.
+function kindMark(r: Row) {
+  if (r.kind === "topup") {
+    return (
+      <span className="pfi">
+        <PlatformMark slug={r.network ?? null} className="pmark" />
+      </span>
+    );
+  }
+  if (r.kind === "subscription") {
+    return (
+      <span className="pfi k-sub">
+        <Ic name="i-receipt" />
+      </span>
+    );
+  }
+  return (
+    <span className="pfi k-bonus">
+      <Ic name="i-gift" />
+    </span>
+  );
 }
 
 function statusBadge(status: string) {
-  if (status === "paid") return <span className="badge ok">Paid</span>;
-  if (status === "owed") return <span className="badge pend">To be paid</span>;
-  if (status === "processing") return <span className="badge muted">Processing</span>;
-  if (status === "reversed") return <span className="badge muted">Reversed</span>;
-  return <span className="badge muted">{status}</span>;
+  if (status === "paid") return <span className="badge ok xs">Paid</span>;
+  if (status === "owed") return <span className="badge pend xs">To be paid</span>;
+  if (status === "processing") return <span className="badge muted xs">Processing</span>;
+  if (status === "reversed") return <span className="badge muted xs">Reversed</span>;
+  return <span className="badge muted xs">{status}</span>;
 }
 
 function sumBy(rows: Row[], pick: (r: Row) => boolean): Record<string, number> {
@@ -135,152 +157,120 @@ export default function AffiliateCommissionsCard({
   const owed = sumBy(rows, (r) => r.status === "owed");
   const paid = sumBy(rows, (r) => r.status === "paid");
 
+  const dash = q.isLoading || q.isError || q.data?.missing;
+
   return (
-    <div className="card" style={{ padding: "16px 8px 8px" }}>
-      <div style={{ padding: "0 14px 8px" }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          Every commission
-          {focusCode ? (
-            <button
-              type="button"
-              className="badge info"
-              onClick={onClearFocus}
-              style={{ border: 0, cursor: "pointer" }}
-              title="Show every referral again"
-            >
-              {focusCode} ✕
-            </button>
-          ) : null}
+    <div className="card xlist">
+      <div className="xl-head">
+        <h2>
+          <Ic name="i-wallet" /> Every commission
         </h2>
-        <p className="cap" style={{ margin: "4px 0 10px" }}>
-          Each one, with what it came from and whether it has been paid.
+        {focusCode ? (
+          <button
+            type="button"
+            className="badge info"
+            onClick={onClearFocus}
+            style={{ border: 0, cursor: "pointer" }}
+            title="Show every referral again"
+          >
+            {focusCode} ✕
+          </button>
+        ) : null}
+        {!dash ? <span className="xl-count">{rows.length}</span> : null}
+      </div>
+
+      <div className="xl-tools">
+        <div className="seg2" role="group" aria-label="Kind">
+          {(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={kind === k ? "on" : ""}
+              onClick={() => setKind(k)}
+            >
+              {k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Plans" : "Bonus"}
+            </button>
+          ))}
+        </div>
+        <select
+          aria-label="Status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as StatusFilter)}
+        >
+          <option value="all">Any status</option>
+          <option value="owed">To be paid</option>
+          <option value="paid">Paid</option>
+        </select>
+        <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="largest">Largest first</option>
+        </select>
+      </div>
+
+      {/* Totals of what is on screen, so a number is always the sum of
+          the rows under it. Reversed and still-processing rows are shown
+          but are not money. */}
+      <div className="xl-sum">
+        <span>
+          Earned <b>{dash ? "—" : money(earned)}</b>
+        </span>
+        <span>
+          To be paid <b>{dash ? "—" : money(owed)}</b>
+        </span>
+        <span>
+          Paid <b>{dash ? "—" : money(paid)}</b>
+        </span>
+      </div>
+
+      {q.isLoading ? (
+        <p className="xl-empty">Loading your commissions…</p>
+      ) : q.isError ? (
+        <p className="xl-empty">
+          We couldn&apos;t read your commissions just now — this is not a zero. Reload to try again.
         </p>
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <div className="seg2" role="group" aria-label="Kind">
-            {(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={kind === k ? "on" : ""}
-                onClick={() => setKind(k)}
-                style={{ padding: "6px 10px", fontSize: ".8rem" }}
-              >
-                {k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Subscriptions" : "Bonus"}
-              </button>
-            ))}
-          </div>
-          <select
-            aria-label="Status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as StatusFilter)}
-            style={{ border: "1px solid var(--line-2)", borderRadius: 10, padding: "7px 10px", background: "var(--panel)", font: "inherit", fontSize: ".82rem" }}
-          >
-            <option value="all">Any status</option>
-            <option value="owed">To be paid</option>
-            <option value="paid">Paid</option>
-          </select>
-          <select
-            aria-label="Sort"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            style={{ border: "1px solid var(--line-2)", borderRadius: 10, padding: "7px 10px", background: "var(--panel)", font: "inherit", fontSize: ".82rem" }}
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="largest">Largest first</option>
-          </select>
-        </div>
-
-        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 12, fontSize: ".86rem" }}>
-          <span>
-            Earned <b>{q.isLoading || q.isError ? "—" : money(earned)}</b>
-          </span>
-          <span>
-            To be paid <b>{q.isLoading || q.isError ? "—" : money(owed)}</b>
-          </span>
-          <span>
-            Paid <b>{q.isLoading || q.isError ? "—" : money(paid)}</b>
-          </span>
-        </div>
-      </div>
-
-      <div className="tblwrap">
-        <table className="tbl wide">
-          <thead>
-            <tr>
-              <th style={{ paddingLeft: 14 }}>Date</th>
-              <th>Referral</th>
-              <th>From</th>
-              <th className="r">Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {q.isLoading ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--faint)" }}>
-                  Loading your commissions…
-                </td>
-              </tr>
-            ) : q.isError ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--faint)" }}>
-                  We couldn&apos;t read your commissions just now — this is not a zero. Reload to try again.
-                </td>
-              </tr>
-            ) : q.data?.missing ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--faint)" }}>
-                  The detailed list is being switched on. Your totals above are up to date.
-                </td>
-              </tr>
-            ) : rows.length ? (
-              rows.map((r) => (
-                <tr key={r.commission_id}>
-                  <td data-label="Date" style={{ whiteSpace: "nowrap", fontWeight: 600 }}>
-                    {dayjs(r.created_at).format("D MMM YYYY")}
-                  </td>
-                  <td data-label="Referral">
-                    {r.referred_advertiser_name || "Advertiser"}{" "}
-                    <span className="mono" style={{ color: "var(--faint)", fontSize: ".78rem" }}>
-                      {r.referred_advertiser_code}
-                    </span>
-                  </td>
-                  <td data-label="From">
-                    {kindBadge(r.kind)}
-                    {r.kind === "topup" && r.network ? (
-                      <span style={{ marginLeft: 6, color: "var(--faint)", fontSize: ".8rem" }}>
-                        {r.network}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td
-                    data-label="Amount"
-                    className="r mono"
-                    style={{
-                      fontWeight: 700,
-                      color: r.status === "reversed" ? "var(--faint)" : "var(--win)",
-                      textDecoration: r.status === "reversed" ? "line-through" : undefined,
-                    }}
-                  >
-                    {r.amount === null || r.amount === undefined
-                      ? "—"
-                      : formatCurrency(Number(r.amount), String(r.currency || "EUR"))}
-                  </td>
-                  <td data-label="Status">{statusBadge(r.status)}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--faint)" }}>
-                  {all.length ? "Nothing matches these filters." : "No commission yet — it appears here the moment one is earned."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      ) : q.data?.missing ? (
+        <p className="xl-empty">The detailed list is being switched on. Your totals above are up to date.</p>
+      ) : rows.length ? (
+        rows.map((r) => {
+          const reversed = r.status === "reversed";
+          const n = Number(r.amount);
+          return (
+            <div className="xrow" key={r.commission_id}>
+              {kindMark(r)}
+              <span className="mid">
+                <span className="nm">
+                  <span className="t">{r.referred_advertiser_name || "Advertiser"}</span>
+                </span>
+                <span className="sm">
+                  {[
+                    dayjs(r.created_at).format("D MMM YYYY"),
+                    KIND_LABEL[r.kind] ?? "Commission",
+                    r.kind === "topup" && r.network ? r.network : null,
+                    r.referred_advertiser_code,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </span>
+              <span className="rt">
+                <span className={`amt${reversed ? " rev" : ""}`}>
+                  {r.amount === null || r.amount === undefined || !Number.isFinite(n)
+                    ? "—"
+                    : formatCurrency(n, String(r.currency || "EUR"))}
+                </span>
+                {statusBadge(r.status)}
+              </span>
+            </div>
+          );
+        })
+      ) : (
+        <p className="xl-empty">
+          {all.length
+            ? "Nothing matches these filters."
+            : "No commission yet — it appears here the moment one is earned."}
+        </p>
+      )}
     </div>
   );
 }

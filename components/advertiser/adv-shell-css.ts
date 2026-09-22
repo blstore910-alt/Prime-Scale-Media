@@ -1256,4 +1256,139 @@ export const ADV_CSS = `
    so it steps aside when it is holding one. */
   .avatar:has(> svg),.avatar:has(> *){background:none;color:transparent;box-shadow:none}
   .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
+
+/* ── REFERRALS: THE EARNINGS CABINET ─────────────────────────────────────
+   The owner, 22-09: "first the casino card and the stats, then the link --
+   the link can be much more subtle". The affiliate portal's hero, brought
+   to the advertiser's Referrals tab: dark ground, a slow ribbon, gold
+   light, coins rising, and the figure itself lit. Decoration is
+   aria-hidden, never clickable, and dead still under reduced motion. */
+  .xhero{position:relative;overflow:hidden;isolation:isolate;border-radius:22px;
+    padding:26px 18px 22px;text-align:center;color:#fff;
+    background:radial-gradient(130% 120% at 50% -20%,rgba(91,141,255,.42),transparent 55%),
+      radial-gradient(80% 110% at 92% 0,rgba(139,92,246,.34),transparent 55%),
+      radial-gradient(80% 110% at 8% 8%,rgba(24,184,206,.22),transparent 55%),
+      linear-gradient(165deg,#090d22 0%,#0c1230 52%,#131a3c 100%);
+    border:1px solid rgba(120,150,255,.26);
+    box-shadow:0 24px 50px -30px rgba(10,16,48,.85),inset 0 1px 0 rgba(255,255,255,.08)}
+  .xhero .xh-ribbon{position:absolute;inset:-45%;z-index:0;pointer-events:none;
+    background:conic-gradient(from 0deg,transparent,rgba(139,92,246,.18),transparent 26%,
+      rgba(91,141,255,.22),transparent 56%,rgba(24,184,206,.16),transparent 82%);
+    animation:xhspin 20s linear infinite}
+  @keyframes xhspin{to{transform:rotate(1turn)}}
+  .xhero .xh-glow{position:absolute;top:40%;left:50%;width:min(520px,96%);height:210px;z-index:0;
+    pointer-events:none;transform:translate(-50%,-50%);filter:blur(12px);
+    background:radial-gradient(ellipse at center,rgba(255,198,64,.38),rgba(255,170,40,0) 66%);
+    animation:xhglow 3.4s ease-in-out infinite}
+  @keyframes xhglow{0%,100%{opacity:.72;transform:translate(-50%,-50%) scale(1)}
+    50%{opacity:1;transform:translate(-50%,-50%) scale(1.07)}}
+  .xhero .xh-coins{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+  .xhero .xh-coins span{position:absolute;bottom:-30px;font-family:var(--hd);font-weight:800;
+    color:rgba(255,198,64,.5);text-shadow:0 0 14px rgba(255,170,40,.55);
+    animation:xhcoin linear infinite;will-change:transform,opacity}
+  .xhero .xh-coins span:nth-child(1){left:6%;font-size:1rem;animation-duration:11s;animation-delay:0s}
+  .xhero .xh-coins span:nth-child(2){left:18%;font-size:.78rem;animation-duration:15s;animation-delay:-3s}
+  .xhero .xh-coins span:nth-child(3){left:31%;font-size:1.25rem;animation-duration:13s;animation-delay:-7s}
+  .xhero .xh-coins span:nth-child(4){left:45%;font-size:.86rem;animation-duration:17s;animation-delay:-1s}
+  .xhero .xh-coins span:nth-child(5){left:59%;font-size:1.1rem;animation-duration:12s;animation-delay:-9s}
+  .xhero .xh-coins span:nth-child(6){left:72%;font-size:.8rem;animation-duration:16s;animation-delay:-5s}
+  .xhero .xh-coins span:nth-child(7){left:85%;font-size:1.05rem;animation-duration:14s;animation-delay:-12s}
+  .xhero .xh-coins span:nth-child(8){left:94%;font-size:.75rem;animation-duration:18s;animation-delay:-8s}
+  @keyframes xhcoin{0%{transform:translateY(0) rotate(0deg) scale(.9);opacity:0}12%{opacity:1}
+    82%{opacity:1}100%{transform:translateY(-360px) rotate(240deg) scale(1.1);opacity:0}}
+  .xhero .xh-in{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
+  .xh-eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:800;
+    font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:#ffd98a;
+    text-shadow:0 2px 14px rgba(255,190,60,.45)}
+  .xh-eyebrow svg{width:14px;height:14px;color:#ffcf6a}
+  .xh-amt{position:relative;display:inline-block;margin:0;max-width:100%;font-family:var(--hd);
+    font-weight:800;letter-spacing:-.035em;line-height:.95;font-size:clamp(2.5rem,12.5vw,4.4rem);
+    background:linear-gradient(100deg,#e0980f 0%,#ffdf85 28%,#fff7de 42%,#ffdf85 56%,#e0980f 82%);
+    background-size:230% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 10px 22px rgba(255,170,40,.32));animation:xhshine 3.8s ease-in-out infinite}
+  @keyframes xhshine{0%{background-position:185% 0}55%,100%{background-position:-45% 0}}
+  .xh-amt .cur{font-size:.52em;vertical-align:.14em;margin-right:.04em;
+    -webkit-text-fill-color:#ffcf6a;color:#ffcf6a}
+  .xh-amt .usd{font-size:.36em;letter-spacing:-.01em;opacity:.85}
+  .xh-sub{margin:10px auto 0;max-width:32ch;font-size:.8rem;line-height:1.45;color:rgba(255,255,255,.7)}
+  .xh-tiles{display:inline-flex;margin:18px auto 0;border-radius:16px;overflow:hidden;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 16px 30px -18px rgba(0,0,0,.6)}
+  .xh-t{display:flex;flex-direction:column;align-items:center;padding:11px 20px;border:0;
+    background:none;color:inherit;font:inherit;cursor:pointer;transition:background .14s}
+  .xh-t+.xh-t{border-left:1px solid rgba(255,255,255,.14)}
+  .xh-t:hover{background:rgba(255,255,255,.07)}
+  .xh-t .v{font-family:var(--hd);font-weight:800;font-size:1.45rem;line-height:1;color:#9db8ff}
+  .xh-t.win .v{color:#63f0c1}.xh-t.gold .v{color:#ffd98a}
+  .xh-t .l{margin-top:5px;font-size:.6rem;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:rgba(255,255,255,.62)}
+  .xh-pill{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:8px 14px;
+    border-radius:99px;background:rgba(16,185,129,.16);border:1px solid rgba(16,185,129,.42);
+    color:#63f0c1;font-weight:700;font-size:.8rem;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+  .xh-pill svg{width:15px;height:15px}
+  @media (max-width:380px){.xh-t{padding:10px 13px}.xh-t .v{font-size:1.25rem}}
+  @media (prefers-reduced-motion:reduce){
+    .xhero .xh-ribbon,.xhero .xh-glow,.xh-amt{animation:none}
+    .xhero .xh-coins{display:none}}
+
+/* The four figures under it: the same tiles as everywhere, each lit from
+   its own corner in its own colour. */
+  .xstats .stat{position:relative;overflow:hidden}
+  .xstats .stat::after{content:"";position:absolute;right:-34px;top:-34px;width:96px;height:96px;
+    border-radius:50%;pointer-events:none;background:radial-gradient(circle,var(--xg,rgba(58,111,255,.16)),transparent 70%)}
+  .xstats .stat.g-gold{--xg:rgba(239,176,44,.26)}.xstats .stat.g-win{--xg:rgba(16,185,129,.22)}
+  .xstats .stat.g-blue{--xg:rgba(58,111,255,.2)}.xstats .stat.g-purple{--xg:rgba(139,92,246,.22)}
+  .xstats .stat .v.gold{color:#a9740b}.xstats .stat .v.win{color:var(--win)}
+
+/* The link, quiet: a tool, not the headline. */
+  .xshare{padding:14px 16px}
+  .xshare .xs-top{display:flex;align-items:flex-start;gap:11px}
+  .xshare .xs-top .ci{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto}
+  .xshare .xs-top .ci svg{width:16px;height:16px}
+  .xshare h2{font-size:.98rem}
+  .xshare .cap{margin:2px 0 0;font-size:.8rem}
+  .xs-link{margin-top:11px;padding:9px 11px;border-radius:10px;background:var(--panel-2);
+    border:1px solid var(--line-2);font-size:.8rem;color:var(--primary-600);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .xs-acts{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .xs-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
+
+/* Lists as rows, not as a card per line: one line of name, one line of
+   detail, the money on the right. A phone showed four label/value pairs
+   per commission, a screen tall for two of them. */
+  .xlist{padding:6px 0 4px}
+  .xl-head{display:flex;align-items:center;gap:8px;padding:10px 16px 8px}
+  .xl-head h2{display:flex;align-items:center;gap:8px;font-size:1.02rem}
+  .xl-head h2 svg{width:18px;height:18px;color:var(--primary-600)}
+  .xl-count{margin-left:auto;min-width:24px;height:22px;padding:0 7px;border-radius:99px;
+    display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;
+    background:var(--primary-tint);color:var(--primary-600)}
+  .xrow{display:flex;align-items:center;gap:11px;width:100%;padding:9px 16px;margin:0;
+    border:0;border-top:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left}
+  button.xrow{cursor:pointer;transition:background .12s}
+  button.xrow:hover{background:var(--panel-2)}
+  .xrow .av{width:34px;height:34px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+    font-family:var(--hd);font-weight:800;font-size:.76rem;color:var(--primary-600);
+    background:linear-gradient(135deg,var(--primary-tint),#f3e8ff)}
+  .xrow .pfi{width:34px;height:34px;border-radius:11px}
+  .xrow .pfi .ic{width:17px;height:17px}
+  .xrow .pfi.k-sub{background:var(--primary-tint);border-color:transparent;color:var(--primary-600)}
+  .xrow .pfi.k-bonus{background:var(--gold-soft);border-color:transparent;color:#a9740b}
+  .xrow .mid{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
+  .xrow .nm{display:flex;align-items:center;gap:6px;min-width:0;font-weight:700;font-size:.88rem}
+  .xrow .nm .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .xrow .sm{font-size:.74rem;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .xrow .rt{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+  .xrow .amt{font-family:var(--hd);font-weight:800;font-size:.92rem;color:var(--win);white-space:nowrap}
+  .xrow .amt.rev{color:var(--faint);text-decoration:line-through}
+  .badge.xs{padding:1px 7px;font-size:.64rem;gap:4px}
+  .xl-empty{margin:0;padding:18px 16px;text-align:center;font-size:.84rem;color:var(--faint);
+    border-top:1px solid var(--line)}
+  .xl-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 16px 10px}
+  .xl-tools select{border:1px solid var(--line-2);border-radius:10px;padding:6px 9px;
+    background:var(--panel);font:inherit;font-size:.8rem}
+  .xl-tools .seg2 button{padding:6px 10px;font-size:.78rem}
+  .xl-sum{display:flex;gap:14px;flex-wrap:wrap;padding:0 16px 10px;font-size:.82rem;color:var(--txt-2)}
+  .xl-sum b{color:var(--ink)}
 `  + refineCss(".advapp");

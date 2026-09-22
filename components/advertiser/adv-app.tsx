@@ -116,6 +116,16 @@ const usd = (n: number | string | null | undefined) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+// Two letters for a referral's avatar. Never empty: a customer with no
+// name yet still gets a mark.
+const refInitials = (name: string | null | undefined) =>
+  String(name ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join("")
+    .toUpperCase() || "?";
 const money2 = (n: number | string | null | undefined) =>
   new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
@@ -822,6 +832,24 @@ export default function AdvertiserApp() {
   // advertiser row, where the query is disabled and react-query v5
   // reports isPending true and isSuccess false permanently.
   const affUnavailable = aff.isError || aff.isLoading;
+  // This month, for the cabinet's pill and tile. A second read, like the
+  // affiliate portal's -- and guarded on its own, never borrowing the
+  // all-time read's state.
+  const affMonth = useAffiliateStats({
+    from: dayjs().startOf("month").format("YYYY-MM-DD"),
+    enabled: !!advertiserId && isAffiliate,
+  });
+  const affMonthUnavailable = affMonth.isError || affMonth.isLoading;
+  // Waiting = signed up through the link, not approved yet (plak 42).
+  // Active = approved and has funded at least once.
+  const affWaiting = aff.rows.filter(
+    (r) => String(r.link_status ?? "active") === "pending",
+  ).length;
+  const affActive = aff.rows.filter(
+    (r) =>
+      String(r.link_status ?? "active") !== "pending" &&
+      Number(r.topup_count) > 0,
+  ).length;
   const {
     notifications: rawNotifs,
     markAsRead,
@@ -3462,117 +3490,171 @@ export default function AdvertiserApp() {
               </div>
             ) : (
               <>
-            <div className="card">
-              <h2>
-                  <Ic name="i-gift" /> Your referral link
-                </h2>
-              <p className="cap" style={{ margin: "6px 0 12px" }}>
-                Anyone who signs up through your link is yours, and stays
-                    yours.
-              </p>
-              {referralLink ? (
-                <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
-                  <div
-                    className="mono"
-                    style={{
-                      flex: 1,
-                      minWidth: 200,
-                      background: "var(--panel-2)",
-                      border: "1px solid var(--line-2)",
-                      borderRadius: 11,
-                      padding: "12px 13px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      fontSize: ".84rem",
-                    }}
-                  >
-                    {referralLink}
-                  </div>
-                  <button className="btn" onClick={copyReferral}>
-                    <Ic name="i-check" /> Copy link
-                  </button>
-                </div>
-              ) : affiliateLoading && !affiliateError ? (
-                /* Still asking. This used to print the FAILURE sentence
-                   while the read was in flight, so the first thing the
-                   Referrals screen said was that it could not check. */
-                <p className="cap" style={{ margin: 0 }}>
-                  Checking your referral link…
+            {/* ── THE CABINET FIRST ──────────────────────────────────
+                The owner, 22-09: "first the casino card and the stats,
+                then the link -- that can be much more subtle". What
+                somebody opens this tab for is what they have earned; the
+                link is a tool. Same rule as the affiliate portal's hero:
+                a figure we could not read is a dash and a sentence,
+                never a zero. */}
+            <section className="xhero">
+              <div className="xh-ribbon" aria-hidden="true" />
+              <div className="xh-glow" aria-hidden="true" />
+              <div className="xh-coins" aria-hidden="true">
+                <span>€</span>
+                <span>$</span>
+                <span>€</span>
+                <span>$</span>
+                <span>€</span>
+                <span>$</span>
+                <span>€</span>
+                <span>$</span>
+              </div>
+              <div className="xh-in">
+                <p className="xh-eyebrow">
+                  <Ic name="i-gift" /> Your total earnings
                 </p>
-              ) : affiliateUnknown ? (
-                /* "Ask an admin to enable the affiliate program" is a
-                   statement about this account's STATUS, and we do not know
-                   it — the read failed. Telling an approved affiliate to go
-                   and ask for something they already have sends them to
-                   support about an account that works. */
-                <p className="cap" style={{ margin: 0 }}>
-                  We couldn&apos;t check your referral link just now. This
-                  does not mean you don&apos;t have one — reload and it should
-                  appear.
-                </p>
-              ) : (
-                <p className="cap" style={{ margin: 0 }}>
-                  Your referral link isn&apos;t set up yet — ask an admin to
-                  enable the affiliate program for your account, or apply via
-                  Settings.
-                </p>
-              )}
-            </div>
-            <div className="stats">
-              <div className="stat">
-                <div className="k">
-                  <span className="ci b">
-                    <Ic name="i-user" />
-                  </span>{" "}
-                  Referred
-                </div>
-                {/* aff.isError was referenced NOWHERE on this screen, so
-                    a failed read printed Referred 0, Active 0, Commission
-                    €0 and Spend €0 — four figures it could not vouch for,
-                    on the page where an advertiser checks what their
-                    referrals earned them. The wallet block eight lines up
-                    already does this correctly.
+                {affUnavailable ? (
+                  <>
+                    <h2 className="xh-amt">
+                      <span className="cur">€</span>—
+                    </h2>
+                    <p className="xh-sub">
+                      {aff.isError
+                        ? "We couldn't load your earnings just now — this is not a zero. Reload to try again."
+                        : "Counting your earnings…"}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {(() => {
+                      // Both legs, to the cent. The one with money in it
+                      // leads; a dollar-only affiliate is not shown €0.
+                      const e = Number(aff.totals.earnings_eur) || 0;
+                      const u = Number(aff.totals.earnings_usd) || 0;
+                      const usdLeads = u > 0 && e === 0;
+                      const lead = usdLeads ? usd(u) : eur(e);
+                      return (
+                        <h2 className="xh-amt">
+                          <span className="cur">{lead.charAt(0)}</span>
+                          {lead.slice(1)}
+                          {!usdLeads && u > 0 ? (
+                            <span className="usd"> · {usd(u)}</span>
+                          ) : null}
+                        </h2>
+                      );
+                    })()}
+                    <div className="xh-tiles">
+                      <button
+                        type="button"
+                        className="xh-t"
+                        onClick={() =>
+                          document
+                            .getElementById("aff-refs")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                        }
+                      >
+                        <span className="v">{aff.rows.length}</span>
+                        <span className="l">Referred</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="xh-t win"
+                        onClick={() =>
+                          document
+                            .getElementById("aff-refs")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                        }
+                      >
+                        <span className="v">{affActive}</span>
+                        <span className="l">Active</span>
+                      </button>
+                      {affWaiting ? (
+                        <button
+                          type="button"
+                          className="xh-t gold"
+                          onClick={() =>
+                            document
+                              .getElementById("aff-refs")
+                              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                          }
+                        >
+                          <span className="v">{affWaiting}</span>
+                          <span className="l">Waiting</span>
+                        </button>
+                      ) : null}
+                    </div>
+                    <span className="xh-pill">
+                      <Ic name="i-trend" />{" "}
+                      {affMonthUnavailable
+                        ? "this month — not loaded"
+                        : `+${twoLeg(affMonth.totals.earnings_eur, affMonth.totals.earnings_usd)} this month`}
+                    </span>
+                  </>
+                )}
+              </div>
+            </section>
 
-                    isLoading belongs in the same test and was missing
-                    from the whole file: with retry:1 and backoff, the
-                    window between mount and answer is seconds, and for
-                    a profile with no advertiser row the query is
-                    DISABLED, which in react-query v5 means isPending
-                    true and isSuccess false FOR EVER. aff-app.tsx
-                    computes exactly this as statsUnavailable. */}
-                <div className="v">{affUnavailable ? "—" : aff.rows.length}</div>
-              </div>
-              <div className="stat">
-                <div className="k">
-                  <span className="ci t">
-                    <Ic name="i-trend" />
-                  </span>{" "}
-                  Active
-                </div>
-                <div className="v">
-                  {affUnavailable
-                    ? "—"
-                    : aff.rows.filter((r) => Number(r.topup_count) > 0).length}
-                </div>
-              </div>
-              <div className="stat">
+            {/* Four figures, each one the sum of the list below it. */}
+            <div className="stats xstats">
+              <div className="stat g-gold">
                 <div className="k">
                   <span className="ci g">
                     <Ic name="i-wallet" />
                   </span>{" "}
-                  Commission
+                  To be paid
                 </div>
-                <div className="v">
-                  {affUnavailable
-                    ? "—"
-                    : twoLeg(aff.totals.earnings_eur, aff.totals.earnings_usd)}
+                <div className="v gold">
+                  {affUnavailable ? "—" : twoLeg(aff.payable.eur, aff.payable.usd)}
                 </div>
               </div>
-              <div className="stat">
+              <div className="stat g-win">
+                <div className="k">
+                  <span className="ci t">
+                    <Ic name="i-check" />
+                  </span>{" "}
+                  Paid out
+                </div>
+                <div className="v">
+                  {affUnavailable || aff.payable.isLifetime
+                    ? "—"
+                    : twoLeg(
+                        Math.max(
+                          0,
+                          Math.round(
+                            ((Number(aff.totals.earnings_eur) || 0) -
+                              (Number(aff.totals.unpaid_eur) || 0)) *
+                              100,
+                          ) / 100,
+                        ),
+                        Math.max(
+                          0,
+                          Math.round(
+                            ((Number(aff.totals.earnings_usd) || 0) -
+                              (Number(aff.totals.unpaid_usd) || 0)) *
+                              100,
+                          ) / 100,
+                        ),
+                      )}
+                </div>
+              </div>
+              <div className="stat g-blue">
+                <div className="k">
+                  <span className="ci b">
+                    <Ic name="i-trend" />
+                  </span>{" "}
+                  This month
+                </div>
+                <div className="v win">
+                  {affMonthUnavailable
+                    ? "—"
+                    : twoLeg(affMonth.totals.earnings_eur, affMonth.totals.earnings_usd)}
+                </div>
+              </div>
+              <div className="stat g-purple">
                 <div className="k">
                   <span className="ci p">
-                    <Ic name="i-trend" />
+                    <Ic name="i-chart" />
                   </span>{" "}
                   Spend driven
                 </div>
@@ -3583,91 +3665,134 @@ export default function AdvertiserApp() {
                 </div>
               </div>
             </div>
-            <div className="card" style={{ padding: "16px 8px 8px" }}>
-              <div style={{ padding: "0 14px 8px" }}>
+
+            {/* The link, quiet: a tool, not the headline. */}
+            <div className="card xshare">
+              <div className="xs-top">
+                <span className="ci b">
+                  <Ic name="i-gift" />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <h2>Your referral link</h2>
+                  <p className="cap">
+                    Anyone who signs up through it is yours, and stays yours.
+                  </p>
+                </div>
+              </div>
+              {referralLink ? (
+                <>
+                  <div className="xs-link mono" title={referralLink}>
+                    {referralLink}
+                  </div>
+                  <div className="xs-acts">
+                    <button className="btn sm" onClick={copyReferral}>
+                      <Ic name="i-copy" /> Copy link
+                    </button>
+                    <a
+                      className="btn ghost sm"
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `Advertise with Prime Scale Media — sign up through my link: ${referralLink}`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <WhatsappIcon /> Share on WhatsApp
+                    </a>
+                  </div>
+                </>
+              ) : affiliateLoading && !affiliateError ? (
+                /* Still asking. This used to print the FAILURE sentence
+                   while the read was in flight, so the first thing the
+                   Referrals screen said was that it could not check. */
+                <p className="cap" style={{ margin: "10px 0 0" }}>
+                  Checking your referral link…
+                </p>
+              ) : affiliateUnknown ? (
+                /* "Ask an admin to enable the affiliate program" is a
+                   statement about this account's STATUS, and we do not know
+                   it — the read failed. Telling an approved affiliate to go
+                   and ask for something they already have sends them to
+                   support about an account that works. */
+                <p className="cap" style={{ margin: "10px 0 0" }}>
+                  We couldn&apos;t check your referral link just now. This
+                  does not mean you don&apos;t have one — reload and it should
+                  appear.
+                </p>
+              ) : (
+                <p className="cap" style={{ margin: "10px 0 0" }}>
+                  Your referral link isn&apos;t set up yet — ask an admin to
+                  enable the affiliate program for your account, or apply via
+                  Settings.
+                </p>
+              )}
+            </div>
+
+            {/* ── ONE LINE PER REFERRAL ─────────────────────────────── */}
+            <div className="card xlist" id="aff-refs">
+              <div className="xl-head">
                 <h2>
                   <Ic name="i-user" /> Your referrals
                 </h2>
+                {!affUnavailable ? (
+                  <span className="xl-count">{aff.rows.length}</span>
+                ) : null}
               </div>
-              <div className="tblwrap">
-                <table className="tbl wide">
-                  <thead>
-                    <tr>
-                      <th style={{ paddingLeft: 14 }}>Advertiser</th>
-                      <th>Code</th>
-                      <th className="r">Top-ups</th>
-                      <th className="r">Spend</th>
-                      <th className="r">Commission</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {aff.rows.length ? (
-                      aff.rows.map((r) => (
-                        <tr
-                          key={r.referred_advertiser_id}
-                          onClick={() => {
-                            // Every commission behind this row, one tap away.
-                            setRefFocus(r.referred_advertiser_code || null);
-                            if (typeof document !== "undefined") {
-                              document
-                                .getElementById("aff-commissions")
-                                ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                            }
-                          }}
-                          style={{ cursor: "pointer" }}
-                          title="Show every commission from this referral"
-                        >
-                          <td data-label="Advertiser" style={{ fontWeight: 600 }}>
-                            {r.referred_advertiser_name || "Advertiser"}
-                            {String(r.link_status ?? "active") === "pending" ? (
-                              <span
-                                className="badge pend"
-                                style={{ marginLeft: 8 }}
-                                title="We check every new referral. What they do in the meantime counts once it is approved."
-                              >
-                                Waiting for approval
-                              </span>
-                            ) : null}
-                          </td>
-                          <td data-label="Code" className="mono">
-                            {r.referred_advertiser_code || "—"}
-                          </td>
-                          <td data-label="Top-ups" className="r">
-                            {r.topup_count}
-                          </td>
-                          <td data-label="Spend" className="r mono">
-                            {twoLeg(r.spend_eur, r.spend_usd)}
-                          </td>
-                          <td
-                            data-label="Commission"
-                            className="r mono"
-                            style={{ fontWeight: 700, color: "var(--win)" }}
-                          >
-                            {twoLeg(r.earnings_eur, r.earnings_usd)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          style={{
-                            textAlign: "center",
-                            padding: 24,
-                            color: "var(--faint)",
-                          }}
-                        >
-                          {aff.isError
-                            ? "We couldn't read your referrals just now — this is not a zero. Reload to try again."
-                            : aff.isLoading
-                              ? "Loading your referrals…"
-                              : "No referrals yet."}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              {aff.rows.length ? (
+                aff.rows.map((r) => {
+                  const waiting = String(r.link_status ?? "active") === "pending";
+                  const topups = Number(r.topup_count) || 0;
+                  return (
+                    <button
+                      type="button"
+                      className="xrow"
+                      key={r.referred_advertiser_id}
+                      onClick={() => {
+                        // Every commission behind this row, one tap away.
+                        setRefFocus(r.referred_advertiser_code || null);
+                        document
+                          .getElementById("aff-commissions")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      title="Show every commission from this referral"
+                    >
+                      <span className="av">{refInitials(r.referred_advertiser_name)}</span>
+                      <span className="mid">
+                        <span className="nm">
+                          <span className="t">{r.referred_advertiser_name || "Advertiser"}</span>
+                          {waiting ? (
+                            <span
+                              className="badge pend xs"
+                              title="We check every new referral. What they do in the meantime counts once it is approved."
+                            >
+                              Waiting for approval
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="sm">
+                          {[
+                            r.referred_advertiser_code,
+                            `${topups} top-up${topups === 1 ? "" : "s"}`,
+                            `${twoLeg(r.spend_eur, r.spend_usd)} spend`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </span>
+                      <span className="rt">
+                        <span className="amt">{twoLeg(r.earnings_eur, r.earnings_usd)}</span>
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="xl-empty">
+                  {aff.isError
+                    ? "We couldn't read your referrals just now — this is not a zero. Reload to try again."
+                    : aff.isLoading
+                      ? "Loading your referrals…"
+                      : "No referrals yet — share your link and they appear here."}
+                </p>
+              )}
             </div>
             <div id="aff-commissions">
               <AffiliateCommissionsCard
