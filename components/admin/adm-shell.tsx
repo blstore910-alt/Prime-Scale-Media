@@ -269,14 +269,23 @@ export default function AdminShell({
       <div className={`scrim${open ? " on" : ""}`} onClick={close} />
 
       <aside className={`sidebar${open ? " open" : ""}`}>
-        <div className="logo">
+        {/* The mark goes home, like it does in the customer app. It was a
+            plain block here and in the top bar -- the owner: "rocket
+            linksboven moet naar home gaan, werkt ineens niet meer". */}
+        <Link
+          href="/dashboard"
+          className="logo"
+          onClick={close}
+          aria-label="Go to the dashboard"
+          style={{ textDecoration: "none", color: "inherit" }}
+        >
           <span className="mark">
             <Rocket />
           </span>
           <span className="name">
             Prime Scale Media<small>{roleLabel}</small>
           </span>
-        </div>
+        </Link>
         {groups.map((g, gi) => (
           <div key={g.title ?? gi}>
             {g.title && <div className="navsec">{g.title}</div>}
@@ -353,11 +362,18 @@ export default function AdminShell({
             >
               <Menu />
             </button>
-            <span className="tb-brand">
+            <Link
+              href="/dashboard"
+              className="tb-brand"
+              onClick={close}
+              aria-label="Go to the dashboard"
+              title="Dashboard"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
               <span className="mark">
                 <Rocket />
               </span>
-            </span>
+            </Link>
           </div>
           <span className="tb-title">{title}</span>
           <div className="tb-spacer" />

@@ -37,6 +37,10 @@ export type SupplierLink = {
   typeLabel: string;
   /** True when this type funds itself and no hand top-up is needed. */
   apiEnabled: boolean;
+  /** What WE pay the supplier on this type, as a percent (Settings ->
+   *  Ad account types, "We pay %"). ADMIN-ONLY cost data. Null = not set,
+   *  which is not 0. */
+  feePct: number | null;
 };
 
 type TypeRow = {
@@ -57,6 +61,7 @@ type SupplierRow = {
   ad_account_type_id: string;
   supplier_label: string | null;
   supplier_url: string | null;
+  supplier_fee_pct?: number | string | null;
 };
 
 type AccountRow = {
@@ -93,10 +98,17 @@ export function useSupplierLinks(accountIds: string[]) {
       // from the types read on purpose: the types ARE the screen, and a
       // supplier link that cannot be read must leave the queue working.
       // Its error is swallowed for that reason and only that one.
-      const suppliers = await supabase
+      let suppliers: { data: unknown[] | null; error: unknown } = await supabase
         .from("ad_account_type_suppliers")
-        .select("ad_account_type_id, supplier_label, supplier_url")
+        .select("ad_account_type_id, supplier_label, supplier_url, supplier_fee_pct")
         .eq("tenant_id", tenantId);
+      if (suppliers.error) {
+        // The fee column is the newest part; the pill must not depend on it.
+        suppliers = await supabase
+          .from("ad_account_type_suppliers")
+          .select("ad_account_type_id, supplier_label, supplier_url")
+          .eq("tenant_id", tenantId);
+      }
 
       const accounts = await supabase
         .from("ad_accounts")
@@ -136,6 +148,12 @@ export function useSupplierLinks(accountIds: string[]) {
           host: supplierUrlHost(sup?.supplier_url),
           typeLabel: String(type.label ?? "").trim(),
           apiEnabled: type.api_topup_enabled === true,
+          feePct:
+            sup?.supplier_fee_pct === null || sup?.supplier_fee_pct === undefined
+              ? null
+              : Number.isFinite(Number(sup.supplier_fee_pct))
+                ? Number(sup.supplier_fee_pct)
+                : null,
         });
       }
       return byAccount;

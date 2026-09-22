@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
+import Copyable from "@/components/psm/copyable";
 import {
   AlertCircle,
   Check,
@@ -373,11 +374,18 @@ function VerifyTopupInvoice({
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
+              {/* Click to copy: it is what the admin pastes into the
+                  supplier's portal to find the account. */}
               <h4 className="font-semibold text-foreground truncate">
-                {(topup as unknown as { account_name?: string | null })
-                  .account_name ||
-                  topup.account?.name ||
-                  "Unknown Account"}
+                <Copyable
+                  value={
+                    (topup as unknown as { account_name?: string | null })
+                      .account_name ||
+                    topup.account?.name ||
+                    ""
+                  }
+                  label="account"
+                />
               </h4>
               <div className="text-xs text-muted-foreground uppercase tracking-wider">
                 {topup.type.replace("-", " ")}
@@ -395,86 +403,97 @@ function VerifyTopupInvoice({
 
         <Separator />
 
-        {/* Invoice Body */}
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-12 gap-4 text-sm">
-            <div className="col-span-6 text-muted-foreground font-medium uppercase text-xs tracking-wider">
-              Description
-            </div>
-            <div className="col-span-2 text-right text-muted-foreground font-medium uppercase text-xs tracking-wider">
-              Rate
-            </div>
-            <div className="col-span-4 text-right text-muted-foreground font-medium uppercase text-xs tracking-wider">
-              Amount
-            </div>
-
-            {/* Line Item: Amount Received */}
-            <div className="col-span-6 font-medium">Amount Received</div>
-            <div className="col-span-2 text-right text-muted-foreground">-</div>
-            <div className="col-span-4 text-right font-semibold">
+        {/* ── THREE LINES, ONE PERCENTAGE ─────────────────────────────
+            This was a Description | Rate | Amount grid whose first line
+            said "Amount Received" and whose fee line printed the rate
+            twice (the input and a Rate cell) -- the owner: "description
+            moet Ad account topup zijn en de rate staat er nu 3x". What
+            the admin needs is the money in, the fee off, and what lands,
+            with the one editable percentage where the fee is. */}
+        <div className="p-5 sm:p-6 space-y-3 text-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="font-medium">Ad account top-up</span>
+            <span className="font-semibold tabular-nums">
               {formatCurrency(
                 topup.amount_received as unknown as number,
                 topup.currency,
               )}
-            </div>
-
-            <Separator className="col-span-12 my-2" />
-
-            {/* Line Item: Service Fee */}
-            <div className="col-span-6 flex items-center gap-2">
-              <span>Fee</span>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded">
-                  <Input
-                    {...register("fee")}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    className="h-6 w-16 text-right px-1 py-0 bg-transparent border-none focus-visible:ring-0 text-xs"
-                  />
-                  <span className="text-xs text-muted-foreground">%</span>
-                </div>
-                {errors.fee && (
-                  <p className="text-xs text-destructive">
-                    {errors.fee.message}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="col-span-2 text-right text-muted-foreground">
-              {feePercentage}%
-            </div>
-            {/* ── THE ACCOUNT'S OWN CURRENCY, NOT A HARD-CODED "USD" ──
-                These two cells are the biggest numbers on the screen an
-                admin presses Verify from, and they carried a dollar sign
-                whatever the funding was in. Three lines below, the same
-                component prints "the ad account is credited in EUR" off
-                `creditCurrency` -- which was sitting right here.
-
-                On a EUR 100 funding at 3% the admin read "Net Credit
-                $97.00" and then topped the supplier up by hand from that
-                figure: about 13% short, every manual EUR top-up. This is
-                the fault lib/pure-topup-landed.ts was written for; the
-                fix reached the queue card and the checklist sentence and
-                missed the two bold cells. */}
-            <div className="col-span-4 text-right text-destructive">
-              - {formatCurrency(calculatedValues.feeAmount, creditCurrency)}
-            </div>
-
-            <Separator className="col-span-12 my-2" />
-
-            {/* Total */}
-            <div className="col-span-6 text-base font-bold">Net Credit</div>
-            <div className="col-span-6 text-right text-base font-bold text-primary">
-              {formatCurrency(calculatedValues.netAmount, creditCurrency)}
-            </div>
-            {/* Says which currency is which, because two are on screen. */}
-            <div className="col-span-12 mt-1 text-right text-xs text-muted-foreground">
-              Paid {formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}
-              {" · "}the ad account is credited in {creditCurrency}
-            </div>
+            </span>
           </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2">
+              <span>Fee</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5">
+                <Input
+                  {...register("fee")}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  aria-label="Fee percentage"
+                  className="h-6 w-14 text-right px-1 py-0 bg-transparent border-none focus-visible:ring-0 text-xs"
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </span>
+            </span>
+            {/* The account's own currency, never a hard-coded dollar: an
+                admin once topped a EUR account up by hand from a "$97.00"
+                that was euros (lib/pure-topup-landed.ts). */}
+            <span className="text-destructive tabular-nums">
+              − {formatCurrency(calculatedValues.feeAmount, creditCurrency)}
+            </span>
+          </div>
+          {errors.fee && (
+            <p className="text-xs text-destructive">{errors.fee.message}</p>
+          )}
+
+          <Separator />
+
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-base font-bold">Lands on the account</span>
+            <span className="text-base font-bold text-primary tabular-nums">
+              {formatCurrency(calculatedValues.netAmount, creditCurrency)}
+            </span>
+          </div>
+          <p className="text-right text-xs text-muted-foreground">
+            Paid {formatCurrency(Number(topup.amount_received ?? 0), topup.currency)}
+            {" · "}credited in {creditCurrency}
+          </p>
+
+          {/* ── OUR MARGIN, WHILE DECIDING ────────────────────────────
+              Admin-only. The supplier's cut on this type is what the
+              affiliate commission is calculated from, and a fee changed
+              here moves it -- so it sits under the fee, live. */}
+          {supplier ? (
+            <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              {supplier.feePct === null ? (
+                <>
+                  No supplier fee set for {supplier.typeLabel || "this type"} —
+                  Settings → Ad account types. Any affiliate commission on this
+                  top-up goes on hold until it is.
+                </>
+              ) : (
+                (() => {
+                  const cost =
+                    Math.round(
+                      ((calculatedValues.netAmount * supplier.feePct) / 100) * 100,
+                    ) / 100;
+                  const margin =
+                    Math.round((calculatedValues.feeAmount - cost) * 100) / 100;
+                  return (
+                    <>
+                      {supplier.typeLabel || "Supplier"} takes {supplier.feePct}% ={" "}
+                      {formatCurrency(cost, creditCurrency)} · our margin{" "}
+                      <b className={margin < 0 ? "text-destructive" : "text-foreground"}>
+                        {formatCurrency(margin, creditCurrency)}
+                      </b>
+                    </>
+                  );
+                })()
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 

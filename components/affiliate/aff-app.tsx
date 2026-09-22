@@ -548,14 +548,22 @@ export default function AffiliateApp() {
       />
 
       <aside className={`sidebar${navOpen ? " open" : ""}`}>
-        <div className="logo">
+        {/* The mark goes home -- the same promise it makes in the other
+            two shells. */}
+        <button
+          type="button"
+          className="logo"
+          onClick={() => go("dash")}
+          aria-label="Go to the dashboard"
+          style={{ border: 0, background: "none", cursor: "pointer", textAlign: "left", width: "100%", font: "inherit", color: "inherit" }}
+        >
           <span className="mark">
             <Ic name="i-rocket" />
           </span>
           <span className="name">
             Prime Scale Media<small>Affiliate portal</small>
           </span>
-        </div>
+        </button>
         {NAV.map((item) => (
           <button
             key={item.v}
@@ -592,9 +600,16 @@ export default function AffiliateApp() {
             <Ic name="i-menu" />
           </button>
           <div className="tb-brand">
-            <span className="mark">
+            <button
+              type="button"
+              className="mark"
+              onClick={() => go("dash")}
+              aria-label="Go to the dashboard"
+              title="Dashboard"
+              style={{ border: 0, padding: 0, cursor: "pointer" }}
+            >
               <Ic name="i-rocket" />
-            </span>
+            </button>
             <span className="tb-title">{TITLES[view]}</span>
           </div>
           <div className="tb-spacer" />
