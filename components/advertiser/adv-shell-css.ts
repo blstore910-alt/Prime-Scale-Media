@@ -1593,6 +1593,7 @@ export const ADV_CSS = `
   .xo-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);
     box-shadow:0 0 0 0 rgba(239,176,44,.6);animation:xoPulse 1.8s ease-out infinite}
   @keyframes xoPulse{70%{box-shadow:0 0 0 7px rgba(239,176,44,0)}100%{box-shadow:0 0 0 0 rgba(239,176,44,0)}}
+  .xo-no{font-size:.72rem;font-weight:800;color:rgba(238,241,255,.8)}
   .xo-when{margin-left:auto;font-size:.74rem;color:rgba(238,241,255,.6)}
   .xo-amt{position:relative;display:block;font-family:var(--hd);font-weight:800;font-size:1.9rem;
     letter-spacing:-.03em;line-height:1.05;color:#fff;text-shadow:0 8px 28px rgba(124,92,255,.45)}
@@ -1670,14 +1671,9 @@ export const ADV_CSS = `
   .xp-vfoot .btn.wa svg{color:#1faa53}
   .xp-note{margin:0;font-size:.82rem;color:var(--txt-2);padding:10px 12px;border-radius:13px;
     background:var(--panel-2);border:1px solid var(--line)}
-  .xp-empty{display:flex;align-items:flex-start;gap:11px;padding:14px;border-radius:15px;
-    background:linear-gradient(180deg,var(--win-soft),var(--panel) 90%);border:1px solid rgba(16,185,129,.28)}
-  .xp-empty .ic{width:30px;height:30px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
-    background:var(--win);color:#fff}
-  .xp-empty .ic svg{width:16px;height:16px}
-  .xp-empty div{display:flex;flex-direction:column;gap:2px;min-width:0}
-  .xp-empty b{font-size:.9rem}
-  .xp-empty span{font-size:.8rem;color:var(--txt-2)}
+  .xp-empty{margin:0;font-size:.82rem;color:var(--txt-2);padding:11px 12px;border-radius:13px;
+    background:var(--panel-2);border:1px solid var(--line)}
+  .xpay .btn.grad:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
   .xp-hist{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--line);padding-top:12px}
   .xp-hh{font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
     padding:0 2px 4px}

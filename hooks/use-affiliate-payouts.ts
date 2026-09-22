@@ -27,6 +27,8 @@ export type AffiliatePayout = {
   fx_fee_amount?: number | string | null;
   /** What they receive after conversion and fee. */
   payout_amount?: number | string | null;
+  /** Payout #1, #2, #3 per tenant (plak 52); absent before it. */
+  payout_no?: number | null;
   tenant_id: string;
   affiliate_advertiser_id: string;
   currency: string;
@@ -53,9 +55,13 @@ const BASE_COLUMNS =
   "id, tenant_id, affiliate_advertiser_id, currency, amount, commission_count, clawback_amount, status, method, details, reason, reference, requested_at, decided_at, paid_at";
 // Plak 51. Asked for first and dropped on 42703, so the screen works
 // before that migration lands instead of breaking on it.
-const COLUMNS =
+const COLUMNS_51 =
   BASE_COLUMNS +
   ", group_id, payout_currency, fx_rate, fx_fee_pct, fx_fee_amount, payout_amount";
+const COLUMNS_52 = COLUMNS_51 + ", payout_no";
+// Newest first, then older, then the plain table: each plak adds columns
+// and they are pasted by hand, so the screen must work at every step.
+const COLUMN_SETS = [COLUMNS_52, COLUMNS_51, BASE_COLUMNS];
 const MISSING_COLUMN = /42703|column .* does not exist/i;
 
 /**
@@ -89,10 +95,11 @@ export function useAffiliatePayouts(enabled: boolean, scope?: string | null) {
               .order("requested_at", { ascending: false })
               .limit(50);
 
-      let cols = COLUMNS;
+      let cols = COLUMN_SETS[0];
       let waiting = await read(cols, true);
-      if (waiting.error && MISSING_COLUMN.test(waiting.error.message)) {
-        cols = BASE_COLUMNS;
+      for (let i = 1; i < COLUMN_SETS.length; i += 1) {
+        if (!waiting.error || !MISSING_COLUMN.test(waiting.error.message)) break;
+        cols = COLUMN_SETS[i];
         waiting = await read(cols, true);
       }
       if (waiting.error) {

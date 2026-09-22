@@ -3775,17 +3775,6 @@ export default function AdvertiserApp() {
               </div>
             </div>
 
-            {/* ── GETTING PAID ─────────────────────────────────────
-                All time, not the period above it: you are paid what is
-                owed, not what a filter happens to show. */}
-            <PayoutCard
-              enabled={isAffiliate}
-              scope={advertiserId ?? null}
-              owedEur={Number(aff.payable.eur) || 0}
-              owedUsd={Number(aff.payable.usd) || 0}
-              owedUnknown={affUnavailable || (aff.payable.isLifetime && aff.rows.length > 0)}
-            />
-
             {/* The link, quiet: a tool, not the headline. */}
             <div className="card xshare">
               <div className="xs-top">
@@ -3930,6 +3919,20 @@ export default function AdvertiserApp() {
                 to={affPeriod.to}
                 periodLabel={rangeCaption(affRange)}
                 leadCurrency={affLeadUsd ? "USD" : "EUR"}
+              />
+
+              {/* ── GETTING PAID, at the bottom ───────────────────────
+                  The owner: "moet getting paid blok niet helemaal
+                  onderaan ofzo?" It is occasional; the link and the
+                  referrals are what people come here for. All time, not
+                  the period above: you are paid what is owed, not what a
+                  filter happens to show. */}
+              <PayoutCard
+                enabled={isAffiliate}
+                scope={advertiserId ?? null}
+                owedEur={Number(aff.payable.eur) || 0}
+                owedUsd={Number(aff.payable.usd) || 0}
+                owedUnknown={affUnavailable || (aff.payable.isLifetime && aff.rows.length > 0)}
               />
             </div>
               </>

@@ -189,6 +189,7 @@ export default function PayoutQueue({
                           </span>
                         </div>
                         <div className="muted" style={{ fontSize: ".8rem" }}>
+                          {first.payout_no ? `Payout #${first.payout_no} · ` : ""}
                           {commissions} {commissions === 1 ? "commission" : "commissions"}
                           {g.some((p) => Number(p.clawback_amount) > 0)
                             ? " · returned volume settled"
@@ -293,6 +294,11 @@ export default function PayoutQueue({
                             {who.code}
                           </span>
                         </div>
+                        {first.payout_no ? (
+                          <div className="muted" style={{ fontSize: ".78rem" }}>
+                            Payout #{first.payout_no}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="r" data-label="Amount" style={{ fontWeight: 800 }}>
                         {moneyList(receives(g))}

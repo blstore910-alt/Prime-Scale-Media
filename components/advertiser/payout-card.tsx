@@ -34,6 +34,10 @@ import type { PayoutDetails } from "@/actions/payout-actions";
 // afterwards.
 
 const FEE_PCT = 0.6;
+// The owner, 22-09: "minimaal 200 eur per payout". Checked here so the
+// button says so before it is pressed, and again in the RPC so it is a
+// rule and not a suggestion.
+const MIN_EUR = 200;
 
 type Cur = "EUR" | "USD";
 
@@ -189,6 +193,25 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
     );
   }
 
+  // Worth of everything ready, on one scale, so a EUR 120 + USD 100
+  // balance is not refused for being "under 200" in each pot.
+  const readyEur = round2(owed.EUR + (rate ? owed.USD * rate : 0));
+  const blockedByOpen = available.some((c) => inFlight[c] > 0);
+  const canRequest = available.length > 0 && !blockedByOpen && readyEur >= MIN_EUR;
+  const requestHint = !available.length
+    ? blockedByOpen || waitingGroups.length
+      ? "Your request is with us. The next one can go out once it is settled."
+      : null
+    : blockedByOpen
+      ? "Your request is with us. The next one can go out once it is settled."
+      : readyEur < MIN_EUR
+        ? `Payouts start at ${formatCurrency(MIN_EUR, "EUR")}. You have ${
+            rate || owed.USD <= 0
+              ? formatCurrency(readyEur, "EUR")
+              : `${formatCurrency(owed.EUR, "EUR")} + ${formatCurrency(owed.USD, "USD")}`
+          } — ${formatCurrency(Math.max(round2(MIN_EUR - readyEur), 0), "EUR")} to go.`
+        : null;
+
   const startRequest = () => {
     // Everything they gave us last time, per affiliate — the owner:
     // "moet alle gegevens van de laatste keer herinneren, pre filled".
@@ -312,6 +335,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
               <span className="xo-pill">
                 <span className="dot" /> {STATUS_LABEL.requested}
               </span>
+              {first.payout_no ? <span className="xo-no">Payout #{first.payout_no}</span> : null}
               <span className="xo-when">{dayjs(first.requested_at).format("D MMM, HH:mm")}</span>
             </span>
             <span className="xo-amt">
@@ -367,37 +391,31 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
           We couldn&apos;t read your balance just now — this is not a zero.
           Reload before requesting a payout.
         </p>
-      ) : available.length ? (
+      ) : (
         <>
-          <div className="xp-legs">
-            {available.map((c) => (
-              <div className="xp-leg" key={c}>
-                <span className="l">Ready in {c}</span>
-                <span className="v">{formatCurrency(owed[c], c)}</span>
-              </div>
-            ))}
-          </div>
-          <button className="btn grad" onClick={startRequest}>
+          {available.length ? (
+            <div className="xp-legs">
+              {available.map((c) => (
+                <div className="xp-leg" key={c}>
+                  <span className="l">Ready in {c}</span>
+                  <span className="v">{formatCurrency(owed[c], c)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="xp-empty">
+              {waitingGroups.length
+                ? "Everything you are owed is in that request. What you earn from now on can be asked for once it is settled."
+                : "Nothing waiting to be paid yet — commission lands here as your referrals fund their accounts."}
+            </p>
+          )}
+          {/* The button stays, and says why it cannot be pressed. A
+              control that vanishes leaves people wondering where it went. */}
+          <button className="btn grad" disabled={!canRequest} onClick={startRequest}>
             <Ic name="i-download" /> Request payout
           </button>
+          {!canRequest && requestHint ? <p className="xr-hint">{requestHint}</p> : null}
         </>
-      ) : waitingGroups.length ? (
-        <p className="xp-note">
-          Everything you are owed is in that request. What you earn from now on
-          can be asked for once it is settled.
-        </p>
-      ) : (
-        <div className="xp-empty">
-          <span className="ic">
-            <Ic name="i-check" />
-          </span>
-          <div>
-            <b>Nothing waiting to be paid</b>
-            <span>
-              New commission lands here as your referrals fund their accounts.
-            </span>
-          </div>
-        </div>
       )}
 
       {/* ── WHAT HAPPENED BEFORE ───────────────────────────────────── */}
@@ -412,6 +430,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
               <span className="mid">
                 <span className="m">{receives(p)}</span>
                 <span className="d">
+                  {p.payout_no ? `Payout #${p.payout_no} · ` : ""}
                   {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
                   {p.reference || p.reason ? ` · ${p.reference || p.reason}` : ""}
                 </span>
@@ -727,7 +746,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
           <div className="mback" onClick={() => setView(null)} />
           <div className="mcard" style={{ width: "min(460px,100%)" }}>
             <div className="mhead">
-              <h2>Your payout request</h2>
+              <h2>{view[0].payout_no ? `Payout #${view[0].payout_no}` : "Your payout request"}</h2>
               <button className="iconbtn" onClick={() => setView(null)} aria-label="Close">
                 ✕
               </button>
