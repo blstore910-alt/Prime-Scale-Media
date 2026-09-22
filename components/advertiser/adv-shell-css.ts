@@ -1344,6 +1344,13 @@ export const ADV_CSS = `
   .xstats.busy .stat .v{opacity:.4;transition:opacity .15s}
   .xlist.busy .xrow,.xlist.busy .xl-sum b,.xlist.busy .xl-sub{opacity:.4;transition:opacity .15s}
   .xl-note{margin:0 16px 10px;font-size:.76rem;color:var(--faint)}
+  /* Five rows, then the rest on one tap. */
+  .xl-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px 16px;
+    border:0;border-top:1px solid var(--line);background:none;font:inherit;font-weight:700;font-size:.82rem;
+    color:var(--primary-600);cursor:pointer;transition:background .12s}
+  .xl-more:hover{background:var(--panel-2)}
+  .xl-more svg{width:15px;height:15px;transition:transform .2s}
+  .xl-more:hover svg{transform:translateY(2px)}
 
 /* The link, quiet: a tool, not the headline. */
   .xshare{padding:14px 16px}
@@ -1567,6 +1574,23 @@ export const ADV_CSS = `
   .xp-top .cap{margin:0}
   .xp-top .ci{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
   .xp-top .ci svg{width:17px;height:17px}
+/* How close they are to a payout: what you have, how far to go. */
+  .xp-prog{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:16px;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel) 85%);border:1px solid var(--line)}
+  .xp-prog.ok{background:linear-gradient(180deg,var(--win-soft),var(--panel) 85%);
+    border-color:rgba(16,185,129,.35)}
+  .xp-pr{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .xp-pr .top{display:flex;align-items:baseline;gap:8px}
+  .xp-pr .l{font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .xp-pr .v{margin-left:auto;font-family:var(--hd);font-weight:800;font-size:1.25rem;letter-spacing:-.02em;
+    color:var(--ink)}
+  .xp-pr .bar{display:block;height:6px;border-radius:99px;background:var(--line-2);overflow:hidden}
+  .xp-pr .fill{display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,#5b8dff,#8b5cf6);transition:width .5s cubic-bezier(.3,1,.4,1)}
+  .xp-prog.ok .fill{background:linear-gradient(90deg,#34d399,#10b981)}
+  .xp-pr .foot{font-size:.74rem;color:var(--faint)}
+  .xp-prog.ok .xp-pr .foot{color:#0e8f66;font-weight:700}
+  .xp-hint{margin:0;font-size:.74rem;color:var(--faint);text-align:center}
   .xp-legs{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
   .xp-leg{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;
     background:linear-gradient(180deg,var(--win-soft),var(--panel) 85%);border:1px solid rgba(16,185,129,.35)}

@@ -234,6 +234,8 @@ export default function AdvertiserApp() {
   // the sum of everything since the start -- the card above already says
   // that.
   const [affRange, setAffRange] = useState<AffRange>({ key: "month" });
+  // The referral list shows five and offers the rest.
+  const [refsAll, setRefsAll] = useState(false);
   const meRouter = useRouter();
   const [view, setView] = useState<View>("dash");
   // Where the bell was pressed from, so pressing it again returns there.
@@ -3854,7 +3856,7 @@ export default function AdvertiserApp() {
                 ) : null}
               </div>
               {affRanged.rows.length ? (
-                affRanged.rows.map((r) => {
+                (refsAll ? affRanged.rows : affRanged.rows.slice(0, 5)).map((r) => {
                   const waiting = String(r.link_status ?? "active") === "pending";
                   const topups = Number(r.topup_count) || 0;
                   return (
@@ -3909,6 +3911,14 @@ export default function AdvertiserApp() {
                       : "No referrals yet — share your link and they appear here."}
                 </p>
               )}
+              {/* Five, then the rest on one tap — the owner: "your
+                  referrals ook". */}
+              {affRanged.rows.length > 5 ? (
+                <button className="xl-more" onClick={() => setRefsAll((v) => !v)}>
+                  {refsAll ? "Show fewer" : `View all ${affRanged.rows.length}`}
+                  <Ic name="i-chev" />
+                </button>
+              ) : null}
             </div>
             <div id="aff-commissions" className="aff-stack">
               <AffiliateCommissionsCard

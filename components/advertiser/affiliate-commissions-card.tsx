@@ -135,6 +135,9 @@ export default function AffiliateCommissionsCard({
   leadCurrency?: "EUR" | "USD";
 }) {
   const [sort, setSort] = useState<Sort>("newest");
+  // Five is enough to see what is going on; the rest is one tap away.
+  const [showAll, setShowAll] = useState(false);
+  const PAGE = 5;
   const [kind, setKind] = useState<KindFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
 
@@ -296,7 +299,7 @@ export default function AffiliateCommissionsCard({
       ) : q.data?.missing ? (
         <p className="xl-empty">The detailed list is being switched on. Your totals above are up to date.</p>
       ) : rows.length ? (
-        rows.map((r) => {
+        (showAll ? rows : rows.slice(0, PAGE)).map((r) => {
           const reversed = r.status === "reversed";
           const n = Number(r.amount);
           return (
@@ -337,6 +340,13 @@ export default function AffiliateCommissionsCard({
               : "No commission yet — it appears here the moment one is earned."}
         </p>
       )}
+
+      {rows.length > PAGE ? (
+        <button className="xl-more" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "Show fewer" : `View all ${rows.length}`}
+          <Ic name="i-chev" />
+        </button>
+      ) : null}
     </div>
   );
 }

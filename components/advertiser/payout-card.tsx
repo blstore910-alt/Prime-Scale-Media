@@ -205,18 +205,20 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
   const blockedByOpen = available.some((c) => inFlight[c] > 0);
   const canRequest = available.length > 0 && !blockedByOpen && reachable === 1;
   const shortBy = Math.max(round2(MIN_PER_CURRENCY - bestEur), 0);
+  // The bar already says how much and how far; this line only carries
+  // what the bar cannot -- that a request is already with us, or that
+  // two currencies TOGETHER would reach the floor.
   const requestHint = blockedByOpen || (!available.length && waitingGroups.length)
     ? "Your request is with us. The next one can go out once it is settled."
-    : !available.length
+    : !available.length || canRequest
       ? null
-      : !canRequest
-        ? `A payout starts at ${formatCurrency(MIN_PER_CURRENCY, "EUR")} or ${formatCurrency(
+      : available.length > 1 && rate
+        ? `Together that is about ${formatCurrency(bestEur, "EUR")} — payouts start at ${formatCurrency(
             MIN_PER_CURRENCY,
-            "USD",
-          )}. You have ${available
-            .map((c) => formatCurrency(owed[c], c))
-            .join(" + ")}${shortBy > 0 ? ` — ${formatCurrency(shortBy, "EUR")} to go` : ""}.`
+            "EUR",
+          )}.`
         : null;
+  void shortBy;
 
   const startRequest = () => {
     // Everything they gave us last time, per affiliate — the owner:
@@ -400,13 +402,32 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
       ) : (
         <>
           {available.length ? (
-            <div className="xp-legs">
-              {available.map((c) => (
-                <div className="xp-leg" key={c}>
-                  <span className="l">Ready in {c}</span>
-                  <span className="v">{formatCurrency(owed[c], c)}</span>
-                </div>
-              ))}
+            /* ── HOW CLOSE THEY ARE ───────────────────────────────
+               "Ready in EUR EUR 10,00" over a button that cannot be
+               pressed reads as money waiting for a click -- the owner:
+               "er staat nu ready in EUR, is er nog niet toch?". A bar
+               says the same thing honestly: this is what you have, that
+               is what it takes, this much to go. */
+            <div className={`xp-prog${canRequest ? " ok" : ""}`}>
+              {available.map((c) => {
+                const pctFull = Math.min(100, (owed[c] / MIN_PER_CURRENCY) * 100);
+                return (
+                  <div className="xp-pr" key={c}>
+                    <span className="top">
+                      <span className="l">{c}</span>
+                      <span className="v">{formatCurrency(owed[c], c)}</span>
+                    </span>
+                    <span className="bar">
+                      <span className="fill" style={{ width: `${pctFull}%` }} />
+                    </span>
+                    <span className="foot">
+                      {owed[c] >= MIN_PER_CURRENCY
+                        ? "ready to pay out"
+                        : `${formatCurrency(round2(MIN_PER_CURRENCY - owed[c]), c)} to go`}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="xp-empty">
@@ -420,7 +441,7 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
           <button className="btn grad" disabled={!canRequest} onClick={startRequest}>
             <Ic name="i-download" /> Request payout
           </button>
-          {!canRequest && requestHint ? <p className="xr-hint">{requestHint}</p> : null}
+          {!canRequest && requestHint ? <p className="xp-hint">{requestHint}</p> : null}
         </>
       )}
 
