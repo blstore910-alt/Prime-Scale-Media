@@ -120,7 +120,9 @@ export default function CommissionsTable() {
     return {
       total,
       label: parts.join(" and "),
-      unknown: clawbackQuery.isError,
+      // Not asked yet is not "none taken back": the rows are already on
+      // screen by then, and the reader takes the ledger for settled.
+      unknown: clawbackQuery.isError || clawbackQuery.isPending,
     };
   })();
   const isAdmin = profile?.role === "admin";
@@ -364,8 +366,13 @@ export default function CommissionsTable() {
                           CURRENCY_SYMBOLS[
                             commission.currency as keyof typeof CURRENCY_SYMBOLS
                           ] ?? "$";
-                        const paid =
-                          (commission.status ?? "").toLowerCase() === "paid";
+                        const st = (commission.status ?? "").toLowerCase();
+                        const paid = st === "paid";
+                        // Two states that are not money waiting: a row that
+                        // has not been calculated yet (the supplier fee was
+                        // missing) and one that was taken back.
+                        const onHold = st === "on_hold";
+                        const reversed = st === "reversed";
                         return (
                           <tr key={commission.id}>
                             <td data-label="Advertiser">
@@ -397,10 +404,25 @@ export default function CommissionsTable() {
                             <td
                               data-label="Commission"
                               className="r mono"
-                              style={{ fontWeight: 700, color: "#0e8f66" }}
+                              style={{
+                                fontWeight: 700,
+                                // An on-hold row carries amount 0 because it
+                                // has not been calculated yet, and a reversed
+                                // one is money that went back. Printing both
+                                // in money-green said "settled".
+                                color:
+                                  onHold || reversed ? "var(--faint, #8b93a6)" : "#0e8f66",
+                                textDecoration: reversed ? "line-through" : undefined,
+                              }}
                             >
-                              {currencySymbol}
-                              {formatAmount(commission.amount)}
+                              {onHold ? (
+                                "—"
+                              ) : (
+                                <>
+                                  {currencySymbol}
+                                  {formatAmount(commission.amount)}
+                                </>
+                              )}
                             </td>
                             <td data-label="Commission Type">
                               <span
@@ -413,10 +435,17 @@ export default function CommissionsTable() {
                             </td>
                             <td data-label="Status">
                               <span
-                                className={`badge ${paid ? "ok" : "pend"}`}
-                                style={{ textTransform: "capitalize" }}
+                                className={`badge ${
+                                  paid ? "ok" : onHold || reversed ? "muted" : "pend"
+                                }`}
                               >
-                                {commission.status || "—"}
+                                {paid
+                                  ? "Paid"
+                                  : onHold
+                                    ? "Processing"
+                                    : reversed
+                                      ? "Reversed"
+                                      : "To be paid"}
                               </span>
                             </td>
                             <td data-label="Date" className="r muted">

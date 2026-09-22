@@ -45,6 +45,10 @@ import { compactRangeLabel } from "@/lib/pure-date-range-label";
 // return an empty list.
 const COMMISSION_TYPES = [
   { label: "Percentage", value: "percentage" },
+  // The subscription accrual writes `subscription_pct`, and "Percentage"
+  // maps to pct/percentage only — so plan commissions could be seen under
+  // "All types" and asked for nowhere. Three kinds, three options.
+  { label: "Subscription %", value: "subscription_pct" },
   { label: "One-time", value: "onetime" },
 ];
 

@@ -1342,7 +1342,8 @@ export const ADV_CSS = `
   .xstats .stat.g-blue{--xg:rgba(58,111,255,.2)}.xstats .stat.g-purple{--xg:rgba(139,92,246,.22)}
   .xstats .stat .v.gold{color:#a9740b}.xstats .stat .v.win{color:var(--win)}
   .xstats.busy .stat .v{opacity:.4;transition:opacity .15s}
-  .xlist.busy .xrow,.xlist.busy .xl-sum b{opacity:.4;transition:opacity .15s}
+  .xlist.busy .xrow,.xlist.busy .xl-sum b,.xlist.busy .xl-sub{opacity:.4;transition:opacity .15s}
+  .xl-note{margin:0 16px 10px;font-size:.76rem;color:var(--faint)}
 
 /* The link, quiet: a tool, not the headline. */
   .xshare{padding:14px 16px}

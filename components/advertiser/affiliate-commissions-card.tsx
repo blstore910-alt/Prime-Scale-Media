@@ -195,10 +195,21 @@ export default function AffiliateCommissionsCard({
   // Each sum is the sum of the rows its own button shows. Reversed and
   // still-processing rows are listed under Earned but are not money.
   const earned = sumBy(ofKind, (r) => r.status === "paid" || r.status === "owed");
+  // Rows that are listed but are NOT in the sums: still being calculated,
+  // or taken back. Without a line saying so, "5 commissions" over
+  // "Earned EUR 38.00" looks like arithmetic that does not add up.
+  const notCounted = ofKind.filter(
+    (r) => r.status !== "paid" && r.status !== "owed",
+  ).length;
   const owed = sumBy(ofKind, (r) => r.status === "owed");
   const paid = sumBy(ofKind, (r) => r.status === "paid");
 
-  const dash = q.isLoading || q.isError || q.data?.missing;
+  // isPending, not isLoading: react-query v5 reports isLoading FALSE for a
+  // query that is switched off, so with no advertiser row this card printed
+  // three confident EUR 0,00 sums and "No commission yet" for a read that
+  // was never made. Every sibling read on this screen already guards this
+  // way; this card was the one that was missed.
+  const dash = !enabled || q.isPending || q.isError || q.data?.missing;
 
   return (
     <div className={`card xlist${q.isPlaceholderData ? " busy" : ""}`}>
@@ -268,6 +279,13 @@ export default function AffiliateCommissionsCard({
           </button>
         ))}
       </div>
+
+      {!dash && notCounted ? (
+        <p className="xl-note">
+          {notCounted} {notCounted === 1 ? "commission is" : "commissions are"} listed
+          but not counted above — still being calculated, or taken back.
+        </p>
+      ) : null}
 
       {q.isLoading ? (
         <p className="xl-empty">Loading your commissions…</p>
