@@ -1,5 +1,7 @@
 # THE NUMBER: 8 of 16 journeys closed (A1-A7, F2) — 2026-09-22
 
+> F1 is walked end to end and checked against the database; only the standalone-affiliate portal is unwalked (needs a login). F3 is BUILT and live but dark until plak 50 is pasted, and unwalked.
+
 ## F1 — IN PROGRESS 2026-09-22: invitation / link -> signup -> portal with a working link
 
 **The owner's three decisions (22-09):** (1) a signup through a link waits for approval, and approving books everything since the signup with the rules of that moment ("dan moeten alle verdiensten meetellen, ook voor ik goedkeurde"); (2) an affiliate account is the affiliate portal only, with an "also advertise" upgrade the owner switches on; (3) an advertiser applying as affiliate: approve = link on, default rules, detail overview.
@@ -33,6 +35,18 @@
 "Active" in the cabinet means *has funded at least once*, which is why Piet counts as referred but not active. A newly approved affiliate has **no row of their own** in `referral_links` (rows are per referred customer); the link works off `tenant_client_code`, and `findReferrer` accepts him because his status is `approved`.
 
 **Still to walk (needs the owner — account creation and passwords are theirs):** a signup through **Piet's** link (proves a freshly approved affiliate's link, same code path as the one just proven); a standalone affiliate (PSM0008/9) signing in -> portal with a working link; "Advertise with us too" -> owner approves -> role advertiser.
+
+## F3 — BUILT 2026-09-22, waiting on plak 50 and a walk: payout request -> owner sees it -> settled
+
+**What it was.** "Request payout" opened WhatsApp with a sentence in it. Nothing was recorded — no amount, no date, no status. The owner had no queue, the affiliate could not see anything, the IBAN they typed under Settings was never stored, and the only control that marks a commission paid (`CommissionStatusAction` → `setCommissionStatus`) is mounted on **no route at all**: `commission-row.tsx` and `commission-card.tsx` are imported by nothing. So no commission in this database could ever become `paid`, `unpaid_*` stayed equal to lifetime earnings for ever, and the affiliate's wallet kept asking for money that may already have been transferred.
+
+**What is built (live `e7f2ad2`, dark until plak 50 is pasted).** One request per affiliate per currency, covering everything owed in it. `affiliate_payout_request` freezes the amount by hanging the exact commission rows on the payout (`referral_commissions.payout_id`), so it cannot drift while it waits and the same commission can never be in two payouts; unsettled clawbacks come off once and are then marked settled. The owner gets "Payouts waiting" on /affiliates with the bank details attached, and either marks it paid (with their own reference — this records a transfer, it does not move money) or sends it back with a reason. Both sides get a notification (`affiliate_payout_requested` / `_paid` / `_rejected`). The affiliate sees the request, its state, and can withdraw it while nobody has answered. Screens: `components/advertiser/payout-card.tsx` (advertiser-affiliate), the Wallet card in `aff-app.tsx` (standalone affiliate), `components/affiliate/payout-queue.tsx` (owner).
+
+**Fixed on this journey, from the four sweeps:** the owner's "Still owed" ignored clawbacks and counted commissions on rejected links — hundreds of euros above what the affiliate's own screen showed, on the screen the owner pays from; the queue read 50 rows before filtering, so a waiting request could fall out of the owner's list; the payouts cache key carried no identity; the portal offered a live Request button and "ask for one" copy while the read was still running; loading was rendered as failure ("pull down to retry", which does not exist anywhere); the book's status and clawback reads were unpaged (PostgREST stops at 1,000 rows silently); `?page=` past the end claimed "No commissions yet".
+
+**In plak 50 before it is pasted, from the money sweep:** it now resolves the affiliate the same way the wallet does (newest advertiser row, not "largest unpaid"), leaves rejected links out, notes it on the payout when a commission is reversed between request and payment, stops a settled clawback being subtracted for ever (`affiliate_referral_stats` rebuilt with one extra condition), closes direct writes to `referral_commissions` / `referral_clawbacks` (any employee admin could mark money paid — or un-pay it — over PostgREST), and takes our margin columns out of what an affiliate can read from the table.
+
+**Still open on F3:** walk it on production once plak 50 is in (request as PSM0005, settle as owner, check the figures against the database); `?real` storage of `referral_commissions.amount` (floats, cents drift — needs its own careful migration); the orphaned `commission-status-action.tsx` / `commission-row.tsx` / `commission-card.tsx` should be deleted, they contradict the payout model; the standalone portal's Settings payout form still only WhatsApps (the request modal now carries the details instead); R12's open question — pay to their bank or credit their wallet — is still the owner's to answer, and the table has a `method` column ready for both.
 
 ## F2 — CLOSED 2026-09-22: referral in -> commission arises -> matches the database
 
