@@ -357,7 +357,10 @@ function VerifyTopupInvoice({
             right, then the account name with a small copy button right
             after it. */}
         <div className="bg-muted/30 p-5 sm:p-6 space-y-3">
-          <div className="flex items-start justify-between gap-3">
+          {/* On a phone the two pills pushed the number and the date onto
+              two lines each ("Topup / #000005"), so they go under the date
+              there and to the right from sm up. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <div className="min-w-0">
               <h3 className="font-bold text-lg text-primary tracking-tight leading-tight">
                 Topup #{String(topup.number).padStart(6, "0")}
@@ -366,7 +369,7 @@ function VerifyTopupInvoice({
                 Requested {dayjs(topup.created_at).format("D MMM YYYY")}
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:justify-end">
               <Badge
                 variant={topup.status === "completed" ? "default" : "secondary"}
                 className={cn(
