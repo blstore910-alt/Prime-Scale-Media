@@ -1554,6 +1554,43 @@ export const ADV_CSS = `
   .xr-dates input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
   .xr-dates .btn{justify-content:center}
   .xr-hint{margin:0;font-size:.76rem;font-weight:600;color:var(--gold-ink,#a9740b)}
+
+/* ── GETTING PAID ──────────────────────────────────────────────────────
+   One card: what is ready, one button, and what happened before. */
+  .xpay{display:flex;flex-direction:column;gap:12px;padding:18px}
+  .xp-top{display:flex;gap:12px;align-items:flex-start}
+  .xp-top h2{font-size:1.02rem;margin:0 0 2px}
+  .xp-top .cap{margin:0}
+  .xp-top .ci{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}
+  .xp-top .ci svg{width:17px;height:17px}
+  .xp-legs{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+  .xp-leg{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;
+    background:linear-gradient(180deg,var(--win-soft),var(--panel) 85%);border:1px solid rgba(16,185,129,.35)}
+  .xp-leg .l{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .xp-leg .v{font-family:var(--hd);font-weight:800;font-size:1.15rem;letter-spacing:-.02em;color:#0e8f66}
+  .xpay .btn.grad{width:100%;justify-content:center}
+  .xp-open{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;
+    background:var(--warn-soft);border:1px solid rgba(239,176,44,.45)}
+  .xp-open .cap{margin:0}
+  .xp-amt{display:flex;align-items:center;gap:8px}
+  .xp-amt .v{font-family:var(--hd);font-weight:800;font-size:1.3rem;letter-spacing:-.02em;color:#8a5a00}
+  .xp-acts{display:flex;gap:8px;flex-wrap:wrap}
+  .xp-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
+  .xp-acts .btn.wa svg{color:#1faa53}
+  .xp-hist{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+  .xp-h{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--txt-2);min-width:0}
+  .xp-h .d{color:var(--faint);flex:0 0 auto}
+  .xp-h .m{font-weight:800;color:var(--ink);flex:0 0 auto}
+  .xp-h .r{margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.74rem;color:var(--faint)}
+  .xp-cur{display:flex;gap:6px;margin-bottom:12px}
+  .xp-cur button{flex:1 1 0;border:1px solid var(--line-2);background:var(--panel-2);font:inherit;font-weight:700;
+    font-size:.82rem;color:var(--txt-2);padding:10px;border-radius:12px;cursor:pointer;white-space:nowrap}
+  .xp-cur button.on{background:var(--primary-tint);border-color:rgba(58,111,255,.55);color:var(--primary-600)}
+  .xp-sum{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:14px;margin-bottom:14px;
+    background:linear-gradient(135deg,var(--primary-tint),#f3e8ff)}
+  .xp-sum .l{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--primary-600)}
+  .xp-sum .v{font-family:var(--hd);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;color:var(--ink)}
+  .xp-sum .c{font-size:.76rem;color:var(--txt-2)}
   @media (max-width:420px){.xr-dates{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.xr-dates .btn{grid-column:1/-1}}
   @media (prefers-reduced-motion:reduce){.xr-meta .dot.busy,.xr-custom{animation:none}}
 

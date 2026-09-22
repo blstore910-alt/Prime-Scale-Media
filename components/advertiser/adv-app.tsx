@@ -13,6 +13,7 @@ import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
+import PayoutCard from "@/components/advertiser/payout-card";
 import RangePicker, {
   rangeCaption,
   rangeDates,
@@ -3773,6 +3774,16 @@ export default function AdvertiserApp() {
                 </div>
               </div>
             </div>
+
+            {/* ── GETTING PAID ─────────────────────────────────────
+                All time, not the period above it: you are paid what is
+                owed, not what a filter happens to show. */}
+            <PayoutCard
+              enabled={isAffiliate}
+              owedEur={Number(aff.payable.eur) || 0}
+              owedUsd={Number(aff.payable.usd) || 0}
+              owedUnknown={affUnavailable || (aff.payable.isLifetime && aff.rows.length > 0)}
+            />
 
             {/* The link, quiet: a tool, not the headline. */}
             <div className="card xshare">

@@ -33,6 +33,7 @@ import {
 } from "@/hooks/use-affiliate-book";
 import CommissionRulesEditor from "./commission-rules-editor";
 import ReferralStatusAction from "./referral-status-action";
+import PayoutQueue from "./payout-queue";
 
 // ── THE AFFILIATE BOOK ──────────────────────────────────────────────────
 //
@@ -591,6 +592,17 @@ function Overview({
         pending={pending}
         canDecide={canDecide}
         onApproveApplication={onApproveApplication}
+      />
+
+      {/* Money they asked for, above the book that explains it. One row
+          per request; marking it paid settles exactly the commissions it
+          was built from. */}
+      <PayoutQueue
+        canDecide={canDecide}
+        nameOf={(id) => {
+          const a = affiliates.find((x) => x.affiliateId === id);
+          return { name: a?.name ?? "Affiliate", code: a?.code ?? "" };
+        }}
       />
 
       <div className="stats">

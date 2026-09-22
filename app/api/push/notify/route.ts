@@ -286,6 +286,27 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/dashboard?view=notif",
       };
 
+    case "affiliate_payout_requested":
+      return {
+        title: "Payout requested",
+        body: "An affiliate asks to be paid. Settle it on Affiliates.",
+        url: "/affiliates",
+      };
+
+    case "affiliate_payout_paid":
+      return {
+        title: "Your payout is on its way",
+        body: "Open the app for the amount and our reference.",
+        url: "/dashboard?view=referrals",
+      };
+
+    case "affiliate_payout_rejected":
+      return {
+        title: "About your payout request",
+        body: "Open the app to read what we need.",
+        url: "/dashboard?view=referrals",
+      };
+
     case "affiliate_approved":
       return {
         title: "You're an affiliate",

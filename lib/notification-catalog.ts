@@ -91,6 +91,24 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    type: "affiliate_payout_requested",
+    label: "Payout requested",
+    description: "When an affiliate asks to be paid what they are owed.",
+    audience: "admin",
+  },
+  {
+    type: "affiliate_payout_paid",
+    label: "Payout paid",
+    description: "When we have transferred your payout, with our reference.",
+    audience: "customer",
+  },
+  {
+    type: "affiliate_payout_rejected",
+    label: "Payout sent back",
+    description: "When a payout request needs something from you first, with the reason.",
+    audience: "customer",
+  },
+  {
     type: "affiliate_upgrade_requested",
     label: "Affiliate wants to advertise",
     description: "When an affiliate asks to run their own ad accounts too.",

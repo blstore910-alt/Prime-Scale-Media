@@ -15,6 +15,14 @@ function asString(value: unknown): string | null {
     : null;
 }
 
+/** "€12.40" / "$38.75" — the shape the rest of this file writes by hand. */
+function money2(amount: unknown, currency: unknown): string {
+  const cur = String(asString(currency) ?? "EUR").toUpperCase();
+  const sym = cur === "USD" ? "$" : "€";
+  const n = Number(amount);
+  return Number.isFinite(n) ? `${sym}${n.toFixed(2)}` : `${sym}—`;
+}
+
 export function parseNotificationPayload(
   notification: Notification | null | undefined,
 ): NotificationPayloadObject {
@@ -407,6 +415,47 @@ export function getNotificationCopy(notification: Notification): {
         description: p.reason
           ? `Not yet: ${p.reason} You can ask again whenever you like.`
           : "We couldn't switch advertising on yet. You can ask again whenever you like.",
+      };
+    }
+    case "affiliate_payout_requested": {
+      const p = parseNotificationPayload(notification) as {
+        amount?: number | string | null;
+        currency?: string | null;
+        client_code?: string | null;
+        commissions?: number | null;
+      };
+      const asked = money2(p.amount, p.currency);
+      return {
+        title: "Payout requested",
+        description: `${p.client_code ? `${p.client_code} asks` : "An affiliate asks"} for ${asked}${
+          p.commissions ? ` over ${p.commissions} ${p.commissions === 1 ? "commission" : "commissions"}` : ""
+        }. Settle it on Affiliates.`,
+      };
+    }
+    case "affiliate_payout_paid": {
+      const p = parseNotificationPayload(notification) as {
+        amount?: number | string | null;
+        currency?: string | null;
+        reference?: string | null;
+      };
+      return {
+        title: "Your payout is on its way",
+        description: `${money2(p.amount, p.currency)} transferred${
+          p.reference ? ` · reference ${p.reference}` : ""
+        }. It can take a day or two to land.`,
+      };
+    }
+    case "affiliate_payout_rejected": {
+      const p = parseNotificationPayload(notification) as {
+        amount?: number | string | null;
+        currency?: string | null;
+        reason?: string | null;
+      };
+      return {
+        title: "About your payout request",
+        description: `${money2(p.amount, p.currency)} was not paid out: ${
+          p.reason ?? "we need something from you first"
+        } What you earned is still yours — ask again when it is sorted.`,
       };
     }
     case "affiliate_approved":

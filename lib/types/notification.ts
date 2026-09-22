@@ -36,6 +36,9 @@ export type NotificationType =
   | "affiliate_approved"
   | "affiliate_refused"
   // Plak 43: an affiliate account asking to advertise too.
+  | "affiliate_payout_requested"
+  | "affiliate_payout_paid"
+  | "affiliate_payout_rejected"
   | "affiliate_upgrade_requested"
   | "affiliate_upgrade_approved"
   | "affiliate_upgrade_refused";
@@ -140,6 +143,25 @@ export interface NotificationPayloadByType {
   };
   referral_rejected: { client_code?: string | null };
   affiliate_approved: Record<string, never>;
+  affiliate_payout_requested: {
+    payout_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    client_code?: string | null;
+    commissions?: number | null;
+  };
+  affiliate_payout_paid: {
+    payout_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    reference?: string | null;
+  };
+  affiliate_payout_rejected: {
+    payout_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
   affiliate_refused: { reason?: string | null };
   affiliate_upgrade_requested: {
     advertiser_id?: string | null;
