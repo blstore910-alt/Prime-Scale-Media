@@ -5,12 +5,14 @@ import RateLimitsView from "@/components/system-status/rate-limits-view";
 import SystemStatusPanel from "@/components/system-status/system-status-panel";
 import { useAppContext } from "@/context/app-provider";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
+import { useAffiliatesWaiting } from "@/hooks/use-affiliates-waiting";
 import {
   ArrowRight,
   ChevronDown,
   Coins,
   Download,
   FileText,
+  Gift,
   Receipt,
   RefreshCw,
   Server,
@@ -140,8 +142,10 @@ const DASH_CSS = `
 `;
 
 export default function AdminDashboard() {
-  const { isSuperAdmin, dispatch } = useAppContext();
+  const { isSuperAdmin, dispatch, profile } = useAppContext();
   const pending = usePendingCounts();
+  // Owner-only: approving an affiliate or a referral is the owner's call.
+  const affWaiting = useAffiliatesWaiting(profile?.tenant_id, !!isSuperAdmin);
 
   const queues: Queue[] = [
     {
@@ -176,6 +180,19 @@ export default function AdminDashboard() {
       count: pending.withdrawals,
       label: "Withdrawal requests",
     },
+    // Applications, "advertise too" requests and referrals waiting for
+    // approval -- the exact rows of "Waiting for you" on /affiliates.
+    ...(isSuperAdmin
+      ? [
+          {
+            href: "/affiliates",
+            icon: Gift,
+            ci: "p",
+            count: affWaiting.isLoading ? null : affWaiting.data ?? null,
+            label: "Affiliates waiting for you",
+          },
+        ]
+      : []),
     { href: "/invoices", icon: Receipt, ci: "g", label: "Invoices" },
     { href: "/subscriptions", icon: RefreshCw, ci: "b", label: "Subscriptions" },
     { href: "/wallets", icon: Wallet, ci: "t", label: "Wallets" },

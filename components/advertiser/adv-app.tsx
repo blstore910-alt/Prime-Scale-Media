@@ -12,6 +12,7 @@ import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
+import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
 import RangePicker, {
   rangeCaption,
   rangeDates,
@@ -325,12 +326,37 @@ export default function AdvertiserApp() {
     isLoading: affiliateLoading,
     application: affiliateApplication,
     refusalReason: affiliateRefusal,
+    appliedAt: affiliateAppliedAt,
   } = useIsAffiliate();
   const affiliateUnknown = affiliateError || affiliateLoading;
   // Applied is what the DATABASE says (plak 42), or this press -- the
   // local flag alone was forgotten on reload and offered "Join" again.
   const applicationOpen = affiliateApplied || affiliateApplication === "applied";
   const applicationRefused = !applicationOpen && affiliateApplication === "refused";
+  const applyAffiliate = async () => {
+    setApplying(true);
+    try {
+      const { applyForAffiliateProgram } = await import(
+        "@/actions/affiliate-application-actions"
+      );
+      const res = await applyForAffiliateProgram();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setAffiliateApplied(true);
+      queryClient.invalidateQueries({ queryKey: ["is-affiliate"] });
+      toast.success(
+        res.data.alreadySent
+          ? "You've already applied — we're still looking at it."
+          : "Application sent. We'll set your rate and come back to you.",
+      );
+    } catch {
+      toast.error("We couldn't send your application just now. Try again shortly.");
+    } finally {
+      setApplying(false);
+    }
+  };
 
   const {
     data: wallet,
@@ -3421,7 +3447,17 @@ export default function AdvertiserApp() {
                 So the whole screen is the offer until they are in. The
                 figures come back the moment there is something to put in
                 them. */}
-            {!isAffiliate && !affiliateUnknown ? (
+            {!isAffiliate && !affiliateUnknown && (applicationOpen || applicationRefused) ? (
+              // Applied, or refused: an answer, not the offer again with
+              // its button greyed out (the owner: "erg lelijk").
+              <AffiliateApplicationCard
+                state={applicationOpen ? "applied" : "refused"}
+                appliedAt={affiliateAppliedAt}
+                reason={affiliateRefusal}
+                applying={applying}
+                onApplyAgain={applyAffiliate}
+              />
+            ) : !isAffiliate && !affiliateUnknown ? (
               <div className="joinhero">
                 {/* The inner panel that turns the spinning conic gradient
                     behind it into a 2px chasing border instead of a wash. */}
@@ -3470,42 +3506,10 @@ export default function AdvertiserApp() {
                 </ul>
                 <button
                   className="btn grad"
-                  disabled={applying || applicationOpen}
-                  onClick={async () => {
-                    setApplying(true);
-                    try {
-                      const { applyForAffiliateProgram } = await import(
-                        "@/actions/affiliate-application-actions"
-                      );
-                      const res = await applyForAffiliateProgram();
-                      if (!res.ok) {
-                        toast.error(res.error);
-                        return;
-                      }
-                      setAffiliateApplied(true);
-                      queryClient.invalidateQueries({ queryKey: ["is-affiliate"] });
-                      toast.success(
-                        res.data.alreadySent
-                          ? "You've already applied — we're still looking at it."
-                          : "Application sent. We'll set your rate and come back to you.",
-                      );
-                    } catch {
-                      toast.error(
-                        "We couldn't send your application just now. Try again shortly.",
-                      );
-                    } finally {
-                      setApplying(false);
-                    }
-                  }}
+                  disabled={applying}
+                  onClick={applyAffiliate}
                 >
-                  <Ic name="i-gift" />{" "}
-                  {applying
-                    ? "Sending…"
-                    : applicationOpen
-                      ? "Application sent"
-                      : applicationRefused
-                        ? "Apply again"
-                        : "Join the affiliate program"}
+                  <Ic name="i-gift" /> {applying ? "Sending…" : "Join the affiliate program"}
                 </button>
                 {/* The bullet three lines up already says "Your rate
                     agreed with us before you start". Saying it again
@@ -3514,11 +3518,7 @@ export default function AdvertiserApp() {
                     answers the other question — what happens next; after
                     applying it carries the state. */}
                 <span className="jh-note">
-                  {applicationOpen
-                    ? "We'll set your rate and let you know."
-                    : applicationRefused
-                      ? `Not this time${affiliateRefusal ? `: ${affiliateRefusal}` : "."} You can apply again whenever you like.`
-                      : "Takes a minute. Nothing changes on your account."}
+                  Takes a minute. Nothing changes on your account.
                 </span>
               </div>
             ) : (
@@ -5932,54 +5932,35 @@ export default function AdvertiserApp() {
                   They press the only button on the card, watch nothing
                   happen, and conclude the product is broken. Which, from
                   where they are standing, it is. */}
-              <button
-                className="btn ghost sm"
-                disabled={applying || applicationOpen}
-                onClick={async () => {
-                  setApplying(true);
-                  try {
-                    const { applyForAffiliateProgram } = await import(
-                      "@/actions/affiliate-application-actions"
-                    );
-                    const res = await applyForAffiliateProgram();
-                    if (!res.ok) {
-                      toast.error(res.error);
-                      return;
-                    }
-                    setAffiliateApplied(true);
-                    queryClient.invalidateQueries({ queryKey: ["is-affiliate"] });
-                    toast.success(
-                      res.data.alreadySent
-                        ? "You've already applied — we're still looking at it."
-                        : "Application sent. We'll set your commission and come back to you.",
-                    );
-                  } catch {
-                    toast.error(
-                      "We couldn't send your application just now. Try again shortly.",
-                    );
-                  } finally {
-                    setApplying(false);
-                  }
-                }}
-              >
-                {applying
-                  ? "Sending…"
-                  : applicationOpen
-                    ? "Application sent"
-                    : applicationRefused
-                      ? "Apply again"
-                      : "Join the affiliate program"}
-              </button>
               {applicationOpen ? (
-                <p className="cap" style={{ margin: "8px 0 0" }}>
-                  We&apos;ll set your commission and let you know.
+                // Applied: say where it stands, and where to follow it --
+                // not a greyed-out button.
+                <p className="cap" style={{ margin: 0 }}>
+                  <b>Application received.</b> We&apos;re setting up your rate —
+                  follow it under{" "}
+                  <button
+                    type="button"
+                    className="lnk"
+                    onClick={() => go("referrals")}
+                    style={{ border: 0, background: "none", padding: 0, color: "var(--primary-600)", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Referrals
+                  </button>
+                  .
                 </p>
-              ) : applicationRefused ? (
-                <p className="cap" style={{ margin: "8px 0 0" }}>
-                  Not this time{affiliateRefusal ? `: ${affiliateRefusal}` : "."} You
-                  can apply again whenever you like.
-                </p>
-              ) : null}
+              ) : (
+                <>
+                  <button className="btn ghost sm" disabled={applying} onClick={applyAffiliate}>
+                    {applying ? "Sending…" : applicationRefused ? "Apply again" : "Join the affiliate program"}
+                  </button>
+                  {applicationRefused ? (
+                    <p className="cap" style={{ margin: "8px 0 0" }}>
+                      Not this time{affiliateRefusal ? `: ${affiliateRefusal}` : "."} You
+                      can apply again whenever you like.
+                    </p>
+                  ) : null}
+                </>
+              )}
             </div>
             {/* -- GDPR, WHERE THE CUSTOMER CAN ACTUALLY REACH IT ------
                 These two controls - download my data (art. 20) and

@@ -11,6 +11,7 @@ type AffiliateState = {
   /** Their application, when they have one open or were refused. */
   application: "applied" | "refused" | null;
   refusalReason: string | null;
+  appliedAt?: string | null;
 };
 
 export default function useIsAffiliate() {
@@ -38,7 +39,7 @@ export default function useIsAffiliate() {
       // to somebody whose application was on the owner's desk.
       const { data: row, error: rowError } = await supabase
         .from("advertisers")
-        .select("affiliate_status, affiliate_refusal_reason")
+        .select("affiliate_status, affiliate_refusal_reason, affiliate_applied_at")
         .eq("id", advertiserId)
         .maybeSingle();
       if (rowError && !MISSING.test(rowError.message)) throw rowError;
@@ -46,13 +47,19 @@ export default function useIsAffiliate() {
         const r = (row ?? {}) as {
           affiliate_status?: string | null;
           affiliate_refusal_reason?: string | null;
+          affiliate_applied_at?: string | null;
         };
         const status = String(r.affiliate_status ?? "").toLowerCase();
         if (status === "approved") {
           return { isAffiliate: true, application: null, refusalReason: null };
         }
         if (status === "applied") {
-          return { isAffiliate: false, application: "applied", refusalReason: null };
+          return {
+            isAffiliate: false,
+            application: "applied",
+            refusalReason: null,
+            appliedAt: r.affiliate_applied_at ?? null,
+          };
         }
         if (status === "refused") {
           return {
@@ -128,6 +135,7 @@ export default function useIsAffiliate() {
       isError: false,
       application: null,
       refusalReason: null,
+      appliedAt: null,
     };
 
   return {
@@ -136,5 +144,6 @@ export default function useIsAffiliate() {
     isError,
     application: data?.application ?? null,
     refusalReason: data?.refusalReason ?? null,
+    appliedAt: data?.appliedAt ?? null,
   };
 }

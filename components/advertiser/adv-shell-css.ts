@@ -1397,6 +1397,51 @@ export const ADV_CSS = `
   .xl-sum{display:flex;gap:14px;flex-wrap:wrap;padding:0 16px 10px;font-size:.82rem;color:var(--txt-2)}
   .xl-sum b{color:var(--ink)}
 
+/* ── AN APPLICATION'S ANSWER ─────────────────────────────────────────────
+   Received, what happens now, what comes after -- the step we are on lit
+   and breathing. A light card with a brand-gradient edge, not the dark
+   offer with its button greyed out. */
+  .appcard{position:relative;border-radius:20px;padding:20px 18px 18px;background:var(--panel);
+    border:1px solid transparent;
+    background-image:linear-gradient(var(--panel),var(--panel)),linear-gradient(135deg,#5b8dff,#8b5cf6 55%,#18b8ce);
+    background-origin:border-box;background-clip:padding-box,border-box;
+    box-shadow:0 22px 44px -30px rgba(40,50,140,.55)}
+  .appcard.refused{background-image:linear-gradient(var(--panel),var(--panel)),linear-gradient(135deg,#ffb020,#e5484d)}
+  .ac-top{display:flex;gap:13px;align-items:flex-start}
+  .ac-top h2{font-size:1.12rem;margin:2px 0 4px}
+  .ac-top .cap{margin:0}
+  .ac-ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:0 0 auto;color:#fff}
+  .ac-ic svg{width:21px;height:21px}
+  .ac-ic.ok{background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 10px 22px -10px rgba(16,185,129,.8)}
+  .ac-ic.warn{background:linear-gradient(135deg,#ffb020,#e5484d);box-shadow:0 10px 22px -10px rgba(229,72,77,.7)}
+  .ac-steps{list-style:none;margin:18px 0 14px;padding:0;display:grid;gap:0}
+  .ac-steps li{position:relative;display:flex;gap:12px;align-items:flex-start;padding:0 0 16px}
+  .ac-steps li:last-child{padding-bottom:0}
+  .ac-steps li::before{content:"";position:absolute;left:12px;top:26px;bottom:2px;width:2px;
+    background:var(--line-2);border-radius:2px}
+  .ac-steps li:last-child::before{display:none}
+  .ac-steps li.done::before{background:linear-gradient(#10b981,#5b8dff)}
+  .ac-steps .dot{width:26px;height:26px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
+    background:var(--panel-2);border:2px solid var(--line-2);color:#fff}
+  .ac-steps .dot svg{width:14px;height:14px}
+  .ac-steps li.done .dot{background:var(--win);border-color:var(--win)}
+  .ac-steps li.now .dot{background:var(--panel);border-color:var(--primary);
+    box-shadow:0 0 0 4px rgba(58,111,255,.16);animation:acpulse 1.8s ease-in-out infinite}
+  .ac-steps li.now .dot::after{content:"";width:10px;height:10px;border-radius:50%;
+    background:linear-gradient(135deg,#5b8dff,#8b5cf6)}
+  @keyframes acpulse{50%{box-shadow:0 0 0 8px rgba(58,111,255,.08)}}
+  .ac-steps .t{display:flex;flex-direction:column;gap:1px;padding-top:2px}
+  .ac-steps .t b{font-size:.9rem}
+  .ac-steps .t small{font-size:.76rem;color:var(--faint)}
+  .ac-steps li:not(.done):not(.now) .t b{color:var(--txt-2)}
+  .ac-note{margin:14px 0 12px;font-size:.84rem;color:var(--txt-2)}
+  .ac-acts{display:flex;gap:8px;flex-wrap:wrap}
+  .ac-acts .btn{flex:1 1 0;justify-content:center;min-width:0}
+  .appcard .btn svg{flex:0 0 auto;width:16px;height:16px}
+  .appcard .btn.wa svg{color:#1faa53}
+  .ac-help{width:100%;justify-content:center}
+  @media (prefers-reduced-motion:reduce){.ac-steps li.now .dot{animation:none}}
+
 /* ── THE PERIOD: one control for every figure under it ─────────────────
    A glass bar of pills; the chosen one lit with the brand gradient.
    Scrolls sideways on a phone instead of wrapping into two rows. */
