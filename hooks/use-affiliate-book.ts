@@ -18,6 +18,7 @@ import type { CommissionRule } from "@/lib/pure-commission-rules";
 // of these rows, so a count on a card is always the length of a list one
 // click away (CLAUDE.md: a number must be verifiable against its list).
 
+/** What was taken back on this referral, per currency (plak 35). */
 export type BookLink = {
   id: string;
   created_at: string;
@@ -32,6 +33,9 @@ export type BookLink = {
   affiliate_advertiser_tenant_client_code: string | null;
   earnings_eur: number | null;
   earnings_usd: number | null;
+  /** What was taken back on this referral, per currency. Filled in by
+   *  groupAffiliateBook so a per-customer figure nets like the totals. */
+  clawbacks?: Record<string, number>;
 };
 
 export type BookCommission = {
@@ -240,6 +244,11 @@ export function groupAffiliateBook(
     else add(b.owed, c.currency, c.amount);
     perLink.set(c.referral_link_id, b);
   }
+
+  // The same figure the affiliate's own screen subtracts, carried on the
+  // link so the per-customer table can show it too instead of printing a
+  // gross number under a netted total.
+  for (const l of links) l.clawbacks = clawByLink.get(l.id) ?? {};
 
   for (const [linkId, b] of perLink) {
     const affId = linkToAffiliate.get(linkId);

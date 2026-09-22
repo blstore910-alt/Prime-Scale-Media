@@ -808,9 +808,25 @@ function AffiliateDetail({
   const email = summary?.email ?? whoProfile?.email ?? null;
   const label = name || code || "this affiliate";
   const notFound = !who.isLoading && !who.isError && !who.data && !summary;
+  // A read that FAILED used to fall through to the full layout: four
+  // tiles at 0,00, "nobody referred", "no commission" -- five confident
+  // statements about somebody we could not look up.
+  const lookupFailed = who.isError && !summary;
   const otherTenant = !!who.data && !!profile?.tenant_id && who.data.tenant_id !== profile.tenant_id;
 
   const customerOf = (linkId: string) => summary?.links.find((l) => l.id === linkId) ?? null;
+
+  if (lookupFailed) {
+    return (
+      <div className="card">
+        <h2>We couldn&apos;t open this affiliate</h2>
+        <p className="cap" style={{ margin: "6px 0 0" }}>
+          The read failed — this is not an affiliate with nothing on their
+          name. Reload, and tell us if it stays away.
+        </p>
+      </div>
+    );
+  }
 
   const shownTypes = [...types]
     .filter((t) => t.is_active !== false)
@@ -1045,6 +1061,16 @@ function AffiliateDetail({
                         if (st === "on_hold" || st === "reversed") continue;
                         earned[cur] = Math.round(((earned[cur] ?? 0) + Number(c.amount)) * 100) / 100;
                         if (st !== "paid") owed[cur] = Math.round(((owed[cur] ?? 0) + Number(c.amount)) * 100) / 100;
+                      }
+                      // NET, like the tiles above and like the affiliate's
+                      // own screen: what came back off this referral is off
+                      // this referral. Gross here under a netted total made
+                      // the column add up to more than the card.
+                      const back = l.clawbacks ?? {};
+                      for (const cur of Object.keys(back)) {
+                        const n = back[cur] ?? 0;
+                        earned[cur] = Math.max(Math.round(((earned[cur] ?? 0) - n) * 100) / 100, 0);
+                        owed[cur] = Math.max(Math.round(((owed[cur] ?? 0) - n) * 100) / 100, 0);
                       }
                       return (
                         <tr key={l.id}>
