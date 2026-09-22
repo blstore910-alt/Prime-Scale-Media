@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UpdatePasswordForm } from "@/components/update-password-form";
 import { createClient } from "@/lib/supabase/server";
+import { ClockIcon, StatusBadge } from "@/components/auth/auth-bits";
 
 /**
  * ── THIS SCREEN HAD NO GUARD AT ALL ──────────────────────────────────
@@ -29,19 +30,25 @@ export default async function Page() {
 
   if (!data?.user) {
     return (
-      <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-        <div className="w-full max-w-sm space-y-4 text-center">
-          <h1 className="text-2xl font-semibold">That link has expired</h1>
-          <p className="text-sm text-muted-foreground">
-            Password links are good for a short while, and they only work
-            in the browser that asked for one. Ask for a fresh link and
-            open it on this device.
-          </p>
-          <Link className="underline underline-offset-4" href="/auth/forgot-password">
-            Send me a new link
+      <section className="card login-card signup-card status-card">
+        <StatusBadge tone="warn">
+          <ClockIcon />
+        </StatusBadge>
+        <h2>That link has expired</h2>
+        <p className="lede" style={{ display: "block" }}>
+          Password links work for a short while, and only once. Ask for a
+          fresh one and open it straight away.
+        </p>
+        <Link className="btn" href="/auth/forgot-password">
+          Send me a new link
+        </Link>
+        <p className="meta">
+          Remembered it?{" "}
+          <Link className="lnk" href="/auth/login">
+            Log in
           </Link>
-        </div>
-      </div>
+        </p>
+      </section>
     );
   }
 
@@ -49,17 +56,30 @@ export default async function Page() {
   // does not. When we cannot tell, ask for the current password -- the
   // safe direction, because a genuine recovery user is the one case
   // that CANNOT supply it, and they arrive with the marker.
-  const amr = (data.user as { amr?: { method?: string }[] }).amr ?? [];
-  const cameFromRecovery = amr.some((m) => m?.method === "recovery");
+  //
+  // ── THE MARKER IS ON THE SESSION, NOT ON THE USER ─────────────────
+  // This read `data.user.amr`, and a User object has no amr: it was
+  // always empty, so EVERY visitor was asked for their current password
+  // -- including the one person who came here because they forgot it.
+  // Password reset was a dead end. The authentication methods of the
+  // session come from getAuthenticatorAssuranceLevel, and a recovery
+  // only counts for half an hour: an old recovery session on an unlocked
+  // laptop is not a licence to change the password without it.
+  let cameFromRecovery = false;
+  try {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const nowS = Date.now() / 1000;
+    cameFromRecovery = (aal?.currentAuthenticationMethods ?? []).some(
+      (m) => m.method === "recovery" && nowS - Number(m.timestamp) < 30 * 60,
+    );
+  } catch {
+    cameFromRecovery = false;
+  }
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <UpdatePasswordForm
-          requireCurrent={!cameFromRecovery}
-          email={data.user.email ?? ""}
-        />
-      </div>
-    </div>
+    <UpdatePasswordForm
+      requireCurrent={!cameFromRecovery}
+      email={data.user.email ?? ""}
+    />
   );
 }

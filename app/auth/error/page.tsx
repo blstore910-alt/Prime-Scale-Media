@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { AlertIcon, StatusBadge } from "@/components/auth/auth-bits";
+import { whatsappUrl } from "@/lib/whatsapp";
 
 /**
  * Landing page for auth-flow failures. The `error` query param is
@@ -36,7 +35,18 @@ function safeMessage(raw: string | undefined): string {
   // that trips a constraint rendered the constraint and column names.
   // No injection (the sanitiser strips markup), but schema disclosure,
   // and the file's own comment said this did not happen.
-  return KNOWN_ERRORS[trimmed] ?? "An unspecified error occurred.";
+  const known = KNOWN_ERRORS[trimmed];
+  if (known) return known;
+  // Supabase's own words for a link that is used up, too old, or opened
+  // in a different browser from the one that asked for it (PKCE). These
+  // are the ones a real person hits; they get a sentence, not "unspecified".
+  if (/expired|invalid or has expired|otp_expired/i.test(trimmed)) {
+    return "This link has expired or was already used. Ask for a new one below.";
+  }
+  if (/code verifier|flow state|auth code/i.test(trimmed)) {
+    return "This link was opened in a different browser from the one you signed up in. Open it there, or simply log in — your email is confirmed.";
+  }
+  return "An unspecified error occurred.";
 }
 
 export default async function Page({
@@ -48,34 +58,31 @@ export default async function Page({
   const message = safeMessage(params?.error);
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-md">
-        <Card>
-          <CardHeader>
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-2">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <CardTitle className="text-2xl">Sign-in failed</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{message}</p>
-
-            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-              <Button asChild className="flex-1">
-                <Link href="/auth/login">Back to sign in</Link>
-              </Button>
-              <Button asChild variant="outline" className="flex-1">
-                <Link href="/auth/forgot-password">Reset password</Link>
-              </Button>
-            </div>
-
-            <p className="text-xs text-muted-foreground pt-2 border-t">
-              If this keeps happening, contact the person who invited you or
-              try signing in from a private browser window.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <section className="card login-card signup-card status-card">
+      <StatusBadge tone="warn">
+        <AlertIcon />
+      </StatusBadge>
+      <h2>That did not work</h2>
+      <p className="lede" style={{ display: "block" }}>
+        {message}
+      </p>
+      <Link className="btn" href="/auth/login">
+        Back to sign in
+      </Link>
+      <Link className="btn ghost" href="/auth/forgot-password">
+        Reset my password
+      </Link>
+      <p className="meta">
+        Keeps happening?{" "}
+        <a
+          className="lnk"
+          href={whatsappUrl("Hi PSM, I get an error when I try to sign in.")}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Message us on WhatsApp
+        </a>
+      </p>
+    </section>
   );
 }

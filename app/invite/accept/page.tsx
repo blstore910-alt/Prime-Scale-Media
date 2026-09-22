@@ -1,6 +1,7 @@
 import InviteAccept from "@/components/invites/invite-accept";
 import InviteExpired from "@/components/invites/invite-expired";
 import SignOutAndReturn from "@/components/invites/sign-out-and-return";
+import { AlertIcon, StatusBadge } from "@/components/auth/auth-bits";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -19,22 +20,20 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
   // that a mail client may well have mangled.
   if (!token) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-muted/30 p-6">
-        <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-sm">
-          <h1 className="text-lg font-bold">That invite link is incomplete</h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            The link needs the full address from your invitation email —
-            some mail apps cut it short. Open it from the email again, or
-            ask whoever invited you to send it once more.
-          </p>
-          <a
-            className="mt-5 inline-block rounded-lg bg-muted px-4 py-2 text-sm font-semibold"
-            href="/auth/login"
-          >
-            Go to sign in
-          </a>
-        </div>
-      </main>
+      <section className="card login-card signup-card status-card">
+        <StatusBadge tone="warn">
+          <AlertIcon />
+        </StatusBadge>
+        <h2>That invite link is incomplete</h2>
+        <p className="lede" style={{ display: "block" }}>
+          The link needs the full address from your invitation email —
+          some mail apps cut it short. Open it from the email again, or
+          ask whoever invited you to send it once more.
+        </p>
+        <a className="btn" href="/auth/login">
+          Go to sign in
+        </a>
+      </section>
     );
   }
 
@@ -107,43 +106,24 @@ export default async function AcceptInvite({ searchParams }: PageProps) {
     // broken" experience the note above says it was written to fix.
     // The page they are already on can simply tell them.
     return (
-      <main className="mx-auto flex min-h-screen max-w-md items-center p-6">
-        <div className="w-full rounded-xl border bg-card p-6 text-card-foreground">
-          <h1 className="text-xl font-semibold">
-            This invitation is for a different address
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            You are signed in as{" "}
-            <span className="font-medium text-foreground">
-              {userData.user.email}
-            </span>
-            , and this invitation was sent to someone else. Sign out, then
-            open the link again from the inbox it arrived in.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {/* ── THE BUTTON THE CARD TELLS THEM TO PRESS ──────────
-                This was a plain form POST to /api/auth/sign-out. Two
-                faults, and the second is the one that mattered: a form
-                POST NAVIGATES to the route and renders its answer, so
-                they landed on a blank page reading {"ok":true} -- and
-                that route only clears the httpOnly profile_id cookie,
-                not the Supabase session. It did not sign anybody out.
-                Open the link again and the same card came back, with no
-                way past it short of clearing cookies by hand.
-
-                This is the first screen a new customer sees when they
-                open their invite on a machine where somebody else is
-                signed in. */}
-            <SignOutAndReturn token={token} />
-            <a
-              href="/dashboard"
-              className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium"
-            >
-              Back to my dashboard
-            </a>
-          </div>
-        </div>
-      </main>
+      <section className="card login-card signup-card status-card">
+        <StatusBadge tone="warn">
+          <AlertIcon />
+        </StatusBadge>
+        <h2>This invitation is for a different address</h2>
+        <p className="lede" style={{ display: "block" }}>
+          You are signed in as <b>{userData.user.email}</b>, and this
+          invitation was sent to someone else. Sign out, then open the link
+          again from the inbox it arrived in.
+        </p>
+        {/* ── THE BUTTON THE CARD TELLS THEM TO PRESS ──────────
+            A real sign-out (not a form POST to a route that clears one
+            cookie), then back to this same link. */}
+        <SignOutAndReturn token={token} />
+        <a className="btn ghost" href="/dashboard">
+          Back to my dashboard
+        </a>
+      </section>
     );
   }
 

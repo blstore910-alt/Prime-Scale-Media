@@ -8,13 +8,24 @@
 //
 //   node --import ./tests/ts-resolve.mjs --experimental-strip-types scripts/email-templates.ts
 //
-// The {{ .ConfirmationURL }}-style placeholders are Supabase's own; it
-// fills them in when it sends.
+// The {{ .TokenHash }}-style placeholders are Supabase's own; it fills
+// them in when it sends.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { emailLayout, emailPanel, emailParagraph } from "../lib/pure-email-layout";
 
 type Template = { file: string; name: string; subject: string; html: string };
+
+// ── LINKS THAT WORK IN ANY BROWSER ───────────────────────────────────
+// {{ .ConfirmationURL }} sends Supabase's PKCE code back, and exchanging
+// that code needs a cookie that only exists in the browser that filled in
+// the form. Sign up on a laptop, open the mail on a phone: an error, and
+// no profile, no wallet, no referral. A token_hash link is verified by
+// OUR /auth/confirm with verifyOtp, which needs no such cookie -- and that
+// route is also where the profile, wallet and referral are made.
+const CONFIRM = "https://app.primescalemedia.com/auth/confirm";
+const link = (type: string, next?: string) =>
+  `${CONFIRM}?token_hash={{ .TokenHash }}&type=${type}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
 
 const templates: Template[] = [
   {
@@ -27,7 +38,7 @@ const templates: Template[] = [
       bodyHtml:
         emailParagraph("Welcome to Prime Scale Media. Press the button to confirm <b>{{ .Email }}</b> and open your account.") +
         emailParagraph("After that you add your company details, and you can top up and run your ad accounts."),
-      cta: { label: "Confirm my email", href: "{{ .ConfirmationURL }}" },
+      cta: { label: "Confirm my email", href: link("email") },
       footnoteHtml:
         "Did not sign up? Ignore this email — no account is created without this click.",
     }),
@@ -40,7 +51,7 @@ const templates: Template[] = [
       preheader: "Accept the invitation to set up your Prime Scale Media account.",
       title: "You're invited to Prime Scale Media",
       bodyHtml: emailParagraph("Accept the invitation to set up your account for <b>{{ .Email }}</b>."),
-      cta: { label: "Accept invitation", href: "{{ .ConfirmationURL }}" },
+      cta: { label: "Accept invitation", href: link("invite") },
       footnoteHtml: "Did not expect this invitation? Ignore this email — nothing happens until you accept it.",
     }),
   },
@@ -52,7 +63,7 @@ const templates: Template[] = [
       preheader: "Your one-time link to sign in to Prime Scale Media.",
       title: "Sign in to Prime Scale Media",
       bodyHtml: emailParagraph("Press the button to sign in as <b>{{ .Email }}</b>. The link works once."),
-      cta: { label: "Sign in", href: "{{ .ConfirmationURL }}" },
+      cta: { label: "Sign in", href: link("email") },
       footnoteHtml: "Did not ask for this? Ignore this email — nobody can sign in without the link.",
     }),
   },
@@ -66,7 +77,7 @@ const templates: Template[] = [
       bodyHtml:
         emailParagraph("You asked to change the email address of your account.") +
         emailPanel("From → to", "{{ .Email }} &rarr; {{ .NewEmail }}"),
-      cta: { label: "Confirm new address", href: "{{ .ConfirmationURL }}" },
+      cta: { label: "Confirm new address", href: link("email_change") },
       footnoteHtml: "Did not ask for this? Ignore this email — your address stays as it is — and message us on WhatsApp.",
     }),
   },
@@ -78,7 +89,7 @@ const templates: Template[] = [
       preheader: "Choose a new password for your Prime Scale Media account.",
       title: "Reset your password",
       bodyHtml: emailParagraph("Press the button to choose a new password for <b>{{ .Email }}</b>."),
-      cta: { label: "Choose a new password", href: "{{ .ConfirmationURL }}" },
+      cta: { label: "Choose a new password", href: link("recovery", "/auth/update-password") },
       footnoteHtml: "Did not ask for this? Ignore this email — your password stays the same.",
     }),
   },
@@ -123,6 +134,11 @@ const readme = [
   "   the subject, and the file's whole content into *Message body* (Source).",
   "2. **Authentication → Emails → SMTP settings**: set **Sender name** to",
   "   `Prime Scale Media` (it says `PSM Dashboard` today).",
+  "",
+  "The links are `https://app.primescalemedia.com/auth/confirm?token_hash=...`,",
+  "not `{{ .ConfirmationURL }}`: that one only works in the browser that filled",
+  "in the form (PKCE), so a mail opened on a phone failed and left the new",
+  "customer without a profile, a wallet or their referral.",
   "",
   "| template in Supabase | subject | file |",
   "|---|---|---|",

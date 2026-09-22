@@ -1,12 +1,9 @@
 "use client";
 import { InvitationStatus } from "@/lib/types/invite";
 import React, { useState } from "react";
-import { Avatar, AvatarFallback } from "../ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 // ── ONLY WHAT THIS LIST ACTUALLY READS ──────────────────────────────
 //
@@ -28,17 +25,12 @@ export default function InvitesList({
 }: {
   invites: InviteToChoose[];
 }) {
+  // Rows in the auth shell's vocabulary (it renders inside app/invite).
   return (
-    <div className="bg-card text-card-foreground rounded-lgp-6">
-      <div>
-        <h3 className="text-lg font-semibold">Invites</h3>
-      </div>
-
-      <div className="mt-6 space-y-3">
-        {invites.map((invite) => (
-          <InviteCard key={invite.id} invite={invite} />
-        ))}
-      </div>
+    <div className="orgs">
+      {invites.map((invite) => (
+        <InviteCard key={invite.id} invite={invite} />
+      ))}
     </div>
   );
 }
@@ -89,37 +81,18 @@ function InviteCard({ invite }: { invite: InviteToChoose }) {
     }
   };
   return (
-    <div className="flex items-center justify-between rounded-md border px-4 py-3 bg-popover">
-      <div className="flex justify-center items-center gap-4">
-        <Avatar className="size-12">
-          <AvatarFallback>{getInitials(tenantName)}</AvatarFallback>
-        </Avatar>
-        <h4 className="text-sm font-bold">{tenantName}</h4>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="default"
-          size={"sm"}
-          disabled={loadingState !== null}
-          onClick={() => handleInvite("accepted")}
-        >
-          {loadingState === "accepted" ? (
-            <Loader2 className="animate-spin size-4 mr-2" />
-          ) : null}
-          Accept
-        </Button>
-        {/* <Button
-          variant="outline"
-          size={"sm"}
-          disabled={loadingState !== null}
-          onClick={() => handleInvite("rejected")}
-        >
-          {loadingState === "rejected" ? (
-            <Loader2 className="animate-spin size-4 mr-2" />
-          ) : null}
-          Reject
-        </Button> */}
-      </div>
-    </div>
+    <button
+      type="button"
+      className="orgbtn"
+      disabled={loadingState !== null}
+      onClick={() => handleInvite("accepted")}
+    >
+      <span className="av">{getInitials(tenantName)}</span>
+      <span className="nm">
+        <b>{tenantName}</b>
+        <small>{invite.role ? `Join as ${invite.role}` : "Join this organisation"}</small>
+      </span>
+      <span className="go">{loadingState === "accepted" ? "Joining…" : "Accept →"}</span>
+    </button>
   );
 }

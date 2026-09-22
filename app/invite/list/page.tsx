@@ -1,11 +1,5 @@
 import InvitesList from "@/components/onboard/invites-list";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AlertIcon, MailIcon, RocketMark, StatusBadge } from "@/components/auth/auth-bits";
 import { createClient } from "@/lib/supabase/server";
 import { redirectCustomersToTheirShell } from "@/lib/auth/customer-shell-redirect";
 
@@ -51,12 +45,18 @@ export default async function Page() {
   const myEmail = auth?.user?.email?.trim().toLowerCase() ?? "";
   if (!myEmail) {
     return (
-      <main className="max-w-lg mx-auto p-6">
-        <p className="text-sm text-destructive">
-          We could not confirm who you are signed in as. Reload and try
-          again.
+      <section className="card login-card signup-card status-card">
+        <StatusBadge tone="warn">
+          <AlertIcon />
+        </StatusBadge>
+        <h2>We could not confirm who you are</h2>
+        <p className="lede" style={{ display: "block" }}>
+          Reload and try again.
         </p>
-      </main>
+        <a className="btn" href="/auth/login">
+          Go to sign in
+        </a>
+      </section>
     );
   }
   const { data: invites, error } = await supabase
@@ -80,12 +80,15 @@ export default async function Page() {
   // customer can reach. Say it in words instead.
   if (error) {
     return (
-      <main className="max-w-lg mx-auto p-6">
-        <p className="text-sm text-destructive">
-          We couldn&apos;t load your invitations just now. This is not an
-          empty list — reload and try again.
+      <section className="card login-card signup-card status-card">
+        <StatusBadge tone="warn">
+          <AlertIcon />
+        </StatusBadge>
+        <h2>We couldn&apos;t load your invitations</h2>
+        <p className="lede" style={{ display: "block" }}>
+          This is not an empty list — reload and try again.
         </p>
-      </main>
+      </section>
     );
   }
 
@@ -99,39 +102,32 @@ export default async function Page() {
   }));
 
   return (
-    <main className="max-w-lg mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl">Get started</CardTitle>
-          <CardDescription>
-            {
-              "You've received invitations from other organizations. Choose one to be a part of, or continue by creating a new one."
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {forList.length > 0 ? (
-            <InvitesList invites={forList} />
-          ) : (
-            // The card's description offers "or continue by creating a
-            // new one" and the control that did that is commented out
-            // below, so an empty list was a heading over nothing.
-            <p className="text-sm text-muted-foreground">
-              There are no invitations waiting for{" "}
-              <span className="font-medium">{myEmail}</span> right now. If
-              you were expecting one, ask whoever invited you to send it
-              again — an invitation expires, and it has to be addressed to
-              the address you are signed in with.
-            </p>
-          )}
-          {/* <div className="mt-6 text-center text-muted-foreground space-y-6 ">
-            <h6>OR</h6>
-            <Button asChild>
-              <Link href="/organization/new">Create New Organization</Link>
-            </Button>
-          </div> */}
-        </CardContent>
-      </Card>
-    </main>
+    <section className="card login-card">
+      <RocketMark />
+      <h2>Get started</h2>
+      <p className="lede" style={{ display: "block" }}>
+        {forList.length
+          ? "You have been invited. Pick the organisation to join."
+          : "There is nothing to join yet."}
+      </p>
+      {forList.length > 0 ? (
+        <InvitesList invites={forList} />
+      ) : (
+        <div className="whoami">
+          <MailIcon />
+          <span className="t">
+            <small>No invitations waiting for</small>
+            <b title={myEmail}>{myEmail}</b>
+          </span>
+        </div>
+      )}
+      {forList.length === 0 ? (
+        <p className="meta">
+          Expecting one? Ask whoever invited you to send it again — an
+          invitation expires, and it has to go to the address you are
+          signed in with.
+        </p>
+      ) : null}
+    </section>
   );
 }

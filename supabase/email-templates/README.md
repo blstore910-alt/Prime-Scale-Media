@@ -15,6 +15,11 @@ node --import ./tests/ts-resolve.mjs --experimental-strip-types scripts/email-te
 2. **Authentication → Emails → SMTP settings**: set **Sender name** to
    `Prime Scale Media` (it says `PSM Dashboard` today).
 
+The links are `https://app.primescalemedia.com/auth/confirm?token_hash=...`,
+not `{{ .ConfirmationURL }}`: that one only works in the browser that filled
+in the form (PKCE), so a mail opened on a phone failed and left the new
+customer without a profile, a wallet or their referral.
+
 | template in Supabase | subject | file |
 |---|---|---|
 | Confirm signup | Confirm your email — Prime Scale Media | `confirm-signup.html` |
