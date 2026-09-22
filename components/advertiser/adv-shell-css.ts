@@ -1457,4 +1457,23 @@ export const ADV_CSS = `
   .xsel select:hover{border-color:rgba(58,111,255,.5)}
   .xsel select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
   .xsel .ic{position:absolute;right:9px;width:13px;height:13px;pointer-events:none;color:var(--faint)}
+  .xl-head .xl-sort{margin-left:auto}
+  .xl-head .xl-sort+.xl-count{margin-left:0}
+  .xseg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:3px;margin:0 16px 8px;
+    padding:3px;border-radius:13px;background:var(--panel-2);border:1px solid var(--line)}
+  .xseg button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:0;
+    border:0;background:none;font:inherit;font-weight:700;font-size:.76rem;color:var(--txt-2);
+    padding:7px 4px;border-radius:10px;cursor:pointer;white-space:nowrap;overflow:hidden;
+    transition:background .15s,color .15s,box-shadow .15s}
+  .xseg button:hover{color:var(--ink)}
+  .xseg button.on{background:var(--panel);color:var(--primary-600);
+    box-shadow:0 1px 3px rgba(20,30,80,.14),0 0 0 1px rgba(58,111,255,.2)}
+  .xseg button svg{width:13px;height:13px;flex:0 0 auto}
+  .xseg .n{flex:0 0 auto;min-width:16px;padding:0 5px;border-radius:99px;font-size:.64rem;font-weight:800;
+    text-align:center;background:rgba(20,30,80,.06);color:var(--faint)}
+  .xseg button.on .n{background:var(--primary-tint);color:var(--primary-600)}
+  @media (max-width:420px){.xseg button svg{display:none}.xseg button{font-size:.72rem;gap:4px}}
+  /* A second currency is its own line, under the first, a size smaller. */
+  .v2{display:block;font-size:.62em;margin-top:3px;opacity:.85;letter-spacing:-.01em}
+  .xrow .amt .v2{font-size:.82em;margin-top:1px;text-align:right}
 `  + refineCss(".advapp");

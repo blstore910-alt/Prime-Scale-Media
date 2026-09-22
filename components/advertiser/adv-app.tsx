@@ -1663,6 +1663,23 @@ export default function AdvertiserApp() {
   // Never a currency symbol on a figure that has a sibling in another
   // currency: when both are non-zero they are shown together, and a
   // currency with nothing in it is left out rather than printed as zero.
+  // The same, for a tile or a row where there is room for two lines: euros
+  // first, dollars under them a size smaller -- never added, and never
+  // squeezed into one line that wraps on a phone.
+  const legs = (e: number | string | null | undefined, u: number | string | null | undefined) => {
+    const eNum = Number(e) || 0;
+    const uNum = Number(u) || 0;
+    if (eNum && uNum) {
+      return (
+        <>
+          {eur(eNum)}
+          <span className="v2">{usd(uNum)}</span>
+        </>
+      );
+    }
+    if (uNum) return usd(uNum);
+    return eur(eNum);
+  };
   const twoLeg = (e: number, u: number): string => {
     const eNum = Number(e) || 0;
     const uNum = Number(u) || 0;
@@ -3642,7 +3659,7 @@ export default function AdvertiserApp() {
                 <div className="v win">
                   {affRangedUnavailable
                     ? "—"
-                    : twoLeg(affRanged.totals.earnings_eur, affRanged.totals.earnings_usd)}
+                    : legs(affRanged.totals.earnings_eur, affRanged.totals.earnings_usd)}
                 </div>
               </div>
               <div className="stat g-gold">
@@ -3655,7 +3672,7 @@ export default function AdvertiserApp() {
                 <div className="v gold">
                   {affRangedUnavailable
                     ? "—"
-                    : twoLeg(affRanged.payable.eur, affRanged.payable.usd)}
+                    : legs(affRanged.payable.eur, affRanged.payable.usd)}
                 </div>
               </div>
               <div className="stat g-win">
@@ -3668,7 +3685,7 @@ export default function AdvertiserApp() {
                 <div className="v">
                   {affRangedUnavailable || affRanged.payable.isLifetime
                     ? "—"
-                    : twoLeg(
+                    : legs(
                         Math.max(
                           0,
                           Math.round(
@@ -3698,7 +3715,7 @@ export default function AdvertiserApp() {
                 <div className="v">
                   {affRangedUnavailable
                     ? "—"
-                    : twoLeg(affRanged.totals.spend_eur, affRanged.totals.spend_usd)}
+                    : legs(affRanged.totals.spend_eur, affRanged.totals.spend_usd)}
                 </div>
               </div>
             </div>
@@ -3816,7 +3833,7 @@ export default function AdvertiserApp() {
                         </span>
                       </span>
                       <span className="rt">
-                        <span className="amt">{twoLeg(r.earnings_eur, r.earnings_usd)}</span>
+                        <span className="amt">{legs(r.earnings_eur, r.earnings_usd)}</span>
                       </span>
                     </button>
                   );

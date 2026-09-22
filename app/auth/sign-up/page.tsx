@@ -29,13 +29,9 @@ export default async function Page({ searchParams }: PageProps) {
     if (!referralCode || !tenantSlug) {
       redirect("/auth/login");
     }
-    return (
-      <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-        <div className="w-full max-w-md">
-          <SignUpForm referralCode={referralCode} tenantSlug={tenantSlug} />
-        </div>
-      </div>
-    );
+    // Straight into the auth shell's .side column, like the invite form: a
+    // second full-height centring wrapper fought the one already there.
+    return <SignUpForm referralCode={referralCode} tenantSlug={tenantSlug} />;
   }
 
   // A new invitee is anonymous here (no account yet), so RLS can't grant

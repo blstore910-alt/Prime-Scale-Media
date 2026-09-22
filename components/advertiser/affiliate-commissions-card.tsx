@@ -202,15 +202,25 @@ export default function AffiliateCommissionsCard({
             {focusCode} ✕
           </button>
         ) : null}
+        <label className="xsel xl-sort">
+          <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="largest">Largest</option>
+          </select>
+          <Ic name="i-chev" />
+        </label>
         {!dash ? <span className="xl-count">{rows.length}</span> : null}
       </div>
 
-      <div className="xchips" role="group" aria-label="Kind">
+      {/* Two segmented rows that always fit a 360px phone: nothing to
+          scroll sideways for, every option and its count in view. */}
+      <div className="xseg" role="group" aria-label="Kind">
         {(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => (
           <button
             key={k}
             type="button"
-            className={`xchip${kind === k ? " on" : ""}`}
+            className={kind === k ? "on" : ""}
             aria-pressed={kind === k}
             onClick={() => setKind(k)}
           >
@@ -228,29 +238,19 @@ export default function AffiliateCommissionsCard({
           </button>
         ))}
       </div>
-      <div className="xl-tools2">
-        <div className="xchips" role="group" aria-label="Status">
-          {(["all", "owed", "paid"] as StatusFilter[]).map((st) => (
-            <button
-              key={st}
-              type="button"
-              className={`xchip${status === st ? " on" : ""}`}
-              aria-pressed={status === st}
-              onClick={() => setStatus(st)}
-            >
-              {st === "all" ? "Any status" : st === "owed" ? "To be paid" : "Paid"}
-              {!dash ? <span className="n">{statusCount(st)}</span> : null}
-            </button>
-          ))}
-        </div>
-        <label className="xsel">
-          <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="largest">Largest</option>
-          </select>
-          <Ic name="i-chev" />
-        </label>
+      <div className="xseg" role="group" aria-label="Status">
+        {(["all", "owed", "paid"] as StatusFilter[]).map((st) => (
+          <button
+            key={st}
+            type="button"
+            className={status === st ? "on" : ""}
+            aria-pressed={status === st}
+            onClick={() => setStatus(st)}
+          >
+            {st === "all" ? "Any status" : st === "owed" ? "To be paid" : "Paid"}
+            {!dash ? <span className="n">{statusCount(st)}</span> : null}
+          </button>
+        ))}
       </div>
 
       {/* Totals of what is on screen, so a number is always the sum of
