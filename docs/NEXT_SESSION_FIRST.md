@@ -13,6 +13,7 @@ Asked during the F2 walk. None of these is optional; the order is mine.
 | R6 | **Change email**: a user can change their own login email, or an admin does it for them. | backlog |
 | R7 | Customers must NEVER see the ad-account TYPE (e.g. "Meta-EU-PSM"). | **DONE `38f293b`** — `customerPlatformName` |
 | R8 | **No plan → the customer picks one themselves**: the 3 standard plans + a yearly option, then pay. BUT a customer with a discount, in a community, or whose plan the owner already chose at onboarding gets NO choice — straight to that plan and paying. Affiliates are not advertisers: no plan choice for them, only once the owner switches on "advertiser mode" for that affiliate. | backlog — needs a start-subscription RPC (subscription + first invoice + pay from wallet) |
+| R11 | **Ad-account fees work like the commission rules**: change a customer's fee (e.g. 4% → 3%) and it applies FROM a moment the owner sets, with a history; and wherever a fee is edited, the SUPPLIER fee of that account type shows beside it (admin-only), so the margin is visible while deciding. Already true today: each top-up stores its own fee, so past top-ups never change. | backlog — belongs to S1 (prices) / D2 (manage customer) |
 | R9 | Every "message us" button is WhatsApp to +31 6 15300300. | **DONE `ebc1933`** — `lib/whatsapp.ts` |
 | R10 | "Prime" shown with no subscription; ad accounts requestable without a plan. | **DONE `1ffdeb4`** (screen); the server check in `ad_account_request_create_paid` waits on plak 33 row 16 |
 
