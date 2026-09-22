@@ -21,7 +21,6 @@ import {
   LogOut,
   Menu,
   Monitor,
-  Boxes,
   Receipt,
   RefreshCw,
   Scale,
@@ -45,6 +44,8 @@ type Item = {
   badge?: number | null;
   /** Nested under the item above it — a place you go FROM that screen. */
   sub?: boolean;
+  /** Other screens that light this item: a tab on its screen, not a menu line. */
+  also?: string[];
 };
 type Group = { title?: string; items: Item[] };
 
@@ -76,8 +77,8 @@ const TITLES: Record<string, string> = {
   "/profile": "Settings",
 };
 
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(href + "/");
+function isActive(pathname: string, href: string, also?: string[]) {
+  return [href, ...(also ?? [])].some((h) => pathname === h || pathname.startsWith(h + "/"));
 }
 
 export default function AdminShell({
@@ -128,12 +129,10 @@ export default function AdminShell({
       title: "Customers",
       items: [
         { title: "Advertisers", href: "/users", icon: Users },
-        { title: "Ad Accounts", href: "/accounts", icon: Monitor },
-        // The pool is where an ad account COMES FROM — you open it from
-        // the accounts screen ("Allocate one from the Account Pool"), and
-        // it was sitting beside Ad Accounts as if it were a separate part
-        // of the business. Nested under it instead.
-        { title: "Account Pool", href: "/account-pool", icon: Boxes, sub: true },
+        // The pool is where an ad account COMES FROM. It is a tab on the
+        // Ad Accounts screen (accounts-subnav.tsx), not a line in the menu
+        // -- the owner, 22-09 -- so this item stays lit on both.
+        { title: "Ad Accounts", href: "/accounts", icon: Monitor, also: ["/account-pool"] },
         {
           title: "Account Requests",
           href: "/ad-account-requests",
@@ -308,7 +307,7 @@ export default function AdminShell({
                      slower. */
                   prefetch={false}
                   className={`navlink${item.sub ? " sub" : ""}${
-                    isActive(pathname, item.href) ? " on" : ""
+                    isActive(pathname, item.href, item.also) ? " on" : ""
                   }`}
                 >
                   <Icon /> {item.title}

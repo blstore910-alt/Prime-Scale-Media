@@ -20,6 +20,7 @@ import type {
   SupplierAdAccount,
   SupplierAdAccountFilter,
 } from "@/lib/types/supplier-ad-account";
+import AccountsSubnav from "@/components/admin/accounts-subnav";
 
 type AdvertiserOption = {
   id: string;
@@ -511,6 +512,8 @@ export default function PsmAccountPool() {
           </button>
         </div>
       </div>
+
+      <AccountsSubnav />
 
       <div className="fbar">
         <label className="fsr">

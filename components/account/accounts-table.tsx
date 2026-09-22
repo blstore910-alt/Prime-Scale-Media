@@ -63,6 +63,7 @@ import UserDetailsSheet from "@/components/admin/users/user-details-sheet";
 import { CopyText } from "@/components/ui/copy-text";
 import { adAccountStatusView } from "@/lib/ad-account-status";
 import { downloadCsv } from "@/lib/download-blob";
+import AccountsSubnav from "@/components/admin/accounts-subnav";
 
 // Admin Ad Accounts monolith, ported to the mockup look (.psmapp shell,
 // injected by AdminShell). Reuses the exact data hooks, search/platform/
@@ -636,6 +637,8 @@ export default function AccountsTable() {
           </CreateAccountDialog>
         </div>
       </div>
+
+      <AccountsSubnav />
 
       <div className="fbar">
         <label className="fsr">

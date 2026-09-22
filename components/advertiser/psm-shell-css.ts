@@ -324,6 +324,15 @@ export const PSM_APP_CSS = `
 .psmapp .tbl tr:hover td{background:var(--panel-2)}
 .psmapp .tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .psmapp .tbl.wide{min-width:640px}
+/* A screen's own tabs (Ad accounts | Account pool): one row, the chosen
+   one raised. Strak: no glide, no glow -- admin is a desk, not a stage. */
+.psmapp .subnav{display:flex;gap:3px;padding:3px;align-self:flex-start;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:12px}
+.psmapp .subnav a{padding:7px 14px;border-radius:9px;font-weight:700;font-size:.86rem;color:var(--txt-2);
+  text-decoration:none;white-space:nowrap;transition:color .12s,background .12s}
+.psmapp .subnav a:hover{color:var(--ink)}
+.psmapp .subnav a.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(20,30,80,.14),0 0 0 1px var(--line)}
+@media (max-width:560px){.psmapp .subnav{align-self:stretch}.psmapp .subnav a{flex:1 1 0;text-align:center}}
 .psmapp .fbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:15px;box-shadow:0 10px 26px -20px rgba(20,30,80,.5)}
 .psmapp .fbar .fsr{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);border-radius:11px;padding:9px 13px;flex:1;min-width:150px;max-width:300px;color:var(--faint);transition:border-color .14s,box-shadow .14s}
 .psmapp .fbar .fsr:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint);color:var(--primary-600)}
