@@ -1013,7 +1013,10 @@ function AffiliateDetail({
                     </td>
                   </tr>
                   <tr>
-                    <td data-label="On">One-time bonus · first top-up of each new customer</td>
+                    <td data-label="On">
+                      One-time bonus · first top-up (or first paid plan invoice) of each new
+                      customer
+                    </td>
                     <td className="r" data-label="Share" style={{ fontWeight: 700 }}>
                       {onetime?.amount != null
                         ? formatCurrency(onetime.amount, onetime.currency ?? "EUR")

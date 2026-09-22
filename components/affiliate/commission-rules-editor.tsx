@@ -549,8 +549,9 @@ export default function CommissionRulesEditor({
         <section className="space-y-1">
           <h4 className="text-sm font-semibold">One-time bonus</h4>
           <p className="text-xs text-muted-foreground">
-            A fixed amount, once per referred customer, when their first
-            top-up is verified.
+            A fixed amount, once per referred customer — on their first
+            verified top-up, or on their first paid plan invoice if they
+            never fund an ad account.
           </p>
           <div className="flex items-start justify-between gap-3 py-2">
             <div className="min-w-0 pt-2">
@@ -608,7 +609,9 @@ export default function CommissionRulesEditor({
                 <li>
                   One-time bonus: {onetimeLine(initialOnetime)} →{" "}
                   {onetimeParsed.value === null
-                    ? "blank (uses the default)"
+                    ? affiliate
+                      ? "blank (uses the default)"
+                      : "blank (no bonus for anyone)"
                     : onetimeLine({ amount: onetimeParsed.value, currency: onetimeDraft.currency })}
                 </li>
               ) : null}
