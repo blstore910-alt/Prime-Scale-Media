@@ -92,14 +92,14 @@ function sumBy(rows: Row[], pick: (r: Row) => boolean): Record<string, number> {
   return out;
 }
 
-// Euros first, dollars on their own line under them -- never added, and
-// never "€12.40 + $38.75" squeezed into a cell a third of a phone wide. A
-// dollar-only affiliate sees dollars, not a €0.00 above them.
-function money(m: Record<string, number>) {
+// The page's lead currency first, the other on its own line under it --
+// never added, and never "€12.40 + $38.75" squeezed into a cell a third of
+// a phone wide. A dollar-only affiliate sees dollars, not a €0.00.
+function money(m: Record<string, number>, lead: string) {
   const legs = Object.entries(m)
     .filter(([, v]) => Math.abs(v) >= 0.005)
-    .sort(([a], [b]) => a.localeCompare(b));
-  if (!legs.length) return formatCurrency(0, "EUR");
+    .sort(([a], [b]) => (a === lead ? -1 : b === lead ? 1 : a.localeCompare(b)));
+  if (!legs.length) return formatCurrency(0, lead);
   const [[c1, v1], ...rest] = legs;
   return (
     <>
@@ -120,6 +120,7 @@ export default function AffiliateCommissionsCard({
   from = null,
   to = null,
   periodLabel,
+  leadCurrency = "EUR",
 }: {
   enabled: boolean;
   /** A referral picked in the table above -- the list narrows to them. */
@@ -130,6 +131,8 @@ export default function AffiliateCommissionsCard({
   to?: string | null;
   /** "1 – 22 Sep 2026" -- said beside the totals, so they are never read as all-time. */
   periodLabel?: string;
+  /** The currency the affiliate earned most in: it goes first in every sum. */
+  leadCurrency?: "EUR" | "USD";
 }) {
   const [sort, setSort] = useState<Sort>("newest");
   const [kind, setKind] = useState<KindFilter>("all");
@@ -261,7 +264,7 @@ export default function AffiliateCommissionsCard({
             onClick={() => setStatus(st)}
           >
             <span className="l">{label}</span>
-            <span className="v">{dash ? "—" : money(sum)}</span>
+            <span className="v">{dash ? "—" : money(sum, leadCurrency)}</span>
           </button>
         ))}
       </div>

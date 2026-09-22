@@ -229,7 +229,10 @@ export default function AdvertiserApp() {
   // narrows to them.
   const [refFocus, setRefFocus] = useState<string | null>(null);
   // The period for the Referrals stats, rows and commission list.
-  const [affRange, setAffRange] = useState<AffRange>({ key: "all" });
+  // This month by default (the owner, 22-09): what is happening now, not
+  // the sum of everything since the start -- the card above already says
+  // that.
+  const [affRange, setAffRange] = useState<AffRange>({ key: "month" });
   const meRouter = useRouter();
   const [view, setView] = useState<View>("dash");
   // Where the bell was pressed from, so pressing it again returns there.
@@ -868,8 +871,13 @@ export default function AdvertiserApp() {
   // This month, for the cabinet's pill and tile. A second read, like the
   // affiliate portal's -- and guarded on its own, never borrowing the
   // all-time read's state.
+  // The same dates as the "This month" period below, so with that period
+  // chosen -- the default -- the pill and the tiles are ONE read, and can
+  // never disagree by a commission booked between two requests.
+  const affMonthDates = rangeDates({ key: "month" });
   const affMonth = useAffiliateStats({
-    from: dayjs().startOf("month").format("YYYY-MM-DD"),
+    from: affMonthDates.from,
+    to: affMonthDates.to,
     enabled: !!advertiserId && isAffiliate,
   });
   const affMonthUnavailable = affMonth.isError || affMonth.isLoading;
@@ -1692,11 +1700,28 @@ export default function AdvertiserApp() {
   // The same, for a tile or a row where there is room for two lines: euros
   // first, dollars under them a size smaller -- never added, and never
   // squeezed into one line that wraps on a phone.
+  //
+  // WHICH ONE LEADS. The currency they have earned most in, over all time
+  // -- the owner, 22-09: "de grootste earnings standaard boven, of USD of
+  // EUR". One choice for the whole page, so the hero, the tiles, the rows
+  // and the sums all read in the same order. Dollars are put on the euro
+  // scale with the tenant's rate; without a rate the plain amounts are
+  // compared, which only decides an ORDER here, never a figure.
+  const affLeadUsd = (() => {
+    const e = Number(aff.totals.earnings_eur) || 0;
+    const u = Number(aff.totals.earnings_usd) || 0;
+    return u * (advEurRate ?? 1) > e;
+  })();
   const legs = (e: number | string | null | undefined, u: number | string | null | undefined) => {
     const eNum = Number(e) || 0;
     const uNum = Number(u) || 0;
     if (eNum && uNum) {
-      return (
+      return affLeadUsd ? (
+        <>
+          {usd(uNum)}
+          <span className="v2">{eur(eNum)}</span>
+        </>
+      ) : (
         <>
           {eur(eNum)}
           <span className="v2">{usd(uNum)}</span>
@@ -1704,13 +1729,16 @@ export default function AdvertiserApp() {
       );
     }
     if (uNum) return usd(uNum);
+    // Nothing in either: a zero in the currency they earn in.
+    if (!eNum && affLeadUsd) return usd(0);
     return eur(eNum);
   };
   const twoLeg = (e: number, u: number): string => {
     const eNum = Number(e) || 0;
     const uNum = Number(u) || 0;
-    if (eNum && uNum) return `${eur(eNum)} · ${usd(uNum)}`;
+    if (eNum && uNum) return affLeadUsd ? `${usd(uNum)} · ${eur(eNum)}` : `${eur(eNum)} · ${usd(uNum)}`;
     if (uNum) return usd(uNum);
+    if (!eNum && affLeadUsd) return usd(0);
     return eur(eNum);
   };
 
@@ -3571,12 +3599,14 @@ export default function AdvertiserApp() {
                 ) : (
                   <>
                     {(() => {
-                      // Both legs, to the cent. The one with money in it
-                      // leads; a dollar-only affiliate is not shown €0.
+                      // Both legs, to the cent. The bigger one leads
+                      // (affLeadUsd); a currency with nothing in it is
+                      // left out, never printed as a 0.
                       const e = Number(aff.totals.earnings_eur) || 0;
                       const u = Number(aff.totals.earnings_usd) || 0;
-                      const usdLeads = u > 0 && e === 0;
-                      const lead = usdLeads ? usd(u) : eur(e);
+                      const usdFirst = u > 0 && (e === 0 || affLeadUsd);
+                      const lead = usdFirst ? usd(u) : eur(e);
+                      const second = usdFirst ? (e > 0 ? eur(e) : null) : u > 0 ? usd(u) : null;
                       // Euros and dollars are never added: a second
                       // currency is its own line, lit the same way.
                       return (
@@ -3585,10 +3615,10 @@ export default function AdvertiserApp() {
                             <span className="cur">{lead.charAt(0)}</span>
                             {lead.slice(1)}
                           </h2>
-                          {!usdLeads && u > 0 ? (
+                          {second ? (
                             <p className="xh-amt xh-amt2">
-                              <span className="cur">$</span>
-                              {usd(u).slice(1)}
+                              <span className="cur">{second.charAt(0)}</span>
+                              {second.slice(1)}
                             </p>
                           ) : null}
                         </>
@@ -3869,6 +3899,7 @@ export default function AdvertiserApp() {
                 from={affPeriod.from}
                 to={affPeriod.to}
                 periodLabel={rangeCaption(affRange)}
+                leadCurrency={affLeadUsd ? "USD" : "EUR"}
               />
             </div>
               </>
