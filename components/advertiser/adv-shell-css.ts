@@ -1558,6 +1558,9 @@ export const ADV_CSS = `
 
 /* ── GETTING PAID ──────────────────────────────────────────────────────
    One card: what is ready, one button, and what happened before. */
+  /* The commission list and the payout card sat in one wrapper with no
+     gap, so they touched -- the owner: "2 grids bijna op elkaar". */
+  .aff-stack{display:flex;flex-direction:column;gap:16px}
   .xpay{display:flex;flex-direction:column;gap:12px;padding:18px}
   .xp-top{display:flex;gap:12px;align-items:flex-start}
   .xp-top h2{font-size:1.02rem;margin:0 0 2px}

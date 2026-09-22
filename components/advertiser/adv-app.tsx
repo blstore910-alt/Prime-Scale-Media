@@ -3910,7 +3910,7 @@ export default function AdvertiserApp() {
                 </p>
               )}
             </div>
-            <div id="aff-commissions">
+            <div id="aff-commissions" className="aff-stack">
               <AffiliateCommissionsCard
                 enabled={!!advertiserId}
                 focusCode={refFocus}
