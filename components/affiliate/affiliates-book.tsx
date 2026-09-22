@@ -401,7 +401,15 @@ function AffiliateDetail({
       source: r.source,
       typeSlug: r.type,
     });
-    return { ...r, pct: res?.pct ?? null, from: ruleLevelLabel(res?.level ?? null), own: res?.level === "own-type" || res?.level === "own-all" };
+    // "default, all types" is right for a top-up row and wrong under
+    // Subscriptions, which have no types at all.
+    const from =
+      r.source === "subscription" && res?.level === "default-all"
+        ? "default"
+        : r.source === "subscription" && res?.level === "own-all"
+          ? "own rule"
+          : ruleLevelLabel(res?.level ?? null);
+    return { ...r, pct: res?.pct ?? null, from, own: res?.level === "own-type" || res?.level === "own-all" };
   });
   const onetime = resolveCommissionRule(rules, {
     affiliateAdvertiserId: advertiserId,
@@ -541,9 +549,11 @@ function AffiliateDetail({
                     </td>
                     <td data-label="Comes from">
                       {onetime?.level === "own-all" ? (
-                        <span className="badge info">{ruleLevelLabel(onetime.level)}</span>
+                        <span className="badge info">own rule</span>
                       ) : (
-                        <span className="muted">{ruleLevelLabel(onetime?.level ?? null)}</span>
+                        <span className="muted">
+                          {onetime ? "default" : ruleLevelLabel(null)}
+                        </span>
                       )}
                     </td>
                   </tr>
