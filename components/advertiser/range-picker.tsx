@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import dayjs from "dayjs";
 
 import { Ic } from "@/components/advertiser/adv-icons";
+import SlideSeg, { type SlideOpt } from "@/components/advertiser/slide-seg";
 
 // ── ONE PERIOD FOR EVERY FIGURE UNDER IT ────────────────────────────────
 //
@@ -22,8 +23,6 @@ export type AffRange = {
   to?: string | null;
 };
 
-// All time first: it is the default, and the chosen pill must be the one
-// in view on a phone, where the bar scrolls sideways.
 const LABELS: Record<Exclude<RangeKey, "custom">, string> = {
   all: "All time",
   month: "This month",
@@ -84,80 +83,88 @@ export default function RangePicker({
   // jump on every keystroke of a half-typed date.
   const [draftFrom, setDraftFrom] = useState(value.from ?? dayjs().startOf("month").format("YYYY-MM-DD"));
   const [draftTo, setDraftTo] = useState(value.to ?? dayjs().format("YYYY-MM-DD"));
-  const [customOpen, setCustomOpen] = useState(value.key === "custom");
+  const [open, setOpen] = useState(false);
 
   const draftOk = !!draftFrom && !!draftTo && draftFrom <= draftTo;
+  const pick = (key: Exclude<RangeKey, "custom">) => {
+    setOpen(false);
+    onChange({ key });
+  };
 
-  // Bring the chosen pill into view when it CHANGES -- sideways only, by
-  // scrolling the bar itself. scrollIntoView would also move the page, and
-  // on first paint that jumped a phone down to this bar.
-  const barRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const bar = barRef.current;
-    const on = bar?.querySelector<HTMLElement>(".xr-opt.on");
-    if (!bar || !on) return;
-    const left = on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2;
-    bar.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-  }, [value.key]);
+  // One row on every screen. A phone gets the three that are asked for
+  // most and a calendar; the calendar opens the other two and your own
+  // dates. From 640px up the other two sit in the row as well.
+  const options: SlideOpt[] = [
+    { key: "all", label: LABELS.all, onClick: () => pick("all") },
+    { key: "month", label: LABELS.month, onClick: () => pick("month") },
+    { key: "last", label: LABELS.last, onClick: () => pick("last") },
+    { key: "30d", label: "30 days", wide: true, onClick: () => pick("30d") },
+    { key: "year", label: LABELS.year, wide: true, onClick: () => pick("year") },
+    {
+      key: "custom",
+      label: (
+        <>
+          <Ic name="i-cal" />
+          <span className="wide-lbl">Custom</span>
+        </>
+      ),
+      className: `cal${open ? " open" : ""}`,
+      ariaLabel: "More periods, or your own dates",
+      ariaExpanded: open,
+      onClick: () => setOpen((o) => !o),
+    },
+  ];
 
   return (
     <div className="xrange">
-      <div className="xr-bar" role="tablist" aria-label="Period" ref={barRef}>
-        {(Object.keys(LABELS) as Exclude<RangeKey, "custom">[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={value.key === k}
-            className={`xr-opt${value.key === k ? " on" : ""}`}
-            onClick={() => {
-              setCustomOpen(false);
-              onChange({ key: k });
-            }}
-          >
-            {LABELS[k]}
-          </button>
-        ))}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={value.key === "custom"}
-          className={`xr-opt${value.key === "custom" ? " on" : ""}`}
-          onClick={() => setCustomOpen((o) => !o)}
-        >
-          <Ic name="i-clock" /> Custom
-        </button>
-      </div>
+      <SlideSeg options={options} active={value.key} fallback="custom" ariaLabel="Period" />
 
-      {customOpen ? (
+      {open ? (
         <div className="xr-custom">
-          <label>
-            From
-            <input
-              type="date"
-              value={draftFrom}
-              max={draftTo || undefined}
-              onChange={(e) => setDraftFrom(e.target.value)}
-            />
-          </label>
-          <label>
-            To
-            <input
-              type="date"
-              value={draftTo}
-              min={draftFrom || undefined}
-              max={dayjs().format("YYYY-MM-DD")}
-              onChange={(e) => setDraftTo(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className="btn sm"
-            disabled={!draftOk}
-            onClick={() => onChange({ key: "custom", from: draftFrom, to: draftTo })}
-          >
-            Apply
-          </button>
+          <div className="xr-quick">
+            {(["30d", "year"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={`xr-q${value.key === k ? " on" : ""}`}
+                onClick={() => pick(k)}
+              >
+                {LABELS[k]}
+              </button>
+            ))}
+          </div>
+          <div className="xr-dates">
+            <label>
+              From
+              <input
+                type="date"
+                value={draftFrom}
+                max={draftTo || undefined}
+                onChange={(e) => setDraftFrom(e.target.value)}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="date"
+                value={draftTo}
+                min={draftFrom || undefined}
+                max={dayjs().format("YYYY-MM-DD")}
+                onChange={(e) => setDraftTo(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn sm grad"
+              disabled={!draftOk}
+              onClick={() => {
+                setOpen(false);
+                onChange({ key: "custom", from: draftFrom, to: draftTo });
+              }}
+            >
+              Apply
+            </button>
+          </div>
         </div>
       ) : null}
 

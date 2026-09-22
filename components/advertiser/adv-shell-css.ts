@@ -1397,6 +1397,40 @@ export const ADV_CSS = `
   .xl-sum{display:flex;gap:14px;flex-wrap:wrap;padding:0 16px 10px;font-size:.82rem;color:var(--txt-2)}
   .xl-sum b{color:var(--ink)}
 
+/* ── EVERY COMMISSION: a title, one row of kinds, one row of sums ───────
+   The sums are the status filter -- each the sum of the rows it shows --
+   so the card has two quiet rows above the list, not four. */
+  .xl-ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
+    color:var(--primary-600);background:linear-gradient(135deg,var(--primary-tint),#f3e8ff)}
+  .xl-ic svg{width:18px;height:18px}
+  .xl-ttl{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1 1 auto}
+  .xl-ttl h2{margin:0;line-height:1.2}
+  .xl-sub{font-size:.74rem;font-weight:600;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .xl-focus{display:flex;align-items:center;gap:6px;margin:0 16px 10px;padding:6px 6px 6px 12px;border-radius:12px;
+    background:var(--primary-tint);color:var(--primary-600);font-size:.8rem;font-weight:600}
+  .xl-focus b{font-weight:800}
+  .xl-focus button{margin-left:auto;border:0;background:var(--panel);color:var(--primary-600);font:inherit;
+    font-weight:700;font-size:.74rem;padding:5px 10px;border-radius:99px;cursor:pointer}
+  .xl-kind{margin:0 16px 10px}
+  .xl-money{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 16px 12px}
+  .xm{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;padding:9px 10px;
+    border-radius:13px;border:1px solid var(--line);background:var(--panel);font:inherit;color:inherit;
+    text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .2s,background .2s,transform .15s}
+  .xm:hover{border-color:var(--line-2)}
+  .xm:active{transform:scale(.98)}
+  .xm .l{max-width:100%;font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .xm .v{max-width:100%;font-family:var(--hd);font-weight:800;font-size:clamp(.82rem,3.7vw,1rem);
+    letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
+  .xm .v .v2{font-size:.8em;margin-top:1px;opacity:.8}
+  .xm.on{background:linear-gradient(180deg,var(--xm-t),var(--panel) 80%);border-color:var(--xm-b);
+    box-shadow:0 0 0 3px var(--xm-r)}
+  .xm.on .l{color:var(--xm-c)}
+  .xm.b{--xm-t:#eef3ff;--xm-b:rgba(58,111,255,.55);--xm-r:rgba(58,111,255,.12);--xm-c:var(--primary-600)}
+  .xm.g{--xm-t:#fff7e6;--xm-b:rgba(239,176,44,.75);--xm-r:rgba(239,176,44,.16);--xm-c:#a9740b}
+  .xm.w{--xm-t:#eafaf3;--xm-b:rgba(16,185,129,.6);--xm-r:rgba(16,185,129,.14);--xm-c:var(--win)}
+  .xlist.busy .xm .v{opacity:.4;transition:opacity .15s}
+
 /* ── AN APPLICATION'S ANSWER ─────────────────────────────────────────────
    Received, what happens now, what comes after -- the step we are on lit
    and breathing. A light card with a brand-gradient edge, not the dark
@@ -1450,27 +1484,51 @@ export const ADV_CSS = `
   @keyframes xsk{from{background-position:120% 0}to{background-position:-100% 0}}
   @media (prefers-reduced-motion:reduce){.xload .sk{animation:none}}
 
+/* ── ONE ROW, AND A THUMB THAT GLIDES (slide-seg.tsx) ──────────────────
+   The owner: "moet op 1 rij, iets super moois". Every choice in view, the
+   chosen one lit by a thumb that slides to it with a little overshoot. */
+  .sseg{position:relative;display:flex;gap:2px;padding:4px;border-radius:999px;isolation:isolate}
+  .sseg-thumb{position:absolute;z-index:0;top:4px;bottom:4px;left:0;width:var(--tw,0px);
+    transform:translateX(var(--tx,0px));border-radius:999px;pointer-events:none;overflow:hidden}
+  .sseg[data-ready] .sseg-thumb{transition:transform .45s cubic-bezier(.3,1.3,.45,1),width .45s cubic-bezier(.3,1.3,.45,1)}
+  .sseg-shine{position:absolute;inset:0;transform:translateX(-110%);
+    background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);
+    animation:ssegshine .9s .2s ease-out forwards}
+  @keyframes ssegshine{to{transform:translateX(110%)}}
+  .sseg-opt{position:relative;z-index:1;flex:1 1 0;min-width:0;display:inline-flex;align-items:center;
+    justify-content:center;gap:6px;border:0;background:none;font:inherit;font-weight:700;font-size:.8rem;
+    letter-spacing:-.005em;padding:10px 4px;border-radius:999px;cursor:pointer;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;color:var(--txt-2);transition:color .25s,transform .15s,background .2s}
+  .sseg-opt:hover{color:var(--ink)}
+  .sseg-opt:active{transform:scale(.96)}
+  .sseg-opt:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+  .sseg-opt svg{width:16px;height:16px;flex:0 0 auto}
+  .sseg-opt.wide{display:none}
+  @media (min-width:640px){.sseg-opt.wide{display:inline-flex}}
+  @media (max-width:350px){.sseg-opt{font-size:.74rem}}
+  /* brand: a recessed glass track, a gradient thumb, white text on it */
+  .sseg.brand{background:linear-gradient(180deg,#e8ecf8,#f4f6fc);border:1px solid var(--line);
+    box-shadow:inset 0 1px 3px rgba(20,30,80,.08),0 1px 0 #fff}
+  .sseg.brand .sseg-thumb{background:linear-gradient(120deg,#3a6fff 0%,#6a5cff 55%,#9b5cf6 100%);
+    box-shadow:0 8px 20px -8px rgba(76,96,255,.9),inset 0 1px 0 rgba(255,255,255,.35)}
+  .sseg.brand .sseg-opt[data-lit]{color:#fff;text-shadow:0 1px 1px rgba(20,20,80,.22)}
+  /* soft: a quiet grey track, a white thumb -- for a filter, not a headline */
+  .sseg.soft{padding:3px;border-radius:13px;background:var(--panel-2);border:1px solid var(--line)}
+  .sseg.soft .sseg-thumb{top:3px;bottom:3px;border-radius:10px;background:var(--panel);
+    box-shadow:0 1px 3px rgba(20,30,80,.14),0 0 0 1px rgba(58,111,255,.2)}
+  .sseg.soft .sseg-shine{display:none}
+  .sseg.soft .sseg-opt{border-radius:10px;padding:7px 4px;font-size:.78rem}
+  .sseg.soft .sseg-opt[data-lit]{color:var(--primary-600)}
+  @media (prefers-reduced-motion:reduce){.sseg[data-ready] .sseg-thumb{transition:none}.sseg-shine{animation:none;display:none}}
+
 /* ── THE PERIOD: one control for every figure under it ─────────────────
-   A glass bar of pills; the chosen one lit with the brand gradient.
-   Scrolls sideways on a phone instead of wrapping into two rows. */
+   Three periods and a calendar on a phone; the calendar opens the other
+   two and your own dates. From 640px up all of them sit in the row. */
   .xrange{display:flex;flex-direction:column;gap:8px}
-  /* Every option in view, aligned in a grid: three by two on a phone, one
-     row of six on a wider screen. Nothing to scroll sideways for -- the
-     owner: "dit is weer niet mooi" about a bar cut off at "Last 30 d". */
-  .xr-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:5px;border-radius:16px;
-    background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.78));
-    border:1px solid var(--line);
-    box-shadow:0 12px 28px -20px rgba(20,30,80,.5),inset 0 1px 0 #fff}
-  .xr-bar::-webkit-scrollbar{display:none}
-  .xr-opt{min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;background:none;
-    font:inherit;font-weight:700;font-size:.78rem;color:var(--txt-2);padding:9px 6px;border-radius:12px;
-    cursor:pointer;white-space:nowrap;transition:color .15s,background .15s,box-shadow .2s,transform .15s}
-  .xr-opt:hover{color:var(--ink);background:var(--panel-2)}
-  .xr-opt:active{transform:scale(.97)}
-  .xr-opt.on{color:#fff;background:linear-gradient(135deg,var(--primary) 0%,#7c5cff 100%);
-    box-shadow:0 8px 18px -8px rgba(58,111,255,.8),inset 0 1px 0 rgba(255,255,255,.28)}
-  .xr-opt svg{width:14px;height:14px;flex:0 0 auto}
-  @media (min-width:640px){.xr-bar{grid-template-columns:repeat(6,minmax(0,1fr))}}
+  .sseg-opt.cal{flex:0 0 46px;padding:10px 0}
+  .sseg-opt.cal .wide-lbl{display:none}
+  .sseg-opt.cal.open:not([data-lit]){color:var(--primary-600);background:rgba(58,111,255,.1)}
+  @media (min-width:640px){.sseg-opt.cal{flex:0 0 auto;padding:10px 16px}.sseg-opt.cal .wide-lbl{display:inline}}
   .xr-meta{display:flex;align-items:center;gap:7px;padding:0 6px;font-size:.76rem;color:var(--faint)}
   .xr-meta b{color:var(--ink);font-weight:700}
   .xr-meta .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--win);
@@ -1478,15 +1536,24 @@ export const ADV_CSS = `
   .xr-meta .dot.busy{background:var(--gold);box-shadow:0 0 0 3px rgba(239,176,44,.2);animation:xrpulse 1s ease-in-out infinite}
   @keyframes xrpulse{50%{opacity:.35}}
   .xr-busy{margin-left:auto;font-weight:600}
-  .xr-custom{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:10px 12px;border-radius:14px;
-    background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);animation:xrin .18s ease}
+  .xr-custom{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:16px;background:var(--panel);
+    border:1px solid var(--line);box-shadow:0 16px 32px -24px rgba(20,30,80,.6);animation:xrin .2s ease}
   @keyframes xrin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-  .xr-custom label{display:flex;flex-direction:column;gap:4px;flex:1 1 120px;min-width:0;font-size:.64rem;
+  .xr-quick{display:flex;gap:6px}
+  .xr-q{flex:1 1 0;border:1px solid var(--line-2);background:var(--panel-2);font:inherit;font-weight:700;
+    font-size:.8rem;color:var(--txt-2);padding:9px 10px;border-radius:12px;cursor:pointer;
+    transition:border-color .15s,color .15s,background .15s}
+  .xr-q:hover{border-color:rgba(58,111,255,.5);color:var(--primary-600)}
+  .xr-q.on{background:var(--primary-tint);border-color:rgba(58,111,255,.5);color:var(--primary-600)}
+  @media (min-width:640px){.xr-quick{display:none}}
+  .xr-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+  .xr-dates label{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:.64rem;
     font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-  .xr-custom input{border:1px solid var(--line-2);border-radius:11px;padding:8px 10px;font:inherit;
+  .xr-dates input{border:1px solid var(--line-2);border-radius:11px;padding:8px 10px;font:inherit;width:100%;
     font-size:.86rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel-2);min-width:0}
-  .xr-custom input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
-  .xr-custom .btn{flex:0 0 auto}
+  .xr-dates input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
+  .xr-dates .btn{justify-content:center}
+  @media (max-width:420px){.xr-dates{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.xr-dates .btn{grid-column:1/-1}}
   @media (prefers-reduced-motion:reduce){.xr-meta .dot.busy,.xr-custom{animation:none}}
 
 /* Filters as chips with their own count: the count on a chip is the

@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import PlatformMark from "@/components/psm/platform-mark";
 import { Ic } from "@/components/advertiser/adv-icons";
+import SlideSeg from "@/components/advertiser/slide-seg";
 
 // ── EVERY COMMISSION, AND NOTHING ABOUT OUR MARGIN ──────────────────────
 //
@@ -91,13 +92,25 @@ function sumBy(rows: Row[], pick: (r: Row) => boolean): Record<string, number> {
   return out;
 }
 
-function money(m: Record<string, number>): string {
-  const legs = Object.entries(m).filter(([, v]) => Math.abs(v) >= 0.005);
+// Euros first, dollars on their own line under them -- never added, and
+// never "€12.40 + $38.75" squeezed into a cell a third of a phone wide. A
+// dollar-only affiliate sees dollars, not a €0.00 above them.
+function money(m: Record<string, number>) {
+  const legs = Object.entries(m)
+    .filter(([, v]) => Math.abs(v) >= 0.005)
+    .sort(([a], [b]) => a.localeCompare(b));
   if (!legs.length) return formatCurrency(0, "EUR");
-  return legs
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([c, v]) => formatCurrency(v, c))
-    .join(" + ");
+  const [[c1, v1], ...rest] = legs;
+  return (
+    <>
+      {formatCurrency(v1, c1)}
+      {rest.map(([c, v]) => (
+        <span className="v2" key={c}>
+          {formatCurrency(v, c)}
+        </span>
+      ))}
+    </>
+  );
 }
 
 export default function AffiliateCommissionsCard({
@@ -155,16 +168,15 @@ export default function AffiliateCommissionsCard({
     () => all.filter((r) => (focusCode ? r.referred_advertiser_code === focusCode : true)),
     [all, focusCode],
   );
-  // Each chip's count is the number of rows it would show, given the OTHER
-  // filter -- so pressing a chip never disagrees with its own number.
-  const kindCount = (k: KindFilter) =>
-    focused.filter((r) => (k === "all" || r.kind === k) && (status === "all" || r.status === status)).length;
-  const statusCount = (st: StatusFilter) =>
-    focused.filter((r) => (st === "all" || r.status === st) && (kind === "all" || r.kind === kind)).length;
+  // The kind narrows everything below it, the three sums included. The
+  // sums are the status filter: pressing one shows the rows it adds up.
+  const ofKind = useMemo(
+    () => (kind === "all" ? focused : focused.filter((r) => r.kind === kind)),
+    [focused, kind],
+  );
 
   const rows = useMemo(() => {
-    let list = focused;
-    if (kind !== "all") list = list.filter((r) => r.kind === kind);
+    let list = ofKind;
     if (status !== "all") list = list.filter((r) => r.status === status);
     const byTime = (r: Row) => Date.parse(r.created_at) || 0;
     list = [...list].sort((a, b) =>
@@ -175,33 +187,29 @@ export default function AffiliateCommissionsCard({
           : byTime(b) - byTime(a),
     );
     return list;
-  }, [focused, kind, status, sort]);
+  }, [ofKind, status, sort]);
 
-  // Totals of what is on screen, so a number is always the sum of the rows
-  // under it. Reversed and still-processing rows are shown but not money.
-  const earned = sumBy(rows, (r) => r.status === "paid" || r.status === "owed");
-  const owed = sumBy(rows, (r) => r.status === "owed");
-  const paid = sumBy(rows, (r) => r.status === "paid");
+  // Each sum is the sum of the rows its own button shows. Reversed and
+  // still-processing rows are listed under Earned but are not money.
+  const earned = sumBy(ofKind, (r) => r.status === "paid" || r.status === "owed");
+  const owed = sumBy(ofKind, (r) => r.status === "owed");
+  const paid = sumBy(ofKind, (r) => r.status === "paid");
 
   const dash = q.isLoading || q.isError || q.data?.missing;
 
   return (
     <div className={`card xlist${q.isPlaceholderData ? " busy" : ""}`}>
       <div className="xl-head">
-        <h2>
-          <Ic name="i-wallet" /> Every commission
-        </h2>
-        {focusCode ? (
-          <button
-            type="button"
-            className="badge info"
-            onClick={onClearFocus}
-            style={{ border: 0, cursor: "pointer" }}
-            title="Show every referral again"
-          >
-            {focusCode} ✕
-          </button>
-        ) : null}
+        <span className="xl-ic">
+          <Ic name="i-wallet" />
+        </span>
+        <div className="xl-ttl">
+          <h2>Every commission</h2>
+          <span className="xl-sub">
+            {periodLabel ?? "All time"}
+            {!dash ? ` · ${rows.length} ${rows.length === 1 ? "commission" : "commissions"}` : null}
+          </span>
+        </div>
         <label className="xsel xl-sort">
           <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
             <option value="newest">Newest</option>
@@ -210,63 +218,52 @@ export default function AffiliateCommissionsCard({
           </select>
           <Ic name="i-chev" />
         </label>
-        {!dash ? <span className="xl-count">{rows.length}</span> : null}
       </div>
 
-      {/* Two segmented rows that always fit a 360px phone: nothing to
-          scroll sideways for, every option and its count in view. */}
-      <div className="xseg" role="group" aria-label="Kind">
-        {(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            className={kind === k ? "on" : ""}
-            aria-pressed={kind === k}
-            onClick={() => setKind(k)}
-          >
-            {k === "all" ? (
-              <Ic name="i-grid" />
-            ) : k === "topup" ? (
-              <PlatformMark slug="meta" className="pmark" />
-            ) : k === "subscription" ? (
-              <Ic name="i-receipt" />
-            ) : (
-              <Ic name="i-gift" />
-            )}
-            {k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Plans" : "Bonus"}
-            {!dash ? <span className="n">{kindCount(k)}</span> : null}
+      {focusCode ? (
+        <div className="xl-focus">
+          Only <b>{focusCode}</b>
+          <button type="button" onClick={onClearFocus} title="Show every referral again">
+            Show all ✕
           </button>
-        ))}
-      </div>
-      <div className="xseg" role="group" aria-label="Status">
-        {(["all", "owed", "paid"] as StatusFilter[]).map((st) => (
+        </div>
+      ) : null}
+
+      {/* What it came from: one row, a thumb that glides. */}
+      <SlideSeg
+        tone="soft"
+        className="xl-kind"
+        ariaLabel="Kind"
+        active={kind}
+        options={(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => ({
+          key: k,
+          label: k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Plans" : "Bonus",
+          onClick: () => setKind(k),
+        }))}
+      />
+
+      {/* The three sums ARE the status filter: one row, each the sum of
+          the rows it shows when pressed. */}
+      <div className="xl-money" role="radiogroup" aria-label="Status">
+        {(
+          [
+            ["all", "Earned", earned, "b"],
+            ["owed", "To be paid", owed, "g"],
+            ["paid", "Paid", paid, "w"],
+          ] as const
+        ).map(([st, label, sum, tint]) => (
           <button
             key={st}
             type="button"
-            className={status === st ? "on" : ""}
-            aria-pressed={status === st}
+            role="radio"
+            aria-checked={status === st}
+            className={`xm ${tint}${status === st ? " on" : ""}`}
             onClick={() => setStatus(st)}
           >
-            {st === "all" ? "Any status" : st === "owed" ? "To be paid" : "Paid"}
-            {!dash ? <span className="n">{statusCount(st)}</span> : null}
+            <span className="l">{label}</span>
+            <span className="v">{dash ? "—" : money(sum)}</span>
           </button>
         ))}
-      </div>
-
-      {/* Totals of what is on screen, so a number is always the sum of
-          the rows under it. Reversed and still-processing rows are shown
-          but are not money. */}
-      <div className="xl-sum">
-        {periodLabel ? <span style={{ color: "var(--faint)" }}>{periodLabel}</span> : null}
-        <span>
-          Earned <b>{dash ? "—" : money(earned)}</b>
-        </span>
-        <span>
-          To be paid <b>{dash ? "—" : money(owed)}</b>
-        </span>
-        <span>
-          Paid <b>{dash ? "—" : money(paid)}</b>
-        </span>
       </div>
 
       {q.isLoading ? (
