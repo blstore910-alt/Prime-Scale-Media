@@ -30,7 +30,9 @@ export async function sendEmail({ to, subject, html, text }: Payload) {
     });
 
     const info = await transporter.sendMail({
-      from: `"PSM Dashboard" <${process.env.FROM_EMAIL}>`,
+      // The name people see in their inbox. "PSM Dashboard" read as a
+      // system; this is the company they signed up with.
+      from: `"Prime Scale Media" <${process.env.FROM_EMAIL}>`,
       to,
       subject,
       text,

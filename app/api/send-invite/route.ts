@@ -2,6 +2,12 @@ import { isMaintenanceMode } from "@/actions/_shared";
 import { apiRequireOwner } from "@/lib/auth/api-require-admin";
 import { firstName } from "@/lib/display-name";
 import { sendEmail } from "@/lib/email-sender";
+import {
+  emailLayout,
+  emailPanel,
+  emailParagraph,
+  escapeHtml,
+} from "@/lib/pure-email-layout";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
@@ -388,51 +394,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const planBlock = planLines.length
-      ? `
-        <div style="margin:22px 0;padding:14px 16px;background:#f1f4fb;border:1px solid #e3e8f4;border-radius:12px;">
-          <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#818ead;font-weight:700;">Your plan</div>
-          <div style="margin-top:6px;font-size:15px;color:#12162a;line-height:1.7;">
-            ${planLines.join(" &middot; ")}
-          </div>
-        </div>`
-      : "";
-
-    // Inline styles and a table-free single column: every mail client
-    // strips <style> blocks, and a float-based layout collapses in Outlook.
-    const html = `
-      <div style="margin:0;padding:24px 12px;background:#f4f6fc;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
-        <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e6e9f2;border-radius:18px;overflow:hidden;">
-          <div style="padding:22px 26px;background:linear-gradient(135deg,#04050E,#0c1230);">
-            <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-.01em;">Prime Scale Media</div>
-            <div style="margin-top:2px;font-size:13px;color:#8b93a6;">Advertiser &amp; affiliate platform</div>
-          </div>
-
-          <div style="padding:26px;">
-            <h1 style="margin:0 0 10px;font-size:21px;line-height:1.3;color:#12162a;font-weight:800;">
-              ${senderName} invited you to ${tenant.name}
-            </h1>
-            <p style="margin:0;font-size:15px;line-height:1.6;color:#5c6577;">
-              Accept the invitation to set up your account. You will be asked
-              for your company details before anything is billed.
-            </p>
-
-            ${planBlock}
-
-            <a target="_blank" href="${inviteLink}"
-               style="display:inline-block;margin-top:4px;padding:13px 22px;background:#3a6fff;color:#ffffff;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">
-              Accept invitation
-            </a>
-
-            <p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#8b93a6;">
-              This link is valid for ${INVITE_VALID_DAYS} days. If you did not
-              expect this invitation you can ignore this email — nothing
-              happens until you accept it.
-            </p>
-          </div>
-        </div>
-      </div>
-    `;
+    // ── THE HOUSE LAYOUT (lib/pure-email-layout) ─────────────────────
+    // The owner, 22-09: "maak email ook meer pro, alle emails". Names are
+    // escaped: a first name or an organisation name is typed by a person.
+    const who = escapeHtml(senderName);
+    const org = escapeHtml(tenant.name);
+    const html = emailLayout({
+      preheader: `${senderName} invited you to ${tenant.name} — accept to set up your account.`,
+      title: `${who} invited you to ${org}`,
+      bodyHtml:
+        emailParagraph(
+          "Accept the invitation to set up your account. You will be asked for your company details before anything is billed.",
+        ) + (planLines.length ? emailPanel("Your plan", planLines.join(" &middot; ")) : ""),
+      cta: { label: "Accept invitation", href: inviteLink },
+      footnoteHtml: `This link is valid for ${INVITE_VALID_DAYS} days. Did not expect this invitation? Ignore this email — nothing happens until you accept it.`,
+    });
 
     // The invitation row is already committed. Sending the email is
     // best-effort — if the mail provider is down, the invite still
