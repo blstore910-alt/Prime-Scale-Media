@@ -1,7 +1,7 @@
 // Renders the images the emails use, from the SAME drawings the app uses:
 // the rocket tile of the app's logo and the launching rocket of the sign-in
 // screen (components/auth/auth-shell.tsx). Mail clients show no SVG, so
-// they become PNGs, at 3x for sharp phones.
+// they become PNGs, sharp on a phone and light enough for a mail.
 //
 //   node scripts/email-assets.mjs
 //
@@ -98,8 +98,16 @@ const launch = `
   </g>
 </svg>`;
 
-await sharp(Buffer.from(mark), { density: 72 * 3 }).png().toFile("public/email/rocket-mark.png");
-await sharp(Buffer.from(launch), { density: 72 * 3 }).png().toFile("public/email/launch.png");
+// Sized for their place in the mail: the mark shows at 60px, the launch at
+// 250px -- 3x and 2x are plenty, and a mail should stay light.
+await sharp(Buffer.from(mark), { density: 72 * 3 })
+  .resize(180, 180)
+  .png({ compressionLevel: 9 })
+  .toFile("public/email/rocket-mark.png");
+await sharp(Buffer.from(launch), { density: 72 * 3 })
+  .resize(500)
+  .png({ compressionLevel: 9 })
+  .toFile("public/email/launch.png");
 const a = await sharp("public/email/rocket-mark.png").metadata();
 const b = await sharp("public/email/launch.png").metadata();
 console.log("rocket-mark", a.width, a.height, "launch", b.width, b.height);

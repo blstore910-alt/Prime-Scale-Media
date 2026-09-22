@@ -120,8 +120,11 @@ export function emailLayout(input: EmailLayoutInput): string {
     // The app's own lockup -- the rocket tile and the name, as in the
     // app's header -- then the sign-in screen's rocket, launching to the moon.
     `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr>`,
-    `<td valign="middle" style="padding-right:8px;"><img src="${ASSETS}/rocket-mark.png" width="60" height="60" alt="" ` +
-      `style="display:block;width:60px;height:60px;border:0;"></td>`,
+    // alt "PSM" on a navy tile: where a client blocks images, a neat
+    // monogram instead of an empty frame.
+    `<td valign="middle" style="padding-right:8px;"><img src="${ASSETS}/rocket-mark.png" width="60" height="60" alt="PSM" ` +
+      `style="display:block;width:60px;height:60px;border:0;border-radius:16px;background:#0a0e24;` +
+      `font:800 14px/60px ${FONT};color:#ffffff;text-align:center;"></td>`,
     `<td valign="middle" style="text-align:left;">` +
       `<div style="font:800 18px/1.2 ${FONT};letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
       `<div style="margin-top:2px;font:500 12px/1.4 ${FONT};color:#9db8ff;">Advertiser &amp; affiliate platform</div></td>`,
