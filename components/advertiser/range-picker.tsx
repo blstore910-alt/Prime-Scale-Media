@@ -88,11 +88,16 @@ export default function RangePicker({
 
   const draftOk = !!draftFrom && !!draftTo && draftFrom <= draftTo;
 
-  // Bring the chosen pill into view when it changes.
+  // Bring the chosen pill into view when it CHANGES -- sideways only, by
+  // scrolling the bar itself. scrollIntoView would also move the page, and
+  // on first paint that jumped a phone down to this bar.
   const barRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const on = barRef.current?.querySelector<HTMLElement>(".xr-opt.on");
-    on?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const bar = barRef.current;
+    const on = bar?.querySelector<HTMLElement>(".xr-opt.on");
+    if (!bar || !on) return;
+    const left = on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2;
+    bar.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
   }, [value.key]);
 
   return (
