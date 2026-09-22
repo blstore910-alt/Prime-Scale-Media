@@ -247,6 +247,25 @@ https://app.primescalemedia.com/api/version` returns the deployed sha.
 Polling GitHub's commit statuses unauthenticated runs into the 60/hour
 limit and then hangs on "none" for ever.
 
+## Checking a figure against the database
+
+`npm run check -- "select ..."` reads the live database from here, so a
+figure on screen can be held against the row behind it without a
+hand-pasted plak. It only reads: every statement runs inside
+`BEGIN READ ONLY ... ROLLBACK`, anything not starting with
+select/with/explain/show/table/values is refused before it is sent, and
+`EXPLAIN ANALYZE` is refused too (it runs the statement). Tests in
+`tests/lib/check-readonly.test.ts` hold that line.
+
+It needs `.env.check` (git-ignored, never printed — the password is
+masked out of every line, including driver errors). If it is not set up,
+`npm run check -- --setup` says what to do, and
+`supabase/checks/PLAK-DIT-59-LEESACCOUNT.sql` makes the read-only login.
+
+**A change still goes into the SQL editor by hand.** This is for reading
+only, and a login that sees 0 tenants is RLS blinding it, not an empty
+database — the script says so instead of printing a zero.
+
 ## Docs to know
 
 - `docs/WALKTHROUGH_J1_J8.md` — **the script for going through the app by

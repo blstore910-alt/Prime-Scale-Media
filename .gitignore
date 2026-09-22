@@ -50,3 +50,6 @@ test-results/
 playwright-report/
 playwright/.auth/
 playwright/screenshots/
+
+# local read-only database access for `npm run check`
+.env.check
