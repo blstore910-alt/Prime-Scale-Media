@@ -43,6 +43,7 @@ export default function ConfirmModal({
   tone = "default",
   onConfirm,
   disabled = false,
+  disabledHint,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,6 +59,8 @@ export default function ConfirmModal({
   tone?: "default" | "danger";
   onConfirm: () => void;
   disabled?: boolean;
+  /** Why the confirm button is greyed out. Shown while `disabled`. */
+  disabledHint?: React.ReactNode;
 }) {
   return (
     <Dialog
@@ -80,6 +83,12 @@ export default function ConfirmModal({
           <div className="rounded-xl border bg-muted/40 p-3 text-sm">
             {children}
           </div>
+        ) : null}
+
+        {/* A greyed-out button with no explanation is a dead end: the
+            click does nothing and the dialog says nothing. */}
+        {disabled && !busy && disabledHint ? (
+          <p className="text-xs font-medium text-muted-foreground">{disabledHint}</p>
         ) : null}
 
         {/* Cancel first in the DOM so a keyboard lands on it, and the

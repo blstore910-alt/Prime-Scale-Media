@@ -253,6 +253,7 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
           "There are more referral links than this screen can read at once — tell us and we'll page it.",
         );
       }
+      let linkStatusUnknown = false;
       const links: BookLink[] = linksRes.rows.map((l) => ({
         ...l,
         status: "active",
@@ -268,6 +269,7 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
           .eq("tenant_id", tenantId!);
         if (stErr && !isMissingColumn(stErr.message)) {
           for (const l of links) l.status = "unknown";
+          linkStatusUnknown = true;
         } else if (!stErr) {
           const byId = new Map(
             (st ?? []).map((s: { id: string; status: string | null }) => [
@@ -427,6 +429,10 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         affiliates: groupAffiliateBook(links, commissionsRes.rows, rules, members),
         members,
         statusMissing,
+        // The status read failed: every count is 0 and the waiting list is
+        // empty, which reads as "nobody is waiting" -- the one thing we do
+        // not know. The screen says so instead.
+        linkStatusUnknown,
         upgrades,
         rules,
         rulesMissing,

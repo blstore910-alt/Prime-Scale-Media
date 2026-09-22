@@ -54,10 +54,12 @@ const DASH = "—";
 function money(m: MoneyByCurrency): string {
   const legs = Object.entries(m).filter(([, v]) => Math.abs(v) >= 0.005);
   if (legs.length === 0) return formatCurrency(0, "EUR");
+  // " · ", never " + ": euros and dollars are two figures, and a plus sign
+  // between them invites the reader to add them up.
   return legs
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([c, v]) => formatCurrency(v, c))
-    .join(" + ");
+    .join(" · ");
 }
 
 function statusBadge(st: string) {

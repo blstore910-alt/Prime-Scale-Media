@@ -21,7 +21,7 @@ export default function useIsAffiliate() {
     profile?.role === "advertiser" ? profile?.advertiser?.[0]?.id : undefined;
   const tenantId = profile?.tenant_id;
 
-  const { data, isLoading, isError } = useQuery<AffiliateState>({
+  const { data, isPending, isLoading, isError } = useQuery<AffiliateState>({
     queryKey: ["is-affiliate", advertiserId, tenantId],
     enabled: !!advertiserId,
     // Approving happens in the owner's session. Asking again when the
@@ -128,6 +128,12 @@ export default function useIsAffiliate() {
     retry: 2,
   });
 
+  // A DISABLED QUERY IS NOT AN ANSWER. Without an advertiser row there is
+  // nothing to ask, and react-query v5 reports isLoading FALSE for that --
+  // so the screen offered "Join the affiliate program" to somebody whose
+  // status we never read. Unknown, not "no".
+  const unknown = !advertiserId || isPending;
+
   if (profile?.role === "admin")
     return {
       isAffiliate: true,
@@ -140,7 +146,7 @@ export default function useIsAffiliate() {
 
   return {
     isAffiliate: !!data?.isAffiliate,
-    isLoading,
+    isLoading: isLoading || unknown,
     isError,
     application: data?.application ?? null,
     refusalReason: data?.refusalReason ?? null,

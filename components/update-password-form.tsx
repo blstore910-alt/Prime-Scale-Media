@@ -109,8 +109,11 @@ export function UpdatePasswordForm({
               {...register("currentPassword")}
             />
             <p className="hint">
-              You are signed in, so we ask for this before changing it. Forgotten it? Sign out and
-              use &ldquo;Forgot password&rdquo;.
+              You are signed in, so we ask for this before changing it. Forgotten it?{" "}
+              <a className="lnk" href="/auth/forgot-password">
+                Send yourself a reset link
+              </a>
+              .
             </p>
           </div>
         )}

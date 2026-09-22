@@ -867,7 +867,7 @@ export default function AdvertiserApp() {
   // before the answer arrived -- and for ever on a profile with no
   // advertiser row, where the query is disabled and react-query v5
   // reports isPending true and isSuccess false permanently.
-  const affUnavailable = aff.isError || aff.isLoading;
+  const affUnavailable = aff.isError || aff.isPending;
   // This month, for the cabinet's pill and tile. A second read, like the
   // affiliate portal's -- and guarded on its own, never borrowing the
   // all-time read's state.
@@ -880,7 +880,7 @@ export default function AdvertiserApp() {
     to: affMonthDates.to,
     enabled: !!advertiserId && isAffiliate,
   });
-  const affMonthUnavailable = affMonth.isError || affMonth.isLoading;
+  const affMonthUnavailable = affMonth.isError || affMonth.isPending;
   // The period picked on the Referrals tab. All time is the same read as
   // `aff` above (same key), so it costs nothing extra.
   const affPeriod = rangeDates(affRange);
@@ -889,7 +889,11 @@ export default function AdvertiserApp() {
     to: affPeriod.to,
     enabled: !!advertiserId && isAffiliate,
   });
-  const affRangedUnavailable = affRanged.isError || affRanged.isLoading;
+  // isPending, not isLoading: a query that is switched off (no advertiser
+  // row, or the affiliate check failed) reports isLoading FALSE in
+  // react-query v5, and every tile under it printed EUR 0,00 for a read
+  // that never ran -- right under a link box saying we could not check.
+  const affRangedUnavailable = affRanged.isError || affRanged.isPending;
   // Waiting = signed up through the link, not approved yet (plak 42).
   // Active = approved and has funded at least once.
   const affWaiting = aff.rows.filter(
@@ -2266,8 +2270,15 @@ export default function AdvertiserApp() {
     // Referrals re-read nothing: a commission booked since the app loaded
     // stayed invisible until a reload. Opening it asks again.
     if (v === "referrals") {
-      void aff.refetch();
+      // The prefix: all-time, this month AND the picked period. Refetching
+      // only the first left the hero fresh and the four tiles under it
+      // stale -- two figures from one hook, disagreeing on one screen.
+      queryClient.invalidateQueries({ queryKey: ["affiliate-stats"] });
       queryClient.invalidateQueries({ queryKey: ["affiliate-commissions"] });
+      // And whether they ARE one: approving happens in the owner's
+      // session, and "Application received" stayed on a tab that never
+      // lost focus.
+      queryClient.invalidateQueries({ queryKey: ["is-affiliate"] });
     }
     if (typeof window !== "undefined") {
       window.scrollTo(0, 0);
@@ -3817,15 +3828,22 @@ export default function AdvertiserApp() {
                 </p>
               ) : (
                 <p className="cap" style={{ margin: "10px 0 0" }}>
-                  Your referral link isn&apos;t set up yet — ask an admin to
-                  enable the affiliate program for your account, or apply via
-                  Settings.
+                  {isAffiliate
+                    ? /* Approved, but we could not build the link (no tenant
+                         slug on the profile). Telling them to go and ask for
+                         something they already have sends them to support
+                         about an account that works. */
+                      "We couldn't build your referral link just now — reload, and tell us if it stays away."
+                    : "Your referral link isn't set up yet — ask an admin to enable the affiliate program for your account, or apply via Settings."}
                 </p>
               )}
             </div>
 
             {/* ── ONE LINE PER REFERRAL ─────────────────────────────── */}
-            <div className="card xlist" id="aff-refs">
+            <div
+              className={`card xlist${affRanged.isPlaceholderData ? " busy" : ""}`}
+              id="aff-refs"
+            >
               <div className="xl-head">
                 <h2>
                   <Ic name="i-user" /> Your referrals

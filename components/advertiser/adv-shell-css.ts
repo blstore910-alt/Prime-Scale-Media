@@ -1553,6 +1553,7 @@ export const ADV_CSS = `
     font-size:.86rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel-2);min-width:0}
   .xr-dates input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(58,111,255,.15)}
   .xr-dates .btn{justify-content:center}
+  .xr-hint{margin:0;font-size:.76rem;font-weight:600;color:var(--gold-ink,#a9740b)}
   @media (max-width:420px){.xr-dates{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.xr-dates .btn{grid-column:1/-1}}
   @media (prefers-reduced-motion:reduce){.xr-meta .dot.busy,.xr-custom{animation:none}}
 

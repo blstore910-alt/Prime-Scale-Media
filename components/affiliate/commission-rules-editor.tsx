@@ -350,7 +350,19 @@ export default function CommissionRulesEditor({
       // The rules first, then the approval: a rate saved for somebody who
       // is not approved yet is harmless; an approval without the rate the
       // owner just typed would not be.
-      if (approve) await approve.onApprove();
+      if (approve) {
+        try {
+          await approve.onApprove();
+        } catch (e) {
+          // Saying "the rules were not saved" here is false, and it
+          // invites a second press that writes a second rule version.
+          throw new Error(
+            `The rules are saved, but the approval did not go through: ${
+              e instanceof Error ? e.message : "unknown error"
+            } They are still waiting; try Approve again.`,
+          );
+        }
+      }
       return res.data;
     },
     onSuccess: (data) => {

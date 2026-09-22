@@ -110,7 +110,19 @@ export async function GET(request: NextRequest) {
   if (metadataReferral && urlReferral && metadataReferral !== urlReferral) {
     return redirectWithError(request, "Referral code mismatch");
   }
-  const referralCode = (metadataReferral ?? urlReferral)?.toUpperCase() ?? null;
+  // ── AND THE ADDRESS BAR CANNOT NAME A REFERRER EITHER ──────────────
+  //
+  // The refusal above only fires when BOTH are present, so a signup that
+  // recorded NO code (`referral_code: null` — the sign-up form always
+  // writes the key) fell through to `?ref=` from the URL. Anyone could
+  // sign up normally, append `&ref=PSM0005` to their own confirmation
+  // link, and be attributed to an affiliate they never came from — which
+  // is money: every top-up they ever make pays that affiliate a
+  // commission.
+  //
+  // The referrer is what the SIGN-UP recorded, exactly like the tenant
+  // slug above. `?ref=` on this link is only good for the mismatch check.
+  const referralCode = metadataReferral?.toUpperCase() ?? null;
 
   // ── ONLY THE SIGNUP FAMILY GETS THE SIGNUP FINALISER ──────────────
   //

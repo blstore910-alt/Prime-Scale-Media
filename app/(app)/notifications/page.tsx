@@ -24,7 +24,6 @@ import {
   getAdAccountRequestIdFromNotification,
   getTopupIdFromNotification,
   getWalletTopupIdFromNotification,
-  parseNotificationPayload,
 } from "@/components/notifications/notification-utils";
 import NotificationActionStatusDialog from "@/components/notifications/notification-action-status-dialog";
 import ConfirmModal from "@/components/ui/confirm-modal";
@@ -144,14 +143,18 @@ export default function NotificationsPage() {
     // app: the customer could file an application that could never be
     // answered.
     //
-    // The terms live behind the Commission button on the advertiser's own
-    // row, and /users takes ?q=. So this lands the owner on that row.
-    if (notification.type === "affiliate_application") {
-      const p = parseNotificationPayload(notification) as {
-        client_code?: string | null;
-      };
-      const code = typeof p.client_code === "string" ? p.client_code.trim() : "";
-      router.push(code ? `/users?q=${encodeURIComponent(code)}` : "/users");
+    // Since plak 42 the answer lives on /affiliates: "Waiting for you"
+    // holds the application, Approve opens the rules and writes
+    // affiliate_status. /users only sets commission terms on the
+    // advertisers row -- the owner did that, saw no error, and the
+    // applicant's screen never changed. The notification says
+    // "Affiliates", so it goes to Affiliates.
+    if (
+      notification.type === "affiliate_application" ||
+      notification.type === "affiliate_upgrade_requested" ||
+      notification.type === "referral_pending"
+    ) {
+      router.push("/affiliates");
       return;
     }
 

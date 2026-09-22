@@ -54,7 +54,7 @@ export default function useAffiliateStats(params: UseAffiliateStatsParams = {}) 
   const fromIso = params.from ? new Date(`${params.from}T00:00:00`).toISOString() : null;
   const toIso = params.to ? new Date(`${params.to}T23:59:59.999`).toISOString() : null;
 
-  const { data, isLoading, isError, error, refetch, isFetching, isPlaceholderData } = useQuery<
+  const { data, isPending, isLoading, isError, error, refetch, isFetching, isPlaceholderData } = useQuery<
     AffiliateReferralStat[]
   >({
     queryKey: ["affiliate-stats", fromIso ?? "", toIso ?? ""],
@@ -128,6 +128,16 @@ export default function useAffiliateStats(params: UseAffiliateStatsParams = {}) 
     rows,
     totals,
     payable,
+    /**
+     * NO ANSWER YET — including a query that is switched off.
+     *
+     * react-query v5: `isLoading` is `isPending && isFetching`, so a
+     * DISABLED query reports isLoading FALSE and isError FALSE. A screen
+     * that guards on isLoading alone therefore prints this hook's empty
+     * totals as a confident 0,00 for a read that was never made. Guard on
+     * this instead.
+     */
+    isPending,
     isLoading,
     isError,
     error,

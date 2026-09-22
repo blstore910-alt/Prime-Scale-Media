@@ -26,7 +26,12 @@ export default async function Page({ searchParams }: PageProps) {
   const tenantSlug = t ?? cookieStore.get("tenant")?.value;
 
   if (!token) {
-    if (!referralCode || !tenantSlug) {
+    // The tenant is the only thing we cannot do without -- it is where the
+    // account is created. A missing `ref` just means nobody gets credit:
+    // mail clients, shorteners and copy-pasted links drop the LAST query
+    // parameter, and that bounced a brand-new prospect to a sign-in page
+    // for an account they do not have, with no way to make one.
+    if (!tenantSlug) {
       redirect("/auth/login");
     }
     // Straight into the auth shell's .side column, like the invite form: a

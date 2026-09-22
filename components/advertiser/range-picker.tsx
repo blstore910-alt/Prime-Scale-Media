@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
 import { Ic } from "@/components/advertiser/adv-icons";
@@ -86,6 +86,16 @@ export default function RangePicker({
   const [open, setOpen] = useState(false);
 
   const draftOk = !!draftFrom && !!draftTo && draftFrom <= draftTo;
+  // Escape closes it. Without this the only way out was finding the
+  // calendar again, and Apply sat greyed out with nothing saying why.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   const pick = (key: Exclude<RangeKey, "custom">) => {
     setOpen(false);
     onChange({ key });
@@ -165,6 +175,13 @@ export default function RangePicker({
               Apply
             </button>
           </div>
+          {!draftOk ? (
+            <p className="xr-hint">
+              {draftFrom && draftTo
+                ? "The first date has to come before the second."
+                : "Pick both dates."}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

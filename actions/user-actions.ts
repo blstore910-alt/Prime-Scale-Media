@@ -134,7 +134,14 @@ export async function loginUser(formData: FormData) {
     }
   }
 
-  const isVerified = data.user?.user_metadata?.email_verified;
+  // auth.users.email_confirmed_at is the fact; `email_verified` is a
+  // metadata copy that only the self-signup path writes. Users minted by
+  // auth.admin.createUser (invite, admin-create) do not carry it, so a
+  // correct sign-in sent them to "Check your inbox" -- for a mail that was
+  // never going to arrive, on a screen whose resend button is hidden when
+  // the address is not in sessionStorage.
+  const isVerified =
+    !!data.user?.email_confirmed_at || !!data.user?.user_metadata?.email_verified;
 
   // Return the destination instead of redirecting server-side, so the client
   // can let the sign-in launch animation finish before navigating. The cookie
