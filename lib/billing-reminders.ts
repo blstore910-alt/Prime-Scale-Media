@@ -23,7 +23,10 @@ export async function createDueSoonReminders(
   admin: SupabaseClient,
   now: Date = new Date(),
 ): Promise<{ created: number; checked: number; error?: string }> {
-  const from = isoDate(now);
+  // From TOMORROW: an invoice due today is the billing run's business --
+  // collected, or a "past due" notice. Reminding on the same day would be
+  // two mails about one invoice.
+  const from = isoDate(new Date(now.getTime() + 24 * 3600_000));
   const until = isoDate(new Date(now.getTime() + REMIND_DAYS * 24 * 3600_000));
 
   const { data: invoices, error } = await admin
@@ -55,14 +58,16 @@ export async function createDueSoonReminders(
     const userId = (adv as { user_id?: string | null } | null)?.user_id;
     if (!userId) continue;
 
-    const { data: already } = await admin
+    const { data: already, error: alreadyError } = await admin
       .from("notifications")
       .select("id")
       .eq("recipient_user_id", userId)
       .eq("type", "subscription_invoice_due_soon")
       .contains("payload", { invoice_id: inv.id })
       .limit(1);
-    if ((already ?? []).length) continue;
+    // A check we could not make is not "never reminded": skipping costs
+    // one reminder, guessing wrong would send one every night.
+    if (alreadyError || (already ?? []).length) continue;
 
     const { error: insertError } = await admin.from("notifications").insert({
       recipient_user_id: userId,
