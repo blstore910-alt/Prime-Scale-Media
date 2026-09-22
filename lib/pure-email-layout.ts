@@ -8,8 +8,8 @@
 //
 // The WOW lives where mail clients can show it: a starfield hero that is
 // an IMAGE (public/email/hero-bg.jpg) behind the real logo
-// (public/email/psm-logo-dark.png -- the brand logo with its black letters
-// turned white so it reads on navy), a glowing button, numbered steps.
+// (the app's rocket tile + name, and the sign-in screen's launching rocket,
+// rendered by scripts/email-assets.mjs), a glowing button, numbered steps.
 // Mail clients are not browsers: no <style> blocks (Gmail strips them),
 // no flex or grid, no SVG, no animation -- tables and inline styles, and a
 // solid colour under every image and gradient for the clients that show
@@ -117,14 +117,23 @@ export function emailLayout(input: EmailLayoutInput): string {
     `<tr><td align="center" background="${ASSETS}/hero-bg.jpg" bgcolor="#0c1230" ` +
       `style="padding:34px 28px 36px;background-color:#0c1230;background-image:url('${ASSETS}/hero-bg.jpg');` +
       `background-size:cover;background-position:center;text-align:center;">`,
-    `<img src="${ASSETS}/psm-logo-dark.png" width="190" alt="Prime Scale Media" ` +
-      `style="display:block;margin:0 auto;width:190px;max-width:62%;height:auto;border:0;">`,
+    // The app's own lockup -- the rocket tile and the name, as in the
+    // app's header -- then the sign-in screen's rocket, launching to the moon.
+    `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;"><tr>`,
+    `<td valign="middle" style="padding-right:8px;"><img src="${ASSETS}/rocket-mark.png" width="60" height="60" alt="" ` +
+      `style="display:block;width:60px;height:60px;border:0;"></td>`,
+    `<td valign="middle" style="text-align:left;">` +
+      `<div style="font:800 18px/1.2 ${FONT};letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
+      `<div style="margin-top:2px;font:500 12px/1.4 ${FONT};color:#9db8ff;">Advertiser &amp; affiliate platform</div></td>`,
+    `</tr></table>`,
+    `<img src="${ASSETS}/launch.png" width="250" alt="" ` +
+      `style="display:block;margin:6px auto 0;width:250px;max-width:72%;height:auto;border:0;">`,
     eyebrow
-      ? `<div style="margin:26px 0 0;"><span style="display:inline-block;padding:6px 14px;border-radius:999px;` +
+      ? `<div style="margin:4px 0 0;"><span style="display:inline-block;padding:6px 14px;border-radius:999px;` +
         `background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);` +
         `font:800 11px/1 ${FONT};letter-spacing:.2em;text-transform:uppercase;color:#ffd98a;">${eyebrow}</span></div>`
       : "",
-    `<h1 style="margin:${eyebrow ? 16 : 26}px 0 0;font:800 30px/1.2 ${FONT};letter-spacing:-.02em;color:#ffffff;text-align:center;">${title}</h1>`,
+    `<h1 style="margin:${eyebrow ? 14 : 8}px 0 0;font:800 30px/1.2 ${FONT};letter-spacing:-.02em;color:#ffffff;text-align:center;">${title}</h1>`,
     lead
       ? `<p style="margin:12px auto 0;max-width:420px;font:400 16px/1.6 ${FONT};color:#c9d4ff;text-align:center;">${lead}</p>`
       : "",
