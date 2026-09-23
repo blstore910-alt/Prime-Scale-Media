@@ -337,6 +337,23 @@ export default function PsmWithdrawals() {
       className="psmview"
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      <style>{`
+.wsec-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wsec-lead{flex:1 1 22rem;min-width:16rem}
+.wsec-head>.btn,.wsec-head .badge{flex:0 0 auto}
+/* Below this the sentence and the button stop competing: the text takes
+   the row, the action sits under it across the full width, which is
+   where a thumb expects it. */
+@media(max-width:640px){
+  .wsec-head{flex-direction:column;align-items:stretch}
+  .wsec-lead{flex:1 1 auto;min-width:0}
+  .wsec-head>.btn{width:100%;justify-content:center}
+  .wsec-head .badge{align-self:flex-start}
+}
+/* Three tabs that fit, instead of two on one line and one orphaned. */
+.wtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.wtabs>*{width:100%;justify-content:center;min-width:0}
+`}</style>
       <div className="phead">
         <div>
           <h1>Withdrawals</h1>
@@ -346,10 +363,9 @@ export default function PsmWithdrawals() {
         </div>
       </div>
 
-      <div
-        role="tablist"
-        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-      >
+      {/* Three equal columns instead of wrapping: two tabs on one line
+          with the third orphaned underneath reads as two groups. */}
+      <div className="wtabs" role="tablist">
         {/* ── EVERY TAB CARRIES ITS OWN COUNT ─────────────────────
             The sibling screen's tab bar says the rule out loud: "a tab
             that hides a queue with work in it is the only way this
@@ -844,15 +860,12 @@ function RefundsSection() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <p className="muted" style={{ margin: 0, fontSize: ".9rem", flex: 1 }}>
+      {/* Description and action, stacked on a phone. Side by side these
+          gave the sentence a 200px column with the button hanging off
+          its right edge -- the owner's screenshot. `min-width` on the
+          text is what stops flex squeezing it that far. */}
+      <div className="wsec-head">
+        <p className="muted wsec-lead" style={{ margin: 0, fontSize: ".9rem" }}>
           When a customer leaves, refund their wallet balance to their bank. An
           admin requests it; the tenant owner approves.
         </p>
@@ -1517,15 +1530,12 @@ function AdjustmentsSection() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <p className="muted" style={{ margin: 0, fontSize: ".9rem", flex: 1 }}>
+      {/* Description and action, stacked on a phone. Side by side these
+          gave the sentence a 200px column with the button hanging off
+          its right edge -- the owner's screenshot. `min-width` on the
+          text is what stops flex squeezing it that far. */}
+      <div className="wsec-head">
+        <p className="muted wsec-lead" style={{ margin: 0, fontSize: ".9rem" }}>
           Request a correction to a customer&apos;s wallet balance. An admin
           raises it; the tenant owner approves before the balance changes.
         </p>
