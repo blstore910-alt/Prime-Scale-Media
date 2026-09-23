@@ -35,6 +35,21 @@ type Row = {
   /** Meta / Google / TikTok for a top-up -- the network, never the
    *  account type (plak 40). Absent before that plak. */
   network?: string | null;
+  /** ── WHERE THE ELEVEN CENTS CAME FROM ────────────────────────────
+   *  The owner, 23-09: "hoeveel topup er is gedaan, zeer klein subtiel
+   *  ... 11 cent uitkomen". This is the top-up itself, or the invoice
+   *  behind a subscription commission -- the referred customer's own
+   *  figure, whose sum the affiliate already reads as "Spend driven".
+   *
+   *  NOT the profit, the percentage or the supplier's cut. Commission =
+   *  20% x (our fee - what the supplier charges us), so the percentage
+   *  beside the amount IS the profit, and a customer who knows their own
+   *  fee then has our cost price. The whole chain is on the ADMIN side,
+   *  on /affiliates: "20% of profit EUR 0.53 (fee EUR 3.00 - supplier 2%
+   *  = EUR 2.45)". That is where it belongs, and only there.
+   *
+   *  Absent before plak 70. */
+  source_amount?: number | string | null;
 };
 
 type Sort = "newest" | "oldest" | "largest";
@@ -320,6 +335,16 @@ export default function AffiliateCommissionsCard({
                     KIND_LABEL[r.kind] ?? "Commission",
                     r.kind === "topup" && r.network ? r.network : null,
                     r.referred_advertiser_code,
+                    // Undefined until plak 70 lands, and null for a
+                    // welcome bonus, which hangs on nothing.
+                    r.source_amount !== null &&
+                    r.source_amount !== undefined &&
+                    Number.isFinite(Number(r.source_amount))
+                      ? `on ${formatCurrency(
+                          Number(r.source_amount),
+                          String(r.currency || "EUR"),
+                        )}`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
