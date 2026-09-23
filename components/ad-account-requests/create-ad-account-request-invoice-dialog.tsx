@@ -161,6 +161,10 @@ export default function CreateAdAccountRequestInvoiceDialog({
     <Dialog
       open={open}
       onOpenChange={(value) => {
+        // Not while the invoice is being raised: it mints a payable
+        // EUR 50 and the box disappearing before the toast leaves
+        // nobody able to say whether it exists.
+        if (!value && isPending) return;
         if (!value) {
           reset(getDefaultValues(request, feeRate ?? null));
         }

@@ -1244,7 +1244,15 @@ function RefundRequestDialog({
     businessName.trim().length > 1;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // Not dismissable while the write is in flight -- Escape and the
+    // corner X went straight past the disabled Cancel.
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && isPending) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Request refund</DialogTitle>
@@ -1822,7 +1830,15 @@ function AdjustmentRequestDialog({
   const valid = !!advertiserId && Number.isFinite(numeric) && numeric > 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // Not dismissable while the write is in flight -- Escape and the
+    // corner X went straight past the disabled Cancel.
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && isPending) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Request balance adjustment</DialogTitle>

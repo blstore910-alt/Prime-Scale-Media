@@ -617,7 +617,16 @@ function PrechargeCreateDialog({
     !guardBlind;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // NOT DISMISSABLE MID-WRITE. Cancel is disabled while this runs, but
+    // Escape, the backdrop and the corner X went straight through -- so
+    // the box vanished with the write still in flight and no toast yet.
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && isPending) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New precharge</DialogTitle>
