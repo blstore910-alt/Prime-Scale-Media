@@ -16,6 +16,7 @@ import {
   Handshake,
   HelpCircle,
   History,
+  Landmark,
   LayoutGrid,
   type LucideIcon,
   LogOut,
@@ -59,6 +60,7 @@ const TITLES: Record<string, string> = {
   "/wallet-topups": "Wallet Topups",
   "/withdrawals": "Withdrawals",
   "/top-ups": "Ad-account Topups",
+  "/dst": "DST",
   "/wallets": "Wallets",
   "/invoices": "Invoices",
   "/subscriptions": "Subscriptions",
@@ -163,6 +165,10 @@ export default function AdminShell({
           badge: pending.topUps,
         },
         { title: "Wallets", href: "/wallets", icon: Wallet },
+        // What the supplier taxes us, recharged per customer. It sits
+        // with the money because that is what it is -- a cost we carry
+        // until somebody bills it on.
+        { title: "DST", href: "/dst", icon: Landmark },
         { title: "Invoices", href: "/invoices", icon: Receipt },
         { title: "Subscriptions", href: "/subscriptions", icon: RefreshCw },
       ],

@@ -110,18 +110,23 @@ type AccountDetailsRow = Partial<AdAccount> & {
  * back to a neutral screen -- never a wrong logo.
  */
 /**
- * What a CUSTOMER may be told about where their account runs: the
- * network, and nothing narrower. The `platform` column holds the
- * ad-account TYPE slug, and a type names a supplier family.
+ * What a CUSTOMER is told about where their account runs.
+ *
+ * FIXED PER NETWORK, never derived from the type. `platform` holds the
+ * ad-account type slug (eu-meta-psm, hk-meta-premium) and a type names
+ * the supplier family the account came from -- printing it put
+ * "Meta-EU-PSM" on the customer's own screen. These labels are the
+ * owner's, constant for every account on that network, so they carry no
+ * information about which family it is.
  */
 function networkLabel(slug?: string | null): string {
   const group = platformGroupFromSlug(String(slug ?? ""));
   return group === "meta"
-    ? "Meta"
+    ? "Meta Premium"
     : group === "google"
-      ? "Google"
+      ? "Google Premium"
       : group === "tiktok"
-        ? "TikTok"
+        ? "TikTok Premium"
         : "Ad account";
 }
 
