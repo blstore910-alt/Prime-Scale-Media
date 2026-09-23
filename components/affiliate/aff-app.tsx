@@ -7,7 +7,7 @@ import { jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { csvSafe } from "@/lib/csv-safe";
-import useAffiliatePayouts from "@/hooks/use-affiliate-payouts";
+
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -16,7 +16,6 @@ import { getURL } from "@/lib/utils";
 import { Parser } from "json2csv";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 // ── THE ADVERTISER'S AFFILIATE SCREEN, ON THE AFFILIATE'S OWN PORTAL ──
@@ -34,6 +33,7 @@ import RangePicker, {
   type AffRange,
 } from "@/components/advertiser/range-picker";
 import AffiliateCommissionsCard from "@/components/advertiser/affiliate-commissions-card";
+import PayoutCard from "@/components/advertiser/payout-card";
 import { AffIcons, Ic } from "./aff-icons";
 import { openWhatsapp } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
@@ -154,11 +154,6 @@ export default function AffiliateApp() {
     // Mount only. Later changes come from go(), which owns the URL.
   }, []);
   const [navOpen, setNavOpen] = useState(false);
-  const [showEurUsd, setShowEurUsd] = useState<"EUR" | "USD">("EUR");
-  const [payOpen, setPayOpen] = useState(false);
-  const payCardRef = useModalA11y<HTMLDivElement>(payOpen, () =>
-    setPayOpen(false),
-  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -221,7 +216,6 @@ export default function AffiliateApp() {
   // Payout details. These were six uncontrolled inputs and the button sent a
   // hard-coded empty template, so everything typed — including the IBAN — was
   // silently thrown away. Held in state and interpolated into the mail body.
-  const [requesting, setRequesting] = useState(false);
   const [payout, setPayout] = useState({
     holder: "",
     accountType: "",
@@ -276,9 +270,11 @@ export default function AffiliateApp() {
   // isPending, not isLoading: react-query v5 reports isLoading FALSE for a
   // query that is switched off, and every figure under it printed 0,00.
   const statsUnavailable = all.isError || all.isPending || portalInert;
-  // What they have asked for, and whether one is still with us.
-  const payouts = useAffiliatePayouts(!portalInert);
-  const openPayout = payouts.rows.find((p) => p.status === "requested");
+  // What they have asked for lives in PayoutCard, which holds its own
+  // read SCOPED to this advertiser id. The copy that used to sit here
+  // passed no scope, so its cache key was ["affiliate-payouts",""] --
+  // the same key for every identity in the browser, which inside the
+  // 5-minute gcTime can show one person another's open request.
   // The MONTH figures come from a second, separate query, and nothing
   // consulted its state — so the topbar pill, the stat card and the
   // earnings summary all printed "this month €0" identically whether the
@@ -814,6 +810,12 @@ export default function AffiliateApp() {
                 </span>
               </div>
             )}
+            <div className="hello">
+              <h1>
+                Welcome back, <b>{name.trim().split(/\s+/)[0] || name}</b>
+              </h1>
+              <p>Here&apos;s what your referrals have brought in.</p>
+            </div>
             {/* ── THE EARNINGS CARD ───────────────────────────────────
                 Same card as the advertiser's Affiliate program screen, to
                 the pixel: dark ground, a slow ribbon, gold light, coins
@@ -1110,148 +1112,121 @@ export default function AffiliateApp() {
               </button>
             </div>
 
-            <div className="grid">
-              <div className="card" style={{ padding: "18px 20px" }}>
-                <div className="prog-head">
-                  <h2>Earnings summary</h2>
-                  {/* monthEur is a SEPARATE query from the rest of this
-                      card, so it needs its own guard — the topbar already
-                      uses monthUnavailable and this did not, which meant the
-                      one case where only the month read failed printed a
-                      confident EUR 0 / mo. */}
-                  <b style={{ color: "var(--win)" }}>
-                    {monthUnavailable ? dash : twoLeg(monthEur, monthUsd)} / mo
-                  </b>
-                </div>
-                <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-                  <div className="feed-row" style={{ borderTop: 0 }}>
-                    <span className="feed-ic">
-                      <Ic name="i-trophy" />
-                    </span>
-                    <div>
-                      <b>Lifetime earned</b>
-                      <div
-                        className="d"
-                        style={{ color: "var(--faint)", fontSize: ".84rem" }}
-                      >
-                        {statsUnavailable
-                          ? "We couldn't read your referrals"
-                          : `Across ${referredCount} referrals`}
-                      </div>
-                    </div>
-                    <span className="amt">
-                      {statsUnavailable ? dash : twoLeg(lifetimeEur, lifetimeUsd)}
-                    </span>
-                  </div>
-                  <div className="feed-row">
-                    <span
-                      className="feed-ic"
-                      style={{
-                        background: "var(--primary-tint)",
-                        color: "var(--primary-600)",
-                      }}
-                    >
-                      <Ic name="i-wallet" />
-                    </span>
-                    <div>
-                      <b>Top-up volume</b>
-                      <div
-                        className="d"
-                        style={{ color: "var(--faint)", fontSize: ".84rem" }}
-                      >
-                        Total spend you drove
-                      </div>
-                    </div>
-                    <span className="amt" style={{ color: "var(--ink)" }}>
-                      {statsUnavailable
-                        ? dash
-                        : twoLeg(all.totals.spend_eur, all.totals.spend_usd)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="card">
-                <div className="prog-head">
-                  <h2>Your tier</h2>
+            <section className="tierx">
+              <div className="tx-ribbon" aria-hidden="true" />
+              <div className="tx-glow" aria-hidden="true" />
+              <div className="tx-in">
+                <div className="tx-head">
+                  <p className="tx-eyebrow">
+                    <Ic name="i-medal" /> Your tier
+                  </p>
                   {/* Not a tier number we cannot vouch for. On a failed
                       read lifetimeCombined is 0, which puts the medal back
                       to Starter, resets the track to 0% and tells the
                       affiliate how much MORE they need to reach a tier they
-                      may already be past. The hero above was fixed for this
-                      exact demotion; the tier card was not. */}
-                  <span className="ratepill">
+                      may already be past. */}
+                  <span className="tx-pill">
                     {statsUnavailable
-                      ? "Checking…"
-                      : `Tier ${tierIndex + 1} / ${TIERS.length}`}
+                      ? "Checking\u2026"
+                      : tierUnknown
+                        ? `Tier \u2014 / ${TIERS.length}`
+                        : `Tier ${tierIndex + 1} / ${TIERS.length}`}
                   </span>
                 </div>
-                <div className="tierhero">
-                  {/* The label beside it is guarded; the colour was not,
-                      so the medal went bronze under the words "Your tier"
-                      and told the same lie in the one channel that reads
-                      fastest. `unknown` has no colour rule, so it falls to
-                      the neutral default. */}
-                  <div className={`thmedal ${tierUnknown ? "unknown" : tier.key}`}>
-                    <Ic name="i-medal" />
+
+                <div className="tx-medalwrap">
+                  {/* The ring IS the progress: a conic sweep around the
+                      medal, so the thing you look at is the thing that
+                      moves. It is not drawn at all when the figure behind
+                      it is unknown. */}
+                  <div
+                    className={`tx-ring${statsUnavailable || tierUnknown ? " blind" : ""}`}
+                    style={
+                      statsUnavailable || tierUnknown
+                        ? undefined
+                        : ({ ["--p" as string]: `${tierPct}%` } as React.CSSProperties)
+                    }
+                  >
+                    <div className={`tx-medal ${tierUnknown ? "unknown" : tier.key}`}>
+                      <Ic name="i-medal" />
+                    </div>
                   </div>
-                  <div className="thinfo">
-                    <div className="thname">
-                      {tierUnknown ? "Your tier" : tier.name}
-                    </div>
-                    <div className="thsub">
-                      {statsUnavailable
-                        ? "We couldn't read your earnings just now — this is not a reset."
+                  <div className="tx-name">
+                    {tierUnknown ? "\u2014" : tier.name}
+                  </div>
+                  <div className="tx-sub">
+                    {statsUnavailable
+                      ? "We couldn't read your earnings just now \u2014 this is not a reset."
+                      : tierBlind
+                        ? "Your USD earnings can't be converted today, so we can't place your tier yet."
                         : `You're a ${tier.name} partner`}
-                    </div>
                   </div>
                 </div>
-                {/* The card contradicted itself: the line above says "we
-                    couldn't read your earnings just now — this is not a
-                    reset", and then a bar sat at 0% under a sentence saying
+
+                {/* THE LADDER. Four rungs, the one you are on lit, the
+                    ones behind you ticked. A single bar said how far,
+                    never where. */}
+                <div className="tx-ladder">
+                  {TIERS.map((t, i) => {
+                    const state = tierUnknown
+                      ? ""
+                      : i < tierIndex
+                        ? " done"
+                        : i === tierIndex
+                          ? " on"
+                          : "";
+                    return (
+                      <div className={`tx-rung${state}`} key={t.key}>
+                        <span className="tx-dot">
+                          {!tierUnknown && i < tierIndex ? (
+                            <Ic name="i-check" />
+                          ) : null}
+                        </span>
+                        <span className="tx-rname">{t.name}</span>
+                        <span className="tx-rmin">
+                          {t.min === 0 ? "start" : eur(t.min)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* The card contradicted itself: "we couldn't read your
+                    earnings" and then a bar at 0% under a sentence saying
                     how much more was needed, both computed from the
-                    earnings that had just been disclaimed. When the figure
-                    is unknown the progress is unknown too. */}
+                    earnings that had just been disclaimed. */}
                 {statsUnavailable ? null : (
-                  <>
-                    <div className="track">
-                      <div className="fill" style={{ width: `${tierPct}%` }} />
-                    </div>
-                    <p className="tiernote">
-                      {/* When the USD side could not be converted the ladder
-                          is counting euros only, and saying so is the
-                          difference between a motivating target and a wrong
-                          one. */}
-                      {tierBlind ? (
-                        <>
-                          Your USD earnings aren&apos;t counted here yet
-                          {rateError
-                            ? " — we couldn't read today's rate"
-                            : rateLoading
-                              ? " — we're still reading today's rate"
-                              : " — there is no rate set today"}
-                          . This shows your EUR progress only.
-                        </>
-                      ) : nextTier ? (
-                        <>
-                          {eur(nextTier.min - lifetimeCombined)} more in
-                          lifetime earnings to reach{" "}
-                          <b className="gold">{nextTier.name}</b>.
-                        </>
-                      ) : (
-                        <>
-                          You&apos;ve reached the top tier —{" "}
-                          <b className="plat">{tier.name}</b>. 🎉
-                        </>
-                      )}
-                    </p>
-                  </>
+                  <p className="tx-note">
+                    {tierBlind ? (
+                      <>
+                        Your USD earnings aren&apos;t counted here yet
+                        {rateError
+                          ? " \u2014 we couldn't read today's rate"
+                          : rateLoading
+                            ? " \u2014 we're still reading today's rate"
+                            : " \u2014 there is no rate set today"}
+                        . This shows your EUR progress only.
+                      </>
+                    ) : nextTier ? (
+                      <>
+                        <b>{eur(nextTier.min - lifetimeCombined)}</b> more in
+                        lifetime earnings to reach{" "}
+                        <b className="gold">{nextTier.name}</b>.
+                      </>
+                    ) : (
+                      <>
+                        You&apos;ve reached the top tier \u2014{" "}
+                        <b className="gold">{tier.name}</b>. \ud83c\udf89
+                      </>
+                    )}
+                  </p>
                 )}
-                <p className="tierlegend">
+                <p className="tx-legend">
                   Your <b>lifetime earnings</b> move you up the tiers. Your
                   commission rate stays whatever was agreed per referral.
                 </p>
               </div>
-            </div>
+            </section>
 
             {/* ── ONE LINE PER REFERRAL ───────────────────────────────
                 A phone showed four label/value pairs per referral, a
@@ -1365,201 +1340,17 @@ export default function AffiliateApp() {
 
           {/* WALLET */}
           <div className={`view${view === "pay" ? " on" : ""}`}>
-            <div className="grid">
-              <div className="balance">
-                <div className="bshine" />
-                <div className="brow">
-                  <span className="btag">
-                    <Ic name="i-wallet" /> Commission wallet
-                  </span>
-                  {/* Guarded like every other tier print on this screen.
-                      tierIndex falls to 0 whenever lifetimeCombined is 0,
-                      which is true while the earnings query is loading AND
-                      when it has failed — so a Legend partner opened their
-                      wallet and the badge beside their real balance read
-                      "Starter", while the header badge and the tier card,
-                      reading the same state, correctly said "Checking…".
-                      A demotion is not something to render on a guess. */}
-                  <span className="btag ghost2">
-                    <Ic name="i-trophy" /> {tierUnknown ? "—" : tier.name}
-                  </span>
-                </div>
-                {/* ── STILL OWED, NOT EARNED EVER ────────────────────
-                    This card is headed "Commission wallet" and printed
-                    LIFETIME GROSS — so an affiliate paid EUR 600 of EUR
-                    1,000 read EUR 1,000.00 here and EUR 400.00 in the
-                    payout modal one tap away, with neither figure
-                    derivable from the other on screen. A wallet says
-                    what is in it. The hook already computes `payable`
-                    for exactly this and it was used only in the modal;
-                    lifetime keeps its own line underneath. */}
-                <div className="l">
-                  {all.payable.isLifetime ? "Earned to date" : "Still owed to you"}
-                </div>
-                <div className="bpots">
-                  {/* The button below is already disabled when the balance
-                      is unknown, for exactly this reason — but the two
-                      figures it is disabled ABOUT were printed as a
-                      confident EUR 0 and $0. */}
-                  <div className="bpot">
-                    <span className="pl">EUR</span>
-                    <b>{statsUnavailable ? dash : eur(all.payable.eur)}</b>
-                    <small className="pn">
-                      {statsUnavailable
-                        ? ""
-                        : `${eur(all.totals.earnings_eur)} earned in total`}
-                    </small>
-                  </div>
-                  <div className="bpot">
-                    <span className="pl">USD</span>
-                    <b>{statsUnavailable ? dash : usd(all.payable.usd)}</b>
-                    <small className="pn">
-                      {statsUnavailable
-                        ? ""
-                        : `${usd(all.totals.earnings_usd)} earned in total`}
-                    </small>
-                  </div>
-                </div>
-                <div className="sub">
-                  {payouts.isPending
-                    ? "Checking whether a payout is already with us…"
-                    : openPayout
-                      ? `Requested ${new Date(openPayout.requested_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: ${
-                          openPayout.currency
-                        } ${Number(openPayout.amount).toFixed(2)} — we confirm it here the moment it is transferred.`
-                      : "Payouts are processed manually by the PSM team — request one and we settle it to your account."}
-                </div>
-                <div className="bactions">
-                  {/* Disabled while the balance is unknown. The payout mail
-                      is composed from these totals, so with a failed read it
-                      would have sent a request for €0 — a message that
-                      cannot be acted on and looks, to whoever receives it,
-                      like the affiliate is owed nothing. */}
-                  <button
-                    className="btn gold"
-                    // A EUR 0.00 request cannot be acted on and reads, to
-                    // whoever receives it, like the affiliate is owed
-                    // nothing — which the comment above already says. The
-                    // button was guarded on the stats being readable and
-                    // not on there being anything to ask for.
-                    disabled={
-                      statsUnavailable ||
-                      payouts.isPending ||
-                      !!openPayout ||
-                      (all.payable.eur <= 0 && all.payable.usd <= 0)
-                    }
-                    title={
-                      statsUnavailable
-                        ? "Your balance couldn't be loaded — reload before requesting a payout."
-                        : openPayout
-                          ? "You already have a request with us"
-                          : all.payable.eur <= 0 && all.payable.usd <= 0
-                            ? "Nothing outstanding to request yet"
-                            : "Request a payout"
-                    }
-                    onClick={() => {
-                      // Open on the currency the money is actually in.
-                      if (all.payable.eur <= 0 && all.payable.usd > 0) setShowEurUsd("USD");
-                      else if (all.payable.usd <= 0 && all.payable.eur > 0) setShowEurUsd("EUR");
-                      setPayOpen(true);
-                    }}
-                  >
-                    <Ic name="i-download" /> Request payout
-                  </button>
-                  {/* Same reason as the note on the request button: no
-                      timer exists anywhere in the code. */}
-                  <span className="payin">
-                    <Ic name="i-clock" /> Paid by hand
-                  </span>
-                </div>
-              </div>
-              <div className="card">
-                <h2>How payouts work</h2>
-                <p className="cap">
-                  Your wallet holds the commission you&apos;ve earned.
-                  Requesting a payout records it with the exact amount and
-                  the details from this page; we check it, transfer it by
-                  hand and confirm it here with our reference. Payouts are
-                  always manual — nothing leaves automatically.
-                </p>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                    marginTop: 8,
-                  }}
-                >
-                  <div
-                    style={{ display: "flex", gap: 11, alignItems: "center" }}
-                  >
-                    <span
-                      className="feed-ic"
-                      style={{
-                        background: "var(--primary-tint)",
-                        color: "var(--primary-600)",
-                      }}
-                    >
-                      <Ic name="i-wallet" />
-                    </span>
-                    <div>
-                      <b>1. Request</b>
-                      <div
-                        className="d"
-                        style={{ color: "var(--faint)", fontSize: ".84rem" }}
-                      >
-                        Tap &quot;Request payout&quot; for your balance.
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{ display: "flex", gap: 11, alignItems: "center" }}
-                  >
-                    <span
-                      className="feed-ic"
-                      style={{
-                        background: "var(--gold-soft)",
-                        color: "var(--gold-deep)",
-                      }}
-                    >
-                      <Ic name="i-receipt" />
-                    </span>
-                    <div>
-                      {/* No invoice is created. There is no commission
-                          invoice type, no cron that raises one, and
-                          settlement is an admin marking the commission
-                          paid. The pill and the paragraph above were
-                          corrected; this list, sixty lines down, still
-                          described a process that does not exist. */}
-                      <b>2. We check it</b>
-                      <div
-                        className="d"
-                        style={{ color: "var(--faint)", fontSize: ".84rem" }}
-                      >
-                        We confirm the balance and the payment details with
-                        you.
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{ display: "flex", gap: 11, alignItems: "center" }}
-                  >
-                    <span className="feed-ic">
-                      <Ic name="i-check" />
-                    </span>
-                    <div>
-                      <b>3. Paid</b>
-                      <div
-                        className="d"
-                        style={{ color: "var(--faint)", fontSize: ".84rem" }}
-                      >
-                        We pay it to your account by hand. Nothing in the
-                        app moves it automatically.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="aff-stack">
+              <PayoutCard
+                enabled={!portalInert}
+                scope={profile?.advertiser?.[0]?.id ?? null}
+                owedEur={Number(all.payable.eur) || 0}
+                owedUsd={Number(all.payable.usd) || 0}
+                owedUnknown={
+                  statsUnavailable ||
+                  (all.payable.isLifetime && all.rows.length > 0)
+                }
+              />
             </div>
             <div className="card feed">
               <div className="prog-head">
@@ -1714,31 +1505,12 @@ export default function AffiliateApp() {
                     <label>Email</label>
                     <input defaultValue={profile?.email ?? ""} disabled />
                   </div>
-                  <div className="field">
-                    {/* IT DOES NOT CHANGE A DISPLAYED FIGURE. Every earnings
-                        number on this app shows EUR and USD separately;
-                        this choice is read in exactly one place — the
-                        currency of the payout request. So it is named after
-                        what it does. A control that says one thing and does
-                        another is worse than no control. */}
-                    <label>Request payouts in</label>
-                    <div className="seg2">
-                      <button
-                        type="button"
-                        className={showEurUsd === "EUR" ? "on" : ""}
-                        onClick={() => setShowEurUsd("EUR")}
-                      >
-                        EUR €
-                      </button>
-                      <button
-                        type="button"
-                        className={showEurUsd === "USD" ? "on" : ""}
-                        onClick={() => setShowEurUsd("USD")}
-                      >
-                        USD $
-                      </button>
-                    </div>
-                  </div>
+                  {/* THE CURRENCY PICKER THAT NO LONGER DID ANYTHING.
+                      "Request payouts in EUR / USD" set a default for a
+                      question the payout dialog now asks per request —
+                      which currencies to be paid, and whether to convert
+                      them into one. The owner: "wat hebben we nog aan
+                      deze knop". Nothing. */}
                 </div>
               </div>
               <div className="card">
@@ -1977,162 +1749,15 @@ export default function AffiliateApp() {
         </nav>
       </div>
 
-      {/* Payout modal */}
-      {payOpen && (
-        <div className="modal">
-          <div className="mback" onClick={() => setPayOpen(false)} />
-          {/* Escape closes it, Tab stays inside it, and focus goes back to
-              the button that opened it. Without those three a dialog is a
-              box drawn on top of a page that is still fully usable behind
-              it. */}
-          <div
-            className="mcard"
-            ref={payCardRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Request payout"
-            tabIndex={-1}
-          >
-            <div className="mhead">
-              <h2>Request payout</h2>
-              <button
-                className="iconbtn"
-                onClick={() => setPayOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="cap">
-              {/* WHAT IS STILL OWED, not what was ever earned.
-                  This read earnings_*, which is lifetime gross — so an
-                  affiliate already paid EUR 500 saw EUR 500 here and the
-                  email below asked for it a second time, indistinguishable
-                  from a first request on both sides. The RPC has reported
-                  unpaid_* since migration 20260918160000 and nothing had
-                  ever read it. Where the RPC does not report it the figure
-                  falls back to lifetime and says so, rather than implying
-                  a precision it does not have. */}
-              {all.payable.isLifetime ? "Earned to date" : "Still owed to you"}:{" "}
-              <b>{eur(all.payable.eur)}</b> in EUR +{" "}
-              <b>{usd(all.payable.usd)}</b> in USD.{" "}
-              {all.payable.isLifetime
-                ? "That is everything you have earned, not what is outstanding — we'll confirm the exact figure."
-                : "Our team processes payouts manually."}
-            </p>
-            <div className="mlabel">Payout currency</div>
-            <div className="seg2">
-              <button
-                className={showEurUsd === "EUR" ? "on" : ""}
-                onClick={() => setShowEurUsd("EUR")}
-              >
-                EUR €
-              </button>
-              <button
-                className={showEurUsd === "USD" ? "on" : ""}
-                onClick={() => setShowEurUsd("USD")}
-              >
-                USD $
-              </button>
-            </div>
-            <button
-              className="btn gold"
-              style={{
-                width: "100%",
-                justifyContent: "center",
-                marginTop: 12,
-              }}
-              disabled={requesting}
-              onClick={async () => {
-                // Two decimals, NOT the rounding helper the hero uses:
-                // €1,249.55 became "€1,250" in a payment instruction.
-                const exact = (n: number) =>
-                  (Number(n) || 0).toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  });
-                const amount =
-                  showEurUsd === "EUR"
-                    ? `€${exact(all.payable.eur)}`
-                    : `$${exact(all.payable.usd)}`;
-
-                // THE REQUEST IS A RECORD, not a chat message: the server
-                // freezes the amount by attaching the exact commission
-                // rows to it. WhatsApp stays as the fallback for a
-                // database that has not had plak 50 yet.
-                if (!payouts.missing) {
-                  setRequesting(true);
-                  try {
-                    const { requestAffiliatePayout } = await import(
-                      "@/actions/payout-actions"
-                    );
-                    const res = await requestAffiliatePayout(showEurUsd, {
-                      holder: payout.holder,
-                      accountType: payout.accountType,
-                      taxId: payout.taxId,
-                      address: payout.address,
-                      iban: payout.iban,
-                      bic: payout.bic,
-                    });
-                    if (!res.ok) {
-                      // Not switched on after all (the read had not landed
-                      // when we decided): send it the human way rather
-                      // than showing an error and recording nothing.
-                      if (/switched on/i.test(res.error)) {
-                        openWhatsapp(
-                          `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\nAffiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}`,
-                        );
-                        setPayOpen(false);
-                        toast.success("Opening WhatsApp to send the payout request.");
-                        return;
-                      }
-                      toast.error(res.error);
-                      return;
-                    }
-                    setPayOpen(false);
-                    toast.success(
-                      `Payout requested: ${res.data.currency} ${res.data.amount.toFixed(2)}`,
-                      { description: "We confirm it here the moment it is transferred." },
-                    );
-                    await payouts.refetch();
-                    void all.refetch();
-                  } catch {
-                    toast.error("We couldn't send that just now. Try again shortly.");
-                  } finally {
-                    setRequesting(false);
-                  }
-                  return;
-                }
-
-                const subject = `Payout request — ${amount} (${showEurUsd})`;
-                const body =
-                  `Hi PSM team,\n\nI'd like to request a payout of ${amount} in ${showEurUsd}.\n\n` +
-                  `Affiliate: ${name}${profile?.email ? ` (${profile.email})` : ""}\n` +
-                  `Basis: ${
-                    all.payable.isLifetime
-                      ? "lifetime earned - outstanding figure unavailable, please verify"
-                      : "outstanding, already net of anything paid"
-                  }\n\nThank you.`;
-                openWhatsapp(`${subject}\n\n${body}`);
-                setPayOpen(false);
-                toast.success("Opening WhatsApp to send the payout request.");
-              }}
-            >
-              <Ic name="i-download" />{" "}
-              {requesting ? "Sending…" : "Request payout"}
-            </button>
-            {/* SAY WHAT ACTUALLY HAPPENS. It used to say "this opens an
-                email" while opening WhatsApp, and wrote nothing down
-                either way. */}
-            <p className="mnote">
-              {payouts.missing
-                ? "This opens WhatsApp with your request. Payout records are being switched on; until then we settle by hand."
-                : "We record the request with the exact amount, and you can follow it here. Your payout details from Settings travel with it."}
-            </p>
-          </div>
-        </div>
-      )}
-
+      {/* THE OLD PAYOUT DIALOG IS GONE. It asked for one currency,
+          sent one request, kept its six bank fields in plain useState so
+          a reload threw the IBAN away, closed on a click outside while
+          the RPC was still in flight, and toasted success over a
+          window.open that a popup blocker had silently refused. The card
+          on the Wallet screen carries all of that properly: both
+          currencies, a conversion preview, the 200 floor stated before
+          the button is pressed, every earlier payout with its reference,
+          and a way to withdraw one nobody has answered yet. */}
       {/* Sign-out confirmation */}
       {signOutOpen && (
         <div className="modal">
