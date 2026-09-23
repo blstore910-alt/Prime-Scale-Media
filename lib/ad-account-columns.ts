@@ -31,7 +31,12 @@ export const AD_ACCOUNT_CUSTOMER_COLUMNS = [
   "bm_id",
   "currency",
   "fee",
-  "fee_status",
+  // `fee_status` IS NOT ON THE LIVE DATABASE -- the column there is
+  // `payment_status`, which is already below. Naming it made PostgREST
+  // refuse the WHOLE list, so every advertiser silently got the short
+  // fallback: no website, no timezone, no BM id, and no start_date --
+  // and the sheet then printed today's date as the account's creation
+  // date, because dayjs(undefined) is now.
   "advertiser_id",
   "platform",
   "airtable",
@@ -72,5 +77,8 @@ export const AD_ACCOUNT_CORE_COLUMNS = [
   "status",
   "tenant_id",
   "created_at",
+  // The sheet prints a creation date. Without this the fallback had no
+  // date at all to print, and printed the wrong one instead of nothing.
+  "start_date",
   "min_topup",
 ].join(", ");

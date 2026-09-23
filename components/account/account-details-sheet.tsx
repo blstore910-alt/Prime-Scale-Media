@@ -244,7 +244,13 @@ export function AccountDetailsSheet({
                     <span className="font-medium text-muted-foreground block">
                       Created At:
                     </span>
-                    {dayjs(data.start_date).format(DATE_TIME_FORMAT)}
+                    {/* NEVER dayjs(undefined) -- that is today, printed
+                        as a fact. A date we do not have is a dash. */}
+                    {data.start_date || data.created_at
+                      ? dayjs(data.start_date || data.created_at).format(
+                          DATE_TIME_FORMAT,
+                        )
+                      : "—"}
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground block">
