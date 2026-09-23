@@ -21,7 +21,19 @@ import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { AlertCircle, CheckCircle2, Loader2, XIcon, SlidersHorizontal } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  XIcon,
+  SlidersHorizontal,
+  ArrowDownLeft,
+  CalendarDays,
+  Clock,
+  Globe,
+  Percent,
+  Wallet as WalletIcon,
+} from "lucide-react";
 
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
@@ -88,6 +100,47 @@ type AccountDetailsRow = Partial<AdAccount> & {
     } | null;
   } | null;
 };
+
+/**
+ * The network the account runs on, as a mark rather than a word.
+ *
+ * Monochrome, on `currentColor`, so it sits on the gradient without a
+ * second colour scheme to maintain. Anything we do not recognise falls
+ * back to a neutral screen -- never a wrong logo.
+ */
+function PlatformGlyph({ slug }: { slug?: string | null }) {
+  const key = String(slug ?? "").toLowerCase();
+  if (key.includes("meta") || key.includes("facebook") || key.includes("instagram")) {
+    return (
+      <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden fill="none"
+           stroke="currentColor" strokeWidth={1.9} strokeLinecap="round">
+        <path d="M3 14.2c0-3.4 1.7-6.6 3.9-6.6 1.6 0 2.6 1.2 3.7 3l1.5 2.5c1.3 2.1 2.1 3.2 3.6 3.2 1.6 0 2.6-1.6 2.6-3.9 0-2.8-1.3-5.2-3.2-5.2-1.4 0-2.6 1-4 3.1" />
+        <path d="M6.9 7.6C4.7 7.6 3 10.8 3 14.2c0 2.2 1 3.9 2.7 3.9 1.4 0 2.4-.8 3.8-3" />
+      </svg>
+    );
+  }
+  if (key.includes("google") || key.includes("gdn") || key.includes("youtube")) {
+    return (
+      <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden fill="currentColor">
+        <path d="M12 11v2.6h4.4c-.2 1.1-1.4 3.3-4.4 3.3a4.9 4.9 0 1 1 0-9.8c1.4 0 2.4.6 2.9 1.1l2-1.9A7.6 7.6 0 1 0 12 19.6c4.4 0 7.3-3.1 7.3-7.4 0-.5 0-.9-.1-1.2H12Z" />
+      </svg>
+    );
+  }
+  if (key.includes("tiktok")) {
+    return (
+      <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden fill="currentColor">
+        <path d="M16.3 3c.3 2 1.5 3.4 3.5 3.6v2.3c-1.2.1-2.4-.2-3.5-.9v5.6c0 3.4-2.6 5.4-5.3 5.4a5.2 5.2 0 0 1-.6-10.4v2.4a2.8 2.8 0 1 0 2.4 2.8V3h3.5Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden fill="none"
+         stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+      <rect x="3" y="4.5" width="18" height="12" rx="2" />
+      <path d="M9 20h6M12 16.5V20" />
+    </svg>
+  );
+}
 
 export function AccountDetailsSheet({
   accountId,
@@ -229,67 +282,104 @@ export function AccountDetailsSheet({
               <div className="text-end">
                 {isPending && <Loader2 className="animate-spin inline" />}
               </div>
-              {/* --- Account Overview --- */}
-              <Card className="p-4 sm:gap-6 gap-3">
-                <h3 className=" font-semibold">Account Overview</h3>
-                <div className="grid sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-muted-foreground block">
-                      Name:
-                    </span>
-                    {data.name}
-                  </div>
 
-                  <div>
-                    <span className="font-medium text-muted-foreground block">
-                      Created At:
-                    </span>
-                    {/* NEVER dayjs(undefined) -- that is today, printed
-                        as a fact. A date we do not have is a dash. */}
-                    {data.start_date || data.created_at
-                      ? dayjs(data.start_date || data.created_at).format(
-                          DATE_TIME_FORMAT,
-                        )
-                      : "—"}
+              {/* ── THE ACCOUNT ITSELF, NOT A LIST OF LABELS ──────────
+                  This sheet opened with "Name:" over a string. The
+                  account is the thing the customer came to look at, so
+                  it gets a face: the network it runs on, its own name,
+                  whether it is alive, and the two numbers that decide
+                  what they can do next. */}
+              <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-1 ring-black/5"
+                   style={{ background: "linear-gradient(135deg,#4F7BFF 0%,#7C5CFF 55%,#8B5CF6 100%)" }}>
+                <span aria-hidden className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
+                <span aria-hidden className="pointer-events-none absolute -left-16 -bottom-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+                <div className="relative flex items-start gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20 backdrop-blur-sm ring-1 ring-white/30">
+                    <PlatformGlyph slug={data.platform} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold tracking-tight text-[1.05rem] leading-tight">
+                      {data.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-white/80">
+                      {PLATFORMS.find((p) => p.value === data.platform)?.label ??
+                        data.platform ??
+                        "Ad account"}
+                    </p>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground block">
-                      Fee:
-                    </span>
-                    {data.fee == null || Number(data.fee) === 0 ? "Set by your plan" : `${Number(data.fee)}%`}
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground block">
-                      Currency:
-                    </span>
-                    {data.currency
-                      ? `${CURRENCY_SYMBOLS[data.currency] ?? data.currency} ${data.currency}`
-                      : "—"}
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground block">
-                      Website URL:
-                    </span>
-                    {data.website_url ? (
-                      <a
-                        href={data.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline truncate block"
-                      >
-                        {data.website_url}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground block">
-                      Timezone:
-                    </span>
-                    {data.timezone || "—"}
-                  </div>
+                  <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-wide ring-1 ring-white/30">
+                    {String(data.status ?? "—")}
+                  </span>
                 </div>
+                <div className="relative mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium ring-1 ring-white/20">
+                    <WalletIcon className="h-3.5 w-3.5" />
+                    {data.currency
+                      ? `${CURRENCY_SYMBOLS[data.currency] ?? ""} ${data.currency}`
+                      : "—"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium ring-1 ring-white/20">
+                    <Percent className="h-3.5 w-3.5" />
+                    {data.fee == null || Number(data.fee) === 0
+                      ? "Fee set by your plan"
+                      : `${Number(data.fee)}% top-up fee`}
+                  </span>
+                </div>
+              </div>
+              {/* ── WHAT IS LEFT TO SAY ──────────────────────────
+                  The name, the network, the status, the currency and
+                  the fee are all in the panel above now. Repeating them
+                  as "Name:" over a string was most of why this screen
+                  read like a database dump. What remains is three facts
+                  that earn a row each. */}
+              <Card className="p-4 sm:gap-6 gap-3">
+                <h3 className="font-semibold">Account details</h3>
+                <dl className="divide-y text-sm">
+                  <div className="flex items-center gap-3 py-2.5 first:pt-0">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <CalendarDays className="h-4 w-4" />
+                    </span>
+                    <dt className="text-muted-foreground">Opened</dt>
+                    <dd className="ml-auto text-right font-medium tabular-nums">
+                      {/* NEVER dayjs(undefined) -- that is today, printed
+                          as a fact. A date we do not have is a dash. */}
+                      {data.start_date || data.created_at
+                        ? dayjs(data.start_date || data.created_at).format(
+                            DATE_TIME_FORMAT,
+                          )
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <Globe className="h-4 w-4" />
+                    </span>
+                    <dt className="text-muted-foreground">Website</dt>
+                    <dd className="ml-auto min-w-0 text-right font-medium">
+                      {data.website_url ? (
+                        <a
+                          href={data.website_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate text-primary hover:underline"
+                        >
+                          {data.website_url}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5 last:pb-0">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <Clock className="h-4 w-4" />
+                    </span>
+                    <dt className="text-muted-foreground">Timezone</dt>
+                    <dd className="ml-auto text-right font-medium">
+                      {data.timezone || "—"}
+                    </dd>
+                  </div>
+                </dl>
 
                 {/* ADMIN FREE TEXT, AND IT IS NOT THE CUSTOMER'S.
                     This sheet is mounted inside the advertiser app and
@@ -548,7 +638,13 @@ export function AccountDetailsSheet({
                         : "Move funds back to your wallet"
                     }
                     onClick={() => setWithdrawOpen(true)}
+                    /* The one control on this sheet that moves money, and
+                       it was a small outline button floating at the right
+                       edge under a list of labels. Full width, its own
+                       icon, and it lifts on hover. */
+                    className="w-full justify-center gap-2 rounded-xl border-primary/25 bg-primary/[0.04] py-5 font-semibold text-primary transition-all hover:-translate-y-px hover:bg-primary/10 hover:shadow-md disabled:translate-y-0 disabled:shadow-none"
                   >
+                    <ArrowDownLeft className="h-4 w-4" />
                     Withdraw to wallet
                   </Button>
                 )}
@@ -638,7 +734,118 @@ function TopupHistory({ account }: { account: AdAccount }) {
         <h3 className=" font-semibold">Top-up History</h3>
       </div>
 
-      <div className="rounded-md border">
+      {/* ── THE TOTALS, BEFORE THE ROWS ──────────────────────────
+          Four fundings in a table that scrolls sideways on a phone tell
+          you nothing at a glance. These three say it in one line each,
+          and they are computed from the same rows below -- never from a
+          second read that could disagree with them. */}
+      {!isLoading && !isError && !!data?.length && (
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          {(() => {
+            const done = data.filter((t) => t.status === "completed");
+            const paid = done.reduce(
+              (n, t) => n + (Number(t.amount_received) || 0),
+              0,
+            );
+            const landed = done.reduce((n, t) => {
+              const l = landedOnAccount(t);
+              return n + (l.amount ?? 0);
+            }, 0);
+            const cur = account.currency ?? "EUR";
+            const tile = (label: string, value: string) => (
+              <div
+                key={label}
+                className="rounded-xl border bg-gradient-to-b from-muted/40 to-transparent p-3"
+              >
+                <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {label}
+                </p>
+                <p className="mt-1 font-semibold tabular-nums leading-tight">
+                  {value}
+                </p>
+              </div>
+            );
+            return (
+              <>
+                {tile("Funded", formatCurrency(paid, cur))}
+                {tile("On the account", formatCurrency(landed, cur))}
+                {tile("Fees paid", formatCurrency(Math.round((paid - landed) * 100) / 100, cur))}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── ON A PHONE, CARDS ─────────────────────────────────────
+          The table below is five columns wide and the sheet is 375px,
+          so it scrolled sideways: the status of a funding sat off the
+          right edge of the screen. Same rows, stacked. */}
+      <div className="space-y-2 sm:hidden">
+        {isLoading ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            Loading…
+          </p>
+        ) : isError ? (
+          <p className="py-4 text-center text-sm text-destructive">
+            Couldn&apos;t load the top-up history — this is NOT an empty
+            history. Reload to retry.
+          </p>
+        ) : !data?.length ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            No top-ups yet.
+          </p>
+        ) : (
+          data.map((topup) => {
+            const landed = landedOnAccount(topup);
+            const ok = topup.status === "completed";
+            return (
+              <div
+                key={topup.id}
+                className="rounded-xl border bg-card p-3 transition-shadow hover:shadow-sm"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {dayjs(topup.created_at).format(DATE_FORMAT)}
+                  </span>
+                  <span
+                    className={
+                      "rounded-full px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide " +
+                      (ok
+                        ? "bg-emerald-500/10 text-emerald-700"
+                        : topup.status === "rejected"
+                          ? "bg-rose-500/10 text-rose-700"
+                          : "bg-amber-500/10 text-amber-700")
+                    }
+                  >
+                    {topup.status}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="font-semibold tabular-nums">
+                    {formatCurrency(
+                      Number(topup.amount_received),
+                      topup.currency ?? "EUR",
+                    )}
+                  </span>
+                  <span aria-hidden className="text-muted-foreground">
+                    &rarr;
+                  </span>
+                  <span className="font-semibold tabular-nums text-primary">
+                    {landed.amount === null
+                      ? "—"
+                      : formatCurrency(landed.amount, landed.currency)}
+                  </span>
+                  <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[0.68rem] font-medium text-muted-foreground">
+                    {topup.fee}% fee
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden rounded-md border sm:block">
         <Table>
           <TableHeader className="bg-background">
             <TableRow>
