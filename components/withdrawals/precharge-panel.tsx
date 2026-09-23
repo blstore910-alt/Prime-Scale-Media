@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import {
@@ -182,8 +182,17 @@ export default function PrechargePanel() {
     <div className="flex flex-col gap-4">
       {/* The title and the sentence under it moved to the tab bar, which
           already named this panel. */}
-      <div className="flex items-start justify-end gap-4">
-        <Button onClick={() => setCreateOpen(true)}>New precharge</Button>
+      {/* The action was pinned to the right of an empty row, so on a
+          phone it sat alone over a wall of text with nothing to anchor
+          it. Full width where the thumb is, right-aligned where there
+          is room. */}
+      <div className="flex">
+        <Button
+          className="w-full justify-center sm:ml-auto sm:w-auto"
+          onClick={() => setCreateOpen(true)}
+        >
+          <Plus className="h-4 w-4" /> New precharge
+        </Button>
       </div>
 
       {isError && (
@@ -485,6 +494,7 @@ function PrechargeCreateDialog({
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   // ── AN ADVANCE IN THE WRONG CURRENCY IS OUR MONEY ───────────────────
   //
@@ -593,6 +603,7 @@ function PrechargeCreateDialog({
       }>;
     },
   });
+  const chosenAdvertiser = (advertisers ?? []).find((a) => a.id === advertiserId);
   const hasPending = (pendingForAdvertiser ?? []).length > 0;
   // UNKNOWN IS NOT "NO". `?? []` turns a failed or still-running query
   // into an empty list, which reads as "they have nothing pending" — so
@@ -766,10 +777,58 @@ function PrechargeCreateDialog({
           >
             Cancel
           </Button>
-          <Button onClick={() => mutate()} disabled={!valid || isPending}>
+          <Button onClick={() => setConfirming(true)} disabled={!valid || isPending}>
             {isPending ? "Creating…" : "Credit wallet"}
           </Button>
         </DialogFooter>
+
+        {/* ── THE ONE MONEY ACTION HERE THAT ASKED NOTHING ──────────
+            Cancel, settle, verify, approve and reject all put the
+            customer and the amount in front of you before they move
+            anything. Creating an advance credited a wallet on one
+            click -- and on the walkthrough a click that landed one row
+            off in the picker put EUR 20 on the wrong customer, with
+            nothing in between to catch it. */}
+        <ConfirmModal
+          open={confirming}
+          onOpenChange={(next) => {
+            if (!next && isPending) return;
+            setConfirming(next);
+          }}
+          title="Advance this credit?"
+          lead="Their wallet goes up straight away, before the money has arrived. Settle it when the payment clears, or cancel it if it never does."
+          cta={`Yes, credit ${currency === "USD" ? "$" : "€"}${(Number(amount) || 0).toFixed(2)}`}
+          busy={isPending}
+          busyLabel="Crediting…"
+          onConfirm={() => {
+            setConfirming(false);
+            mutate();
+          }}
+        >
+          <ConfirmFact
+            label="Customer"
+            value={
+              chosenAdvertiser
+                ? [
+                    chosenAdvertiser.tenant_client_code,
+                    chosenAdvertiser.profile?.full_name ??
+                      chosenAdvertiser.profile?.email,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "—"
+            }
+            strong
+          />
+          <ConfirmFact
+            label="Advance"
+            value={`${currency === "USD" ? "$" : "€"}${(Number(amount) || 0).toFixed(2)}`}
+            strong
+          />
+          {reason.trim() ? (
+            <ConfirmFact label="Note" value={reason.trim()} />
+          ) : null}
+        </ConfirmModal>
       </DialogContent>
     </Dialog>
   );
