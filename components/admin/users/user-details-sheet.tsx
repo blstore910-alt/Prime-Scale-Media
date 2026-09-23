@@ -382,12 +382,20 @@ export default function UserDetailsSheet({
           </div>
         )}
 
-        {/* No data */}
+        {/* ── NOTHING CAME BACK: TWO DIFFERENT FACTS ────────────────
+            The query is enabled on !!profileId and uses .single(), which
+            THROWS for a row that is gone or invisible -- so that lands in
+            isError. What actually reaches this branch is a query that
+            never ran. And every call site passes a real id whenever the
+            drawer is open, so "No user selected" was being shown to an
+            admin who had just clicked that customer's name. */}
         {!isLoading && !isError && !data && (
           <div className="uds-body">
             <div className="uds-card">
               <p className="uds-muted" style={{ margin: 0, textAlign: "center" }}>
-                No user selected
+                {profileId
+                  ? "We couldn't read this customer. Close this and try again."
+                  : "No user selected"}
               </p>
             </div>
           </div>
@@ -425,14 +433,31 @@ export default function UserDetailsSheet({
                 </div>
                 <div className="uds-kvr">
                   <span className="k">Status</span>
-                  <select
-                    className="uds-select"
-                    value={data.status ?? ""}
-                    onChange={(e) => updateAccountStatus(e.target.value)}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                  {/* A controlled select whose value matches no option
+                      gets selectedIndex -1 and renders BLANK. `status`
+                      is not a two-value column: account_deletion_decide
+                      writes 'pending_erasure', and the deletion card at
+                      the top of this same sheet then says "Account
+                      closed on their request" while this row, eight
+                      lines below it, showed nothing at all -- and the
+                      only two things it offered would write the account
+                      back to active or inactive. */}
+                  {data.status === "active" ||
+                  data.status === "inactive" ||
+                  !data.status ? (
+                    <select
+                      className="uds-select"
+                      value={data.status ?? ""}
+                      onChange={(e) => updateAccountStatus(e.target.value)}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  ) : (
+                    <span className="v" style={{ textTransform: "capitalize" }}>
+                      {String(data.status).replace(/_/g, " ")}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

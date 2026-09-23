@@ -68,6 +68,31 @@ export function makeQueryClient() {
         gcTime: 5 * 60_000, // keep cached pages around for 5 min
         refetchOnWindowFocus: false,
         retry: 1,
+        // ── A QUERY THAT CANNOT RUN MUST FAIL, NOT WAIT SILENTLY ─────
+        //
+        // react-query's default networkMode is "online": when the
+        // browser reports no connection, a query is PAUSED instead of
+        // run. A paused query reports isPending true, isFetching false
+        // — and v5 computes isLoading as `isPending && isFetching`, so
+        // **isLoading is FALSE while nothing has been read**. isError is
+        // false too, and `data` is undefined.
+        //
+        // Every screen in this app then falls through to its empty
+        // state. Measured across one journey: "No advertisers yet." over
+        // 11 advertisers, "No ad accounts found" over 10 accounts,
+        // "You've not sent any invites yet." over 13 invitations, "this
+        // customer has no referrer AND there is nobody to set as one",
+        // and "No user selected" on a drawer the admin had just opened
+        // by clicking that user. No spinner, no error, no toast — the
+        // QueryCache's onError never fires for a paused query either.
+        // Every one of them is a confident claim over a read that never
+        // happened, which CLAUDE.md calls a fault, and it takes nothing
+        // more than a dropped connection and a click on "Next".
+        //
+        // "always" runs it regardless and lets it fail into isError,
+        // where every one of those screens already has a branch that
+        // says so.
+        networkMode: "always" as const,
       },
     },
   });

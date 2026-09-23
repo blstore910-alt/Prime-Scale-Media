@@ -164,7 +164,7 @@ export async function getInviteLinkToken(
   const admin = await createAdminClient();
   const { data: invite, error } = await admin
     .from("invitations")
-    .select("id, tenant_id, status, token")
+    .select("id, tenant_id, status, token, expires_at")
     .eq("id", inviteId)
     .maybeSingle();
 
@@ -179,6 +179,25 @@ export async function getInviteLinkToken(
   // used.
   if (String(invite.status ?? "") !== "pending") {
     return { ok: false, error: "That invitation is no longer open." };
+  }
+  // ── AND NOTHING WRITES 'expired' ─────────────────────────────────
+  //
+  // The status column only ever holds pending / accepted / cancelled;
+  // expiry is a DATE, compared at the moment the link is opened. So
+  // this handed over a token for an invitation the table beside it was
+  // already drawing as **Expired**, under a toast promising "it works
+  // until it expires or is cancelled" -- and /invite/accept then told
+  // the customer the invitation can't be used. The admin had no way to
+  // know they had sent a dead link.
+  {
+    const exp = (invite as { expires_at?: string | null }).expires_at;
+    if (exp && new Date(exp).getTime() < Date.now()) {
+      return {
+        ok: false,
+        error:
+          "That invitation has expired. Cancel it and send a fresh one — the old link will not work.",
+      };
+    }
   }
   const token = String((invite as { token?: string | null }).token ?? "");
   if (!token) {

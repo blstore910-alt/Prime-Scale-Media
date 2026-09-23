@@ -189,6 +189,21 @@ export default function PlansCard() {
     },
     onSuccess: (n) => {
       toast.success(n === 0 ? "No changes to save" : `Saved ${n} plan(s)`);
+      // ── AND LET GO OF THE ROW ────────────────────────────────────
+      //
+      // `dirty` was never cleared. The adopt-effect above deliberately
+      // refuses fresh server rows while anything is dirty — so the
+      // row kept the updated_at it had BEFORE the save, while the
+      // trigger on the table had just bumped the real one. The next
+      // Save sent the stale stamp as ifUpdatedAt and was refused with
+      // "This plan was changed elsewhere. Reload and try again." —
+      // changed by nobody but the same admin, one press earlier.
+      //
+      // Walked: Prime 200 -> 210, Save ("Saved 1 plan(s)"), the button
+      // stays lit, Save again -> refused, and every further edit to
+      // that row is refused until a full page reload. This is the
+      // screen that prices what every new customer is invited on.
+      setRows((prev) => prev.map((r) => ({ ...r, dirty: false })));
       invalidate();
     },
     onError: (e: Error) =>

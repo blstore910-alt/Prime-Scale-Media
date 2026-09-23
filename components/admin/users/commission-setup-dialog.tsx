@@ -200,8 +200,23 @@ export default function CommissionSetupDialog({
               <SelectContent>
                 {COMMISSION_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
+                    {/* THE SECOND LINE, WHICH WAS NEVER DRAWN.
+                        commission-setup-utils carries a `helper` for every
+                        option and its own docblock says this is where it
+                        belongs -- "what the admin reads at the moment they
+                        choose". Only `label` was rendered, and the flex-col
+                        that was meant to hold both had one child.
+                        It matters because three of the seven options accrue
+                        NOTHING: only the percentage branch writes
+                        referral_commissions. So an owner set "Monthly Fixed
+                        EUR 200", got "Commission setup updated.", and the
+                        arrangement recorded zero liability from then on
+                        with nothing on screen saying so. */}
                     <div className="flex flex-col">
                       <span className="font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {option.helper}
+                      </span>
                     </div>
                   </SelectItem>
                 ))}

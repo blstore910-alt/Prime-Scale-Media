@@ -206,6 +206,10 @@ export default function InvitesTable() {
   // only sending a fresh invite. And `isPending` is one table-wide flag, so
   // during the write every row's Cancel greys out and the operator cannot
   // see which one they hit.
+  // One row at a time: Copy link is a server round trip and had no
+  // pending state, so two quick taps fired two getInviteLinkToken calls
+  // and two toasts.
+  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<{
     id: string;
     email?: string | null;
@@ -373,9 +377,29 @@ export default function InvitesTable() {
                            can paste it into a chat, a different mailbox,
                            or read it out. Same URL the email carries. */
                         <div className="actrow">
+                          {/* ── NOT ON A LINK THIS TABLE CALLS EXPIRED ──
+                              `expiredNow` is computed six lines up for
+                              the badge, and the action cell tested the
+                              raw `status` column -- which nothing ever
+                              writes to 'expired'. So a row showing
+                              **Expired** still offered Copy link, and
+                              the toast said "it works until it expires
+                              or is cancelled" over a token that
+                              /invite/accept refuses. The admin pastes it
+                              to the customer and the customer is told
+                              the invitation can't be used. */}
                           <button
                             className="btn ghost sm"
+                            disabled={expiredNow || copyingId === invite.id}
+                            title={
+                              expiredNow
+                                ? "This invitation has expired — cancel it and send a fresh one."
+                                : undefined
+                            }
                             onClick={async () => {
+                              if (expiredNow) return;
+                              setCopyingId(invite.id);
+                              try {
                               // The token is NOT on the row any more: it
                               // is a credential, and the list is read by
                               // every employee admin. Ask for it here,
@@ -401,10 +425,22 @@ export default function InvitesTable() {
                                   ? "Invite link copied — it works until it expires or is cancelled."
                                   : "Couldn't copy. Select the address bar link manually instead.",
                               );
+                              } finally {
+                                setCopyingId(null);
+                              }
                             }}
                           >
-                            Copy link
+                            {copyingId === invite.id ? "Copying…" : "Copy link"}
                           </button>
+                          {/* A disabled button says nothing on a phone. */}
+                          {expiredNow ? (
+                            <span
+                              className="muted"
+                              style={{ fontSize: ".72rem", alignSelf: "center" }}
+                            >
+                              expired — cancel it and send a fresh one
+                            </span>
+                          ) : null}
                           <button
                             className="btn ghost sm"
                             disabled={isPending}

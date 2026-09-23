@@ -188,21 +188,43 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
 
-    // Block a second invite while one is still pending for this email.
-    const { data: pendingInvite } = await supabase
+    // ── BLOCK A SECOND LIVE INVITE, NOT A DEAD ONE ────────────────
+    //
+    // This filtered on status alone, and nothing in this app ever writes
+    // 'expired' -- expiry is a date, compared when the link is opened.
+    // So a seven-day-old invitation that nobody can use went on blocking
+    // every replacement, and the message named neither the blocker nor
+    // the way out. The admin's whole set of moves was a link that does
+    // not work and a Cancel whose dialog says there is no un-cancel.
+    //
+    // And the error was thrown away: a failed read left `pendingInvite`
+    // null, the check passed, and a SECOND live link was minted for the
+    // same address.
+    const { data: pendingInvite, error: pendingErr } = await supabase
       .from("invitations")
       .select("id")
       .eq("email", email)
       .eq("tenant_id", profile.tenant_id)
       .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
       .limit(1);
+
+    if (pendingErr)
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "We couldn't check whether this address already has an invitation. Nothing was sent — try again.",
+        },
+        { status: 400 },
+      );
 
     if (pendingInvite && pendingInvite.length > 0)
       return NextResponse.json(
         {
           success: false,
           message:
-            "There's already a pending invitation for this email in your organization.",
+            "There's already a live invitation for this email in your organization. Cancel it on the Invites screen first, or send them its link.",
         },
         { status: 400 },
       );

@@ -763,6 +763,17 @@ function AdvertiserRow({
     );
   };
 
+  // ── AN ERASURE REQUEST IS NOT A SWITCHED-OFF CUSTOMER ────────────
+  //
+  // account_deletion_decide writes status='pending_erasure' with
+  // is_active=false, and the status helper reads is_active alone -- so
+  // the row flipped to an ordinary "Activate" button whose confirmation
+  // talks about access and subscriptions and never mentions that this
+  // person asked us to delete their account. One press signs them back
+  // in and restarts the monthly charge.
+  const erasureRequested =
+    String(profile.status ?? "").toLowerCase() === "pending_erasure";
+
   const askToggle = () => {
     // Reactivating is NOT harmless any more. It used to write only the
     // profile, which is why it skipped the question — and that was the
@@ -1047,7 +1058,7 @@ function AdvertiserRow({
             className={
               "btn sm keeplab" + (isActive ? " danger soft" : " ghost")
             }
-            disabled={isPending}
+            disabled={isPending || (!isActive && erasureRequested)}
             onClick={stop(askToggle)}
             title={isActive ? "Deactivate" : "Activate"}
           >
@@ -1060,6 +1071,25 @@ function AdvertiserRow({
             )}
             <span className="alab">{isActive ? "Deactivate" : "Activate"}</span>
           </button>
+          {/* The reason, on screen. A disabled button dispatches no
+              events, so a title never reaches a phone at all -- and
+              this is the one that would sign a customer who asked to be
+              deleted back in and restart their monthly charge. */}
+          {!isActive && erasureRequested ? (
+            <span
+              className="muted"
+              style={{
+                display: "block",
+                fontSize: ".72rem",
+                lineHeight: 1.35,
+                marginTop: 4,
+                maxWidth: "26ch",
+              }}
+            >
+              They asked us to delete their account. Switching them back on
+              is not a button — handle it in their Details.
+            </span>
+          ) : null}
 
           {/* Inside the cell: a <tr> may not have a non-<tr> sibling, and
               the dialog portals to the body regardless. */}
@@ -1113,6 +1143,12 @@ function AdvertiserRow({
         lead="They get access back, and the subscriptions that were stopped when you switched them off start running again. The next invoice is raised from today, not back-dated for the time they were off — they are not charged for the months they could not use the account. A subscription you cancelled or paused deliberately stays as it is."
         cta="Yes, switch them on"
         onConfirm={() => {
+          // closeGuard, like the Deactivate path two blocks up. Without
+          // it the details drawer slid open unasked the moment this
+          // dialog closed, showing the status from before the write --
+          // because setAskActivate(false) here means Radix never fires
+          // the onOpenChange handler that would have guarded it.
+          closeGuard();
           setAskActivate(false);
           toggleStatus();
         }}

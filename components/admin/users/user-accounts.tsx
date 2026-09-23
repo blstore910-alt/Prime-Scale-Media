@@ -121,8 +121,19 @@ export default function UserAccounts({
             </Table>
           ) : (
             <div className="text-center py-4">
+              {/* ── "NONE" ONLY WHEN WE ACTUALLY READ NONE ────────────
+                  This panel sits outside both guards above, so it
+                  printed "No ad accounts found" UNDERNEATH the spinner
+                  while the read was in flight, and underneath the red
+                  error line when the read had failed: two statements
+                  about the same customer, on the same screen,
+                  disagreeing. `accounts` is undefined in both of those
+                  and in the paused case; only an array that came back
+                  means none. */}
               <p className="text-center text-muted-foreground">
-                No ad accounts found
+                {accounts === undefined
+                  ? "We couldn't read this customer's ad accounts. This is NOT the same as having none."
+                  : "No ad accounts found"}
               </p>
             </div>
           )}

@@ -113,7 +113,21 @@ export default function InviteForm() {
       profile.user_id === tenant.owner_id,
   );
 
-  const { data: plans } = useQuery<PlanOption[]>({
+  // ── A PLAN LIST THAT DID NOT LOAD IS NOT "NO PLANS" ──────────────
+  //
+  // isError was discarded here, so listActivePlans failing left `plans`
+  // undefined, `tiers` empty, and the Plan dropdown opening COMPLETELY
+  // BLANK -- not even the "none defined" line its sibling below gets.
+  // Auto-prime then bails on `tiers.length === 0`, monthly fee, included
+  // accounts and top-up fee stay empty, and nothing validates them.
+  //
+  // What that invite produces is the part that matters:
+  // create_subscription_from_invite reads `if v_fee <= 0 then return`,
+  // so NO SUBSCRIPTION IS CREATED AT ALL. The customer signs up, is
+  // never invoiced, and is still charged EUR 50 for each ad account the
+  // plan was supposed to include. The invite email prints only the
+  // non-null plan lines, so nothing on the way out says so either.
+  const { data: plans, isError: plansUnreadable } = useQuery<PlanOption[]>({
     queryKey: ["plans", "active"],
     enabled: state.inviteUserOpen,
     queryFn: async () => {
@@ -127,7 +141,13 @@ export default function InviteForm() {
   const communities = (plans ?? []).filter((p) => p.kind === "community");
 
   // Candidate referrers = advertisers in this tenant (super-admin only).
-  const { data: advertisers } = useQuery<AdvertiserOption[]>({
+  // isError, for the same reason as the plans read above: "we could not
+  // read who could refer this customer" is not "nobody can". Sending the
+  // invite without a referrer means referral_link_from_invite never runs
+  // and the affiliate who brought this customer in earns nothing, with
+  // nothing on any screen recording that it happened.
+  const { data: advertisers, isError: advertisersUnreadable } =
+    useQuery<AdvertiserOption[]>({
     queryKey: ["advertisers", tenant?.id, "invite-referrer"],
     enabled: state.inviteUserOpen && isSuperAdmin && !!tenant?.id,
     queryFn: async () => {
@@ -317,7 +337,15 @@ export default function InviteForm() {
       setCreatedLink(null);
       const { data: user } = await supabase.auth.getUser();
 
-      if (values.email === user.user?.user_metadata.email) {
+      if (// Both sides normalised, and `user.email` rather than the
+      // user_metadata copy (which only the self-signup path writes).
+      // The server lowercases and trims; this did neither, so one
+      // capital letter walked straight past it -- and an invitation to
+      // your own address can never be accepted ("You are already in
+      // this organisation as admin") while blocking that address from a
+      // real one until somebody cancels the row.
+      values.email.trim().toLowerCase() ===
+        (user.user?.email ?? "").trim().toLowerCase()) {
         form.setError("email", { message: `You can't send an invite to yourself` });
         return;
       }
@@ -577,13 +605,21 @@ export default function InviteForm() {
                           <SelectValue placeholder="Pick a plan" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tiers.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} · {p.currency}
-                              {p.monthly_fee}/mo · {p.included_ad_accounts} incl ·{" "}
-                              {p.topup_fee_pct}%
-                            </SelectItem>
-                          ))}
+                          {tiers.length === 0 ? (
+                            <div className="px-2 py-3 text-xs text-muted-foreground">
+                              {plansUnreadable
+                                ? "We couldn't read the plans. Do NOT send this invite yet — without a plan the customer is never invoiced."
+                                : "No plans defined yet."}
+                            </div>
+                          ) : (
+                            tiers.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name} · {p.currency}
+                                {p.monthly_fee}/mo · {p.included_ad_accounts} incl ·{" "}
+                                {p.topup_fee_pct}%
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     )}
@@ -873,7 +909,9 @@ export default function InviteForm() {
                               <div className="px-2 py-3 text-center text-xs text-muted-foreground">
                                 {referrerQuery.trim()
                                   ? `Nobody matches “${referrerQuery.trim()}”.`
-                                  : "No advertisers to pick from yet."}
+                                  : advertisersUnreadable
+                                    ? "We couldn't read the advertisers. This is NOT “there are none” — if this invite has a referrer, wait and try again."
+                                    : "No advertisers to pick from yet."}
                               </div>
                             )}
                           </SelectContent>
