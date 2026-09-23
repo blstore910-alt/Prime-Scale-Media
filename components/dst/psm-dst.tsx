@@ -365,8 +365,14 @@ function AddDstDialog({
   // Dutch ad account can spend in Turkey and France in the same week,
   // and those are separate lines at separate rates.
   const [mode, setMode] = useState<"one" | "all">("one");
-  const [bulkCountry, setBulkCountry] = useState("");
-  const [bulkSpend, setBulkSpend] = useState<Record<string, string>>({});
+  // WHO, AND THEN WHAT PER PERSON. Pick the customers that had spend this
+  // week, and give each of them their own country lines -- one customer
+  // can have spent in three countries at three rates.
+  const [bulkSearch, setBulkSearch] = useState("");
+  const [bulkPicked, setBulkPicked] = useState<string[]>([]);
+  const [bulkLines, setBulkLines] = useState<
+    Record<string, { country: string; base: string }[]>
+  >({});
   const [advertiserId, setAdvertiserId] = useState("");
   const [periodStart, setPeriodStart] = useState(week.start);
   const [periodEnd, setPeriodEnd] = useState(week.end);
@@ -423,39 +429,69 @@ function AddDstDialog({
   });
   const total = Math.round(preview.reduce((t, p) => t + p.dst, 0) * 100) / 100;
 
-  // The bulk preview: one country, its rate, a figure per customer.
-  const bulkRate = rateFor(bulkCountry);
-  const bulkRows = (advertisers.data ?? [])
-    .map((a) => ({ id: a.id, base: n(bulkSpend[a.id]) }))
-    .filter((r) => r.base > 0);
+  // Every (customer, country, spend) that has something in it.
+  const bulkRows = bulkPicked.flatMap((id) =>
+    (bulkLines[id] ?? [])
+      .filter((l) => l.country.trim() && n(l.base) > 0)
+      .map((l) => ({
+        advertiserId: id,
+        countryCode: l.country.trim().toUpperCase(),
+        baseAmount: n(l.base),
+        dst: Math.round(n(l.base) * n(rateFor(l.country)?.rate_pct)) / 100,
+      })),
+  );
   const bulkTotal =
-    Math.round(
-      bulkRows.reduce((t, r) => t + (r.base * n(bulkRate?.rate_pct)) / 100, 0) * 100,
-    ) / 100;
+    Math.round(bulkRows.reduce((t, r) => t + r.dst, 0) * 100) / 100;
+  const bulkCustomers = new Set(bulkRows.map((r) => r.advertiserId)).size;
+  const pickable = (advertisers.data ?? []).filter((a) => {
+    const q = bulkSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(a.tenant_client_code ?? "").toLowerCase().includes(q) ||
+      String(a.profile?.full_name ?? "").toLowerCase().includes(q)
+    );
+  });
+  const addLine = (id: string) =>
+    setBulkLines((p) => ({
+      ...p,
+      [id]: [...(p[id] ?? []), { country: "", base: "" }],
+    }));
+  const togglePicked = (id: string) => {
+    setBulkPicked((p) =>
+      p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
+    );
+    setBulkLines((l) =>
+      l[id]?.length ? l : { ...l, [id]: [{ country: "", base: "" }] },
+    );
+  };
 
   const { mutate: mutateBulk, isPending: bulkPending } = useMutation({
     mutationFn: async () => {
       const res = await recordDstChargesBulk({
         periodStart,
         periodEnd,
-        countryCode: bulkCountry,
         currency,
         note: note.trim() || null,
-        rows: bulkRows.map((r) => ({ advertiserId: r.id, baseAmount: r.base })),
+        rows: bulkRows.map((r) => ({
+          advertiserId: r.advertiserId,
+          countryCode: r.countryCode,
+          baseAmount: r.baseAmount,
+        })),
       });
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
     onSuccess: (d) => {
       toast.success(
-        `${d.recorded} ${d.recorded === 1 ? "customer" : "customers"} recorded — ${formatCurrency(d.total, currency)}`,
+        `${d.recorded} ${d.recorded === 1 ? "line" : "lines"} recorded — ${formatCurrency(d.total, currency)}`,
         {
           description: d.failed.length
             ? `${d.failed.length} could not be written — check the list.`
-            : "They sit as reserved until you raise the invoice. Repeat for the next country.",
+            : "They sit as reserved until you raise the invoice.",
         },
       );
-      setBulkSpend({});
+      setBulkPicked([]);
+      setBulkLines({});
       onDone();
     },
     onError: (e: Error) =>
@@ -499,7 +535,7 @@ function AddDstDialog({
     !!advertiserId &&
     periodOk &&
     lines.some((l) => l.country.trim() && n(l.base) > 0);
-  const bulkValid = periodOk && !!bulkCountry && bulkRows.length > 0;
+  const bulkValid = periodOk && bulkRows.length > 0;
   const busy = isPending || bulkPending;
 
   return (
@@ -608,36 +644,43 @@ function AddDstDialog({
           {mode === "all" ? (
             <div className="space-y-3">
               <div>
-                <Label htmlFor="dst-bulk-country">Country the money was spent in</Label>
-                <select
-                  id="dst-bulk-country"
-                  className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
-                  value={bulkCountry}
-                  onChange={(e) => setBulkCountry(e.target.value)}
-                >
-                  <option value="">Pick a country…</option>
-                  {(rates.data ?? []).map((r) => (
-                    <option key={r.country_code} value={r.country_code}>
-                      {r.country_name || r.country_code} · {n(r.rate_pct)}%
-                    </option>
-                  ))}
-                </select>
-                {/* SPEND, NOT THE ACCOUNT. A customer with a Dutch ad
-                    account can spend in Turkey and France in the same
-                    week, at different rates -- so this is one pass per
-                    country, not one per customer. */}
+                <Label htmlFor="dst-search">Customers</Label>
+                <Input
+                  id="dst-search"
+                  className="mt-1"
+                  placeholder="Search a code or a name…"
+                  value={bulkSearch}
+                  onChange={(e) => setBulkSearch(e.target.value)}
+                />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  DST follows where the money was spent, not where the ad
-                  account sits. A customer can appear under several
-                  countries in one week — do a pass per country.
+                  Tick everyone who had spend this week, then give each of
+                  them their own countries. DST follows where the money was
+                  SPENT, not where the ad account sits — one customer can
+                  carry NL, TR and FR in the same week at three rates.
                 </p>
               </div>
 
               <div className="rounded-lg border">
                 <div className="flex items-center justify-between border-b px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>Customer</span>
-                  <span>Spend in {bulkCountry || "…"}</span>
+                  <span>
+                    {bulkPicked.length
+                      ? `${bulkPicked.length} picked`
+                      : "Pick a customer"}
+                  </span>
+                  {bulkPicked.length ? (
+                    <button
+                      type="button"
+                      className="text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground underline-offset-2 hover:underline"
+                      onClick={() => {
+                        setBulkPicked([]);
+                        setBulkLines({});
+                      }}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
                 </div>
+
                 {advertisers.isLoading ? (
                   <p className="px-3 py-4 text-sm text-muted-foreground">
                     Loading customers…
@@ -647,45 +690,138 @@ function AddDstDialog({
                     The customer list couldn&apos;t be read — this is not an
                     empty list.
                   </p>
+                ) : !pickable.length ? (
+                  <p className="px-3 py-4 text-sm text-muted-foreground">
+                    Nobody matches that search.
+                  </p>
                 ) : (
-                  <div className="max-h-64 overflow-auto">
-                    {(advertisers.data ?? []).map((a) => {
-                      const base = n(bulkSpend[a.id]);
-                      const dst =
-                        Math.round(base * n(bulkRate?.rate_pct)) / 100;
+                  <div className="max-h-[22rem] overflow-auto">
+                    {pickable.map((a) => {
+                      const on = bulkPicked.includes(a.id);
+                      const mine = bulkLines[a.id] ?? [];
+                      const sub =
+                        Math.round(
+                          mine.reduce(
+                            (t, l) =>
+                              t +
+                              (n(l.base) * n(rateFor(l.country)?.rate_pct)) /
+                                100,
+                            0,
+                          ) * 100,
+                        ) / 100;
                       return (
-                        <div
-                          key={a.id}
-                          className="flex items-center gap-2 border-b px-3 py-2 last:border-b-0"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                              {a.tenant_client_code}
-                            </p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {a.profile?.full_name ?? ""}
-                            </p>
-                          </div>
-                          {base > 0 && bulkRate ? (
-                            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                              = {formatCurrency(dst, currency)}
+                        <div key={a.id} className="border-b last:border-b-0">
+                          <label className="flex cursor-pointer items-center gap-2 px-3 py-2">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 shrink-0 accent-primary"
+                              checked={on}
+                              onChange={() => togglePicked(a.id)}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">
+                                {a.tenant_client_code}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {a.profile?.full_name ?? ""}
+                              </span>
                             </span>
+                            {on && sub > 0 ? (
+                              <span className="shrink-0 text-sm font-semibold tabular-nums">
+                                {formatCurrency(sub, currency)}
+                              </span>
+                            ) : null}
+                          </label>
+
+                          {on ? (
+                            <div className="space-y-2 bg-muted/40 px-3 pb-3 pt-1">
+                              {mine.map((l, i) => {
+                                const rate = rateFor(l.country);
+                                const base = n(l.base);
+                                const dst =
+                                  Math.round(base * n(rate?.rate_pct)) / 100;
+                                return (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <select
+                                      aria-label="Country the money was spent in"
+                                      className="h-8 w-28 shrink-0 rounded-md border bg-background px-2 text-sm"
+                                      value={l.country}
+                                      onChange={(e) =>
+                                        setBulkLines((p) => ({
+                                          ...p,
+                                          [a.id]: (p[a.id] ?? []).map((x, j) =>
+                                            j === i
+                                              ? { ...x, country: e.target.value }
+                                              : x,
+                                          ),
+                                        }))
+                                      }
+                                    >
+                                      <option value="">Country…</option>
+                                      {(rates.data ?? []).map((r) => (
+                                        <option
+                                          key={r.country_code}
+                                          value={r.country_code}
+                                        >
+                                          {r.country_code} · {n(r.rate_pct)}%
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      aria-label="Spend in that country"
+                                      placeholder="spend"
+                                      className="h-8 min-w-0 flex-1 text-right tabular-nums"
+                                      value={l.base}
+                                      onFocus={(e) => e.currentTarget.select()}
+                                      onChange={(e) =>
+                                        setBulkLines((p) => ({
+                                          ...p,
+                                          [a.id]: (p[a.id] ?? []).map((x, j) =>
+                                            j === i
+                                              ? { ...x, base: e.target.value }
+                                              : x,
+                                          ),
+                                        }))
+                                      }
+                                    />
+                                    <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                                      {base > 0 && rate
+                                        ? formatCurrency(dst, currency)
+                                        : ""}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                                      aria-label="Remove this country"
+                                      onClick={() =>
+                                        setBulkLines((p) => ({
+                                          ...p,
+                                          [a.id]:
+                                            (p[a.id] ?? []).length <= 1
+                                              ? [{ country: "", base: "" }]
+                                              : (p[a.id] ?? []).filter(
+                                                  (_, j) => j !== i,
+                                                ),
+                                        }))
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                              <button
+                                type="button"
+                                className="btn ghost sm"
+                                onClick={() => addLine(a.id)}
+                              >
+                                <Plus className="h-4 w-4" /> Another country
+                              </button>
+                            </div>
                           ) : null}
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            className="h-8 w-28 shrink-0 text-right tabular-nums"
-                            value={bulkSpend[a.id] ?? ""}
-                            onFocus={(e) => e.currentTarget.select()}
-                            onChange={(e) =>
-                              setBulkSpend((p) => ({
-                                ...p,
-                                [a.id]: e.target.value,
-                              }))
-                            }
-                          />
                         </div>
                       );
                     })}
@@ -784,7 +920,7 @@ function AddDstDialog({
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-muted-foreground">
                 {mode === "all"
-                  ? `To charge back, across ${bulkRows.length} ${bulkRows.length === 1 ? "customer" : "customers"}`
+                  ? `To charge back — ${bulkRows.length} ${bulkRows.length === 1 ? "line" : "lines"} across ${bulkCustomers} ${bulkCustomers === 1 ? "customer" : "customers"}`
                   : "To charge back, together"}
               </span>
               <span className="text-lg font-semibold tabular-nums">

@@ -136,27 +136,28 @@ export async function invoiceDstCharges(
 }
 
 /**
- * One period, one country, every customer at once.
+ * One period, many customers, and per customer as many countries as they
+ * spent in.
  *
  * The supplier bills us per week for the whole book, not per customer,
- * so typing it in one customer at a time is the wrong shape of work:
- * twelve dialogs for one debit. This takes the week, the country and a
- * spend per customer, and records a line for each one that has any.
+ * so typing it in one customer at a time is the wrong shape of work.
+ * And DST follows where the money was SPENT: a customer with a Dutch ad
+ * account can spend in Turkey and France in the same week, at different
+ * rates. So the unit here is one (customer, country, spend) line, and a
+ * week is however many of those there were.
  *
- * Customers with nothing are skipped rather than written as zero -- a
- * zero line is a claim that we checked and they owed nothing, and that
- * is not what an empty box means.
+ * Lines without a spend are skipped rather than written as zero -- a
+ * zero line claims we checked and they owed nothing, which is not what
+ * an empty box means.
  */
 export async function recordDstChargesBulk(input: {
   periodStart: string;
   periodEnd: string;
-  countryCode: string;
   currency: string;
-  ratePct?: number | null;
   note?: string | null;
-  rows: { advertiserId: string; baseAmount: number }[];
+  rows: { advertiserId: string; countryCode: string; baseAmount: number }[];
 }): Promise<
-  ActionResult<{ recorded: number; total: number; skipped: number; failed: string[] }>
+  ActionResult<{ recorded: number; total: number; failed: string[] }>
 > {
   const auth = await resolveAdminContext();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -168,15 +169,16 @@ export async function recordDstChargesBulk(input: {
   if (input.periodEnd < input.periodStart) {
     return { ok: false, error: "The period runs backwards." };
   }
-  if (!String(input.countryCode ?? "").trim()) {
-    return { ok: false, error: "Pick a country." };
-  }
 
   const rows = (input.rows ?? []).filter(
-    (r) => r && r.advertiserId && Number(r.baseAmount) > 0,
+    (r) =>
+      r &&
+      r.advertiserId &&
+      String(r.countryCode ?? "").trim() &&
+      Number(r.baseAmount) > 0,
   );
   if (!rows.length) {
-    return { ok: false, error: "Fill in a spend for at least one customer." };
+    return { ok: false, error: "Fill in a country and a spend for at least one customer." };
   }
 
   let recorded = 0;
@@ -188,21 +190,18 @@ export async function recordDstChargesBulk(input: {
       p_advertiser_id: row.advertiserId,
       p_period_start: input.periodStart,
       p_period_end: input.periodEnd,
-      p_country_code: String(input.countryCode).trim().toUpperCase(),
+      p_country_code: String(row.countryCode).trim().toUpperCase(),
       p_base_amount: Number(row.baseAmount),
-      p_rate_pct:
-        input.ratePct === null || input.ratePct === undefined
-          ? null
-          : Number(input.ratePct),
+      p_rate_pct: null,
       p_currency: String(input.currency ?? "EUR").toUpperCase(),
       p_account_id: null,
       p_note: input.note ?? null,
     });
-    // ONE CUSTOMER FAILING MUST NOT TAKE THE WEEK DOWN. The others are
-    // already written and are visible as reserved; naming the ones that
-    // did not land is more useful than refusing the whole batch.
+    // ONE LINE FAILING MUST NOT TAKE THE WEEK DOWN. The rest are already
+    // written and visible as reserved; naming what did not land is more
+    // useful than refusing everything.
     if (error) {
-      failed.push(row.advertiserId);
+      failed.push(`${row.advertiserId}:${row.countryCode}`);
       continue;
     }
     const r = data as { dst_amount?: number | string } | null;
@@ -212,11 +211,6 @@ export async function recordDstChargesBulk(input: {
 
   return {
     ok: true,
-    data: {
-      recorded,
-      total: Math.round(total * 100) / 100,
-      skipped: (input.rows ?? []).length - rows.length,
-      failed,
-    },
+    data: { recorded, total: Math.round(total * 100) / 100, failed },
   };
 }

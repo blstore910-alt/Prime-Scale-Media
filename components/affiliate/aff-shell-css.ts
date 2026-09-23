@@ -1,4 +1,5 @@
 import { refineCss } from "../advertiser/refine-css";
+import { EARNINGS_CABINET_CSS } from "../advertiser/earnings-cabinet-css";
 // AUTO-GENERATED verbatim from affiliate-jackpot-light.html mockup.
 // Scoped under .affapp (loaded only in the affiliate layout). Font
 // family names swapped for the app's next/font CSS variables.
@@ -7,6 +8,14 @@ export const AFF_CSS = `
     --line:#e6e9f2;--line-2:#d8ddec;--primary:#3d7bf4;--primary-600:#2f66d8;--primary-tint:#eaf1ff;
     --gold:#efb02c;--gold-deep:#a9740b;--gold-soft:#fdeecb;--win:#10b981;--win-soft:#daf5ec;--teal:#18b8ce;
     --bronze:#c7864b;--silver:#9aa6b8;
+    /* The shared earnings cabinet leans on these two typeface
+       variables and on the advertiser shell's warning/danger
+       ramp; the mockup this file was ported from named the
+       fonts directly and never declared them. */
+    --hd:var(--font-sora),system-ui,sans-serif;--bd:var(--font-outfit),system-ui,sans-serif;
+    --blue:#5B8DFF;--purple:#8B5CF6;--navy1:#04050E;--navy2:#0c1230;--navy3:#0f172a;
+    --warn:#e08a00;--warn-soft:#fdeecb;--danger:#e5484d;--danger-soft:#fdecec;
+    --brand:linear-gradient(135deg,#5B8DFF,#8B5CF6);
     --shadow-sm:0 10px 26px -20px rgba(30,42,90,.5);--shadow:0 24px 54px -28px rgba(30,42,90,.4);--r:14px;--sidebar:256px;}
   .affapp *{box-sizing:border-box}
   .affapp{background:var(--ground);color:var(--ink);font-family:var(--font-outfit),system-ui,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh}
@@ -131,16 +140,23 @@ export const AFF_CSS = `
     82%{opacity:1}
     100%{transform:translateY(-420px) rotate(240deg) scale(1.1);opacity:0}
   }
-  /* A slow shine across the figure itself, so the number reads as the
-     prize it is rather than as a label. */
-  .jackpot::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.72) 50%,transparent 62%);
-    background-size:260% 100%;background-position:180% 0;
-    mix-blend-mode:overlay;animation:jshine 5.5s ease-in-out infinite}
-  @keyframes jshine{0%,62%{background-position:180% 0}100%{background-position:-60% 0}}
+  /* ── THE SHINE THAT WOULD NOT LEAVE ──────────────────────────────
+     There was a second shine here: a ::after across the whole box,
+     mix-blend-mode:overlay, sweeping a 72%-white band. It is drawn on
+     the BOX, not on the glyphs -- which is invisible on "€12,345.67",
+     where the box is wide and the band is a thin diagonal, and awful on
+     "€0", where the box is 45px, the band covers most of it, and the
+     keyframes park it there for 62% of every cycle. The owner saw it as
+     a grey block sitting on the number and stated it exactly: "deze
+     effect niet goed, die blijft hangen".
+
+     The figure keeps the gold sweep it already has -- that one is
+     background-clip:text, so it moves THROUGH the digits instead of
+     over them -- and the hero keeps its ribbon, its glow and its coins.
+     The advertiser's .xh-amt, which the owner asked us to copy, never
+     had this overlay either. */
   @media (prefers-reduced-motion:reduce){
     .hero .coins{display:none}
-    .jackpot::after{animation:none;opacity:0}
   }
   .hero-sub{color:rgba(255,255,255,.74);margin:14px auto 0;font-size:1.02rem;max-width:30ch}.hero-sub b{color:#fff}
   .rise-pill{display:inline-flex;align-items:center;gap:7px;margin-top:18px;padding:10px 17px;border-radius:99px;background:rgba(16,185,129,.16);color:#63f0c1;font-weight:700;font-size:.88rem;border:1px solid rgba(16,185,129,.42);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}.rise-pill svg{width:16px;height:16px}
@@ -606,4 +622,75 @@ export const AFF_CSS = `
    so it steps aside when it is holding one. */
   .avatar:has(> svg),.avatar:has(> *){background:none;color:transparent;box-shadow:none}
   .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
+
+/* ── Top bar, brought up to the advertiser and admin bars' treatment ─────
+   Those two had a full refinement round that this one never got, and it
+   showed on a phone: a loose hamburger and a loose brand tile beside a
+   grouped pill, an outlined box around every icon INSIDE an already
+   outlined group, four different control sizes in one bar, a chevron
+   making the avatar the one odd width, and a standalone sign-out
+   duplicating the avatar menu's. An affiliate's bar should be as
+   considered as ours. */
+.affapp .tb-left{display:none}
+.affapp .topbar{padding-left:14px;padding-right:14px}
+@media (max-width:900px){
+  .affapp .tb-left{display:inline-flex}
+  /* The desktop brand+title block steps aside for the left cluster. */
+  .affapp .topbar > .tb-brand{display:none}
+  /* More room LEFT and RIGHT than above and below. Even padding measures
+     the same on four sides but does not look it: a filled tile reads as
+     touching an edge it is merely close to. */
+  .affapp .toolbar{padding:4px 8px;border-radius:14px;gap:5px}
+
+  /* ONE square for every control: 40x40, icon dead centre.
+     place-items:center is load-bearing — .tool is an inline-flex with
+     gap:8px and no justify-content, so in a zero-padding box the line
+     starts at the left edge and every icon sits 8px left of centre.
+     40 and not 36, because a thumb target is 44 and these are the three
+     controls on every single screen. */
+  .affapp .toolbar .tool{height:40px;padding:0 9px;border-radius:10px}
+  .affapp .toolbar .ic-btn,
+  .affapp .tb-left .ham{display:grid;place-items:center;width:40px;height:40px;padding:0;gap:0}
+  /* Optical sizing, not box sizing. Lucide draws each glyph to a
+     different fraction of its 24-unit viewBox, so at a uniform 18px the
+     actual INK came out hamburger 10.5px, bell 16.5, rocket 16.1,
+     logout 15.0 — the hamburger 57% smaller than its neighbours, which
+     is why it looked like it was floating in air. */
+  .affapp .toolbar .ic-btn svg,
+  .affapp .tb-left .ham svg{display:block}
+  .affapp .topbar .ham svg{width:25px;height:25px}
+  .affapp .topbar button.ic-btn:not(.ham) svg{width:19px;height:19px}
+
+  /* The brand tile is a control-sized square too, so the left cluster
+     keeps the same rhythm as the right. */
+  .affapp .tb-left .tb-brand{display:inline-flex;align-items:center}
+  .affapp .tb-left .mark{display:grid;place-items:center;width:40px;height:40px;border-radius:11px}
+  .affapp .tb-left .mark svg{width:18px;height:18px;display:block}
+
+  /* The avatar kept its chevron and came out 58px — the one odd size,
+     sitting in the middle of the right-hand cluster, which is exactly
+     where a broken rhythm shows most. On a phone a tappable avatar tile
+     is already understood to open a menu. */
+  .affapp .toolbar .ava-btn{display:grid;place-items:center;width:40px;height:40px;padding:0;gap:0}
+  .affapp .toolbar .ava-btn .avatar{width:34px;height:34px;border-radius:50%;overflow:hidden}
+  /* The CHEVRON, not the avatar. ".ava-btn svg" is every svg in the
+     button and the avatar is one of them, nested inside .avatar — so a
+     blunt rule here hides the face and leaves an empty disc. */
+  .affapp .toolbar .ava-btn > svg{display:none}
+  .affapp .toolbar .ava-btn .avatar > svg{display:block;width:100%;height:100%}
+  .affapp .topbar .so-btn{display:none}
+
+  .affapp .topbar{gap:8px;padding:8px 12px}
+}
+/* Quiet tiles, not boxed ones: an outlined box per icon inside an
+   already outlined group made the bar busy — that double frame is the
+   single thing that made this bar look older than the other two. The
+   group already reads as a group. */
+.affapp .tool.ic-btn,
+.affapp .tool.ava-btn{background:transparent;border:1px solid transparent}
+.affapp .tool.ic-btn:hover,
+.affapp .tool.ava-btn:hover{background:var(--panel-2);border-color:var(--line)}
+/* The old loose-hamburger rule drew its own box; it is a .tool now. */
+.affapp .topbar .ham{border:0;background:none}
+${EARNINGS_CABINET_CSS}
 `  + refineCss(".affapp");
