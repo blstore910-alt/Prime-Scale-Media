@@ -134,7 +134,9 @@ export async function GET(
       );
     }
     if (!allowed) {
-      return NextResponse.json({ error: "Not yours." }, { status: 403 });
+      // The SAME answer as a payout id that does not exist. A 403 here
+      // and a 404 above tells a caller which random UUIDs are real.
+      return NextResponse.json({ error: "Payout not found." }, { status: 404 });
     }
 
     const { data: profile } = adv?.user_id

@@ -64,7 +64,17 @@ export default function PrivacyControls({
         .select("erasure_requested_at")
         .eq("id", profile!.id)
         .maybeSingle();
-      if (error) return null;
+      // ── A MISSING COLUMN, NOT ANY FAILURE ──────────────────────────
+      //
+      // `return null` here turned every failed read into a confident
+      // "you never asked", so the card told somebody who HAD asked that
+      // we would review their request and left the button live. The
+      // missing-column tolerance the comment above describes is
+      // deliberate and stays; the blanket swallow does not.
+      if (error) {
+        if (/42703|does not exist|schema cache/i.test(error.message)) return null;
+        throw error;
+      }
       return ((data as { erasure_requested_at?: string | null } | null)
         ?.erasure_requested_at ?? null) as string | null;
     },

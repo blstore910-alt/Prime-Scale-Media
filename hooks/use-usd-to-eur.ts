@@ -28,7 +28,7 @@ export function useUsdToEur() {
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
 
-  const { data, isError, isLoading } = useQuery({
+  const { data, isError, isLoading, isPending } = useQuery({
     queryKey: ["usd-to-eur", tenantId],
     enabled: !!tenantId,
     staleTime: 10 * 60_000,
@@ -50,6 +50,11 @@ export function useUsdToEur() {
     /** EUR per 1 USD, or null when it could not be read. */
     rate: data ?? null,
     isLoading,
+    /** No answer yet -- including a query that never ran (no tenant id).
+     *  Without it the caller states "there is no rate set today", which
+     *  is a claim about the tenant's configuration derived from a
+     *  question nobody asked. */
+    isPending,
     isError,
   };
 }

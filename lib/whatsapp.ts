@@ -25,7 +25,15 @@ export function whatsappUrl(text?: string): string {
  * Open a WhatsApp chat in a new tab. A new tab, not this one: the customer
  * is in the middle of their dashboard and should not lose it.
  */
-export function openWhatsapp(text?: string): void {
-  if (typeof window === "undefined") return;
-  window.open(whatsappUrl(text), "_blank", "noopener,noreferrer");
+export function openWhatsapp(text?: string): boolean {
+  if (typeof window === "undefined") return false;
+  // ── DID IT ACTUALLY OPEN? ─────────────────────────────────────────
+  //
+  // window.open returns null when a popup blocker refuses it, which it
+  // does for every call made outside a user gesture -- after an await,
+  // for instance. This returned void, so callers could only assume, and
+  // one of them toasted "Opening WhatsApp to send the payout request"
+  // over a tab that never opened and a request that was never recorded.
+  const w = window.open(whatsappUrl(text), "_blank", "noopener,noreferrer");
+  return !!w;
 }

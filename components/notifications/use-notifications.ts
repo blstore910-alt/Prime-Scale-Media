@@ -46,6 +46,12 @@ export default function useNotifications(
   const {
     data: notifications = [],
     isLoading,
+    // isPending too. isLoading is FALSE for a query that is switched off
+    // (no userId yet) and for one paused offline -- exactly the two
+    // states where nothing has been read -- so an empty list with
+    // isLoading false rendered "You're all caught up" over alerts that
+    // include a rejected payout.
+    isPending,
     isError,
   } = useQuery({
     queryKey: ["notifications", userId, view],
@@ -108,7 +114,11 @@ export default function useNotifications(
 
   // Counted server-side, so the badge stays honest past the cap instead of
   // undercounting to at most RECENT_LIMIT.
-  const { data: unreadCount = 0, isError: countError } = useQuery({
+  const {
+    data: unreadCount = 0,
+    isError: countError,
+    isPending: countPending,
+  } = useQuery({
     // Nested under "notifications" on purpose: the three mutations below
     // invalidate that prefix, so the badge refreshes with the list.
     queryKey: ["notifications", userId, "unread-count"],
@@ -306,6 +316,10 @@ export default function useNotifications(
   return {
     notifications,
     isLoading,
+    /** No answer yet -- including a query that is switched off or paused. */
+    isPending,
+    /** Same, for the badge: 0 unread and "we never asked" are not the same. */
+    countPending,
     // Both, so a caller can say "we couldn't ask" instead of "you have
     // none" and can show the badge as a dot when the count is unknown.
     isError,

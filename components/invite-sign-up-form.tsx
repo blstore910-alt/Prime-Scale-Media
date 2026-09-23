@@ -189,7 +189,18 @@ export default function InviteSignUpForm({
         password: values.password,
       });
       if (signInError) {
-        toast.success("Account created — please log in to continue.");
+        // ── NOT A GREEN TICK ─────────────────────────────────────────
+        //
+        // This was toast.success, and the error was swallowed whole. So
+        // somebody accepting an invitation saw a green "Account created"
+        // and was then dropped on the login page with no reason given,
+        // concluded it had failed, went back and pressed Join again —
+        // which now hits the orphan-user path and is refused.
+        console.error("invite signup auto sign-in failed:", signInError.message);
+        toast.warning(
+          "Your account was created, but we couldn't sign you in automatically — log in with the password you just chose.",
+          { duration: 10000 },
+        );
         router.push("/auth/login");
         return;
       }

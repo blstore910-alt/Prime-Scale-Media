@@ -182,9 +182,21 @@ export default function AffiliateApp() {
     // commission and payout updates will appear here." over a list that
     // had not arrived. The hook returns isLoading too.
     isLoading: notifsLoading,
+    // isPending too: "You're all caught up" over a read that never ran
+    // is the same lie as a zero, and these carry the reason a payout
+    // was sent back.
+    isPending: notifsPending,
     // Counted server-side so the badge stays honest past the 50-row cap.
     unreadCount,
     countError: notifsCountError,
+    // ── AND 0 UNREAD IS NOT "WE NEVER ASKED" ────────────────────────
+    //
+    // The badge is simply absent at 0, and the count query reports
+    // isLoading FALSE while it is switched off (no userId yet) or
+    // paused offline — so an unread "your payout was sent back" read as
+    // "nothing new". The grey ring already exists for exactly this
+    // sentence; the not-asked case skipped it.
+    countPending: notifsCountPending,
   } = useNotifications();
   // ── A SECOND LINE OF DEFENCE, WHERE IT IS DRAWN ───────────────────
   //
@@ -494,7 +506,10 @@ export default function AffiliateApp() {
       });
       return;
     }
-    if (refs.isLoading) {
+    // isPending, not isLoading: a query that is switched off or paused
+    // reports isLoading FALSE, and the guard below then toasted
+    // "Nothing to export for this range" about a read that never ran.
+    if (refs.isPending) {
       toast.info("Still loading your referrals — try again in a moment.");
       return;
     }
@@ -678,7 +693,7 @@ export default function AffiliateApp() {
                   the list undercounts past its 50-row cap, and a failed
                   count used to remove the badge entirely, which reads as
                   "nothing new". */}
-              {notifsCountError ? (
+              {notifsCountError || notifsCountPending ? (
                 <span
                   className="badge-n unknown"
                   title="We couldn't check for new notifications — this is not a zero."
@@ -941,55 +956,6 @@ export default function AffiliateApp() {
                 </div>
               </div>
             </div>
-            {/* The link, quiet: a tool, not the headline. The owner,
-                22-09: "first the casino card and the stats, then the link
-                \u2014 the link can be much more subtle". */}
-            <div className="card xshare">
-              <div className="xs-top">
-                <span className="ci b">
-                  <Ic name="i-gift" />
-                </span>
-                <div style={{ minWidth: 0 }}>
-                  <h2>Your referral link</h2>
-                  {/* Not "a percentage of every wallet top-up".
-                      Commission is not one shape \u2014 some referrals pay on
-                      what the advertiser spends, some a monthly amount,
-                      some a one-off at the start. Naming top-ups promises
-                      the one arrangement this affiliate may not be on. */}
-                  <p className="cap">
-                    Anyone who signs up through it is yours, and stays
-                    yours. Your terms are agreed per referral.
-                  </p>
-                </div>
-              </div>
-              {referralLink ? (
-                <>
-                  <div className="xs-link mono" title={referralLink}>
-                    {referralLink}
-                  </div>
-                  <div className="xs-acts">
-                    <button className="btn sm" onClick={copyLink}>
-                      <Ic name="i-copy" /> Copy link
-                    </button>
-                    <button className="btn ghost sm wa" onClick={shareWhatsApp}>
-                      <WhatsappIcon /> WhatsApp
-                    </button>
-                    {/* Email and QR are gone: a mailto: on a machine
-                        with no mail client does nothing at all and
-                        cannot be detected, and "Copy for QR" copies the
-                        same string Copy link already copied. Two
-                        buttons, one of them silent. The owner: "email
-                        en qr button hoeft niet, onnodig". */}
-                  </div>
-                </>
-              ) : (
-                <p className="cap" style={{ margin: "10px 0 0" }}>
-                  {portalInert
-                    ? "Your affiliate account isn't finished yet, so we couldn't build your link. Nothing is lost \u2014 ask us to finish it."
-                    : "We couldn't build your referral link just now \u2014 reload, and tell us if it stays away."}
-                </p>
-              )}
-            </div>
             {/* The other half of an affiliate account: advertising too. */}
             <AdvertiseTooCard advertiserId={profile?.advertiser?.[0]?.id} />
           </div>
@@ -1207,6 +1173,55 @@ export default function AffiliateApp() {
               </div>
             </div>
 
+            {/* The link, quiet: a tool, not the headline. The owner,
+                22-09: "first the casino card and the stats, then the link
+                \u2014 the link can be much more subtle". */}
+            <div className="card xshare">
+              <div className="xs-top">
+                <span className="ci b">
+                  <Ic name="i-gift" />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <h2>Your referral link</h2>
+                  {/* Not "a percentage of every wallet top-up".
+                      Commission is not one shape \u2014 some referrals pay on
+                      what the advertiser spends, some a monthly amount,
+                      some a one-off at the start. Naming top-ups promises
+                      the one arrangement this affiliate may not be on. */}
+                  <p className="cap">
+                    Anyone who signs up through it is yours, and stays
+                    yours. Your terms are agreed per referral.
+                  </p>
+                </div>
+              </div>
+              {referralLink ? (
+                <>
+                  <div className="xs-link mono" title={referralLink}>
+                    {referralLink}
+                  </div>
+                  <div className="xs-acts">
+                    <button className="btn sm" onClick={copyLink}>
+                      <Ic name="i-copy" /> Copy link
+                    </button>
+                    <button className="btn ghost sm wa" onClick={shareWhatsApp}>
+                      <WhatsappIcon /> WhatsApp
+                    </button>
+                    {/* Email and QR are gone: a mailto: on a machine
+                        with no mail client does nothing at all and
+                        cannot be detected, and "Copy for QR" copies the
+                        same string Copy link already copied. Two
+                        buttons, one of them silent. The owner: "email
+                        en qr button hoeft niet, onnodig". */}
+                  </div>
+                </>
+              ) : (
+                <p className="cap" style={{ margin: "10px 0 0" }}>
+                  {portalInert
+                    ? "Your affiliate account isn't finished yet, so we couldn't build your link. Nothing is lost \u2014 ask us to finish it."
+                    : "We couldn't build your referral link just now \u2014 reload, and tell us if it stays away."}
+                </p>
+              )}
+            </div>
             {/* ── ONE LINE PER REFERRAL ───────────────────────────────
                 A phone showed four label/value pairs per referral, a
                 screen tall for two of them. One line of name, one line of
@@ -1319,6 +1334,20 @@ export default function AffiliateApp() {
 
           {/* WALLET */}
           <div className={`view${view === "pay" ? " on" : ""}`}>
+            <div className="phead">
+              <h1>Wallet</h1>
+              <p>What you have earned, and asking to be paid it.</p>
+            </div>
+            {portalInert && (
+              <div className="notice warn" style={{ marginBottom: 14 }}>
+                <b>Your affiliate account isn&apos;t finished yet.</b>
+                <span>
+                  It isn&apos;t linked to a customer record, so we can&apos;t
+                  read your balance or your payouts. Nothing is lost — ask
+                  us to finish it and everything appears here.
+                </span>
+              </div>
+            )}
             <div className="aff-stack">
               <PayoutCard
                 enabled={!portalInert}
@@ -1443,14 +1472,14 @@ export default function AffiliateApp() {
                     <div className="t">
                       {notifsError
                         ? "We couldn't load your notifications"
-                        : notifsLoading
+                        : notifsLoading || notifsPending
                           ? "Loading your notifications…"
                           : "You're all caught up"}
                     </div>
                     <div className="d">
                       {notifsError
                         ? "This is not an empty list — reload to try again."
-                        : notifsLoading
+                        : notifsLoading || notifsPending
                           ? "One moment."
                           : "New referrals, commission and payout updates will appear here."}
                     </div>
@@ -1484,6 +1513,29 @@ export default function AffiliateApp() {
                     <label>Email</label>
                     <input defaultValue={profile?.email ?? ""} disabled />
                   </div>
+                  <p className="cap" style={{ margin: "2px 0 0" }}>
+                    Your name and email are on your account record — they go
+                    on your payouts, so we change them with you.{" "}
+                    <button
+                      type="button"
+                      style={{
+                        background: "none",
+                        border: 0,
+                        padding: 0,
+                        cursor: "pointer",
+                        color: "var(--primary-600)",
+                        font: "inherit",
+                        fontWeight: 700,
+                      }}
+                      onClick={() =>
+                        openWhatsapp(
+                          "Hi PSM, please change the name or email on my affiliate account.",
+                        )
+                      }
+                    >
+                      Message us
+                    </button>
+                  </p>
                   {/* THE CURRENCY PICKER THAT NO LONGER DID ANYTHING.
                       "Request payouts in EUR / USD" set a default for a
                       question the payout dialog now asks per request —

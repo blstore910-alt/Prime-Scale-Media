@@ -407,6 +407,12 @@ export default function InviteForm() {
     <Dialog
       open={state.inviteUserOpen}
       onOpenChange={() => {
+        // NOT WHILE IT IS BEING SENT. Escape or a click outside used to
+        // close and reset this mid-POST: the invitation still commits,
+        // the owner never sees the link it returned, and inviting the
+        // same address again is refused with "There's already a pending
+        // invitation".
+        if (loading) return;
         setCreatedLink(null);
         form.reset();
         dispatch("close-invite-user");

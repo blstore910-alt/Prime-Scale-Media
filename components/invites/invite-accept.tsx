@@ -51,8 +51,16 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message);
+        const data = await res.json().catch(() => ({}));
+        // /api/accept-invite answers { error } for a maintenance freeze
+        // and { message } for everything else, and this read only the
+        // second -- so accepting an invitation during an incident
+        // toasted literally "Error: undefined".
+        throw new Error(
+          data.message ||
+            data.error ||
+            "We couldn't accept that invitation just now. Try again shortly.",
+        );
       }
 
       // Only advertisers land on /complete-profile — they need
