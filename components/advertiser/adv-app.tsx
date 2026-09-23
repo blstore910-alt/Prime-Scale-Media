@@ -580,6 +580,7 @@ export default function AdvertiserApp() {
       status: string | null;
       reference_no: string | null;
       description: string | null;
+      rejection_reason: string | null;
     }[]
   >({
     queryKey: ["adv-wallet-activity", wallet?.id],
@@ -590,12 +591,25 @@ export default function AdvertiserApp() {
         .from("wallet_topups")
         // NOT a bare .select(). postgrest-js defaults the columns
         // argument to "*", so this shipped the whole row while the type
-        // annotation above lists seven fields — including notes and
-        // rejection_reason, which are the admin's private remarks about
-        // this payment, delivered to the person they are about. A grep
-        // for select("*") does not match select().
+        // annotation above listed seven fields — including `notes`, the
+        // admin's private remarks about this payment, delivered to the
+        // person they are about. A grep for select("*") does not match
+        // select(). `notes` stays out for good.
+        //
+        // ── BUT THE REASON IS WRITTEN FOR THIS SCREEN ────────────────
+        //
+        // rejection_reason came out with it, and that was wrong. The
+        // reject dialog an admin fills in says, in its own words, "Your
+        // reason is shown to them, so write it for them", and the field
+        // under the box repeats "This is shown to the customer." Then
+        // the customer's own statement said "Rejected" and nothing else.
+        // The sentence reached their notification bell, once, and their
+        // permanent record of the payment — the row they come back to a
+        // week later, asking why EUR 999 never arrived — had no trace of
+        // it. Every reason on live is one of the six templates, all of
+        // them addressed to the customer.
         .select(
-          "id, created_at, currency, amount, status, reference_no, description",
+          "id, created_at, currency, amount, status, reference_no, description, rejection_reason",
         )
         .eq("wallet_id", wallet!.id)
         .order("created_at", { ascending: false })
@@ -618,7 +632,9 @@ export default function AdvertiserApp() {
       if (error) {
         const { data: retry, error: retryErr } = await supabase
           .from("wallet_topups")
-          .select("id, created_at, currency, amount, status, reference_no")
+          .select(
+            "id, created_at, currency, amount, status, reference_no, rejection_reason",
+          )
           .eq("wallet_id", wallet!.id)
           .order("created_at", { ascending: false })
           .limit(30);
@@ -4720,6 +4736,24 @@ export default function AdvertiserApp() {
                           </td>
                           <td data-label="Description" style={{ color: "var(--txt-2)" }}>
                             {t.description || "Wallet top-up"}
+                            {/* WHY IT WAS REFUSED, WHERE THEY LOOK FOR IT.
+                                The admin is made to write a sentence for
+                                this customer before the reject button
+                                unlocks; it went to the bell and nowhere
+                                else. A notification is read once. This row
+                                is what they open next month. */}
+                            {t.status === "rejected" && t.rejection_reason ? (
+                              <div
+                                className="cap"
+                                style={{
+                                  marginTop: 3,
+                                  color: "var(--danger, #e5484d)",
+                                  maxWidth: "46ch",
+                                }}
+                              >
+                                {t.rejection_reason}
+                              </div>
+                            ) : null}
                           </td>
                           <td
                             data-label="Amount"

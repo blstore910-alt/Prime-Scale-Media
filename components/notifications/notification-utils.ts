@@ -15,6 +15,35 @@ function asString(value: unknown): string | null {
     : null;
 }
 
+// ── A FIGURE, WHETHER IT CAME AS A NUMBER OR AS TEXT ───────────────
+//
+// These payloads are written in two places that do not agree. The
+// server actions send `{"amount": 250}` — a JSON number — and the SQL
+// notifiers send it as text. Every reader below asked asString() for
+// it, which takes the string and nothing else, so a number fell
+// through to the fallback sentence.
+//
+// That is how the most important notice in the product went out
+// without its figure in it: a EUR 250 credit reached the customer's
+// bell as "We confirmed your transfer and credited it to your wallet."
+// No amount, no currency — over the one event they are waiting for.
+// Same for the invoice paid out of their wallet, and for the invoice
+// number, which is an integer column.
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** A label that may have arrived as an integer, e.g. an invoice number. */
+function asLabel(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return asString(value);
+}
+
 /** "€12.40" / "$38.75" — the shape the rest of this file writes by hand. */
 function money2(amount: unknown, currency: unknown): string {
   const cur = String(asString(currency) ?? "EUR").toUpperCase();
@@ -86,14 +115,15 @@ export function getNotificationCopy(notification: Notification): {
     // landing in the customer's wallet, so it says how much.
     case "wallet_topup_completed": {
       const p = parseNotificationPayload(notification);
-      const amount = asString(p.amount);
+      const amount = asNumber(p.amount);
       const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
       const sym = currency === "USD" ? "$" : "€";
       return {
         title: "Money is in your wallet",
-        description: amount
-          ? `We confirmed your transfer and credited ${sym}${Number(amount).toFixed(2)} to your ${currency} wallet.`
-          : "We confirmed your transfer and credited it to your wallet.",
+        description:
+          amount !== null
+            ? `We confirmed your transfer and credited ${sym}${amount.toFixed(2)} to your ${currency} wallet.`
+            : "We confirmed your transfer and credited it to your wallet.",
       };
     }
     case "wallet_topup_rejected": {
@@ -309,27 +339,28 @@ export function getNotificationCopy(notification: Notification): {
     // it by itself. "Some money left your wallet" is not a notice.
     case "subscription_invoice_paid": {
       const p = parseNotificationPayload(notification);
-      const amount = asString(p.amount);
+      const amount = asNumber(p.amount);
       const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
-      const number = asString(p.number);
+      const number = asLabel(p.number);
       const sym = currency === "USD" ? "$" : "€";
       const what = number ? ` for invoice ${number}` : "";
       return {
         title: "Invoice paid from your wallet",
-        description: amount
-          ? `We took ${sym}${Number(amount).toFixed(2)} from your ${currency} wallet${what}.`
-          : `Your invoice has been settled from your wallet${what}.`,
+        description:
+          amount !== null
+            ? `We took ${sym}${amount.toFixed(2)} from your ${currency} wallet${what}.`
+            : `Your invoice has been settled from your wallet${what}.`,
       };
     }
     case "subscription_invoice_due_soon": {
       const p = parseNotificationPayload(notification);
-      const amount = asString(p.amount);
+      const amount = asNumber(p.amount);
       const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
       const sym = currency === "USD" ? "$" : "€";
       const due = asString((p as { due_date?: unknown }).due_date);
       return {
         title: "Your invoice is due soon",
-        description: `${amount ? `${sym}${Number(amount).toFixed(2)}` : "Your invoice"} is taken from your ${currency} wallet${
+        description: `${amount !== null ? `${sym}${amount.toFixed(2)}` : "Your invoice"} is taken from your ${currency} wallet${
           due ? ` on ${String(due).slice(0, 10)}` : " on the due date"
         }. Make sure it holds enough — or pay it now under Billing.`,
       };
