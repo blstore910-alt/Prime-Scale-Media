@@ -183,15 +183,21 @@ export function getNotificationCopy(notification: Notification): {
     }
 
     case "request_fee_refunded": {
+      // The same refusal, with or without money coming back. Promising a
+      // refund that was never charged is worse than saying nothing.
       const p = notification.payload as
-        | { reason?: string | null }
+        | { reason?: string | null; amount?: number | string | null }
         | null;
       const why = String(p?.reason ?? "").trim();
+      const back = Number(p?.amount ?? 0) > 0;
+      const lead = back
+        ? "We couldn't set this account up, so the fee is back in your wallet."
+        : "We couldn't set this account up. Nothing was charged for it.";
       return {
-        title: "Your request fee is back",
-        description: why
-          ? `We couldn't set this account up, so the fee is back in your wallet. ${why}`
-          : "We couldn't set this account up, so the fee is back in your wallet.",
+        title: back
+          ? "Your request fee is back"
+          : "Your account request was refused",
+        description: why ? `${lead} ${why}` : lead,
       };
     }
 

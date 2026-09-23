@@ -57,6 +57,15 @@ export function TopupDetailsSheet({
   const [previewSlip, setPreviewSlip] = useState(false);
   const { profile } = useAppContext();
   const pushedRef = useRef(false);
+  // The only caller passes an inline arrow, so onOpenChange has a new
+  // identity on every render. In the dependency array that tore down and
+  // re-ran the effect below on every parent render -- history.back() plus
+  // pushState() each time -- and the popstate that followed closed the
+  // sheet on its own. Saving a note invalidates ["top-ups"], so the sheet
+  // vanished right after "Notes saved successfully", leaving a stray
+  // forward entry that sent the next browser Back off the screen.
+  const closeRef = useRef(onOpenChange);
+  closeRef.current = onOpenChange;
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState("");
   const { updateTopup, isPending: isUpdatingNotes } = useUpdateTopup();
@@ -64,7 +73,7 @@ export function TopupDetailsSheet({
   useEffect(() => {
     const handlePop = () => {
       if (pushedRef.current && open) {
-        onOpenChange(false);
+        closeRef.current(false);
         pushedRef.current = false;
       }
     };
@@ -90,7 +99,7 @@ export function TopupDetailsSheet({
         pushedRef.current = false;
       }
     };
-  }, [open, onOpenChange]);
+  }, [open]);
 
   useEffect(() => {
     if (topup) {

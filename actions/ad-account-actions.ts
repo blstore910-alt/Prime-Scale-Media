@@ -685,19 +685,23 @@ export async function rejectAdAccountRequest(
   // it back is just as quiet -- the balance goes up and nothing says
   // why. That is the same complaint from the other direction, and the
   // customer is the one who has to reconcile it.
-  if (Number(paid?.refunded ?? 0) > 0) {
-    await notifyAdvertiser(supabase, {
-      advertiserId: (req as { advertiser_id?: string | null } | null)
-        ?.advertiser_id,
-      tenantId: profile.tenant_id,
-      type: "request_fee_refunded",
-      payload: {
-        amount: paid?.refunded ?? null,
-        currency: paid?.currency ?? "EUR",
-        reason: trimmedReason || null,
-      },
-    });
-  }
+  //
+  // AND THE REFUSAL ITSELF IS NEWS TOO. This was gated on money coming
+  // back, so a request that carried no fee -- included in their plan, or
+  // a free-request perk -- was refused in silence: the reason the admin
+  // was FORCED to type reached nobody at all. The notification goes out
+  // either way now, and says which of the two happened.
+  await notifyAdvertiser(supabase, {
+    advertiserId: (req as { advertiser_id?: string | null } | null)
+      ?.advertiser_id,
+    tenantId: profile.tenant_id,
+    type: "request_fee_refunded",
+    payload: {
+      amount: paid?.refunded ?? 0,
+      currency: paid?.currency ?? "EUR",
+      reason: trimmedReason || null,
+    },
+  });
 
   return {
     ok: true,
