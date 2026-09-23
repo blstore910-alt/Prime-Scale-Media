@@ -116,8 +116,15 @@ export default function AdAccountRequestReviewDialog({
   const feeIncludedInPlan =
     metadata?.request_fee_included === true ||
     String(metadata?.request_fee_included ?? "").toLowerCase() === "true";
+  // THE FEE STAGE DOES NOT END WHEN SOMEBODY CLAIMS THE REQUEST. The
+  // order of work is claim -> invoice, but all three of these were
+  // gated on `pending` alone, so pressing "I'm on it" made Create
+  // Invoice AND both fee explanations vanish at once -- leaving a
+  // footer with only Reject and Create Ad Account and a raw metadata
+  // key as the only hint why.
+  const feeStageOpen = statusValue === "pending" || statusValue === "in_progress";
   const showCreateInvoice =
-    statusValue === "pending" && !feeAlreadyTaken && !feeIncludedInPlan;
+    feeStageOpen && !feeAlreadyTaken && !feeIncludedInPlan;
   const showCreateAdAccount =
     statusValue === "pending" ||
     statusValue === "payment_pending" ||
@@ -279,7 +286,7 @@ export default function AdAccountRequestReviewDialog({
                 operator who finds no Create Invoice needs to know the
                 fee is already in, not wonder whether the screen is
                 broken. */}
-            {feeAlreadyTaken && statusValue === "pending" ? (
+            {feeAlreadyTaken && feeStageOpen ? (
               <span className="self-center text-sm text-muted-foreground">
                 Fee already paid from their wallet
               </span>
@@ -288,7 +295,7 @@ export default function AdAccountRequestReviewDialog({
                 used to be. Without it the admin sees a pending request
                 with one button missing and no reason given, and the
                 only clue is a raw column name further down. */}
-            {feeIncludedInPlan && statusValue === "pending" ? (
+            {feeIncludedInPlan && feeStageOpen ? (
               <span className="self-center text-sm text-muted-foreground">
                 Included in their plan — no fee to invoice
               </span>

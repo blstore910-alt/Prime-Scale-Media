@@ -1183,7 +1183,11 @@ function RefundRequestDialog({
   // control that moves money back to a customer. And .limit(200) is a
   // silent cap: customer 201 simply could not be chosen, with nothing
   // saying why.
-  const { data: advertisers, isError: advertisersError } = useQuery({
+  const {
+    data: advertisers,
+    isError: advertisersError,
+    isLoading: advertisersLoading,
+  } = useQuery({
     queryKey: ["refund-advertisers", tenantId],
     enabled: !!tenantId && open,
     queryFn: async () => {
@@ -1276,6 +1280,18 @@ function RefundRequestDialog({
                 />
               </SelectTrigger>
               <SelectContent>
+                {/* While the read is in flight this popover was blank --
+                    on the control that picks who gets the money, that
+                    reads as "this tenant has no customers". */}
+                {advertisersLoading ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    Loading customers…
+                  </div>
+                ) : !advertisersError && (advertisers ?? []).length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    No customers on this tenant.
+                  </div>
+                ) : null}
                 {(advertisers ?? []).map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.profile?.full_name ?? a.profile?.email ?? a.id}
@@ -1784,7 +1800,11 @@ function AdjustmentRequestDialog({
   // control that moves money back to a customer. And .limit(200) is a
   // silent cap: customer 201 simply could not be chosen, with nothing
   // saying why.
-  const { data: advertisers, isError: advertisersError } = useQuery({
+  const {
+    data: advertisers,
+    isError: advertisersError,
+    isLoading: advertisersLoading,
+  } = useQuery({
     queryKey: ["adjustment-advertisers", tenantId],
     enabled: !!tenantId && open,
     queryFn: async () => {
@@ -1862,6 +1882,18 @@ function AdjustmentRequestDialog({
                 />
               </SelectTrigger>
               <SelectContent>
+                {/* While the read is in flight this popover was blank --
+                    on the control that picks who gets the money, that
+                    reads as "this tenant has no customers". */}
+                {advertisersLoading ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    Loading customers…
+                  </div>
+                ) : !advertisersError && (advertisers ?? []).length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    No customers on this tenant.
+                  </div>
+                ) : null}
                 {(advertisers ?? []).map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.profile?.full_name ?? a.profile?.email ?? a.id}

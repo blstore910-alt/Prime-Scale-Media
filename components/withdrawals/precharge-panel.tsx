@@ -512,7 +512,11 @@ function PrechargeCreateDialog({
   // control that moves money back to a customer. And .limit(200) is a
   // silent cap: customer 201 simply could not be chosen, with nothing
   // saying why.
-  const { data: advertisers, isError: advertisersError } = useQuery({
+  const {
+    data: advertisers,
+    isError: advertisersError,
+    isLoading: advertisersLoading,
+  } = useQuery({
     queryKey: ["precharge-advertisers", tenantId],
     enabled: !!tenantId && open,
     queryFn: async () => {
@@ -637,6 +641,19 @@ function PrechargeCreateDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* A BUTTON HELD SHUT HAS TO SAY SO. `guardBlind` folds into
+              `valid`, but only the hasPending branch below ever printed
+              anything -- so a failed pending-top-ups read greyed Credit
+              wallet for ever with no message and no retry, and the admin
+              goes off to the owner-only Edit-balances dialog instead,
+              which is the thing this whole flow exists to replace. */}
+          {guardBlind && advertiserId ? (
+            <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
+              {pendingError
+                ? "We can't tell whether this customer has a top-up waiting, so crediting is held — an advance made here could not attach to one, and verifying it later would credit them twice. Reload and try again."
+                : "Checking whether this customer has a top-up waiting…"}
+            </div>
+          ) : null}
           {hasPending ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
               <p className="font-semibold text-destructive">
@@ -676,6 +693,19 @@ function PrechargeCreateDialog({
                 />
               </SelectTrigger>
               <SelectContent>
+                {/* An empty popover is not "this tenant has no
+                    customers". While the read is in flight it said
+                    nothing at all, on the control that picks who gets
+                    the money. */}
+                {advertisersLoading ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    Loading customers…
+                  </div>
+                ) : !advertisersError && (advertisers ?? []).length === 0 ? (
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    No customers on this tenant.
+                  </div>
+                ) : null}
                 {(advertisers ?? []).map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.profile?.full_name ?? a.profile?.email ?? a.id}
