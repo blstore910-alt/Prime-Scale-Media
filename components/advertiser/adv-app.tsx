@@ -1388,6 +1388,74 @@ export default function AdvertiserApp() {
     },
   });
 
+  // ── THE TWO MOVEMENTS THE LIST DID NOT CARRY ────────────────────
+  //
+  // Measured on production, 23-09. Adding up every line on PSM0005's
+  // Wallet activity gives EUR 65.00; the wallet says EUR 70.00. The
+  // difference is a +10.00 correction and a -5.00 refund, both approved,
+  // both real, and NEITHER had a line anywhere on the customer's own
+  // screens. Their balance moved for a reason only we could see, and the
+  // list they would open to find out why did not mention it.
+  //
+  // The notification added this morning says it once. This is the
+  // record.
+  const { data: walletMoves, isError: movesError } = useQuery<
+    {
+      kind: "adjustment" | "refund";
+      id: string;
+      created_at: string;
+      amount: number;
+      currency: string | null;
+      reason: string | null;
+    }[]
+  >({
+    queryKey: ["adv-wallet-moves", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const [adj, ref] = await Promise.all([
+        supabase
+          .from("wallet_adjustments")
+          .select("id, created_at, delta, currency, reason, status")
+          .eq("advertiser_id", advertiserId!)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(30),
+        supabase
+          .from("wallet_refunds")
+          .select("id, created_at, amount, currency, reason, status")
+          .eq("advertiser_id", advertiserId!)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(30),
+      ]);
+      // A read that failed is not "no corrections". Either one refusing
+      // means the list below is short by an amount that moved the
+      // balance, which is exactly the thing this query exists to stop.
+      if (adj.error) throw adj.error;
+      if (ref.error) throw ref.error;
+      return [
+        ...(adj.data ?? []).map((r) => ({
+          kind: "adjustment" as const,
+          id: String(r.id),
+          created_at: String(r.created_at),
+          amount: Number(r.delta) || 0,
+          currency: (r.currency as string | null) ?? null,
+          reason: (r.reason as string | null) ?? null,
+        })),
+        ...(ref.data ?? []).map((r) => ({
+          kind: "refund" as const,
+          id: String(r.id),
+          created_at: String(r.created_at),
+          // A refund leaves the wallet: it is shown as what it does.
+          amount: -(Number(r.amount) || 0),
+          currency: (r.currency as string | null) ?? null,
+          reason: (r.reason as string | null) ?? null,
+        })),
+      ];
+    },
+  });
+
   type WalletEvent =
     | { kind: "topup"; id: string; at: string; row: NonNullable<typeof activity>[number] }
     | { kind: "exchange"; id: string; at: string; row: NonNullable<typeof exchanges>[number] }
@@ -1410,6 +1478,12 @@ export default function AdvertiserApp() {
         at: string;
         row: NonNullable<typeof requestCharges>[number];
         refund?: boolean;
+      }
+    | {
+        kind: "move";
+        id: string;
+        at: string;
+        row: NonNullable<typeof walletMoves>[number];
       };
   // ── THIS LIST IS FIVE CAPPED READS STITCHED TOGETHER ──────────────
   //
@@ -1514,6 +1588,10 @@ export default function AdvertiserApp() {
     ...(accountReturns ?? []).map(
       (w) =>
         ({ kind: "return", id: w.id, at: w.created_at, row: w }) as WalletEvent,
+    ),
+    ...(walletMoves ?? []).map(
+      (m) =>
+        ({ kind: "move", id: m.id, at: m.created_at, row: m }) as WalletEvent,
     ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
@@ -4496,6 +4574,65 @@ export default function AdvertiserApp() {
                             </tr>
                           );
                         }
+                        if (ev.kind === "move") {
+                          const m = ev.row;
+                          const up = m.amount >= 0;
+                          const sym =
+                            String(m.currency ?? "EUR").toUpperCase() === "USD"
+                              ? "$"
+                              : "\u20ac";
+                          return (
+                            <tr key={`m-${m.id}`}>
+                              <td
+                                data-label="Date"
+                                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                              >
+                                {dayjs(ev.at).format("D MMM")}
+                              </td>
+                              <td data-label="Reference" className="mono">
+                                \u2014
+                              </td>
+                              <td
+                                data-label="Description"
+                                style={{ color: "var(--txt-2)" }}
+                              >
+                                {m.kind === "refund"
+                                  ? "Paid back to your bank"
+                                  : up
+                                    ? "Correction in your favour"
+                                    : "Correction"}
+                                {/* WHY IT MOVED. Without this the line is
+                                    a figure with no cause, which is only
+                                    marginally better than no line. */}
+                                {m.reason ? (
+                                  <div
+                                    style={{
+                                      marginTop: 3,
+                                      fontSize: ".82rem",
+                                      color: "var(--faint)",
+                                    }}
+                                  >
+                                    {m.reason}
+                                  </div>
+                                ) : null}
+                              </td>
+                              <td
+                                data-label="Amount"
+                                className="r mono"
+                                style={{ fontWeight: 700 }}
+                              >
+                                {up ? "+" : "\u2212"}
+                                {sym}
+                                {money2(Math.abs(m.amount))}
+                              </td>
+                              <td data-label="Status" className="r">
+                                <span className={`badge ${up ? "ok" : "muted"}`}>
+                                  {m.kind === "refund" ? "Paid out" : "Applied"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }
                         if (ev.kind === "exchange") {
                           const x = ev.row;
                           const sym = (c: string) => (c === "USD" ? "$" : "€");
@@ -4656,7 +4793,13 @@ export default function AdvertiserApp() {
                           // flag -- so a EUR 50 request charge could be
                           // missing from the statement with nothing
                           // saying anything was missing.
-                          requestChargesError
+                          requestChargesError ||
+                          // The seventh. Corrections and refunds move the
+                          // balance, so a read that failed leaves the
+                          // statement short by an amount that is really
+                          // gone -- and the totals would not add up to
+                          // the figure at the top of the screen.
+                          movesError
                             ? "We couldn't load all of your wallet activity — this isn't an empty list. Give it a reload."
                             : activityLoading
                               ? "Looking up your wallet activity…"

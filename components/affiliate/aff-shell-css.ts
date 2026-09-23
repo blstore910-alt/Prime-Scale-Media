@@ -839,7 +839,7 @@ export const AFF_CSS = `
   /* The ladder. Four rungs, the one you are on lit, the ones behind you
      ticked — a bar says how far, never where. */
   .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px 5px;
+  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 6px;
     border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);
     transition:.18s}
   .tx-rung.done{background:rgba(255,198,64,.1);border-color:rgba(255,198,64,.24)}
@@ -849,7 +849,7 @@ export const AFF_CSS = `
   .tx-dot{width:12px;height:12px;border-radius:50%;display:grid;place-items:center;margin-bottom:3px;
     background:rgba(255,255,255,.14);color:#0b0d1e}
   .tx-rung.done .tx-dot{background:#ffcf6a}
-  .tx-rung.on .tx-dot{background:#fff;box-shadow:0 0 0 4px rgba(255,205,90,.22)}
+  .tx-rung.on .tx-dot{background:#fff;box-shadow:0 0 0 3px rgba(255,205,90,.28)}
   .tx-dot svg{width:9px;height:9px;stroke-width:3.4}
   .tx-rname{font-size:.7rem;font-weight:800;color:rgba(255,255,255,.62);letter-spacing:-.01em;line-height:1.15}
   .tx-rung.on .tx-rname{color:#ffe8b0}
