@@ -609,13 +609,25 @@ export async function rejectAdAccountRequest(
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
-  const { data: req } = await supabase
+  const { data: req, error: reqError } = await supabase
     .from("ad_account_requests")
     // advertiser_id too: the refusal refunds the fee, and the customer
     // is now told about it.
     .select("id, tenant_id, status, advertiser_id")
     .eq("id", requestId)
     .maybeSingle();
+  // A READ WE COULD NOT MAKE IS NOT A ROW THAT IS NOT THERE. This
+  // discarded the error, so a dropped connection told the admin
+  // "Request not found" about a row visibly on the screen behind the
+  // dialog -- they conclude somebody else handled it and move on, while
+  // the customer's EUR 50 is still held.
+  if (reqError) {
+    return {
+      ok: false,
+      error:
+        "We couldn't read this request just now — nothing has changed. Try again in a moment.",
+    };
+  }
   if (!req) return { ok: false, error: "Request not found" };
   if (req.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
@@ -757,11 +769,21 @@ export async function setAdAccountRequestStatus(
   // Nothing in the UI offers this; it is reachable by calling the action.
   if (status !== "completed") {
     const supabaseCheck = await createClient();
-    const { data: current } = await supabaseCheck
+    const { data: current, error: currentError } = await supabaseCheck
       .from("ad_account_requests")
       .select("status")
       .eq("id", requestId)
       .maybeSingle();
+    // The guard below only fires on a row it could read. Swallowing the
+    // error let a completed request be moved back to pending, which is
+    // the whole thing this block exists to refuse.
+    if (currentError) {
+      return {
+        ok: false,
+        error:
+          "We couldn't check this request's current status, so nothing was changed. Try again in a moment.",
+      };
+    }
     if (current && String(current.status) === "completed") {
       return {
         ok: false,
@@ -827,11 +849,20 @@ export async function createAdAccountFromRequest(
     return { ok: false, error: "Invalid input" };
   }
 
-  const { data: req } = await supabase
+  const { data: req, error: reqReadError } = await supabase
     .from("ad_account_requests")
     .select("id, tenant_id, status, advertiser_id")
     .eq("id", requestId)
     .maybeSingle();
+  // Same rule: a failed read is not a missing row, and this one decides
+  // whether an ad account gets created.
+  if (reqReadError) {
+    return {
+      ok: false,
+      error:
+        "We couldn't read this request just now — nothing has changed. Try again in a moment.",
+    };
+  }
   if (!req) return { ok: false, error: "Request not found" };
   if (req.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };

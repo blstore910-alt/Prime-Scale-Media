@@ -247,6 +247,27 @@ https://app.primescalemedia.com/api/version` returns the deployed sha.
 Polling GitHub's commit statuses unauthenticated runs into the 60/hour
 limit and then hangs on "none" for ever.
 
+## Non-negotiable — a revoke belongs with every create or replace
+
+Postgres grants EXECUTE to PUBLIC on a newly created function, and PUBLIC
+includes `anon` — the role behind the publishable key. So replacing a
+money RPC to FIX something silently re-opens it: `top_up_admin_verify`
+was repaired by plak 62 and was callable by anon again the same minute.
+
+Every `create or replace function` on anything that touches money ends
+with, in the same block:
+
+```sql
+revoke all on function public.<name>(<types>) from public, anon;
+grant execute on function public.<name>(<types>) to authenticated, service_role;
+```
+
+And `pg_get_functiondef` returns the body with **CRLF** line endings on
+this database, so text surgery on a live definition must match on
+`[[:space:]]` rather than `chr(10)`. Cast by `p.oid`, never by a
+signature string with parameter names in it — `regprocedure` takes types
+only.
+
 ## Checking a figure against the database
 
 `npm run check -- "select ..."` reads the live database from here, so a
