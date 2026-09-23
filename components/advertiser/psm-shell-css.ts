@@ -320,6 +320,40 @@ export const PSM_APP_CSS = `
    above as a row, slightly less below so the titles group with the data
    they name and not with the search box. */
 .psmapp .tbl th{text-align:left;font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:13px 14px 11px}
+/* ── EEN KOP DIE JE KUNT AANKLIKKEN, EN DAT LAAT ZIEN ──────────────
+   Een boek dat je niet kunt ordenen op "wie krijgt het meeste nog" lees
+   je regel voor regel. Het pijltje staat er altijd, flauw, zodat je ziet
+   DAT het kan — en vol zodra die kolom de volgorde bepaalt. */
+.psmapp .tbl th .sortth{display:inline-flex;align-items:center;gap:5px;border:0;background:none;
+  font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;
+  padding:0;border-radius:6px;transition:color .12s}
+.psmapp .tbl th .sortth:hover{color:var(--ink)}
+.psmapp .tbl th .sortth .ar{font-size:.7em;opacity:.28;transition:opacity .12s}
+.psmapp .tbl th .sortth.on{color:var(--primary-600)}
+.psmapp .tbl th .sortth.on .ar{opacity:1}
+.psmapp .tbl th.r .sortth{flex-direction:row-reverse}
+
+/* ── WAT EEN REFERRAL VERDIEND HEEFT, EN WAAROP ──────────────────
+   De totalen stonden op de regel; waar ze uit bestonden stond twee
+   schermen verderop. Dit klapt onder de referral open, met de hele
+   rekensom — onze fee, wat de leverancier ons rekent, de winst en het
+   aandeel. Dit is het adminboek; die keten hoort hier en alleen hier. */
+.psmapp .tbl tr.subrow>td{background:var(--panel-2);border-top:0}
+.psmapp .linkdet{padding:2px 14px 10px}
+.psmapp .linkdet-row{display:grid;grid-template-columns:86px 122px 1fr auto auto;gap:10px;
+  align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.psmapp .linkdet-row:first-child{border-top:0}
+.psmapp .linkdet-row .d{font-size:.78rem;color:var(--faint);white-space:nowrap}
+.psmapp .linkdet-row .w{font-size:.8rem;font-weight:600;color:var(--txt-2)}
+.psmapp .linkdet-row .c{font-size:.78rem;color:var(--faint);line-height:1.45}
+.psmapp .linkdet-row .a{font-family:var(--hd);font-weight:800;font-size:.86rem;white-space:nowrap}
+@media(max-width:760px){
+  .psmapp .linkdet-row{grid-template-columns:1fr auto;row-gap:3px}
+  .psmapp .linkdet-row .d{grid-column:1}
+  .psmapp .linkdet-row .a{grid-column:2;grid-row:1}
+  .psmapp .linkdet-row .w,.psmapp .linkdet-row .c{grid-column:1 / 3}
+  .psmapp .linkdet-row .s{grid-column:1 / 3}
+}
 .psmapp .tbl td{padding:13px 14px;border-top:1px solid var(--line)}
 .psmapp .tbl tr:hover td{background:var(--panel-2)}
 .psmapp .tbl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}

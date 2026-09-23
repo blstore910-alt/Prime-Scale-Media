@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -540,11 +540,18 @@ function Overview({
   const router = useRouter();
   const pathname = usePathname();
   const [q, setQ] = useState("");
+  // Owed first, biggest at the top: on this screen the question is
+  // almost always "who is waiting for money".
+  const [sort, setSort] = useState<{
+    key: "name" | "referred" | "earned" | "owed" | "paid";
+    dir: "asc" | "desc";
+  }>({ key: "owed", dir: "desc" });
 
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return affiliates;
-    return affiliates.filter((a) => {
+    const found = !t
+      ? affiliates
+      : affiliates.filter((a) => {
       const own = [a.name, a.code, a.email].some((v) =>
         String(v ?? "").toLowerCase().includes(t),
       );
@@ -557,7 +564,67 @@ function Overview({
       );
       return own || theirs;
     });
-  }, [affiliates, q]);
+
+    // Two currencies cannot be added, and this is a sort key, not a
+    // figure anyone reads: the biggest leg decides the order, and the
+    // column still prints both.
+    const big = (m: MoneyByCurrency) =>
+      Object.values(m ?? {}).reduce((t, v) => Math.max(t, Number(v) || 0), 0);
+    const val = (a: AffiliateSummary) => {
+      switch (sort.key) {
+        case "referred":
+          return a.referrals.total;
+        case "earned":
+          return big(a.earned);
+        case "owed":
+          return big(a.owed);
+        case "paid":
+          return big(a.paid);
+        default:
+          return 0;
+      }
+    };
+    const out = [...found].sort((a, b) => {
+      if (sort.key === "name") {
+        return String(a.name ?? a.code ?? "").localeCompare(
+          String(b.name ?? b.code ?? ""),
+        );
+      }
+      return val(a) - val(b);
+    });
+    return sort.dir === "desc" ? out.reverse() : out;
+  }, [affiliates, q, sort]);
+
+  const toggleSort = (key: typeof sort.key) =>
+    setSort((p) =>
+      p.key === key
+        ? { key, dir: p.dir === "desc" ? "asc" : "desc" }
+        : // A name reads A-Z; money reads biggest first.
+          { key, dir: key === "name" ? "asc" : "desc" },
+    );
+  const SortTh = ({
+    k,
+    children,
+    right,
+  }: {
+    k: typeof sort.key;
+    children: React.ReactNode;
+    right?: boolean;
+  }) => (
+    <th className={right ? "r" : undefined}>
+      <button
+        type="button"
+        className={`sortth${sort.key === k ? " on" : ""}`}
+        onClick={() => toggleSort(k)}
+        title={`Sort by ${String(children)}`}
+      >
+        {children}
+        <span className="ar" aria-hidden="true">
+          {sort.key === k ? (sort.dir === "desc" ? "\u25be" : "\u25b4") : "\u25be"}
+        </span>
+      </button>
+    </th>
+  );
 
   const totals = useMemo(() => {
     const earned: MoneyByCurrency = {};
@@ -652,11 +719,24 @@ function Overview({
         <label className="fsr">
           <Search />
           <input
-            placeholder="Search an affiliate or a customer…"
+            placeholder="Search a name, a code or an email…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
+        {/* What the search actually did. Without it a filter that
+            matches nothing looks the same as a book with nothing in
+            it. */}
+        <span className="muted" style={{ fontSize: ".82rem" }}>
+          {q.trim()
+            ? `${rows.length} of ${affiliates.length}`
+            : `${affiliates.length} ${affiliates.length === 1 ? "affiliate" : "affiliates"}`}
+        </span>
+        {q.trim() ? (
+          <button className="btn ghost sm" onClick={() => setQ("")}>
+            Clear
+          </button>
+        ) : null}
       </div>
 
       {rows.length ? (
@@ -665,12 +745,22 @@ function Overview({
             <table className="tbl wide">
               <thead>
                 <tr>
-                  <th>Affiliate</th>
-                  <th>Referred</th>
-                  <th className="r">Earned</th>
-                  <th className="r">Owed</th>
-                  <th className="r">Paid</th>
+                  <SortTh k="name">Affiliate</SortTh>
+                  <SortTh k="referred">Referred</SortTh>
+                  <SortTh k="earned" right>
+                    Earned
+                  </SortTh>
+                  <SortTh k="owed" right>
+                    Owed
+                  </SortTh>
+                  <SortTh k="paid" right>
+                    Paid
+                  </SortTh>
                   <th>Rules</th>
+                  {/* The whole row opens, and nothing said so. An admin
+                      should not have to discover a screen by clicking at
+                      it. */}
+                  <th className="r" />
                 </tr>
               </thead>
               <tbody>
@@ -708,6 +798,17 @@ function Overview({
                       ) : (
                         <span className="badge muted">Default</span>
                       )}
+                    </td>
+                    <td className="r" data-label="">
+                      <button
+                        className="btn ghost sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          open(a.affiliateId);
+                        }}
+                      >
+                        Open
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -780,6 +881,7 @@ function AffiliateDetail({
     },
   });
 
+  const [openLink, setOpenLink] = useState<string | null>(null);
   const commissions = useMemo(
     () => [...(summary?.commissions ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [summary],
@@ -887,6 +989,17 @@ function AffiliateDetail({
       return `Old rule: share of ${formatCurrency(Number(t.topup_amount), cur)} landed`;
     }
     return calcMissing ? "Calculation not recorded (old rule)" : DASH;
+  };
+
+  // Dezelfde vier statussen als de commissietabel verderop, zodat een
+  // opengeklapte referral en die tabel nooit iets anders zeggen over
+  // dezelfde rij.
+  const commissionBadge = (status: string | null | undefined) => {
+    const st = String(status ?? "unpaid").toLowerCase();
+    if (st === "on_hold") return <span className="badge pend">Processing</span>;
+    if (st === "reversed") return <span className="badge muted">Reversed</span>;
+    if (st === "paid") return <span className="badge ok">Paid</span>;
+    return <span className="badge pend">Unpaid</span>;
   };
 
   const fromLine = (c: BookCommission): string => {
@@ -1051,6 +1164,11 @@ function AffiliateDetail({
                       <th>Status</th>
                       <th className="r">Earned from them</th>
                       <th className="r">Owed</th>
+                      {/* The owner: "ik moet ook knopje hebben om
+                          referral details te zien, wat hij earnt op
+                          wat". The totals were here; what they were
+                          made of was not. */}
+                      <th className="r" />
                     </tr>
                   </thead>
                   <tbody>
@@ -1076,7 +1194,8 @@ function AffiliateDetail({
                         owed[cur] = Math.max(Math.round(((owed[cur] ?? 0) - n) * 100) / 100, 0);
                       }
                       return (
-                        <tr key={l.id}>
+                        <React.Fragment key={l.id}>
+                        <tr>
                           <td data-label="Customer">
                             <div style={{ fontWeight: 700 }}>
                               {l.referred_advertiser_name || DASH}{" "}
@@ -1103,7 +1222,66 @@ function AffiliateDetail({
                           </td>
                           <td className="r" data-label="Earned from them">{money(earned)}</td>
                           <td className="r" data-label="Owed">{money(owed)}</td>
+                          <td className="r" data-label="">
+                            {mine.length ? (
+                              <button
+                                className="btn ghost sm"
+                                onClick={() =>
+                                  setOpenLink((p) => (p === l.id ? null : l.id))
+                                }
+                                aria-expanded={openLink === l.id}
+                              >
+                                {openLink === l.id ? "Hide" : "Details"}
+                                <span className="muted" style={{ marginLeft: 6 }}>
+                                  {mine.length}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="muted" style={{ fontSize: ".8rem" }}>
+                                nothing yet
+                              </span>
+                            )}
+                          </td>
                         </tr>
+                        {/* WHAT THEY EARNED IT ON. The totals were on the
+                            row; what they were made of was two screens
+                            away. Every commission from this one customer,
+                            with the whole calculation \u2014 the fee we
+                            charged, what the supplier charges us, the
+                            profit and the share. This is the admin book;
+                            that chain belongs here and only here. */}
+                        {openLink === l.id ? (
+                          <tr className="subrow">
+                            <td colSpan={6} style={{ padding: 0 }}>
+                              <div className="linkdet">
+                                {mine
+                                  .slice()
+                                  .sort((a, b) =>
+                                    b.created_at.localeCompare(a.created_at),
+                                  )
+                                  .map((c) => (
+                                    <div className="linkdet-row" key={c.id}>
+                                      <span className="d">
+                                        {dayjs(c.created_at).format("D MMM YYYY")}
+                                      </span>
+                                      <span className="w">{fromLine(c)}</span>
+                                      <span className="c">{calcLine(c)}</span>
+                                      <span className="a">
+                                        {formatCurrency(
+                                          Number(c.amount),
+                                          String(c.currency ?? "EUR").toUpperCase(),
+                                        )}
+                                      </span>
+                                      <span className="s">
+                                        {commissionBadge(c.status)}
+                                      </span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
