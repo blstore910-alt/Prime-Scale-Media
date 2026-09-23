@@ -763,6 +763,10 @@ export default function AdvertiserApp() {
     },
   });
 
+  // See the query below: the column lands with plak 71 and the code is
+  // already live, so it is asked for once and dropped for the session if
+  // PostgREST says it does not exist yet.
+  const [withReason, setWithReason] = useState(true);
   const { data: accountReturns, isError: returnsError } = useQuery<
     {
       id: string;
@@ -770,6 +774,10 @@ export default function AdvertiserApp() {
       amount: number | string | null;
       currency: string | null;
       status: string | null;
+      /** Ours, written when we refuse. A separate column since plak 71 —
+       *  before that, refusing overwrote the customer's own words with
+       *  ours. Undefined until that plak lands. */
+      decision_reason?: string | null;
     }[]
   >({
     queryKey: ["adv-account-returns", advertiserId],
@@ -791,12 +799,41 @@ export default function AdvertiserApp() {
       // amount in the credited column, so the balance still reads true.
       const { data, error } = await supabase
         .from("ad_account_withdrawals")
-        .select("id, created_at, amount, currency, status")
+        // ── AND A REFUSAL IS AN ANSWER, SO IT BELONGS HERE TOO ──
+        //
+        // "approved, pending" meant a REJECTED request vanished off the
+        // customer's own screens entirely. They are told once, in a
+        // notification, and then there is no trace anywhere they can go
+        // back to — so the natural next move is to file it again.
+        //
+        // decision_reason is asked for and dropped on error: the column
+        // arrives with plak 71 and code reaches production in minutes,
+        // so the two are never in step. The feature stays dark until the
+        // plak lands, instead of the screen breaking.
+        .select(
+          withReason
+            ? "id, created_at, amount, currency, status, decision_reason"
+            : "id, created_at, amount, currency, status",
+        )
         .eq("advertiser_id", advertiserId!)
-        .in("status", ["approved", "pending"])
+        .in("status", ["approved", "pending", "rejected"])
         .order("created_at", { ascending: false })
         .limit(30);
-      if (error) throw error;
+      if (error) {
+        if (withReason && /decision_reason/i.test(String(error.message))) {
+          setWithReason(false);
+          const retry = await supabase
+            .from("ad_account_withdrawals")
+            .select("id, created_at, amount, currency, status")
+            .eq("advertiser_id", advertiserId!)
+            .in("status", ["approved", "pending", "rejected"])
+            .order("created_at", { ascending: false })
+            .limit(30);
+          if (retry.error) throw retry.error;
+          return (retry.data ?? []) as never;
+        }
+        throw error;
+      }
       return (data ?? []) as never;
     },
   });
@@ -4390,7 +4427,26 @@ export default function AdvertiserApp() {
                                 {String(w.status ?? "").toLowerCase() ===
                                 "pending"
                                   ? "Return requested from an ad account"
-                                  : "Returned from an ad account"}
+                                  : String(w.status ?? "").toLowerCase() ===
+                                      "rejected"
+                                    ? "Return refused"
+                                    : "Returned from an ad account"}
+                                {/* OUR WORDS, WHERE THEY CAN GO BACK TO
+                                    THEM. The notification says it once and
+                                    is then scrolled past; this row is the
+                                    record. Undefined until plak 71. */}
+                                {String(w.status ?? "").toLowerCase() ===
+                                  "rejected" && w.decision_reason ? (
+                                  <div
+                                    style={{
+                                      marginTop: 3,
+                                      fontSize: ".82rem",
+                                      color: "var(--faint)",
+                                    }}
+                                  >
+                                    {w.decision_reason}
+                                  </div>
+                                ) : null}
                               </td>
                               <td
                                 data-label="Amount"
@@ -4401,9 +4457,19 @@ export default function AdvertiserApp() {
                                     so it shows the amount asked for, in
                                     lighter type, and never lands in a
                                     running total. */}
-                                {String(w.status ?? "").toLowerCase() ===
-                                "pending" ? (
-                                  <span style={{ color: "var(--faint)" }}>
+                                {["pending", "rejected"].includes(
+                                  String(w.status ?? "").toLowerCase(),
+                                ) ? (
+                                  <span
+                                    style={{
+                                      color: "var(--faint)",
+                                      textDecoration:
+                                        String(w.status ?? "").toLowerCase() ===
+                                        "rejected"
+                                          ? "line-through"
+                                          : undefined,
+                                    }}
+                                  >
                                     {sym}
                                     {money2(w.amount)}
                                   </span>
@@ -4420,6 +4486,9 @@ export default function AdvertiserApp() {
                                   <span className="badge pend">
                                     Requested
                                   </span>
+                                ) : String(w.status ?? "").toLowerCase() ===
+                                  "rejected" ? (
+                                  <span className="badge bad">Refused</span>
                                 ) : (
                                   <span className="badge ok">Credited</span>
                                 )}

@@ -582,16 +582,24 @@ function WithdrawalsSection() {
                 <th>Advertiser</th>
                 <th>Ad account</th>
                 <th className="r">Amount</th>
+                {/* ── TWO AUTHORS, AND NEITHER WAS ON SCREEN ────────
+                    This table showed no reason at all: not the
+                    customer's, which is the whole point of the request,
+                    and not ours, which is what D1 exists to guarantee.
+                    An admin deciding on somebody's money could not read
+                    why they asked, and nobody afterwards could read what
+                    we answered. */}
+                <th>Why</th>
                 <th className="r">Status</th>
                 <th className="r">Action</th>
               </tr>
             </thead>
             <tbody>
               {isLoading || !tenantId
-                ? loadingRow(6)
+                ? loadingRow(7)
                 : isError
                   ? emptyRow(
-                      6,
+                      7,
                       (error as Error)?.message ??
                         "Failed to load withdrawals.",
                       true,
@@ -633,6 +641,39 @@ function WithdrawalsSection() {
                             data-label="Amount"
                           >
                             {formatCurrency(Number(w.amount), w.currency)}
+                          </td>
+                          <td data-label="Why" style={{ maxWidth: 260 }}>
+                            {/* `reason` is the CUSTOMER's, written when
+                                they filed it. `decision_reason` is ours,
+                                and it is a separate column since plak 71
+                                — before that, rejecting overwrote their
+                                words with ours, and rejecting without a
+                                reason handed them their own sentence back
+                                as though we had written it. Undefined
+                                until that plak lands. */}
+                            {w.reason ? (
+                              <div style={{ fontSize: ".82rem" }}>
+                                <span className="muted">They said:</span>{" "}
+                                {w.reason}
+                              </div>
+                            ) : null}
+                            {(w as { decision_reason?: string | null })
+                              .decision_reason ? (
+                              <div
+                                style={{ fontSize: ".82rem", marginTop: 3 }}
+                              >
+                                <span className="muted">We said:</span>{" "}
+                                {
+                                  (w as { decision_reason?: string | null })
+                                    .decision_reason
+                                }
+                              </div>
+                            ) : null}
+                            {!w.reason &&
+                            !(w as { decision_reason?: string | null })
+                              .decision_reason ? (
+                              <span className="muted">—</span>
+                            ) : null}
                           </td>
                           <td className="r" data-label="Status">
                             <span
@@ -738,7 +779,7 @@ function WithdrawalsSection() {
                         </tr>
                       ))
                     : emptyRow(
-                        6,
+                        7,
                         status !== "all" || search.trim()
                           ? "Nothing matches that filter or search — the queue itself may not be empty."
                           : "No withdrawal requests yet.",
