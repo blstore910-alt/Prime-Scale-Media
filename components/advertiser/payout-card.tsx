@@ -50,6 +50,10 @@ type Props = {
   owedUsd: number;
   /** The owed figure could not be read (or is lifetime, not outstanding). */
   owedUnknown: boolean;
+  /** What they saved under Settings as their standing bank details. The
+   *  dialog starts from these so an IBAN is not retyped every time --
+   *  retyping is how a digit gets dropped. Undefined until plak 78. */
+  defaults?: Record<string, string> | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -60,6 +64,24 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** The last payout wins, their saved default fills the gaps. A field
+ *  they cleared on the last request stays cleared. */
+function mergeDetails(
+  last: PayoutDetails,
+  saved: Record<string, string> | null | undefined,
+): PayoutDetails {
+  if (!saved) return last;
+  const anyLast = Object.values(last).some((v) => String(v ?? "").trim());
+  if (anyLast) return last;
+  const out: PayoutDetails = { ...last };
+  for (const [k, v] of Object.entries(saved)) {
+    if (typeof v === "string" && v.trim() && k in out) {
+      (out as Record<string, string>)[k] = v.trim();
+    }
+  }
+  return out;
+}
 
 function detailsOf(p: AffiliatePayout | undefined): PayoutDetails {
   const d = (p?.details ?? {}) as Record<string, string>;
@@ -99,7 +121,14 @@ function preview(amount: number, from: Cur, to: Cur, rate: number | null) {
   return { gross, fee, net: round2(gross - fee), rate };
 }
 
-export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnknown }: Props) {
+export default function PayoutCard({
+  enabled,
+  scope,
+  owedEur,
+  owedUsd,
+  owedUnknown,
+  defaults,
+}: Props) {
   const queryClient = useQueryClient();
   const payouts = useAffiliatePayouts(enabled, scope);
   const { rate } = useUsdToEur();
@@ -238,7 +267,10 @@ export default function PayoutCard({ enabled, scope, owedEur, owedUsd, owedUnkno
   const startRequest = () => {
     // Everything they gave us last time, per affiliate — the owner:
     // "moet alle gegevens van de laatste keer herinneren, pre filled".
-    setForm(detailsOf(last));
+    // The LAST payout first -- what they actually used most recently --
+  // then what they saved as their default, then empty. Retyping an IBAN
+  // every time is how a digit gets dropped.
+  setForm(mergeDetails(detailsOf(last), defaults));
     setPicked(available);
     setPayIn("SAME");
     setStep(available.length > 1 ? 1 : 2);

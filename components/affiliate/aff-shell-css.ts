@@ -693,6 +693,62 @@ export const AFF_CSS = `
 /* The old loose-hamburger rule drew its own box; it is a .tool now. */
 .affapp .topbar .ham{border:0;background:none}
 
+/* ── THE COMMISSION WALLET ─────────────────────────────────
+   The owner: "wallet design 10x meer pro en effecten". It was a white
+   card with a disabled button on it, and nothing anywhere said what was
+   actually in the wallet — the two figures the old blue card carried
+   went out with it when PayoutCard came in.
+
+   Same family as the earnings card and the tier: dark ground, a slow
+   ribbon, light from above. But the money reads first, so the pots are
+   large and the decoration is quiet — a wallet is not a jackpot. */
+  .wal{position:relative;overflow:hidden;isolation:isolate;border-radius:20px;
+    padding:16px 16px 14px;color:#fff;
+    background:radial-gradient(120% 130% at 50% -25%,rgba(16,185,129,.26),transparent 58%),
+      radial-gradient(85% 120% at 92% 2%,rgba(91,141,255,.28),transparent 56%),
+      radial-gradient(80% 120% at 6% 8%,rgba(139,92,246,.2),transparent 56%),
+      linear-gradient(165deg,#0a0f22 0%,#0e1530 52%,#111c33 100%);
+    border:1px solid rgba(120,170,255,.22);
+    box-shadow:0 24px 50px -30px rgba(10,16,48,.85),inset 0 1px 0 rgba(255,255,255,.08)}
+  .wal .wal-ribbon{position:absolute;inset:-45%;z-index:0;pointer-events:none;
+    background:conic-gradient(from 0deg,transparent,rgba(16,185,129,.14),transparent 30%,
+      rgba(91,141,255,.16),transparent 60%,rgba(139,92,246,.12),transparent 86%);
+    animation:xhspin 30s linear infinite}
+  .wal-in{position:relative;z-index:1}
+  .wal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .wal-eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0;font-weight:800;
+    font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:#9fe8c8}
+  .wal-eyebrow svg{width:14px;height:14px;color:#63f0c1}
+  .wal-tier{flex:0 0 auto;padding:5px 11px;border-radius:99px;font-size:.66rem;font-weight:800;
+    letter-spacing:.04em;text-transform:uppercase;color:#ffe8b0;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16)}
+  /* Two pots side by side. A currency with nothing in it is greyed, not
+     hidden: an affiliate who has only ever earned euros should still see
+     that a dollar pot exists. */
+  .wal-pots{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+  .wal-pot{padding:11px 13px;border-radius:15px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.13);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+  .wal-pot .l{display:block;font-size:.6rem;font-weight:800;letter-spacing:.09em;
+    text-transform:uppercase;color:rgba(255,255,255,.55)}
+  .wal-pot .v{display:block;margin-top:4px;font-family:var(--font-sora);font-weight:800;
+    font-size:1.5rem;letter-spacing:-.03em;line-height:1;color:#eaf6ff}
+  .wal-pot.on .v{color:#63f0c1}
+  .wal-pot .n{display:block;margin-top:4px;font-size:.66rem;color:rgba(255,255,255,.42)}
+  .wal-sub{margin:12px 0 0;font-size:.8rem;line-height:1.45;color:rgba(255,255,255,.66)}
+  .wal-sub b{color:#fff}
+  @media(max-width:380px){
+    .wal-pots{grid-template-columns:1fr}
+    .wal-pot .v{font-size:1.4rem}
+  }
+  @media (prefers-reduced-motion:reduce){.wal .wal-ribbon{animation:none}}
+
+/* ── THE SAVED PAYOUT DETAILS ───────────────────────────── */
+  .pd-actions{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .pd-ok{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:700;color:var(--win)}
+  .pd-ok svg{width:14px;height:14px}
+  .pd-dirty{font-size:.78rem;font-weight:700;color:var(--gold-deep)}
+
 /* ── A PAGE HEADING ────────────────────────────────────────
    The topbar title is hidden on a phone, so a view without one of these
    opened on a card with nothing saying what page it was. Same shape as
@@ -783,22 +839,22 @@ export const AFF_CSS = `
   /* The ladder. Four rungs, the one you are on lit, the ones behind you
      ticked — a bar says how far, never where. */
   .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px 6px;
+  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 4px 4px;
     border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);
     transition:.18s}
   .tx-rung.done{background:rgba(255,198,64,.1);border-color:rgba(255,198,64,.24)}
   .tx-rung.on{background:linear-gradient(180deg,rgba(255,198,64,.24),rgba(255,198,64,.08));
     border-color:rgba(255,205,90,.55);box-shadow:0 10px 26px -16px rgba(255,180,60,.9),
       inset 0 1px 0 rgba(255,255,255,.14)}
-  .tx-dot{width:14px;height:14px;border-radius:50%;display:grid;place-items:center;
+  .tx-dot{width:12px;height:12px;border-radius:50%;display:grid;place-items:center;margin-bottom:1px;
     background:rgba(255,255,255,.14);color:#0b0d1e}
   .tx-rung.done .tx-dot{background:#ffcf6a}
   .tx-rung.on .tx-dot{background:#fff;box-shadow:0 0 0 4px rgba(255,205,90,.22)}
   .tx-dot svg{width:9px;height:9px;stroke-width:3.4}
-  .tx-rname{font-size:.72rem;font-weight:800;color:rgba(255,255,255,.62);letter-spacing:-.01em}
+  .tx-rname{font-size:.7rem;font-weight:800;color:rgba(255,255,255,.62);letter-spacing:-.01em;line-height:1.15}
   .tx-rung.on .tx-rname{color:#ffe8b0}
   .tx-rung.done .tx-rname{color:rgba(255,232,176,.82)}
-  .tx-rmin{font-size:.62rem;font-weight:700;color:rgba(255,255,255,.38)}
+  .tx-rmin{font-size:.6rem;font-weight:700;color:rgba(255,255,255,.38);line-height:1.15}
   .tx-rung.on .tx-rmin{color:rgba(255,232,176,.7)}
   .tx-note{margin:11px 0 0;text-align:center;font-size:.82rem;line-height:1.45;
     color:rgba(255,255,255,.8)}

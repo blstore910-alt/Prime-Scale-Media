@@ -16,6 +16,8 @@ import { getURL } from "@/lib/utils";
 import { Parser } from "json2csv";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
 // ── THE ADVERTISER'S AFFILIATE SCREEN, ON THE AFFILIATE'S OWN PORTAL ──
@@ -34,6 +36,7 @@ import RangePicker, {
 } from "@/components/advertiser/range-picker";
 import AffiliateCommissionsCard from "@/components/advertiser/affiliate-commissions-card";
 import PayoutCard from "@/components/advertiser/payout-card";
+import { saveMyPayoutDetails } from "@/actions/payout-details-actions";
 import { AffIcons, Ic } from "./aff-icons";
 import { openWhatsapp } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
@@ -234,6 +237,15 @@ export default function AffiliateApp() {
   // Payout details. These were six uncontrolled inputs and the button sent a
   // hard-coded empty template, so everything typed — including the IBAN — was
   // silently thrown away. Held in state and interpolated into the mail body.
+  const [savingPayout, setSavingPayout] = useState(false);
+  // What the server has. Held beside the form so the card can say
+  // "not saved yet" instead of leaving somebody guessing whether their
+  // IBAN went anywhere -- which is the exact doubt the WhatsApp button
+  // used to create.
+  const [payoutSaved, setPayoutSaved] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [payout, setPayout] = useState({
     holder: "",
     accountType: "",
@@ -378,6 +390,54 @@ export default function AffiliateApp() {
   };
 
   const tenantSlug = profile?.tenant?.slug;
+  // Has the form moved away from what the server holds? Six fields and
+  // a saved copy, compared field by field -- so the card can say "not
+  // saved yet" rather than leaving somebody to wonder whether their
+  // IBAN went anywhere.
+  const payoutDirty =
+    !!payoutSaved &&
+    (Object.keys(payout) as (keyof typeof payout)[]).some(
+      (k) => (payout[k] ?? "") !== (payoutSaved[k] ?? ""),
+    );
+  // ── WHAT THE SERVER ALREADY HAS ───────────────────────────────────
+  //
+  // Asked for, and dropped on error: plak 78 adds the column and code
+  // ships in minutes, so the two are never in step (CLAUDE.md). Until it
+  // lands the card simply opens empty instead of the screen breaking.
+  const savedDetails = useQuery({
+    queryKey: ["my-payout-details", profile?.advertiser?.[0]?.id ?? ""],
+    enabled: !!profile?.advertiser?.[0]?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertisers")
+        .select("payout_details")
+        .eq("id", profile!.advertiser![0]!.id)
+        .maybeSingle();
+      if (error) {
+        if (/payout_details/i.test(String(error.message))) return null;
+        throw error;
+      }
+      return ((data as { payout_details?: Record<string, string> | null } | null)
+        ?.payout_details ?? null) as Record<string, string> | null;
+    },
+  });
+
+  // Seed the form once, when they arrive. Not on every render: somebody
+  // halfway through typing must not have it pulled out from under them.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || savedDetails.isPending) return;
+    const d = savedDetails.data;
+    if (d && Object.keys(d).length) {
+      seeded.current = true;
+      setPayout((prev) => ({ ...prev, ...d }));
+      setPayoutSaved(d);
+    } else if (savedDetails.isSuccess) {
+      seeded.current = true;
+    }
+  }, [savedDetails.data, savedDetails.isPending, savedDetails.isSuccess]);
+
   const referralCode = profile?.advertiser?.[0]?.tenant_client_code;
   const referralLink = useMemo(() => {
     if (!tenantSlug || !referralCode) return "";
@@ -1363,10 +1423,74 @@ export default function AffiliateApp() {
                 </span>
               </div>
             )}
+            {/* WHAT IS ACTUALLY IN IT. The two figures went out with
+                the old blue card when PayoutCard came in, so this screen
+                asked to be paid without ever saying how much there was. */}
+            <section className="wal">
+              <div className="wal-ribbon" aria-hidden="true" />
+              <div className="wal-in">
+                <div className="wal-head">
+                  <p className="wal-eyebrow">
+                    <Ic name="i-wallet" />{" "}
+                    {all.payable.isLifetime ? "Earned to date" : "Still owed to you"}
+                  </p>
+                  <span className="wal-tier">
+                    {tierUnknown ? "\u2014" : tier.name}
+                  </span>
+                </div>
+                <div className="wal-pots">
+                  {(["EUR", "USD"] as const).map((c) => {
+                    const owed =
+                      c === "EUR"
+                        ? Number(all.payable.eur) || 0
+                        : Number(all.payable.usd) || 0;
+                    const lifetime =
+                      c === "EUR"
+                        ? Number(all.totals.earnings_eur) || 0
+                        : Number(all.totals.earnings_usd) || 0;
+                    return (
+                      <div
+                        key={c}
+                        className={`wal-pot${!statsUnavailable && owed > 0 ? " on" : ""}`}
+                      >
+                        <span className="l">{c}</span>
+                        <span className="v">
+                          {statsUnavailable
+                            ? dash
+                            : c === "EUR"
+                              ? eur(owed)
+                              : usd(owed)}
+                        </span>
+                        {/* The button below is already disabled when the
+                            balance is unknown \u2014 and the two figures it is
+                            disabled ABOUT used to print as a confident 0. */}
+                        <span className="n">
+                          {statsUnavailable
+                            ? "we couldn't read this"
+                            : `${c === "EUR" ? eur(lifetime) : usd(lifetime)} earned in total`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="wal-sub">
+                  {statsUnavailable
+                    ? "We couldn't read your balance just now \u2014 this is not a zero. Reload to try again."
+                    : all.payable.isLifetime
+                      ? "That is everything you have earned, not what is still outstanding \u2014 we'll confirm the exact figure when you ask."
+                      : "Paid by hand, always. Nothing leaves automatically, and we confirm every transfer here with its reference."}
+                </p>
+              </div>
+            </section>
+
             <div className="aff-stack">
               <PayoutCard
                 enabled={!portalInert}
                 scope={profile?.advertiser?.[0]?.id ?? null}
+                // Every new request starts from what they saved under
+                // Settings, instead of six empty boxes and an IBAN typed
+                // out again.
+                defaults={savedDetails.data ?? null}
                 owedEur={Number(all.payable.eur) || 0}
                 owedUsd={Number(all.payable.usd) || 0}
                 owedUnknown={
@@ -1590,13 +1714,8 @@ export default function AffiliateApp() {
                 </span>
               </h2>
               <p className="cap">
-                {/* HONEST ABOUT WHERE THEY TRAVEL. This card sends what
-                    you type to us on WhatsApp; the dialog under Wallet
-                    asks again and carries the answers WITH the request,
-                    which is the copy that ends up on the payout row. */}
-                Send us your bank details once, and we keep them on file.
-                The payout request under Wallet asks for them too — what
-                you type there travels with that request.
+Where your payouts go. Saved on your account, and filled in
+                for you every time you ask to be paid.
               </p>
               <div className="field">
                 <label htmlFor="po-holder">Business / account holder</label>
@@ -1674,30 +1793,58 @@ export default function AffiliateApp() {
                   />
                 </div>
               </div>
-              <button
-                className="btn sm"
-                onClick={() => {
-                  const line = (label: string, v: string) =>
-                    `${label}: ${v.trim() || "—"}`;
-                  openWhatsapp(
-                    [
-                      "Hi PSM team, here are my payout details:",
-                      "",
-                      line("Account holder", payout.holder),
-                      line("Account type", payout.accountType),
-                      line("IBAN", payout.iban),
-                      line("BIC / SWIFT", payout.bic),
-                      line("Billing address", payout.address),
-                      line("VAT / Tax ID", payout.taxId),
-                    ].join("\n"),
-                  );
-                }}
-              >
-                <WhatsappIcon /> Send payout details on WhatsApp
-              </button>
+              {/* ── SAVED, NOT SENT ────────────────────────────────
+                  This was a button that opened WhatsApp with what you
+                  typed in it, under a line admitting nothing was stored.
+                  So six fields including an IBAN lived in useState, a
+                  reload threw them away, and the payout dialog under
+                  Wallet asked for the same six again. The owner: "hij
+                  moet gewoon hier kunnen opslaan als standaard voor new
+                  requests." */}
+              <div className="pd-actions">
+                <button
+                  className="btn"
+                  disabled={savingPayout || portalInert}
+                  title={
+                    portalInert
+                      ? "Your affiliate account isn't finished yet, so there is nowhere to keep these."
+                      : undefined
+                  }
+                  onClick={async () => {
+                    setSavingPayout(true);
+                    try {
+                      const res = await saveMyPayoutDetails(payout);
+                      if (!res.ok) {
+                        toast.error("Couldn't save your payout details", {
+                          description: res.error,
+                        });
+                        return;
+                      }
+                      setPayoutSaved(payout);
+                      toast.success("Saved", {
+                        description:
+                          "Every new payout request starts with these.",
+                      });
+                    } finally {
+                      setSavingPayout(false);
+                    }
+                  }}
+                >
+                  <Ic name="i-check" />{" "}
+                  {savingPayout ? "Saving\u2026" : "Save as my default"}
+                </button>
+                {payoutDirty ? (
+                  <span className="pd-dirty">Not saved yet</span>
+                ) : payoutSaved ? (
+                  <span className="pd-ok">
+                    <Ic name="i-check" /> Saved
+                  </span>
+                ) : null}
+              </div>
               <p className="cap" style={{ marginTop: 8 }}>
-                This opens WhatsApp with what you typed above — nothing is
-                stored until we confirm it.
+                {portalInert
+                  ? "Your affiliate account isn't finished yet, so there is nowhere to keep these. Ask us to finish it."
+                  : "Kept on your account and filled in for you on every payout request. You can still change them per request."}
               </p>
             </div>
             {/* -- GDPR, WHERE THE CUSTOMER CAN ACTUALLY REACH IT ------
