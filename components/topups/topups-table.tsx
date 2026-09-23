@@ -418,6 +418,7 @@ export default function TopupsTable() {
       />
       <RejectTopupDialog
         topupId={rejectTopupId}
+        topup={topups?.find((t) => t.id === rejectTopupId) ?? null}
         open={!!rejectTopupId}
         onOpenChange={(open) => {
           if (!open) {

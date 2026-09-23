@@ -275,6 +275,14 @@ async function requireAdminCtx() {
 // 'pending' or 'completed' (mark-paid switch).
 // ─────────────────────────────────────────
 const TOPUP_INSERT_ALLOWED = [
+  // `rate` and `topup_usd` are deliberately NOT here: they are set by
+  // this file, from our own arithmetic, and a caller must not be able
+  // to send either. `rate` is the rate the stored figures were computed
+  // at — without it top_up_admin_verify raises "Top-up rate missing or
+  // invalid" the moment an admin edits the fee in the verify dialog,
+  // which is the whole point of that dialog. `topup_usd` is the
+  // discriminator pure-topup-landed reads to know which currency
+  // topup_amount is in; writing it by hand reclassifies the row.
   "type",
   "currency",
   "amount_received",
@@ -397,10 +405,13 @@ export async function createTopupAsAdmin(
   // Verify the target ad account (when given) belongs to this tenant AND to
   // the same advertiser — an admin must not be able to attach a top-up to
   // another tenant's or another advertiser's account.
+  // The account's own currency: when the payment is in it, there is
+  // nothing to convert. See the note further down.
+  let accountCurrency = "";
   if (typeof input.account_id === "string" && input.account_id.length > 0) {
     const { data: acct } = await supabase
       .from("ad_accounts")
-      .select("id, tenant_id, advertiser_id, status, name")
+      .select("id, tenant_id, advertiser_id, status, name, currency")
       .eq("id", input.account_id)
       .maybeSingle();
     if (!acct || acct.tenant_id !== profile.tenant_id) {
@@ -427,6 +438,7 @@ export async function createTopupAsAdmin(
         error: "Ad account does not belong to this advertiser",
       };
     }
+    accountCurrency = String(acct.currency ?? "").toUpperCase();
   }
 
   const cleaned: Record<string, unknown> = {};
@@ -542,16 +554,55 @@ export async function createTopupAsAdmin(
         code: "invalid",
       };
     }
-    const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
-      amountReceived,
-      rates,
-      currency,
-      pct,
-    );
+  // ── THE ACCOUNT'S OWN MONEY ───────────────────────────────────────
+  //
+  // calculateTopupAmount always divides by the rate, because an ad
+  // account used to be dollars only. Every real ad account on this
+  // tenant is EUR. So funding AA-PSM0005-EU-01 with EUR 1,000 stored
+  // topup_amount 1123.76 -- a DOLLAR figure -- and the verify dialog
+  // then told the admin "Put $1,123.76 on it, then check it is there"
+  // for an account that should receive EUR 970.00. Following that
+  // instruction hands over EUR 153.76 of our own money, per funding.
+  //
+  // When the payment currency IS the account's currency there is
+  // nothing to convert: take the fee in that currency, exactly as
+  // top_up_create_for_advertiser does for a customer-filed row, and
+  // write topup_usd so pure-topup-landed reads the row the same way.
+    const rateEur = Number(rate?.eur) || 0;
+    const sameCurrency =
+      !!accountCurrency && accountCurrency === currency.toUpperCase();
+    const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+    const { topupAmount, amountUSD, feeAmount } = sameCurrency
+      ? (() => {
+          const f = r2((amountReceived * pct) / 100);
+          return {
+            feeAmount: f,
+            topupAmount: r2(amountReceived - f),
+            amountUSD:
+              currency.toUpperCase() === "USD"
+                ? amountReceived
+                : rateEur > 0
+                  ? r2(amountReceived / rateEur)
+                  : 0,
+          };
+        })()
+      : calculateTopupAmount(amountReceived, rates, currency, pct);
     cleaned.fee = pct;
     cleaned.fee_amount = feeAmount.toFixed(2);
     cleaned.topup_amount = topupAmount.toFixed(2);
     cleaned.amount_usd = amountUSD.toFixed(2);
+    cleaned.rate = String(currency.toUpperCase() === "USD" ? 1 : rateEur);
+    if (sameCurrency) {
+      // topup_usd is the discriminator pure-topup-landed reads: with it
+      // set, topup_amount is understood to be in `currency`.
+      cleaned.topup_usd = String(
+        currency.toUpperCase() === "USD"
+          ? topupAmount
+          : rateEur > 0
+            ? r2(topupAmount / rateEur)
+            : 0,
+      );
+    }
   }
 
   // The session writes, ON PURPOSE: plak 34's trg_guard_top_ups_session_write
@@ -717,6 +768,9 @@ export async function bulkCreateTopupsAsAdmin(
     (r) => typeof r.type === "string" && FEE_APPLICABLE_TYPES.includes(r.type),
   );
   let bulkRates: MinimalRate[] = [];
+  // Account id -> its own currency. When the payment currency IS the
+  // account's, there is nothing to convert.
+  const bulkAccountCurrency = new Map<string, string>();
   if (needsFee) {
     const { data: rate } = await supabase
       .from("exchange_rates")
@@ -822,6 +876,11 @@ export async function bulkCreateTopupsAsAdmin(
           },
         ]),
       );
+      // Kept for the arithmetic below: when the payment currency IS the
+      // account's, nothing is converted.
+      for (const [id, a] of byId) {
+        if (a.cur) bulkAccountCurrency.set(id, a.cur);
+      }
       for (const row of rows) {
         const id = typeof row.account_id === "string" ? row.account_id : null;
         if (!id) continue;
@@ -872,16 +931,48 @@ export async function bulkCreateTopupsAsAdmin(
       // the stored figures are always the ones our own arithmetic produced
       // from the amount and the effective percentage, never a caller's.
       if (resolved) {
-        const { topupAmount, amountUSD, feeAmount } = calculateTopupAmount(
-          Number(row.amount_received) || 0,
-          bulkRates,
-          String(row.currency || "USD"),
-          resolved.pct,
+        // THE ACCOUNT'S OWN MONEY, same rule as the single path above.
+        // calculateTopupAmount always divides by the rate; every real ad
+        // account here is EUR, so a EUR 1,000 funding stored a DOLLAR
+        // topup_amount and the verify dialog then told the admin to put
+        // $1,123.76 on an account that should receive EUR 970.00.
+        const rowCur = String(row.currency || "USD").toUpperCase();
+        const acctCur = bulkAccountCurrency.get(
+          typeof row.account_id === "string" ? row.account_id : "",
         );
+        const same = !!acctCur && acctCur === rowCur;
+        const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+        const received = Number(row.amount_received) || 0;
+        const bulkRateEur = Number(bulkRates[0]?.eur) || 0;
+        const { topupAmount, amountUSD, feeAmount } = same
+          ? (() => {
+              const f = r2((received * resolved.pct) / 100);
+              return {
+                feeAmount: f,
+                topupAmount: r2(received - f),
+                amountUSD:
+                  rowCur === "USD"
+                    ? received
+                    : bulkRateEur > 0
+                      ? r2(received / bulkRateEur)
+                      : 0,
+              };
+            })()
+          : calculateTopupAmount(received, bulkRates, rowCur, resolved.pct);
         cleaned.fee = resolved.pct;
         cleaned.fee_amount = feeAmount.toFixed(2);
         cleaned.topup_amount = topupAmount.toFixed(2);
         cleaned.amount_usd = amountUSD.toFixed(2);
+        cleaned.rate = String(rowCur === "USD" ? 1 : bulkRateEur);
+        if (same) {
+          cleaned.topup_usd = String(
+            rowCur === "USD"
+              ? topupAmount
+              : bulkRateEur > 0
+                ? r2(topupAmount / bulkRateEur)
+                : 0,
+          );
+        }
       }
     }
     return cleaned;

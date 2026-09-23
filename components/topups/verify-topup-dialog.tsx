@@ -182,10 +182,19 @@ function VerifyTopupInvoice({
 
   useEffect(() => {
     const feeParam = Number(feePercentage);
-    const feeVal = (grossUsd * feeParam) / 100;
+    // ── THE ORDER THE RPC USES ────────────────────────────────────────
+    //
+    // top_up_admin_verify does round(gross * pct / 100, 2) FIRST and then
+    // subtracts. Subtracting the unrounded fee and rounding the
+    // difference disagrees by a cent whenever the fee lands on a
+    // half-cent: gross EUR 10.00 at 0.15% showed "Lands on the account
+    // EUR 9.99" and the row was written 9.98. On the line that tells an
+    // admin what to put on the account.
+    const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+    const feeVal = r2((grossUsd * feeParam) / 100);
     setCalculatedValues({
       feeAmount: feeVal,
-      netAmount: grossUsd - feeVal,
+      netAmount: r2(grossUsd - feeVal),
     });
   }, [feePercentage, grossUsd]);
 

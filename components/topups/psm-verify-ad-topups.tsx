@@ -457,6 +457,7 @@ export default function PsmVerifyAdTopups() {
         open={rejectOpen}
         onOpenChange={setRejectOpen}
         topupId={rejectId}
+        topup={topups?.find((t) => t.id === rejectId) ?? null}
       />
       <TopupDetailsSheet
         open={!!detailsId}

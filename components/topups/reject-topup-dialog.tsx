@@ -15,15 +15,19 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RejectReasonField } from "@/components/ui/reject-reason-field";
 import { rejectAdTopup } from "@/actions/topup-actions";
+import { formatCurrency } from "@/lib/utils";
 
 export default function RejectTopupDialog({
   open,
   onOpenChange,
   topupId,
+  topup,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   topupId: string | null;
+  /** The row, so the dialog can state the money that goes back. */
+  topup?: { amount_received?: number | string | null; currency?: string | null } | null;
 }) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
@@ -98,9 +102,23 @@ export default function RejectTopupDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reject topup</DialogTitle>
+          <DialogTitle>Reject this top-up?</DialogTitle>
           <DialogDescription>
-            Please provide a reason for rejecting this topup.
+            {/* ── SAY WHAT HAPPENS TO THE MONEY ────────────────────────
+                Rejecting fires refund_wallet_on_topup_rejected, which
+                puts amount_received straight back in the wallet. This
+                dialog named neither the customer nor the figure, so an
+                admin refused a EUR 1,200 funding without the screen
+                stating either. The wallet-top-up sibling has said it
+                for months. */}
+            {topup
+              ? `${formatCurrency(
+                  Number(topup.amount_received ?? 0),
+                  String(topup.currency ?? "EUR"),
+                )} goes straight back to their ${String(
+                  topup.currency ?? "EUR",
+                ).toUpperCase()} wallet. There is no way back \u2014 the customer has to file a new one, and your reason is shown to them.`
+              : "The money goes straight back to their wallet and the customer has to file a new one. Your reason is shown to them."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
