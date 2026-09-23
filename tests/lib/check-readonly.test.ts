@@ -8,6 +8,7 @@ import {
   makeMasker,
   cell,
   sslFor,
+  DATE_OID,
 } from "../../scripts/check.mjs";
 
 /**
@@ -186,5 +187,27 @@ describe("the ssl parameters come out of the string", () => {
 
   test("an unparseable string is left alone", () => {
     assert.equal(sslFor("not a url").dsn, "not a url");
+  });
+});
+
+describe("a DATE has no time, and no timezone to shift it", () => {
+  // A correct period_start of 2026-09-14 printed as "2026-09-13 22:00:00"
+  // because the driver hands a DATE back at LOCAL midnight and this
+  // printed it in UTC. Reading money by date is half of what this tool
+  // is for, so the day must not move.
+  test("a DATE prints as the day itself", () => {
+    const d = new Date(2026, 8, 14, 0, 0, 0);
+    assert.equal(cell(d, DATE_OID), "2026-09-14");
+  });
+
+  test("the first of the month keeps its leading zeroes", () => {
+    assert.equal(cell(new Date(2026, 0, 1, 0, 0, 0), DATE_OID), "2026-01-01");
+  });
+
+  test("a timestamp still shows its time", () => {
+    assert.equal(
+      cell(new Date("2026-09-22T19:47:00Z")),
+      "2026-09-22 19:47:00",
+    );
   });
 });

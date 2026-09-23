@@ -240,9 +240,24 @@ export function sslFor(url) {
 }
 
 // -- printing --------------------------------------------------------
-export function cell(v) {
+/** Postgres DATE. The driver hands it back as a JS Date at LOCAL midnight. */
+export const DATE_OID = 1082;
+
+export function cell(v, typeOid) {
   if (v === null || v === undefined) return "";
-  if (v instanceof Date) return v.toISOString().replace("T", " ").slice(0, 19);
+  if (v instanceof Date) {
+    // A DATE rendered in UTC reads as the day before at 22:00 -- which is
+    // exactly how a correct period_start of 2026-09-14 printed as
+    // "2026-09-13 22:00:00" and sent me looking for a bug that was in
+    // this line. A date has no time, so it is printed without one.
+    if (typeOid === DATE_OID) {
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, "0");
+      const d = String(v.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return v.toISOString().replace("T", " ").slice(0, 19);
+  }
   if (Buffer.isBuffer(v)) return "\\x" + v.toString("hex").slice(0, 32);
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
@@ -254,7 +269,10 @@ function printTable(result, mask) {
     console.log("(no columns)");
     return;
   }
-  const rows = result.rows.map((r) => cols.map((c) => mask(cell(r[c]))));
+  const oids = result.fields.map((f) => f.dataTypeID);
+  const rows = result.rows.map((r) =>
+    cols.map((c, i) => mask(cell(r[c], oids[i]))),
+  );
   const width = cols.map((c, i) =>
     Math.min(60, Math.max(c.length, ...rows.map((r) => r[i].length), 0)),
   );
