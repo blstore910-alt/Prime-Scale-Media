@@ -1231,7 +1231,17 @@ function RefundRequestDialog({
   });
 
   const numeric = Number(amount);
-  const valid = !!advertiserId && Number.isFinite(numeric) && numeric > 0;
+  // WHERE THE MONEY GOES IS NOT OPTIONAL. The panel says "the owner uses
+  // this to send the money", and the owner's approve dialog shows only
+  // the customer and the amount -- so a refund approved with these empty
+  // debits the wallet and leaves nobody an address to wire it to. There
+  // is no edit path on wallet_refunds anywhere in the app.
+  const valid =
+    !!advertiserId &&
+    Number.isFinite(numeric) &&
+    numeric > 0 &&
+    payoutDetails.trim().length > 3 &&
+    businessName.trim().length > 1;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

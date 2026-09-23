@@ -78,7 +78,13 @@ export default function CreateAdAccountFromRequestDialog({
 }) {
   const { user } = useAppContext();
   const queryClient = useQueryClient();
-  const { types, bySlug } = useAdAccountTypes();
+  const { types, bySlug, isLoading: typesLoading } = useAdAccountTypes();
+  // The map arrives twice -- once as the seed, once from the database --
+  // and a new identity each time. In the dependency list below that ran
+  // the reset a SECOND time, ~200ms after opening, wiping whatever the
+  // admin had already typed into Account Name.
+  const bySlugRef = useRef(bySlug);
+  bySlugRef.current = bySlug;
 
   const metaOptions = useMemo(
     () =>
@@ -116,13 +122,24 @@ export default function CreateAdAccountFromRequestDialog({
   // equivalent, so the reset does the lookup itself.
   useEffect(() => {
     if (!open) return;
+    // One reset, once the types are known. Resetting with the seed and
+    // then again with the truth throws away what was typed in between.
+    if (typesLoading) return;
     const slug = mapRequestedPlatform(request?.platform || null);
+    const t = slug ? bySlugRef.current.get(slug) : undefined;
+    if (slug && !t) {
+      // "A fee we were not given is a refusal, not a default" -- so say
+      // so instead of writing a silent 0 into an editable box.
+      toast.error("We couldn't read the default fee for this platform", {
+        description: "Set the fee by hand before saving — 0% is not a default.",
+      });
+    }
     form.reset({
       name: "",
-      fee: Number(slug ? bySlug.get(slug)?.default_fee_pct : 0) || 0,
+      fee: t ? Number(t.default_fee_pct) : 0,
       platform: slug,
     });
-  }, [open, request?.id, request?.platform, form, bySlug]);
+  }, [open, request?.id, request?.platform, form, typesLoading]);
 
   // Auto-fill the fee from the selected type's default when the platform
   // changes (still editable). Ref-guarded so mount doesn't clobber.
