@@ -74,7 +74,12 @@ function kindMark(r: Row) {
 
 function statusBadge(status: string) {
   if (status === "paid") return <span className="badge ok xs">Paid</span>;
-  if (status === "owed") return <span className="badge pend xs">To be paid</span>;
+  // NOT "To be paid". On a commission that came from an invoice the
+  // customer has ALREADY paid, that reads as "the customer still owes
+  // this" -- the owner read it exactly that way. What is waiting is OUR
+  // payout to the affiliate, so say that.
+  if (status === "owed")
+    return <span className="badge pend xs">Awaiting payout</span>;
   if (status === "processing") return <span className="badge muted xs">Processing</span>;
   if (status === "reversed") return <span className="badge muted xs">Reversed</span>;
   return <span className="badge muted xs">{status}</span>;
@@ -265,7 +270,7 @@ export default function AffiliateCommissionsCard({
         {(
           [
             ["all", "Earned", earned, "b"],
-            ["owed", "To be paid", owed, "g"],
+            ["owed", "Awaiting payout", owed, "g"],
             ["paid", "Paid", paid, "w"],
           ] as const
         ).map(([st, label, sum, tint]) => (

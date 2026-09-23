@@ -3721,7 +3721,10 @@ export default function AdvertiserApp() {
                   <span className="ci g">
                     <Ic name="i-wallet" />
                   </span>{" "}
-                  To be paid
+                  {/* "To be paid" over an affiliate's own earnings reads
+                      as though a CUSTOMER still owes it. What is pending
+                      is our payout to them. */}
+                  Awaiting payout
                 </div>
                 <div className="v gold">
                   {affRangedUnavailable

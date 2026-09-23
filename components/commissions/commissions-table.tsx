@@ -445,7 +445,7 @@ export default function CommissionsTable() {
                                     ? "Processing"
                                     : reversed
                                       ? "Reversed"
-                                      : "To be paid"}
+                                      : "Awaiting payout"}
                               </span>
                             </td>
                             <td data-label="Date" className="r muted">
