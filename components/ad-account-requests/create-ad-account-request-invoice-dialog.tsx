@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CURRENCIES } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
@@ -57,17 +59,27 @@ const schema = z.object({
 //
 // `request_fee` in the metadata is what the RPC actually computed for
 // THIS request, so it wins when it is there.
-function getDefaultValues(request: AdAccountRequest | null): FormValues {
+function getDefaultValues(
+  request: AdAccountRequest | null,
+  rate: number | null,
+): FormValues {
   const currency =
     String(request?.currency ?? "").toUpperCase() === "USD" ? "USD" : "EUR";
   const metadata = (request?.metadata ?? {}) as { request_fee?: unknown };
   const quoted = Number(metadata.request_fee);
+  // THE TENANT'S OWN RATE, NOT A NUMBER FROM LAST YEAR. The RPC and the
+  // customer's own form both quote round(50 / exchange_rates.eur); this
+  // used a hard 0.86, so every USD fee invoice came out a dollar over
+  // the price the customer was shown -- and the gap grows as the rate
+  // moves. 0.86 stays only as the last resort when the rate row cannot
+  // be read, which is what the RPC falls back to as well.
+  const r = Number(rate) > 0 ? Number(rate) : 0.86;
   const amount =
     Number.isFinite(quoted) && quoted > 0
       ? quoted
       : currency === "EUR"
         ? AD_ACCOUNT_REQUEST_FEE_EUR
-        : Math.round(AD_ACCOUNT_REQUEST_FEE_EUR / 0.86);
+        : Math.round(AD_ACCOUNT_REQUEST_FEE_EUR / r);
   return { currency, amount };
 }
 
@@ -89,16 +101,33 @@ export default function CreateAdAccountRequestInvoiceDialog({
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: getDefaultValues(request),
+    defaultValues: getDefaultValues(request, null),
     resolver: zodResolver(schema) as Resolver<FormValues>,
   });
 
   // On OPEN, so a dialog re-used for a second request does not keep the
   // first one's currency — the same fault the wallet top-up dialog had.
+  // The live rate, read once the dialog opens. Same row the RPC reads.
+  const { data: feeRate } = useQuery({
+    queryKey: ["request-fee-rate"],
+    enabled: open,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("exchange_rates")
+        .select("eur")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return Number(data?.eur) || null;
+    },
+  });
+
   useEffect(() => {
     if (!open) return;
-    reset(getDefaultValues(request));
-  }, [open, reset, request]);
+    reset(getDefaultValues(request, feeRate ?? null));
+  }, [open, reset, request, feeRate]);
 
   const onSubmit = (values: FormValues) => {
     if (!request?.id || !request.advertiser_id) {
@@ -116,7 +145,7 @@ export default function CreateAdAccountRequestInvoiceDialog({
       {
         onSuccess: () => {
           toast.success("Invoice created successfully.");
-          reset(getDefaultValues(request));
+          reset(getDefaultValues(request, feeRate ?? null));
           onOpenChange(false);
         },
         onError: (error) => {
@@ -133,7 +162,7 @@ export default function CreateAdAccountRequestInvoiceDialog({
       open={open}
       onOpenChange={(value) => {
         if (!value) {
-          reset(getDefaultValues(request));
+          reset(getDefaultValues(request, feeRate ?? null));
         }
         onOpenChange(value);
       }}

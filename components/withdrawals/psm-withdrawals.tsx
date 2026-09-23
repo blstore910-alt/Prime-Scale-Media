@@ -209,9 +209,17 @@ function ActionAskModal({
               leaves. */}
           <p className="mt-1 text-xs text-muted-foreground">
             {cover?.state === "known"
-              ? cover.amount + 0.0001 >= ask.coverCheck.amount
-                ? `Covered — ${formatCurrency(ask.coverCheck.amount, ask.coverCheck.currency)} of ${formatCurrency(cover.amount, cover.currency)}.`
-                : `SHORT by ${formatCurrency(ask.coverCheck.amount - cover.amount, ask.coverCheck.currency)}. Approving credits the wallet with money the platform does not hold.`
+              ? // TWO CURRENCIES, COMPARED AS IF THEY WERE ONE. The
+                // platform reports in ITS currency and the withdrawal is
+                // in the account's; "Covered — €1,000.00 of $1,000.00"
+                // was a true-looking sentence about a platform holding
+                // about €872. Nothing here converts, and it must not
+                // start: it says so instead.
+                cover.currency !== ask.coverCheck.currency
+                ? `The platform reports ${formatCurrency(cover.amount, cover.currency)} and this withdrawal is in ${ask.coverCheck.currency}. Nothing here converts one into the other — check it in the portal before approving.`
+                : cover.amount + 0.0001 >= ask.coverCheck.amount
+                  ? `Covered — ${formatCurrency(ask.coverCheck.amount, ask.coverCheck.currency)} of ${formatCurrency(cover.amount, cover.currency)}.`
+                  : `SHORT by ${formatCurrency(ask.coverCheck.amount - cover.amount, ask.coverCheck.currency)}. Approving credits the wallet with money the platform does not hold.`
               : cover?.state === "unknown"
                 ? `We could not read it: ${cover.reason}.`
                 : "Asking the platform what it holds…"}
@@ -1037,6 +1045,21 @@ function RefundsSection() {
                                     facts: [
                                       ["Customer", r.advertiser?.tenant_client_code ?? "—"],
                                       ["Amount", formatCurrency(Number(r.amount), r.currency)],
+                                      // The wallet is debited in one
+                                      // currency and the bank is paid in
+                                      // another. Naming only the first is
+                                      // how EUR 5,000 gets wired as
+                                      // HKD 5,000 — about a tenth of it.
+                                      ...(r.payout_bank_currency &&
+                                      String(r.payout_bank_currency).toUpperCase() !==
+                                        String(r.currency).toUpperCase()
+                                        ? ([
+                                            [
+                                              "Pay out in",
+                                              `${String(r.payout_bank_currency).toUpperCase()} — convert ${formatCurrency(Number(r.amount), r.currency)} at today's rate yourself; this app does not`,
+                                            ],
+                                          ] as Array<[string, string]>)
+                                        : []),
                                     ],
                                     run: () => approve.mutate(r.id),
                                   })
