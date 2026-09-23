@@ -256,7 +256,10 @@ export default function AccountTopupForm({
       defaultValues: {
         account_id: account?.id ?? "",
         currency: normalizeAccountCurrency(account?.currency) ?? "USD",
-        amount: 0,
+        // Empty, not 0. A money box holding "0" turns a typed 50 into
+        // "050" -- the same fault the wallet top-up dialog had, on the
+        // one figure in this form that has to be exactly right.
+        amount: undefined,
       },
       resolver: zodResolver(formSchema) as Resolver<FormValues>,
     },
@@ -368,7 +371,7 @@ export default function AccountTopupForm({
       reset({
         account_id: account?.id ?? "",
         currency: selectedAccountCurrency ?? "USD",
-        amount: 0,
+        amount: undefined,
       });
       onSuccess();
     },
