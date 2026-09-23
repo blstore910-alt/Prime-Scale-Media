@@ -1,6 +1,6 @@
-# THE NUMBER: 9 of 16 journeys closed (A1-A7, F2, F3) — 2026-09-22
+# THE NUMBER: 10 of 16 journeys closed (A1-A7, F2, F3, F4) — 2026-09-23
 
-> F4 is walked for two of the three kinds; the one-time bonus is the open one.
+> F4 closed 2026-09-23: all three kinds of commission booked and checked against the database to the cent. One rule is set but not yet walked (see its block).
 
 > F1 is walked end to end and checked against the database; only the standalone-affiliate portal is unwalked (needs a login for PSM0008/0009 — the same blocker holds F3's portal half).
 
@@ -38,7 +38,7 @@
 
 **Still to walk (needs the owner — account creation and passwords are theirs):** a signup through **Piet's** link (proves a freshly approved affiliate's link, same code path as the one just proven); a standalone affiliate (PSM0008/9) signing in -> portal with a working link; "Advertise with us too" -> owner approves -> role advertiser.
 
-## F4 — IN PROGRESS 2026-09-22: every kind of commission
+## F4 — CLOSED 2026-09-23: every kind of commission
 
 **The owner's rules, set on the walk (22-09, 22:29):** top-ups 20% of profit per ad-account type, **subscriptions 50%** of every paid invoice, **the first top-up of a new customer is ours** (0%), and **no one-time bonus by default** ("geen one time bonus default, first top ups is voor ons").
 
@@ -49,7 +49,7 @@
 | subscription | new EUR 10 plan for PSM0007 (referred by PSM0005), activated → invoice 0007-130, marked paid | +EUR 5.00 — the book says "50% of €10.00 invoice"; earned 4.96 → 9.96 |
 | subscription | same for Piet (PSM0010, also referred by PSM0005) → invoice 0010-131, marked paid | +EUR 5.00; earned 9.96 → **14.96**, still owed 10.00, and the affiliate's own screen agrees to the cent (4 commissions, Earned 14.96 / To be paid 10.00 / Paid 4.96) |
 | top-up | proven in F2 (EUR 0.11 = 20% of EUR 0.53 profit) and still explained on the row | unchanged |
-| one-time bonus | set EUR 10 for PSM0005 only (not the default), then paid Piet's invoice | **did NOT book** — plak 58 is the read-out, and books it once if it is due |
+| one-time bonus | set EUR 10 for PSM0005 only (not the default), then paid Piet's invoice | did not book at first — **a unique index swallowed it**, see below. After plak 60: +EUR 10.00, and the affiliate's screen reads Earned 24.96 / To be paid 20.00 / Paid out 4.96, which is what the database says to the cent |
 
 **Fixed in the database for this journey (plak 55, applied):** a bulk top-up made EVERY row count as "the first" (they share one `created_at`), so a 0% first-top-up rule wiped the commission on all of them — now the comparison is on (moment, id); the welcome bonus could only ever fall on a first top-up, never came back after a reversal and could not be given retroactively — it is one function now, called from the top-up AND the paid invoice; a reversed commission blocked the re-booking of a re-verified top-up; VAT would have been paid out the day an invoice carries any; and a 0% rule raised a false "commission on hold" alarm.
 
@@ -59,7 +59,30 @@
 
 **Screens fixed on this journey:** the commission card printed EUR 0,00 for a read that never ran; the three sums excluded rows the list shows (now said out loud); subscription commissions could not be filtered for at all; `on_hold` and `reversed` wore the same amber "awaiting payment" badge with a green amount in the owner's ledger; the clawback banner said nothing while it was still loading; the per-customer column was gross under netted totals; a failed identity read rendered a full page of zeroes.
 
-**Open:** the one-time bonus (plak 58), and then the first-top-up-is-ours rule walked on a brand-new customer's first funding.
+**The bonus bug, and how it was found (2026-09-23, plak 60, applied).** The first use of the new read-only connection (`npm run check`, see CLAUDE.md) — four minutes instead of four plaks. What happened to Piet:
+
+1. his EUR 10.00 subscription invoice was paid at 20:43:15;
+2. the engine booked the monthly commission, 50% = EUR 5.00, carrying `subscription_invoice_id` = that invoice;
+3. the same engine then called the welcome bonus (plak 55), which writes EUR 10.00 — with the **same** `subscription_invoice_id`, because that is where it came from;
+4. `referral_commissions_invoice_uq` was UNIQUE on `(subscription_invoice_id)`. One commission per invoice. The bonus was the second;
+5. the insert ends in `on conflict do nothing`, so there was no error. The bonus vanished without a trace.
+
+Ruled out along the way, each with one read: the rule did apply (own rule EUR 10.00 from 20:37, invoice paid at 20:43), the link is active, the affiliate is active, tenant and affiliate id match, and both functions are the plak-55 version. At PSM0007 the bonus rightly did not fall — his invoice was paid at 20:34:58, two minutes before the rule existed.
+
+The top-up side never had the bug: its index already carries the kind, `(topup_id, coalesce(source,'topup'))`. That is why the bonus fell on a first top-up and not on a first invoice. Plak 60 gives the invoice index the same shape, unhooks the legacy `trg_create_commission_from_invoice` (previous commission model; it fires alphabetically BEFORE the real engine and would block it the moment a link gets `commission_type = 'monthly'`), and books the missed bonuses with the rule as it stood when the invoice was paid — not today's.
+
+**Proven, screen against database, 2026-09-23:**
+
+| | screen | database |
+|---|---|---|
+| Earned | EUR 24.96 | 24.96 |
+| To be paid | EUR 20.00 | 20.00 |
+| Paid out | EUR 4.96 | 4.96 |
+| commissions | 5 | 5 |
+| per referral | PSM0007 9.96 · PSM0010 15.00 | 4.85+0.11+5.00 · 5.00+10.00 |
+| payout bar | EUR 20.00, "EUR 180.00 to go" | floor is 200 |
+
+**Set but NOT walked:** "the first top-up of a new customer is ours". The rule is in the database (`first_topup`, 0%, for everyone, from 22-09 20:29:35) and `_topup_commission_calc` asks for it before the type rule on a customer's first completed top-up — read at the source, not walked, because it needs a brand-new referred customer's first funding. PSM0007's two top-ups were both before 20:29 and correctly paid the ordinary 20%. Walk it on the next new customer that comes through A1.
 
 ## F3 — CLOSED 2026-09-22: payout request -> owner sees it -> settled
 
@@ -149,7 +172,7 @@ Also fixed on the owner's word this session: verify-dialog header alignment (`1c
 > this session the most time. Paste it, then read this file, then
 > `CLAUDE.md`.
 
-## THE NUMBER: 7 of 16 journeys closed (A1-A7).
+## THE NUMBER: 10 of 16 journeys closed (A1-A7, F2, F3, F4).
 
 **A7 closed 2026-09-21.** PLAK-23 landed and the first successful
 exchange in this app's history was walked end to end; every figure
@@ -232,7 +255,7 @@ sees the same subscription as due again. PLAK-15 rows 3–7 answer it.
 
 # READ THIS FIRST — state of play, 2026-09-21 (earlier)
 
-## THE NUMBER: 7 of 16 journeys closed (A1-A7).
+## THE NUMBER: 10 of 16 journeys closed (A1-A7, F2, F3, F4).
 
 | journey | state |
 |---|---|
