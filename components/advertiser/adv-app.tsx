@@ -2681,6 +2681,21 @@ export default function AdvertiserApp() {
   } | null>(null);
   const [asking, setAsking] = useState(false);
 
+  // ── WHY A TOP-UP WAS REFUSED ───────────────────────────────────────
+  //
+  // The reason an admin writes is a paragraph, and a paragraph does not
+  // fit a statement row: printed inline it turned one line of the table
+  // into seven ragged ones, right-aligned against the amount column, and
+  // pushed the figures out of sight on a phone. The row keeps a single
+  // quiet "Why?" and the sentence gets a box of its own.
+  const [whyRefused, setWhyRefused] = useState<{
+    reference: string;
+    amount: string;
+    date: string;
+    reason: string;
+    currency: "EUR" | "USD";
+  } | null>(null);
+
   const askToPay = (inv: {
     id: string;
     total: number | string | null;
@@ -4736,24 +4751,6 @@ export default function AdvertiserApp() {
                           </td>
                           <td data-label="Description" style={{ color: "var(--txt-2)" }}>
                             {t.description || "Wallet top-up"}
-                            {/* WHY IT WAS REFUSED, WHERE THEY LOOK FOR IT.
-                                The admin is made to write a sentence for
-                                this customer before the reject button
-                                unlocks; it went to the bell and nowhere
-                                else. A notification is read once. This row
-                                is what they open next month. */}
-                            {t.status === "rejected" && t.rejection_reason ? (
-                              <div
-                                className="cap"
-                                style={{
-                                  marginTop: 3,
-                                  color: "var(--danger, #e5484d)",
-                                  maxWidth: "46ch",
-                                }}
-                              >
-                                {t.rejection_reason}
-                              </div>
-                            ) : null}
                           </td>
                           <td
                             data-label="Amount"
@@ -4764,6 +4761,7 @@ export default function AdvertiserApp() {
                             {money2(t.amount)}
                           </td>
                           <td data-label="Status" className="r">
+                            <span className="stwrap">
                             {/* `failed` fell through the else and rendered
                                 "Pending" — so a top-up that will never be
                                 credited sat on the customer's statement
@@ -4794,6 +4792,45 @@ export default function AdvertiserApp() {
                                     : t.status === "pending"
                                       ? "Pending"
                                       : (t.status ?? "Unknown")}
+                            </span>
+                            {/* WHY IT WAS REFUSED, WHERE THEY LOOK FOR IT.
+                                The admin is made to write a sentence for
+                                this customer before the reject button
+                                unlocks; it went to the bell and nowhere
+                                else. A notification is read once — this
+                                row is what they open next month. It is a
+                                paragraph, so it opens in a box rather
+                                than growing the row to seven lines. */}
+                            {t.status === "rejected" && t.rejection_reason ? (
+                              <button
+                                type="button"
+                                className="whybtn"
+                                onClick={() =>
+                                  setWhyRefused({
+                                    reference:
+                                      formatPaymentReference(
+                                        referralCode,
+                                        t.reference_no,
+                                      ) ||
+                                      (t.reference_no ?? "—"),
+                                    amount: `${currencySymbol(t.currency)}${money2(t.amount)}`,
+                                    date: dayjs(t.created_at).format(
+                                      "D MMMM YYYY",
+                                    ),
+                                    reason: t.rejection_reason!,
+                                    // Re-filing a refused top-up belongs
+                                    // on the wallet it was meant for.
+                                    currency:
+                                      (t.currency ?? "EUR").toUpperCase() ===
+                                      "USD"
+                                        ? "USD"
+                                        : "EUR",
+                                  })
+                                }
+                              >
+                                Why?
+                              </button>
+                            ) : null}
                             </span>
                           </td>
                         </tr>
@@ -6551,6 +6588,70 @@ export default function AdvertiserApp() {
         tenantId={tenantId}
         apiLinked={false}
       />
+
+      {/* ── WHY A TOP-UP WAS REFUSED ──────────────────────────────────
+          Not an alert. Nothing has gone wrong with their account and no
+          money has moved; they asked us to expect a transfer and we
+          could not find it. So: what it was, what we were told, and the
+          way out — file it again. */}
+      {whyRefused && (
+        <div className="modal">
+          <div className="mback" onClick={() => setWhyRefused(null)} />
+          <div className="mcard" style={{ width: "min(430px,100%)" }}>
+            <div className="mhead">
+              <h2>This top-up was not credited</h2>
+              <button
+                className="iconbtn"
+                onClick={() => setWhyRefused(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="whyfacts">
+              <div>
+                <span>Amount</span>
+                <b className="mono">{whyRefused.amount}</b>
+              </div>
+              <div>
+                <span>Reference</span>
+                <b className="mono">{whyRefused.reference}</b>
+              </div>
+              <div>
+                <span>Filed</span>
+                <b>{whyRefused.date}</b>
+              </div>
+            </div>
+            <div className="whyquote">
+              <span className="whyq-lab">What we found</span>
+              {whyRefused.reason}
+            </div>
+            <p className="whynote">
+              Nothing was taken from your wallet and your balance is
+              unchanged. Once it is sorted out, start a new top-up — you
+              will be given a fresh reference to quote.
+            </p>
+            <div className="mfoot">
+              <button
+                className="btn ghost"
+                onClick={() => setWhyRefused(null)}
+              >
+                Close
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  const cur = whyRefused.currency;
+                  setWhyRefused(null);
+                  openTopup(cur);
+                }}
+              >
+                Start a new top-up
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ask && (
         <div className="modal">

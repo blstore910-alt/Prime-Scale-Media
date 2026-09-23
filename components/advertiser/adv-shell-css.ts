@@ -899,6 +899,32 @@ export const ADV_CSS = `
   .umenu-item:hover{background:var(--panel-2)}
   .umenu-item svg{width:17px;height:17px;color:var(--txt-2)}
   .umenu-item.danger{color:var(--danger)}.umenu-item.danger:hover{background:var(--danger-soft)}.umenu-item.danger svg{color:var(--danger)}
+  /* WHY A PAYMENT WAS REFUSED — a paragraph, not a figure.
+     The reason an admin writes is three or four sentences addressed to
+     this customer, and printed into the statement it turned one row into
+     seven ragged lines right-aligned against the amount column. The row
+     keeps a word; the paragraph gets a box. */
+  .stwrap{display:inline-flex;align-items:center;gap:9px}
+  .whybtn{display:inline-block;padding:0;background:none;border:0;
+    font:inherit;font-size:.76rem;font-weight:700;color:var(--danger);cursor:pointer;
+    text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px;
+    text-decoration-color:color-mix(in srgb,var(--danger) 40%,transparent)}
+  .whybtn:hover{text-decoration-color:var(--danger)}
+  .whyfacts{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:14px;overflow:hidden;margin:4px 0 14px}
+  .whyfacts>div{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+    padding:10px 13px;background:var(--panel)}
+  .whyfacts span{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--txt-2);font-weight:700}
+  .whyfacts b{font-weight:700;font-size:.92rem;overflow-wrap:anywhere;text-align:right}
+  /* The admin's own words, set apart so it is clear they are a message
+     and not the app talking. */
+  .whyquote{position:relative;padding:13px 15px;border-radius:14px;
+    background:var(--danger-soft);border:1px solid color-mix(in srgb,var(--danger) 22%,transparent);
+    color:var(--txt);font-size:.88rem;line-height:1.55}
+  .whyq-lab{display:block;margin-bottom:5px;font-size:.68rem;letter-spacing:.07em;
+    text-transform:uppercase;font-weight:800;color:var(--danger)}
+  .whynote{margin:12px 0 2px;color:var(--txt-2);font-size:.82rem;line-height:1.55}
   .mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
   .btn.danger{background:var(--danger);box-shadow:0 12px 26px -12px rgba(229,72,77,.7)}.btn.danger:hover{background:var(--danger)}
   /* Phone: wide tables collapse into stacked cards — the header row is
