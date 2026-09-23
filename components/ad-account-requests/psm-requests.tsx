@@ -252,9 +252,18 @@ export default function PsmRequests() {
       });
       await refetch();
     } catch (err) {
-      toast.error("Couldn't update the request", {
-        description: err instanceof Error ? err.message : "Failed.",
-      });
+      // The same conflict the reject path got fixed for: the row in
+      // `rows` still carries the ifUpdatedAt that just lost, so pressing
+      // "I'm on it" again sends the same stale stamp and gets the same
+      // refusal for ever. Pull the row back so the retry can win.
+      const message = err instanceof Error ? err.message : "Failed.";
+      if (/changed by someone else/i.test(message)) {
+        await queryClient.invalidateQueries({
+          queryKey: ["ad-account-request-details", r.id],
+        });
+        await refetch();
+      }
+      toast.error("Couldn't update the request", { description: message });
     } finally {
       setBusyId(null);
     }
@@ -385,7 +394,11 @@ export default function PsmRequests() {
                 { value: "in_progress", label: "In progress" },
                 { value: "completed", label: "Completed" },
                 { value: "rejected", label: "Rejected" },
-                { value: "cancelled", label: "Cancelled" },
+                /* "Cancelled" was here and nothing in the app can write
+                   it -- REQUEST_STATUS excludes it and no SQL sets it --
+                   so picking it emptied the queue every time. The same
+                   dead option was already removed from the withdrawals
+                   filter. */
               ],
             },
           ]}

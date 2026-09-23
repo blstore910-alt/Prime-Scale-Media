@@ -125,6 +125,12 @@ export default function PrechargePanel() {
       // amount, and an admin who then corrects the missing movement by
       // hand leaves the customer a whole top-up ahead.
       queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
+      // AND THE BADGE ON THE TAB THIS PANEL SITS IN. ["money-in-counts"]
+      // has a 30s staleTime, no refetch interval, and refetchOnWindowFocus
+      // is off -- so while /wallet-topups stays open there is no trigger
+      // at all. Advance credit from here and the Precharge tab keeps
+      // saying 0: "no credit is out the door", with credit out the door.
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Couldn't cancel that advance", { description: e.message }),
@@ -143,6 +149,12 @@ export default function PrechargePanel() {
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
+      // AND THE BADGE ON THE TAB THIS PANEL SITS IN. ["money-in-counts"]
+      // has a 30s staleTime, no refetch interval, and refetchOnWindowFocus
+      // is off -- so while /wallet-topups stays open there is no trigger
+      // at all. Advance credit from here and the Precharge tab keeps
+      // saying 0: "no credit is out the door", with credit out the door.
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Settle failed", { description: e.message }),
@@ -529,6 +541,12 @@ function PrechargeCreateDialog({
       toast.success("Precharge created — wallet credited");
       queryClient.invalidateQueries({ queryKey: ["wallet-precharges"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      // The two lists and the badge the other two mutations refresh. An
+      // advance that does not show up on the Precharge tab is credit
+      // out the door under a count that still reads 0.
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["outstanding-precharges"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
       setAdvertiserId("");
       setAmount("");
       setReason("");

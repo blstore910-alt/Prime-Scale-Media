@@ -100,7 +100,17 @@ export default function MoneyInTabs() {
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
   const [tab, setTab] = useState<TabKey>("topups");
-  const { data: counts } = useQueueCounts(tenantId);
+  const {
+    data: counts,
+    isError: countsError,
+    isLoading: countsLoading,
+  } = useQueueCounts(tenantId);
+  // undefined means "still counting" and renders nothing. Anything else
+  // that is not a number -- a failed query, or one that never ran
+  // because there is no tenant -- has to be a dash: three bare tabs look
+  // exactly like three empty queues.
+  const countOf = (k: "topups" | "deposits" | "precharge") =>
+    countsLoading ? undefined : countsError || !counts ? null : counts[k];
 
   // TWO NAMES EACH. Three full labels plus three counts do not fit across a
   // phone, and the bar scrolled sideways with the third tab half off the
@@ -119,14 +129,14 @@ export default function MoneyInTabs() {
       label: "Wallet top-ups",
       short: "Top-ups",
       caption: "Check the bank before you credit.",
-      count: counts?.topups,
+      count: countOf("topups"),
     },
     {
       key: "deposits",
       label: "Bank deposits",
       short: "Deposits",
       caption: "Money arriving in the bank, as Wise reports it.",
-      count: counts?.deposits,
+      count: countOf("deposits"),
     },
     {
       key: "precharge",
@@ -134,7 +144,7 @@ export default function MoneyInTabs() {
       short: "Precharge",
       caption:
         "Advance wallet credit before a payment clears. It settles when the money arrives.",
-      count: counts?.precharge,
+      count: countOf("precharge"),
     },
   ];
   const active = TABS.find((t) => t.key === tab);

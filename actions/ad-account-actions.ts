@@ -851,13 +851,24 @@ export async function createAdAccountFromRequest(
   // subscription_id), and on no screen. The account was given away for
   // nothing and nothing says so.
   if (req.status === "payment_pending") {
-    const { data: openFees } = await supabase
+    const { data: openFees, error: openFeesError } = await supabase
       .from("invoices")
       .select("id, items, status")
       .eq("advertiser_id", req.advertiser_id)
       .eq("type", "ad_account_fee")
       .eq("status", "unpaid")
-      .limit(50);
+      .limit(500);
+    // A read we could not make is not "no unpaid fee". Swallowing this
+    // error let the guard pass, and the account was handed over with the
+    // EUR 50 still outstanding -- the exact outcome the comment above
+    // exists to prevent. Refuse rather than give it away.
+    if (openFeesError) {
+      return {
+        ok: false,
+        error:
+          "We couldn't check whether this request's fee invoice is still open, so no account was created. Try again in a moment.",
+      };
+    }
     const unpaid = (openFees ?? []).find((inv) => {
       const items = (inv as { items?: unknown }).items;
       return (
