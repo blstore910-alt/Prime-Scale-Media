@@ -426,8 +426,15 @@ export default function InviteForm() {
     }
   }
 
+  // FOUR, like the trigger that actually assigns it. generate_client_code
+  // does `initials || lpad(next_number, 4, '0')` -- every customer in the
+  // database is PSM0001..PSM0011, seven characters. This padded to six, so
+  // the owner was shown PSM000012 for somebody who will be PSM0012. The
+  // client code is the first half of every payment reference
+  // (0012-1234567890), so it is a string that gets read out to a customer
+  // and typed into a bank.
   const nextClientCode = String((tenant?.last_client_code as number) + 1).padStart(
-    6,
+    4,
     "0",
   );
 
@@ -455,10 +462,12 @@ export default function InviteForm() {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Invite a Member</DialogTitle>
+          {/* Three lines of preamble above the first field pushed the form
+              itself below the fold on a phone. What an admin needs to know
+              here is one sentence; the rest is visible in the controls. */}
           <DialogDescription>
-            Invite someone to your organization. For advertisers, a plan is
-            pre-filled (Prime by default); a community overrides it, and you can
-            still edit the fees by hand.
+            Advertisers get Prime pre-filled — a community overrides it, and
+            every figure stays editable.
           </DialogDescription>
         </DialogHeader>
 
@@ -518,9 +527,9 @@ export default function InviteForm() {
           </div>
         ) : (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
             <div>
-              <Label className="mb-2">Assigned Client Code</Label>
+              <Label className="mb-1.5">Assigned Client Code</Label>
               <InputGroup className="cursor-not-allowed">
                 <InputGroupAddon className="border-r pr-2">
                   {tenant?.initials}
@@ -539,7 +548,7 @@ export default function InviteForm() {
             />
 
             <div>
-              <Label htmlFor="invite-role" className="mb-2">
+              <Label htmlFor="invite-role" className="mb-1.5">
                 Role
               </Label>
               <Controller
