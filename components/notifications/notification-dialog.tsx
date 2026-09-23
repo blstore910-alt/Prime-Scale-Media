@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { Notification } from "@/lib/types/notification";
 import { Topup } from "@/lib/types/topup";
 import { useQuery } from "@tanstack/react-query";
@@ -55,7 +56,7 @@ export default function NotificationDialog({
         // topup_completed notification. Not rendering is not the same
         // as not sending.
         .select(
-          "id, number, status, currency, topup_currency, topup_amount, fee_amount, amount_received, created_at",
+          "id, number, status, currency, topup_currency, topup_amount, topup_usd, fee_amount, amount_received, created_at",
         )
         .eq("id", topupId)
         .maybeSingle();
@@ -115,7 +116,16 @@ export default function NotificationDialog({
   // the customer's own receipt. The same fault was found and fixed in
   // verify-topup-dialog.tsx and psm-verify-ad-topups.tsx; this screen was
   // missed, and it is the one the CUSTOMER reads.
-  const USD = "USD";
+  // ── AND THE FIX ABOVE WAS HALF OF ONE ──────────────────────────────
+  //
+  // "topup_amount and fee_amount are ALWAYS USD" is only true of the two
+  // ADMIN paths. The customer's own RPC stores both in the currency they
+  // paid in -- see lib/pure-topup-landed.ts, which tells the two apart by
+  // `topup_usd` and is already used by the other three screens. This one
+  // hard-coded USD and did not even ask for the discriminator, so every
+  // customer-filed funding on live reads "Top-up fee $3.00 / Landed on
+  // the account $97.00" for EUR 3.00 and EUR 97.00 on a euro account.
+  const landedCurrency = landedOnAccount(topup ?? null).currency;
   const topupAmountUsd = toNumber(topup?.topup_amount ?? payload.topup_amount);
   const feeAmountUsd = toNumber(topup?.fee_amount ?? payload.fee_amount);
   // What they actually transferred, in the currency they transferred it
@@ -251,7 +261,7 @@ export default function NotificationDialog({
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Top-up fee</span>
                 <span className="font-medium">
-                  {money(feeAmountUsd, USD)}
+                  {money(feeAmountUsd, landedCurrency)}
                 </span>
               </div>
 
@@ -259,13 +269,13 @@ export default function NotificationDialog({
 
               <div className="flex justify-between items-center text-base font-semibold">
                 <span>Landed on the account</span>
-                <span>{money(topupAmountUsd, USD)}</span>
+                <span>{money(topupAmountUsd, landedCurrency)}</span>
               </div>
-              {currency.toUpperCase() !== USD && (
+              {currency.toUpperCase() !== landedCurrency && (
                 <p className="text-xs text-muted-foreground">
-                  Ad accounts are funded in US dollars, so the fee and the
-                  amount that landed are shown in dollars. You transferred{" "}
-                  {currency.toUpperCase()}.
+                  This account is funded in {landedCurrency}, so the fee and
+                  the amount that landed are shown in {landedCurrency}. You
+                  transferred {currency.toUpperCase()}.
                 </p>
               )}
             </div>

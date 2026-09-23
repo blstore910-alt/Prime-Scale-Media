@@ -116,6 +116,11 @@ export default function WalletTransactionApproveDialog({
       busy={isPending}
       busyLabel="Crediting…"
       disabled={requestedAmount <= 0 || prechargeLoading}
+      disabledHint={
+        prechargeLoading
+          ? "Still checking whether this top-up was already advanced."
+          : "This top-up has no amount on it, so there is nothing to credit. Open Details and check the row."
+      }
       onConfirm={onConfirm}
     >
       <ConfirmFact
@@ -136,7 +141,16 @@ export default function WalletTransactionApproveDialog({
         />
       )}
       {advance && (
-        <ConfirmFact label="Wallet changes by" value={`${symbol}0.00`} strong />
+        /* NOT always zero. The claim can be edited after the advance --
+           "Set the claim to EUR 4800.00" on the Bank deposits tab -- and
+           then verifying credits the new amount while settling the old
+           advance. A hard 0.00 sent the admin looking for a EUR 200 hole
+           that this screen had just promised would not exist. */
+        <ConfirmFact
+          label="Wallet changes by"
+          value={`${symbol}${(requestedAmount - advance.outstanding).toFixed(2)}`}
+          strong
+        />
       )}
       <ConfirmFact
         label="Reference"

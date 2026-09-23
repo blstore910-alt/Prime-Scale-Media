@@ -86,7 +86,16 @@ export default function RejectTopupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Never close under the operator while the refusal is in flight:
+        // the reason is wiped on close and they cannot tell whether it
+        // landed until the queue refreshes.
+        if (!next && isPending) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reject topup</DialogTitle>
@@ -103,13 +112,20 @@ export default function RejectTopupDialog({
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             Cancel
           </Button>
+          {/* The reason is required and the customer is shown it. A live
+              button over an empty box teaches the opposite, and the two
+              sibling reject dialogs both disable it. */}
           <Button
             variant="destructive"
             onClick={handleSubmit}
-            disabled={isPending}
+            disabled={!reason.trim() || isPending}
             className="text-white"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
