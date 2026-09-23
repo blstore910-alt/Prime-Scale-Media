@@ -138,15 +138,15 @@ export default function PsmDst() {
     },
     onSuccess: (d) => {
       toast.success(
-        `Factuur aangemaakt — ${formatCurrency(d.total, d.currency)}`,
-        { description: "De klant kan hem uit zijn wallet betalen." },
+        `Invoice raised — ${formatCurrency(d.total, d.currency)}`,
+        { description: "The customer can pay it from their wallet." },
       );
       setPicked({});
       queryClient.invalidateQueries({ queryKey: ["dst-charges"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["invoices"], exact: false });
     },
     onError: (e: Error) =>
-      toast.error("Factureren is niet gelukt", { description: e.message }),
+      toast.error("Couldn't raise the invoice", { description: e.message }),
   });
 
   return (
@@ -155,12 +155,12 @@ export default function PsmDst() {
         <div>
           <h1>DST</h1>
           <p className="muted">
-            Wat de leverancier ons aan digital services tax afschrijft, per
-            klant doorbelast.
+            What we are taxed on customer spend, charged back to the customer who
+            caused it.
           </p>
         </div>
         <Button onClick={() => setAddOpen(true)}>
-          <Plus /> Week invoeren
+          <Plus /> Enter a week
         </Button>
       </div>
 
@@ -169,7 +169,7 @@ export default function PsmDst() {
       <div className="mb-4 grid gap-2 sm:grid-cols-3">
         <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-transparent p-3">
           <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            Gereserveerd, nog niet gefactureerd
+            Reserved, not yet invoiced
           </p>
           <p className="mt-1 font-semibold tabular-nums">
             {charges.isError
@@ -183,7 +183,7 @@ export default function PsmDst() {
         </div>
         <div className="rounded-xl border p-3">
           <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            Regels in beeld
+            Lines in view
           </p>
           <p className="mt-1 font-semibold tabular-nums">
             {charges.isError ? "—" : rows.length}
@@ -191,7 +191,7 @@ export default function PsmDst() {
         </div>
         <div className="rounded-xl border p-3">
           <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            Gekozen om te factureren
+            Picked to invoice
           </p>
           <p className="mt-1 font-semibold tabular-nums">
             {chosen.length
@@ -212,10 +212,10 @@ export default function PsmDst() {
             }}
           >
             {s === "reserved"
-              ? "Gereserveerd"
+              ? "Reserved"
               : s === "charged"
-                ? "Gefactureerd"
-                : "Alles"}
+                ? "Invoiced"
+                : "All"}
           </button>
         ))}
         <span className="ml-auto" />
@@ -224,44 +224,44 @@ export default function PsmDst() {
           onClick={() => makeInvoice()}
           title={
             !chosen.length
-              ? "Kies eerst regels"
+              ? "Pick some lines first"
               : !chosenOk
-                ? "Alle gekozen regels moeten van dezelfde klant en in dezelfde valuta zijn."
+                ? "Every picked line has to be the same customer and the same currency."
                 : undefined
           }
         >
           {invoicing ? <Loader2 className="animate-spin" /> : <Receipt />}
-          Factuur maken
+          Raise the invoice
         </Button>
       </div>
 
       {charges.isLoading ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            Laden…
+            Loading…
           </p>
         </div>
       ) : charges.isError ? (
         <div className="card">
           <p style={{ margin: 0, fontWeight: 600 }}>
-            De DST-regels konden niet gelezen worden.
+            The DST lines couldn&apos;t be read.
           </p>
           <p className="muted" style={{ margin: "6px 0 12px" }}>
-            Dit is GEEN lege lijst — ga er niet van uit dat er niets
-            openstaat.
+            This is NOT an empty list — do not conclude that nothing is
+            outstanding.
           </p>
           <button className="btn ghost sm" onClick={() => charges.refetch()}>
-            Opnieuw proberen
+            Retry
           </button>
         </div>
       ) : !rows.length ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
             {statusFilter === "reserved"
-              ? "Niets gereserveerd. Voer een week in zodra de leverancier heeft afgeschreven."
+              ? "Nothing reserved. Enter a week as soon as the supplier has debited us."
               : statusFilter === "charged"
-                ? "Nog niets gefactureerd."
-                : "Nog geen DST vastgelegd."}
+                ? "Nothing invoiced yet."
+                : "No DST recorded yet."}
           </p>
         </div>
       ) : (
@@ -295,9 +295,9 @@ export default function PsmDst() {
                     </span>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {r.country_name || r.country_code} · {n(r.rate_pct)}% over{" "}
+                    {r.country_name || r.country_code} · {n(r.rate_pct)}% of{" "}
                     {formatCurrency(n(r.base_amount), r.currency)} ·{" "}
-                    {dayjs(r.period_start).format("D MMM")} t/m{" "}
+                    {dayjs(r.period_start).format("D MMM")} –{" "}
                     {dayjs(r.period_end).format("D MMM YYYY")}
                   </p>
                 </div>
@@ -316,9 +316,9 @@ export default function PsmDst() {
                     }
                   >
                     {reserved
-                      ? "gereserveerd"
+                      ? "reserved"
                       : r.status === "charged"
-                        ? "gefactureerd"
+                        ? "invoiced"
                         : r.status}
                   </span>
                 </div>
@@ -430,8 +430,8 @@ function AddDstDialog({
     },
     onSuccess: (d) => {
       toast.success(
-        `${d.recorded} ${d.recorded === 1 ? "regel" : "regels"} vastgelegd — ${formatCurrency(d.total, currency)}`,
-        { description: "Ze staan op gereserveerd tot je er een factuur van maakt." },
+        `${d.recorded} ${d.recorded === 1 ? "line" : "lines"} recorded — ${formatCurrency(d.total, currency)}`,
+        { description: "They sit as reserved until you raise the invoice." },
       );
       setLines([{ country: "", base: "" }]);
       setNote("");
@@ -439,7 +439,7 @@ function AddDstDialog({
       onDone();
     },
     onError: (e: Error) =>
-      toast.error("Vastleggen is niet gelukt", { description: e.message }),
+      toast.error("Couldn't record it", { description: e.message }),
   });
 
   const valid =
@@ -459,23 +459,23 @@ function AddDstDialog({
     >
       <DialogContent className="max-h-[90vh] overflow-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>DST van een week vastleggen</DialogTitle>
+          <DialogTitle>Record a week of DST</DialogTitle>
           <DialogDescription>
-            Eén klant, één periode, een regel per land. Het tarief komt uit je
-            landenlijst.
+            One customer, one period, a line per country. The rate comes from
+            your own country list.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
-            <Label htmlFor="dst-adv">Klant</Label>
+            <Label htmlFor="dst-adv">Customer</Label>
             <select
               id="dst-adv"
               className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
               value={advertiserId}
               onChange={(e) => setAdvertiserId(e.target.value)}
             >
-              <option value="">Kies een klant…</option>
+              <option value="">Pick a customer…</option>
               {(advertisers.data ?? []).map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.tenant_client_code} — {a.profile?.full_name ?? ""}
@@ -484,15 +484,15 @@ function AddDstDialog({
             </select>
             {advertisers.isError && (
               <p className="mt-1 text-xs text-destructive">
-                De klantenlijst kon niet gelezen worden — dit is geen lege
-                lijst.
+                The customer list couldn&apos;t be read — this is not an
+                empty list.
               </p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="dst-from">Van</Label>
+              <Label htmlFor="dst-from">From</Label>
               <Input
                 id="dst-from"
                 type="date"
@@ -501,7 +501,7 @@ function AddDstDialog({
               />
             </div>
             <div>
-              <Label htmlFor="dst-to">Tot en met</Label>
+              <Label htmlFor="dst-to">To and including</Label>
               <Input
                 id="dst-to"
                 type="date"
@@ -512,12 +512,12 @@ function AddDstDialog({
           </div>
           {periodEnd < periodStart && (
             <p className="text-xs text-destructive">
-              De einddatum ligt vóór de begindatum.
+              The end date is before the start date.
             </p>
           )}
 
           <div>
-            <Label htmlFor="dst-cur">Valuta</Label>
+            <Label htmlFor="dst-cur">Currency</Label>
             <select
               id="dst-cur"
               className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
@@ -530,7 +530,7 @@ function AddDstDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Spend per land</Label>
+            <Label>Spend per country</Label>
             {lines.map((l, i) => {
               const rate = rateFor(l.country);
               return (
@@ -546,7 +546,7 @@ function AddDstDialog({
                       )
                     }
                   >
-                    <option value="">Land…</option>
+                    <option value="">Country…</option>
                     {(rates.data ?? []).map((r) => (
                       <option key={r.country_code} value={r.country_code}>
                         {r.country_code} · {n(r.rate_pct)}%
@@ -581,7 +581,7 @@ function AddDstDialog({
                   <button
                     type="button"
                     className="mt-1 text-muted-foreground hover:text-destructive"
-                    aria-label="Regel weghalen"
+                    aria-label="Remove this line"
                     onClick={() =>
                       setLines((p) =>
                         p.length === 1
@@ -600,32 +600,32 @@ function AddDstDialog({
               className="btn ghost sm"
               onClick={() => setLines((p) => [...p, { country: "", base: "" }])}
             >
-              <Plus className="h-4 w-4" /> Land erbij
+              <Plus className="h-4 w-4" /> Add a country
             </button>
           </div>
 
           <div>
-            <Label htmlFor="dst-note">Notitie (optioneel)</Label>
+            <Label htmlFor="dst-note">Note (optional)</Label>
             <Input
               id="dst-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="bv. afschrijving week 38"
+              placeholder="e.g. week 38 debit"
             />
           </div>
 
           <div className="rounded-xl border bg-muted/40 p-3">
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-muted-foreground">
-                Samen door te belasten
+                To charge back, together
               </span>
               <span className="text-lg font-semibold tabular-nums">
                 {formatCurrency(total, currency)}
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Dit wordt vastgelegd als gereserveerd. De klant ziet het, maar
-              betaalt pas als je er een factuur van maakt.
+              This is recorded as reserved. The customer can see it, and pays
+              only once you raise the invoice.
             </p>
           </div>
         </div>
@@ -637,11 +637,11 @@ function AddDstDialog({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
-            Annuleren
+            Cancel
           </Button>
           <Button onClick={() => mutate()} disabled={!valid || isPending}>
             {isPending && <Loader2 className="animate-spin" />}
-            Vastleggen
+            Record
           </Button>
         </DialogFooter>
       </DialogContent>

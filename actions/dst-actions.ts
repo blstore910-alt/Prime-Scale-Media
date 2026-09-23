@@ -53,13 +53,13 @@ export async function recordDstCharges(input: {
     (l) => l && String(l.countryCode ?? "").trim() && Number(l.baseAmount) > 0,
   );
   if (!lines.length) {
-    return { ok: false, error: "Vul minstens één land met een bedrag in." };
+    return { ok: false, error: "Fill in at least one country with an amount." };
   }
   if (!input.periodStart || !input.periodEnd) {
-    return { ok: false, error: "Kies een periode." };
+    return { ok: false, error: "Pick a period." };
   }
   if (input.periodEnd < input.periodStart) {
-    return { ok: false, error: "De periode loopt achteruit." };
+    return { ok: false, error: "The period runs backwards." };
   }
 
   const written: string[] = [];
@@ -89,9 +89,9 @@ export async function recordDstCharges(input: {
       return {
         ok: false,
         error: written.length
-          ? `${how} — let op: de eerste ${written.length} ${
-              written.length === 1 ? "regel staat" : "regels staan"
-            } al vastgelegd. Kijk in de lijst voordat je het opnieuw doet.`
+          ? `${how} — note: the first ${written.length} ${
+              written.length === 1 ? "line is" : "lines are"
+            } already recorded. Check the list before doing this again.`
           : how,
       };
     }
@@ -115,7 +115,7 @@ export async function invoiceDstCharges(
   const { supabase } = auth.ctx;
 
   const clean = (ids ?? []).filter(Boolean);
-  if (!clean.length) return { ok: false, error: "Geen regels gekozen." };
+  if (!clean.length) return { ok: false, error: "No lines picked." };
 
   const { data, error } = await supabase.rpc("dst_charge_invoice", { p_ids: clean });
   if (error) return { ok: false, error: safeErrorMessage(error) };
@@ -123,7 +123,7 @@ export async function invoiceDstCharges(
   const inv = data as
     | { id?: string; total?: number | string; currency?: string | null }
     | null;
-  if (!inv?.id) return { ok: false, error: "De factuur is niet aangemaakt." };
+  if (!inv?.id) return { ok: false, error: "The invoice was not created." };
 
   return {
     ok: true,
