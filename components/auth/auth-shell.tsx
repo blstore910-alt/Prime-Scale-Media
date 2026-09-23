@@ -1,4 +1,5 @@
 import { dmSans, jakarta } from "@/lib/fonts";
+import { Toaster } from "@/components/ui/sonner";
 
 // ── THE DARK AUTH SHELL, SHARED ─────────────────────────────────────
 // Moved out of app/auth/layout.tsx so the invitation screens
@@ -534,6 +535,20 @@ export default function AuthShell({
       </aside>
 
       <main className="side">{children}</main>
+      {/* ── NOBODY WAS DRAWING THE ERRORS ────────────────────────
+          The three app shells each mount a Toaster; this one never did.
+          So every toast on /auth/* and /invite/* was called and then
+          rendered by nobody: "This email already has an account", "Sign
+          up failed", the resend confirmations — all of it silent.
+
+          The owner pressed Create my account and got, in their words,
+          "geen melding van error, niks". The form was doing its job; the
+          answer had nowhere to land. This is the first screen a new
+          customer ever sees.
+
+          Dark, because this shell is dark and a white toast on it reads
+          as part of another page. */}
+      <Toaster position="top-center" theme="dark" richColors closeButton />
     </div>
   );
 }
