@@ -264,7 +264,7 @@ export function AccountDetailsSheet({
     <div>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="sm:max-w-xl w-full overflow-auto">
-          <SheetHeader className="sticky top-0 bg-background">
+          <SheetHeader className="sticky top-0 z-10 bg-background pb-2">
             <div className="flex items-center justify-between">
               <SheetTitle>Account Details</SheetTitle>
               {/* A 10x10 target, not a bare 20-24px glyph. These sheets are
@@ -295,10 +295,15 @@ export function AccountDetailsSheet({
             </div>
           )}
           {data && (
-            <div className=" sm:space-y-6 space-y-3 px-2">
-              <div className="text-end">
-                {isPending && <Loader2 className="animate-spin inline" />}
-              </div>
+            <div className="space-y-3 px-2 sm:space-y-4">
+              {/* This div was ALWAYS rendered -- an empty line of dead
+                  band between the header and the first card, on a sheet
+                  that is one column wide. It only ever holds a spinner. */}
+              {isPending && (
+                <div className="text-end">
+                  <Loader2 className="animate-spin inline" />
+                </div>
+              )}
 
               {/* ── THE ACCOUNT ITSELF, NOT A LIST OF LABELS ──────────
                   This sheet opened with "Name:" over a string. The
