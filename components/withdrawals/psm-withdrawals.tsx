@@ -571,7 +571,7 @@ function WithdrawalsSection() {
               </tr>
             </thead>
             <tbody>
-              {isLoading
+              {isLoading || !tenantId
                 ? loadingRow(6)
                 : isError
                   ? emptyRow(
@@ -914,7 +914,7 @@ function RefundsSection() {
               </tr>
             </thead>
             <tbody>
-              {isLoading
+              {isLoading || !tenantId
                 ? loadingRow(6)
                 : filtered.length
                   ? filtered.map((r) => (
@@ -1563,7 +1563,7 @@ function AdjustmentsSection() {
               </tr>
             </thead>
             <tbody>
-              {isLoading
+              {isLoading || !tenantId
                 ? loadingRow(6)
                 : filtered.length
                   ? filtered.map((r) => {

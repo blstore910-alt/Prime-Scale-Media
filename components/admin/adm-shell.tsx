@@ -150,7 +150,11 @@ export default function AdminShell({
           title: "Wallet Topups",
           href: "/wallet-topups",
           icon: Upload,
-          badge: pending.walletTopups,
+          // The SUM here, not just the top-ups: a badge on a nav item
+          // means "work behind this link", and that link opens a screen
+          // with three queues on it. The dashboard names each one
+          // separately, which is where the exact figure belongs.
+          badge: pending.moneyIn,
         },
         {
           title: "Withdrawals",

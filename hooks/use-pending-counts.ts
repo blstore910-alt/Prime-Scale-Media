@@ -8,13 +8,22 @@ export type PendingCounts = {
   /**
    * null means UNKNOWN — the count could not be read. Never render it as 0.
    *
-   * Counts ALL THREE queues on /wallet-topups: wallet top-ups, bank
-   * deposits waiting to be confirmed, and outstanding precharges. The
-   * card that renders it points at that screen, and metering one of
-   * three meant a "0" read as "nothing at that address" while
-   * suggested deposits sat there.
+   * WALLET TOP-UPS, AND ONLY THOSE. This used to sum all three queues on
+   * /wallet-topups so no work could hide behind a 0 — but the card is
+   * labelled "Wallet topups to verify", and the owner opened a dashboard
+   * reading 5 on a tenant with ZERO pending top-ups: the 5 were bank
+   * deposits. A number under a label has to be that label's number.
+   * Bank deposits and outstanding advances get their own, below; the
+   * SIDEBAR keeps the sum, because a badge on a nav item means "work
+   * behind this link".
    */
   walletTopups: number | null;
+  /** Deposits in the bank nobody has claimed yet. */
+  bankDeposits: number | null;
+  /** Wallet credit advanced before a payment cleared, still outstanding. */
+  outstandingPrecharges: number | null;
+  /** All three of the above — what the /wallet-topups link is worth. */
+  moneyIn: number | null;
   /** The three tables behind /withdrawals, per tab, so each can label
       its own. null for any that could not be read. */
   adAccountWithdrawals: number | null;
@@ -48,6 +57,9 @@ export function usePendingCounts(): PendingCounts {
 
   const { data, isError, isLoading } = useQuery<{
     walletTopups: number | null;
+    bankDeposits: number | null;
+    outstandingPrecharges: number | null;
+    moneyIn: number | null;
     adAccountWithdrawals: number | null;
     walletRefunds: number | null;
     walletAdjustments: number | null;
@@ -163,7 +175,10 @@ export function usePendingCounts(): PendingCounts {
         : moneyInParts.reduce((a: number, b) => a + (b as number), 0);
 
       return {
-        walletTopups: moneyIn,
+        walletTopups: one(walletTopups),
+        bankDeposits: one(bankDeposits),
+        outstandingPrecharges: one(outstandingPrecharges),
+        moneyIn,
         topUps: one(topUps),
         adAccountRequests: one(adAccountRequests),
         withdrawals,
@@ -177,6 +192,9 @@ export function usePendingCounts(): PendingCounts {
 
   const counts = data ?? {
     walletTopups: null,
+    bankDeposits: null,
+    outstandingPrecharges: null,
+    moneyIn: null,
     adAccountWithdrawals: null,
     walletRefunds: null,
     walletAdjustments: null,
@@ -194,6 +212,7 @@ export function usePendingCounts(): PendingCounts {
     isError:
       !isLoading &&
       (isError ||
+        counts.moneyIn === null ||
         counts.walletTopups === null ||
         counts.topUps === null ||
         counts.adAccountRequests === null ||

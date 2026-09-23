@@ -222,7 +222,10 @@ export default function PrechargePanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {/* `enabled: !!tenantId` means isLoading is FALSE when the
+                query never ran — and then this printed an empty list as
+                a fact. */}
+            {isLoading || !tenantId ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />

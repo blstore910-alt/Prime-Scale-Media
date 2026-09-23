@@ -265,7 +265,7 @@ function AdminSidebarContent({
   // null = unknown (the count could not be read), which the badge must not
   // render as a zero or as an absent badge.
   const badgeFor = (url: string): number | null | undefined => {
-    if (url === "/wallet-topups") return pending.walletTopups;
+    if (url === "/wallet-topups") return pending.moneyIn;
     if (url === "/top-ups") return pending.topUps;
     if (url === "/ad-account-requests") return pending.adAccountRequests;
     if (url === "/withdrawals") return pending.withdrawals;

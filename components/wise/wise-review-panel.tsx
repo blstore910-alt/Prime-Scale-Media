@@ -319,6 +319,7 @@ const WISE_CSS = `
 .wtor{margin-top:2px;font-size:.71rem;color:var(--faint)}
 .wnote{margin:9px 0 0;font-size:.79rem;line-height:1.45;color:var(--txt-2)}
 .wact{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wact>.wmatch-open{grid-column:1/-1}
 .wact>*{min-width:0}
 .wact .btn{width:100%;justify-content:center}
 .wdone{display:flex;align-items:center;justify-content:center;
@@ -1799,7 +1800,14 @@ function ManualMatch({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+    // FULL WIDTH ONCE IT IS OPEN. `.wact` is a two-column grid, so the
+    // open picker was squeezed into half a card with Archive holding the
+    // other half -- "Nothing pending matches this amount." wrapped into
+    // four lines beside a button. Open, this is the card's whole job.
+    <div
+      className="wmatch-open"
+      style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}
+    >
       {isLoading ? (
         <span className="muted" style={{ fontSize: ".82rem" }}>
           Looking…

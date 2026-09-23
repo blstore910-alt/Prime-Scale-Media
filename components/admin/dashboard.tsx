@@ -13,6 +13,7 @@ import {
   Download,
   FileText,
   Gift,
+  Landmark,
   Receipt,
   RefreshCw,
   Server,
@@ -154,6 +155,17 @@ export default function AdminDashboard() {
       ci: "b",
       count: pending.walletTopups,
       label: "Wallet topups to verify",
+    },
+    {
+      // Its own card, because it is its own queue: money that arrived in
+      // the bank and nobody has claimed. It used to be added into the
+      // card above, which then read 5 on a tenant with no top-ups
+      // waiting at all.
+      href: "/wallet-topups",
+      icon: Landmark,
+      ci: "t",
+      count: pending.bankDeposits,
+      label: "Bank deposits to match",
     },
     {
       href: "/ad-account-requests",
