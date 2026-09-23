@@ -2,7 +2,20 @@ import {
   notifyWalletTopupRejected,
   notifyWalletTopupVerified,
 } from "@/actions/wallet-topup-notify-actions";
-import { createClient } from "@/lib/supabase/client";
+// ── THROUGH A DOOR THAT CAN BE LOCKED ──────────────────────────────
+//
+// These three used to be `supabase.rpc(...)` from this client component
+// with the browser's own session. So MAINTENANCE_MODE=true froze the
+// ad-account queue and left the LARGER money event -- crediting a
+// customer's wallet off a bank transfer -- wide open, a deactivated
+// admin kept the power to do it (the RPCs test `role` and nothing
+// else), and a wallet credit left no trace in the server logs. The RPC
+// is still what writes; it is simply reached through a guard now.
+import {
+  rejectWalletTopupAsAdmin,
+  undoWalletTopupAsAdmin,
+  verifyWalletTopupAsAdmin,
+} from "@/actions/wallet-topup-decide-actions";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -17,14 +30,11 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
       action: UpdateAction;
       rejectionReason?: string;
     }) => {
-      const supabase = createClient();
       let notifyProblem: string | null = null;
 
       if (payload.action === "approve") {
-        const { error } = await supabase.rpc("wallet_topup_admin_verify", {
-          p_topup_id: topup.id,
-        });
-        if (error) throw error;
+        const res = await verifyWalletTopupAsAdmin(topup.id);
+        if (!res.ok) throw new Error(res.error);
         // ── AND TELL THE CUSTOMER ────────────────────────────────
         //
         // This is the money-in event of the product: someone wired
@@ -48,11 +58,11 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
           notifyProblem = e instanceof Error ? e.message : "unknown";
         }
       } else if (payload.action === "reject") {
-        const { error } = await supabase.rpc("wallet_topup_admin_reject", {
-          p_topup_id: topup.id,
-          p_reason: payload.rejectionReason ?? null,
-        });
-        if (error) throw error;
+        const res = await rejectWalletTopupAsAdmin(
+          topup.id,
+          payload.rejectionReason ?? "",
+        );
+        if (!res.ok) throw new Error(res.error);
         // The reason is written to the customer -- that is the whole
         // point of demanding one, and it reached the database and
         // stopped there.
@@ -66,10 +76,8 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
           notifyProblem = e instanceof Error ? e.message : "unknown";
         }
       } else if (payload.action === "undo") {
-        const { error } = await supabase.rpc("wallet_topup_admin_undo", {
-          p_topup_id: topup.id,
-        });
-        if (error) throw error;
+        const res = await undoWalletTopupAsAdmin(topup.id);
+        if (!res.ok) throw new Error(res.error);
       }
       return { notifyProblem };
     },
