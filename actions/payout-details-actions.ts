@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { maintenanceGuard, type ActionResult } from "./_shared";
 import type { PayoutDetails } from "./payout-actions";
@@ -61,10 +61,43 @@ export async function saveMyPayoutDetails(
 
   const details = clean(input ?? {});
 
-  // The owner check IS the where-clause: only their own row can match.
-  const { data, error } = await supabase
+  // ── CHECK OWNERSHIP HERE, THEN WRITE WITH RIGHTS ─────────────────
+  //
+  // The first version wrote with the caller's own session and leaned on
+  // the where-clause. That cannot work: the advertisers table carries no
+  // UPDATE policy for a customer (only "Allow ALL for admins" and a
+  // SELECT of your own row), so RLS refused it, nothing matched, and the
+  // action told people their account was not linked. Read off the live
+  // policies, not guessed.
+  //
+  // So the owner check is made HERE, explicitly, against the caller's
+  // own session — a read they are allowed — and only then is the one
+  // column written with the service key. A trigger (plak 78) holds the
+  // same rule in the database, so this is the door and not the lock.
+  const { data: mine, error: mineErr } = await supabase
+    .from("advertisers")
+    .select("id")
+    .eq("user_id", userData.user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (mineErr) return { ok: false, error: safeErrorMessage(mineErr) };
+  const myId = (mine as { id?: string } | null)?.id;
+  if (!myId) {
+    return {
+      ok: false,
+      error:
+        "Your account isn't linked to a customer record yet, so there is nowhere to keep these. Ask us to finish it.",
+    };
+  }
+
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("advertisers")
     .update({ payout_details: details })
+    .eq("id", myId)
+    // Belt and braces: the id came from a row that matched on user_id,
+    // and the write re-states it.
     .eq("user_id", userData.user.id)
     .select("id");
 
@@ -84,14 +117,15 @@ export async function saveMyPayoutDetails(
     return { ok: false, error: safeErrorMessage(error) };
   }
 
-  // Zero rows is not success: it means no row matched, which for a
-  // where-clause of "your own id" means the account is not finished.
+  // Zero rows is still not success: the row was there a moment ago, so
+  // if nothing matched now something else is wrong and saying "saved"
+  // would be a lie about somebody's bank details.
   const saved = (data ?? []).length;
   if (saved === 0) {
     return {
       ok: false,
       error:
-        "Your account isn't linked to a customer record yet, so there is nowhere to keep these. Ask us to finish it.",
+        "We couldn't write your payout details just now. Nothing you typed is lost — try again, and tell us if it stays away.",
     };
   }
   return { ok: true, data: { saved } };

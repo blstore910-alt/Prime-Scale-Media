@@ -839,14 +839,14 @@ export const AFF_CSS = `
   /* The ladder. Four rungs, the one you are on lit, the ones behind you
      ticked — a bar says how far, never where. */
   .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 4px 4px;
+  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px 5px;
     border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);
     transition:.18s}
   .tx-rung.done{background:rgba(255,198,64,.1);border-color:rgba(255,198,64,.24)}
   .tx-rung.on{background:linear-gradient(180deg,rgba(255,198,64,.24),rgba(255,198,64,.08));
     border-color:rgba(255,205,90,.55);box-shadow:0 10px 26px -16px rgba(255,180,60,.9),
       inset 0 1px 0 rgba(255,255,255,.14)}
-  .tx-dot{width:12px;height:12px;border-radius:50%;display:grid;place-items:center;margin-bottom:1px;
+  .tx-dot{width:12px;height:12px;border-radius:50%;display:grid;place-items:center;margin-bottom:3px;
     background:rgba(255,255,255,.14);color:#0b0d1e}
   .tx-rung.done .tx-dot{background:#ffcf6a}
   .tx-rung.on .tx-dot{background:#fff;box-shadow:0 0 0 4px rgba(255,205,90,.22)}
