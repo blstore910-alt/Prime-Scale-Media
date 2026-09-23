@@ -362,10 +362,13 @@ export default function WalletTopupDialog({
     }
   }, [bankGroup, currency, transferCurrency, availableTransferCurrencies]);
   const formSchema = z.object({
+    // The field starts EMPTY, not on 0. A money box holding "0" turns a
+    // typed 300 into 0300 -- the owner hit it on the walk, and it is the
+    // one number in this dialog that has to be exactly right.
     amount: z
-      .number()
-      .min(minTopupAmount, `Minimum Amount: ${minTopupAmount}`)
-      .positive("Amount is required"),
+      .number({ error: "Fill in the amount you sent." })
+      .positive("Fill in the amount you sent.")
+      .min(minTopupAmount, `Transfer at least ${currency} ${minTopupAmount}.`),
   });
 
   const {
@@ -376,11 +379,19 @@ export default function WalletTopupDialog({
     setValue,
     watch,
   } = useForm<FormValues>({
-    defaultValues: {
-      amount: 0,
-    },
+    // Empty, so the placeholder shows and nothing has to be deleted first.
+    defaultValues: {},
     resolver: zodResolver(formSchema),
   });
+
+  // Why the submit button is off, in the customer's words.
+  const submitBlockedReason = isUploadingSlip
+    ? "One moment — the slip is still uploading."
+    : !walletId
+      ? "We couldn't read your wallet just now. Reload and try again."
+      : !paymentSlipUrl
+        ? "Add the payment slip to submit — it is how we match your transfer."
+        : null;
 
   // Draft persistence: multi-step form, easy to lose input on tab close.
   // Save the composite of {currency, accountType, amount, step,
@@ -1387,6 +1398,16 @@ export default function WalletTopupDialog({
                     Submit Request
                   </Button>
                 </div>
+                {/* A button that cannot be pressed has to say why. Without
+                    this line somebody who has ALREADY transferred the money
+                    sits in front of a grey button with no idea what it
+                    wants -- and the slip is exactly what we need to match
+                    their payment. */}
+                {!isPending && submitBlockedReason ? (
+                  <p className="text-xs text-muted-foreground text-center pt-2">
+                    {submitBlockedReason}
+                  </p>
+                ) : null}
               </form>
             )}
 
