@@ -2,6 +2,32 @@
 
 > **D1 is NOT closed, and the reason is a login.** Its customer half is walked and verified on screen and against the database; the admin half needs an owner session and I have none. Chrome holds PSM0005 (advertiser) and the built-in pane holds PSM0008 (affiliate) — two customer sessions. Creating accounts and typing passwords are the owner's, by their own instruction. Sign in as the owner anywhere and D1, D2, D3 and S1-S3 can all be walked.
 
+## NOT BEFORE GO-LIVE — a referrer's own discount for the people they bring in (owner, 2026-09-23)
+
+**What the owner asked for, in their words:** "sommige referrers moeten dus standaard een kortingscode hebben voor advertisers die via hun signen, bijv 20%, maar admin moet altijd melding krijgen bij die plan en approven etc."
+
+So: a referrer carries a standing discount; anybody signing up through THEIR link gets it applied to their plan automatically; and the owner is told and approves before it is real.
+
+**This is not on any of the sixteen journeys, so it is not built before go-live** — the rule in CLAUDE.md. Written down here with the design because most of the machinery already exists and it is a short job when it comes up.
+
+**What already exists and should be reused, not rebuilt:**
+
+- `advertiser_perks` plus `_effective_subscription_amount(advertiser, amount)` and `_effective_topup_fee_pct(advertiser, account)` — the discount engine is live and already applies per-customer discounts for a period. A referral discount is a perk with a different REASON for existing, not a different mechanism.
+- `advertiser_plans` and the invite-with-plan flow — a plan is already chosen and attached at invite; this is the same field set arriving from a link instead of from a form.
+- `referral_links` already records who referred whom, with `status` pending/active and an owner decision on it. That decision is the natural place to hang the approval the owner is asking for: approving the referral is already an owner action with a screen.
+
+**The shape it should take:**
+
+1. A column on the REFERRER (`advertisers.referral_discount_pct`, or a small `referral_offers` table if it ever needs more than one figure). The owner sets it on `/affiliates` — that screen already has a "Default rules" editor and per-affiliate rules, so it belongs beside them.
+2. On signup through a link, the discount is recorded on the new customer as a perk in `pending` — NOT applied. Nothing about somebody's price changes without the owner.
+3. The existing "Waiting for you" block on `/affiliates` gains that row: "PSM0011 signed up through PSM0008 — their link carries 20% off the monthly plan. Approve?" Approving flips the perk to active and the existing engine does the rest.
+4. A notification to the owner on arrival, using the catalogue that already exists.
+
+**Two things to get right when it is built:**
+
+- **The customer must be told what they are getting, and only once it is real.** A discount shown before approval and then withdrawn is worse than never showing it.
+- **It must not reach the affiliate's own screens as a margin figure.** "You give your referrals 20% off" is theirs to know; what that costs us is not, and the same rule as everywhere else applies.
+
 ## 2026-09-23 (late) — every plak from 69 to 80 is applied
 
 Nothing is outstanding. What they did, in one line each:
