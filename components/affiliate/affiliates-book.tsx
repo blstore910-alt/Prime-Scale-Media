@@ -316,6 +316,8 @@ function WaitingForYou({
                     <ReferralStatusAction
                       referralLinkId={l.id}
                       status={l.status}
+                      commissionType={l.commission_type}
+                      commissionPct={l.commission_pct}
                       affiliateName={[a.name, a.code].filter(Boolean).join(" · ") || null}
                       referredName={
                         [l.referred_advertiser_name, l.referred_advertiser_tenant_client_code]
@@ -1265,6 +1267,8 @@ function AffiliateDetail({
                               <ReferralStatusAction
                                 referralLinkId={l.id}
                                 status={l.status}
+                                commissionType={l.commission_type}
+                                commissionPct={l.commission_pct}
                                 affiliateName={code}
                                 referredName={l.referred_advertiser_tenant_client_code}
                               />

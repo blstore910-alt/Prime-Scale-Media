@@ -17,12 +17,20 @@ export default function ReferralStatusAction({
   status,
   affiliateName,
   referredName,
+  commissionType,
+  commissionPct,
 }: {
   referralLinkId: string;
   status: string | null;
   /** For the confirmation, so it names who it is about. */
   affiliateName?: string | null;
   referredName?: string | null;
+  /** The rate on THIS LINK. _accrue_referral_commission reads
+   *  referral_links.commission_pct and stops at
+   *  `coalesce(v_link.commission_pct, 0) <= 0` -- so a link with no rate
+   *  earns nothing, no matter what the affiliate's settings say. */
+  commissionType?: string | null;
+  commissionPct?: number | null;
 }) {
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<
@@ -85,6 +93,14 @@ export default function ReferralStatusAction({
   // Approve is the same shape in the other direction: it starts accrual
   // against real spend. Neither should happen on a mis-aimed click.
   const [asking, setAsking] = useState<"active" | "rejected" | null>(null);
+
+  // A percentage arrangement with no percentage on it. The two live
+  // links that carry a rate got it from the affiliate's settings; the
+  // one created through the current RPC path did not, because nothing
+  // copied it -- and nothing on this screen said so before approving.
+  const noRate =
+    !commissionType || !Number.isFinite(Number(commissionPct)) ||
+    Number(commissionPct) <= 0;
 
   const current = (status ?? "active").toLowerCase();
 
@@ -149,7 +165,9 @@ export default function ReferralStatusAction({
         lead={
           asking === "rejected"
             ? "The affiliate earns nothing from this customer. The customer stays yours; you can set a referrer for them later."
-            : "The affiliate earns from this customer from now on — and everything the customer already did since they signed up is booked straight away, with the rules as they are now."
+            : noRate
+              ? "There is no commission rate on this referral, so approving it earns the affiliate NOTHING — not now and not on their next top-up. Set the rate on the affiliate first (Commission, on the customer row), then approve."
+              : "The affiliate earns from this customer from now on — and everything the customer already did since they signed up is booked straight away, with the rules as they are now."
         }
         cta={asking === "rejected" ? "Yes, refuse" : "Yes, approve"}
         tone={asking === "rejected" ? "danger" : undefined}
@@ -163,6 +181,17 @@ export default function ReferralStatusAction({
       >
         <ConfirmFact label="Affiliate" value={affiliateName ?? "—"} />
         <ConfirmFact label="Referred customer" value={referredName ?? "—"} />
+        {asking === "active" ? (
+          <ConfirmFact
+            label="Rate on this referral"
+            value={
+              noRate
+                ? "none — they earn nothing"
+                : `${commissionPct}% (${commissionType})`
+            }
+            strong
+          />
+        ) : null}
         {asking === "rejected" ? (
           <label style={{ display: "grid", gap: 6, marginTop: 10, fontSize: ".86rem" }}>
             <span style={{ fontWeight: 600 }}>Why (kept on record)</span>

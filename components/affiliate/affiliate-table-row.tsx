@@ -165,6 +165,8 @@ export default function AffiliateTableRow({
           // Named in the confirmation. Approve and reject are both
           // one-way, and a dialog that does not say who it is about is a
           // dialog nobody reads.
+          commissionType={referral.commission_type}
+          commissionPct={referral.commission_pct}
           affiliateName={referral.affiliate_advertiser_tenant_client_code}
           referredName={referral.referred_advertiser_tenant_client_code}
         />

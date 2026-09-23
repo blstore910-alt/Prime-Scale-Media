@@ -33,6 +33,13 @@ export type BookLink = {
   affiliate_advertiser_tenant_client_code: string | null;
   earnings_eur: number | null;
   earnings_usd: number | null;
+  /** The rate ON THIS LINK, which is what _accrue_referral_commission
+   *  reads -- not the affiliate's settings. The two can disagree: the
+   *  link is written once and the settings change afterwards, and for a
+   *  while nothing copied the settings onto the link at all. A link
+   *  with no rate earns nothing, however the dialog is filled in. */
+  commission_type: string | null;
+  commission_pct: number | null;
   /** What was taken back on this referral, per currency. Filled in by
    *  groupAffiliateBook so a per-customer figure nets like the totals. */
   clawbacks?: Record<string, number>;
@@ -128,7 +135,7 @@ export type AffiliateBook = {
 };
 
 const LINK_COLUMNS =
-  "id, created_at, referred_advertiser_id, affiliate_advertiser_id, referred_advertiser_name, referred_advertiser_email, referred_advertiser_tenant_client_code, affiliate_advertiser_name, affiliate_advertiser_email, affiliate_advertiser_tenant_client_code, earnings_eur, earnings_usd";
+  "id, created_at, referred_advertiser_id, affiliate_advertiser_id, referred_advertiser_name, referred_advertiser_email, referred_advertiser_tenant_client_code, affiliate_advertiser_name, affiliate_advertiser_email, affiliate_advertiser_tenant_client_code, earnings_eur, earnings_usd, commission_type, commission_pct";
 const COMMISSION_BASE =
   "id, created_at, referral_link_id, type, amount, currency, status, topup_id";
 const COMMISSION_CALC =
