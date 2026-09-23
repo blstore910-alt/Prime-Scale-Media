@@ -4769,12 +4769,27 @@ export default function AdvertiserApp() {
                       <tr>
                         <td
                           colSpan={5}
+                          // A note, not an announcement. On a phone the
+                          // table collapses to cards and this cell
+                          // inherited the row type: big, bold and
+                          // centred over four lines, for a sentence that
+                          // only says "nothing yet".
+                          className="tbl-empty"
                           style={{
                             textAlign: "center",
-                            padding: 24,
+                            padding: "22px 18px",
                             color: "var(--faint)",
+                            fontSize: ".84rem",
+                            fontWeight: 400,
+                            lineHeight: 1.5,
                           }}
                         >
+                          <span
+                            style={{
+                              display: "inline-block",
+                              maxWidth: "42ch",
+                            }}
+                          >
                           {/* EVERY read, not two of the five. The
                               invoices read has its own flag and was
                               never consulted, so a failed invoices
@@ -4803,7 +4818,8 @@ export default function AdvertiserApp() {
                             ? "We couldn't load all of your wallet activity — this isn't an empty list. Give it a reload."
                             : activityLoading
                               ? "Looking up your wallet activity…"
-                              : "Nothing has moved yet. Top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
+                              : "Nothing has moved yet \u2014 top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
+                          </span>
                         </td>
                       </tr>
                     )}
@@ -4976,21 +4992,29 @@ export default function AdvertiserApp() {
                   check either, only a balance one. It charged 50 EUR and
                   created a request for somebody the Accounts screen
                   refuses and who cannot be invoiced. */}
-              {canRequestAccount ? (
-                <RequestAdAccountDialog>
-                  <button className="btn grad">
+              {/* IN THE ACTION SLOT, like every other page head. This
+                  button sat bare in .phead, so it missed the
+                  margin-left:auto that puts an action top-right \u2014 and
+                  .phead wraps, so it dropped onto its own row and floated
+                  under the heading. The Accounts tab four hundred lines
+                  up says the same thing about the same mistake. */}
+              <div className="phead-actions">
+                {canRequestAccount ? (
+                  <RequestAdAccountDialog>
+                    <button className="btn grad">
+                      <Ic name="i-plus" /> New request
+                    </button>
+                  </RequestAdAccountDialog>
+                ) : (
+                  <button
+                    className="btn grad"
+                    disabled
+                    title={requestBlockedReason() ?? undefined}
+                  >
                     <Ic name="i-plus" /> New request
                   </button>
-                </RequestAdAccountDialog>
-              ) : (
-                <button
-                  className="btn grad"
-                  disabled
-                  title={requestBlockedReason() ?? undefined}
-                >
-                  <Ic name="i-plus" /> New request
-                </button>
-              )}
+                )}
+              </div>
             </div>
             {/* ── A title IS INVISIBLE ON A PHONE ──────────────────────
                 and this is a phone app -- there is a bottom bar below.

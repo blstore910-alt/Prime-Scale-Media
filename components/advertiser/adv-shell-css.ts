@@ -94,6 +94,13 @@ export const ADV_CSS = `
   .phead>div:first-child{flex:1 1 220px;min-width:0}
   .phead-actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-left:auto;flex:0 0 auto}
   .phead-why{flex:0 0 100%;text-align:right;color:var(--faint);font-size:.78rem}
+  /* Een lege lijst is een notitie. Op een telefoon klapt de tabel om
+     naar kaarten en erfde deze cel het rijtype: groot, vet en over vier
+     regels gecentreerd, voor een zin die alleen zegt dat er nog niets
+     is. */
+  .tbl td.tbl-empty{font-weight:400!important;font-size:.84rem!important;
+    letter-spacing:0;text-transform:none}
+  .tbl td.tbl-empty::before{display:none!important}
   @media(max-width:560px){
     /* On a phone the actions sit under the title, full width, in the
        order you would press them. */
