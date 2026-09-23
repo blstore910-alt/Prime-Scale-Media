@@ -17,6 +17,10 @@ export type NotificationType =
   | "topup_rejected"
   | "withdrawal_approved"
   | "withdrawal_rejected"
+  // Their balance changed and nothing told them: a correction moves
+  // money up or down, and a refund empties the wallet to their bank.
+  | "wallet_adjusted"
+  | "wallet_refunded"
   | "request_fee_refunded"
   | "supplier_pool_changed"
   | "rate_limit_abuse"
@@ -222,6 +226,17 @@ export interface NotificationPayloadByType {
     amount?: number | string | null;
     currency?: string | null;
     reason?: string | null;
+  };
+  /** Their balance corrected up or down, with the reason we gave. */
+  wallet_adjusted: {
+    delta?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
+  /** Their balance sent to their bank because they are leaving. */
+  wallet_refunded: {
+    amount?: number | string | null;
+    currency?: string | null;
   };
   /** Money returned from an ad account to their wallet. */
   withdrawal_approved: {

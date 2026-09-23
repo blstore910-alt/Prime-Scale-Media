@@ -169,6 +169,39 @@ export function getNotificationCopy(notification: Notification): {
       };
     }
 
+    case "wallet_adjusted": {
+      // Up or down, in their words, with our reason attached. A balance
+      // that moves with no explanation is the thing that makes people
+      // write in.
+      const p = notification.payload as
+        | { delta?: unknown; currency?: string | null; reason?: string | null }
+        | null;
+      const d = Number(p?.delta ?? 0);
+      const cur = String(p?.currency ?? "EUR").toUpperCase();
+      const sym = cur === "USD" ? "$" : "€";
+      const figure = `${sym}${Math.abs(d).toFixed(2)}`;
+      const why = String(p?.reason ?? "").trim();
+      const lead =
+        d < 0
+          ? `We corrected your wallet down by ${figure}.`
+          : `We corrected your wallet up by ${figure}.`;
+      return {
+        title: d < 0 ? "Your wallet was corrected down" : "Your wallet was corrected up",
+        description: why ? `${lead} ${why}` : lead,
+      };
+    }
+    case "wallet_refunded": {
+      const p = notification.payload as
+        | { amount?: unknown; currency?: string | null }
+        | null;
+      const cur = String(p?.currency ?? "EUR").toUpperCase();
+      const sym = cur === "USD" ? "$" : "€";
+      const amt = Number(p?.amount ?? 0);
+      return {
+        title: "Your balance is on its way to your bank",
+        description: `${sym}${amt.toFixed(2)} has left your wallet and is being transferred. Bank transfers take a few working days.`,
+      };
+    }
     case "withdrawal_approved": {
       const p = notification.payload as
         | { amount?: unknown; currency?: string | null; account_name?: string | null }

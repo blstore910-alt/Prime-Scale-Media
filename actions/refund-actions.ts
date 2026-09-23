@@ -1,6 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
+import { notifyAdvertiser } from "@/lib/notify-advertiser";
 import { resolveAdminContext } from "./_shared";
 
 type ActionResult<T = null> =
@@ -73,10 +74,39 @@ export async function approveWalletRefund(
     return { ok: false, error: "Invalid input" };
   }
   const { supabase } = auth.ctx;
+  const { data: rf } = await supabase
+    .from("wallet_refunds")
+    .select("advertiser_id, tenant_id, amount, currency, payout_bank_currency")
+    .eq("id", refundId)
+    .maybeSingle();
+
   const { error } = await supabase.rpc("wallet_refund_approve", {
     p_refund_id: refundId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
+
+  // ── THEIR WALLET WAS JUST EMPTIED TOWARDS THEIR BANK ──────────────
+  //
+  // Nothing said so. The balance simply dropped, and the transfer takes
+  // days to show up on their side -- which is exactly the window in
+  // which somebody thinks their money has gone missing.
+  const row = rf as {
+    advertiser_id?: string | null;
+    tenant_id?: string | null;
+    amount?: unknown;
+    currency?: string | null;
+  } | null;
+  if (row?.advertiser_id) {
+    await notifyAdvertiser(supabase, {
+      advertiserId: row.advertiser_id,
+      tenantId: row.tenant_id ?? null,
+      type: "wallet_refunded",
+      payload: {
+        amount: row.amount ?? null,
+        currency: row.currency ?? "EUR",
+      },
+    });
+  }
   return { ok: true, data: null };
 }
 

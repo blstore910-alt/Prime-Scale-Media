@@ -1,6 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
+import { notifyAdvertiser } from "@/lib/notify-advertiser";
 import { resolveAdminContext, resolveOwnerContext } from "./_shared";
 
 const round2 = (n: number) => Number(Number(n).toFixed(2));
@@ -73,10 +74,45 @@ export async function approveWalletAdjustment(
     return { ok: false, error: "Invalid input" };
   }
   const { supabase } = auth.ctx;
+  // Read it first: after approving, the row is what tells the customer
+  // what moved and why.
+  const { data: adj } = await supabase
+    .from("wallet_adjustments")
+    .select("advertiser_id, tenant_id, delta, currency, reason")
+    .eq("id", adjustmentId)
+    .maybeSingle();
+
   const { error } = await supabase.rpc("wallet_adjustment_approve", {
     p_adjustment_id: adjustmentId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
+
+  // ── A BALANCE THAT MOVES IS NEWS ──────────────────────────────────
+  //
+  // The withdrawal path on the same screen tells the customer; this one
+  // did not. Their wallet went up or down by an amount nobody asked
+  // them about, with a reason only we can see -- and the first they
+  // would know of it is a figure that no longer matches what they
+  // remember.
+  const row = adj as {
+    advertiser_id?: string | null;
+    tenant_id?: string | null;
+    delta?: unknown;
+    currency?: string | null;
+    reason?: string | null;
+  } | null;
+  if (row?.advertiser_id) {
+    await notifyAdvertiser(supabase, {
+      advertiserId: row.advertiser_id,
+      tenantId: row.tenant_id ?? null,
+      type: "wallet_adjusted",
+      payload: {
+        delta: row.delta ?? null,
+        currency: row.currency ?? "EUR",
+        reason: row.reason ?? null,
+      },
+    });
+  }
   return { ok: true, data: null };
 }
 

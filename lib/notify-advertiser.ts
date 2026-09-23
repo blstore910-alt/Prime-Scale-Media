@@ -30,6 +30,8 @@ export type AdvertiserNotice =
   | "topup_rejected"
   | "withdrawal_approved"
   | "withdrawal_rejected"
+  | "wallet_adjusted"
+  | "wallet_refunded"
   | "request_fee_refunded";
 
 /**
