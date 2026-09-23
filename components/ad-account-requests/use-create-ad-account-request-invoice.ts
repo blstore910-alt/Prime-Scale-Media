@@ -3,6 +3,7 @@ import { createInvoiceAsAdmin } from "@/actions/invoice-actions";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 type CreateAdAccountRequestInvoiceInput = {
   advertiser_id: string;
@@ -50,10 +51,14 @@ export default function useCreateAdAccountRequestInvoice() {
       const amount = Number(values.amount);
       const { data: already, error: alreadyError } = await supabase
         .from("invoices")
-        .select("id, items")
+        .select("id, items, status")
         .eq("advertiser_id", values.advertiser_id)
         .eq("type", "ad_account_fee")
-        .eq("status", "unpaid")
+        // NOT just unpaid. A fee the customer has ALREADY PAID was
+        // invisible to this check, so pressing Create Invoice again on a
+        // request still sitting in payment_pending raised a second
+        // payable EUR 50 for something already settled.
+        .in("status", ["unpaid", "pending", "paid"])
         // 50 was a cap on the ONLY thing standing between a customer
         // and two identical invoices. 500 is well past any real
         // backlog of unpaid fees for one advertiser.
@@ -87,6 +92,14 @@ export default function useCreateAdAccountRequestInvoice() {
         );
       });
       if (existing) {
+        const paid = String(
+          (existing as { status?: unknown }).status ?? "",
+        ).toLowerCase();
+        if (paid === "paid") {
+          throw new Error(
+            "This request has already been invoiced and that invoice is paid. Nothing was created — create the ad account instead.",
+          );
+        }
         const fix = await setAdAccountRequestStatus(
           values.ad_account_request_id,
           "payment_pending",
@@ -119,7 +132,16 @@ export default function useCreateAdAccountRequestInvoice() {
         values.ad_account_request_id,
         "payment_pending",
       );
-      if (!statusResult.ok) throw new Error(statusResult.error);
+      if (!statusResult.ok) {
+        // THE INVOICE EXISTS AND IS PAYABLE. Throwing here printed
+        // "Failed to create invoice" over money the customer can pay --
+        // so the admin rejects the request instead and the EUR 50 stays
+        // live on their billing page. Say what really happened.
+        toast.warning("Invoice created — but the request status was not updated", {
+          description: `${statusResult.error} Set it to Payment pending by hand, or press Create Invoice again — it will not raise a second one.`,
+          duration: 20000,
+        });
+      }
 
       return result.data;
     },

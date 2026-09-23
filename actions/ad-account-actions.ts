@@ -691,6 +691,47 @@ export async function rejectAdAccountRequest(
     perk_restored?: boolean;
   } | null;
 
+  // ── AND THE INVOICE MUST NOT OUTLIVE THE REQUEST ──────────────────
+  //
+  // When the fee was not taken from the wallet but INVOICED (the
+  // request sits in payment_pending), rejecting closed the request and
+  // left that EUR 50 invoice unpaid and payable on the customer's own
+  // billing page, with a live "Pay now". They pay for an account that
+  // was refused, and nothing can put it back: the request is already
+  // rejected, so the refund RPC refuses it. The invoice is not in that
+  // RPC's transaction, so it has to be closed here.
+  try {
+    const { data: openFees } = await supabase
+      .from("invoices")
+      .select("id, items")
+      .eq("advertiser_id", (req as { advertiser_id?: string | null }).advertiser_id)
+      .eq("type", "ad_account_fee")
+      .eq("status", "unpaid")
+      .limit(500);
+    for (const inv of openFees ?? []) {
+      const items = (inv as { items?: unknown }).items;
+      const mine =
+        Array.isArray(items) &&
+        items.some(
+          (it) =>
+            (it as { ad_account_request_id?: string })?.ad_account_request_id ===
+            requestId,
+        );
+      if (!mine) continue;
+      const { voidInvoiceAsAdmin } = await import("./invoice-actions");
+      await voidInvoiceAsAdmin(
+        String((inv as { id: string }).id),
+        trimmedReason.length >= 3
+          ? trimmedReason
+          : "The ad-account request it was raised for was rejected.",
+      );
+    }
+  } catch {
+    // Best effort, and deliberately after the refusal has landed: a
+    // failure here must not undo the rejection. The admin still sees
+    // the invoice on /invoices if it survives.
+  }
+
   // ── EUR 50 GOING BACK IS NEWS ─────────────────────────────────────
   //
   // The fee was taken with no invoice and no wallet line, and putting
