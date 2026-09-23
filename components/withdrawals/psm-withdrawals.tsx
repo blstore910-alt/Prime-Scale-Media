@@ -1067,7 +1067,7 @@ function RefundsSection() {
                           {r.reason ? (
                             <span style={{ fontSize: ".82rem" }}>{r.reason}</span>
                           ) : (
-                            <span className="muted">\u2014</span>
+                            <span className="muted">{"\u2014"}</span>
                           )}
                         </td>
                         <td className="r" data-label="Status">

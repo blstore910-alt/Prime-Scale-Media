@@ -1144,8 +1144,8 @@ export default function AffiliateApp() {
                       </>
                     ) : (
                       <>
-                        You&apos;ve reached the top tier \u2014{" "}
-                        <b className="gold">{tier.name}</b>. \ud83c\udf89
+                        You&apos;ve reached the top tier {"\u2014"}{" "}
+                        <b className="gold">{tier.name}</b>. {"\ud83c\udf89"}
                       </>
                     )}
                   </p>

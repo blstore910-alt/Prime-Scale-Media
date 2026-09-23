@@ -1019,7 +1019,11 @@ function AffiliateDetail({
         `${pct(c.pct)} of ${base}`,
         fee && cost ? (
           <>
-            {fee} charged <span className="calc-m">\u2212</span> {cost} we pay
+            {/* Het echte minteken, niet "\u2212": in JSX-TEKST worden
+                backslash-escapes NIET verwerkt, dus dat stond letterlijk
+                op het scherm. */}
+            {fee} charged <span className="calc-m">{"\u2212"}</span> {cost} we
+            pay
             {c.supplier_fee_pct !== null && c.supplier_fee_pct !== undefined
               ? ` (${pct(c.supplier_fee_pct)})`
               : ""}

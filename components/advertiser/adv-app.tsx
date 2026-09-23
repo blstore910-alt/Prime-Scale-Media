@@ -4590,7 +4590,7 @@ export default function AdvertiserApp() {
                                 {dayjs(ev.at).format("D MMM")}
                               </td>
                               <td data-label="Reference" className="mono">
-                                \u2014
+                                {"\u2014"}
                               </td>
                               <td
                                 data-label="Description"
