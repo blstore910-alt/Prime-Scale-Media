@@ -644,6 +644,17 @@ export async function rejectAdAccountRequest(
   }
 
   const trimmedReason = typeof reason === "string" ? reason.trim() : "";
+  // The dialog demands one; the dialog is not a rule. Without this the
+  // request is refused and the EUR 50 returned with rejection_reason
+  // NULL, and the customer's notification renders the generic lead
+  // with nothing after it: "we couldn't set this account up", full stop.
+  if (!trimmedReason) {
+    return {
+      ok: false,
+      error:
+        "Give a reason — the customer is shown it. Say what was wrong and what they can do about it.",
+    };
+  }
 
   // REJECTING GIVES THE FEE BACK. Requesting an ad account costs the
   // customer 50 EUR, taken from their wallet the moment they send it — the

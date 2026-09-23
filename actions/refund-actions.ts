@@ -2,10 +2,14 @@
 
 import { safeErrorMessage } from "@/lib/pure-error";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
+import { notifyOrWarn } from "@/lib/notify-or-warn";
 import { resolveAdminContext } from "./_shared";
 
+// `warning`: the write succeeded and a SECONDARY step did not —
+// here, telling the customer their wallet was emptied towards
+// their bank. Same shape as actions/_shared.ts.
 type ActionResult<T = null> =
-  | { ok: true; data: T }
+  | { ok: true; data: T; warning?: string }
   | { ok: false; error: string };
 
 // Admin raises a refund of a customer's wallet balance (they're
@@ -74,7 +78,9 @@ export async function approveWalletRefund(
     return { ok: false, error: "Invalid input" };
   }
   const { supabase } = auth.ctx;
-  const { data: rf } = await supabase
+  // `data` only meant a read that FAILED became "this row has no
+  // advertiser", and the notification was skipped in silence.
+  const { data: rf, error: rfErr } = await supabase
     .from("wallet_refunds")
     .select("advertiser_id, tenant_id, amount, currency, payout_bank_currency")
     .eq("id", refundId)
@@ -96,18 +102,24 @@ export async function approveWalletRefund(
     amount?: unknown;
     currency?: string | null;
   } | null;
-  if (row?.advertiser_id) {
-    await notifyAdvertiser(supabase, {
-      advertiserId: row.advertiser_id,
-      tenantId: row.tenant_id ?? null,
+  // The answer was thrown away here. notifyAdvertiser has returned
+  // { ok, why } since it was written, for every way a customer can fail
+  // to be told. The money has already moved, so this is a warning and
+  // not a failed action.
+  const notifyWarning = await notifyOrWarn(
+    supabase,
+    {
+      advertiserId: row?.advertiser_id,
+      tenantId: row?.tenant_id ?? null,
       type: "wallet_refunded",
       payload: {
-        amount: row.amount ?? null,
-        currency: row.currency ?? "EUR",
+        amount: row?.amount ?? null,
+        currency: row?.currency ?? "EUR",
       },
-    });
-  }
-  return { ok: true, data: null };
+    },
+    rfErr,
+  );
+  return { ok: true, data: null, warning: notifyWarning };
 }
 
 // Super-admin rejects.
@@ -127,10 +139,24 @@ export async function rejectWalletRefund(
   if (typeof refundId !== "string" || !refundId) {
     return { ok: false, error: "Invalid input" };
   }
+  // ── A REFUSAL HAS A REASON, AND THIS IS THE BOUNDARY ────────────
+  //
+  // The dialog disables its button on an empty box, and a dialog is not
+  // a rule: the action is what a second caller reaches. The RPC writes
+  // `coalesce(p_reason, reason)`, so a NULL here does not clear the
+  // field — it leaves the REQUESTER's own sentence in place and hands
+  // it back to them as though we had written it.
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (why.length < 3) {
+    return {
+      ok: false,
+      error: "Give a reason — whoever asked for this refund is shown it.",
+    };
+  }
   const { supabase } = auth.ctx;
   const { error } = await supabase.rpc("wallet_refund_reject", {
     p_refund_id: refundId,
-    p_reason: reason ?? null,
+    p_reason: why.slice(0, 500),
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
   return { ok: true, data: null };

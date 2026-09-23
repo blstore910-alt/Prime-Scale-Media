@@ -2,12 +2,18 @@
 
 import { safeErrorMessage } from "@/lib/pure-error";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
+import { notifyOrWarn } from "@/lib/notify-or-warn";
 import { resolveAdminContext, resolveOwnerContext } from "./_shared";
 
 const round2 = (n: number) => Number(Number(n).toFixed(2));
 
+// `warning` is for the case where the main write succeeded and a
+// SECONDARY one did not — here, telling the customer their balance
+// moved. Returning ok:false would claim the money had not moved;
+// dropping it is how "credited, and nobody was told" looks like a
+// clean run. Same shape as actions/_shared.ts.
 type ActionResult<T = null> =
-  | { ok: true; data: T }
+  | { ok: true; data: T; warning?: string }
   | { ok: false; error: string };
 
 // Admin raises a wallet balance correction (+/-). Super-admin approves.
@@ -76,7 +82,9 @@ export async function approveWalletAdjustment(
   const { supabase } = auth.ctx;
   // Read it first: after approving, the row is what tells the customer
   // what moved and why.
-  const { data: adj } = await supabase
+  // `data` only meant a read that FAILED became "this row has no
+  // advertiser", and the notification was skipped in silence.
+  const { data: adj, error: adjErr } = await supabase
     .from("wallet_adjustments")
     .select("advertiser_id, tenant_id, delta, currency, reason")
     .eq("id", adjustmentId)
@@ -101,19 +109,30 @@ export async function approveWalletAdjustment(
     currency?: string | null;
     reason?: string | null;
   } | null;
-  if (row?.advertiser_id) {
-    await notifyAdvertiser(supabase, {
-      advertiserId: row.advertiser_id,
-      tenantId: row.tenant_id ?? null,
+  // ── AND SAY SO WHEN WE COULD NOT TELL THEM ────────────────────
+  //
+  // The answer was thrown away here. notifyAdvertiser has returned
+  // { ok, why } since it was written, for every way a customer can
+  // fail to be told -- and on 23-09 a wallet adjustment of EUR 10
+  // went through the app, audited, on a row with a sign-in behind
+  // it, with NO notification row and a green tick on the admin's
+  // screen. The money has already moved when this runs, so a
+  // failure here is a warning and not a failed action.
+  const notifyWarning = await notifyOrWarn(
+    supabase,
+    {
+      advertiserId: row?.advertiser_id,
+      tenantId: row?.tenant_id ?? null,
       type: "wallet_adjusted",
       payload: {
-        delta: row.delta ?? null,
-        currency: row.currency ?? "EUR",
-        reason: row.reason ?? null,
+        delta: row?.delta ?? null,
+        currency: row?.currency ?? "EUR",
+        reason: row?.reason ?? null,
       },
-    });
-  }
-  return { ok: true, data: null };
+    },
+    adjErr,
+  );
+  return { ok: true, data: null, warning: notifyWarning };
 }
 
 export async function rejectWalletAdjustment(
@@ -132,10 +151,24 @@ export async function rejectWalletAdjustment(
   if (typeof adjustmentId !== "string" || !adjustmentId) {
     return { ok: false, error: "Invalid input" };
   }
+  // ── A REFUSAL HAS A REASON, AND THIS IS THE BOUNDARY ──────────────
+  //
+  // The dialog disables its button on an empty box, and a dialog is not
+  // a rule: the action is what a second caller reaches. The RPC writes
+  // `coalesce(p_reason, reason)`, so a NULL here does not clear the
+  // field — it leaves the REQUESTER's own sentence in place and hands it
+  // back to them as though we had written it.
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (why.length < 3) {
+    return {
+      ok: false,
+      error: "Give a reason \u2014 whoever asked for this correction is shown it.",
+    };
+  }
   const { supabase } = auth.ctx;
   const { error } = await supabase.rpc("wallet_adjustment_reject", {
     p_adjustment_id: adjustmentId,
-    p_reason: reason ?? null,
+    p_reason: why.slice(0, 500),
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
   return { ok: true, data: null };

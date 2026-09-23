@@ -73,7 +73,7 @@ export default function useAdAccountRequests(
 
   const effectiveTenantId = params.tenantId ?? profile?.tenant_id ?? undefined;
 
-  const { data, isLoading, isError, error, refetch } = useQuery<
+  const { data, isPending, isError, error, refetch } = useQuery<
     { items: AdAccountRequest[]; total: number } | undefined
   >({
     queryKey,
@@ -217,7 +217,18 @@ export default function useAdAccountRequests(
   return {
     requests: data?.items ?? [],
     total: data?.total ?? 0,
-    isLoading,
+    // ── isPending, NOT isLoading ──────────────────────────────────
+    //
+    // react-query v5: isLoading = isPending && isFetching. A DISABLED
+    // query (fetchStatus 'idle') and one PAUSED offline both report
+    // isLoading FALSE, isError FALSE and data undefined -- the two
+    // states where nothing has been read at all. The caller then falls
+    // straight past the spinner and past the error branch into the
+    // empty card, and an admin reads "No wallet topups to show" over a
+    // queue holding eight of them. Nothing errors, so no toast fires
+    // either. The advertiser shell was fixed for this months ago; the
+    // admin queues never were.
+    isLoading: isPending,
     isError,
     error,
     refetch,

@@ -36,6 +36,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toastResult } from "@/lib/action-warning";
 import { useEffect, useMemo, useState } from "react";
 import {
   approveAdAccountWithdrawal,
@@ -850,9 +851,18 @@ function RefundsSection() {
       setActingId(id);
       const res = await approveWalletRefund(id);
       if (!res.ok) throw new Error(res.error);
+      return res.warning ?? null;
     },
-    onSuccess: () => {
-      toast.success("Refund approved — wallet debited");
+    // "Approved" alone was the whole answer, and the half it left out
+    // is the one somebody has to act on: the customer's balance moved
+    // and they may not have been told. Measured on production 23-09 --
+    // an adjustment of EUR 10, audited, on a row with a sign-in behind
+    // it, and no notification row anywhere.
+    onSuccess: (warning: string | null) => {
+      toastResult(
+        { warning: warning ?? undefined },
+        "Refund approved — wallet debited",
+      );
       queryClient.invalidateQueries({ queryKey: ["wallet-refunds"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
@@ -1520,9 +1530,18 @@ function AdjustmentsSection() {
       setActingId(id);
       const res = await approveWalletAdjustment(id);
       if (!res.ok) throw new Error(res.error);
+      return res.warning ?? null;
     },
-    onSuccess: () => {
-      toast.success("Adjustment approved — wallet updated");
+    // "Approved" alone was the whole answer, and the half it left out
+    // is the one somebody has to act on: the customer's balance moved
+    // and they may not have been told. Measured on production 23-09 --
+    // an adjustment of EUR 10, audited, on a row with a sign-in behind
+    // it, and no notification row anywhere.
+    onSuccess: (warning: string | null) => {
+      toastResult(
+        { warning: warning ?? undefined },
+        "Adjustment approved — wallet updated",
+      );
       queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
