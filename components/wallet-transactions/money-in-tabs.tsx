@@ -73,7 +73,12 @@ function useQueueCounts(tenantId: string | null) {
           .from("wise_incoming_transfers")
           .select("id", { count: "exact", head: true })
           .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-          .eq("status", "suggested")
+          // Anything not yet dealt with needs a person. Counting only
+          // `suggested` counted 277 unmatched deposits as zero -- over a
+          // third of a million euro of bank money, under a badge reading 0.
+          // A status we have not thought of yet lands on the badge instead
+          // of falling through it.
+          .not("status", "in", "(confirmed,completed,matched)")
           .is("archived_at", null),
         supabase
           .from("wallet_precharges")

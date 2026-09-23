@@ -94,7 +94,11 @@ export function usePendingCounts(): PendingCounts {
           .from("ad_account_requests")
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
-          .eq("status", "pending"),
+          // A claimed request ("I'm on it") and one waiting on its invoice
+          // are still open work -- the review dialog keeps Create Ad
+          // Account live for both -- but counting only `pending` dropped
+          // them off every badge the moment an admin touched them.
+          .in("status", ["pending", "payment_pending", "in_progress"]),
         // The three tables behind the single /withdrawals screen.
         pendingIn("ad_account_withdrawals"),
         pendingIn("wallet_refunds"),
@@ -107,7 +111,12 @@ export function usePendingCounts(): PendingCounts {
           .from("wise_incoming_transfers")
           .select("id", { count: "exact", head: true })
           .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-          .eq("status", "suggested")
+          // Anything not yet dealt with needs a person. Counting only
+          // `suggested` counted 277 unmatched deposits as zero -- over a
+          // third of a million euro of bank money, under a badge reading 0.
+          // A status we have not thought of yet lands on the badge instead
+          // of falling through it.
+          .not("status", "in", "(confirmed,completed,matched)")
           .is("archived_at", null),
         supabase
           .from("wallet_precharges")

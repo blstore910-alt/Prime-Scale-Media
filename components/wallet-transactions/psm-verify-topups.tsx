@@ -665,10 +665,25 @@ export default function PsmVerifyTopups({
           </button>
         </div>
       ) : (
-        <div className="card">
+        <div className="card" style={{ display: "grid", gap: 10 }}>
           <p className="muted" style={{ margin: 0 }}>
-            No wallet topups to show.
+            {status !== defaultStatus || currency !== "all" || search.trim()
+              ? "Nothing matches that search or filter — the queue itself may not be empty."
+              : "No wallet topups to show."}
           </p>
+          {status !== defaultStatus || currency !== "all" || search.trim() ? (
+            <button
+              className="btn ghost sm"
+              style={{ justifySelf: "start" }}
+              onClick={() => {
+                setStatus(defaultStatus);
+                setCurrency("all");
+                setSearch("");
+              }}
+            >
+              Clear the search and filters
+            </button>
+          ) : null}
         </div>
       )}
 

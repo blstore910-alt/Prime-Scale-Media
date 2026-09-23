@@ -42,7 +42,14 @@ function mapRequestedPlatform(platform: string | null) {
   if (platform === "google-ads") return "google";
   if (platform === "tiktok-ads") return "tiktok";
   if (platform === "meta-ads" || platform.includes("meta")) {
-    return META_PLATFORM_OPTIONS[0]?.value || "";
+    // A request only says "meta". WHICH Meta account -- EU, HK premium,
+    // ... -- sets our supplier cost and the customer's fee, so it is the
+    // admin's decision. Preselecting the first entry in the list shipped
+    // AA-PSM0005-EU-02 as Hong Kong premium for a customer who asked for
+    // EU, without anybody choosing anything. Empty, so the select shows
+    // its "Select Meta Platform" placeholder and the schema (min(1))
+    // refuses to submit until a person has picked one.
+    return "";
   }
   if (platform.includes("google")) return "google";
   if (platform.includes("tiktok")) return "tiktok";

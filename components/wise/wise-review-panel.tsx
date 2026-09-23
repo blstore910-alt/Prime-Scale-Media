@@ -908,7 +908,12 @@ Statement tried: ${p.attempts.join(" | ")}`
   const byHandCount = allRows.filter(
     (r) =>
       !r.archived_at &&
-      (r.status === "unmatched" || r.status === "ambiguous"),
+      // Everything that is not settled needs a person. Naming the two
+      // statuses we knew about let a third one (`received`) through
+      // silently; the tab badge is widened the same way.
+      !["confirmed", "completed", "matched", "suggested"].includes(
+        String(r.status ?? ""),
+      ),
   ).length;
   const anyWaiting = suggestedCount + byHandCount;
   // A boolean, not the array: `data ?? []` is a new array on every render,
