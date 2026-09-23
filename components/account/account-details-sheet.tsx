@@ -311,53 +311,99 @@ export function AccountDetailsSheet({
                   it gets a face: the network it runs on, its own name,
                   whether it is alive, and the two numbers that decide
                   what they can do next. */}
-              <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ring-1 ring-black/5"
-                   style={{ background: "linear-gradient(135deg,#4F7BFF 0%,#7C5CFF 55%,#8B5CF6 100%)" }}>
-                <span aria-hidden className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
-                <span aria-hidden className="pointer-events-none absolute -left-16 -bottom-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-                <div className="relative flex items-start gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20 backdrop-blur-sm ring-1 ring-white/30">
+              <div
+                className="relative overflow-hidden rounded-[20px] p-5 text-white shadow-[0_18px_40px_-18px_rgba(76,60,190,.65)] ring-1 ring-white/10"
+                style={{
+                  background:
+                    "radial-gradient(120% 140% at 0% 0%, #6E8BFF 0%, #5B6CF8 38%, #7A4FE8 72%, #8B5CF6 100%)",
+                }}
+              >
+                {/* Depth, not decoration: a light source top-left, a
+                    cool fall-off bottom-right, and one diagonal sheen. */}
+                <span aria-hidden className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-white/20 blur-3xl" />
+                <span aria-hidden className="pointer-events-none absolute -left-20 -bottom-16 h-40 w-40 rounded-full bg-indigo-900/30 blur-3xl" />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-60"
+                  style={{
+                    background:
+                      "linear-gradient(120deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 42%)",
+                  }}
+                />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+                  style={{
+                    background:
+                      "linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent)",
+                  }}
+                />
+
+                <div className="relative flex items-start gap-3.5">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/[0.18] shadow-inner shadow-white/20 ring-1 ring-white/30 backdrop-blur-sm">
                     <PlatformGlyph slug={data.platform} />
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold tracking-tight text-[1.05rem] leading-tight">
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="truncate text-[1.15rem] font-semibold leading-tight tracking-[-0.015em] drop-shadow-sm">
                       {data.name}
                     </p>
                     {/* THE NETWORK, NEVER THE TYPE. `platform` holds the
-                        ad-account type slug (eu-meta-psm, hk-meta-premium),
-                        and falling back to it printed "Meta-EU-PSM" on the
-                        CUSTOMER's own screen -- which is the one thing that
-                        must never reach them: it names which supplier
-                        family the account came from. The group is all they
-                        need and all they get. */}
-                    <p className="mt-0.5 text-xs text-white/80">
+                        ad-account type slug (eu-meta-psm,
+                        hk-meta-premium), and printing it put
+                        "Meta-EU-PSM" on the CUSTOMER's own screen --
+                        which names the supplier family the account came
+                        from. A pill with the group is all they get. */}
+                    <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white/[0.16] px-2.5 py-1 text-[0.7rem] font-semibold tracking-wide ring-1 ring-white/25 backdrop-blur-sm">
+                      <span className="grid h-3.5 w-3.5 place-items-center [&>svg]:h-3.5 [&>svg]:w-3.5">
+                        <PlatformGlyph slug={data.platform} />
+                      </span>
                       {isAdvertiser
                         ? networkLabel(data.platform)
                         : (PLATFORMS.find((p) => p.value === data.platform)
                             ?.label ??
                           data.platform ??
                           "Ad account")}
-                    </p>
+                    </span>
                   </div>
-                  <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-wide ring-1 ring-white/30">
+                  <span className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.18] px-2.5 py-1 text-[0.66rem] font-bold uppercase tracking-[0.08em] ring-1 ring-white/30 backdrop-blur-sm">
+                    <span
+                      className={
+                        "h-1.5 w-1.5 rounded-full " +
+                        (String(data.status ?? "").toLowerCase() === "active"
+                          ? "bg-emerald-300 shadow-[0_0_8px_2px_rgba(110,231,183,.7)]"
+                          : "bg-white/70")
+                      }
+                    />
                     {String(data.status ?? "—")}
                   </span>
                 </div>
-                <div className="relative mt-4 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium ring-1 ring-white/20">
-                    <WalletIcon className="h-3.5 w-3.5" />
-                    {data.currency
-                      ? `${CURRENCY_SYMBOLS[data.currency] ?? ""} ${data.currency}`
-                      : "—"}
+
+                <div className="relative mt-4 grid grid-cols-2 gap-2">
+                  <span className="rounded-xl bg-white/[0.13] px-3 py-2 ring-1 ring-white/20 backdrop-blur-sm">
+                    <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-white/70">
+                      Currency
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold">
+                      <WalletIcon className="h-3.5 w-3.5 opacity-80" />
+                      {data.currency
+                        ? `${CURRENCY_SYMBOLS[data.currency] ?? ""} ${data.currency}`
+                        : "—"}
+                    </span>
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium ring-1 ring-white/20">
-                    <Percent className="h-3.5 w-3.5" />
-                    {data.fee == null || Number(data.fee) === 0
-                      ? "Fee set by your plan"
-                      : `${Number(data.fee)}% top-up fee`}
+                  <span className="rounded-xl bg-white/[0.13] px-3 py-2 ring-1 ring-white/20 backdrop-blur-sm">
+                    <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-white/70">
+                      Top-up fee
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold">
+                      <Percent className="h-3.5 w-3.5 opacity-80" />
+                      {data.fee == null || Number(data.fee) === 0
+                        ? "Set by your plan"
+                        : `${Number(data.fee)}%`}
+                    </span>
                   </span>
                 </div>
               </div>
+
               {/* ── WHAT IS LEFT TO SAY ──────────────────────────
                   The name, the network, the status, the currency and
                   the fee are all in the panel above now. Repeating them
