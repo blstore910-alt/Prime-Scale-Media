@@ -134,3 +134,89 @@ export async function invoiceDstCharges(
     },
   };
 }
+
+/**
+ * One period, one country, every customer at once.
+ *
+ * The supplier bills us per week for the whole book, not per customer,
+ * so typing it in one customer at a time is the wrong shape of work:
+ * twelve dialogs for one debit. This takes the week, the country and a
+ * spend per customer, and records a line for each one that has any.
+ *
+ * Customers with nothing are skipped rather than written as zero -- a
+ * zero line is a claim that we checked and they owed nothing, and that
+ * is not what an empty box means.
+ */
+export async function recordDstChargesBulk(input: {
+  periodStart: string;
+  periodEnd: string;
+  countryCode: string;
+  currency: string;
+  ratePct?: number | null;
+  note?: string | null;
+  rows: { advertiserId: string; baseAmount: number }[];
+}): Promise<
+  ActionResult<{ recorded: number; total: number; skipped: number; failed: string[] }>
+> {
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth.ctx;
+
+  if (!input.periodStart || !input.periodEnd) {
+    return { ok: false, error: "Pick a period." };
+  }
+  if (input.periodEnd < input.periodStart) {
+    return { ok: false, error: "The period runs backwards." };
+  }
+  if (!String(input.countryCode ?? "").trim()) {
+    return { ok: false, error: "Pick a country." };
+  }
+
+  const rows = (input.rows ?? []).filter(
+    (r) => r && r.advertiserId && Number(r.baseAmount) > 0,
+  );
+  if (!rows.length) {
+    return { ok: false, error: "Fill in a spend for at least one customer." };
+  }
+
+  let recorded = 0;
+  let total = 0;
+  const failed: string[] = [];
+
+  for (const row of rows) {
+    const { data, error } = await supabase.rpc("dst_charge_record", {
+      p_advertiser_id: row.advertiserId,
+      p_period_start: input.periodStart,
+      p_period_end: input.periodEnd,
+      p_country_code: String(input.countryCode).trim().toUpperCase(),
+      p_base_amount: Number(row.baseAmount),
+      p_rate_pct:
+        input.ratePct === null || input.ratePct === undefined
+          ? null
+          : Number(input.ratePct),
+      p_currency: String(input.currency ?? "EUR").toUpperCase(),
+      p_account_id: null,
+      p_note: input.note ?? null,
+    });
+    // ONE CUSTOMER FAILING MUST NOT TAKE THE WEEK DOWN. The others are
+    // already written and are visible as reserved; naming the ones that
+    // did not land is more useful than refusing the whole batch.
+    if (error) {
+      failed.push(row.advertiserId);
+      continue;
+    }
+    const r = data as { dst_amount?: number | string } | null;
+    recorded += 1;
+    total += Number(r?.dst_amount ?? 0);
+  }
+
+  return {
+    ok: true,
+    data: {
+      recorded,
+      total: Math.round(total * 100) / 100,
+      skipped: (input.rows ?? []).length - rows.length,
+      failed,
+    },
+  };
+}

@@ -23,7 +23,11 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 import { formatCurrency } from "@/lib/utils";
-import { recordDstCharges, invoiceDstCharges } from "@/actions/dst-actions";
+import {
+  recordDstCharges,
+  recordDstChargesBulk,
+  invoiceDstCharges,
+} from "@/actions/dst-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -354,6 +358,15 @@ function AddDstDialog({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const week = useMemo(lastWeek, []);
+  // ONE CUSTOMER, OR THE WHOLE BOOK. The supplier bills us per week for
+  // everyone at once, so typing it in one customer at a time is twelve
+  // dialogs for one debit. The axis of the bulk mode is the COUNTRY,
+  // because DST follows where the money was SPENT -- a customer with a
+  // Dutch ad account can spend in Turkey and France in the same week,
+  // and those are separate lines at separate rates.
+  const [mode, setMode] = useState<"one" | "all">("one");
+  const [bulkCountry, setBulkCountry] = useState("");
+  const [bulkSpend, setBulkSpend] = useState<Record<string, string>>({});
   const [advertiserId, setAdvertiserId] = useState("");
   const [periodStart, setPeriodStart] = useState(week.start);
   const [periodEnd, setPeriodEnd] = useState(week.end);
@@ -410,6 +423,45 @@ function AddDstDialog({
   });
   const total = Math.round(preview.reduce((t, p) => t + p.dst, 0) * 100) / 100;
 
+  // The bulk preview: one country, its rate, a figure per customer.
+  const bulkRate = rateFor(bulkCountry);
+  const bulkRows = (advertisers.data ?? [])
+    .map((a) => ({ id: a.id, base: n(bulkSpend[a.id]) }))
+    .filter((r) => r.base > 0);
+  const bulkTotal =
+    Math.round(
+      bulkRows.reduce((t, r) => t + (r.base * n(bulkRate?.rate_pct)) / 100, 0) * 100,
+    ) / 100;
+
+  const { mutate: mutateBulk, isPending: bulkPending } = useMutation({
+    mutationFn: async () => {
+      const res = await recordDstChargesBulk({
+        periodStart,
+        periodEnd,
+        countryCode: bulkCountry,
+        currency,
+        note: note.trim() || null,
+        rows: bulkRows.map((r) => ({ advertiserId: r.id, baseAmount: r.base })),
+      });
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      toast.success(
+        `${d.recorded} ${d.recorded === 1 ? "customer" : "customers"} recorded — ${formatCurrency(d.total, currency)}`,
+        {
+          description: d.failed.length
+            ? `${d.failed.length} could not be written — check the list.`
+            : "They sit as reserved until you raise the invoice. Repeat for the next country.",
+        },
+      );
+      setBulkSpend({});
+      onDone();
+    },
+    onError: (e: Error) =>
+      toast.error("Couldn't record the week", { description: e.message }),
+  });
+
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       const res = await recordDstCharges({
@@ -442,18 +494,19 @@ function AddDstDialog({
       toast.error("Couldn't record it", { description: e.message }),
   });
 
+  const periodOk = !!periodStart && !!periodEnd && periodEnd >= periodStart;
   const valid =
     !!advertiserId &&
-    !!periodStart &&
-    !!periodEnd &&
-    periodEnd >= periodStart &&
+    periodOk &&
     lines.some((l) => l.country.trim() && n(l.base) > 0);
+  const bulkValid = periodOk && !!bulkCountry && bulkRows.length > 0;
+  const busy = isPending || bulkPending;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next && isPending) return;
+        if (!next && busy) return;
         onOpenChange(next);
       }}
     >
@@ -467,6 +520,28 @@ function AddDstDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* WHICH SHAPE OF WEEK. One customer with several countries, or
+              one country across every customer -- the supplier bills the
+              whole book at once, so the second is the normal case. */}
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-1">
+            {(["one", "all"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition " +
+                  (mode === m
+                    ? "bg-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+                onClick={() => setMode(m)}
+              >
+                {m === "one" ? "One customer" : "All customers"}
+              </button>
+            ))}
+          </div>
+
+          {mode === "one" ? (
           <div>
             <Label htmlFor="dst-adv">Customer</Label>
             <select
@@ -489,6 +564,7 @@ function AddDstDialog({
               </p>
             )}
           </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -529,6 +605,95 @@ function AddDstDialog({
             </select>
           </div>
 
+          {mode === "all" ? (
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="dst-bulk-country">Country the money was spent in</Label>
+                <select
+                  id="dst-bulk-country"
+                  className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
+                  value={bulkCountry}
+                  onChange={(e) => setBulkCountry(e.target.value)}
+                >
+                  <option value="">Pick a country…</option>
+                  {(rates.data ?? []).map((r) => (
+                    <option key={r.country_code} value={r.country_code}>
+                      {r.country_name || r.country_code} · {n(r.rate_pct)}%
+                    </option>
+                  ))}
+                </select>
+                {/* SPEND, NOT THE ACCOUNT. A customer with a Dutch ad
+                    account can spend in Turkey and France in the same
+                    week, at different rates -- so this is one pass per
+                    country, not one per customer. */}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  DST follows where the money was spent, not where the ad
+                  account sits. A customer can appear under several
+                  countries in one week — do a pass per country.
+                </p>
+              </div>
+
+              <div className="rounded-lg border">
+                <div className="flex items-center justify-between border-b px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Customer</span>
+                  <span>Spend in {bulkCountry || "…"}</span>
+                </div>
+                {advertisers.isLoading ? (
+                  <p className="px-3 py-4 text-sm text-muted-foreground">
+                    Loading customers…
+                  </p>
+                ) : advertisers.isError ? (
+                  <p className="px-3 py-4 text-sm text-destructive">
+                    The customer list couldn&apos;t be read — this is not an
+                    empty list.
+                  </p>
+                ) : (
+                  <div className="max-h-64 overflow-auto">
+                    {(advertisers.data ?? []).map((a) => {
+                      const base = n(bulkSpend[a.id]);
+                      const dst =
+                        Math.round(base * n(bulkRate?.rate_pct)) / 100;
+                      return (
+                        <div
+                          key={a.id}
+                          className="flex items-center gap-2 border-b px-3 py-2 last:border-b-0"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">
+                              {a.tenant_client_code}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {a.profile?.full_name ?? ""}
+                            </p>
+                          </div>
+                          {base > 0 && bulkRate ? (
+                            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                              = {formatCurrency(dst, currency)}
+                            </span>
+                          ) : null}
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            className="h-8 w-28 shrink-0 text-right tabular-nums"
+                            value={bulkSpend[a.id] ?? ""}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onChange={(e) =>
+                              setBulkSpend((p) => ({
+                                ...p,
+                                [a.id]: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
           <div className="space-y-2">
             <Label>Spend per country</Label>
             {lines.map((l, i) => {
@@ -603,6 +768,7 @@ function AddDstDialog({
               <Plus className="h-4 w-4" /> Add a country
             </button>
           </div>
+          )}
 
           <div>
             <Label htmlFor="dst-note">Note (optional)</Label>
@@ -617,10 +783,12 @@ function AddDstDialog({
           <div className="rounded-xl border bg-muted/40 p-3">
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-muted-foreground">
-                To charge back, together
+                {mode === "all"
+                  ? `To charge back, across ${bulkRows.length} ${bulkRows.length === 1 ? "customer" : "customers"}`
+                  : "To charge back, together"}
               </span>
               <span className="text-lg font-semibold tabular-nums">
-                {formatCurrency(total, currency)}
+                {formatCurrency(mode === "all" ? bulkTotal : total, currency)}
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -635,12 +803,15 @@ function AddDstDialog({
             variant="outline"
             type="button"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
+            disabled={busy}
           >
             Cancel
           </Button>
-          <Button onClick={() => mutate()} disabled={!valid || isPending}>
-            {isPending && <Loader2 className="animate-spin" />}
+          <Button
+            onClick={() => (mode === "all" ? mutateBulk() : mutate())}
+            disabled={(mode === "all" ? !bulkValid : !valid) || busy}
+          >
+            {busy && <Loader2 className="animate-spin" />}
             Record
           </Button>
         </DialogFooter>
