@@ -966,29 +966,77 @@ function AffiliateDetail({
     .filter((r) => r.affiliate_advertiser_id === advertiserId)
     .sort((a, b) => b.effective_from.localeCompare(a.effective_from));
 
-  const calcLine = (c: BookCommission): string => {
+  // ── HOE HET BEDRAG ONTSTOND ───────────────────────────────────────
+  //
+  // De eigenaar: "niet supplier maar de fee die wij moeten betalen ofzo,
+  // maak subtieler en slimmer."
+  //
+  // Het stond als één regel met alles tussen haakjes:
+  //     20% of profit EUR 0.53 (fee EUR 3.00 - supplier 2% = EUR 2.45)
+  // Dat leest van links naar rechts als een som terwijl het antwoord
+  // vooraan staat, en "supplier" is een woord dat niemand hoeft te lezen
+  // om te snappen wat er gebeurde.
+  //
+  // Nu twee regels: bovenaan het deel dat telt (het percentage en waar
+  // het overheen gaat), eronder stil waar dat bedrag vandaan komt --
+  // wat wij rekenden, en wat wij daarvan moeten afdragen. Wij, niet een
+  // leverancier: dat is de partij waar het om gaat.
+  const calcLine = (c: BookCommission) => {
     const t = c.topup_id ? topups.data?.get(c.topup_id) : null;
     const cur = String(c.currency ?? "EUR").toUpperCase();
-    if ((c.source ?? "") === "onetime") return "One-time bonus for a new customer";
-    if ((c.status ?? "") === "reversed") return c.note ?? "Reversed";
-    if (c.base_amount !== null && c.base_amount !== undefined && c.pct !== null && c.pct !== undefined) {
+    const wrap = (top: React.ReactNode, under?: React.ReactNode) => (
+      <span className="calc">
+        <span className="calc-t">{top}</span>
+        {under ? <span className="calc-u">{under}</span> : null}
+      </span>
+    );
+
+    if ((c.source ?? "") === "onetime") {
+      return wrap("Welcome bonus", "one-off, for a new customer");
+    }
+    if ((c.status ?? "") === "reversed") {
+      return wrap("Reversed", c.note ?? undefined);
+    }
+    if (
+      c.base_amount !== null &&
+      c.base_amount !== undefined &&
+      c.pct !== null &&
+      c.pct !== undefined
+    ) {
       const base = formatCurrency(Number(c.base_amount), cur);
       if ((c.source ?? "topup") === "subscription") {
-        return `${pct(c.pct)} of ${base} invoice`;
+        return wrap(`${pct(c.pct)} of ${base}`, "monthly plan, once it is paid");
       }
-      const parts = [
-        c.fee_amount !== null && c.fee_amount !== undefined ? `fee ${formatCurrency(Number(c.fee_amount), cur)}` : null,
+      const fee =
+        c.fee_amount !== null && c.fee_amount !== undefined
+          ? formatCurrency(Number(c.fee_amount), cur)
+          : null;
+      const cost =
         c.supplier_cost !== null && c.supplier_cost !== undefined
-          ? `supplier ${pct(c.supplier_fee_pct)} = ${formatCurrency(Number(c.supplier_cost), cur)}`
-          : null,
-      ].filter(Boolean);
-      return `${pct(c.pct)} of profit ${base}${parts.length ? ` (${parts.join(" − ")})` : ""}`;
+          ? formatCurrency(Number(c.supplier_cost), cur)
+          : null;
+      return wrap(
+        `${pct(c.pct)} of ${base}`,
+        fee && cost ? (
+          <>
+            {fee} charged <span className="calc-m">\u2212</span> {cost} we pay
+            {c.supplier_fee_pct !== null && c.supplier_fee_pct !== undefined
+              ? ` (${pct(c.supplier_fee_pct)})`
+              : ""}
+          </>
+        ) : fee ? (
+          `${fee} charged`
+        ) : undefined,
+      );
     }
-    // Booked before the profit rule existed: a share of what landed.
+    // Geboekt vóór de winstregel bestond: een deel van wat er landde.
     if (t && t.topup_amount !== null) {
-      return `Old rule: share of ${formatCurrency(Number(t.topup_amount), cur)} landed`;
+      return wrap(
+        `Share of ${formatCurrency(Number(t.topup_amount), cur)}`,
+        "old rule, before the profit split",
+      );
     }
-    return calcMissing ? "Calculation not recorded (old rule)" : DASH;
+    return wrap(calcMissing ? "Not recorded" : DASH, calcMissing ? "old rule" : undefined);
   };
 
   // Dezelfde vier statussen als de commissietabel verderop, zodat een

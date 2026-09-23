@@ -338,6 +338,14 @@ export const PSM_APP_CSS = `
    schermen verderop. Dit klapt onder de referral open, met de hele
    rekensom — onze fee, wat de leverancier ons rekent, de winst en het
    aandeel. Dit is het adminboek; die keten hoort hier en alleen hier. */
+/* ── HOE HET BEDRAG ONTSTOND, IN TWEE REGELS ────────────────────
+   Bovenaan het deel dat telt, eronder stil waar dat bedrag vandaan
+   komt. Het stond als één regel met alles tussen haakjes, wat van links
+   naar rechts als een som leest terwijl het antwoord vooraan staat. */
+.psmapp .calc{display:flex;flex-direction:column;gap:1px;min-width:0}
+.psmapp .calc-t{font-size:.84rem;color:var(--ink);font-weight:600;letter-spacing:-.01em}
+.psmapp .calc-u{font-size:.74rem;color:var(--faint);line-height:1.4}
+.psmapp .calc-m{opacity:.55;padding:0 1px}
 .psmapp .tbl tr.subrow>td{background:var(--panel-2);border-top:0}
 .psmapp .linkdet{padding:2px 14px 10px}
 .psmapp .linkdet-row{display:grid;grid-template-columns:86px 122px 1fr auto auto;gap:10px;
