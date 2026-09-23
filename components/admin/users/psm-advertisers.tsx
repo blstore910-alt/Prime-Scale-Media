@@ -217,18 +217,50 @@ export default function PsmAdvertisers() {
     staleTime: 30_000,
     queryFn: async () => {
       const supabase = createClient();
-      const out: Record<string, { planName?: string; perks: string[] }> = {};
+      const out: Record<
+        string,
+        {
+          planName?: string;
+          perks: string[];
+          included?: number | null;
+          feePct?: number | null;
+        }
+      > = {};
       for (const id of advertiserIds) out[id] = { perks: [] };
+      let degraded = false;
 
-      const { data: aplans } = await supabase
+      // ── THE CUSTOMER'S OWN FIGURES, NOT THE TEMPLATE'S ─────────────
+      //
+      // This read the plan's NAME and nothing else, and the cell then
+      // implied the template's terms. advertiser_plans carries a copy
+      // per customer, and three of the five live rows disagree with the
+      // plan they are named after -- PSM0004 wears a "Prime" badge (2
+      // included, 3%) over a row that says 1 included at 5%.
+      //
+      // That is the badge an admin reads to answer "does their next ad
+      // account cost EUR 50?", and actions/topup-actions puts
+      // advertiser_plans.topup_fee_pct second in precedence for what is
+      // actually charged. So the screen was stating the opposite of what
+      // the customer pays.
+      const { data: aplans, error: aplansErr } = await supabase
         .from("advertiser_plans")
-        .select("advertiser_id, plan_id")
+        .select(
+          "advertiser_id, plan_id, included_ad_accounts, topup_fee_pct",
+        )
         .in("advertiser_id", advertiserIds);
+      if (aplansErr) degraded = true;
 
       const planRows = (aplans ?? []) as unknown as {
         advertiser_id?: string;
         plan_id?: string | null;
+        included_ad_accounts?: number | null;
+        topup_fee_pct?: number | null;
       }[];
+      for (const row of planRows) {
+        if (!row.advertiser_id || !out[row.advertiser_id]) continue;
+        out[row.advertiser_id].included = row.included_ad_accounts ?? null;
+        out[row.advertiser_id].feePct = row.topup_fee_pct ?? null;
+      }
       const planIds = Array.from(
         new Set(
           planRows
@@ -254,7 +286,10 @@ export default function PsmAdvertisers() {
         }
       }
 
-      const { data: perks } = await supabase
+      // A refused perks read is not "this customer has no perks". The
+      // header of this file says what that costs: a customer on a 100%
+      // fee waiver looked exactly like one paying full rate.
+      const { data: perks, error: perksErr } = await supabase
         .from("advertiser_perks")
         .select("advertiser_id, kind, amount, starts_at, expires_at")
         .in("advertiser_id", advertiserIds)
@@ -286,7 +321,8 @@ export default function PsmAdvertisers() {
             : label,
         );
       }
-      return out;
+      if (perksErr) degraded = true;
+      return { byAdvertiser: out, degraded };
     },
   });
   const totalCount = total ?? 0;
@@ -569,11 +605,12 @@ export default function PsmAdvertisers() {
                       earningsByEmail={earningsByEmail}
                       earningsError={earningsError}
                       planBadge={
-                        planBadges?.[
+                        planBadges?.byAdvertiser?.[
                           (profile.advertiser?.[0] as { id?: string } | undefined)
                             ?.id ?? ""
                         ]
                       }
+                      planBadgeDegraded={!!planBadges?.degraded}
                     />
                   ))}
                 </tbody>
@@ -676,6 +713,7 @@ function AdvertiserRow({
   profile,
   onView,
   planBadge,
+  planBadgeDegraded,
   onCreateSubscription,
   onCommissionSetup,
   earningsByEmail,
@@ -683,7 +721,16 @@ function AdvertiserRow({
 }: {
   profile: Profile;
   onView: () => void;
-  planBadge?: { planName?: string; perks: string[] };
+  planBadge?: {
+    planName?: string;
+    perks: string[];
+    included?: number | null;
+    feePct?: number | null;
+  };
+  /** One of the two reads behind this cell was refused. A missing perk
+   *  pill would otherwise mean "no perks", and a missing plan name
+   *  "no plan" -- both of which are claims. */
+  planBadgeDegraded?: boolean;
   onCreateSubscription: (advertiserId: string) => void;
   onCommissionSetup: (advertiser: Advertiser | undefined) => void;
   earningsByEmail: Record<string, { eur: number; usd: number; links: number }>;
@@ -718,6 +765,10 @@ function AdvertiserRow({
       : null;
 
   const planName = planBadge?.planName ?? null;
+  // What THIS customer's row says, which is what they are actually
+  // charged -- not the template the badge is named after.
+  const planIncluded = planBadge?.included ?? null;
+  const planFeePct = planBadge?.feePct ?? null;
   // One pill, however many perks: a row is not the place for a list, and
   // "3 perks" with the names on hover is honest about there being more.
   const perks = planBadge?.perks ?? [];
@@ -759,6 +810,13 @@ function AdvertiserRow({
           toast.success(
             `User has been ${isActive ? "deactivated" : "activated"} successfully`,
           ),
+        // Both ways: the dialog stays up with its busy label until the
+        // write resolves, and then closes -- including on a failure, so
+        // the red toast is not left behind a modal.
+        onSettled: () => {
+          setAskDeactivate(false);
+          setAskActivate(false);
+        },
       },
     );
   };
@@ -878,6 +936,24 @@ function AdvertiserRow({
             {planName ? (
               <div className="muted" style={{ fontSize: ".76rem", marginTop: 2 }}>
                 {planName}
+                {/* AND WHAT THIS CUSTOMER'S OWN ROW SAYS. The name alone
+                    implied the template's terms, and three of the five
+                    live rows disagree with the plan they are named
+                    after. This is the line an admin reads to answer
+                    "does their next ad account cost EUR 50, and what do
+                    we charge on their top-ups?" */}
+                {planIncluded != null || planFeePct != null ? (
+                  <>
+                    {" · "}
+                    {planIncluded != null ? `${planIncluded} incl` : null}
+                    {planIncluded != null && planFeePct != null ? " · " : null}
+                    {planFeePct != null ? `${planFeePct}%` : null}
+                  </>
+                ) : null}
+              </div>
+            ) : planBadgeDegraded ? (
+              <div className="muted" style={{ fontSize: ".76rem", marginTop: 2 }}>
+                plan could not be read
               </div>
             ) : null}
             {/* Never the bare word "Inactive": that is the customer's
@@ -887,6 +963,15 @@ function AdvertiserRow({
                 {planStatusLabel(subscriptionStatus)}
               </span>
             )}
+            {!perkLabel && planBadgeDegraded ? (
+              <span
+                className="badge"
+                style={{ marginTop: 4 }}
+                title="We couldn't read this customer's perks — this is NOT 'they have none'."
+              >
+                perks ?
+              </span>
+            ) : null}
             {perkLabel ? (
               <span
                 className="badge info"
@@ -1120,6 +1205,8 @@ function AdvertiserRow({
            kind of wrong — and it left the one real consequence unsaid. */
         lead="They lose access immediately, their subscriptions stop, and nothing further is taken from their wallet — an invoice already issued is no longer collected while they are switched off. Switching them back on restarts the monthly charge; it will ask you first."
         cta="Yes, deactivate"
+        busy={isPending}
+        busyLabel="Saving…"
         tone="danger"
         onConfirm={() => {
           closeGuard();
@@ -1142,14 +1229,15 @@ function AdvertiserRow({
         title="Switch this customer back on?"
         lead="They get access back, and the subscriptions that were stopped when you switched them off start running again. The next invoice is raised from today, not back-dated for the time they were off — they are not charged for the months they could not use the account. A subscription you cancelled or paused deliberately stays as it is."
         cta="Yes, switch them on"
+        busy={isPending}
+        busyLabel="Saving…"
         onConfirm={() => {
           // closeGuard, like the Deactivate path two blocks up. Without
           // it the details drawer slid open unasked the moment this
-          // dialog closed, showing the status from before the write --
-          // because setAskActivate(false) here means Radix never fires
-          // the onOpenChange handler that would have guarded it.
+          // dialog closed, showing the status from before the write.
+          // And not closing here: ConfirmModal's busy holds it up until
+          // the write lands, which is what busy is for.
           closeGuard();
-          setAskActivate(false);
           toggleStatus();
         }}
       >

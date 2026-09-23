@@ -271,6 +271,20 @@ export default function AdAccountRequestReviewDialog({
 
         {data && (
           <DialogFooter className="shrink-0 gap-2 sm:gap-2 sm:space-x-0">
+            {/* ── AN EMPTY ACTION BAR IS NOT AN ANSWER ────────────────
+                For a completed or rejected request every control above
+                is false, and this footer still rendered: a grey bar with
+                nothing in it, under a description that says "choose the
+                next action". Somebody opening Review on a finished
+                request deserves the one sentence that says it is
+                finished. */}
+            {!canReject && !showCreateInvoice && !showCreateAdAccount && (
+              <p className="mr-auto self-center text-xs text-muted-foreground">
+                {statusValue === "rejected"
+                  ? "This request was refused — the reason is above. Nothing left to do here."
+                  : "This request is finished. Nothing left to do here."}
+              </p>
+            )}
             {!hasAdvertiser && (showCreateInvoice || showCreateAdAccount) && (
               <p className="mr-auto self-center text-xs text-muted-foreground">
                 Create actions are unavailable until an advertiser is attached.
