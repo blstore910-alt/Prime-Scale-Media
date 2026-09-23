@@ -97,6 +97,27 @@ function LaunchRocket() {
 }
 
 const AUTH_CSS = `
+  /* ── HET KRUISJE HOORT IN HET VAKJE ───────────────────────────
+     Sonner zet zijn sluitknop standaard OP de hoek, half buiten de
+     melding, met een lichte cirkel die op een donkere achtergrond als
+     een losse vlek leest. Hij gaat naar binnen, rechtsboven, in de
+     kleur van de melding zelf. */
+  .psmauth [data-sonner-toast] [data-close-button] {
+    top: 8px; right: 8px; left: auto;
+    transform: none;
+    width: 22px; height: 22px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.08);
+    color: rgba(255,255,255,.75);
+  }
+  .psmauth [data-sonner-toast] [data-close-button]:hover {
+    background: rgba(255,255,255,.16);
+    color: #fff;
+  }
+  /* Ruimte voor dat kruisje, zodat het nooit op de tekst valt. */
+  .psmauth [data-sonner-toast] { padding-right: 38px; }
+
 .psmauth{
   --panel:#fff;--panel-2:#f1f4fb;--ink:#12162a;--txt-2:#5c6577;--faint:#8b93a6;
   --line:#e6e9f2;--line-2:#d8ddec;--primary:#3a6fff;--primary-600:#2f5ae6;--primary-tint:#eaf1ff;
