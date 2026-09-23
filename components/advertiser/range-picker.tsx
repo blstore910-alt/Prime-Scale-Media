@@ -73,11 +73,18 @@ export default function RangePicker({
   value,
   onChange,
   busy,
+  onExport,
 }: {
   value: AffRange;
   onChange: (next: AffRange) => void;
   /** A read for the new period is under way. */
   busy?: boolean;
+  /** Hand the figures below to a spreadsheet. It belongs HERE, beside
+   *  the sentence naming the period it would write out -- the owner,
+   *  23-09: "export knop betere plek en ook bij advertisers plaatsen".
+   *  It was a lone button floating between the stats and the list, and
+   *  the advertiser's screen had no export at all. */
+  onExport?: () => void;
 }) {
   // Typed dates are held here until both make sense, so the figures do not
   // jump on every keystroke of a half-typed date.
@@ -189,6 +196,11 @@ export default function RangePicker({
         <span className={`dot${busy ? " busy" : ""}`} />
         Showing <b>{rangeCaption(value)}</b>
         {busy ? <span className="xr-busy">updating…</span> : null}
+        {onExport ? (
+          <button type="button" className="xr-exp" onClick={onExport}>
+            <Ic name="i-download" /> Export
+          </button>
+        ) : null}
       </div>
     </div>
   );

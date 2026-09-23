@@ -693,6 +693,16 @@ export const AFF_CSS = `
 /* The old loose-hamburger rule drew its own box; it is a .tool now. */
 .affapp .topbar .ham{border:0;background:none}
 
+/* ── A PAGE HEADING ────────────────────────────────────────
+   The topbar title is hidden on a phone, so a view without one of these
+   opened on a card with nothing saying what page it was. Same shape as
+   the advertiser's .phead. */
+  .phead{margin:0 0 4px}
+  .phead h1{font-family:var(--font-sora);font-weight:800;font-size:1.32rem;
+    letter-spacing:-.025em;line-height:1.15;margin:0;color:var(--ink)}
+  .phead p{margin:5px 0 0;font-size:.9rem;color:var(--txt-2)}
+  @media(max-width:480px){.phead h1{font-size:1.18rem}}
+
 /* ── WELCOME BACK ───────────────────────────────────────────
    The owner: "hier moet ook ergens welcome back en naam staan". First
    name only — a long name wraps to two lines on a phone and reads like
@@ -712,8 +722,8 @@ export const AFF_CSS = `
    thing you look at is the thing that moves — and the four rungs say
    WHERE you are, which a single bar never did. Nothing here renders at
    all when the figure behind it could not be read. */
-  .tierx{position:relative;overflow:hidden;isolation:isolate;border-radius:22px;
-    padding:24px 18px 20px;color:#fff;
+  .tierx{position:relative;overflow:hidden;isolation:isolate;border-radius:20px;
+    padding:16px 16px 14px;color:#fff;
     background:radial-gradient(120% 120% at 50% -20%,rgba(239,176,44,.34),transparent 56%),
       radial-gradient(80% 110% at 90% 4%,rgba(139,92,246,.3),transparent 56%),
       radial-gradient(80% 110% at 8% 10%,rgba(91,141,255,.24),transparent 56%),
@@ -724,7 +734,7 @@ export const AFF_CSS = `
     background:conic-gradient(from 0deg,transparent,rgba(239,176,44,.16),transparent 28%,
       rgba(139,92,246,.18),transparent 58%,rgba(91,141,255,.14),transparent 84%);
     animation:xhspin 26s linear infinite}
-  .tierx .tx-glow{position:absolute;top:34%;left:50%;width:min(460px,92%);height:190px;z-index:0;
+  .tierx .tx-glow{position:absolute;top:36%;left:50%;width:min(420px,92%);height:150px;z-index:0;
     pointer-events:none;transform:translate(-50%,-50%);filter:blur(14px);
     background:radial-gradient(ellipse at center,rgba(255,198,64,.32),rgba(255,170,40,0) 68%);
     animation:xhglow 3.8s ease-in-out infinite}
@@ -738,62 +748,62 @@ export const AFF_CSS = `
     letter-spacing:.04em;text-transform:uppercase;color:#ffe8b0;
     background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
     -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-  .tx-medalwrap{display:flex;flex-direction:column;align-items:center;margin-top:16px}
+  .tx-medalwrap{display:flex;flex-direction:column;align-items:center;margin-top:11px}
   /* The ring: a conic gradient to --p, a soft track after it, and the
      medal punched out of the middle with a mask. It turns slowly, so it
      reads as lit rather than as a loading spinner. */
-  .tx-ring{--p:0%;position:relative;width:118px;height:118px;border-radius:50%;
+  .tx-ring{--p:0%;position:relative;width:88px;height:88px;border-radius:50%;
     display:grid;place-items:center;
     background:conic-gradient(#ffd66b 0deg,#ffb020 var(--p),rgba(255,255,255,.1) var(--p),rgba(255,255,255,.1) 360deg);
     box-shadow:0 0 34px -6px rgba(255,180,60,.5);transition:background .5s ease}
-  .tx-ring::after{content:"";position:absolute;inset:7px;border-radius:50%;
+  .tx-ring::after{content:"";position:absolute;inset:6px;border-radius:50%;
     background:linear-gradient(165deg,#12142a,#1a1430);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
   .tx-ring.blind{background:rgba(255,255,255,.1);box-shadow:none}
-  .tx-medal{position:relative;z-index:1;width:74px;height:74px;border-radius:50%;
+  .tx-medal{position:relative;z-index:1;width:56px;height:56px;border-radius:50%;
     display:grid;place-items:center;color:#fff;
     background:linear-gradient(145deg,#b0763f,#8a5726);
     box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 22px -12px rgba(0,0,0,.8)}
-  .tx-medal svg{width:34px;height:34px;stroke-width:1.8}
+  .tx-medal svg{width:26px;height:26px;stroke-width:1.8}
   .tx-medal.silver{background:linear-gradient(145deg,#cfd6e2,#98a3b6)}
   .tx-medal.gold{background:linear-gradient(145deg,#ffdd8a,#e0980f)}
   .tx-medal.plat{background:linear-gradient(145deg,#e8f0ff,#9db8ff)}
   .tx-medal.unknown{background:linear-gradient(145deg,#3a3f57,#272b3d)}
-  .tx-name{margin-top:13px;font-family:var(--font-sora);font-weight:800;
-    font-size:1.85rem;letter-spacing:-.03em;line-height:1;
+  .tx-name{margin-top:9px;font-family:var(--font-sora);font-weight:800;
+    font-size:1.5rem;letter-spacing:-.03em;line-height:1;
     background:linear-gradient(100deg,#e0980f 0%,#ffdf85 30%,#fff7de 46%,#ffdf85 60%,#e0980f 84%);
     -webkit-background-clip:text;background-clip:text;color:transparent}
-  .tx-sub{margin-top:6px;font-size:.84rem;color:rgba(255,255,255,.72);text-align:center;max-width:34ch}
+  .tx-sub{margin-top:4px;font-size:.8rem;color:rgba(255,255,255,.72);text-align:center;max-width:34ch}
   /* The ladder. Four rungs, the one you are on lit, the ones behind you
      ticked — a bar says how far, never where. */
-  .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:20px}
-  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 4px 8px;
+  .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px}
+  .tx-rung{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px 6px;
     border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);
     transition:.18s}
   .tx-rung.done{background:rgba(255,198,64,.1);border-color:rgba(255,198,64,.24)}
   .tx-rung.on{background:linear-gradient(180deg,rgba(255,198,64,.24),rgba(255,198,64,.08));
     border-color:rgba(255,205,90,.55);box-shadow:0 10px 26px -16px rgba(255,180,60,.9),
       inset 0 1px 0 rgba(255,255,255,.14)}
-  .tx-dot{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;
+  .tx-dot{width:14px;height:14px;border-radius:50%;display:grid;place-items:center;
     background:rgba(255,255,255,.14);color:#0b0d1e}
   .tx-rung.done .tx-dot{background:#ffcf6a}
   .tx-rung.on .tx-dot{background:#fff;box-shadow:0 0 0 4px rgba(255,205,90,.22)}
-  .tx-dot svg{width:11px;height:11px;stroke-width:3.2}
+  .tx-dot svg{width:9px;height:9px;stroke-width:3.4}
   .tx-rname{font-size:.72rem;font-weight:800;color:rgba(255,255,255,.62);letter-spacing:-.01em}
   .tx-rung.on .tx-rname{color:#ffe8b0}
   .tx-rung.done .tx-rname{color:rgba(255,232,176,.82)}
   .tx-rmin{font-size:.62rem;font-weight:700;color:rgba(255,255,255,.38)}
   .tx-rung.on .tx-rmin{color:rgba(255,232,176,.7)}
-  .tx-note{margin:16px 0 0;text-align:center;font-size:.86rem;line-height:1.5;
+  .tx-note{margin:12px 0 0;text-align:center;font-size:.82rem;line-height:1.45;
     color:rgba(255,255,255,.8)}
   .tx-note b{color:#fff}.tx-note b.gold{color:#ffd98a}
-  .tx-legend{margin:10px 0 0;text-align:center;font-size:.76rem;line-height:1.5;
+  .tx-legend{margin:7px 0 0;text-align:center;font-size:.72rem;line-height:1.45;
     color:rgba(255,255,255,.45)}
   .tx-legend b{color:rgba(255,255,255,.7)}
   @media(max-width:420px){
-    .tx-ring{width:104px;height:104px}.tx-medal{width:64px;height:64px}
-    .tx-medal svg{width:29px;height:29px}.tx-name{font-size:1.6rem}
-    .tx-ladder{gap:5px}.tx-rname{font-size:.66rem}.tx-rmin{font-size:.58rem}
+    .tx-ring{width:78px;height:78px}.tx-medal{width:50px;height:50px}
+    .tx-medal svg{width:23px;height:23px}.tx-name{font-size:1.32rem}
+    .tx-ladder{gap:4px}.tx-rname{font-size:.64rem}.tx-rmin{font-size:.56rem}
   }
   @media (prefers-reduced-motion:reduce){
     .tierx .tx-ribbon,.tierx .tx-glow{animation:none}

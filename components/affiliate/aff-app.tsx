@@ -58,11 +58,14 @@ const TITLES: Record<View, string> = {
 // Scaler ladder (chosen over bronze/silver/gold — sounds stronger). The `key`
 // stays the original so the medal color classes (.thmedal.bronze/.silver/.plat)
 // keep working; only the display name changes. Top tier = Legend.
+// The owner, 23-09: "eerste tier 1000 eur, tweede 3000, laatste 10k /
+// of bedenk 3 tiers tot 10k". Three rungs to climb, the top one at
+// 10,000 -- Starter is where everybody starts, not something to reach.
 const TIERS = [
   { key: "bronze", name: "Starter", min: 0 },
-  { key: "silver", name: "Riser", min: 250 },
-  { key: "gold", name: "Scaler", min: 1000 },
-  { key: "plat", name: "Legend", min: 2500 },
+  { key: "silver", name: "Riser", min: 1000 },
+  { key: "gold", name: "Scaler", min: 3000 },
+  { key: "plat", name: "Legend", min: 10000 },
 ];
 
 // TWO DECIMALS. Math.round here meant the payout modal printed "still
@@ -208,7 +211,10 @@ export default function AffiliateApp() {
 
   // My Referrals date-range filter (the "All time" dropdown). Default "all"
   // dedupes with the all-time query above, so it adds no extra fetch.
-  const [affRange, setAffRange] = useState<AffRange>({ key: "all" });
+  // This month, not all time. The owner, 23-09: "standaard op this
+  // month". What somebody opens this screen for is what is happening
+  // now; all time is one tap away and never moves.
+  const [affRange, setAffRange] = useState<AffRange>({ key: "month" });
   // Five referrals, then the rest on one tap -- and a referral picked
   // here narrows the commission list below to that one customer.
   const [refsAll, setRefsAll] = useState(false);
@@ -467,33 +473,7 @@ export default function AffiliateApp() {
     );
   };
 
-  const shareEmail = () => {
-    if (!referralLink) {
-      toast.error("Your referral link isn't set up yet.");
-      return;
-    }
-    const subject = encodeURIComponent("Join Prime Scale Media");
-    const body = encodeURIComponent(shareMessage());
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  };
 
-  const shareQr = async () => {
-    // No QR renderer is bundled, so rather than fake a QR that never
-    // appears, copy the link so it can be pasted into any QR generator.
-    if (!referralLink) {
-      toast.error("Your referral link isn't set up yet", {
-        description:
-          "Your affiliate account isn't linked to a customer record yet — ask us to finish setting it up.",
-      });
-      return;
-    }
-    try {
-      if (!(await copyText(referralLink))) throw new Error("copy refused");
-      toast.success("Link copied — paste it into any QR generator.");
-    } catch {
-      toast.error("Couldn't copy the link.");
-    }
-  };
 
   const exportReferrals = () => {
     // ── "NOTHING TO EXPORT" OVER A READ THAT FAILED ─────────────────
@@ -994,12 +974,12 @@ export default function AffiliateApp() {
                     <button className="btn ghost sm wa" onClick={shareWhatsApp}>
                       <WhatsappIcon /> WhatsApp
                     </button>
-                    <button className="btn ghost sm" onClick={shareEmail}>
-                      <Ic name="i-mail" /> Email
-                    </button>
-                    <button className="btn ghost sm" onClick={shareQr}>
-                      <Ic name="i-qr" /> Copy for QR
-                    </button>
+                    {/* Email and QR are gone: a mailto: on a machine
+                        with no mail client does nothing at all and
+                        cannot be detected, and "Copy for QR" copies the
+                        same string Copy link already copied. Two
+                        buttons, one of them silent. The owner: "email
+                        en qr button hoeft niet, onnodig". */}
                   </div>
                 </>
               ) : (
@@ -1016,102 +996,10 @@ export default function AffiliateApp() {
 
           {/* MY REFERRALS */}
           <div className={`view${view === "refs" ? " on" : ""}`}>
-            {/* ── ONE PERIOD FOR EVERY FIGURE UNDER IT ──────────────
-                The four stats, every referral's row, and the commission
-                list with its totals all read this one control, so a
-                number and the list it sums always cover the same days.
-                The earnings card on the Dashboard stays all-time. */}
-            <RangePicker
-              value={affRange}
-              onChange={(next) => setAffRange(next)}
-              busy={refs.isFetching && !refs.isPending}
-            />
-
-            {/* Dimmed while the new period is on its way, so last
-                period's figures are never read as this one's. */}
-            <div className={`stats xstats${refsStale ? " busy" : ""}`}>
-              <div className="stat g-blue">
-                <div className="k">
-                  <span className="ci b">
-                    <Ic name="i-trend" />
-                  </span>{" "}
-                  Earned
-                </div>
-                <div className="v win">
-                  {refsUnavailable
-                    ? dash
-                    : legs(refs.totals.earnings_eur, refs.totals.earnings_usd)}
-                </div>
-              </div>
-              <div className="stat g-gold">
-                <div className="k">
-                  <span className="ci g">
-                    <Ic name="i-wallet" />
-                  </span>{" "}
-                  {/* "To be paid" over an affiliate's own earnings reads
-                      as though a CUSTOMER still owes it. What is pending
-                      is our payout to them. */}
-                  Awaiting payout
-                </div>
-                <div className="v gold">
-                  {refsUnavailable ? dash : legs(refs.payable.eur, refs.payable.usd)}
-                </div>
-              </div>
-              <div className="stat g-win">
-                <div className="k">
-                  <span className="ci t">
-                    <Ic name="i-check" />
-                  </span>{" "}
-                  Paid out
-                </div>
-                <div className="v">
-                  {/* Nothing referred is nothing paid: with no rows there
-                      is no "unpaid" column to read, and a dash there reads
-                      as "we don't know" beside three honest zeros. */}
-                  {refsUnavailable ||
-                  (refs.payable.isLifetime && refs.rows.length > 0)
-                    ? dash
-                    : legs(
-                        Math.max(
-                          0,
-                          Math.round(
-                            ((Number(refs.totals.earnings_eur) || 0) -
-                              (Number(refs.totals.unpaid_eur) || 0)) *
-                              100,
-                          ) / 100,
-                        ),
-                        Math.max(
-                          0,
-                          Math.round(
-                            ((Number(refs.totals.earnings_usd) || 0) -
-                              (Number(refs.totals.unpaid_usd) || 0)) *
-                              100,
-                          ) / 100,
-                        ),
-                      )}
-                </div>
-              </div>
-              <div className="stat g-purple">
-                <div className="k">
-                  <span className="ci p">
-                    <Ic name="i-chart" />
-                  </span>{" "}
-                  Spend driven
-                </div>
-                <div className="v">
-                  {refsUnavailable
-                    ? dash
-                    : legs(refs.totals.spend_eur, refs.totals.spend_usd)}
-                </div>
-              </div>
+            <div className="phead">
+              <h1>Affiliate program</h1>
+              <p>Everyone you brought in, and what they earned you.</p>
             </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn ghost sm" onClick={exportReferrals}>
-                <Ic name="i-download" /> Export this period
-              </button>
-            </div>
-
             <section className="tierx">
               <div className="tx-ribbon" aria-hidden="true" />
               <div className="tx-glow" aria-hidden="true" />
@@ -1227,6 +1115,97 @@ export default function AffiliateApp() {
                 </p>
               </div>
             </section>
+
+            {/* ── ONE PERIOD FOR EVERY FIGURE UNDER IT ──────────────
+                The four stats, every referral's row, and the commission
+                list with its totals all read this one control, so a
+                number and the list it sums always cover the same days.
+                The earnings card on the Dashboard stays all-time. */}
+            <RangePicker
+              value={affRange}
+              onChange={(next) => setAffRange(next)}
+              busy={refs.isFetching && !refs.isPending}
+              onExport={exportReferrals}
+            />
+
+            {/* Dimmed while the new period is on its way, so last
+                period's figures are never read as this one's. */}
+            <div className={`stats xstats${refsStale ? " busy" : ""}`}>
+              <div className="stat g-blue">
+                <div className="k">
+                  <span className="ci b">
+                    <Ic name="i-trend" />
+                  </span>{" "}
+                  Earned
+                </div>
+                <div className="v win">
+                  {refsUnavailable
+                    ? dash
+                    : legs(refs.totals.earnings_eur, refs.totals.earnings_usd)}
+                </div>
+              </div>
+              <div className="stat g-gold">
+                <div className="k">
+                  <span className="ci g">
+                    <Ic name="i-wallet" />
+                  </span>{" "}
+                  {/* "To be paid" over an affiliate's own earnings reads
+                      as though a CUSTOMER still owes it. What is pending
+                      is our payout to them. */}
+                  Awaiting payout
+                </div>
+                <div className="v gold">
+                  {refsUnavailable ? dash : legs(refs.payable.eur, refs.payable.usd)}
+                </div>
+              </div>
+              <div className="stat g-win">
+                <div className="k">
+                  <span className="ci t">
+                    <Ic name="i-check" />
+                  </span>{" "}
+                  Paid out
+                </div>
+                <div className="v">
+                  {/* Nothing referred is nothing paid: with no rows there
+                      is no "unpaid" column to read, and a dash there reads
+                      as "we don't know" beside three honest zeros. */}
+                  {refsUnavailable ||
+                  (refs.payable.isLifetime && refs.rows.length > 0)
+                    ? dash
+                    : legs(
+                        Math.max(
+                          0,
+                          Math.round(
+                            ((Number(refs.totals.earnings_eur) || 0) -
+                              (Number(refs.totals.unpaid_eur) || 0)) *
+                              100,
+                          ) / 100,
+                        ),
+                        Math.max(
+                          0,
+                          Math.round(
+                            ((Number(refs.totals.earnings_usd) || 0) -
+                              (Number(refs.totals.unpaid_usd) || 0)) *
+                              100,
+                          ) / 100,
+                        ),
+                      )}
+                </div>
+              </div>
+              <div className="stat g-purple">
+                <div className="k">
+                  <span className="ci p">
+                    <Ic name="i-chart" />
+                  </span>{" "}
+                  Spend driven
+                </div>
+                <div className="v">
+                  {refsUnavailable
+                    ? dash
+                    : legs(refs.totals.spend_eur, refs.totals.spend_usd)}
+                </div>
+              </div>
+            </div>
 
             {/* ── ONE LINE PER REFERRAL ───────────────────────────────
                 A phone showed four label/value pairs per referral, a

@@ -289,6 +289,14 @@ export const EARNINGS_CABINET_CSS = `
    Three periods and a calendar on a phone; the calendar opens the other
    two and your own dates. From 640px up all of them sit in the row. */
   .xrange{display:flex;flex-direction:column;gap:8px}
+  /* The export sits at the far end of the line that names the period,
+     so the button and the words it obeys are one sentence. */
+  .xr-exp{margin-left:auto;display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;
+    border:1px solid var(--line-2);background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border-radius:10px;padding:5px 10px;font:inherit;font-weight:700;font-size:.74rem;
+    color:var(--txt-2);cursor:pointer;transition:.13s}
+  .xr-exp:hover{color:var(--primary-600);border-color:var(--primary)}
+  .xr-exp svg{width:14px;height:14px}
   .sseg-opt.cal{flex:0 0 46px;padding:10px 0}
   .sseg-opt.cal .wide-lbl{display:none}
   .sseg-opt.cal.open:not([data-lit]){color:var(--primary-600);background:rgba(58,111,255,.1)}

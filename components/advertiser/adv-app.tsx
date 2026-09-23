@@ -20,6 +20,9 @@ import RangePicker, {
   type AffRange,
 } from "@/components/advertiser/range-picker";
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import { csvSafe } from "@/lib/csv-safe";
+import { downloadCsv } from "@/lib/download-blob";
+import { Parser } from "json2csv";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
   unpaidSubscriptionInvoices,
@@ -897,6 +900,50 @@ export default function AdvertiserApp() {
   // react-query v5, and every tile under it printed EUR 0,00 for a read
   // that never ran -- right under a link box saying we could not check.
   const affRangedUnavailable = affRanged.isError || affRanged.isPending;
+  // ── THE SAME ROWS, IN A FILE ──────────────────────────────────────
+  //
+  // The affiliate portal has had this since it was built and this screen
+  // never did, even though it shows the same book to an advertiser who
+  // refers people -- the owner, 23-09: "ook bij advertisers plaatsen".
+  // "Nothing to export" over a read that FAILED is the same lie as a
+  // zero, so each of those states says what it is instead.
+  const exportAffiliateReferrals = () => {
+    if (affRanged.isError) {
+      toast.error("We couldn't read your referrals, so there is nothing to export yet", {
+        description: "This is not an empty list. Reload and try again.",
+      });
+      return;
+    }
+    if (affRanged.isPending) {
+      toast.info("Still loading your referrals — try again in a moment.");
+      return;
+    }
+    if (!affRanged.rows.length) {
+      toast.info(`Nothing to export for ${rangeCaption(affRange)}.`);
+      return;
+    }
+    try {
+      const csv = new Parser().parse(
+        affRanged.rows.map((r) => ({
+          Advertiser: csvSafe(r.referred_advertiser_name ?? ""),
+          Code: csvSafe(r.referred_advertiser_code ?? ""),
+          "Top-ups": r.topup_count,
+          "Spend EUR": Number(r.spend_eur) || 0,
+          "Spend USD": Number(r.spend_usd) || 0,
+          "Earnings EUR": Number(r.earnings_eur) || 0,
+          "Earnings USD": Number(r.earnings_usd) || 0,
+        })),
+      );
+      // downloadCsv adds the BOM: this file goes to somebody's own
+      // bookkeeper, and without it a name with an accent opens as
+      // mojibake in a European Windows Excel.
+      downloadCsv(csv, "my_referrals.csv");
+    } catch (e) {
+      toast.error("Export failed", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
+  };
   // Waiting = signed up through the link, not approved yet (plak 42).
   // Active = approved and has funded at least once.
   const affWaiting = aff.rows.filter(
@@ -3697,6 +3744,7 @@ export default function AdvertiserApp() {
               value={affRange}
               onChange={(next) => setAffRange(next)}
               busy={affRanged.isFetching && !affRanged.isLoading}
+              onExport={exportAffiliateReferrals}
             />
 
             {/* Four figures, each one the sum of the list below it. Dimmed
