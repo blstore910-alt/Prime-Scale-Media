@@ -22,6 +22,7 @@ export type NotificationType =
   | "wallet_adjusted"
   | "wallet_refunded"
   | "request_fee_refunded"
+  | "ad_account_request_approved"
   | "supplier_pool_changed"
   | "rate_limit_abuse"
   | "affiliate_application"
@@ -250,6 +251,13 @@ export interface NotificationPayloadByType {
     currency?: string | null;
     account_name?: string | null;
     reason?: string | null;
+  };
+  /** The account they asked for exists now. We told them when we said
+   *  no and never when we said yes. */
+  ad_account_request_approved: {
+    ad_account_id?: string | null;
+    account_name?: string | null;
+    platform?: string | null;
   };
   /** The ad-account request fee, put back after a refusal. */
   request_fee_refunded: {

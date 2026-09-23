@@ -13,6 +13,7 @@ import {
 } from "./_shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
+import { notifyOrWarn } from "@/lib/notify-or-warn";
 
 async function requireAdminCtx() {
   const mm = maintenanceGuard();
@@ -1039,5 +1040,27 @@ export async function createAdAccountFromRequest(
         "The account was not created: the request could not be marked completed, so it was rolled back. Reload and try again.",
     };
   }
-  return created;
+
+  // ── AND THE CUSTOMER IS TOLD, FOR ONCE, THAT WE SAID YES ───────────
+  //
+  // The reject path has notified since it was written; this one never
+  // did, and there was no notice type for it at all. So a customer paid
+  // EUR 50, waited, and the only way to learn their account existed was
+  // to open /accounts and notice a new row. We told them when we said no
+  // and never when we said yes.
+  //
+  // After the write and best effort, like every other notify on this
+  // path: the account exists either way, and failing the action now
+  // would say it did not.
+  const notifyWarning = await notifyOrWarn(supabase, {
+    advertiserId: req.advertiser_id,
+    tenantId: profile.tenant_id,
+    type: "ad_account_request_approved",
+    payload: {
+      ad_account_id: created.data.id,
+      account_name: accountInput.name ?? null,
+      platform: accountInput.platform ?? null,
+    },
+  });
+  return { ...created, warning: notifyWarning };
 }

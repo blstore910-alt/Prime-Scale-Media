@@ -257,6 +257,12 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    type: "ad_account_request_approved",
+    label: "Ad account ready",
+    description: "When an ad account you asked for has been set up.",
+    audience: "customer",
+  },
+  {
     type: "request_fee_refunded",
     label: "Ad-account request refunded",
     description:

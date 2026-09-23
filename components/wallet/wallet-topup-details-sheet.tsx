@@ -13,6 +13,8 @@ import {
 import { useAppContext } from "@/context/app-provider";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { verifyWalletTopupAsAdmin } from "@/actions/wallet-topup-decide-actions";
+import { notifyWalletTopupVerified } from "@/actions/wallet-topup-notify-actions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { AlertCircle, Loader2, ScrollText } from "lucide-react";
@@ -98,15 +100,44 @@ export default function WalletTopupDetailsSheet({
     0,
   );
   const { mutate: verify, isPending: isVerifying } = useMutation({
+    // ── THE SECOND DOOR ON THE SAME MONEY EVENT ─────────────────────
+    //
+    // The queue at /wallet-topups was moved behind a server action so
+    // MAINTENANCE_MODE freezes it and the customer is told. This button
+    // — the same verify, reached from /wallets -> a wallet -> a
+    // transaction — was left on the browser RPC. So during a declared
+    // incident the queue correctly refused and THIS still credited real
+    // money; and on any ordinary day a top-up verified from here moved
+    // the balance and sent the customer nothing, so the two halves of
+    // wallet_topups disagreed about whether anyone had been told.
     mutationFn: async () => {
-      const supabase = createClient();
-      const { error } = await supabase.rpc("wallet_topup_admin_verify", {
-        p_topup_id: topupId,
-      });
-      if (error) throw error;
+      // The sheet's own id is nullable while it is closed; the button is
+      // only reachable with a row on screen, and the action refuses an
+      // empty string anyway.
+      if (!topupId) throw new Error("No top-up on screen");
+      const res = await verifyWalletTopupAsAdmin(topupId);
+      if (!res.ok) throw new Error(res.error);
+      // Best effort and AFTER the credit, like every other notify on a
+      // money path: the money has moved, and failing the mutation now
+      // would say it had not.
+      let notifyProblem: string | null = null;
+      try {
+        const n = await notifyWalletTopupVerified(topupId);
+        if (!n.ok) notifyProblem = n.error;
+      } catch (e) {
+        notifyProblem = e instanceof Error ? e.message : "unknown";
+      }
+      return { notifyProblem };
     },
-    onSuccess: () => {
-      toast.success("Topup verified successfully");
+    onSuccess: (res: { notifyProblem: string | null }) => {
+      if (res.notifyProblem) {
+        toast.warning("Credited, but the customer was NOT notified", {
+          description: `${res.notifyProblem}. Tell them by hand.`,
+          duration: 15000,
+        });
+      } else {
+        toast.success("Topup verified successfully");
+      }
       queryClient.invalidateQueries({
         queryKey: ["wallet-topup-details", topupId],
       });

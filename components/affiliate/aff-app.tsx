@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AFF_CSS } from "./aff-shell-css";
-// ââ THE ADVERTISER'S AFFILIATE SCREEN, ON THE AFFILIATE'S OWN PORTAL ââ
+// ── THE ADVERTISER'S AFFILIATE SCREEN, ON THE AFFILIATE'S OWN PORTAL ──
 //
 // The owner, 23-09: "deze is mooi van advertiser dit ook toepassen bij
 // affiliate". The Referrals tab an advertiser-as-affiliate sees had a
@@ -55,7 +55,7 @@ const TITLES: Record<View, string> = {
   help: "Get Help",
 };
 
-// Scaler ladder (chosen over bronze/silver/gold â sounds stronger). The `key`
+// Scaler ladder (chosen over bronze/silver/gold — sounds stronger). The `key`
 // stays the original so the medal color classes (.thmedal.bronze/.silver/.plat)
 // keep working; only the display name changes. Top tier = Legend.
 // The owner, 23-09: "eerste tier 1000 eur, tweede 3000, laatste 10k /
@@ -70,7 +70,7 @@ const TIERS = [
 
 // TWO DECIMALS. Math.round here meant the payout modal printed "still
 // owed to you: EUR 1,250" and the button beside it mailed a request for
-// EUR 1,249.55 â the handler defines its own exact() with a comment
+// EUR 1,249.55 — the handler defines its own exact() with a comment
 // about "45 cents of invented money inside a payment instruction", and
 // then the sentence above it rounded anyway. The advertiser app removed
 // the same rounding from its balances for the same reason.
@@ -80,7 +80,7 @@ const money2 = (sym: string, n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-const eur = (n: number) => money2("â¬", n);
+const eur = (n: number) => money2("€", n);
 const usd = (n: number) => money2("$", n);
 /**
  * Both legs, or the one that exists.
@@ -101,7 +101,7 @@ const usd = (n: number) => money2("$", n);
 const twoLeg = (e: number, u: number): string => {
   const eNum = Number(e) || 0;
   const uNum = Number(u) || 0;
-  if (eNum && uNum) return `${eur(eNum)} Â· ${usd(uNum)}`;
+  if (eNum && uNum) return `${eur(eNum)} · ${usd(uNum)}`;
   if (uNum) return usd(uNum);
   return eur(eNum);
 };
@@ -127,7 +127,7 @@ export default function AffiliateApp() {
   const { profile } = useAppContext();
   const [view, setView] = useState<View>("refs");
 
-  // ââ THE URL DECIDES THE FIRST VIEW ââââââââââââââââââââââââââââââââ
+  // ── THE URL DECIDES THE FIRST VIEW ────────────────────────────────
   //
   // This app read no search param at all, so the three redirects that
   // exist to send an affiliate to their own Help, Notifications or
@@ -174,7 +174,7 @@ export default function AffiliateApp() {
     // reassurance: these carry commission and payout updates. The hook
     // exports isError for exactly this.
     isError: notifsError,
-    // ââ AND "ALL CAUGHT UP" OVER A READ STILL IN FLIGHT âââââââââââââ
+    // ── AND "ALL CAUGHT UP" OVER A READ STILL IN FLIGHT ─────────────
     //
     // The rule above was applied to isError only, so the LOADING state
     // and the genuinely-empty state rendered identically: the moment
@@ -189,20 +189,20 @@ export default function AffiliateApp() {
     // Counted server-side so the badge stays honest past the 50-row cap.
     unreadCount,
     countError: notifsCountError,
-    // ââ AND 0 UNREAD IS NOT "WE NEVER ASKED" ââââââââââââââââââââââââ
+    // ── AND 0 UNREAD IS NOT "WE NEVER ASKED" ────────────────────────
     //
     // The badge is simply absent at 0, and the count query reports
     // isLoading FALSE while it is switched off (no userId yet) or
-    // paused offline â so an unread "your payout was sent back" read as
+    // paused offline — so an unread "your payout was sent back" read as
     // "nothing new". The grey ring already exists for exactly this
     // sentence; the not-asked case skipped it.
     countPending: notifsCountPending,
   } = useNotifications();
-  // ââ A SECOND LINE OF DEFENCE, WHERE IT IS DRAWN âââââââââââââââââââ
+  // ── A SECOND LINE OF DEFENCE, WHERE IT IS DRAWN ───────────────────
   //
   // getNotificationCopy prints payload.summary verbatim for
   // supplier_pool_changed, and its own comment gives the format as
-  // "... Â· seamx-9001: active â suspended" -- the supplier's name and
+  // "... · seamx-9001: active → suspended" -- the supplier's name and
   // their account ids. It is rendered by both customer shells, and the
   // push route switches on `type` alone. Until now the ONLY thing
   // keeping that off a customer's screen was the two insert sites
@@ -232,7 +232,7 @@ export default function AffiliateApp() {
   const [refsAll, setRefsAll] = useState(false);
   const [refFocus, setRefFocus] = useState<string | null>(null);
   // Payout details. These were six uncontrolled inputs and the button sent a
-  // hard-coded empty template, so everything typed â including the IBAN â was
+  // hard-coded empty template, so everything typed — including the IBAN — was
   // silently thrown away. Held in state and interpolated into the mail body.
   const [payout, setPayout] = useState({
     holder: "",
@@ -253,7 +253,7 @@ export default function AffiliateApp() {
   // And when the account has no advertiser row the RPC answers with an
   // empty list and no error (see portalInert below) -- F1 folded that into
   // the Dashboard figures and missed this screen, which printed
-  // "Referrals 0 Â· EUR 0,00 commission" and "No referrals yet".
+  // "Referrals 0 · EUR 0,00 commission" and "No referrals yet".
   const refsUnavailable =
     refs.isError || refs.isPending || !profile?.advertiser?.[0]?.id;
   // The previous period's figures stay on screen while the new ones load
@@ -261,16 +261,16 @@ export default function AffiliateApp() {
   // as this month's.
   const refsStale = refs.isPlaceholderData || (refs.isFetching && !refs.isPending);
 
-  // Tier progression counts BOTH currencies â a USD-paid affiliate was
-  // otherwise stuck at Starter with â¬0 â but they are CONVERTED now rather
+  // Tier progression counts BOTH currencies — a USD-paid affiliate was
+  // otherwise stuck at Starter with €0 — but they are CONVERTED now rather
   // than added. `lifetimeEur + lifetimeUsd` is not a euro figure, and the
   // gap to the next tier was printed with a euro sign anyway: an affiliate
-  // on $1,000 and â¬0 was shown a tier they had not reached and told
-  // "â¬1,500 more".
+  // on $1,000 and €0 was shown a tier they had not reached and told
+  // "€1,500 more".
   // The earnings read failed, or has not landed yet. Either way the totals
-  // below are 0 because there is nothing to add up â not because nothing was
-  // earned â so every screen that states a figure has to say so instead.
-  // ââ AND A THIRD REASON THE TOTALS ARE 0: THE RPC CANNOT ANSWER âââ
+  // below are 0 because there is nothing to add up — not because nothing was
+  // earned — so every screen that states a figure has to say so instead.
+  // ── AND A THIRD REASON THE TOTALS ARE 0: THE RPC CANNOT ANSWER ───
   //
   // Measured on production 2026-09-21: two real profiles hold role
   // `affiliate`, and a role-`affiliate` profile never gets an
@@ -280,9 +280,9 @@ export default function AffiliateApp() {
   // and returns with NO rows and NO error when that misses.
   //
   // So every guard below saw a successful, empty read and printed a
-  // confident zero: â¬0 lifetime, 0 referred, "No referrals yet", "No
+  // confident zero: €0 lifetime, 0 referred, "No referrals yet", "No
   // commission yet", and a Request-payout button disabled with
-  // "Nothing outstanding to request yet". None of it was true â the
+  // "Nothing outstanding to request yet". None of it was true — the
   // question was never asked. A dash and a sentence, not six zeros.
   const portalInert = !profile?.advertiser?.[0]?.id;
   // isPending, not isLoading: react-query v5 reports isLoading FALSE for a
@@ -294,14 +294,14 @@ export default function AffiliateApp() {
   // the same key for every identity in the browser, which inside the
   // 5-minute gcTime can show one person another's open request.
   // The MONTH figures come from a second, separate query, and nothing
-  // consulted its state â so the topbar pill, the stat card and the
-  // earnings summary all printed "this month â¬0" identically whether the
+  // consulted its state — so the topbar pill, the stat card and the
+  // earnings summary all printed "this month €0" identically whether the
   // affiliate earned nothing, the read had not landed, or it failed.
   const monthUnavailable = month.isError || month.isPending || portalInert;
   // A figure we cannot vouch for is a dash. An affiliate who has earned
-  // money must never be shown a zero because a read failed â and must
+  // money must never be shown a zero because a read failed — and must
   // never be DEMOTED by one either, which is what the tier track did.
-  const dash = "â";
+  const dash = "—";
 
   // Without a rate the two cannot be put on one scale, and guessing parity
   // is the same bug wearing a confident face. The ladder then counts euros
@@ -325,10 +325,10 @@ export default function AffiliateApp() {
   // lifetimeCombined is 0 while the stats are loading OR have failed, so
   // tierIndex lands on 0 and every unguarded print said "Starter". A
   // Legend partner opening the app on a dropped read was demoted on the
-  // sidebar, the toolbar pill and the account menu at once â while the
+  // sidebar, the toolbar pill and the account menu at once — while the
   // tier card itself correctly showed a dash. Everything that prints the
   // tier now asks statsUnavailable first.
-  // ââ AND THE RATE IS A SECOND INPUT TO THE SAME NUMBER ââââââââââââ
+  // ── AND THE RATE IS A SECOND INPUT TO THE SAME NUMBER ────────────
   //
   // statsUnavailable guards every tier surface, and it only watches the
   // stats query. The rate is the other half: useUsdToEur returns null
@@ -336,7 +336,7 @@ export default function AffiliateApp() {
   // the tenant, so lifetimeCombined counts euros only and tierIndex
   // falls to 0. An affiliate earning in dollars was printed "Starter"
   // on the sidebar, the toolbar pill, the account menu, the wallet
-  // badge and the tier card at once â the exact demotion the comment
+  // badge and the tier card at once — the exact demotion the comment
   // above says must never be rendered on a guess.
   const tierUnknown = statsUnavailable || tierBlind;
   const tier = TIERS[tierIndex];
@@ -390,7 +390,7 @@ export default function AffiliateApp() {
 
   const router = useRouter();
   const logout = async () => {
-    // Clears the session AND the httpOnly profile_id cookie â see
+    // Clears the session AND the httpOnly profile_id cookie — see
     // lib/auth/sign-out.ts for why the second half matters.
     await signOutCompletely();
     router.push("/auth/login");
@@ -441,7 +441,7 @@ export default function AffiliateApp() {
     setNavOpen(false);
     if (typeof window !== "undefined") {
       window.scrollTo(0, 0);
-      // ââ AND KEEP THE URL HONEST âââââââââââââââââââââââââââââââââ
+      // ── AND KEEP THE URL HONEST ─────────────────────────────────
       //
       // Without this the address bar says My Referrals whatever you
       // are looking at, so a reload throws the view away and the page
@@ -458,7 +458,7 @@ export default function AffiliateApp() {
     if (!referralLink) {
       toast.error("Your referral link isn't set up yet", {
         description:
-          "Your affiliate account isn't linked to a customer record yet â ask us to finish setting it up.",
+          "Your affiliate account isn't linked to a customer record yet — ask us to finish setting it up.",
       });
       return;
     }
@@ -488,7 +488,7 @@ export default function AffiliateApp() {
 
 
   const exportReferrals = () => {
-    // ââ "NOTHING TO EXPORT" OVER A READ THAT FAILED âââââââââââââââââ
+    // ── "NOTHING TO EXPORT" OVER A READ THAT FAILED ─────────────────
     //
     // refs.rows is empty for three different reasons and this treated
     // them as one. An affiliate whose referral read was refused pressed
@@ -510,7 +510,7 @@ export default function AffiliateApp() {
     // reports isLoading FALSE, and the guard below then toasted
     // "Nothing to export for this range" about a read that never ran.
     if (refs.isPending) {
-      toast.info("Still loading your referrals â try again in a moment.");
+      toast.info("Still loading your referrals — try again in a moment.");
       return;
     }
     if (!refs.rows.length) {
@@ -618,7 +618,7 @@ export default function AffiliateApp() {
               bars were brought to this a while ago and this one was
               missed: a loose hamburger and a loose brand tile beside a
               grouped pill on the right, so the bar read as three
-              unrelated things. Same .toolbar on both ends â two matched
+              unrelated things. Same .toolbar on both ends — two matched
               clusters. The left one only exists on the phone; on desktop
               the sidebar already carries the logo. */}
           <div className="toolbar tb-left">
@@ -669,7 +669,7 @@ export default function AffiliateApp() {
                     views, and it was the one total on the screen that did
                     not go through the helper written to stop exactly this:
                     an affiliate whose referrals all fund in dollars read
-                    "This month â¬0.00" here while the earnings card two
+                    "This month €0.00" here while the earnings card two
                     scrolls down read "+$1,000.00". Two answers, one page. */}
                 <b>{monthUnavailable ? dash : twoLeg(monthEur, monthUsd)}</b>
               </span>
@@ -696,7 +696,7 @@ export default function AffiliateApp() {
               {notifsCountError || notifsCountPending ? (
                 <span
                   className="badge-n unknown"
-                  title="We couldn't check for new notifications â this is not a zero."
+                  title="We couldn't check for new notifications — this is not a zero."
                   aria-label="Unread count unavailable"
                 />
               ) : unreadCount > 0 ? (
@@ -733,7 +733,7 @@ export default function AffiliateApp() {
                       {/* THE SAME PICTURE AS EVERYWHERE ELSE.
                           This tile still drew initials while the
                           sidebar and the toolbar a few pixels away
-                          drew the generated avatar â so one person
+                          drew the generated avatar — so one person
                           had three different faces on one screen,
                           which is the exact thing a deterministic
                           avatar exists to prevent. */}
@@ -773,7 +773,7 @@ export default function AffiliateApp() {
                 </div>
               )}
             </div>
-            {/* Duplicates the one inside the account menu â so on a
+            {/* Duplicates the one inside the account menu — so on a
                 phone, where the bar is tight, it steps aside. */}
             <button
               className="tool ic-btn so-btn"
@@ -789,9 +789,9 @@ export default function AffiliateApp() {
         <div className="content">
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
-            {/* ââ SAY IT ONCE, AT THE TOP ââââââââââââââââââââââââââââ
+            {/* ── SAY IT ONCE, AT THE TOP ────────────────────────────
                 Without this the dashes below are just as silent as the
-                zeros were: an affiliate sees a screen full of "â" and
+                zeros were: an affiliate sees a screen full of "—" and
                 has no idea whether it is a bad connection, a quiet
                 month, or an account that was never finished. */}
             {portalInert && (
@@ -800,7 +800,7 @@ export default function AffiliateApp() {
                 <span>
                   It isn&apos;t linked to a customer record, so we
                   can&apos;t show your referrals, your earnings or your
-                  link. Nothing is lost â ask us to finish it and
+                  link. Nothing is lost — ask us to finish it and
                   everything appears here.
                 </span>
               </div>
@@ -809,7 +809,7 @@ export default function AffiliateApp() {
               <h1>
                 {/* THE WHOLE NAME WHEN IT FITS. Taking the first word
                     always is how "the affiliateking" became "Welcome
-                    back, the" on production â a first word is only a
+                    back, the" on production — a first word is only a
                     first NAME when somebody filled the field in that
                     way. So: the name as given while it fits on the
                     line, and only a long one gets shortened. */}
@@ -824,7 +824,7 @@ export default function AffiliateApp() {
               </h1>
               <p>Here&apos;s what your referrals have brought in.</p>
             </div>
-            {/* ââ THE EARNINGS CARD âââââââââââââââââââââââââââââââââââ
+            {/* ── THE EARNINGS CARD ───────────────────────────────────
                 Same card as the advertiser's Affiliate program screen, to
                 the pixel: dark ground, a slow ribbon, gold light, coins
                 rising, and the figure itself lit. Decoration is
@@ -836,13 +836,13 @@ export default function AffiliateApp() {
               <div className="xh-ribbon" aria-hidden="true" />
               <div className="xh-glow" aria-hidden="true" />
               <div className="xh-coins" aria-hidden="true">
-                <span>â¬</span>
+                <span>€</span>
                 <span>$</span>
-                <span>â¬</span>
+                <span>€</span>
                 <span>$</span>
-                <span>â¬</span>
+                <span>€</span>
                 <span>$</span>
-                <span>â¬</span>
+                <span>€</span>
                 <span>$</span>
               </div>
               <div className="xh-in">
@@ -852,7 +852,7 @@ export default function AffiliateApp() {
                 {statsUnavailable ? (
                   <>
                     <h1 className="xh-amt">
-                      <span className="cur">â¬</span>â
+                      <span className="cur">€</span>—
                     </h1>
                     <p className="xh-sub">
                       {all.isError
@@ -901,9 +901,9 @@ export default function AffiliateApp() {
                     </div>
                     {/* The one month figure with no guard used to sit in
                         this branch, so it rendered whenever the ALL-TIME
-                        query succeeded and said "+â¬0.00 this month" in
+                        query succeeded and said "+€0.00 this month" in
                         green while the toolbar forty pixels above said
-                        "â". */}
+                        "—". */}
                     <span className="xh-pill">
                       <Ic name="i-trend" />{" "}
                       {monthUnavailable
@@ -923,8 +923,8 @@ export default function AffiliateApp() {
                   Lifetime
                 </div>
                 {/* This printed twoLeg() AND a second dollar span under
-                    it, so a USD affiliate read "$1,400.00 Â· $1,400.00"
-                    â $2,800 to anyone glancing at it. One helper, one
+                    it, so a USD affiliate read "$1,400.00 · $1,400.00"
+                    — $2,800 to anyone glancing at it. One helper, one
                     answer, like every other tile. */}
                 <div className="v gold">
                   {statsUnavailable ? dash : legs(lifetimeEur, lifetimeUsd)}
@@ -938,7 +938,7 @@ export default function AffiliateApp() {
                   This month
                 </div>
                 {/* Same fault, mirrored: eur() was printed unconditionally,
-                    so a USD-only affiliate read "â¬0.00 Â· $500.00" here
+                    so a USD-only affiliate read "€0.00 · $500.00" here
                     while the toolbar pill said "$500.00". */}
                 <div className="v win">
                   {monthUnavailable ? dash : legs(monthEur, monthUsd)}
@@ -1095,7 +1095,7 @@ export default function AffiliateApp() {
               </div>
             </section>
 
-            {/* ââ ONE PERIOD FOR EVERY FIGURE UNDER IT ââââââââââââââ
+            {/* ── ONE PERIOD FOR EVERY FIGURE UNDER IT ──────────────
                 The four stats, every referral's row, and the commission
                 list with its totals all read this one control, so a
                 number and the list it sums always cover the same days.
@@ -1235,7 +1235,7 @@ export default function AffiliateApp() {
                 </p>
               )}
             </div>
-            {/* ââ ONE LINE PER REFERRAL âââââââââââââââââââââââââââââââ
+            {/* ── ONE LINE PER REFERRAL ───────────────────────────────
                 A phone showed four label/value pairs per referral, a
                 screen tall for two of them. One line of name, one line of
                 detail, the money on the right \u2014 and the whole row opens
@@ -1327,7 +1327,7 @@ export default function AffiliateApp() {
               ) : null}
             </div>
 
-            {/* ââ AND EVERY COMMISSION BEHIND THOSE TOTALS ââââââââââââ
+            {/* ── AND EVERY COMMISSION BEHIND THOSE TOTALS ────────────
                 The same card the advertiser's Affiliate program screen
                 carries: every single commission, its kind, its date and
                 its state, so any figure above can be traced to its rows
@@ -1356,7 +1356,7 @@ export default function AffiliateApp() {
                 <b>Your affiliate account isn&apos;t finished yet.</b>
                 <span>
                   It isn&apos;t linked to a customer record, so we can&apos;t
-                  read your balance or your payouts. Nothing is lost â ask
+                  read your balance or your payouts. Nothing is lost — ask
                   us to finish it and everything appears here.
                 </span>
               </div>
@@ -1396,7 +1396,7 @@ export default function AffiliateApp() {
                         ) : null}
                       </div>
                       <div style={{ color: "var(--faint)", fontSize: ".83rem" }}>
-                        {r.topup_count} top-ups Â·{" "}
+                        {r.topup_count} top-ups ·{" "}
                         {twoLeg(r.spend_eur, r.spend_usd)} spend
                       </div>
                     </div>
@@ -1406,12 +1406,12 @@ export default function AffiliateApp() {
                   </div>
                 ))
               ) : statsUnavailable ? (
-                /* NOT "no commission yet" â the list is empty because the
+                /* NOT "no commission yet" — the list is empty because the
                    read failed, and on an affiliate's own screen that
                    sentence means "you have earned nothing". */
                 <p className="cap" style={{ margin: "8px 0 0" }}>
                   We couldn&apos;t read your commission just now. This is not
-                  a zero â reload to try again.
+                  a zero — reload to try again.
                 </p>
               ) : (
                 <p className="cap" style={{ margin: "8px 0 0" }}>
@@ -1423,7 +1423,7 @@ export default function AffiliateApp() {
 
           {/* NOTIFICATIONS */}
           <div className={`view${view === "notif" ? " on" : ""}`}>
-            {/* No <h2> here â the topbar already shows "Notifications"
+            {/* No <h2> here — the topbar already shows "Notifications"
                 (TITLES.notif); a section heading would duplicate it. */}
             <div
               style={{
@@ -1486,12 +1486,12 @@ export default function AffiliateApp() {
                       {notifsError
                         ? "We couldn't load your notifications"
                         : notifsLoading || notifsPending
-                          ? "Loading your notificationsâ¦"
+                          ? "Loading your notifications…"
                           : "You're all caught up"}
                     </div>
                     <div className="d">
                       {notifsError
-                        ? "This is not an empty list â reload to try again."
+                        ? "This is not an empty list — reload to try again."
                         : notifsLoading || notifsPending
                           ? "One moment."
                           : "New referrals, commission and payout updates will appear here."}
@@ -1527,7 +1527,7 @@ export default function AffiliateApp() {
                     <input defaultValue={profile?.email ?? ""} disabled />
                   </div>
                   <p className="cap" style={{ margin: "2px 0 0" }}>
-                    Your name and email are on your account record â they go
+                    Your name and email are on your account record — they go
                     on your payouts, so we change them with you.{" "}
                     <button
                       type="button"
@@ -1551,7 +1551,7 @@ export default function AffiliateApp() {
                   </p>
                   {/* THE CURRENCY PICKER THAT NO LONGER DID ANYTHING.
                       "Request payouts in EUR / USD" set a default for a
-                      question the payout dialog now asks per request â
+                      question the payout dialog now asks per request —
                       which currencies to be paid, and whether to convert
                       them into one. The owner: "wat hebben we nog aan
                       deze knop". Nothing. */}
@@ -1563,7 +1563,7 @@ export default function AffiliateApp() {
                     per-type preference system in this app
                     (notification_preferences + the push route), but its
                     catalog has no affiliate entries and nothing emits
-                    them â so wiring these switches to the server would be
+                    them — so wiring these switches to the server would be
                     exactly as fake as the localStorage they write to now,
                     with a more convincing face on it.
                     The choice is kept for when the alerts exist; the
@@ -1571,7 +1571,7 @@ export default function AffiliateApp() {
                     working switches. */}
                 <p className="cap">
                   Choose what pings you. These alerts aren&apos;t being sent
-                  yet â your choices are saved for when they are.
+                  yet — your choices are saved for when they are.
                 </p>
                 <NotifToggle label="New referral joined" desc="When someone signs up via your link" storeKey="new-referral" def />
                 <NotifToggle label="Commission earned" desc="When a referral tops up" storeKey="commission" def />
@@ -1676,7 +1676,7 @@ export default function AffiliateApp() {
                 className="btn sm"
                 onClick={() => {
                   const line = (label: string, v: string) =>
-                    `${label}: ${v.trim() || "â"}`;
+                    `${label}: ${v.trim() || "—"}`;
                   openWhatsapp(
                     [
                       "Hi PSM team, here are my payout details:",
@@ -1694,7 +1694,7 @@ export default function AffiliateApp() {
                 <WhatsappIcon /> Send payout details on WhatsApp
               </button>
               <p className="cap" style={{ marginTop: 8 }}>
-                This opens WhatsApp with what you typed above â nothing is
+                This opens WhatsApp with what you typed above — nothing is
                 stored until we confirm it.
               </p>
             </div>
@@ -1716,7 +1716,7 @@ export default function AffiliateApp() {
                   nearly the same thing as the one above it. */}
               <PrivacyControls heading={false} />
             </div>
-            {/* ââ AND WHAT HAPPENED ON THEIR ACCOUNT: NOT YET âââââ
+            {/* ── AND WHAT HAPPENED ON THEIR ACCOUNT: NOT YET ─────
                 This card used to sit here and it could never hold
                 anything. The only read policy on audit_events is the
                 tenant OWNER, and RLS filters rather than refuses, so
@@ -1742,7 +1742,7 @@ export default function AffiliateApp() {
                     <div className="a">
                       Share your link. When an advertiser signs up through it,
                       they&apos;re linked to you, and you earn from what they do
-                      with us â the terms are agreed per referral, so check
+                      with us — the terms are agreed per referral, so check
                       yours above.
                     </div>
                   </div>
@@ -1756,8 +1756,8 @@ export default function AffiliateApp() {
                   <div>
                     <div className="q">What are tiers?</div>
                     <div className="a">
-                      Tiers track your <b>total lifetime earnings</b> (Starter â
-                      Riser â Scaler â Legend). Your commission rate is set per
+                      Tiers track your <b>total lifetime earnings</b> (Starter →
+                      Riser → Scaler → Legend). Your commission rate is set per
                       referral and doesn&apos;t change with tier.
                     </div>
                   </div>
@@ -1819,7 +1819,7 @@ export default function AffiliateApp() {
                 onClick={() => setSignOutOpen(false)}
                 aria-label="Close"
               >
-                â
+                ✕
               </button>
             </div>
             <p className="cap">You&apos;ll need to log in again.</p>

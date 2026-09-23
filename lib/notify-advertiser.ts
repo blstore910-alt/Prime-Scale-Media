@@ -32,7 +32,8 @@ export type AdvertiserNotice =
   | "withdrawal_rejected"
   | "wallet_adjusted"
   | "wallet_refunded"
-  | "request_fee_refunded";
+  | "request_fee_refunded"
+  | "ad_account_request_approved";
 
 /**
  * Resolve the person behind an advertiser id and write them one row.

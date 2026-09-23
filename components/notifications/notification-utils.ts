@@ -215,6 +215,22 @@ export function getNotificationCopy(notification: Notification): {
       };
     }
 
+    case "ad_account_request_approved": {
+      // WE TOLD THEM WHEN WE SAID NO AND NEVER WHEN WE SAID YES. A
+      // customer paid EUR 50, waited, and the only way to find out the
+      // account existed was to open /accounts and notice a new row.
+      const p = notification.payload as
+        | { account_name?: string | null; platform?: string | null }
+        | null;
+      const name = String(p?.account_name ?? "").trim();
+      return {
+        title: "Your ad account is ready",
+        description: name
+          ? `${name} is set up and you can fund it from your wallet.`
+          : "The ad account you asked for is set up and you can fund it from your wallet.",
+      };
+    }
+
     case "request_fee_refunded": {
       // The same refusal, with or without money coming back. Promising a
       // refund that was never charged is worse than saying nothing.
