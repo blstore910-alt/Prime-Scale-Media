@@ -266,7 +266,14 @@ type AdvertiserOption = {
 
 type Tab = "withdrawals" | "refunds" | "adjustments";
 
-const emptyRow = (colSpan: number, msg: string, danger = false) => (
+// "Reload to retry" is a sentence. On a screen that says "Approving moves
+// money — verify", a failed read has to offer the button.
+const emptyRow = (
+  colSpan: number,
+  msg: string,
+  danger = false,
+  retry?: () => void,
+) => (
   <tr>
     <td
       colSpan={colSpan}
@@ -276,7 +283,16 @@ const emptyRow = (colSpan: number, msg: string, danger = false) => (
         color: danger ? "var(--danger)" : "var(--txt-2)",
       }}
     >
-      {msg}
+      <div>{msg}</div>
+      {retry ? (
+        <button
+          className="btn ghost sm"
+          style={{ marginTop: 12 }}
+          onClick={() => retry()}
+        >
+          Retry
+        </button>
+      ) : null}
     </td>
   </tr>
 );
@@ -403,7 +419,7 @@ function WithdrawalsSection() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["ad-account-withdrawals", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -555,6 +571,7 @@ function WithdrawalsSection() {
                       (error as Error)?.message ??
                         "Failed to load withdrawals.",
                       true,
+                      refetch,
                     )
                   : rows.length
                     ? rows.map((w) => (
@@ -696,7 +713,12 @@ function WithdrawalsSection() {
                           </td>
                         </tr>
                       ))
-                    : emptyRow(6, "No withdrawal requests yet.")}
+                    : emptyRow(
+                        6,
+                        status !== "all" || search.trim()
+                          ? "Nothing matches that filter or search — the queue itself may not be empty."
+                          : "No withdrawal requests yet.",
+                      )}
             </tbody>
           </table>
         </div>
@@ -741,7 +763,7 @@ function RefundsSection() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  const { data: rows, isLoading, isError } = useQuery({
+  const { data: rows, isLoading, isError, refetch } = useQuery({
     queryKey: ["wallet-refunds", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -790,7 +812,12 @@ function RefundsSection() {
   });
 
   const list = rows ?? [];
-  const pendingCount = list.filter((r) => r.status === "pending").length;
+  // A failed read gives an empty list, and an absent badge then says the
+  // same thing an empty queue does. The tab bar above already shows an
+  // em dash for an unreadable count; these two headers disagreed with it.
+  const pendingCount = isError
+    ? null
+    : list.filter((r) => r.status === "pending").length;
 
   const filtered = useMemo(() => {
     let l = rows ?? [];
@@ -821,9 +848,13 @@ function RefundsSection() {
           When a customer leaves, refund their wallet balance to their bank. An
           admin requests it; the tenant owner approves.
         </p>
-        {pendingCount > 0 && (
+        {pendingCount === null ? (
+          <span className="badge pend" title="We couldn't read this queue">
+            &mdash;
+          </span>
+        ) : pendingCount > 0 ? (
           <span className="badge pend">{pendingCount} pending</span>
-        )}
+        ) : null}
         <button className="btn sm" onClick={() => setCreateOpen(true)}>
           <Plus /> Request refund
         </button>
@@ -1040,8 +1071,12 @@ function RefundsSection() {
                       // thing it cannot know. The Withdrawals section in this
                       // same file already got this right; these two did not.
                       isError
-                        ? "Couldn't load refund requests — this is NOT an empty queue. Reload to retry."
-                        : "No refund requests yet.",
+                        ? "Couldn't load refund requests — this is NOT an empty queue."
+                        : status !== "all" || search.trim()
+                          ? "Nothing matches that filter or search — the queue itself may not be empty."
+                          : "No refund requests yet.",
+                      isError,
+                      isError ? refetch : undefined,
                     )}
             </tbody>
           </table>
@@ -1352,7 +1387,7 @@ function AdjustmentsSection() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  const { data: rows, isLoading, isError } = useQuery({
+  const { data: rows, isLoading, isError, refetch } = useQuery({
     queryKey: ["wallet-adjustments", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -1401,7 +1436,12 @@ function AdjustmentsSection() {
   });
 
   const list = rows ?? [];
-  const pendingCount = list.filter((r) => r.status === "pending").length;
+  // A failed read gives an empty list, and an absent badge then says the
+  // same thing an empty queue does. The tab bar above already shows an
+  // em dash for an unreadable count; these two headers disagreed with it.
+  const pendingCount = isError
+    ? null
+    : list.filter((r) => r.status === "pending").length;
 
   const filtered = useMemo(() => {
     let l = rows ?? [];
@@ -1432,9 +1472,13 @@ function AdjustmentsSection() {
           Request a correction to a customer&apos;s wallet balance. An admin
           raises it; the tenant owner approves before the balance changes.
         </p>
-        {pendingCount > 0 && (
+        {pendingCount === null ? (
+          <span className="badge pend" title="We couldn't read this queue">
+            &mdash;
+          </span>
+        ) : pendingCount > 0 ? (
           <span className="badge pend">{pendingCount} pending</span>
-        )}
+        ) : null}
         <button className="btn sm" onClick={() => setCreateOpen(true)}>
           <Plus /> Request adjustment
         </button>
@@ -1628,8 +1672,12 @@ function AdjustmentsSection() {
                   : emptyRow(
                       6,
                       isError
-                        ? "Couldn't load adjustment requests — this is NOT an empty queue. Reload to retry."
-                        : "No adjustment requests yet.",
+                        ? "Couldn't load adjustment requests — this is NOT an empty queue."
+                        : status !== "all" || search.trim()
+                          ? "Nothing matches that filter or search — the queue itself may not be empty."
+                          : "No adjustment requests yet.",
+                      isError,
+                      isError ? refetch : undefined,
                     )}
             </tbody>
           </table>

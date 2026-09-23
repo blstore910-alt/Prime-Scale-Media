@@ -596,12 +596,17 @@ export default function PsmVerifyTopups({
                         >
                           <Check /> Verify
                         </button>
+                        {/* A reason that lives only in a title attribute
+                            is invisible on a phone and unreliable on a
+                            disabled button -- and it named "the Advances
+                            tab", which is not what the tab beside it is
+                            called. The label says it instead. */}
                         <button
                           className="btn ghost sm"
                           disabled={!!queueAdvances[t.id]}
                           title={
                             queueAdvances[t.id]
-                              ? "Cancel the advance on the Advances tab first - rejecting would leave it outstanding."
+                              ? "Cancel the advance on the Precharge tab first — rejecting would leave it outstanding."
                               : undefined
                           }
                           onClick={(e) => {
@@ -610,7 +615,8 @@ export default function PsmVerifyTopups({
                             setRejectOpen(true);
                           }}
                         >
-                          <X /> Reject
+                          <X />{" "}
+                          {queueAdvances[t.id] ? "Cancel advance first" : "Reject"}
                         </button>
                         <button
                           className="btn ghost sm"

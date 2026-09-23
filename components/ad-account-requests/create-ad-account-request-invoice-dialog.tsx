@@ -210,6 +210,17 @@ export default function CreateAdAccountRequestInvoiceDialog({
         </form>
 
         <DialogFooter>
+          {/* The corner X was the only way out of a dialog whose one
+              button raises a payable invoice against the customer's
+              wallet. Every sibling dialog on this journey pairs it. */}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
           <Button
             form="create-request-invoice-form"
             type="submit"

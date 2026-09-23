@@ -309,9 +309,20 @@ export default function PsmRequests() {
       setRequestToReject(null);
       await refetch();
     } catch (err) {
-      toast.error("Unable to reject request", {
-        description: err instanceof Error ? err.message : "Failed to reject.",
-      });
+      // A version conflict invites a retry that cannot win: the row in
+      // requestToReject still carries the ifUpdatedAt that just lost, so
+      // pressing Reject again sends the same stale stamp for ever. Pull
+      // the row back and close the dialog so the next press starts from
+      // what is actually there.
+      const message = err instanceof Error ? err.message : "Failed to reject.";
+      if (/changed by someone else/i.test(message)) {
+        await queryClient.invalidateQueries({
+          queryKey: ["ad-account-request-details", requestToReject.id],
+        });
+        await refetch();
+        setRequestToReject(null);
+      }
+      toast.error("Unable to reject request", { description: message });
     } finally {
       setIsRejecting(false);
     }
@@ -617,7 +628,7 @@ export default function PsmRequests() {
             style={{ margin: 0 }}
           >
             {isError
-              ? "Couldn't load the account requests — this is NOT an empty queue. Reload to retry."
+              ? "Couldn't load the account requests — this is NOT an empty queue."
               : debounced || statusFilter !== "all"
                 ? /* A filter left on from earlier looks exactly like an
                      empty queue, and the way out of it is not on screen. */
@@ -626,7 +637,17 @@ export default function PsmRequests() {
                   : "No account requests match the filter you have set."
                 : "No account requests to show."}
           </p>
-          {!isError && (debounced || statusFilter !== "all") ? (
+          {isError ? (
+            /* "Reload to retry" is a sentence, not a control -- and the
+               retry has been one line away the whole time. */
+            <button
+              className="btn ghost sm"
+              style={{ marginTop: 12 }}
+              onClick={() => refetch()}
+            >
+              Retry
+            </button>
+          ) : debounced || statusFilter !== "all" ? (
             <button
               className="btn ghost sm"
               style={{ marginTop: 12 }}

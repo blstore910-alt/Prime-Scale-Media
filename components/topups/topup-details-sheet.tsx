@@ -498,7 +498,8 @@ export default function TopupLogs({ topupId }: { topupId: string }) {
   if (!logs || logs.length === 0)
     return (
       <div className="text-center text-muted-foreground text-sm py-4">
-        No logs found.
+        Nothing in this log. Verifying and rejecting are not written here —
+        that history is in the audit trail, under Activity Logs.
       </div>
     );
 
