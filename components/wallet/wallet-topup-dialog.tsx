@@ -1337,11 +1337,15 @@ export default function WalletTopupDialog({
                     )}
                     {paymentSlipUrl && (
                       <div className="rounded-md border bg-muted/20 p-3">
+                        {/* The name is already on the picker directly
+                            above this card. Printing it again turned one
+                            file into two lines that disagreed with each
+                            other — "slip-test.png" and, an inch below,
+                            "SLIP-TEST.PNG", because this header is
+                            uppercased. A header says what the card is. */}
                         <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           <FileImage className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">
-                            {slipName ?? "Preview"}
-                          </span>
+                          <span className="truncate">Attached slip</span>
                         </div>
                         {paymentSlipPreview === "image" && previewSrc ? (
                           /* Checkerboard, not white. A slip photographed
