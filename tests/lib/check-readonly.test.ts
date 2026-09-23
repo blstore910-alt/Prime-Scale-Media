@@ -7,6 +7,7 @@ import {
   refuseWrites,
   makeMasker,
   cell,
+  sslFor,
 } from "../../scripts/check.mjs";
 
 /**
@@ -141,4 +142,49 @@ describe("cells print as themselves", () => {
   test("a date is readable", () =>
     assert.equal(cell(new Date("2026-09-22T19:47:00Z")), "2026-09-22 19:47:00"));
   test("an object is json", () => assert.equal(cell({ a: 1 }), '{"a":1}'));
+});
+
+describe("the ssl parameters come out of the string", () => {
+  // Supabase hands you ?sslmode=require. pg reads that as verify-full,
+  // and then its own certificate chain fails. The parameter also beats
+  // the ssl object passed beside it, so it has to go.
+  const base = "postgresql://u:p@db.example.supabase.co:5432/postgres";
+
+  test("sslmode=require encrypts without verifying", () => {
+    const { dsn, ssl } = sslFor(base + "?sslmode=require");
+    assert.ok(!dsn.includes("sslmode"));
+    assert.deepEqual(ssl, { rejectUnauthorized: false });
+  });
+
+  test("no sslmode at all behaves the same", () => {
+    const { dsn, ssl } = sslFor(base);
+    assert.equal(dsn.replace(/\/$/, ""), base);
+    assert.deepEqual(ssl, { rejectUnauthorized: false });
+  });
+
+  test("verify-full is honoured, and still leaves the string clean", () => {
+    const { dsn, ssl } = sslFor(base + "?sslmode=verify-full");
+    assert.equal(ssl, true);
+    assert.ok(!dsn.includes("sslmode"));
+  });
+
+  test("the other ssl parameters go too", () => {
+    const { dsn } = sslFor(base + "?sslmode=require&uselibpqcompat=true&sslrootcert=/x.crt");
+    assert.ok(!dsn.includes("uselibpqcompat"));
+    assert.ok(!dsn.includes("sslrootcert"));
+  });
+
+  test("anything else in the string survives", () => {
+    const { dsn } = sslFor(base + "?sslmode=require&application_name=psm");
+    assert.ok(dsn.includes("application_name=psm"));
+  });
+
+  test("the password survives the round trip", () => {
+    const { dsn } = sslFor("postgresql://u:a%40b@h:5432/db?sslmode=require");
+    assert.ok(dsn.includes("a%40b"));
+  });
+
+  test("an unparseable string is left alone", () => {
+    assert.equal(sslFor("not a url").dsn, "not a url");
+  });
 });

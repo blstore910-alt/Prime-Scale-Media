@@ -207,6 +207,38 @@ export function refuseWrites(statements) {
   return null;
 }
 
+// -- how to encrypt ---------------------------------------------------
+/**
+ * Decide the TLS setting, and hand back a connection string with the ssl
+ * parameters taken OUT of it.
+ *
+ * WHY THE STRIPPING. Supabase hands you a string ending in
+ * `?sslmode=require`. In libpq that means "encrypt, do not verify the
+ * chain". The pg driver reads it as verify-full, and then Supabase's own
+ * certificate chain -- which is not in Node's trust store -- fails with
+ * "self-signed certificate in certificate chain". Worse, the parameter
+ * in the string overrides the `ssl` object passed beside it, so setting
+ * that alone does nothing. So the parameter comes out and we say it
+ * ourselves.
+ *
+ * The connection is still encrypted either way. verify-full and
+ * verify-ca are honoured: they need Supabase's CA certificate in
+ * NODE_EXTRA_CA_CERTS, which is a deliberate choice, not a default.
+ */
+export function sslFor(url) {
+  try {
+    const u = new URL(url);
+    const mode = (u.searchParams.get("sslmode") ?? "").toLowerCase();
+    for (const p of ["sslmode", "ssl", "uselibpqcompat", "sslrootcert"]) u.searchParams.delete(p);
+    return {
+      dsn: u.toString(),
+      ssl: mode === "verify-full" || mode === "verify-ca" ? true : { rejectUnauthorized: false },
+    };
+  } catch {
+    return { dsn: url, ssl: { rejectUnauthorized: false } };
+  }
+}
+
 // -- printing --------------------------------------------------------
 export function cell(v) {
   if (v === null || v === undefined) return "";
@@ -401,16 +433,8 @@ async function main(override) {
     return 2;
   }
 
-  // sslmode=require means "encrypt, do not verify the chain" -- which is
-  // what Supabase's own pooler string asks for. Only verify-full verifies.
-  let ssl = { rejectUnauthorized: false };
-  try {
-    if (new URL(url).searchParams.get("sslmode") === "verify-full") ssl = true;
-  } catch {
-    /* keep the default */
-  }
-
-  const client = new pg.Client({ connectionString: url, ssl, connectionTimeoutMillis: 15000 });
+  const { dsn, ssl } = sslFor(url);
+  const client = new pg.Client({ connectionString: dsn, ssl, connectionTimeoutMillis: 15000 });
   try {
     await client.connect();
   } catch (err) {
