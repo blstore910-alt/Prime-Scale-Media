@@ -1,10 +1,29 @@
-# THE NUMBER: 10 of 16 journeys closed (A1-A7, F2, F3, F4) — 2026-09-23
+# THE NUMBER: 11 of 16 journeys closed (A1-A7, F1, F2, F3, F4) — 2026-09-23
 
 > F4 closed 2026-09-23: all three kinds of commission booked and checked against the database to the cent. One rule is set but not yet walked (see its block).
 
-> F1 is walked end to end and checked against the database; only the standalone-affiliate portal is unwalked (needs a login for PSM0008/0009 — the same blocker holds F3's portal half).
+> F1 CLOSED 2026-09-23: the standalone-affiliate portal was the last unwalked half, and it is walked — signed in as PSM0008 in the built-in browser, every screen, every figure against the database. See its block.
 
-## F1 — IN PROGRESS 2026-09-22: invitation / link -> signup -> portal with a working link
+## F1 — CLOSED 2026-09-23: invitation / link -> signup -> portal with a working link
+
+**The last half, walked 23-09 as PSM0008 (`xewama9321@robustq.com`) in the built-in browser, on app.primescalemedia.com, at phone width.** Every screen of the standalone affiliate portal: Referrals, Wallet, Home, Alerts, Settings.
+
+| what the screen said | what the database says (`npm run check`, read-only) |
+|---|---|
+| Referrals: Earned €0.00, Awaiting payout €0.00, Paid out €0.00, Spend driven €0.00, "Your referrals 0", "Every commission · 0 commissions" | PSM0008: **0** referral_links, **0** referral_commissions, **0** affiliate_payouts. Same for PSM0009. Every zero on that screen is a genuine zero, not a failed read |
+| Home: "Your total earnings €0.00", 0 referred / 0 active, "+€0.00 this month" | same |
+| Wallet: "Getting paid", Request payout DISABLED with the reason stated — "as soon as you have €200 or $200 in commission, the button below opens" | `affiliate_payout_request_multi` enforces the same 200 floor server-side |
+| the link, `…/auth/sign-up?t=prime-scale-media&ref=PSM0008` | opened it: the signup page renders **"INVITED BY A PARTNER · Referral code PSM0008"** — the referral is attached before a single field is typed |
+
+**NOT verified, and it cannot be by me:** completing that signup. Creating accounts and typing passwords are the owner's, by their own instruction. The form renders with the referrer attached, and the code path behind it is the one already proven end to end on 22-09 with Piet Hendrik (PSM0010) through PSM0005's link — same route, same `findReferrer`, same approval flow.
+
+**The whole affiliate side rebuilt on this journey (23-09), on the owner's word.** "deze is mooi van advertiser dit ook toepassen bij affiliate, heel affiliate design check": the advertiser's Referrals tab had a round of work this portal never got, and those 400 lines of CSS lived in one shell. They are in `components/advertiser/earnings-cabinet-css.ts` now and both shells include them. The affiliate gets the dark earnings card, one period picker every figure below obeys, four corner-lit stats, the quiet link, one line per referral, and the Every-commission card. The Wallet is `PayoutCard` — the same card the advertiser has, which carries what the old blue one never did: both currencies, a conversion preview, the 200 floor stated before the button is pressed, every earlier payout with its reference, a rejection reason, and a way to withdraw a request nobody has answered yet. The tier card is its own screen with a conic progress ring and a four-rung ladder (Starter → Riser €1,000 → Scaler €3,000 → Legend €10,000, the owner's numbers).
+
+**Eight silent lies found by the four scoped agents and fixed (`02a2844`):** the portal OPENS on My Referrals and the link lived only under Dashboard, so both real affiliates read "share your link to start earning" with nothing on screen to share; `isLoading` was read as "no answer yet" in five places, and react-query reports it FALSE for a switched-off or paused query (the export said "nothing to export", the notification list said "you're all caught up" over alerts that carry a rejected payout, the bell badge vanished, the rate note claimed the tenant has no rate set, and "Advertise with us too" disappeared entirely); approving that upgrade looked exactly like never having asked, because `affiliate_upgrade_decide` clears both fields the card read; the invite signup toasted GREEN "Account created" on the failure path; the owner's invite dialog closed and reset itself mid-POST (invitation commits, link never shown, re-inviting refused); accepting during a maintenance freeze toasted "Error: undefined"; `openWhatsapp` returned void so callers reported success over a blocked popup; the payout invoice route answered 404/403 and so told a caller which ids are real; and the erasure read turned every failure into "you never asked".
+
+**SQL waiting (plak 69, not yet applied):** four money faults and two gates on this journey, none of them visible today because both affiliates have zero commissions. (A) "still owed to you" counted commission already frozen into an open request — €1,200 of claim on €700 of commission. (B) lifetime earnings kept subtracting a clawback already settled in a PAID payout, so the portal and the owner's book disagreed by that amount and the tier was pushed. (C) the per-link floor `greatest(…,0)` dropped a clawback larger than that link's remaining unpaid, while the RPC nets across the whole book — €100 vanishing between the sentence and the button beside it. (D) "your payout is on its way" named the requested amount, not what was actually settled. (E) `ad_account_types_read` let any tenant member, including an affiliate and a deactivated account, read every `default_fee_pct` and `api_topup_enabled`. (F) `affiliate_payout_cancel` checked ownership on one row and updated a whole group without that predicate.
+
+### The earlier half (22-09), for the record
 
 **The owner's three decisions (22-09):** (1) a signup through a link waits for approval, and approving books everything since the signup with the rules of that moment ("dan moeten alle verdiensten meetellen, ook voor ik goedkeurde"); (2) an affiliate account is the affiliate portal only, with an "also advertise" upgrade the owner switches on; (3) an advertiser applying as affiliate: approve = link on, default rules, detail overview.
 
