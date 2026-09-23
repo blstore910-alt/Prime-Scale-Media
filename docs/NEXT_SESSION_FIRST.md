@@ -1,5 +1,53 @@
 # THE NUMBER: 11 of 16 journeys closed (A1-A7, F1, F2, F3, F4) — 2026-09-23
 
+> **D1 is NOT closed, and the reason is a login.** Its customer half is walked and verified on screen and against the database; the admin half needs an owner session and I have none. Chrome holds PSM0005 (advertiser) and the built-in pane holds PSM0008 (affiliate) — two customer sessions. Creating accounts and typing passwords are the owner's, by their own instruction. Sign in as the owner anywhere and D1, D2, D3 and S1-S3 can all be walked.
+
+## 2026-09-23 (late) — every plak from 69 to 80 is applied
+
+Nothing is outstanding. What they did, in one line each:
+
+| plak | what it closed |
+|---|---|
+| 69 | affiliate money: commission already inside an open request still counted as owed (€1,200 of claim on €700), lifetime kept losing a clawback that was already settled, and the per-link floor dropped money between the sentence and the button |
+| 70 | every commission row says what it is ON (`on €48.50`) — without the profit, the percentage or the supplier's cut |
+| 71 | `decision_reason` on withdrawals, and four tables now demand a reason to refuse (was two) |
+| 72 | **the big one.** anon could wipe the whole rate limiter, had full CRUD on `public.admins` (which holds a Google refresh token), could write into every admin's notification bell, read every tenant, and ask any customer's fee percentage — all with the publishable key that sits in the page bundle |
+| 73 | all 8 top-up invoices carried `currency` NULL, and the screen prints NULL as EUR; plus the amount went through `::real` |
+| 74 | `affiliate_commission_list` named `i.amount`, a column that does not exist — the Every-commission card was dark on both portals |
+| 75 / 76 | superseded by 77; 76 earned its keep by REPORTING the error 75 swallowed |
+| 77 | the `::text` cast on `audit_events.row_id`, and a WHEN clause on the currency trigger instead of surgery in its body |
+| 78 | `advertisers.payout_details` — so payout details are kept instead of retyped |
+| 79 | 38 tables where anon could INSERT/UPDATE/DELETE/TRUNCATE → zero |
+| 80 | 46 tables + 1 view where anon could SELECT → one (`tenants`, deliberately). **Our supplier cost is no longer queryable without an account**: `ad_account_costs`, `commission_rules`, `ad_account_type_suppliers`, `supplier_ad_accounts` |
+
+### D1 — the customer half, walked and verified 2026-09-23
+
+| what the screen says | what the database says |
+|---|---|
+| PSM0005 wallet EUR 70.00 / USD 56.98 | same, to the cent |
+| 8 wallet-activity lines with their reference numbers | 8 rows in `wallet_topups` + `top_ups`, every amount and status matching |
+| `21 Sep · Return refused · This was filed in the wrong currency… · $50.00 · Refused` | `ad_account_withdrawals`: rejected, 50 USD, `reason` = the customer's "A6 walkthrough", `decision_reason` = ours |
+| affiliate: €0.11 on a €48.50 top-up | `referral_commissions`: 0.11 EUR, base_amount 0.53, pct 20 — and neither the 0.53 nor the 20% is on the customer's screen |
+
+**Found by adding it up, not by looking at it:** every line on PSM0005's Wallet activity came to EUR 65.00 against a wallet of EUR 70.00. The difference was an approved +10.00 correction and a -5.00 refund, both real, and NEITHER had a line anywhere on the customer's screens. Their balance moved for a reason only we could see. Both are in the statement now, with the reason under them, and the seventh source is named in the "we couldn't load all of it" banner.
+
+### Fixed today, code side
+
+- **Every toast on `/auth/*` and `/invite/*` was drawn by nobody.** The three app shells each mount a `Toaster`; the auth shell never did. So "This email already has an account", "Sign up failed" and every invitation error were called and rendered by no one — on the first screen a new customer sees. The owner hit it live: pressing Create my account did nothing, because the address was already PSM0010's.
+- **`isLoading` read as "no answer yet" in eight places.** react-query v5 reports it FALSE for a disabled query and a paused one. An admin read "No wallet topups to show" over eight waiting top-ups; an affiliate read "You're all caught up" over alerts carrying a rejected payout.
+- **Six decision paths threw away `notifyAdvertiser`'s answer.** Measured: a EUR 10 adjustment went through on 23-09, audited, on a row with a sign-in behind it, with no notification row and a green tick on the admin's screen.
+- **MAINTENANCE_MODE could not freeze the money-in queue** — two doors, both now behind a server action.
+- **Approving an ad-account request told the customer nothing.** There was no notice type for it at all; we announced ourselves only when we said no.
+- **An admin funding a EUR account was instructed in dollars.** `calculateTopupAmount` always divides by the rate; every real ad account here is EUR. Following the verify dialog would have handed over EUR 153.76 per funding.
+- **Four of six queues could refuse without a word**, and a withdrawal's refusal overwrote the customer's own sentence.
+- **Every euro sign in the affiliate app was double-encoded** by one of my own perl runs — the `eur` helper itself, so every euro figure in that app.
+
+### The affiliate side, rebuilt on the owner's word
+
+"deze is mooi van advertiser dit ook toepassen bij affiliate": the advertiser's Referrals tab had a round of work the portal never got, and its 400 lines of CSS lived in one shell. They are in `components/advertiser/earnings-cabinet-css.ts` now and both shells include them. The affiliate gets the dark earnings card, one period picker everything below obeys, four corner-lit stats, the quiet link, one line per referral, the Every-commission card, and `PayoutCard` on the Wallet. The tier is its own card with a conic progress ring and a four-rung ladder (Starter → Riser €1,000 → Scaler €3,000 → Legend €10,000). The Wallet has a lit head showing what is actually in it. The Settings WhatsApp button is a real Save.
+
+
+
 > F4 closed 2026-09-23: all three kinds of commission booked and checked against the database to the cent. One rule is set but not yet walked (see its block).
 
 > F1 CLOSED 2026-09-23: the standalone-affiliate portal was the last unwalked half, and it is walked — signed in as PSM0008 in the built-in browser, every screen, every figure against the database. See its block.
