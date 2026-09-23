@@ -1,6 +1,139 @@
-# THE NUMBER: 11 of 16 journeys closed (A1-A7, F1, F2, F3, F4) — 2026-09-23
+# THE NUMBER: 12 of 16 journeys closed (A1-A7, F1-F4, D1) - 2026-09-23
+
+> **D1 CLOSED 2026-09-23.** Walked end to end on production with two roles at
+> once - the owner in Chrome, a brand-new advertiser (PSM0011, Gers padoel)
+> in the built-in pane. Verified EUR 250, refused EUR 999 and EUR 10 with a
+> reason, undid the EUR 10 refusal and then credited it. The wallet closed at
+> EUR 260.00 on the screen and 260 in `wallets.eur_balance`. Every decision
+> carries an `audit_events` pair with an actor, and every one reached the
+> customer's bell with the figure or the sentence in it. See its block below.
 
 > **D1 is NOT closed, and the reason is a login.** Its customer half is walked and verified on screen and against the database; the admin half needs an owner session and I have none. Chrome holds PSM0005 (advertiser) and the built-in pane holds PSM0008 (affiliate) — two customer sessions. Creating accounts and typing passwords are the owner's, by their own instruction. Sign in as the owner anywhere and D1, D2, D3 and S1-S3 can all be walked.
+
+## D1 - CLOSED 2026-09-23. Admin queues: verify, refuse with a reason, tell the customer
+
+**Walked, not read.** Owner in Chrome, PSM0011 in the built-in pane, both
+signed in, on app.primescalemedia.com.
+
+| step | screen | database |
+|---|---|---|
+| filed EUR 250, slip attached, ref 0011-2366666829 | pending, queue 0 -> 1 | `wallet_topups` pending |
+| verified it | "Payment approved" | `completed`, `approved_by` set, wallet 0 -> 250 |
+| filed EUR 999, refused it, reason from a template | "Rejected" | `rejected`, reason stored, wallet UNMOVED at 250 |
+| filed EUR 10, refused it ("Slip unreadable") | "Rejected" | `rejected`, wallet still 250 |
+| **undid** that refusal | "Transaction undone" | back to `pending`, reason cleared, wallet still 250 |
+| verified the EUR 10 | "Payment approved" | `completed`, wallet 250 -> **260** |
+| the customer's own wallet | **EUR 260.00** | `wallets.eur_balance` = **260** |
+
+Every one of those six writes has an `audit_events` row with a before, an
+after and an actor. Every decision produced a notification within two
+seconds, and the refusals carry the admin's own sentence verbatim.
+
+**All the branches of the reject dialog were walked**, not just the happy
+one: the empty-reason branch (the button is genuinely disabled -
+`disabled:opacity-50`, `pointer-events:none`, confirmed in the computed
+style rather than by eye), each of the six templates (all six carry a real
+customer-facing sentence), and picking a second template REPLACES the first
+instead of appending to it.
+
+### What the sweep found, and what it would have cost
+
+Four agents, one journey. Ranked by what it would have done to a customer.
+
+1. **A bank deposit that did NOT match its claim rendered green.** The strip
+   drew the bank's figure, the card drew the customer's, two lines apart,
+   and nothing ever subtracted them: EUR 618 arrived against a EUR 630 claim
+   and the card said "Matched" with a tick. Verify credits the CLAIM. A
+   currency mismatch read "Matched" too. The Wise panel on the tab BESIDE it
+   has done that sum since it was written.
+2. **And the repair for it had never once worked.** "Set the claim to EUR
+   618.00" read a `description` column that does not exist on
+   `wallet_topups` - in no migration, not on live. PostgREST answers 42703,
+   the error was destructured away, and the button replied "Top-up not
+   found" every time. That left two options in front of an operator: credit
+   630 for money that never arrived, or refuse a payment that did.
+3. **`wise_confirm_suggestion` was not executable by `authenticated`** while
+   both call sites use the admin's own session - which they must, because it
+   resolves `auth.uid()`. So "Confirm & credit" on the Bank deposits tab
+   answered `42501 permission denied`. The grant had been stripped by a
+   `create or replace`, exactly as CLAUDE.md warns. Restored in plak 81.
+4. **The tenant guard in all four wallet-topup RPCs was blind to NULL.**
+   `v_topup.tenant_id <> v_admin.tenant_id` is NULL, not FALSE, when the
+   left side is NULL, so the `if` never fired. Four such rows existed, one a
+   pending USD 100 - and they appeared in no queue and on no badge either,
+   because every screen filters with `.eq()`, which excludes NULL. Backfilled
+   and the column is `not null` now (plak 81), which closes all four at once.
+5. **An active admin could move their OWN profile into another tenant** and
+   inherit its money-in queue. Tightened in plak 81: never yourself, and
+   only between tenants you already administer.
+6. **A failed Verify left the card forever.** Only `onSuccess` invalidated
+   anything, and the refusal that matters is "Topup is not pending" - which
+   means somebody else already decided it. The queue does not refetch on
+   focus, does not poll and has no refresh control, so the card kept saying
+   Pending with all three actions live and every further click failed the
+   same way until the browser was reloaded.
+7. **The reject dialog closed under its own write.** Cancel was blocked,
+   Escape and the backdrop were not - and this screen has ONE mutation and
+   ONE dialog for every card. Escape on card A, then Reject on card B, and
+   B's dialog comes up fully disabled reading "Rejecting..." for a refusal
+   nobody submitted; when A lands, B's dialog closes itself under a green
+   "Payment rejected". B was never touched.
+8. **Undo existed everywhere except on a screen.** The RPC, the server
+   action and the hook branch have been there for months, granted and
+   guarded; the only Undo button in the repo is commented out in a file no
+   route renders. Verifying the wrong top-up put real money in a wallet and
+   then the card offered nothing at all. It has a button now, behind a
+   confirmation that says what will happen - including that the balance may
+   go negative, which the balance trigger allows on purpose ("a visible
+   receivable, not a reason to abort the correction").
+9. Smaller, all fixed: a net movement of -200 printed as 0.00; Reject and
+   Precharge armed while it was still unknown whether a top-up carried an
+   advance; "check the slip" on a card with no slip and no way to tell;
+   the slip dialog saying "Couldn't load this slip" before anything was
+   asked, and navigating the admin out of the app when a download failed;
+   two detail sheets with no branch for "the read came back with nothing";
+   the community pill reading a failed read as "in no community"; a raw
+   PostgREST sentence in a toast; and `wallet_create_for_advertiser` open
+   to `anon`.
+
+### Customer-side, same journey
+
+The refusal reason reached the bell and stopped there. The dialog an admin
+fills in says twice that the customer reads it, and the customer's own
+statement said "Rejected" and nothing else - on the row they come back to a
+month later asking why EUR 999 never arrived. It is a paragraph, so it opens
+in a window of its own: the amount, the reference, the date, the admin's
+sentence, and the line nobody was saying - nothing was taken from your
+wallet - with a button that opens a fresh top-up on the right currency.
+
+And **"Money is in your wallet" went out without the figure in it.** The
+payload writes `{"amount": 250}` as a JSON number and the bell read it with
+a string-only helper, so every credit notice fell back to "We confirmed your
+transfer and credited it to your wallet." Over the one event a customer is
+waiting for. Same bug on the invoice paid from a wallet, and on the invoice
+number.
+
+### What could NOT be verified, and why
+
+- **The mismatch strip has not been seen against real data.** No bank
+  deposit is matched to any of PSM0011's top-ups, and the Wise feed is OFF
+  on production (`docs/WISE_SETUP.md`: no webhook secret, no read token).
+  The comparison is driven by its inputs and mirrors the sibling panel that
+  has used the same arithmetic for months, but the red strip itself has not
+  rendered against a live deposit.
+- **"Confirm & credit" still has not been pressed.** Plak 81 restored the
+  grant; with no deposit feed there is nothing on that tab to press it on.
+- The slow first reject (~15 s from click to toast) was a cold Vercel
+  lambda, not a fault: the same action ran in 1.3 s warm and the card left
+  the list immediately. The button reads "Rejecting..." and both buttons are
+  disabled throughout.
+- **82 functions are still executable by `anon`**, but 76 of them return
+  `trigger` and cannot be invoked through PostgREST at all. The six that can
+  are `get_invite_by_token` (deliberate - the signup page reads an invite
+  before an account exists), `current_advertiser_id`, `get_my_advertiser_id`
+  and `get_current_profile_id` (used INSIDE RLS policies, which run as the
+  reader, so revoking them would break RLS), `mark_session_seen` and
+  `generate_wallet_reference_no`. Nothing open that matters.
 
 ## NOT BEFORE GO-LIVE — a referrer's own discount for the people they bring in (owner, 2026-09-23)
 
