@@ -569,6 +569,34 @@ export default function PsmVerifyTopups({
                     ) || ""
                   }
                 />
+                {/* ── AND WHY IT WAS REFUSED, IF IT WAS ─────────────────
+                    The reject dialog will not unlock until an admin has
+                    written a sentence for the customer, and then the
+                    queue forgot it: switch the filter to Rejected and
+                    every card said "rejected" over a reference and
+                    nothing else. The customer replies asking why, and
+                    whoever picks that up -- usually not the admin who
+                    pressed the button -- has no way to see what they
+                    were told, short of the database. */}
+                {t.status === "rejected" && t.rejection_reason ? (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      background: "var(--danger-bg, #fff1f2)",
+                      border: "1px solid var(--danger-bd, #fecdd3)",
+                      color: "var(--danger-tx, #9f1239)",
+                      fontSize: ".8rem",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    <strong style={{ fontWeight: 700 }}>
+                      Told the customer:
+                    </strong>{" "}
+                    {t.rejection_reason}
+                  </div>
+                ) : null}
                 <div className="actrow tupacts">
                   {/* The card's own onClick is a mouse convenience. This is
                       the keyboard route to the details sheet — the view an

@@ -233,6 +233,20 @@ export default function WalletTopupDetailsSheet({
                 label="Date"
                 value={dayjs(topup.created_at).format(DATE_TIME_FORMAT)}
               />
+              {/* The sentence the customer was sent. Status, amount and
+                  date told you a payment had been refused and not one
+                  word about why — on the sheet an admin opens precisely
+                  when somebody is asking them that. */}
+              {topup.status === "rejected" && topup.rejection_reason ? (
+                <DetailItem
+                  label="Told the customer"
+                  value={
+                    <span className="text-sm leading-snug">
+                      {topup.rejection_reason}
+                    </span>
+                  }
+                />
+              ) : null}
             </div>
 
             {isAdmin && topup.status === "pending" && (
