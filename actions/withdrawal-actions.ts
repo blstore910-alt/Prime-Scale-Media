@@ -111,10 +111,10 @@ async function fundedUsd(
           .order("id", { ascending: true })
           .range(from, to),
     ),
-    pageAllRows<{ amount: unknown; status: unknown }>((from, to) =>
+    pageAllRows<{ amount: unknown; currency: unknown; status: unknown }>((from, to) =>
       supabase
         .from("ad_account_withdrawals")
-        .select("amount, status")
+        .select("amount, currency, status")
         .eq("ad_account_id", adAccountId)
         .order("id", { ascending: true })
         .range(from, to),
@@ -165,10 +165,22 @@ async function fundedUsd(
   const inUsd = inCurrency;
   // Pending counts against the balance too. Two requests for the whole
   // balance are each valid on their own and only one of them is.
+  // ── AND THE SAME RULE GOING OUT ─────────────────────────────────
+  //
+  // The funding side was split by currency and this side was not: every
+  // withdrawal came off the total whatever currency it was filed in.
+  // AA-PSM0005-EU-01 carries a USD 50 row today (rejected, so it is
+  // skipped — but the currency-forcing trigger only landed on 20-09 and
+  // fires on INSERT, so older rows keep whatever they were filed with,
+  // and an account's currency can still be corrected by an admin). One
+  // live USD 400 row on that euro account would have taken EUR 400 off
+  // the ceiling and put the customer's own euros out of reach.
   const outUsd = withdrawals.rows.reduce((sum, r) => {
-    const row = r as { amount?: unknown; status?: unknown };
+    const row = r as { amount?: unknown; currency?: unknown; status?: unknown };
     const status = String(row.status ?? "").toLowerCase();
     if (status === "rejected" || status === "cancelled") return sum;
+    const cur = String(row.currency ?? accountCurrency).trim().toUpperCase();
+    if (cur !== accountCurrency) return sum;
     return sum + (Number(row.amount) || 0);
   }, 0);
 

@@ -98,6 +98,51 @@ export async function settleWalletPrecharge(
     amount == null ? null : Number.isFinite(Number(amount)) ? Number(amount) : null;
 
   const { supabase } = auth.ctx;
+
+  // ── THE FLOOR THE CANCEL PATH HAS AND THIS DID NOT ────────────────
+  //
+  // wallet_precharge_cancel refuses when the wallet can no longer cover
+  // the advance, and its refusal names THIS as the way out: "settle it
+  // or raise an adjustment instead". But settle subtracts without
+  // looking, so on an advance the customer has already spent it drives
+  // the balance below zero AND records that the money arrived -- the
+  // one thing the cancel refusal exists to prevent. A negative wallet
+  // is a number no screen in this app can explain.
+  const { data: pc, error: pcError } = await supabase
+    .from("wallet_precharges")
+    .select("wallet_id, currency, outstanding")
+    .eq("id", prechargeId)
+    .maybeSingle();
+  if (pcError) return { ok: false, error: safeErrorMessage(pcError) };
+  if (pc) {
+    const row = pc as {
+      wallet_id: string;
+      currency?: string | null;
+      outstanding?: number | string | null;
+    };
+    const need = settleAmount ?? Number(row.outstanding ?? 0);
+    const cur = String(row.currency ?? "EUR").toUpperCase();
+    const { data: w, error: wError } = await supabase
+      .from("wallets")
+      .select("usd_balance, eur_balance")
+      .eq("id", row.wallet_id)
+      .maybeSingle();
+    // A read we could not do is not a wallet with enough in it.
+    if (wError) return { ok: false, error: safeErrorMessage(wError) };
+    if (w) {
+      const bal = w as { usd_balance?: number | null; eur_balance?: number | null };
+      const have = Number(
+        (cur === "USD" ? bal.usd_balance : bal.eur_balance) ?? 0,
+      );
+      if (need > 0 && have + 0.005 < need) {
+        return {
+          ok: false,
+          error: `Settling takes ${need.toFixed(2)} ${cur} out of a wallet holding ${have.toFixed(2)} — they are short ${(need - have).toFixed(2)}. They have spent part of the advance; raise a wallet adjustment for the shortfall first.`,
+        };
+      }
+    }
+  }
+
   const { error } = await supabase.rpc("wallet_precharge_settle", {
     p_precharge_id: prechargeId,
     p_amount: settleAmount,

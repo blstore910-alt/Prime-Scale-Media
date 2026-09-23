@@ -96,7 +96,7 @@ export default function WithdrawDialog({
       if (put.error) throw put.error;
       const off = await supabase
         .from("ad_account_withdrawals")
-        .select("amount, status")
+        .select("amount, currency, status")
         .eq("ad_account_id", adAccountId);
       if (off.error) throw off.error;
       // Only what landed in THIS account's currency. Rows in another
@@ -108,10 +108,18 @@ export default function WithdrawDialog({
         );
         return landed.currency === currency ? a + (Number(landed.amount) || 0) : a;
       }, 0);
+      // Same rule on the way out as on the way in: a row in another
+      // currency is another currency's money and does not come off this
+      // total. Without this the customer's own ceiling disagreed with
+      // the server's, in the direction that refuses them their money.
       const taken = (off.data ?? [])
         .filter((r) => {
-          const st = String((r as { status?: unknown }).status ?? "").toLowerCase();
-          return st !== "rejected" && st !== "cancelled";
+          const row = r as { status?: unknown; currency?: unknown };
+          const st = String(row.status ?? "").toLowerCase();
+          if (st === "rejected" || st === "cancelled") return false;
+          return (
+            String(row.currency ?? currency).trim().toUpperCase() === currency
+          );
         })
         .reduce((a, r) => a + (Number((r as { amount?: unknown }).amount) || 0), 0);
       return Math.max(0, Math.round((onAcct - taken) * 100) / 100);

@@ -26,7 +26,12 @@ export async function requestWalletAdjustment(input: {
   const auth = await resolveAdminContext();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const delta = Number(input?.delta);
+  // ROUNDED, because the comment below has always said so and the code
+  // did not. The column is numeric with no scale, so 10.005 is stored
+  // and applied exactly -- while every screen prints it with toFixed(2)
+  // as 10.01. The balance and the figure explaining it then disagree by
+  // half a cent, for ever, with nothing able to account for it.
+  const delta = round2(Number(input?.delta));
   // Rounds to the cent first: the column holds two decimals, so a delta
   // of 0.004 is "non-zero" to === and 0.00 to the database -- an
   // approved adjustment that moves nothing and explains nothing.
