@@ -973,13 +973,20 @@ function RefundsSection() {
                 <th>Advertiser</th>
                 <th className="r">Amount</th>
                 <th>Payout to</th>
+                {/* A REASON THAT NOBODY COULD READ. This action now
+                    demands one before it will refuse a refund \u2014 and
+                    this table had no column for it, so the sentence went
+                    into the database and stopped there. The admin who
+                    asked for the refund had nowhere to learn why it was
+                    turned down. */}
+                <th>Why</th>
                 <th className="r">Status</th>
                 <th className="r">Action</th>
               </tr>
             </thead>
             <tbody>
               {isLoading || !tenantId
-                ? loadingRow(6)
+                ? loadingRow(7)
                 : filtered.length
                   ? filtered.map((r) => (
                       <tr key={r.id}>
@@ -1054,6 +1061,13 @@ function RefundsSection() {
                             </div>
                           ) : (
                             "—"
+                          )}
+                        </td>
+                        <td data-label="Why" style={{ maxWidth: 260 }}>
+                          {r.reason ? (
+                            <span style={{ fontSize: ".82rem" }}>{r.reason}</span>
+                          ) : (
+                            <span className="muted">\u2014</span>
                           )}
                         </td>
                         <td className="r" data-label="Status">
@@ -1151,7 +1165,7 @@ function RefundsSection() {
                       </tr>
                     ))
                   : emptyRow(
-                      6,
+                      7,
                       // A failed read is not an empty queue. Saying "no
                       // refund requests yet" when the query errored tells an
                       // admin there is nothing waiting — which is the one
