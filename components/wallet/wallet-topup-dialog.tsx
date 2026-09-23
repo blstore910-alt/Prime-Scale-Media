@@ -1214,6 +1214,8 @@ export default function WalletTopupDialog({
                         min="0"
                         placeholder="0.00"
                         className="pl-7"
+                        // Typing replaces what is there, never appends.
+                        onFocus={(e) => e.currentTarget.select()}
                         {...register("amount", { valueAsNumber: true })}
                       />
                     </div>

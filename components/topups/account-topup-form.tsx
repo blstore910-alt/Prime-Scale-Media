@@ -524,6 +524,10 @@ export default function AccountTopupForm({
               label={`Amount to take from your wallet (${selectedCurrency})`}
               control={control}
               type="number"
+              // Click a money box and you are typing a NEW amount, never
+              // appending to what was there. Without this a 0 sitting in
+              // the field turns a typed 50 into 050.
+              onFocus={(e) => e.currentTarget.select()}
               min={0}
               max={hasWallet ? selectedBalance : undefined}
               className="tabular-nums"

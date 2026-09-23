@@ -344,6 +344,10 @@ export default function CreateSubscriptionDialog({
                     min={0}
                     step="0.01"
                     placeholder="0.00"
+                    // Click a money box and you are typing a new amount,
+                    // never appending to the old one. Without this a 0
+                    // left in the field turns a typed 50 into 050.
+                    onFocus={(e) => e.currentTarget.select()}
                     aria-invalid={Boolean(errors.amount)}
                     className="h-9"
                   />
