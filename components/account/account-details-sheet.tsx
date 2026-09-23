@@ -19,6 +19,7 @@ import {
 } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
+import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
@@ -108,6 +109,22 @@ type AccountDetailsRow = Partial<AdAccount> & {
  * second colour scheme to maintain. Anything we do not recognise falls
  * back to a neutral screen -- never a wrong logo.
  */
+/**
+ * What a CUSTOMER may be told about where their account runs: the
+ * network, and nothing narrower. The `platform` column holds the
+ * ad-account TYPE slug, and a type names a supplier family.
+ */
+function networkLabel(slug?: string | null): string {
+  const group = platformGroupFromSlug(String(slug ?? ""));
+  return group === "meta"
+    ? "Meta"
+    : group === "google"
+      ? "Google"
+      : group === "tiktok"
+        ? "TikTok"
+        : "Ad account";
+}
+
 function PlatformGlyph({ slug }: { slug?: string | null }) {
   const key = String(slug ?? "").toLowerCase();
   if (key.includes("meta") || key.includes("facebook") || key.includes("instagram")) {
@@ -301,10 +318,20 @@ export function AccountDetailsSheet({
                     <p className="truncate font-semibold tracking-tight text-[1.05rem] leading-tight">
                       {data.name}
                     </p>
+                    {/* THE NETWORK, NEVER THE TYPE. `platform` holds the
+                        ad-account type slug (eu-meta-psm, hk-meta-premium),
+                        and falling back to it printed "Meta-EU-PSM" on the
+                        CUSTOMER's own screen -- which is the one thing that
+                        must never reach them: it names which supplier
+                        family the account came from. The group is all they
+                        need and all they get. */}
                     <p className="mt-0.5 text-xs text-white/80">
-                      {PLATFORMS.find((p) => p.value === data.platform)?.label ??
-                        data.platform ??
-                        "Ad account"}
+                      {isAdvertiser
+                        ? networkLabel(data.platform)
+                        : (PLATFORMS.find((p) => p.value === data.platform)
+                            ?.label ??
+                          data.platform ??
+                          "Ad account")}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-wide ring-1 ring-white/30">
