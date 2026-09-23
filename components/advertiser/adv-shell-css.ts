@@ -990,6 +990,14 @@ export const ADV_CSS = `
     .tbl.wide tr td:last-child:not(:first-child):has(a.btn)::before{display:none}
     .tbl.wide tr td:last-child:not(:first-child):has(button)>*,
     .tbl.wide tr td:last-child:not(:first-child):has(a.btn)>*{grid-column:1 / -1}
+    /* ...and a "Why?" is not an action bar either. The status cell is the
+       last one, so adding one link to it turned the whole cell into a
+       footer: the STATUS label disappeared and "Rejected  Why?" sat
+       alone under a rule, while the row above it still said CREDITED
+       beside its badge. Same test, one level finer. */
+    .tbl.wide tr td:last-child:not(:first-child):has(.whybtn){padding:5px 0;margin-top:0;border-top:0}
+    .tbl.wide tr td:last-child:not(:first-child):has(.whybtn)::before{display:block}
+    .tbl.wide tr td:last-child:not(:first-child):has(.whybtn)>*{grid-column:2}
     .tbl.wide tr td:last-child .btn{width:100%;justify-content:center}
     /* TWO buttons in an action cell. The rule above makes a lone button
        full width, which is right — but it also hit both buttons of a pair,
