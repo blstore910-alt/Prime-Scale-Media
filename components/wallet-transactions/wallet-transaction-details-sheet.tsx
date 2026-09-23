@@ -160,6 +160,27 @@ export default function WalletTransactionDetailsSheet({
           </div>
         )}
 
+        {/* ── AND THE FOURTH STATE, WHICH HAD NO BRANCH ───────────────
+            Loading, error, content — and nothing for "the read came
+            back with nothing". .maybeSingle() resolves data:null when
+            the row is gone or not visible to this admin, and react-query
+            reports a PAUSED (offline) query as neither loading nor
+            errored. Both left this sheet showing its header, a reference
+            of "-" and an empty body, on the panel opened by tapping any
+            card in the verify queue. */}
+        {!isLoading && !isError && !topup && (
+          <div className="mt-4 space-y-1 p-4">
+            <p className="text-sm font-semibold">
+              We couldn&apos;t read this top-up.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              It may have been removed, or the connection dropped. This is
+              NOT an empty record — close this and reload before deciding
+              anything about it.
+            </p>
+          </div>
+        )}
+
         {topup && (
           <div className="mt-6 space-y-5 p-4">
             <div className="grid gap-4">

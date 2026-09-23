@@ -233,7 +233,12 @@ export default function PsmWallets() {
                           full
                           community={
                             <CommunityPill
-                              name={communities[wallet.advertiser_id ?? ""]}
+                              name={
+                                communities.byAdvertiser[
+                                  wallet.advertiser_id ?? ""
+                                ]
+                              }
+                              unknown={communities.isError}
                             />
                           }
                         />

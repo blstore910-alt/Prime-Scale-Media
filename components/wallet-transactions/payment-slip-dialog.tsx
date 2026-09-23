@@ -25,7 +25,19 @@ export default function PaymentSlipDialog({
   // The bucket is private, so the stored path isn't directly viewable.
   // Resolve it to a short-lived signed URL when the dialog opens.
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
-  const [resolving, setResolving] = useState(false);
+  // ── "COULDN'T LOAD THIS SLIP" BEFORE ANYTHING WAS ASKED ───────────
+  //
+  // This started false and was only set true inside the effect. On the
+  // render where `open` flips true, resolving is still false and
+  // resolvedUrl is still null, so the component committed the
+  // destructive branch — "Couldn't load this slip. It may have been
+  // removed, or you don't have access." — with no request yet made, and
+  // Radix animates the panel in over ~200ms behind it. On the one piece
+  // of evidence an admin reads before crediting money.
+  const [resolving, setResolving] = useState(
+    () => !!open && !!paymentSlipUrl,
+  );
+  const [downloading, setDownloading] = useState(false);
   // An <img> that fails renders as an empty bordered box — which is exactly
   // what a white-on-transparent slip looks like too. Without this you
   // cannot tell "it loaded and you cannot see it" from "it did not load".
@@ -43,6 +55,12 @@ export default function PaymentSlipDialog({
       .then((res) => {
         if (cancelled) return;
         setResolvedUrl(res.ok ? res.data.url : null);
+      })
+      // A thrown server action -- a dropped connection, a redeploy
+      // mid-call -- was an unhandled rejection. The text ended up right
+      // by way of .finally; the console did not.
+      .catch(() => {
+        if (!cancelled) setResolvedUrl(null);
       })
       .finally(() => {
         if (!cancelled) setResolving(false);
@@ -83,7 +101,10 @@ export default function PaymentSlipDialog({
   };
 
   const handleDownload = async () => {
-    if (!resolvedUrl) return;
+    if (!resolvedUrl || downloading) return;
+    // A large slip takes seconds and the button said nothing, so the
+    // obvious response was to press it again and start a second fetch.
+    setDownloading(true);
     try {
       const response = await fetch(resolvedUrl, { mode: "cors" });
       if (!response.ok) throw new Error("Download failed");
@@ -95,10 +116,22 @@ export default function PaymentSlipDialog({
       link.click();
       URL.revokeObjectURL(objectUrl);
     } catch {
+      // ── AND THE FALLBACK TOOK THE ADMIN OUT OF THE APP ───────────
+      //
+      // resolvedUrl is on the Supabase origin, not ours, so the browser
+      // ignores `download` on a cross-origin anchor. With no target,
+      // this navigated the CURRENT tab to the raw slip: the queue, its
+      // filter and its page gone, and Back remounts the whole shell.
+      // It fires on any blip, and on a signed URL past its 300s life —
+      // which this dialog never re-signs.
       const link = document.createElement("a");
       link.href = resolvedUrl;
       link.download = "payment-slip";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
       link.click();
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -178,10 +211,14 @@ export default function PaymentSlipDialog({
           <Button
             type="button"
             onClick={handleDownload}
-            disabled={!resolvedUrl}
+            disabled={!resolvedUrl || downloading}
           >
-            <Download className="mr-2 h-4 w-4" />
-            Download
+            {downloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {downloading ? "Downloading…" : "Download"}
           </Button>
         </div>
       </DialogContent>

@@ -17,6 +17,7 @@ import {
   verifyWalletTopupAsAdmin,
 } from "@/actions/wallet-topup-decide-actions";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -144,7 +145,36 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
       };
 
       toast.error(errorMessages[variables.action], {
-        description: err.message,
+        // safeErrorMessage is log-safe, not people-safe -- it is the raw
+        // PostgREST sentence with the PII stripped out. An admin was
+        // reading "column wallet_precharges.source_wallet_topup_id does
+        // not exist" in a toast over a payment they were trying to
+        // credit. Every neighbour on this screen already wraps it.
+        description: userFacingErrorMessage(
+          err,
+          "Nothing changed. Reload and try again.",
+        ),
+      });
+
+      // ── AND PUT THE ROW RIGHT ───────────────────────────────────────
+      //
+      // Only onSuccess invalidated anything, and the one refusal that
+      // matters here is "Topup is not pending" -- which means somebody
+      // ELSE already decided this row. The queue defaults to
+      // refetchOnWindowFocus:false with a 30s staleTime and no poll
+      // (lib/make-query-client.ts), and this screen has no refresh
+      // control of its own: the Retry button lives inside the list
+      // query's isError branch, which is not on screen when the list
+      // loaded fine.
+      //
+      // So the card kept saying Pending with Verify, Reject and
+      // Precharge all live, and every further click failed the same way,
+      // for ever, until the admin thought to reload the browser. The
+      // answer to a stale row is to go and read it again.
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["money-in-counts"] });
+      queryClient.invalidateQueries({
+        queryKey: ["wallet-transaction-details", topup.id],
       });
     },
   });

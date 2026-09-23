@@ -85,6 +85,29 @@ export default function WalletTransactionApproveDialog({
   const advertiserCode = topup.advertiser?.tenant_client_code ?? "—";
   const advertiserName = topup.advertiser?.profile?.full_name ?? "";
 
+  // ── THE TWO FIGURES, SUBTRACTED ──────────────────────────────────
+  //
+  // Both were on the screen — "Amount €630.00" and, six lines lower,
+  // "Bank deposit €618.00" — and the lead above them said "A bank
+  // deposit matching this claim has arrived. Check the figure below
+  // against it." It asked an operator to do the arithmetic by eye, on
+  // the modal that releases the money, against a queue of cards that
+  // all look the same. Verifying credits the CLAIM, so the difference
+  // walks out of the account.
+  const depositGap = (() => {
+    if (!deposit || !Number.isFinite(requestedAmount)) return null;
+    const depCur = String(deposit.currency ?? "").toUpperCase();
+    const differs = !!curCode && !!depCur && curCode !== depCur;
+    const gapCents = Math.round(requestedAmount * 100) - deposit.amountCents;
+    if (!differs && Math.abs(gapCents) <= 1) return null;
+    return {
+      sent:
+        currencySymbol(deposit.currency) +
+        (deposit.amountCents / 100).toFixed(2),
+      claimed: `${symbol}${requestedAmount.toFixed(2)}`,
+    };
+  })();
+
   return (
     <ConfirmModal
       open={open}
@@ -100,6 +123,8 @@ export default function WalletTransactionApproveDialog({
           ? "This top-up was already advanced to the wallet. Verifying settles that advance, so the balance will NOT go up again — it is already there. Do not top it up by hand afterwards."
           : prechargeUnreadable
             ? "We could not check whether this top-up was already advanced, so the balance may not move when you credit it. Check the advances screen first."
+          : deposit && depositGap
+            ? `The bank sent ${depositGap.sent} and this claim is for ${depositGap.claimed}. Crediting moves the CLAIM — ${depositGap.claimed} — not what arrived. Correct the claim on the Bank deposits tab first, or refuse it.`
           : deposit
           ? "A bank deposit matching this claim has arrived. Check the figure below against it, then credit."
           : depositsUnreadable
@@ -119,7 +144,12 @@ export default function WalletTransactionApproveDialog({
       disabledHint={
         prechargeLoading
           ? "Still checking whether this top-up was already advanced."
-          : "This top-up has no amount on it, so there is nothing to credit. Open Details and check the row."
+          : // It used to send the operator to Details, which is read-only:
+            // no field, no action, nothing that can put an amount on the
+            // row. The control that CAN is "Set the claim to…" on the Bank
+            // deposits tab. Without it the only other verb on this card
+            // writes the customer a refusal.
+            "This top-up has no amount on it, so there is nothing to credit. Set the amount on the Bank deposits tab, against the payment that actually arrived."
       }
       onConfirm={onConfirm}
     >

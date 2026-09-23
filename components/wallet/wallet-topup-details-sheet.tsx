@@ -95,10 +95,16 @@ export default function WalletTopupDetailsSheet({
   // ahead. The hook has returned the real outstanding figure all along;
   // this sheet used only its truthiness.
   const advanceOutstanding = Number(advance?.outstanding ?? 0) || 0;
-  const netMove = Math.max(
-    (Number(topup?.amount ?? 0) || 0) - advanceOutstanding,
-    0,
-  );
+  // ── AND IT CAN BE NEGATIVE ────────────────────────────────────────
+  //
+  // The clamp that used to be here read Math.max(..., 0). But the claim
+  // can be corrected DOWN after the advance was paid out — "Set the
+  // claim to EUR 800.00" against a EUR 1,000 advance — and verifying
+  // then credits 800 and settles 1,000. The wallet moves by MINUS 200,
+  // and this sheet said "Wallet changes by EUR 0.00". The dialog on the
+  // other door computes the same figure without the clamp and prints
+  // -200.00: two screens onto one verify, two different answers.
+  const netMove = (Number(topup?.amount ?? 0) || 0) - advanceOutstanding;
   const { mutate: verify, isPending: isVerifying } = useMutation({
     // ── THE SECOND DOOR ON THE SAME MONEY EVENT ─────────────────────
     //
@@ -209,6 +215,23 @@ export default function WalletTopupDetailsSheet({
                 "We couldn't load this deposit. Reload to try again.",
               )}
             </span>
+          </div>
+        )}
+
+        {/* The fourth state. .maybeSingle() gives data:null for a row
+            that is gone or invisible, and a PAUSED query is neither
+            loading nor errored — either way this sheet rendered its
+            header over an empty body. */}
+        {!isLoading && !isError && !topup && (
+          <div className="mt-4 space-y-1 p-4">
+            <p className="text-sm font-semibold">
+              We couldn&apos;t read this top-up.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              It may have been removed, or the connection dropped. This is
+              NOT an empty record — close this and reload before deciding
+              anything about it.
+            </p>
           </div>
         )}
 

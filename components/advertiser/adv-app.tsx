@@ -2155,7 +2155,9 @@ export default function AdvertiserApp() {
   // this screen, so the helper could never apply the NSA rule and every NSA
   // customer was held to 300.
   const communities = useAdvertiserCommunities([advertiserId]);
-  const community = advertiserId ? communities[advertiserId] : undefined;
+  const community = advertiserId
+    ? communities.byAdvertiser[advertiserId]
+    : undefined;
 
   // NOT from the invoice list. That list is `.limit(30)` and holds every
   // invoice type, so on an account with a year of history and a few ad

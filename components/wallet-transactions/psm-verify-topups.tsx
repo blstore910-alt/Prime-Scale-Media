@@ -8,7 +8,7 @@ import PsmSortFilter from "@/components/psm/sort-filter";
 import { prechargeTopup } from "@/actions/precharge-actions";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, FileText, Search, X, Zap } from "lucide-react";
+import { Check, FileText, Search, Undo2, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import useWalletTransactions from "./use-wallet-transactions";
@@ -35,12 +35,19 @@ import { currencySymbol } from "@/lib/pure-invoice-currency";
 // balance trigger dispatches on with lower(), so it would credit the
 // USD wallet while this card said euros. currencySymbol is the shared
 // helper and it upper-cases first.
-const money = (v: number | string | null | undefined, cur: string | null) =>
-  currencySymbol(cur) +
-  new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(v ?? 0));
+const money = (v: number | string | null | undefined, cur: string | null) => {
+  const n = Number(v ?? 0);
+  // An unreadable amount is not a zero and not a "NaN" on a money
+  // screen. Say we cannot read it, in the place where the figure goes.
+  if (!Number.isFinite(n)) return currencySymbol(cur) + "—";
+  return (
+    currencySymbol(cur) +
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n)
+  );
+};
 
 const shortDay = (iso: string) => {
   try {
@@ -72,6 +79,8 @@ function MatchedStrip({
   loading,
   pending,
   ownReference,
+  claimAmount,
+  claimCurrency,
 }: {
   deposit?: MatchedDeposit;
   unreadable: boolean;
@@ -79,6 +88,9 @@ function MatchedStrip({
   pending: boolean;
   /** What the card already prints one line above. */
   ownReference: string;
+  /** What the CUSTOMER asked us to credit — the figure Verify moves. */
+  claimAmount: number | string | null;
+  claimCurrency: string | null;
 }) {
   // A settled top-up has already been credited; the question the strip
   // answers does not apply any more.
@@ -134,6 +146,59 @@ function MatchedStrip({
               Only one can be credited. Check the bank before you verify —
               the others are real payments that nothing here will settle.
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── AND IS IT THE SAME MONEY? ────────────────────────────────────
+    //
+    // This strip drew the deposit and the card drew the claim, two
+    // lines apart, and nothing ever subtracted them. A EUR 618 deposit
+    // against a EUR 630 claim rendered GREEN, with a tick, saying
+    // "Matched" — and Verify credits the CLAIM, so the customer is
+    // handed EUR 12 that never arrived. A USD deposit against a EUR
+    // claim read "Matched" too.
+    //
+    // The Wise panel on the tab beside this one has done the sum since
+    // it was written (wise-review-panel: "The bank sent X and the claim
+    // is for Y"). The verify queue, where the money actually leaves,
+    // did not.
+    const claim = Number(claimAmount);
+    const claimCur = String(claimCurrency ?? "").toUpperCase();
+    const depCur = String(deposit.currency ?? "").toUpperCase();
+    const gapCents = Number.isFinite(claim)
+      ? Math.round(claim * 100) - deposit.amountCents
+      : 0;
+    const claimShown = Number.isFinite(claim)
+      ? currencySymbol(claimCurrency) + claim.toFixed(2)
+      : null;
+    const currencyDiffers = !!claimCur && !!depCur && claimCur !== depCur;
+    // One cent of slack, and no more: these are two integers that ought
+    // to be equal, not a rounding problem.
+    if (claimShown && (currencyDiffers || Math.abs(gapCents) > 1)) {
+      return (
+        <div className="tupmatch bad">
+          <X />
+          <div>
+            <b>
+              The bank sent {amount} — this claim is for {claimShown}
+            </b>
+            <div>
+              {currencyDiffers
+                ? `Different currencies: the deposit is ${depCur} and the wallet claim is ${claimCur}. `
+                : ""}
+              Verifying credits the CLAIM, {claimShown}, not what arrived.
+              Correct the claim on the Bank deposits tab first, or refuse it
+              and ask for a fresh top-up for the amount actually sent.
+            </div>
+            {deposit.senderName ? (
+              <div>
+                from {deposit.senderName} · {shortDay(deposit.receivedAt)}
+              </div>
+            ) : (
+              <div>{shortDay(deposit.receivedAt)}</div>
+            )}
           </div>
         </div>
       );
@@ -240,6 +305,24 @@ export default function PsmVerifyTopups({
   // Precharge moves real money into a wallet before the payment has
   // cleared. It was the one action on this card that happened on the first
   // click, with no way back.
+  // ── AND A WAY BACK FROM A MISTAKEN DECISION ─────────────────────
+  //
+  // wallet_topup_admin_undo, undoWalletTopupAsAdmin and the "undo"
+  // branch of useUpdateTransaction have all existed and been wired for
+  // months. NOTHING on any route dispatched them: the only Undo in the
+  // repo is commented out, in a file no route renders. So verifying the
+  // wrong top-up put real money in a customer's wallet and the card then
+  // rendered no actions at all, because they are all behind `pend`. The
+  // only correction was a hand-written SQL statement.
+  //
+  // The reverse is safe and deliberate in the database:
+  // _wallet_topup_balance_sync's "leaving completed" branch subtracts the
+  // amount again and re-opens any advance it settled, with no floor check
+  // -- "a negative balance is a visible receivable, not a reason to abort
+  // the correction", in its own words.
+  const [undoAsk, setUndoAsk] = useState<WalletTopupWithAdvertiser | null>(
+    null,
+  );
   const [prechargeAsk, setPrechargeAsk] =
     useState<WalletTopupWithAdvertiser | null>(null);
   const queryClient = useQueryClient();
@@ -312,9 +395,8 @@ export default function PsmVerifyTopups({
     selected ?? ({} as WalletTopupWithAdvertiser),
   );
 
-  const communities = useAdvertiserCommunities(
-    transactions.map((t) => t.advertiser_id),
-  );
+  const { byAdvertiser: communities, isError: communitiesUnreadable } =
+    useAdvertiserCommunities(transactions.map((t) => t.advertiser_id));
 
   // The bank deposit behind each claim — see hooks/use-matched-deposits.
   const {
@@ -331,9 +413,19 @@ export default function PsmVerifyTopups({
   // wallet_precharge_from_topup refuses outright with "This top-up is
   // already precharged". Enabled-then-refused, with a money figure
   // stated in between — on the desk where money is released.
-  const { precharges: queueAdvances } = useOutstandingPrecharges(
-    transactions.map((t) => t.id),
-  );
+  //
+  // ...and it was wired for the success path only. `precharges` is
+  // `data ?? {}`, so "still reading" and "the read failed" both arrive
+  // as "no advance" — the two states where we do not know. That window
+  // is every first paint of the queue and every page or filter change,
+  // and on an expired JWT it never closes. The dialog behind the same
+  // button already blocks on all three states; the cards did not.
+  const {
+    precharges: queueAdvances,
+    isLoading: advancesLoading,
+    isError: advancesUnreadable,
+  } = useOutstandingPrecharges(transactions.map((t) => t.id));
+  const advancesUnknown = advancesLoading || advancesUnreadable;
 
   const confirmApprove = () =>
     updateTransaction(
@@ -468,6 +560,7 @@ export default function PsmVerifyTopups({
                       community={
                         <CommunityPill
                           name={communities[t.advertiser_id ?? ""]}
+                          unknown={communitiesUnreadable}
                         />
                       }
                     />
@@ -558,6 +651,8 @@ export default function PsmVerifyTopups({
                   unreadable={depositsUnreadable}
                   loading={depositsLoading}
                   pending={pend}
+                  claimAmount={t.amount}
+                  claimCurrency={t.currency}
                   ownReference={
                     formatPaymentReference(
                       (
@@ -581,7 +676,11 @@ export default function PsmVerifyTopups({
                 {t.status === "rejected" && t.rejection_reason ? (
                   <div
                     style={{
-                      marginTop: 8,
+                      // The same rhythm as the matched-deposit strip it
+                      // stands in for: 10 above, 12 below. Without the
+                      // bottom margin the Details and Slip buttons sat
+                      // flush against the box.
+                      margin: "10px 0 12px",
                       padding: "8px 10px",
                       borderRadius: 10,
                       background: "var(--danger-bg, #fff1f2)",
@@ -631,11 +730,13 @@ export default function PsmVerifyTopups({
                             called. The label says it instead. */}
                         <button
                           className="btn ghost sm"
-                          disabled={!!queueAdvances[t.id]}
+                          disabled={!!queueAdvances[t.id] || advancesUnknown}
                           title={
-                            queueAdvances[t.id]
-                              ? "Cancel the advance on the Precharge tab first — rejecting would leave it outstanding."
-                              : undefined
+                            advancesUnknown
+                              ? "Checking whether this top-up carries an advance."
+                              : queueAdvances[t.id]
+                                ? "Cancel the advance on the Precharge tab first — rejecting would leave it outstanding."
+                                : undefined
                           }
                           onClick={(e) => {
                             e.stopPropagation();
@@ -644,17 +745,25 @@ export default function PsmVerifyTopups({
                           }}
                         >
                           <X />{" "}
-                          {queueAdvances[t.id] ? "Cancel advance first" : "Reject"}
+                          {advancesUnknown
+                            ? "Checking…"
+                            : queueAdvances[t.id]
+                              ? "Cancel advance first"
+                              : "Reject"}
                         </button>
                         <button
                           className="btn ghost sm"
                           disabled={
-                            prechargingId === t.id || !!queueAdvances[t.id]
+                            prechargingId === t.id ||
+                            !!queueAdvances[t.id] ||
+                            advancesUnknown
                           }
                           title={
-                            queueAdvances[t.id]
-                              ? "Already advanced — verify it to settle"
-                              : "Advance-credit the wallet now; settles on verify"
+                            advancesUnknown
+                              ? "Checking whether this top-up carries an advance."
+                              : queueAdvances[t.id]
+                                ? "Already advanced — verify it to settle"
+                                : "Advance-credit the wallet now; settles on verify"
                           }
                           onClick={(e) => {
                             e.stopPropagation();
@@ -662,11 +771,32 @@ export default function PsmVerifyTopups({
                           }}
                         >
                           <Zap />{" "}
-                          {queueAdvances[t.id] ? "Advanced" : "Precharge"}
+                          {advancesUnknown
+                            ? "Checking…"
+                            : queueAdvances[t.id]
+                              ? "Advanced"
+                              : "Precharge"}
                         </button>
                       </>
                     )}
-                    {t.payment_slip && (
+                    {!pend &&
+                    (t.status === "completed" || t.status === "rejected") ? (
+                      <button
+                        className="btn ghost sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Both, and in this order, exactly like Verify
+                          // and Reject: the mutation is built from
+                          // `selected`, and the confirm happens a render
+                          // later, by which time it points at this row.
+                          setSelected(t);
+                          setUndoAsk(t);
+                        }}
+                      >
+                        <Undo2 /> Undo
+                      </button>
+                    ) : null}
+                    {t.payment_slip ? (
                       <button
                         className="btn ghost sm"
                         onClick={(e) => {
@@ -677,8 +807,49 @@ export default function PsmVerifyTopups({
                       >
                         <FileText /> Slip
                       </button>
+                    ) : (
+                      /* ABSENCE MEANT TWO THINGS. The strip above says
+                         "Only the customer's word so far — check the
+                         slip", and where there is no slip the button
+                         simply was not rendered. An operator looking for
+                         it cannot tell "there is none" from "it is
+                         somewhere else on this screen". */
+                      <span
+                        className="muted"
+                        style={{
+                          alignSelf: "center",
+                          fontSize: ".78rem",
+                          paddingLeft: 2,
+                        }}
+                      >
+                        No slip uploaded
+                      </span>
                     )}
                 </div>
+                {/* THE SENTENCE THAT NAMES THE WAY OUT, ON SCREEN.
+                    The disabled Reject reads "Cancel advance first" and
+                    the place to do it lived in a title attribute — which
+                    never appears on a phone, and a disabled button
+                    dispatches no events to reveal it anyway. */}
+                {pend && queueAdvances[t.id] ? (
+                  <p
+                    className="muted"
+                    style={{ margin: "8px 0 0", fontSize: ".78rem" }}
+                  >
+                    This top-up carries an advance. Cancel it on the
+                    Precharge tab before refusing, or verifying settles it.
+                  </p>
+                ) : null}
+                {pend && advancesUnreadable ? (
+                  <p
+                    className="muted"
+                    style={{ margin: "8px 0 0", fontSize: ".78rem" }}
+                  >
+                    We could not check whether this top-up carries an
+                    advance, so Reject and Precharge are held. Reload
+                    before deciding.
+                  </p>
+                ) : null}
               </div>
             );
           })}
@@ -773,6 +944,65 @@ export default function PsmVerifyTopups({
         profileId={advProfileId}
         onOpenChange={() => setAdvProfileId(null)}
       />
+
+      <ConfirmModal
+        open={!!undoAsk}
+        onOpenChange={(next) => {
+          if (!next) setUndoAsk(null);
+        }}
+        title={
+          undoAsk?.status === "completed"
+            ? "Take this credit back out?"
+            : "Re-open this refusal?"
+        }
+        lead={
+          undoAsk?.status === "completed"
+            ? "The amount comes straight back out of the wallet and the top-up returns to the queue as pending. If the advertiser has already spent it, their balance goes negative — that is a receivable, not a mistake, and it is the right answer. Tell them."
+            : "The top-up returns to the queue as pending and your reason is cleared. Nothing moves in the wallet — the refusal never credited anything. The customer is not told again."
+        }
+        cta={
+          undoAsk?.status === "completed"
+            ? `Yes, take back ${undoAsk ? money(undoAsk.amount, undoAsk.currency) : ""}`
+            : "Yes, re-open it"
+        }
+        busy={isPending}
+        busyLabel="Undoing…"
+        onConfirm={() =>
+          updateTransaction(
+            { action: "undo" },
+            { onSuccess: () => setUndoAsk(null) },
+          )
+        }
+      >
+        <ConfirmFact
+          label="Customer"
+          value={undoAsk ? advName(undoAsk) : ""}
+        />
+        <ConfirmFact
+          label="Amount"
+          value={undoAsk ? money(undoAsk.amount, undoAsk.currency) : ""}
+          strong
+        />
+        <ConfirmFact
+          label="Wallet changes by"
+          value={
+            undoAsk?.status === "completed"
+              ? `-${undoAsk ? money(undoAsk.amount, undoAsk.currency) : ""}`
+              : "nothing"
+          }
+          strong
+        />
+        <ConfirmFact
+          label="Reference"
+          value={
+            formatPaymentReference(
+              (undoAsk?.advertiser as { tenant_client_code?: string } | undefined)
+                ?.tenant_client_code,
+              undoAsk?.reference_no,
+            ) || "—"
+          }
+        />
+      </ConfirmModal>
 
       <ConfirmModal
         open={!!prechargeAsk}

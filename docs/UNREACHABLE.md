@@ -20,6 +20,33 @@ Regenerate the list with the script at the bottom.
 | `settings/finance/fee-defaults.tsx` | Default fee settings. **Confirmed dead on both ends, 2026-09-20.** No route renders the screen, AND its resolver `resolveFeePct` (`actions/fee-default-actions.ts:136`) has zero callers — `resolveEffectiveFeePct`, which decides what every customer is actually charged, never reads `fee_defaults` at all. So the table is written by nothing reachable and read by nothing. Before wiring it back, decide where it sits in the chain: today that chain is account fee → plan rate → the caller's fallback, and inserting a tenant default before the fallback WOULD change what some customers are charged. That is a pricing decision, not a port. |
 | `affiliate/affiliate-dashboard.tsx` | Possibly superseded by `affiliate/aff-app.tsx`. Confirm before deleting — the affiliate surface is the least-reviewed part of the app. |
 
+## 2026-09-23 — a THIRD wallet-transactions table, and it is the dead one
+
+Three files in `components/wallet-transactions/` form a closed island:
+
+| file | reached by |
+|---|---|
+| `wallet-transactions/wallet-transactions-table.tsx` | **nothing** |
+| `wallet-transactions/wallet-transaction-card.tsx` | only that table |
+| `wallet-transactions/wallet-transaction-row.tsx` | only that table |
+
+The live file with almost the same name is `components/**wallet**/wallet-transactions-table.tsx`
+(singular directory), imported by `components/wallets/wallet-details-sheet.tsx`
+and reached from `/wallets`. One character of path apart.
+
+Two real faults sit inside the dead island, and fixing them changes nothing
+for anyone — noted so nobody spends an afternoon on them:
+
+- `wallet-transaction-row.tsx:112` does `CURRENCY_SYMBOLS[topup.currency as …]`
+  with no fallback, so a lowercase or unmapped code renders `undefined`, which
+  React prints as nothing — an Amount column with a bare `1,000.00` and no
+  currency at all.
+- `wallet-transaction-row.tsx:186-195` holds the app's ONLY `Undo transaction`
+  menu item, commented out. (The live Undo was wired into
+  `psm-verify-topups.tsx` on 2026-09-23 instead; `wallet_topup_admin_undo`,
+  `undoWalletTopupAsAdmin` and the `"undo"` branch of `useUpdateTransaction`
+  had all existed and been reachable from no route for months.)
+
 ## Checked again 2026-09-20, and what changed
 
 A full transitive reachability walk from every `app/**` entrypoint — not

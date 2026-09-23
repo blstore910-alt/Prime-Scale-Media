@@ -1118,11 +1118,33 @@ export async function adjustWalletTopupAmount(
   if (!auth.ok) return { ok: false, error: auth.error, code: "forbidden" };
   const { supabase, profile } = auth.ctx;
 
-  const { data: topup } = await supabase
+  // ── A COLUMN THAT IS IN NO MIGRATION ────────────────────────────
+  //
+  // This asked for `description`, and `wallet_topups` has no such
+  // column — not on live, not in supabase/migrations. PostgREST
+  // answers 42703, the error was destructured away, `topup` came back
+  // null, and the action returned **"Top-up not found"**. Every single
+  // time.
+  //
+  // Which matters more than a broken button: this IS the repair for a
+  // deposit that does not match its claim. Bank sends EUR 618 against
+  // a EUR 630 claim, the admin presses "Set the claim to EUR 618.00",
+  // and is told the top-up does not exist. The only two things left to
+  // them are crediting 630 for money that never arrived, or refusing a
+  // payment that did. `notes` is the column that exists, and the error
+  // is no longer swallowed.
+  const { data: topup, error: readError } = await supabase
     .from("wallet_topups")
-    .select("id, amount, currency, status, tenant_id, description")
+    .select("id, amount, currency, status, tenant_id, notes")
     .eq("id", topupId)
     .maybeSingle();
+  if (readError) {
+    return {
+      ok: false,
+      error: safeErrorMessage(readError),
+      code: "not_found",
+    };
+  }
   if (!topup) {
     return { ok: false, error: "Top-up not found", code: "not_found" };
   }
@@ -1146,20 +1168,20 @@ export async function adjustWalletTopupAmount(
   const stamp = new Date().toISOString().slice(0, 10);
   const cur = String(topup.currency ?? "EUR").toUpperCase();
   const line = `[${stamp}] Amount corrected from ${was.toFixed(2)} to ${rounded.toFixed(2)} ${cur}: ${why}`;
-  const description = topup.description
-    ? `${String(topup.description)}\n${line}`
-    : line;
+  const notes = topup.notes ? `${String(topup.notes)}\n${line}` : line;
 
   // ── THE SERVICE ROLE WRITES IT ───────────────────────────────────
   //
   // This is the last place in the app that writes wallet_topups
   // through the CALLER's client, and the next migration takes
   // `amount` and `status` away from `authenticated` at the column
-  // level -- because the table carries a `for all to authenticated`
-  // policy, which means an employee admin could insert a claim for any
-  // advertiser and flip it to completed from the browser console, and
-  // the balance trigger would credit it. That is the same power
-  // wallet_admin_adjust was just made owner-only for, one table over.
+  // level. (2026-09-23: the hole this named is CLOSED. The `for all to
+  // authenticated` POLICY is still on the table, but the GRANT behind
+  // it is gone -- `authenticated` now holds SELECT only on
+  // wallet_topups, so a write from the browser console is refused
+  // before RLS is even consulted. Left standing because the reasoning
+  // is still why this write goes through the service role; do not
+  // "fix" it by re-granting.)
   //
   // The guards do not move: the row was re-read above, the tenant
   // compared, the status checked, and the write below still carries
@@ -1167,7 +1189,7 @@ export async function adjustWalletTopupAmount(
   const adminWrite = await createAdminClient();
   const { data: updated, error: updateError } = await adminWrite
     .from("wallet_topups")
-    .update({ amount: rounded, description })
+    .update({ amount: rounded, notes })
     .eq("id", topupId)
     .eq("tenant_id", profile.tenant_id)
     // And still pending at the moment of the write. Between the read

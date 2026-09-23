@@ -10,10 +10,16 @@ import { useMemo } from "react";
 // on via advertiser_plans.plan_id (per the user's decision: community = the
 // advertiser's plan). Two flat reads instead of a PostgREST embed so it stays
 // robust regardless of FK-embed availability; RLS scopes both tables to the
-// tenant. Returns an empty map on any failure so callers just render no pill.
+// tenant.
+//
+// It used to swallow `isError` and return an empty map on any failure, so a
+// failed read of advertiser_plans or plans looked exactly like "this
+// customer is in no community" -- on the verify desk, where the community
+// carries the customer's default fee. The map still falls back to empty so
+// no caller crashes, but `isError` comes out with it.
 export function useAdvertiserCommunities(
   advertiserIds: (string | null | undefined)[],
-): Record<string, string> {
+): { byAdvertiser: Record<string, string>; isError: boolean } {
   const ids = useMemo(
     () =>
       Array.from(
@@ -22,7 +28,7 @@ export function useAdvertiserCommunities(
     [advertiserIds],
   );
 
-  const { data } = useQuery<Record<string, string>>({
+  const { data, isError } = useQuery<Record<string, string>>({
     queryKey: ["advertiser-communities", ids],
     enabled: ids.length > 0,
     queryFn: async () => {
@@ -63,5 +69,5 @@ export function useAdvertiserCommunities(
     },
   });
 
-  return data ?? {};
+  return { byAdvertiser: data ?? {}, isError };
 }

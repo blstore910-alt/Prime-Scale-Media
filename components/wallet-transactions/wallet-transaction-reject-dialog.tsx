@@ -36,7 +36,27 @@ export default function WalletTransactionRejectDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // ── DO NOT CLOSE UNDER A WRITE IN FLIGHT ──────────────────────────
+    //
+    // Cancel was disabled while submitting; Escape, the backdrop and the
+    // X in the corner were not. And the screen behind this has ONE
+    // mutation and ONE dialog, shared by every card.
+    //
+    // So: press "Yes, reject it" on card A, press Escape while it is in
+    // flight (which looks exactly like cancelling — the reason is wiped
+    // on close), then open Reject on card B. B's dialog comes up with
+    // everything disabled and the button reading "Rejecting…", for a
+    // refusal nobody submitted. A's write then lands, onSuccess closes
+    // "the" dialog, and a green "Payment rejected" appears over card B.
+    // The operator has every reason to think B was refused. It was not;
+    // A was. ConfirmModal has held this line for months.
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (isSubmitting) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           {/* A question, and what it does — the same register as every

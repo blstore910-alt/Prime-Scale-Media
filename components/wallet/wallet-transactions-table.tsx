@@ -61,7 +61,13 @@ export default function WalletTransactionsTable({
 
   const {
     data: topups,
-    isLoading,
+    // isPending, not isLoading. react-query v5 computes isLoading as
+    // `isPending && isFetching`, which is FALSE for a query that is
+    // PAUSED (the browser is offline) — so a wallet with a history
+    // rendered "No wallet topups yet." over it, on the customer's own
+    // statement. Its sibling in components/wallet-transactions switched
+    // for exactly this reason.
+    isPending: isLoading,
     isError,
     error,
   } = useQuery<WalletTopup[]>({
