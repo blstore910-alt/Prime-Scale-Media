@@ -333,11 +333,17 @@ export function getNotificationCopy(notification: Notification): {
       const sym = cur === "USD" ? "$" : "€";
       const amt = Number(p.amount);
       const figure = Number.isFinite(amt) ? `${sym}${amt.toFixed(2)}` : "a commission";
+      // The welcome bonus used to hang on a first top-up only. Since it
+      // also falls on a first PAID INVOICE, "a new customer's first
+      // top-up" is a claim about something that may never have happened
+      // -- seen on live: EUR 10.00 announced as a first top-up for a
+      // customer with none, whose subscription invoice had just been
+      // paid. Say what the bonus IS instead of guessing its trigger.
       const what =
         p.source === "subscription"
           ? "a subscription payment"
           : p.source === "onetime"
-            ? "a new customer's first top-up"
+            ? "your welcome bonus for a new customer"
             : "a top-up";
       return {
         title: "You earned a commission",
