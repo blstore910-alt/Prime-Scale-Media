@@ -748,7 +748,13 @@ export const AFF_CSS = `
     letter-spacing:.04em;text-transform:uppercase;color:#ffe8b0;
     background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
     -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-  .tx-medalwrap{display:flex;flex-direction:column;align-items:center;margin-top:11px}
+  /* ── SIDE BY SIDE, NOT STACKED ──────────────────────────
+     The ring, the name and the line under it were three rows one above
+     the other, which is most of this card's height for three things
+     that are one statement. The ring is a circle with air on both
+     sides; the text belongs in that air. */
+  .tx-medalwrap{display:flex;align-items:center;gap:14px;margin-top:10px;text-align:left}
+  .tx-who{min-width:0;flex:1 1 auto}
   /* The ring: a conic gradient to --p, a soft track after it, and the
      medal punched out of the middle with a mask. It turns slowly, so it
      reads as lit rather than as a loading spinner. */
@@ -769,14 +775,14 @@ export const AFF_CSS = `
   .tx-medal.gold{background:linear-gradient(145deg,#ffdd8a,#e0980f)}
   .tx-medal.plat{background:linear-gradient(145deg,#e8f0ff,#9db8ff)}
   .tx-medal.unknown{background:linear-gradient(145deg,#3a3f57,#272b3d)}
-  .tx-name{margin-top:9px;font-family:var(--font-sora);font-weight:800;
-    font-size:1.5rem;letter-spacing:-.03em;line-height:1;
+  .tx-name{margin-top:0;font-family:var(--font-sora);font-weight:800;
+    font-size:1.55rem;letter-spacing:-.03em;line-height:1.05;
     background:linear-gradient(100deg,#e0980f 0%,#ffdf85 30%,#fff7de 46%,#ffdf85 60%,#e0980f 84%);
     -webkit-background-clip:text;background-clip:text;color:transparent}
-  .tx-sub{margin-top:4px;font-size:.8rem;color:rgba(255,255,255,.72);text-align:center;max-width:34ch}
+  .tx-sub{margin-top:3px;font-size:.78rem;color:rgba(255,255,255,.7);max-width:34ch}
   /* The ladder. Four rungs, the one you are on lit, the ones behind you
      ticked — a bar says how far, never where. */
-  .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px}
+  .tx-ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
   .tx-rung{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px 6px;
     border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);
     transition:.18s}
@@ -794,15 +800,19 @@ export const AFF_CSS = `
   .tx-rung.done .tx-rname{color:rgba(255,232,176,.82)}
   .tx-rmin{font-size:.62rem;font-weight:700;color:rgba(255,255,255,.38)}
   .tx-rung.on .tx-rmin{color:rgba(255,232,176,.7)}
-  .tx-note{margin:12px 0 0;text-align:center;font-size:.82rem;line-height:1.45;
+  .tx-note{margin:11px 0 0;text-align:center;font-size:.82rem;line-height:1.45;
     color:rgba(255,255,255,.8)}
   .tx-note b{color:#fff}.tx-note b.gold{color:#ffd98a}
-  .tx-legend{margin:7px 0 0;text-align:center;font-size:.72rem;line-height:1.45;
-    color:rgba(255,255,255,.45)}
-  .tx-legend b{color:rgba(255,255,255,.7)}
+  /* The rule behind the ladder, folded into one quiet line instead of
+     its own paragraph — it is a footnote, and it was taking a whole
+     row of the card to say so. */
+  .tx-legend{margin:6px 0 0;text-align:center;font-size:.7rem;line-height:1.4;
+    color:rgba(255,255,255,.4)}
+  .tx-legend b{color:rgba(255,255,255,.62);font-weight:700}
   @media(max-width:420px){
-    .tx-ring{width:78px;height:78px}.tx-medal{width:50px;height:50px}
-    .tx-medal svg{width:23px;height:23px}.tx-name{font-size:1.32rem}
+    .tx-ring{width:72px;height:72px}.tx-medal{width:46px;height:46px}
+    .tx-medal svg{width:21px;height:21px}.tx-name{font-size:1.3rem}
+    .tx-medalwrap{gap:11px}
     .tx-ladder{gap:4px}.tx-rname{font-size:.64rem}.tx-rmin{font-size:.56rem}
   }
   @media (prefers-reduced-motion:reduce){

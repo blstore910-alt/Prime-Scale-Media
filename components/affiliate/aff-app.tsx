@@ -1018,6 +1018,7 @@ export default function AffiliateApp() {
                       <Ic name="i-medal" />
                     </div>
                   </div>
+                  <div className="tx-who">
                   <div className="tx-name">
                     {tierUnknown ? "\u2014" : tier.name}
                   </div>
@@ -1027,6 +1028,7 @@ export default function AffiliateApp() {
                       : tierBlind
                         ? "Your USD earnings can't be converted today, so we can't place your tier yet."
                         : `You're a ${tier.name} partner`}
+                  </div>
                   </div>
                 </div>
 
