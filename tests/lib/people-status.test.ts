@@ -69,7 +69,7 @@ test("one pill class per state, so no screen can invent its own", () => {
 });
 
 test("a plan's status never prints the bare word 'Inactive'", () => {
-  assert.equal(planStatusLabel("inactive"), "Plan stopped");
+  assert.equal(planStatusLabel("inactive"), "Not billing");
   assert.equal(planStatusLabel("paused"), "Plan paused");
   assert.equal(planStatusLabel("past_due"), "Plan overdue");
   // An ordinary plan says nothing at all.

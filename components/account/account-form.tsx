@@ -384,6 +384,21 @@ export default function AccountForm({
           : {}),
         advertiser_id: values.advertiser_id,
         platform: values.platform,
+        // ── THE CURRENCY THE FORM ASKED FOR AND NEVER SENT ──────────
+        //
+        // This field has a picker, a default of EUR, a zod enum and a
+        // line of help text saying the customer's wallet is matched on
+        // it. It was not in this payload. So it arrived undefined, and
+        // the server -- which normalises anything that is not EUR or
+        // USD to USD on purpose, so that an account is never left
+        // unfundable -- wrote USD.
+        //
+        // Walked on production 2026-09-23: picked "EUR - euro account"
+        // in the dialog, pressed Create, and the row came back USD.
+        // Every funding of that account then debits the dollar wallet,
+        // the euro balance never moves, and every figure on it is in
+        // the wrong currency.
+        currency: values.currency,
         airtable: values.airtable,
         timezone: values.timezone,
         notes: values.notes || null,

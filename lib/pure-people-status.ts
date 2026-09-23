@@ -76,7 +76,14 @@ export function planStatusLabel(status?: string | null): string | null {
   const s = String(status ?? "").trim().toLowerCase();
   if (!s || s === "active") return null;
   const WORDS: Record<string, string> = {
-    inactive: "Plan stopped",
+    // NOT "Plan stopped". A subscription is CREATED inactive -- the
+    // dialog says so in its own toast, "created, not billing yet" --
+    // so the very first thing an admin saw after adding a plan was a
+    // badge claiming it had been halted. "Stopped" says something
+    // ended; nothing had. "Not billing" is true whether it never
+    // started or was switched off with the customer, and it is the
+    // same phrase the toast uses.
+    inactive: "Not billing",
     paused: "Plan paused",
     past_due: "Plan overdue",
     cancelled: "Plan cancelled",
