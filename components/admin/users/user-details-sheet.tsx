@@ -195,6 +195,38 @@ export default function UserDetailsSheet({
 
   const clientCode = advertiser?.tenant_client_code;
 
+  // ── WHO ACTUALLY REFERRED THEM ────────────────────────────────────
+  //
+  // Same row the Assigned-affiliate section below reads, so the two
+  // halves of this sheet cannot disagree about one fact. Cheap: one row,
+  // and it shares its cache key with that section.
+  const { data: realReferrer } = useQuery({
+    queryKey: ["admin-user-referral-link", advertiser?.id],
+    enabled: !!advertiser?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data: link, error } = await supabase
+        .from("referral_links_with_details")
+        .select(
+          "affiliate_advertiser_tenant_client_code, affiliate_advertiser_name",
+        )
+        .eq("referred_advertiser_id", advertiser!.id)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      const l = link as {
+        affiliate_advertiser_tenant_client_code?: string | null;
+        affiliate_advertiser_name?: string | null;
+      } | null;
+      if (!l) return null;
+      return (
+        [l.affiliate_advertiser_name, l.affiliate_advertiser_tenant_client_code]
+          .filter(Boolean)
+          .join(" · ") || null
+      );
+    },
+  });
+
   const { updateUserProfile, isPending } = useUpdateUserProfile();
   const queryClient = useQueryClient();
 
@@ -424,11 +456,37 @@ export default function UserDetailsSheet({
                   </span>
                 </div>
                 <div className="uds-kvr">
+                  {/* ── TWO ANSWERS TO ONE QUESTION, ON ONE SHEET ──────
+                      `user_profiles.referred_by` is a free-text box the
+                      CUSTOMER fills in at signup. The money-bearing fact
+                      is `referral_links`, which the Assigned affiliate
+                      section further down reads -- and the two disagree.
+                      Walked on production: PSM0007 has
+                      referral_status='referred' with an EMPTY
+                      referred_by, so this line printed a dash over a
+                      customer who is demonstrably referred by PSM0005,
+                      directly above a section naming PSM0005 and a
+                      commission of EUR 9.96 booked on them.
+                      The real link wins; what they typed is the fallback
+                      and is marked as their words. */}
                   <span className="k">Referred By</span>
                   <span className="v">
-                    {data.referral_status === "referred"
-                      ? data.referred_by || "—"
-                      : "Not Referred"}
+                    {realReferrer ? (
+                      realReferrer
+                    ) : data.referral_status === "referred" ? (
+                      data.referred_by ? (
+                        <>
+                          {data.referred_by}{" "}
+                          <span className="uds-muted">(they typed this)</span>
+                        </>
+                      ) : (
+                        <span className="uds-muted">
+                          they said yes, but named nobody
+                        </span>
+                      )
+                    ) : (
+                      "Not Referred"
+                    )}
                   </span>
                 </div>
                 <div className="uds-kvr">
