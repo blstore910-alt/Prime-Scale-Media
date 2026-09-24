@@ -13,6 +13,55 @@
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## A2 and A3 re-walked 2026-09-24
+
+### A2 - the top-up dialog, all eight branches
+
+Walked as PSM0005 in the customer browser: two wallets x four transfer
+currencies. Every figure held against the database.
+
+| branch | on screen | checked |
+|---|---|---|
+| EUR wallet, EUR | IBAN BE86...6550, TRWIBEB1XXX, Wise Belgium, SEPA/SWIFT choice | same account and swift in `bank_accounts` |
+| EUR wallet, USD | Wise US checking ...1196, ABA 101019628, TRWIUS35XXX | same |
+| EUR wallet, GBP | 45402484, sort 60-84-64, IBAN GB69...2484, TRWIGB2LXXX | **not in `bank_accounts` at all** - that table is unwired, so no customer harm today, but wiring it up would lose GBP |
+| EUR wallet, HKD | ...7588, branch 478, DHBKHKHH, DBS Hong Kong | same |
+| minimums | EUR 300 / USD 344 / GBP 258 / HKD 2.698 | 300 at the stored rates (0.872361, 0.747516, 7.84527), rounded UP: 343,89 -> 344, 257,07 -> 258, 2697,89 -> 2698 |
+| USD wallet | "at least USD 300"; in EUR "at least EUR 262" | 300 x 0.872361 = 261,7 -> 262 |
+| the floor itself | `min_topup` 300, plan active | `effectiveMinTopup` gives 300, and the LIVE RPC carries the same rule (it checks the subscription, knows 250 and 300, reads `min_topup`, mentions the community) - the trap its docblock warns about is closed |
+| step 3 | slip required before Submit, amount pills, "this is what we credit" | - |
+
+**Not walked:** the submit itself, because it needs a file upload and the
+built-in browser cannot attach one. That same path was walked on 23-09
+for D1 with PSM0011 (EUR 250 credited, EUR 999 and EUR 10 refused).
+
+### A3 - request an ad account. Walked end to end, and it cost EUR 50 twice
+
+| step | result |
+|---|---|
+| empty submit | three field errors AND three toasts, nothing sent, no charge |
+| confirm | "The fee leaves your wallet the moment you send this" - Meta, EUR, EUR 50 from your wallet |
+| sent | wallet EUR 70,00 -> **EUR 20,00**, exactly what the dialog promised; row `pending`, charged_amount 50, charged_at the same second |
+| owner's queue | the request is there, with the BM ID typed into the form |
+| review | every field back as submitted, and "Fee already paid from their wallet" |
+| reject | button DISABLED while the reason is empty |
+| rejected with a reason | charged 50 / refunded 50 / refunded_at set, wallet back to **EUR 70,00** |
+| customer sees | "Request not approved", the reason, and "The EUR 50,00 fee is back in your wallet" |
+
+**Two faults found doing it, both fixed:**
+
+1. **They paid EUR 50 and had nothing to look at.** The toast says "it
+   will appear here"; Accounts showed the same two accounts as before and
+   Home said "Ad accounts 2 - 2 active". The only trace was a debit on
+   the wallet statement. There is a card now for anything in flight, and
+   for a refusal with its reason and the refund.
+
+2. **After a rejection both dialogs stayed open** - minutes later - and
+   the reject dialog had re-rendered to read "No fee was charged for this
+   one, so nothing moves" about the request whose EUR 50 it had just
+   returned. The handler awaited `invalidateQueries` BEFORE closing, and
+   that await never came back. Close first, refresh after.
+
 ## A5 re-walked 2026-09-24 - the statement now nets to the balance
 
 A journey closed on Monday is not closed on Wednesday if the code moved

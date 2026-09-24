@@ -5164,6 +5164,16 @@ export default function AdvertiserApp() {
                 {(openRequests ?? []).map((r) => {
                   const st = String(r.status ?? "").toLowerCase();
                   const refused = st === "rejected";
+                  // A refusal is news for a while and then it is clutter.
+                  // Anything still in flight stays until it is resolved;
+                  // a refusal drops off after a month, by which time the
+                  // fee is long back and the customer has moved on.
+                  if (refused) {
+                    const age =
+                      (Date.now() - new Date(r.created_at).getTime()) /
+                      86400000;
+                    if (!Number.isFinite(age) || age > 30) return null;
+                  }
                   const back = Number(r.refunded_amount) || 0;
                   const cur =
                     String(r.currency ?? "EUR").toUpperCase() === "USD"
