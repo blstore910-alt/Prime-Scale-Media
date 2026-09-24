@@ -13,6 +13,81 @@
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## A4 and A6 re-walked 2026-09-24, with four agents on A4 first
+
+### The loop, walked as the customer and the owner, EUR 70,00 -> EUR 68,50
+
+| step | screen | database |
+|---|---|---|
+| fund EUR 50 on AA-PSM0005-EU-01 | out 50,00 / fee 3% 1,50 / lands 48,50 / wallet afterwards 20,00 | `top_ups` #8: amount_received 50.00, fee_amount 1.50, topup_amount 48.50, wallet_debited true; `wallets` 70,00 -> 20,00 |
+| unaffordable amount pills | disabled, "More than the EUR 70 available" | - |
+| confirm | "Money on an ad account can only come back through a withdrawal request, which we have to approve" | - |
+| customer sees it at once | "#000008 Funded AA-PSM0005-EU-01 -EUR 50,00 On its way" | - |
+| owner's queue | "#8 Pending EUR 48,50 - paid EUR 50,00 · fee EUR 1,50" | - |
+| verify dialog | supplier 2% = EUR 0,97, our margin EUR 0,53; Verify held until both boxes are ticked | 48,50 x 2% = 0,97 and 1,50 - 0,97 = 0,53 |
+| verified | completed, verified_at set, invoice 137 EUR 48,50 paid in the same second, notification `topup_completed` | same |
+| "Funded to date" | 242,50 -> **291,00** | sum of `topup_amount` over completed = 291.00 |
+| the bell | 19 | 19 unread |
+| A6: withdraw dialog | "Up to EUR 221,00 - that is what we funded, less anything already asked back" | 291,00 funded - 70,00 already withdrawn = 221,00 |
+| approve dialog | "Balance at the platform: **not read** - the supplier is in mock mode" | honest; not a zero |
+| approved | wallet 20,00 -> **68,50** | `wallets` 68.50 |
+
+The EUR 1,50 difference between 70,00 and 68,50 is the fee, kept. Correct.
+
+### Fixed on A4
+
+1. **The figure the customer taps was a cent off the one written.** The
+   form did `net = gross - gross*pct/100` and rounded once at print; the
+   RPC rounds the FEE first and subtracts it. EUR 100,50 at 3% reads
+   "lands 97,49" and stores 97,48. Every x,50 at 3%; every x,10/x,30/x,50
+   at 5%.
+2. **The funding button can grey out for good** with the reason only in a
+   `title` (no hover on a phone): `blockedByRate` read `isLoading`, which
+   is false for a DISABLED query in react-query v5. It reads `isPending`
+   now, which the hook exposes for exactly this.
+3. **Seven of eleven ad accounts have no currency** and the dialog refuses
+   those; the card offered Top up anyway. The button now agrees with the
+   card's own "Currency: Not set yet".
+4. **The fee was only checked when the admin retyped it.** The dialog
+   sends null on the ordinary press, so the floor and ceiling never ran.
+   They run on every verify now, on the number the row will settle at.
+
+### Fixed by plak 93
+
+**`top_ups` is session-writable and nothing in the database looked at the
+money.** Any employee admin could `insert` a row with fee 0 from the
+browser and then press the ordinary Verify. Everything that makes
+`createTopupAsAdmin` safe is a property of the server action, not of the
+table. Plak 93 adds the narrowest possible lock: the fee may not sit
+below the account's rate, the fee amount must match the percentage, and
+the currency must be the account's when it has one. The owner is
+unaffected and definer RPCs do not run as `authenticated`.
+
+### Found, NOT fixed - the reasons are in each line
+
+- `eur_value` / `eur_topup` are taken from the payload and never
+  recomputed, so on an admin BULK row with a corrected fee the euro net
+  can disagree with `topup_amount` by the whole fee. Admin path only.
+- `eur_value`, `eur_topup`, `topup_usd`, `rate` are `real` (six
+  significant digits): above EUR 9.999,99 cents die, and `topup_usd` is
+  the discriminator `landedOnAccount` keys on. One migration, and it
+  touches every money reader - not a thing to do at the end of a day.
+- `top_up_admin_verify` re-splits from `amount_received` while the dialog
+  previews from `topup_amount + fee_amount`. Identical on a customer row;
+  diverges on an admin CROSS-CURRENCY row, which plak 93 now refuses to
+  create for anyone but the owner.
+- Two totals add EUR and USD together (`account-details-sheet` "Fees
+  paid" can print a negative; the card's "Funded to date" stamps the
+  first row's currency on the sum). Needs the same mixed-currency row.
+- The bulk dialog enables LOCKED accounts by default and the server then
+  refuses the whole batch naming one account.
+- `MAINTENANCE_MODE` does not freeze the customer's funding: the browser
+  calls `top_up_create_for_advertiser` directly, so `maintenanceGuard()`
+  never runs. The freeze needs to live in SQL, or the call needs to go
+  through a server action.
+- `_fee_is_the_owners` treats a new fee of 0 as "unset" and returns
+  early. Measured: 0 accounts affected today.
+
 ## A2 and A3 re-walked 2026-09-24
 
 ### A2 - the top-up dialog, all eight branches
