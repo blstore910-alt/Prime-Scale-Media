@@ -197,7 +197,29 @@ export async function ensureInitialAdAccountTypes(): Promise<
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", profile.tenant_id);
   if (countError) return { ok: false, error: countError.message };
-  if ((count ?? 0) > 0) return { ok: true, data: { created: 0 } };
+  // ── A COUNT WE DID NOT GET IS NOT A COUNT OF ZERO ─────────────────
+  //
+  // `count` is a HEADER, not a row: PostgREST can answer without it and
+  // supabase-js then hands back null with no error. `?? 0` turned that
+  // into "this tenant has none yet" -- and this function runs on EVERY
+  // app-provider mount, for every admin, every session.
+  //
+  // What it would then do is insert the seed set on top of a tenant that
+  // already has its own. The seed is 5% for everything and 6% for
+  // TikTok; this tenant charges 3, 3, 4, 3, 3. The types map is keyed by
+  // slug and the last row wins, so the wrong default fee lands on the
+  // screen where an admin sets what a customer pays, and it is written
+  // onto the ad account for the life of it.
+  //
+  // Seeding is for an empty tenant. If we cannot tell, we do not seed.
+  if (count === null || count === undefined) {
+    return {
+      ok: false,
+      error:
+        "We couldn't tell whether this organisation already has these set up, so nothing was created.",
+    };
+  }
+  if (count > 0) return { ok: true, data: { created: 0 } };
 
   const rows = AD_ACCOUNT_TYPE_SEED.map((s) => ({
     tenant_id: profile.tenant_id,

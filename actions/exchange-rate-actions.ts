@@ -108,7 +108,19 @@ export async function ensureInitialExchangeRates(): Promise<
   if (existingErr) {
     return { ok: false, error: existingErr.message };
   }
-  if ((existingRows ?? []).length > 0) {
+  // Same rule as the two seeders beside this one: a read that did not
+  // come back is not "there is none". `data` is null with no error on
+  // some failures, and `?? []` made that look like an empty tenant --
+  // on a function that runs on every session and writes the rate every
+  // price in the app is converted with.
+  if (existingRows === null || existingRows === undefined) {
+    return {
+      ok: false,
+      error:
+        "We couldn't tell whether this organisation already has a rate, so nothing was created.",
+    };
+  }
+  if (existingRows.length > 0) {
     return { ok: true, data: { created: false } };
   }
 
