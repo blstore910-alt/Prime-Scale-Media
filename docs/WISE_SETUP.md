@@ -1,11 +1,33 @@
 # Turning the Wise deposit feed on
 
-**Current state, read off production on 2026-09-17:** no webhook is
-configured, so every delivery Wise attempts is answered `401` and no deposit
-can arrive. 229 deposits are in the table, none carry a reference, and the
-newest was received on 12 September. Wise retries a failing endpoint for a
-while and then stops — which is why this looks like "nothing has come in"
-rather than an error.
+**Current state, read off production on 2026-09-24: THE FEED IS ON.**
+One of the two webhook routes is configured and deliveries are landing.
+Measured against the database today:
+
+| | |
+|---|---|
+| deposits in the table | 298, up from 229 on 17 September |
+| newest | today, several per day |
+| references | present on most of them (PSM2059, PSM2150, PSM1965 ...) |
+| total | EUR/USD 567.078,51 since 31 August |
+| matched to a top-up | **one**, EUR 5,00 on 17 September |
+| waiting in the queue | 21 unarchived; the other 277 have been archived by hand |
+
+Nothing is broken in that last row. The references on these deposits are
+the OLD system's client codes, and this app has no pending top-up for any
+of them — Prime Scale Media has none pending at all. The matcher needs a
+reference AND an amount AND a plausible date before it will suggest
+anything, so it correctly suggests nothing. They are real payments from
+real customers who are not in this app yet.
+
+**So do not "turn the feed on" and do not turn it off.** The three
+sections below are how it was set up and how to check it; keep them for
+when a token has to be rotated.
+
+Earlier state, for context: before 17 September no webhook was configured,
+so every delivery Wise attempted was answered `401`. Wise retries a failing
+endpoint for a while and then stops — which is why it looked like "nothing
+has come in" rather than an error.
 
 The status line at the top of the Bank deposits panel on `/wallet-topups`
 says which of the three pieces are in place. It reads the environment, never

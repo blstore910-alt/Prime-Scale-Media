@@ -74,17 +74,37 @@
    that read fails, keeps the uuid in the tooltip, and says "System" for a
    row with no actor instead of a dash.
 
-### Still open on S3 - one question for the owner
+### S3 had one open question, and the answer was not what I first said
 
-**The Wise deposit feed is running on production and it is the mock.**
-`WISE_MODE` defaults to `"mock"` (lib/integrations/wise.ts) and the
-integration-jobs cron runs every minute. There are 298 rows in
-`wise_incoming_transfers` and **20 of them sit unmatched in the owner's
-money-in queue** - that is the red 20 on "Wallet Topups" in the sidebar,
-and it is a correct count of made-up deposits. `docs/WISE_SETUP.md` says
-the feed is off; it is not. Set `WISE_MODE=live` with the credentials, or
-switch the cron off, before real customers arrive. Not fixed here: it is
-an environment decision, not a code fault.
+I wrote that the Wise deposit feed was running in MOCK mode and that 20
+made-up deposits were sitting in the owner's queue. **That was wrong, and
+I checked it before it could do any harm.** What I had actually looked at
+was `WISE_MODE`, which defaults to `"mock"` and drives a POLLER that has
+never written a row (`external_id like 'wise-mock%'` returns zero).
+
+The rows come from the WEBHOOK, and it is configured and live:
+
+| | |
+|---|---|
+| deposits | 298, up from the 229 `WISE_SETUP.md` recorded on 17-09 |
+| total | EUR/USD 567.078,51 since 31 August |
+| matched to a top-up | one, EUR 5,00 |
+| in the queue | 21 unarchived; 277 archived by hand |
+
+They are REAL payments. The references are the old system's client codes
+(PSM2059, PSM2150, PSM1965) and this app has no pending top-up for any of
+them, so the matcher - which wants a reference AND an amount AND a
+plausible date - correctly suggests nothing. `docs/WISE_SETUP.md` and the
+line in `CLAUDE.md` both said the feed was off; both are corrected.
+
+**Nothing to decide, and nothing to switch off.**
+
+One thing I could not explain: on one page load, fifteen `HEAD` count
+requests to PostgREST came back `503` while every `GET` on the same load
+returned `200`. They succeeded on the retry and the counts on screen are
+right (10 advertisers, 2 affiliates, checked against the database), so
+nothing is wrong on screen - but I do not know why they failed, and if
+count badges ever go blank this is where to look.
 
 ## S2 - affiliates, commissions, invites, promotions. CLOSED
 
