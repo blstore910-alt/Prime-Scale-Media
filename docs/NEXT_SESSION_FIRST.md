@@ -39,6 +39,29 @@ plak 95 (two latent affiliate grants). Plaks 89 to 93 are applied.
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## The night of 24-09: what the second pass found after the journeys closed
+
+Agents on A4, A7 and F1-F4, then walked. Eleven more money faults, all
+fixed and live.
+
+| where | what was wrong |
+|---|---|
+| financial report | "**$48.50 landed · $1.50 fee**" beside "-EUR 50,00" on a euro account. `landedOnAccount` keys on `topup_usd` to tell a customer row from an admin one, and this report did not select that column - so every row looked like an admin row and printed dollars. Every other caller already selected it. |
+| affiliate portal (standalone) | the reconciliation of clawbacks landed only on the advertiser-as-affiliate screen, so /my-referrals still showed EUR 20,92, EUR 15,96 and EUR 24,96 / EUR 20,00 for one question |
+| affiliate tiles | "Awaiting payout" could read **-EUR 4,04** by picking the two days the clawbacks fell on |
+| payout card | an open request was subtracted TWICE: the stats RPC already excludes it |
+| payout card | the button opened on a total the server refuses - the reachability test ignored the 0,6% conversion fee, and step 2 preselected the mode that could not pass |
+| payout card | a failed read looked like "no payouts", and offered the whole balance again |
+| payout invoice | the line items did not add to the total: net printed as gross, then the clawback taken off again |
+| owner's payout queue | nothing rendered while the read was in flight, so "still loading" and "nobody is waiting" looked identical |
+| ad-account card | "Funded to date" stamped the FIRST row's currency on a sum of two |
+| account details | "Fees paid" could print a **negative** by adding EUR and USD together |
+| bulk funding | every row started enabled including LOCKED accounts, and the server then refuses the whole batch |
+| `eur_value` / `eur_topup` | taken from the payload and never recomputed, so an admin row could carry two euro nets EUR 30 apart |
+
+Two sessions expired mid-walk (30 minutes of inactivity), which is why
+the owner-side sweep of the admin routes is not in this list.
+
 ## F1, F2, F4 re-walked 2026-09-24. F3 is blocked by the owner's own rule
 
 Walked in the affiliate portal of PSM0005, who is an approved affiliate
