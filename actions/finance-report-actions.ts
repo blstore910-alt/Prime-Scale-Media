@@ -5,6 +5,7 @@ import { isMissingColumn, pageAllRows } from "@/lib/page-all-rows";
 import type { FinanceLine } from "@/lib/pure-finance-report";
 import { sortLines } from "@/lib/pure-finance-report";
 import { safeErrorMessage } from "@/lib/pure-error";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 
 /**
  * Everything that moved, for the person asking.
@@ -296,13 +297,29 @@ export async function financeReportForMe(): Promise<
     // what landed on the account and what the fee was — is stated in the
     // line's own text, where it informs without being added to a total
     // it does not belong to.
-    const landed = Math.abs(num(r.topup_amount));
+    // ---- AND IN THE CURRENCY IT ACTUALLY LANDED IN ---------------
+    //
+    // The comment above says topup_amount and fee_amount are "USD by
+    // construction", and lib/pure-topup-landed says in as many words
+    // that this is true only of the ADMIN create paths -- on a row the
+    // customer filed, topup_amount is the net in the PAYMENT currency,
+    // which is the account's. So this printed "$48,50 landed · $1,50
+    // fee" beside "-EUR 50,00" on a euro account, on the customer's own
+    // report. Measured on production for PSM0005, twice.
+    //
+    // landedOnAccount is the one place that knows which of the two
+    // shapes a row is, and it hands back the currency with the amount.
+    const landedInfo = landedOnAccount(r as never);
+    const landed = Math.abs(Number(landedInfo.amount) || 0);
+    const landedCur = String(landedInfo.currency ?? r.currency ?? "EUR")
+      .toUpperCase();
+    const sym = landedCur === "USD" ? "$" : "€";
     const fee = Math.abs(num(r.fee_amount));
     const left = Math.abs(num(r.amount_received));
     const detail = done
       ? [
-          landed > 0 ? `$${landed.toFixed(2)} landed` : null,
-          fee > 0 ? `$${fee.toFixed(2)} fee` : null,
+          landed > 0 ? `${sym}${landed.toFixed(2)} landed` : null,
+          fee > 0 ? `${sym}${fee.toFixed(2)} fee` : null,
         ]
           .filter(Boolean)
           .join(" · ")
