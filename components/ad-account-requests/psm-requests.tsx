@@ -611,11 +611,29 @@ export default function PsmRequests() {
                     <Clock /> I&apos;m on it
                   </button>
                 )}
-                {(r.status ?? "") === "in_progress" && (
+                {/* ── AND OUT OF payment_pending TOO ─────────────────
+                    A request moves to payment_pending the moment the fee
+                    invoice is raised, and from there NOTHING on this card
+                    could move it: "I'm on it" wants pending, this wanted
+                    in_progress, and Review hides Create Invoice outside
+                    the fee stage. So an invoice raised for the wrong
+                    amount could not be replaced.
+                    Worse if you then void it: the unpaid-fee guard in
+                    createAdAccountFromRequest only looks for an invoice
+                    with status 'unpaid', so a VOIDED one lets Create Ad
+                    Account through and the account is handed over with no
+                    fee collected at all -- and no way left to raise one.
+                    The server already allows pending as a target. */}
+                {["in_progress", "payment_pending"].includes(r.status ?? "") && (
                   <button
                     className="btn ghost sm"
                     disabled={busyId === r.id}
                     onClick={() => markPending(r)}
+                    title={
+                      r.status === "payment_pending"
+                        ? "Puts it back in the fee stage so the invoice can be raised again. Void the wrong invoice on /invoices first."
+                        : undefined
+                    }
                   >
                     <Undo2 /> Back to pending
                   </button>
@@ -725,6 +743,14 @@ export default function PsmRequests() {
           if (!open) setRequestToReject(null);
         }}
         isSubmitting={isRejecting}
+        chargedAmount={
+          (requestToReject as { charged_amount?: number | null } | null)
+            ?.charged_amount
+        }
+        chargedCurrency={
+          (requestToReject as { charged_currency?: string | null } | null)
+            ?.charged_currency
+        }
         onSubmit={handleRejectRequest}
       />
       <AdAccountRequestDetailsSheet

@@ -8,6 +8,7 @@ import PsmSortFilter from "@/components/psm/sort-filter";
 import CustomerName from "@/components/psm/customer-name";
 import { useAppContext } from "@/context/app-provider";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
+import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -437,6 +438,14 @@ const badgeFor = (
 function WithdrawalsSection() {
   // Approve and Reject both ask first. See ActionAskModal above.
   const [ask, setAsk] = useState<ActionAsk | null>(null);
+  // ── THE TYPE'S NAME, NOT ITS SLUG RUN THROUGH capitalize ─────────
+  //
+  // ad_accounts.platform stores the SLUG, and this printed it with
+  // text-transform:capitalize -- so "eu-meta-psm" came out as
+  // "Eu-Meta-Psm" on the queue where money leaves. The tenant's own
+  // label for that slug is "Meta-EU-PSM-RA", and it is already read by
+  // the create and update forms.
+  const { bySlug: adTypes } = useAdAccountTypes();
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
   const queryClient = useQueryClient();
@@ -628,12 +637,12 @@ function WithdrawalsSection() {
                             <div>{w.ad_account?.name ?? "—"}</div>
                             <div
                               className="muted"
-                              style={{
-                                fontSize: ".78rem",
-                                textTransform: "capitalize",
-                              }}
+                              style={{ fontSize: ".78rem" }}
                             >
-                              {w.ad_account?.platform ?? ""}
+                              {w.ad_account?.platform
+                                ? (adTypes.get(w.ad_account.platform)?.label ??
+                                  w.ad_account.platform)
+                                : ""}
                             </div>
                           </td>
                           <td

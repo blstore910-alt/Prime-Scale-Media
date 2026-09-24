@@ -940,7 +940,16 @@ export async function createAdAccountFromRequest(
       .select("id, items, status")
       .eq("advertiser_id", req.advertiser_id)
       .eq("type", "ad_account_fee")
-      .eq("status", "unpaid")
+      // ── AND A VOIDED ONE IS NOT A PAID ONE ──────────────────────
+      //
+      // This asked only for `unpaid`. Void the fee invoice on /invoices
+      // and the guard finds nothing, so the account is handed over with
+      // the fee neither paid nor outstanding -- and, until today, with
+      // no way left to raise a new one, because the queue could not move
+      // the request back into the fee stage either. "Void it first if
+      // you are waiving the fee" is in the refusal below, so voiding has
+      // to be a deliberate waiver rather than a side door.
+      .in("status", ["unpaid", "void", "draft"])
       .limit(500);
     // A read we could not make is not "no unpaid fee". Swallowing this
     // error let the guard pass, and the account was handed over with the
@@ -965,10 +974,13 @@ export async function createAdAccountFromRequest(
       );
     });
     if (unpaid) {
+      const st = String((unpaid as { status?: string }).status ?? "unpaid");
       return {
         ok: false,
         error:
-          "The fee for this request has not been paid yet. Wait for the invoice to settle, or void it first if you are waiving the fee.",
+          st === "void"
+            ? "The fee invoice for this request was voided, so nothing has been collected and nothing is outstanding. Put the request back to pending and raise a new one — or delete the voided invoice if the fee really is waived."
+            : "The fee for this request has not been paid yet. Wait for the invoice to settle, or void it first if you are waiving the fee.",
       };
     }
   }

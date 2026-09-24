@@ -3,6 +3,7 @@
 import InputField from "@/components/form/input-field";
 import SelectField from "@/components/form/select-field";
 import { useAppContext } from "@/context/app-provider";
+import { toastResult } from "@/lib/action-warning";
 import { PLATFORMS } from "@/lib/constants";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
@@ -183,9 +184,21 @@ export default function CreateAdAccountFromRequestDialog({
         metadata: metadata || {},
       });
       if (!result.ok) throw new Error(result.error);
+      // ── AND CARRY THE WARNING OUT ────────────────────────────────
+      //
+      // createAdAccountFromRequest returns `warning` when the customer
+      // could not be told -- the literal sentence is "The customer was
+      // NOT notified: <why>. Tell them by hand." This mutationFn
+      // returned undefined, so onSuccess fired a plain green tick and
+      // the warning was gone. The account exists, the request is
+      // completed, and the person it is for has heard nothing.
+      return (result as { warning?: string | null }).warning ?? null;
     },
-    onSuccess: () => {
-      toast.success("Ad account created from request.");
+    onSuccess: (warning) => {
+      toastResult(
+        { warning: warning ?? undefined },
+        "Ad account created from request.",
+      );
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["ad-account-requests"] });

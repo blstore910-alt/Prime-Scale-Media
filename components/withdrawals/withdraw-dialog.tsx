@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { requestAdAccountWithdrawal } from "@/actions/withdrawal-actions";
 import { createClient } from "@/lib/supabase/client";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
+import { pageAllRows } from "@/lib/page-all-rows";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -84,25 +85,60 @@ export default function WithdrawDialog({
     staleTime: 15_000,
     queryFn: async () => {
       const supabase = createClient();
-      const put = await supabase
-        .from("top_ups")
-        // topup_usd and currency as well: without them landedOnAccount
-        // cannot tell a customer row from an admin one and reads every
-        // amount as dollars.
-        .select("topup_amount, topup_usd, currency")
-        .eq("account_id", adAccountId)
-        .eq("status", "completed")
-        .not("is_deleted", "is", true);
-      if (put.error) throw put.error;
-      const off = await supabase
-        .from("ad_account_withdrawals")
-        .select("amount, currency, status")
-        .eq("ad_account_id", adAccountId);
-      if (off.error) throw off.error;
+      // ── PAGED, LIKE THE SERVER DOES IT ──────────────────────────
+      //
+      // Two unbounded selects. PostgREST caps a response at 1,000 rows,
+      // and the server computes this same ceiling with pageAllRows and
+      // a comment saying why: missing top-ups only under-count, but
+      // missing WITHDRAWALS inflate the balance. So the screen and the
+      // server were computing one figure by two different rules, and
+      // past a thousand rows they would disagree -- the customer told
+      // one number and refused with another.
+      const put = await pageAllRows<{
+        topup_amount: number | string | null;
+        topup_usd: number | string | null;
+        currency: string | null;
+      }>((from, to) =>
+        supabase
+          .from("top_ups")
+          // topup_usd and currency as well: without them landedOnAccount
+          // cannot tell a customer row from an admin one and reads every
+          // amount as dollars.
+          .select("topup_amount, topup_usd, currency")
+          .eq("account_id", adAccountId)
+          .eq("status", "completed")
+          .not("is_deleted", "is", true)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (put.error) throw new Error(put.error);
+      if (put.truncated) {
+        throw new Error(
+          "This account has more top-ups than we can add up at once — ask us and we will work the figure out by hand.",
+        );
+      }
+      const off = await pageAllRows<{
+        amount: number | string | null;
+        currency: string | null;
+        status: string | null;
+      }>((from, to) =>
+        supabase
+          .from("ad_account_withdrawals")
+          .select("amount, currency, status")
+          .eq("ad_account_id", adAccountId)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (off.error) throw new Error(off.error);
+      if (off.truncated) {
+        throw new Error(
+          "This account has more withdrawals than we can add up at once — ask us and we will work the figure out by hand.",
+        );
+      }
       // Only what landed in THIS account's currency. Rows in another
       // one are not converted here — the wallet's exchange is the only
       // place in this app allowed to turn one currency into another.
-      const onAcct = (put.data ?? []).reduce((a, r) => {
+      const onAcct = put.rows.reduce((a, r) => {
         const landed = landedOnAccount(
           r as Parameters<typeof landedOnAccount>[0],
         );
@@ -112,7 +148,7 @@ export default function WithdrawDialog({
       // currency is another currency's money and does not come off this
       // total. Without this the customer's own ceiling disagreed with
       // the server's, in the direction that refuses them their money.
-      const taken = (off.data ?? [])
+      const taken = off.rows
         .filter((r) => {
           const row = r as { status?: unknown; currency?: unknown };
           const st = String(row.status ?? "").toLowerCase();
@@ -196,6 +232,17 @@ export default function WithdrawDialog({
   // Closing the dialog always returns it to step one, so reopening never
   // lands on a confirmation for figures that are no longer on screen.
   const handleOpenChange = (next: boolean) => {
+    // ── AND NOT WHILE THE REQUEST IS BEING SENT ────────────────────
+    //
+    // Every other dialog on this journey blocks dismissal mid-write.
+    // This one let Escape, the backdrop and the corner X through while
+    // the button still read "Sending…", so the box vanished with the
+    // RPC in flight and no toast yet -- and the note fifty lines up
+    // says what happens next: "There is no duplicate guard on the RPC,
+    // so the natural next step is to file it again." Both pending rows
+    // then count against the ceiling, and the customer cannot reach
+    // their own money.
+    if (!next && isPending) return;
     if (!next) setConfirming(false);
     onOpenChange(next);
   };
