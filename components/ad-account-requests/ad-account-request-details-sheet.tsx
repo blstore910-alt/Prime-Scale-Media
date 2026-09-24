@@ -113,6 +113,23 @@ export default function AdAccountRequestDetailsSheet({
           </div>
         )}
 
+        {/* ── AND THE FOURTH STATE ───────────────────────────────────
+            .maybeSingle() returns data:null for a row that is gone or
+            has fallen out of this admin's RLS scope, and with all three
+            branches above false the sheet rendered its header, an X and
+            nothing else -- indistinguishable from a rendering fault. The
+            review dialog beside it, with the same query, has this
+            branch. */}
+        {!isLoading && !isError && !data && (
+          <div className="mt-4 space-y-1 p-4 text-sm">
+            <p className="font-semibold">We couldn&apos;t read this request.</p>
+            <p className="text-muted-foreground">
+              It may have been removed, or the connection dropped. Close
+              this and reload before acting on it.
+            </p>
+          </div>
+        )}
+
         {data && (
           <div className="space-y-4 p-4 text-sm">
             <Card className="p-4 gap-2">
@@ -171,7 +188,19 @@ export default function AdAccountRequestDetailsSheet({
 
             <Card className="p-4 gap-1">
               <h3 className="font-semibold mb-2">Advertiser</h3>
-              <p>{`${data.advertiser?.tenant_client_code}: ${data.advertiser?.profile?.full_name}`}</p>
+              {/* Both halves optional: a null embed printed the words
+                  "undefined: undefined" where a customer's name belongs.
+                  The review dialog says "No advertiser attached." */}
+              <p>
+                {data.advertiser
+                  ? [
+                      data.advertiser.tenant_client_code,
+                      data.advertiser.profile?.full_name,
+                    ]
+                      .filter(Boolean)
+                      .join(": ") || "-"
+                  : "No advertiser attached."}
+              </p>
               <span className="text-muted-foreground">
                 {data.advertiser?.profile?.email || "-"}
               </span>

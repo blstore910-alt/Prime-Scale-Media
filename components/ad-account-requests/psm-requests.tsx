@@ -250,6 +250,10 @@ export default function PsmRequests() {
       await queryClient.invalidateQueries({
         queryKey: ["ad-account-request-details", r.id],
       });
+      // The tab badge and the sidebar read ["pending-counts"], and
+      // nothing invalidated it -- so this queue emptied while the number
+      // beside its name stayed put for up to a minute.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       await refetch();
     } catch (err) {
       // The same conflict the reject path got fixed for: the row in
@@ -315,6 +319,7 @@ export default function PsmRequests() {
         queryKey: ["ad-account-request-details", requestToReject.id],
       });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       setRequestToReject(null);
       await refetch();
     } catch (err) {

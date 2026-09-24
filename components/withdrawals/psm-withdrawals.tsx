@@ -138,7 +138,31 @@ function ActionAskModal({
       const { readAdAccountLiveBalance } = await import(
         "@/actions/withdrawal-actions"
       );
-      const res = await readAdAccountLiveBalance(c.accountId);
+      let res;
+      try {
+        res = await readAdAccountLiveBalance(c.accountId);
+      } catch (e) {
+        // ── A REJECTED PROMISE LEFT IT ON "CHECKING…" FOR EVER ─────
+        //
+        // readAdAccountLiveBalance RETURNS a reason for every failure it
+        // anticipates, so this looked safe -- but a rejected promise
+        // (a dynamic-import chunk that 404s after a deploy, a dropped
+        // round trip) never reached either branch, and the state stayed
+        // `loading`. "Asking the platform what it holds…" then sat
+        // there, with no error and no retry, while the tick box still
+        // let Confirm through. This app deploys several times a day,
+        // which is exactly when a stale chunk URL rejects.
+        if (!cancelled) {
+          setCover({
+            state: "unknown",
+            reason:
+              e instanceof Error && e.message
+                ? e.message
+                : "the check itself failed — reload before approving",
+          });
+        }
+        return;
+      }
       if (cancelled) return;
       if (!res.ok) {
         setCover({ state: "unknown", reason: res.error });
@@ -172,7 +196,16 @@ function ActionAskModal({
       lead={ask?.lead}
       cta={ask?.cta ?? "Confirm"}
       tone={ask?.danger ? "danger" : "default"}
-      busy={busy}
+      // ── AND NOT "BUSY" FOR SOMEBODY ELSE'S ROW ────────────────────
+      //
+      // onConfirm closes this modal BEFORE it runs (see below), so it is
+      // never open during its own mutation -- which meant `busy` could
+      // only ever be true because a DIFFERENT row was still settling.
+      // ConfirmModal then refuses to close, greys out Cancel and greys
+      // out Confirm: open Reject on row B while row A's approve is in
+      // flight and you get row B's facts under a dead "Working…" button,
+      // with Escape and the backdrop dead too, until A finishes.
+      busy={false}
       busyLabel="Working…"
       // Close FIRST, then act. Left open, the operator working a queue saw
       // the same dialog after every approval, blocking the page with its
@@ -491,6 +524,12 @@ function WithdrawalsSection() {
         });
       }
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
     onError: (e: Error) =>
@@ -513,6 +552,12 @@ function WithdrawalsSection() {
     onSuccess: () => {
       toast.success("Withdrawal rejected");
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Reject failed", { description: e.message }),
@@ -873,6 +918,12 @@ function RefundsSection() {
         "Refund approved — wallet debited",
       );
       queryClient.invalidateQueries({ queryKey: ["wallet-refunds"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
     onError: (e: Error) =>
@@ -889,6 +940,12 @@ function RefundsSection() {
     onSuccess: () => {
       toast.success("Refund rejected");
       queryClient.invalidateQueries({ queryKey: ["wallet-refunds"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Reject failed", { description: e.message }),
@@ -1309,6 +1366,12 @@ function RefundRequestDialog({
     onSuccess: () => {
       toast.success("Refund requested — awaiting owner approval");
       queryClient.invalidateQueries({ queryKey: ["wallet-refunds"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       setAdvertiserId("");
       setAmount("");
       setReason("");
@@ -1566,6 +1629,12 @@ function AdjustmentsSection() {
         "Adjustment approved — wallet updated",
       );
       queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
     onError: (e: Error) =>
@@ -1582,6 +1651,12 @@ function AdjustmentsSection() {
     onSuccess: () => {
       toast.success("Adjustment rejected");
       queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
     },
     onError: (e: Error) =>
       toast.error("Reject failed", { description: e.message }),
@@ -1930,6 +2005,12 @@ function AdjustmentRequestDialog({
     onSuccess: () => {
       toast.success("Adjustment requested — awaiting owner approval");
       queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"] });
+      // The tab badge and the sidebar read ["pending-counts"], which
+      // nothing invalidated -- so the section header dropped to 0 the
+      // moment this landed while the badge above it kept the old
+      // number for up to a minute. Two counts of one queue, on one
+      // screen, disagreeing.
+      queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       setAdvertiserId("");
       setAmount("");
       setReason("");
