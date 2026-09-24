@@ -1209,8 +1209,17 @@ function AdvertiserRow({
         busyLabel="Saving…"
         tone="danger"
         onConfirm={() => {
+          // NOT setAskDeactivate(false) here. ConfirmModal refuses to
+          // close while `busy`, which is the whole point of it — and
+          // closing from this handler made that unreachable, so the
+          // dialog vanished on the first press and the only sign that
+          // anything was happening was a spinner in one cell, for the
+          // two seconds it takes to switch a paying customer off.
+          // toggleStatus closes it from onSettled, either way.
+          //
+          // Measured on production before this line: dialog gone at
+          // 675ms, write landed at 2675ms.
           closeGuard();
-          setAskDeactivate(false);
           toggleStatus();
         }}
       >
