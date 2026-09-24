@@ -1422,6 +1422,56 @@ export default function AdvertiserApp() {
     },
   });
 
+  // ── THEY PAID EUR 50 AND HAD NOTHING TO LOOK AT ──────────────────
+  //
+  // Walked on production today as PSM0005: filled the form, confirmed
+  // "Yes, send it", EUR 70,00 -> EUR 20,00, row written as `pending`
+  // with charged_amount 50 -- and then NOTHING. The toast says "we'll
+  // set the account up and it will appear here", and Accounts showed the
+  // same two live accounts as before. Home said "Ad accounts 2 · 2
+  // active". The only trace anywhere on the customer's screens was a
+  // EUR 50 charge on the wallet statement, which is a debit, not a
+  // request.
+  //
+  // So: the money is gone, the promise says "here", and here is empty.
+  // That is the support ticket writing itself.
+  const { data: openRequests, isError: openRequestsError } = useQuery<
+    {
+      id: string;
+      created_at: string;
+      platform: string | null;
+      currency: string | null;
+      status: string | null;
+      rejection_reason: string | null;
+      refunded_amount: number | string | null;
+    }[]
+  >({
+    queryKey: ["adv-open-requests", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("ad_account_requests")
+        .select(
+          "id, created_at, platform, currency, status, rejection_reason, refunded_amount",
+        )
+        .eq("advertiser_id", advertiserId!)
+        // Anything still in flight, plus a refusal -- a customer whose
+        // request was turned down needs to see that it was, and that the
+        // fee came back, not just an empty page.
+        .in("status", [
+          "pending",
+          "payment_pending",
+          "in_progress",
+          "rejected",
+        ])
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []) as never;
+    },
+  });
+
   // ── THE TWO MOVEMENTS THE LIST DID NOT CARRY ────────────────────
   //
   // Measured on production, 23-09. Adding up every line on PSM0005's
@@ -5094,6 +5144,103 @@ export default function AdvertiserApp() {
                   ))}
               </div>
             </div>
+            {/* What you asked for, before what you already have. */}
+            {openRequestsError ? (
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: ".86rem",
+                  fontWeight: 600,
+                  color: "var(--danger)",
+                }}
+              >
+                We couldn&apos;t check whether you have a request in
+                progress. If you just sent one, it is not lost — reload
+                to see it.
+              </p>
+            ) : null}
+            {(openRequests ?? []).length ? (
+              <div className="grid3" style={{ marginBottom: 14 }}>
+                {(openRequests ?? []).map((r) => {
+                  const st = String(r.status ?? "").toLowerCase();
+                  const refused = st === "rejected";
+                  const back = Number(r.refunded_amount) || 0;
+                  const cur =
+                    String(r.currency ?? "EUR").toUpperCase() === "USD"
+                      ? "$"
+                      : "€";
+                  return (
+                    <div key={r.id} className="acard">
+                      <div className="top">
+                        <span className="pfi">
+                          <PlatformMark
+                            slug={r.platform}
+                            className="pmark"
+                          />
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="nm">
+                            {refused
+                              ? "Request not approved"
+                              : "Ad account on the way"}
+                          </div>
+                          <div className="sub">
+                            {[
+                              platformLabel(r.platform),
+                              String(r.currency ?? "").toUpperCase(),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </div>
+                        <span style={{ marginLeft: "auto" }}>
+                          <span
+                            className={`badge ${refused ? "bad" : "pend"}`}
+                          >
+                            {refused
+                              ? "Not approved"
+                              : st === "in_progress"
+                                ? "Being set up"
+                                : "Waiting for us"}
+                          </span>
+                        </span>
+                      </div>
+                      <p
+                        style={{
+                          margin: "10px 2px 0",
+                          fontSize: ".86rem",
+                          color: "var(--txt-2)",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {refused ? (
+                          <>
+                            {r.rejection_reason
+                              ? r.rejection_reason
+                              : "We could not set this one up."}
+                            {back > 0 ? (
+                              <>
+                                {" "}
+                                <strong>
+                                  The {cur}
+                                  {money2(back)} fee is back in your wallet.
+                                </strong>
+                              </>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            Asked on {dayjs(r.created_at).format("D MMM")}. We set it up
+                            on our Business Manager and it appears here as a
+                            live account.
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
             {(accounts ?? []).length ? (
               <div className="grid3">
                 {(accounts ?? []).map((a) => (
