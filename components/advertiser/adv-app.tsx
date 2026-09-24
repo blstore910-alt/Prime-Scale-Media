@@ -14,6 +14,10 @@ import { customerPlatformName } from "@/lib/pure-platform-badge";
 // is switched on. app/api/push/notify/route.ts sends them at step
 // 3a-ter, before it reads the preference, deliberately.
 import { BILLING_EMAIL_TYPES as ALWAYS_EMAILED } from "@/lib/pure-billing-email";
+import {
+  groupsForRole,
+  type NotificationGroupForRole,
+} from "@/lib/notification-catalog";
 import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
@@ -84,7 +88,6 @@ import PsmAvatar from "@/components/ui/psm-avatar";
 import FinanceReport from "@/components/finance/finance-report";
 import { isAccountLocked } from "@/lib/pure-account-status";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
-import { catalogForRole } from "@/lib/notification-catalog";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 
 dayjs.extend(relativeTime);
@@ -6668,13 +6671,15 @@ export default function AdvertiserApp() {
                     notification types had no control anywhere: past
                     due, plan changed, and the three added tonight.
                     Anything added later now appears here on its own. */}
-                {catalogForRole("advertiser").map((entry) => (
-                  <Toggle
-                    key={entry.type}
-                    label={entry.label}
-                    desc={entry.description}
-                    notifType={entry.type}
-                  />
+                {/* ---- FIVE SWITCHES, NOT TWENTY-FOUR --------------
+                    Every type still has its own row in the database,
+                    because that is what the sender checks. It does not
+                    need its own switch here: twenty-four of them is a
+                    wall nobody reads. One switch per subject, and the
+                    individual ones are one tap away for anybody who
+                    wants them. */}
+                {groupsForRole("advertiser").map((g) => (
+                  <GroupToggle key={g.id} group={g} />
                 ))}
               </div>
             </div>
@@ -7279,6 +7284,92 @@ function WalletCard({
       {disabled && disabledReason && (
         <div className="wavail">{disabledReason}</div>
       )}
+    </div>
+  );
+}
+
+/**
+ * One switch for a whole subject.
+ *
+ * On when ANY notice in the group is on -- because that is when the
+ * customer still hears something from it. Pressing it writes every type
+ * underneath, so there is no half state to puzzle over; "some on" is
+ * said in words instead.
+ */
+function GroupToggle({ group }: { group: NotificationGroupForRole }) {
+  const { isEnabled, setPreference, isError, isLoading } =
+    useNotificationPreferences();
+  const [open, setOpen] = useState(false);
+  const types = group.entries.map((e) => e.type);
+  const onCount = types.filter((t) => isEnabled(t)).length;
+  const anyOn = onCount > 0;
+  const mixed = onCount > 0 && onCount < types.length;
+  const busy = setPreference.isPending || isError || isLoading;
+
+  return (
+    <div style={{ borderBottom: "1px solid var(--line)" }}>
+      <div className="toggle-row">
+        <div>
+          <div className="t">{group.label}</div>
+          <div className="d">
+            {isError
+              ? "We couldn't read your settings just now."
+              : isLoading
+                ? "Reading your settings…"
+                : group.description}
+          </div>
+          {!isError && !isLoading ? (
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="d"
+              style={{
+                marginTop: 4,
+                background: "none",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
+                color: "var(--primary)",
+                textDecoration: "underline",
+              }}
+            >
+              {open
+                ? "Hide the individual notices"
+                : mixed
+                  ? `${onCount} of ${types.length} on — show them`
+                  : `Show the ${types.length} notices`}
+            </button>
+          ) : null}
+        </div>
+        <button
+          className={`sw${isError || isLoading ? "" : anyOn ? " on" : ""}`}
+          disabled={busy}
+          onClick={() => {
+            // All of them, one way. A group that is partly on switches
+            // fully off first, which is what pressing a lit switch
+            // means everywhere else.
+            const next = !anyOn;
+            for (const t of types) {
+              if (isEnabled(t) !== next) {
+                setPreference.mutate({ type: t, enabled: next });
+              }
+            }
+          }}
+          aria-label={group.label}
+        />
+      </div>
+      {open ? (
+        <div style={{ paddingLeft: 14, paddingBottom: 6 }}>
+          {group.entries.map((entry) => (
+            <Toggle
+              key={entry.type}
+              label={entry.label}
+              desc={entry.description}
+              notifType={entry.type}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

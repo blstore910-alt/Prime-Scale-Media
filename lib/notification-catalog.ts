@@ -293,6 +293,141 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
 ];
 
 // Map a profile role to the audience whose toggles they should see.
+/**
+ * ---- FIVE SWITCHES, NOT TWENTY-FOUR ---------------------------------
+ *
+ * Every notification type needs its own row in the database, because
+ * that is what the sender checks. It does not need its own switch on a
+ * customer's settings screen: twenty-four of them is a wall nobody
+ * reads, and the owner asked for five or six that each cover a subject.
+ *
+ * So the catalogue stays the record and this is the shape it is OFFERED
+ * in. A group switch writes every type underneath it; the individual
+ * ones are still there for anybody who opens the group.
+ *
+ * `groupsForRole` puts anything not named here into "Everything else",
+ * so a type added later still gets a switch instead of quietly losing
+ * one. tests/lib/notification-groups.test.ts holds that line.
+ */
+export type NotificationGroup = {
+  id: string;
+  label: string;
+  description: string;
+  types: string[];
+};
+
+export const NOTIFICATION_GROUPS: NotificationGroup[] = [
+  {
+    id: "money-in",
+    label: "Money arriving",
+    description:
+      "Transfers we confirm, top-ups credited, and money coming back from an ad account.",
+    types: [
+      "wallet_topup_completed",
+      "wallet_topup_rejected",
+      "topup_completed",
+      "withdrawal_approved",
+      "withdrawal_rejected",
+      "request_fee_refunded",
+    ],
+  },
+  {
+    id: "billing",
+    label: "Invoices and your subscription",
+    description:
+      "A new invoice, one about to be taken from your wallet, one that could not be collected, or a change to what you pay.",
+    types: [
+      "subscription_invoice",
+      "subscription_invoice_due_soon",
+      "subscription_invoice_paid",
+      "subscription_past_due",
+      "subscription_changed",
+    ],
+  },
+  {
+    id: "ad-accounts",
+    label: "Your ad accounts",
+    description:
+      "An account you asked for is ready, or money could not be put on one.",
+    types: ["ad_account_request_approved", "topup_rejected"],
+  },
+  {
+    id: "referrals",
+    label: "Referrals and payouts",
+    description:
+      "Somebody signing up through your link, what it earned you, and what happens to a payout you asked for.",
+    types: [
+      "referral_joined",
+      "referral_approved",
+      "referral_rejected",
+      "referral_commission_earned",
+      "affiliate_approved",
+      "affiliate_refused",
+      "affiliate_payout_paid",
+      "affiliate_payout_rejected",
+      "affiliate_upgrade_approved",
+      "affiliate_upgrade_refused",
+    ],
+  },
+  {
+    id: "account",
+    label: "Your account",
+    description: "Answers about your account itself, such as a deletion request.",
+    types: ["account_deletion_declined"],
+  },
+];
+
+export type NotificationGroupForRole = {
+  id: string;
+  label: string;
+  description: string;
+  entries: NotificationCatalogEntry[];
+};
+
+/**
+ * The groups a role actually sees, with the types that role can receive.
+ * An empty group is dropped; a type in no group lands in "Everything
+ * else" rather than losing its switch.
+ */
+export function groupsForRole(
+  role: string | null | undefined,
+): NotificationGroupForRole[] {
+  const entries = catalogForRole(role);
+  const byType = new Map(entries.map((e) => [String(e.type), e]));
+  const used = new Set<string>();
+  const out: NotificationGroupForRole[] = [];
+
+  for (const g of NOTIFICATION_GROUPS) {
+    const mine: NotificationCatalogEntry[] = [];
+    for (const t of g.types) {
+      const e = byType.get(t);
+      if (e) {
+        mine.push(e);
+        used.add(t);
+      }
+    }
+    if (mine.length > 0) {
+      out.push({
+        id: g.id,
+        label: g.label,
+        description: g.description,
+        entries: mine,
+      });
+    }
+  }
+
+  const rest = entries.filter((e) => !used.has(String(e.type)));
+  if (rest.length > 0) {
+    out.push({
+      id: "other",
+      label: "Everything else",
+      description: "Anything that does not fall under the groups above.",
+      entries: rest,
+    });
+  }
+  return out;
+}
+
 export function audienceForRole(
   role: string | null | undefined,
 ): NotificationAudience {
