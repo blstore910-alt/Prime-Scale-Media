@@ -26,8 +26,9 @@ first — and that second pass found real money faults in four of them.
 | S1, S2, S3 | walked 24-09 |
 
 **Saved for us to run together, not handed over:** plak 94 (the four
-`real` money columns to `numeric`, which rebuilds `top_ups_view`) and
-plak 95 (two latent affiliate grants). Plaks 89 to 93 are applied.
+`real` money columns to `numeric`, which rebuilds `top_ups_view`), plak
+95 (two latent affiliate grants) and plak 96 (the amount and the account
+in the top-up notification). Plaks 89 to 93 are applied.
 
 > **S1, S2 and S3 CLOSED 2026-09-24.** Walked as the owner on production,
 > every figure held against the database. Their blocks are directly below;
@@ -58,6 +59,8 @@ fixed and live.
 | account details | "Fees paid" could print a **negative** by adding EUR and USD together |
 | bulk funding | every row started enabled including LOCKED accounts, and the server then refuses the whole batch |
 | `eur_value` / `eur_topup` | taken from the payload and never recomputed, so an admin row could carry two euro nets EUR 30 apart |
+| notifications | three money notices carried `amount` and `currency` in the payload and printed neither: "We couldn't put **this money** on your ad account", "the fee is back in your wallet", "**What you asked back** has landed". They say the figure now. |
+| notification `topup_completed` | says nothing at all about how much or which account, because the LIVE trigger writes only `topup_id`. The app reads both shapes; **plak 96** (saved) puts the amount, the currency and the account name in the payload. |
 
 Two sessions expired mid-walk (30 minutes of inactivity), which is why
 the owner-side sweep of the admin routes is not in this list.
