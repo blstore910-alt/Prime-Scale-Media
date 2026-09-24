@@ -548,9 +548,12 @@ function WithdrawalsSection() {
       setActingId(vars.id);
       const res = await rejectAdAccountWithdrawal(vars.id, vars.reason);
       if (!res.ok) throw new Error(res.error);
+      // And whether the customer was actually told. The refusal is the
+      // only word they ever get about this request.
+      return res.warning ?? null;
     },
-    onSuccess: () => {
-      toast.success("Withdrawal rejected");
+    onSuccess: (warning) => {
+      toastResult({ warning: warning ?? undefined }, "Withdrawal rejected");
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
       // The tab badge and the sidebar read ["pending-counts"], which
       // nothing invalidated -- so the section header dropped to 0 the

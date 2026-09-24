@@ -12,6 +12,7 @@ import {
   accountLockedReason,
 } from "@/lib/pure-account-status";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
+import { notifyOrWarn } from "@/lib/notify-or-warn";
 
 type ActionResult<T = null> =
   // `warning` is a success that came with something the caller has to be
@@ -480,7 +481,11 @@ export async function approveAdAccountWithdrawal(
   // now the request itself was invisible on every customer screen, so
   // the whole journey -- ask, wait, receive -- happened without a
   // single word reaching them.
-  await notifyAdvertiser(supabase, {
+  // Two things can go wrong after the money has moved, and they must not
+  // overwrite each other: the customer not being told, and the supplier
+  // not being asked to take it off the ad account. Both are joined into
+  // the one warning slot below.
+  const notifyWarning = await notifyOrWarn(supabase, {
     advertiserId: (wd as { advertiser_id?: string | null } | null)
       ?.advertiser_id,
     tenantId: (wd as { tenant_id?: string | null } | null)?.tenant_id ?? null,
@@ -530,9 +535,14 @@ export async function approveAdAccountWithdrawal(
     // is "the ordinary state and nobody needs telling". This one was
     // missed.
     warning:
-      pushed.enqueued || pushed.heldByGate
-        ? undefined
-        : `The wallet is credited, but the supplier was not told to take it off the ad account: ${pushed.reason}. Do that by hand, or the money is on both.`,
+      [
+        notifyWarning,
+        pushed.enqueued || pushed.heldByGate
+          ? null
+          : `The wallet is credited, but the supplier was not told to take it off the ad account: ${pushed.reason}. Do that by hand, or the money is on both.`,
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
   };
 }
 
@@ -555,6 +565,22 @@ export async function rejectAdAccountWithdrawal(
   if (typeof withdrawalId !== "string" || !withdrawalId) {
     return { ok: false, error: "Invalid input" };
   }
+  // ── A REFUSAL NEEDS A REASON, AT THE BOUNDARY ────────────────────
+  //
+  // Its three siblings all refuse one under three characters here;
+  // this one passed `reason ?? null` straight through. The database
+  // does catch it -- a1_guard_rejection_needs_reason is armed on
+  // decision_reason -- but the admin then reads the trigger's own
+  // Dutch sentence in a red toast. And the dialog is not a rule: a
+  // server action is directly invokable.
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (why.length < 3) {
+    return {
+      ok: false,
+      error:
+        "A refusal needs a reason — the customer is shown it, so say what was wrong and what they can do about it.",
+    };
+  }
   const { supabase } = auth.ctx;
   // Read it BEFORE the write, while it is still addressable: the RPC
   // returns nothing and the row's advertiser is what the notification
@@ -569,7 +595,7 @@ export async function rejectAdAccountWithdrawal(
 
   const { error } = await supabase.rpc("ad_account_withdrawal_reject", {
     p_withdrawal_id: withdrawalId,
-    p_reason: reason ?? null,
+    p_reason: why.slice(0, 500),
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
 
@@ -580,7 +606,10 @@ export async function rejectAdAccountWithdrawal(
   // nothing when it was refused -- their only withdrawal surface is
   // filtered to `approved`. They wait, then ask, and nobody can point
   // at where it says so, because it does not.
-  await notifyAdvertiser(supabase, {
+  // notifyOrWarn, not a bare await. "Refused, but the customer was not
+  // told" is the one thing somebody has to act on, and it was being
+  // thrown away here — the refusal is the only word they ever get.
+  const warning = await notifyOrWarn(supabase, {
     advertiserId: (wdRow as { advertiser_id?: string | null } | null)
       ?.advertiser_id,
     tenantId: (wdRow as { tenant_id?: string | null } | null)?.tenant_id ?? null,
@@ -592,10 +621,10 @@ export async function rejectAdAccountWithdrawal(
       account_name:
         (wdRow as { ad_account?: { name?: string | null } | null } | null)
           ?.ad_account?.name ?? null,
-      reason: reason ?? null,
+      reason: why,
     },
   });
-  return { ok: true, data: null };
+  return { ok: true, data: null, warning };
 }
 
 /**
