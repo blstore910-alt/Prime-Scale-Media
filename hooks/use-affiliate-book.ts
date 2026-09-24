@@ -50,6 +50,8 @@ export type BookCommission = {
   created_at: string;
   referral_link_id: string;
   type: string | null;
+  /** Pinned to a payout request once one is raised. See COMMISSION_BASE. */
+  payout_id?: string | null;
   amount: number;
   currency: string;
   status: string | null;
@@ -137,7 +139,12 @@ export type AffiliateBook = {
 const LINK_COLUMNS =
   "id, created_at, referred_advertiser_id, affiliate_advertiser_id, referred_advertiser_name, referred_advertiser_email, referred_advertiser_tenant_client_code, affiliate_advertiser_name, affiliate_advertiser_email, affiliate_advertiser_tenant_client_code, earnings_eur, earnings_usd, commission_type, commission_pct";
 const COMMISSION_BASE =
-  "id, created_at, referral_link_id, type, amount, currency, status, topup_id";
+  // payout_id: a commission already pinned to an open payout request is
+  // no longer "still owed" -- affiliate_payout_request stamps it and
+  // affiliate_referral_stats excludes it. Without this the owner's book
+  // counted it again, so the queue above the tile and the tile itself
+  // showed the same money twice on one screen.
+  "id, created_at, referral_link_id, type, amount, currency, status, topup_id, payout_id";
 const COMMISSION_CALC =
   // subscription_invoice_id, NOT invoice_id: plak 35 reused the column
   // that was already there. Asking for a column that does not exist sent
@@ -163,6 +170,12 @@ export type BookClawback = {
   referral_link_id: string;
   amount: number | string | null;
   currency: string | null;
+  /** Set once a payout has settled this clawback. The database keeps two
+   *  sets on purpose -- `affiliate_referral_stats` nets LIFETIME against
+   *  all clawbacks and OWED against `payout_id is null` only, and
+   *  `affiliate_payout_request` uses the same filter -- so subtracting a
+   *  settled one from owed takes it off a second time, for ever. */
+  payout_id?: string | null;
 };
 
 export function groupAffiliateBook(
@@ -222,11 +235,21 @@ export function groupAffiliateBook(
   const linkStatus = new Map<string, string>();
   for (const l of links) linkStatus.set(l.id, (l.status ?? "active").toLowerCase());
 
+  // TWO SETS, LIKE THE DATABASE KEEPS. `affiliate_referral_stats` nets
+  // lifetime against every clawback and owed against the unsettled ones
+  // only, and `affiliate_payout_request` uses that same filter when it
+  // works out what to pay. One map for each.
   const clawByLink = new Map<string, MoneyByCurrency>();
+  const openClawByLink = new Map<string, MoneyByCurrency>();
   for (const cb of clawbacks) {
     const m = clawByLink.get(cb.referral_link_id) ?? {};
     add(m, cb.currency, cb.amount);
     clawByLink.set(cb.referral_link_id, m);
+    if (!cb.payout_id) {
+      const o = openClawByLink.get(cb.referral_link_id) ?? {};
+      add(o, cb.currency, cb.amount);
+      openClawByLink.set(cb.referral_link_id, o);
+    }
   }
 
   const perLink = new Map<
@@ -248,7 +271,9 @@ export function groupAffiliateBook(
     const b = perLink.get(c.referral_link_id) ?? { earned: {}, owed: {}, paid: {} };
     add(b.earned, c.currency, c.amount);
     if (st === "paid") add(b.paid, c.currency, c.amount);
-    else add(b.owed, c.currency, c.amount);
+    // Already pinned to a payout request: asked for, not yet paid, and
+    // not still owed. The RPC that pays has stamped it.
+    else if (!c.payout_id) add(b.owed, c.currency, c.amount);
     perLink.set(c.referral_link_id, b);
   }
 
@@ -262,16 +287,27 @@ export function groupAffiliateBook(
     if (!affId) continue;
     const a = byAffiliate.get(affId)!;
     const cb = clawByLink.get(linkId) ?? {};
+    const open = openClawByLink.get(linkId) ?? {};
     const currencies = new Set([
       ...Object.keys(b.earned),
       ...Object.keys(b.owed),
       ...Object.keys(b.paid),
       ...Object.keys(cb),
+      ...Object.keys(open),
     ]);
     for (const cur of currencies) {
       const back = cb[cur] ?? 0;
+      const backOpen = open[cur] ?? 0;
+      // Lifetime IS floored per link, the way affiliate_referral_stats
+      // floors it.
       add(a.earned, cur, Math.max((b.earned[cur] ?? 0) - back, 0));
-      add(a.owed, cur, Math.max((b.owed[cur] ?? 0) - back, 0));
+      // Owed is NOT. The view says so in as many words: "geen vloer per
+      // link. De som over de links moet gelijk zijn aan wat
+      // affiliate_payout_request over het hele boek berekent, en die kapt
+      // niet per referral af." With a floor, a clawback larger than one
+      // link's open commission is silently forgiven and the owner's book
+      // sits above the figure the RPC will actually pay.
+      add(a.owed, cur, (b.owed[cur] ?? 0) - backOpen);
       add(a.paid, cur, b.paid[cur] ?? 0);
     }
   }
@@ -404,7 +440,7 @@ export function useAffiliateBook(tenantId: string | null | undefined) {
         const res = await pageAllRows<BookClawback>((from, to) =>
           supabase
             .from("referral_clawbacks")
-            .select("referral_link_id, amount, currency")
+            .select("referral_link_id, amount, currency, payout_id")
             .eq("tenant_id", tenantId!)
             .order("id", { ascending: true })
             .range(from, to),

@@ -107,25 +107,114 @@ export function useAffiliateEarnings(
         }
       }
 
-      const out: Record<string, AffiliateEarnings> = {};
+      // ── THE COMMISSIONS, NOT THE COUNTER ON THE LINK ──────────────
+      //
+      // `referral_links.earnings_eur/_usd` is a running counter, added to
+      // by `_referral_link_earnings_add` and taken from by
+      // `_claw_back_referral_commission` with a `greatest(..., 0)` clamp.
+      // It is not the sum of anything, and it has already drifted:
+      //
+      //   link         counter   commissions   clawbacks   should be
+      //   PSM0007      12.93     9.96          1.99        7.97
+      //
+      // So this screen showed PSM0005 EUR 27.93 while /affiliates, which
+      // sums the rows, showed EUR 22.97 -- the same affiliate, the same
+      // day, two admin screens. The rows are the record; the counter is a
+      // cache, and nothing should be paid from a cache.
+      const linkIds = (data ?? [])
+        .map((r) => (r as { id?: string }).id)
+        .filter((v): v is string => !!v);
+      const emailByLink = new Map<string, string>();
       for (const row of data ?? []) {
         const r = row as {
           id?: string;
           affiliate_advertiser_email: string | null;
-          earnings_eur: number | string | null;
-          earnings_usd: number | string | null;
         };
+        const email = (r.affiliate_advertiser_email ?? "").trim().toLowerCase();
+        if (r.id && email) emailByLink.set(r.id, email);
+      }
+
+      const sumBy = async (
+        table: "referral_commissions" | "referral_clawbacks",
+      ) => {
+        if (linkIds.length === 0) return [] as Record<string, unknown>[];
+        const res = await pageAllRows<Record<string, unknown>>((from, to) =>
+          supabase
+            .from(table)
+            .select("referral_link_id, amount, currency, status")
+            .in("referral_link_id", linkIds)
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
+        if (res.error) throw new Error(res.error);
+        return res.rows;
+      };
+
+      const [commissionRows, clawbackRows] = await Promise.all([
+        sumBy("referral_commissions"),
+        sumBy("referral_clawbacks"),
+      ]);
+
+      const out: Record<string, AffiliateEarnings> = {};
+      const bump = (linkId: string, cur: string, delta: number) => {
+        const email = emailByLink.get(linkId);
+        if (!email) return;
+        const acc = (out[email] ??= { eur: 0, usd: 0, links: 0 });
+        if (cur === "USD") acc.usd += delta;
+        else acc.eur += delta;
+      };
+
+      // Count the links first, so an affiliate with links but no
+      // commission yet still appears with 0.00 rather than vanishing.
+      for (const row of data ?? []) {
+        const r = row as { id?: string; affiliate_advertiser_email: string | null };
         const email = (r.affiliate_advertiser_email ?? "").trim().toLowerCase();
         if (!email) continue;
         // A rejected link earns nothing, and counting it would show an
         // affiliate money they are not owed.
         const status = r.id ? statusById.get(r.id) : undefined;
         if ((status ?? "").toLowerCase() === "rejected") continue;
-
         const acc = (out[email] ??= { eur: 0, usd: 0, links: 0 });
-        acc.eur += Number(r.earnings_eur) || 0;
-        acc.usd += Number(r.earnings_usd) || 0;
         acc.links += 1;
+      }
+
+      const live = new Set(
+        (data ?? [])
+          .map((r) => (r as { id?: string }).id)
+          .filter((id): id is string =>
+            !!id && (statusById.get(id) ?? "").toLowerCase() !== "rejected",
+          ),
+      );
+
+      for (const row of commissionRows) {
+        const r = row as {
+          referral_link_id?: string;
+          amount?: number | string | null;
+          currency?: string | null;
+          status?: string | null;
+        };
+        if (!r.referral_link_id || !live.has(r.referral_link_id)) continue;
+        // A reversed commission is already undone; counting it and its
+        // clawback would take it off twice.
+        if ((r.status ?? "").toLowerCase() === "reversed") continue;
+        bump(
+          r.referral_link_id,
+          String(r.currency ?? "EUR").toUpperCase(),
+          Number(r.amount) || 0,
+        );
+      }
+      for (const row of clawbackRows) {
+        const r = row as {
+          referral_link_id?: string;
+          amount?: number | string | null;
+          currency?: string | null;
+        };
+        if (!r.referral_link_id || !live.has(r.referral_link_id)) continue;
+        bump(
+          r.referral_link_id,
+          String(r.currency ?? "EUR").toUpperCase(),
+          -(Number(r.amount) || 0),
+        );
       }
       return out;
     },
