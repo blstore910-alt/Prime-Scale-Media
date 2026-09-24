@@ -884,7 +884,13 @@ type RefundRow = {
   amount: number;
   currency: "USD" | "EUR";
   status: string;
+  /** Why the ADMIN asked for it. */
   reason: string | null;
+  /** Why the OWNER refused it. A separate column since plak 86: the
+   *  reject RPC used to write the refusal over `reason`, so the reason
+   *  it was asked for in the first place was gone -- from the screen and
+   *  from the database. Withdrawals got this in plak 71. */
+  decision_reason?: string | null;
   payout_details: string | null;
   payout_business_name: string | null;
   payout_address: string | null;
@@ -912,11 +918,25 @@ function RefundsSection() {
       const { data, error } = await supabase
         .from("wallet_refunds")
         .select(
-          "id, reference, amount, currency, status, reason, payout_details, payout_business_name, payout_address, payout_bank_currency, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
+          "id, reference, amount, currency, status, reason, decision_reason, payout_details, payout_business_name, payout_address, payout_bank_currency, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
         )
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      // decision_reason arrives with plak 86, and migrations here are
+      // pasted by hand whenever somebody gets to it. Ask for it, and on
+      // 42703 ask again without it -- the column stays dark instead of
+      // the whole queue.
+      if (error) {
+        const retry = await supabase
+          .from("wallet_refunds")
+          .select(
+            "id, reference, amount, currency, status, reason, payout_details, payout_business_name, payout_address, payout_bank_currency, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
+          )
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false });
+        if (retry.error) throw retry.error;
+        return (retry.data ?? []) as unknown as RefundRow[];
+      }
       return (data ?? []) as unknown as RefundRow[];
     },
   });
@@ -1150,9 +1170,28 @@ function RefundsSection() {
                             "—"
                           )}
                         </td>
+                        {/* BOTH SIDES, LIKE THE WITHDRAWALS QUEUE.
+                            The reject RPC used to write the owner's
+                            refusal over `reason` -- the same column the
+                            admin filled in when they asked -- so why it
+                            was ever asked for was gone, from the screen
+                            and from the database. */}
                         <td data-label="Why" style={{ maxWidth: 260 }}>
-                          {r.reason ? (
-                            <span style={{ fontSize: ".82rem" }}>{r.reason}</span>
+                          {r.reason || r.decision_reason ? (
+                            <div style={{ fontSize: ".82rem", lineHeight: 1.45 }}>
+                              {r.reason ? (
+                                <div>
+                                  <span className="muted">They said: </span>
+                                  {r.reason}
+                                </div>
+                              ) : null}
+                              {r.decision_reason ? (
+                                <div style={{ marginTop: r.reason ? 3 : 0 }}>
+                                  <span className="muted">We said: </span>
+                                  {r.decision_reason}
+                                </div>
+                              ) : null}
+                            </div>
                           ) : (
                             <span className="muted">{"\u2014"}</span>
                           )}
@@ -1706,7 +1745,10 @@ type AdjRow = {
   delta: number;
   currency: "USD" | "EUR";
   status: string;
+  /** Why the ADMIN asked for it. */
   reason: string | null;
+  /** Why the OWNER refused it. See RefundRow. */
+  decision_reason?: string | null;
   created_at: string;
   advertiser: AdvertiserOption | null;
 };
@@ -1730,11 +1772,22 @@ function AdjustmentsSection() {
       const { data, error } = await supabase
         .from("wallet_adjustments")
         .select(
-          "id, reference, delta, currency, status, reason, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
+          "id, reference, delta, currency, status, reason, decision_reason, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
         )
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      // Same as the refunds read above: the column lands with plak 86.
+      if (error) {
+        const retry = await supabase
+          .from("wallet_adjustments")
+          .select(
+            "id, reference, delta, currency, status, reason, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
+          )
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false });
+        if (retry.error) throw retry.error;
+        return (retry.data ?? []) as unknown as AdjRow[];
+      }
       return (data ?? []) as unknown as AdjRow[];
     },
   });
@@ -1930,8 +1983,24 @@ function AdjustmentsSection() {
                               whiteSpace: "nowrap",
                             }}
                             data-label="Reason"
+                            title={
+                              [
+                                r.reason ? `Asked: ${r.reason}` : null,
+                                r.decision_reason
+                                  ? `Refused: ${r.decision_reason}`
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" — ") || undefined
+                            }
                           >
-                            {r.reason ?? "—"}
+                            {/* The refusal when there is one, the request
+                                otherwise -- the reject RPC no longer
+                                writes one over the other. Both in the
+                                tooltip, since this cell is one line. */}
+                            {r.decision_reason
+                              ? `Refused: ${r.decision_reason}`
+                              : (r.reason ?? "—")}
                           </td>
                           <td className="r" data-label="Status">
                             <span
