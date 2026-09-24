@@ -592,6 +592,28 @@ export async function createTopupAsAdmin(
     cleaned.topup_amount = topupAmount.toFixed(2);
     cleaned.amount_usd = amountUSD.toFixed(2);
     cleaned.rate = String(currency.toUpperCase() === "USD" ? 1 : rateEur);
+    // ---- THE TWO EURO COLUMNS ARE DERIVED TOO ---------------------
+    //
+    // `eur_value` and `eur_topup` are in TOPUP_INSERT_ALLOWED, so they
+    // arrived from the payload and this block left them alone -- which
+    // defeats the block's own purpose, because it exists precisely
+    // because the payload's fee is not trusted. Type 2% into the bulk
+    // dialog against a plan-resolved 5% on EUR 1.000 and the row lands
+    // with fee_amount 50,00 / topup_amount 950,00 and eur_topup 980,00:
+    // one row, two euro nets, EUR 30 apart. `eur_topup` is what the
+    // deactivated-customer history prints.
+    cleaned.eur_value =
+      currency.toUpperCase() === "EUR"
+        ? r2(amountReceived)
+        : rateEur > 0
+          ? r2(amountUSD * rateEur)
+          : 0;
+    cleaned.eur_topup =
+      currency.toUpperCase() === "EUR"
+        ? r2(topupAmount)
+        : rateEur > 0
+          ? r2((amountUSD - feeAmount) * rateEur)
+          : 0;
     if (sameCurrency) {
       // topup_usd is the discriminator pure-topup-landed reads: with it
       // set, topup_amount is understood to be in `currency`.
@@ -964,6 +986,20 @@ export async function bulkCreateTopupsAsAdmin(
         cleaned.topup_amount = topupAmount.toFixed(2);
         cleaned.amount_usd = amountUSD.toFixed(2);
         cleaned.rate = String(rowCur === "USD" ? 1 : bulkRateEur);
+        // Same as the single path above: these two are derived, not
+        // taken from the caller. See the note there.
+        cleaned.eur_value =
+          rowCur === "EUR"
+            ? r2(received)
+            : bulkRateEur > 0
+              ? r2(amountUSD * bulkRateEur)
+              : 0;
+        cleaned.eur_topup =
+          rowCur === "EUR"
+            ? r2(topupAmount)
+            : bulkRateEur > 0
+              ? r2((amountUSD - feeAmount) * bulkRateEur)
+              : 0;
         if (same) {
           cleaned.topup_usd = String(
             rowCur === "USD"

@@ -3,6 +3,7 @@ import { quoteTopupFeePct } from "@/actions/topup-actions";
 import { toastResult } from "@/lib/action-warning";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { calculateTopupAmount, type MinimalRate } from "@/lib/utils-pure";
+import { isAccountLocked } from "@/lib/pure-account-status";
 import { toast } from "sonner";
 import * as z from "zod";
 import {
@@ -263,7 +264,18 @@ export default function BulkTopupAdAccountsDialog({
       accounts.map((account) => ({
         account_id: account.id,
         account_name: account.name,
-        enabled: true,
+        // ---- A LOCKED ACCOUNT STARTS SWITCHED OFF -------------------
+        //
+        // Every row started enabled, with no status test, and
+        // bulkCreateTopupsAsAdmin refuses the WHOLE run when one of them
+        // is locked -- naming a single account in a red toast, with
+        // nothing saved. So an admin types ten amounts, confirms, and
+        // gets one line of text and an empty dialog to start over. The
+        // single-account form has filtered locked accounts out all
+        // along; this one never did.
+        enabled: !isAccountLocked(
+          String(account.status ?? "").trim().toLowerCase(),
+        ),
         amount: "",
         // THE ACCOUNT'S OWN CURRENCY, not EUR for everybody.
         //
