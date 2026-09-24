@@ -13,6 +13,62 @@
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## A7 re-walked and CLOSED 2026-09-24 - settings, and the exchange to the cent
+
+Walked as PSM0005 in the customer browser. Four agents went over the
+journey first; what they found is below the table.
+
+| what | screen | database |
+|---|---|---|
+| company, all ten fields | Test Advertiser BV / xifape4500@jobscai.com / +31612345678 / Keizersgracht 123 / 1015CJ / Amsterdam / Netherlands / NL123456789B01 | every one identical in `companies` |
+| profile | name "Test Advertiser", sign-in email shown read-only | `user_profiles` |
+| notification groups | five switches, "Show the 6 / 5 / 2 / 10 / 1 notices" | - |
+| pressing one group off | "Your ad accounts" | BOTH its types written in one press: `ad_account_request_approved` false AND `topup_rejected` false |
+| pressing it on again | | both back to true |
+| exchange rate | 1 EUR = 1.146314 USD | `exchange_rates` 0.872361, and 1/0.872361 = 1.146314 |
+| EUR 10 -> USD preview | fee 0,07 USD, receive 11,39 USD | gross 11,46313; fee round(0,068779) = 0,07; net 11,39 |
+| after exchanging | EUR **58,50** / USD **68,37** | `wallets` 58.50 / 68.37 - that is 68,50 - 10,00 and 56,98 + 11,39 |
+
+### Fixed on A7
+
+1. **A lost response on an exchange said "Nothing has left your wallet"**
+   and re-read nothing. The code's own comment promised it re-read both
+   balances; every invalidate sat in `onSuccess`. After a 504 the dialog
+   came back with the pre-call balance, the amount still typed and
+   Exchange live, over a conversion that may well have committed - and
+   the RPC has no idempotency key.
+2. **Three toggles switched the push off and left the email running.**
+   That is deliberate (nobody should learn about a debit from their
+   bank), so the toggle now says so instead of the screen implying
+   otherwise.
+3. **Every toggle rendered ON during the first read**, because no row
+   means enabled.
+4. **`companyLoading` read `isLoading`**, which is false for a DISABLED
+   query in v5 - so Save was live over a blank form that would have
+   written ten empty strings over the invoice address.
+5. **A failed company save printed the raw PostgREST message** to the
+   customer.
+6. **Flipping the exchange direction kept the amount** computed for the
+   other one: EUR 92 needed, $106.11 filled in, flip, and it reads
+   EUR 106,11 -> USD with nothing tying it to the invoice.
+7. **Twenty-four toggles became five groups**, because the owner opens
+   this screen and reads a wall. Every type keeps its own row in the
+   database and its own switch one tap away.
+
+### Found on A7, NOT fixed
+
+- `exchange_rates.eur` is still `real`: today's value round-trips
+  exactly, so screen and server agree, but an admin's seventh digit is
+  silently dropped. Same migration as the other four `real` columns.
+- Ten affiliate toggles are offered to a plain advertiser
+  (`audienceForRole` maps everything non-admin to "customer"). They are
+  in one group now, so it is one row rather than ten.
+- There is no `is_not_vat` control on this screen, so a VAT-exempt
+  customer cannot clear the company gate from here and has to be sent to
+  /complete-profile.
+- The ten-field company form uses neither `use-form-draft` nor the
+  unsaved-changes warning, unlike the four forms that do.
+
 ## A1 re-walked 2026-09-24 - a brand-new customer, end to end
 
 Invite created from the owner's dashboard, opened, signed up, onboarded,

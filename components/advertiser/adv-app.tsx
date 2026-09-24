@@ -7337,7 +7337,9 @@ function GroupToggle({ group }: { group: NotificationGroupForRole }) {
                 ? "Hide the individual notices"
                 : mixed
                   ? `${onCount} of ${types.length} on — show them`
-                  : `Show the ${types.length} notices`}
+                  : types.length === 1
+                    ? "Show the one notice"
+                    : `Show the ${types.length} notices`}
             </button>
           ) : null}
         </div>
