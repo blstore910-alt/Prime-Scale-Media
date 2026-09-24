@@ -19,8 +19,10 @@
 --   wallet_adjustments  adjustments_admin_read  SELECT  _is_admin_of(tenant_id)
 --   wallet_refunds      refunds_admin_read      SELECT  _is_admin_of(tenant_id)
 --
--- Alleen beheerders. Dus die lees mislukt bij ELKE klant, en het
--- afschrift is stil korter dan de werkelijkheid. Deze plak geeft de
+-- Alleen beheerders. En RLS geeft geen FOUT terug -- het verbergt rijen.
+-- De lees slaagt dus keurig, met nul regels, en het afschrift is stil
+-- korter dan de werkelijkheid. Geen foutmelding, geen waarschuwing,
+-- niets om aan te wijzen. Deze plak geeft de
 -- eigenaar van de rij leesrecht op zijn eigen correcties, precies zoals
 -- ad_account_withdrawals, advertiser_perks en advertiser_plans dat al
 -- doen. Schrijven blijft waar het was: niemand schrijft hier vanaf de

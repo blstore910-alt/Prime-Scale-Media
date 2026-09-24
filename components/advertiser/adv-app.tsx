@@ -1538,11 +1538,18 @@ export default function AdvertiserApp() {
   // the customer saw sixteen rows and no warning -- a statement that
   // reads as complete and is not.
   //
-  // Measured on production today, as PSM0005: `wallet_adjustments` and
-  // `wallet_refunds` are admin-read-only, so the corrections query
-  // throws for EVERY customer. A +10.00 correction and a -5.00 refund
-  // were missing from the statement, it added up to 75.00 against a
-  // balance of 70.00, and nothing on the screen said a word.
+  // Measured on production today, as PSM0005: a +10.00 correction and a
+  // -5.00 refund were missing from the statement, which added up to
+  // 75.00 against a balance of 70.00, and nothing on the screen said a
+  // word.
+  //
+  // The cause turned out to be worse than a failed read and this flag
+  // cannot catch it: `wallet_adjustments` and `wallet_refunds` are
+  // admin-read-only, and **RLS does not raise -- it hides rows**. The
+  // query succeeds with zero rows, `isError` is false, and the list is
+  // silently short. Plak 92 gives the row's owner the read. The flag
+  // below is still worth having for the reads that DO fail; it is just
+  // not what was wrong here.
   const activityIncomplete =
     !!activityError ||
     !!exchangesError ||
