@@ -46,8 +46,35 @@ export type AdminContext = {
 export async function resolveAdminContext(): Promise<
   { ok: true; ctx: AdminContext } | { ok: false; error: string }
 > {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return { ok: false, error: mm.error };
+  return resolveAdminContextInner(true);
+}
+
+/**
+ * The same admin resolution, WITHOUT the maintenance freeze.
+ *
+ * Same reasoning as resolveUserContextForRead below: the rule is that
+ * MAINTENANCE_MODE freezes WRITES, and "during an incident you want to
+ * look at data". Two read-only actions on the money queues went through
+ * the mutating guard anyway -- readAdAccountLiveBalance and
+ * getAdAccountCosts -- so switching the freeze on took away the admin's
+ * ability to read what an ad account actually holds, on the screen where
+ * they decide whether to release it. Neither can make anything worse.
+ *
+ * A mutation must still use resolveAdminContext.
+ */
+export async function resolveAdminContextForRead(): Promise<
+  { ok: true; ctx: AdminContext } | { ok: false; error: string }
+> {
+  return resolveAdminContextInner(false);
+}
+
+async function resolveAdminContextInner(
+  freeze: boolean,
+): Promise<{ ok: true; ctx: AdminContext } | { ok: false; error: string }> {
+  if (freeze) {
+    const mm = maintenanceGuard();
+    if (!mm.ok) return { ok: false, error: mm.error };
+  }
 
   // Lazy imports so this helper stays usable from tests that mock
   // process env without pulling in next/headers or the Supabase client.

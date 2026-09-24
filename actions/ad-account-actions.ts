@@ -15,9 +15,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
 import { notifyOrWarn } from "@/lib/notify-or-warn";
 
-async function requireAdminCtx() {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return { ok: false as const, error: mm.error };
+async function requireAdminCtx({ freeze = true }: { freeze?: boolean } = {}) {
+  // `freeze: false` for the read-only callers. MAINTENANCE_MODE is meant
+  // to stop WRITES; _shared.ts says "during an incident you want to look
+  // at data", and getAdAccountCosts is a read.
+  if (freeze) {
+    const mm = maintenanceGuard();
+    if (!mm.ok) return { ok: false as const, error: mm.error };
+  }
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
@@ -109,7 +114,9 @@ async function upsertSupplierFee(
 export async function getAdAccountCosts(): Promise<
   ActionResult<Record<string, number | null>>
 > {
-  const ctx = await requireAdminCtx();
+  // A read, so not behind the maintenance freeze — same reasoning as
+  // readAdAccountLiveBalance.
+  const ctx = await requireAdminCtx({ freeze: false });
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 

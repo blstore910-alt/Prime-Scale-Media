@@ -194,7 +194,10 @@ export default function PsmRequests() {
     [rows],
   );
 
-  const { data: accountsByAdvertiser } = useQuery({
+  // isError, because an unread name and no name look identical on the
+  // card: a COMPLETED request with no account name beside it reads as
+  // "this request produced nothing".
+  const { data: accountsByAdvertiser, isError: accountsUnreadable } = useQuery({
     queryKey: ["request-accounts", advertiserIds.join(",")],
     enabled: advertiserIds.length > 0,
     staleTime: 30_000,
@@ -557,7 +560,15 @@ export default function PsmRequests() {
                 // name" is what the field is called on every other
                 // screen.
                 const acctLabel = "Acc name";
-                if (!acctName && !bm) return null;
+                if (!acctName && !bm) {
+                  // Say it, rather than rendering nothing, when the
+                  // lookup itself failed.
+                  return accountsUnreadable ? (
+                    <div className="muted" style={{ fontSize: ".76rem", marginBottom: 12 }}>
+                      Account name could not be read.
+                    </div>
+                  ) : null;
+                }
                 return (
                   <div
                     style={{

@@ -6,7 +6,11 @@ import { enqueueSupplierWithdrawPush } from "@/lib/integrations/enqueue";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
-import { resolveAdminContext, resolveUserContext } from "./_shared";
+import {
+  resolveAdminContext,
+  resolveAdminContextForRead,
+  resolveUserContext,
+} from "./_shared";
 import {
   isAccountLocked,
   accountLockedReason,
@@ -663,7 +667,12 @@ export async function readAdAccountLiveBalance(adAccountId: string): Promise<
     }
   | { ok: false; error: string }
 > {
-  const res0 = await resolveAdminContext();
+  // ForRead: this only asks the platform what an account holds, and
+  // MAINTENANCE_MODE is meant to freeze writes. Going through the
+  // mutating guard meant that during an incident an admin could not see
+  // the balance on the very screen where they decide whether to release
+  // it. _shared.ts states the rule in as many words.
+  const res0 = await resolveAdminContextForRead();
   if (!res0.ok) return { ok: false, error: res0.error };
   const { supabase, profile } = res0.ctx;
 
