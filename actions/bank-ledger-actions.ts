@@ -1,6 +1,10 @@
 "use server";
 
-import { pageAllRows } from "@/lib/page-all-rows";
+import {
+  isMissingColumn as messageIsMissingColumn,
+  pageAllRows,
+  pageAllRowsTolerant,
+} from "@/lib/page-all-rows";
 
 import {
   type BankLedgerEntry,
@@ -9,12 +13,30 @@ import {
   type LedgerDestination,
   type LedgerDirection,
   type ReconciliationRow,
+  type WalletCurrency,
 } from "@/lib/types/bank-ledger";
 import { type ActionResult, resolveAdminContext } from "./_shared";
 
 const DESTS: LedgerDestination[] = ["our_bank", "supplier"];
-const CURRENCIES: LedgerCurrency[] = ["USD", "EUR"];
+const CURRENCIES: LedgerCurrency[] = ["USD", "EUR", "GBP", "HKD"];
+const WALLET_CURRENCIES: WalletCurrency[] = ["USD", "EUR"];
 const DIRECTIONS: LedgerDirection[] = ["deposit", "withdrawal"];
+
+// The columns plak 89 adds. Code reaches production in minutes and a
+// migration is pasted in by hand whenever somebody gets to it, so every
+// read asks for them and retries without them on 42703 -- the feature
+// stays dark until the migration lands instead of the screen breaking.
+const CREDITED_PENDING =
+  "Recording what a deposit credited needs the pending migration (plak 89). " +
+  "Paste it in the SQL editor first, or leave those two fields empty.";
+
+// PostgREST says it two ways -- 42703 from the planner, PGRST204 from a
+// stale schema cache on an insert -- and lib/page-all-rows already knows
+// both. Match on the message, not the code.
+function isMissingColumn(err: unknown): boolean {
+  const e = err as { message?: string; code?: string } | null;
+  return messageIsMissingColumn(e?.message) || e?.code === "42703";
+}
 
 function n(v: unknown): number {
   const x = Number(v);
@@ -44,25 +66,62 @@ async function resolveOwnerContext() {
 // ─────────────────────────────────────────
 // listLedgerEntries — recent manual bank/supplier entries, admin-only.
 // ─────────────────────────────────────────
+export type LedgerPage = {
+  entries: BankLedgerEntry[];
+  /** There are older entries this page does not show. */
+  capped: boolean;
+  limit: number;
+};
+
 export async function listLedgerEntries(
   limit = 100,
-): Promise<ActionResult<BankLedgerEntry[]>> {
+): Promise<ActionResult<LedgerPage>> {
   const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
+  const want = Math.min(Math.max(limit, 1), 500);
 
-  const { data, error } = await supabase
+  // ── ASK FOR ONE MORE THAN WE SHOW ─────────────────────────────────
+  //
+  // This cut the list off at `limit` and said nothing, on a page whose
+  // job is to make a column of money add up. A reader adding it up got a
+  // total that has no relation to the balances above it, with nothing on
+  // screen to say why. One extra row turns "there is more" from a guess
+  // into a fact.
+  const withCredited = await supabase
     .from("bank_ledger_entries")
     .select(
-      "id, tenant_id, destination, currency, direction, amount, occurred_on, note, recorded_by, created_at, updated_at",
+      "id, tenant_id, destination, currency, direction, amount, credited_currency, credited_amount, occurred_on, note, recorded_by, created_at, updated_at",
     )
     .eq("tenant_id", profile.tenant_id)
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
-    .limit(Math.min(Math.max(limit, 1), 500));
-  if (error) return { ok: false, error: error.message };
+    .limit(want + 1);
 
-  return { ok: true, data: (data ?? []) as BankLedgerEntry[] };
+  let rows: unknown[] | null = withCredited.data as unknown[] | null;
+  let readError = withCredited.error;
+
+  if (readError && isMissingColumn(readError)) {
+    const plain = await supabase
+      .from("bank_ledger_entries")
+      .select(
+        "id, tenant_id, destination, currency, direction, amount, occurred_on, note, recorded_by, created_at, updated_at",
+      )
+      .eq("tenant_id", profile.tenant_id)
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(want + 1);
+    rows = plain.data as unknown[] | null;
+    readError = plain.error;
+  }
+  if (readError) return { ok: false, error: readError.message };
+
+  const all = (rows ?? []) as unknown as BankLedgerEntry[];
+  const capped = all.length > want;
+  return {
+    ok: true,
+    data: { entries: capped ? all.slice(0, want) : all, capped, limit: want },
+  };
 }
 
 // ─────────────────────────────────────────
@@ -76,6 +135,9 @@ export async function addLedgerEntry(input: {
   amount: number;
   occurred_on?: string;
   note?: string;
+  /** What this deposit was credited to wallets as. Both or neither. */
+  credited_currency?: string;
+  credited_amount?: number;
 }): Promise<ActionResult<{ id: string }>> {
   const auth = await resolveOwnerContext();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -120,12 +182,59 @@ export async function addLedgerEntry(input: {
     row.note = input.note.trim().slice(0, 500);
   }
 
+  // ── WHAT IT CREDITED, WHEN THAT IS NOT WHAT THE BANK GOT ──────────
+  //
+  // A customer pays GBP 1,000 into the pound account and EUR 1,150 goes
+  // into their wallet. Reconciliation compares wallet credits against
+  // deposits, so without this the EUR side is short by 1,150 for ever
+  // and the screen shows an alarm that can never be cleared. Only the
+  // owner knows the rate the bank gave, so the owner states it.
+  const creditedCur = String(input?.credited_currency ?? "")
+    .toUpperCase() as WalletCurrency;
+  const creditedAmt = n(input?.credited_amount);
+  const wantsCredited = !!input?.credited_currency || creditedAmt > 0;
+  if (wantsCredited) {
+    if (direction !== "deposit") {
+      return {
+        ok: false,
+        error: "Only a deposit can credit wallets. Leave those fields empty.",
+      };
+    }
+    if (!WALLET_CURRENCIES.includes(creditedCur)) {
+      return { ok: false, error: "Credited currency must be EUR or USD." };
+    }
+    if (!(creditedAmt > 0)) {
+      return { ok: false, error: "Enter what this deposit credited, or leave both empty." };
+    }
+    row.credited_currency = creditedCur;
+    row.credited_amount = creditedAmt;
+  }
+
   const { data, error } = await supabase
     .from("bank_ledger_entries")
     .insert(row)
     .select("id")
     .single();
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // The migration is pasted by hand and code ships in minutes, so say
+    // which of the two is missing instead of handing over a PostgREST
+    // message. Nothing is written half-way: the insert is one row.
+    if (wantsCredited && isMissingColumn(error)) {
+      return { ok: false, error: CREDITED_PENDING };
+    }
+    if (
+      (error as { code?: string }).code === "23514" &&
+      !["USD", "EUR"].includes(currency)
+    ) {
+      return {
+        ok: false,
+        error:
+          `The database still only accepts USD and EUR here. ${currency} needs ` +
+          "the pending migration (plak 89).",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
   return { ok: true, data: { id: data.id } };
 }
 
@@ -170,6 +279,8 @@ export async function getReconciliation(): Promise<
     currency: string | null;
     direction: string | null;
     amount: number | string | null;
+    credited_currency?: string | null;
+    credited_amount?: number | string | null;
   };
 
   // ── BOTH WALKS NEED AN ORDER, AND IT HAS TO BE UNIQUE ───────────────
@@ -200,7 +311,20 @@ export async function getReconciliation(): Promise<
   if (topupPage.error) return { ok: false, error: topupPage.error };
   const topupRows = topupPage.rows;
 
-  const ledgerPage = await pageAllRows<LedgerRow>((from, to) =>
+  // Tolerant: `credited_currency`/`credited_amount` arrive with plak 89,
+  // and until it is pasted in this reads exactly as it did before.
+  const ledgerPage = await pageAllRowsTolerant<LedgerRow>(
+    (from, to) =>
+      supabase
+        .from("bank_ledger_entries")
+        .select(
+          "destination, currency, direction, amount, credited_currency, credited_amount",
+        )
+        .eq("tenant_id", profile.tenant_id)
+        .order("occurred_on", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    (from, to) =>
     supabase
       .from("bank_ledger_entries")
       .select("destination, currency, direction, amount")
@@ -234,6 +358,18 @@ export async function getReconciliation(): Promise<
     const c = String(e.currency ?? "").toUpperCase();
     const dest = String(e.destination ?? "");
     const signed = e.direction === "withdrawal" ? -n(e.amount) : n(e.amount);
+    // ── A POUND THAT PAID FOR EUROS COUNTS AS THOSE EUROS ───────────
+    //
+    // The top-up dialog lets a customer pay in GBP or HKD; the wallet it
+    // funds is EUR or USD. Comparing "credited EUR" against "received
+    // EUR" then leaves the EUR side short by the whole transfer, for
+    // ever -- and this is the screen that answers "is somebody taking
+    // money". An alarm that can never be cleared is not an alarm.
+    // So when the owner states what a deposit was credited as, that is
+    // what counts here. The bank's own figure still drives the balance
+    // below, because that is what the account actually holds.
+    const credCur = String(e.credited_currency ?? "").toUpperCase();
+    const credAmt = n(e.credited_amount);
     // ── "RECEIVED" MEANS MONEY THAT ARRIVED ─────────────────────────
     //
     // This added the SIGNED figure, so every withdrawal the owner
@@ -250,14 +386,18 @@ export async function getReconciliation(): Promise<
     //
     // The signed sum is still right for the per-destination balance,
     // which is what a bank account actually holds.
-    if ((c === "USD" || c === "EUR") && e.direction !== "withdrawal") {
-      received[c] += n(e.amount);
+    if (e.direction !== "withdrawal") {
+      if ((credCur === "USD" || credCur === "EUR") && credAmt > 0) {
+        received[credCur] += credAmt;
+      } else if (c === "USD" || c === "EUR") {
+        received[c] += n(e.amount);
+      }
     }
     const key = `${dest}|${c}`;
     balMap.set(key, (balMap.get(key) ?? 0) + signed);
   }
 
-  const rows: ReconciliationRow[] = CURRENCIES.map((currency) => ({
+  const rows: ReconciliationRow[] = WALLET_CURRENCIES.map((currency) => ({
     currency,
     credited: Number(credited[currency].toFixed(2)),
     received: Number(received[currency].toFixed(2)),

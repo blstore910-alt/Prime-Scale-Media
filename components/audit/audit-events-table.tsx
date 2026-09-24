@@ -4,7 +4,8 @@ import { copyText } from "@/lib/copy-text";
 import { useState, useEffect } from "react";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import {
   Sheet,
   SheetContent,
@@ -19,6 +20,20 @@ import { toast } from "sonner";
 import useAuditEvents, { type AuditEvent } from "./use-audit-events";
 import { userFacingErrorMessage } from "@/lib/pure-error";
 
+// ── A HAND-KEPT LIST ALWAYS FALLS BEHIND ─────────────────────────────
+//
+// This was the whole Table filter: seventeen names, typed out. The
+// database has events on THIRTY-FIVE tables, and the biggest one missing
+// is `wise_incoming_transfers` with 1,756 rows -- impossible to filter
+// to, and just as impossible to filter away while looking for something
+// else. `plans`, `commission_rules`, `bank_accounts`, `affiliate_payouts`
+// and the four wallet_* tables were all invisible to it too.
+//
+// The names now come from the data (plak 89 adds `audit_table_names()`,
+// SECURITY INVOKER so RLS still decides what you may see). This list
+// stays as the fallback for the window between this deploy and that
+// paste, and for any read that fails -- an empty filter would be worse
+// than an incomplete one.
 const AUDITED_TABLES = [
   "wallets",
   "wallet_topups",
@@ -38,6 +53,35 @@ const AUDITED_TABLES = [
   "tenants",
   "invitations",
 ] as const;
+
+/** Every table that has audit events, from the database; the static list
+ *  above until the migration lands. */
+function useAuditTableNames(): string[] {
+  const { data } = useQuery({
+    queryKey: ["audit-table-names"],
+    // The set of tables changes when a trigger is added, not minute to
+    // minute.
+    staleTime: 10 * 60_000,
+    // Its failure is not something the reader can act on, and the filter
+    // still works off the fallback.
+    meta: { silent: true },
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("audit_table_names");
+      if (error) throw error;
+      const names: string[] = ((data ?? []) as unknown[])
+        .map((r: unknown) =>
+          typeof r === "string"
+            ? r
+            : String((r as { table_name?: string })?.table_name ?? ""),
+        )
+        .filter((v: string) => !!v);
+      return Array.from(new Set(names)).sort();
+    },
+  });
+  if (data && data.length > 0) return data;
+  return [...AUDITED_TABLES];
+}
 
 // Maps an audit action to one of the mockup's scoped `.badge` variants.
 function actionBadge(action: AuditEvent["action"]) {
@@ -64,6 +108,7 @@ export default function AuditEventsTable() {
   const rowIdFromUrl = searchParams?.get("row") ?? "";
 
   const [table, setTable] = useState("all");
+  const tableNames = useAuditTableNames();
   const [action, setAction] = useState("all");
   const [sinceMinutes, setSinceMinutes] = useState<number>(0);
   const [rowIdInput, setRowIdInput] = useState(rowIdFromUrl);
@@ -215,7 +260,12 @@ export default function AuditEventsTable() {
               },
               options: [
                 { value: "all", label: "All tables" },
-                ...AUDITED_TABLES.map((t) => ({ value: t, label: t })),
+                ...tableNames.map((t) => ({ value: t, label: t })),
+                // A filter the URL or an older session asks for that is
+                // not in the list would otherwise show as blank.
+                ...(table !== "all" && !tableNames.includes(table)
+                  ? [{ value: table, label: table }]
+                  : []),
               ],
             },
             {

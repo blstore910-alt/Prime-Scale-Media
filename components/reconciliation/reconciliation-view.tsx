@@ -11,6 +11,7 @@ import {
   type LedgerCurrency,
   type LedgerDestination,
   type LedgerDirection,
+  type WalletCurrency,
 } from "@/lib/types/bank-ledger";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Loader2, Plus } from "lucide-react";
@@ -18,8 +19,23 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const DESTS: LedgerDestination[] = ["our_bank", "supplier"];
-const CURRENCIES: LedgerCurrency[] = ["EUR", "USD"];
-const SYMB: Record<LedgerCurrency, string> = { EUR: "€", USD: "$" };
+// ── FOUR, BECAUSE FOUR IS WHAT ARRIVES ──────────────────────────────
+//
+// The wallet top-up dialog lets a customer pay in USD, EUR, GBP or HKD,
+// and TURLIT holds a real account for each. This list had two, so a
+// pound or a Hong Kong dollar that landed in the bank could not be
+// written down at all -- on the one screen whose job is to notice money
+// that never arrived.
+const CURRENCIES: LedgerCurrency[] = ["EUR", "USD", "GBP", "HKD"];
+// What a wallet can hold, and therefore what a deposit can be credited
+// as. A GBP transfer funds a EUR wallet.
+const WALLET_CURRENCIES: WalletCurrency[] = ["EUR", "USD"];
+const SYMB: Record<LedgerCurrency, string> = {
+  EUR: "€",
+  USD: "$",
+  GBP: "£",
+  HKD: "HK$",
+};
 
 function fmt(v: number, c: LedgerCurrency) {
   // ── THE SIGN GOES BEFORE THE SYMBOL ─────────────────────────────────
@@ -96,13 +112,26 @@ export default function ReconciliationView() {
     },
   });
 
-  const [destination, setDestination] =
-    useState<LedgerDestination>("supplier");
+  // ── NO DEFAULT DESTINATION ────────────────────────────────────────
+  //
+  // This started on "supplier". Pressing Check on a gap fills in the
+  // currency, the direction and the amount and scrolls you here, and it
+  // does not touch the destination -- so one press and one Add put the
+  // whole missing amount against the supplier bank whether or not that
+  // is where it landed, and the two balance cards below then both lie.
+  // The server already refuses an empty one ("Pick a destination"), so
+  // an unset default costs nothing and guesses nothing.
+  const [destination, setDestination] = useState<LedgerDestination | "">("");
   const [currency, setCurrency] = useState<LedgerCurrency>("EUR");
   const [direction, setDirection] = useState<LedgerDirection>("deposit");
   const [amount, setAmount] = useState("");
   const [occurredOn, setOccurredOn] = useState("");
   const [note, setNote] = useState("");
+  // What this deposit was credited to wallets as, when the bank received
+  // something else. Both or neither.
+  const [creditedCurrency, setCreditedCurrency] =
+    useState<WalletCurrency>("EUR");
+  const [creditedAmount, setCreditedAmount] = useState("");
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["reconciliation"] });
@@ -113,6 +142,11 @@ export default function ReconciliationView() {
     mutationFn: async () => {
       const amt = Number(amount);
       if (!(amt > 0)) throw new Error("Enter a positive amount.");
+      if (!destination) throw new Error("Pick a destination first.");
+      const credAmt = Number(creditedAmount);
+      if (creditedAmount.trim() && !(credAmt > 0)) {
+        throw new Error("Credited amount must be more than zero, or empty.");
+      }
       const res = await addLedgerEntry({
         destination,
         currency,
@@ -120,6 +154,9 @@ export default function ReconciliationView() {
         amount: amt,
         occurred_on: occurredOn || undefined,
         note: note || undefined,
+        ...(credAmt > 0
+          ? { credited_currency: creditedCurrency, credited_amount: credAmt }
+          : {}),
       });
       if (!res.ok) throw new Error(res.error);
     },
@@ -128,6 +165,7 @@ export default function ReconciliationView() {
       setAmount("");
       setNote("");
       setOccurredOn("");
+      setCreditedAmount("");
       invalidate();
     },
     onError: (e: Error) =>
@@ -149,6 +187,10 @@ export default function ReconciliationView() {
   const investigate = (r: { currency: string; gap: number }) => {
     const cur = String(r.currency).toUpperCase();
     if (cur === "EUR" || cur === "USD") setCurrency(cur as LedgerCurrency);
+    // Deliberately NOT a destination. Which bank received it is the one
+    // thing this row cannot know, and guessing it puts real money on the
+    // wrong account.
+    setDestination("");
     // A positive gap is money credited to wallets that the bank has not
     // been recorded as receiving, so the entry to add is a deposit. A
     // negative one is the other way round.
@@ -358,9 +400,10 @@ export default function ReconciliationView() {
             <select
               value={destination}
               onChange={(e) =>
-                setDestination(e.target.value as LedgerDestination)
+                setDestination(e.target.value as LedgerDestination | "")
               }
             >
+              <option value="">Which account received it?</option>
               {DESTS.map((d) => (
                 <option key={d} value={d}>
                   {DESTINATION_LABELS[d]}
@@ -412,6 +455,51 @@ export default function ReconciliationView() {
           </div>
         </div>
 
+        {/* ── WHAT IT CREDITED, WHEN THAT IS NOT WHAT THE BANK GOT ──
+            A GBP 1,000 transfer puts EUR 1,150 in a wallet. Without this
+            the EUR row above is short by 1,150 for ever and the hero
+            shows an alarm nobody can clear. Only the owner knows the
+            rate the bank gave. */}
+        {direction === "deposit" && currency !== creditedCurrency ? (
+          <div className="frow" style={{ marginTop: 12 }}>
+            <div className="field">
+              <label>Credited to wallets as (optional)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={creditedAmount}
+                placeholder="0.00"
+                onChange={(e) => setCreditedAmount(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>In</label>
+              <select
+                value={creditedCurrency}
+                onChange={(e) =>
+                  setCreditedCurrency(e.target.value as WalletCurrency)
+                }
+              >
+                {WALLET_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : null}
+        {direction === "deposit" &&
+        currency !== creditedCurrency &&
+        !creditedAmount.trim() ? (
+          <p className="muted" style={{ fontSize: ".82rem", margin: "8px 0 0" }}>
+            Leave this empty and the {currency} you received counts towards
+            nothing on the per-currency check above — only towards the
+            balance of the account it landed in.
+          </p>
+        ) : null}
+
         <div className="field" style={{ marginTop: 2 }}>
           <label>Note (optional)</label>
           <input
@@ -448,7 +536,7 @@ export default function ReconciliationView() {
             We couldn&apos;t load the ledger — this is NOT an empty ledger.
             Reload before drawing any conclusion from this screen.
           </p>
-        ) : (entriesQ.data ?? []).length === 0 ? (
+        ) : (entriesQ.data?.entries ?? []).length === 0 ? (
           <p className="muted" style={{ margin: 0, padding: 20 }}>
             No entries yet.
           </p>
@@ -465,7 +553,7 @@ export default function ReconciliationView() {
                 </tr>
               </thead>
               <tbody>
-                {(entriesQ.data ?? []).map((e) => (
+                {(entriesQ.data?.entries ?? []).map((e) => (
                   <tr key={e.id}>
                     {/* A date, not the raw ISO string. Every other screen
                         in the app writes "18 Sep 2026"; this one printed
@@ -493,6 +581,18 @@ export default function ReconciliationView() {
                     <td data-label="Amount" className="r mono">
                       {e.direction === "withdrawal" ? "−" : "+"}
                       {fmt(Math.abs(e.amount), e.currency)}
+                      {e.credited_currency && Number(e.credited_amount) > 0 ? (
+                        <div
+                          className="muted"
+                          style={{ fontSize: ".76rem", fontWeight: 600 }}
+                        >
+                          credited{" "}
+                          {fmt(
+                            Number(e.credited_amount),
+                            e.credited_currency,
+                          )}
+                        </div>
+                      ) : null}
                     </td>
                     <td
                       data-label="Note"
@@ -510,6 +610,19 @@ export default function ReconciliationView() {
                 ))}
               </tbody>
             </table>
+            {/* A LIST THAT STOPS HAS TO SAY SO. It showed the most recent
+                100 and nothing else, so a reader adding this column up
+                got a total with no relation to the balances above it and
+                no way to tell. */}
+            {entriesQ.data?.capped ? (
+              <p
+                className="muted"
+                style={{ margin: 0, padding: "12px 16px", fontSize: ".84rem" }}
+              >
+                Showing the {entriesQ.data.limit} most recent entries. There
+                are older ones — the totals above include all of them.
+              </p>
+            ) : null}
           </div>
         )}
       </div>
