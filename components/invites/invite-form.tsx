@@ -757,110 +757,109 @@ export default function InviteForm() {
                 Same class as the four controls on /subscriptions that
                 were hidden for this reason: a control that can only
                 ever fail is not a control. */}
-              {showTerms && (
-              <div className="rounded-md border p-3 space-y-3">
-                {/* Plan (tier) */}
+{showTerms && (
+              <div className="space-y-4">
+                {/* ---- ONE CHOICE, NOT TWO CONTROLS -------------------
+                    Plan and Community were two dropdowns that clear each
+                    other, under a heading saying one "overrides" the
+                    other -- so the owner had to hold the rule in their
+                    head and open two menus to see four options. They are
+                    one list of tiles now: name, price, what is included
+                    and the top-up fee, all readable without opening
+                    anything, and one tap picks it. */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label htmlFor="invite-plan">Plan</Label>
-                    {planId && (
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <Label>What they pay</Label>
+                    {(planId || communityId) && (
                       <button
                         type="button"
                         className="text-xs text-primary underline"
-                        onClick={() => form.setValue("plan_id", "")}
+                        onClick={() => {
+                          form.setValue("plan_id", "");
+                          form.setValue("community_id", "");
+                        }}
                       >
                         Clear
                       </button>
                     )}
                   </div>
-                  <Controller
-                    control={form.control}
-                    name="plan_id"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value || ""}
-                        onValueChange={(v) => {
-                          field.onChange(v);
-                          // Plan and community are mutually exclusive.
-                          form.setValue("community_id", "");
-                        }}
-                      >
-                        <SelectTrigger id="invite-plan">
-                          <SelectValue placeholder="Pick a plan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiers.length === 0 ? (
-                            <div className="px-2 py-3 text-xs text-muted-foreground">
-                              {plansUnreadable
-                                ? "We couldn't read the plans. Do NOT send this invite yet — without a plan the customer is never invoiced."
-                                : "No plans defined yet."}
-                            </div>
-                          ) : (
-                            tiers.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} · {p.currency}
-                                {p.monthly_fee}/mo · {p.included_ad_accounts} incl ·{" "}
-                                {p.topup_fee_pct}%
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
+
+                  {tiers.length === 0 && communities.length === 0 ? (
+                    <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs">
+                      {plansUnreadable
+                        ? "We couldn't read the plans. Do NOT send this invite yet — without a plan the customer is never invoiced."
+                        : "No plans defined yet."}
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {[
+                        ...tiers.map((p) => ({ p, community: false })),
+                        ...communities.map((p) => ({ p, community: true })),
+                      ].map(({ p, community }) => {
+                        const picked = community
+                          ? communityId === p.id
+                          : planId === p.id;
+                        return (
+                          <button
+                            key={(community ? "c-" : "p-") + p.id}
+                            type="button"
+                            aria-pressed={picked}
+                            onClick={() => {
+                              // Picking one empties the other: that is
+                              // the whole "overrides" rule, now enforced
+                              // by the control instead of explained.
+                              form.setValue(
+                                community ? "community_id" : "plan_id",
+                                p.id,
+                              );
+                              form.setValue(
+                                community ? "plan_id" : "community_id",
+                                "",
+                              );
+                            }}
+                            className={
+                              "rounded-lg border p-3 text-left transition-colors " +
+                              (picked
+                                ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                                : "border-input hover:bg-muted/50")
+                            }
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className="font-semibold">{p.name}</span>
+                              {community && (
+                                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                  community
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {p.currency}
+                              {p.monthly_fee}/mo · {p.included_ad_accounts}{" "}
+                              account{Number(p.included_ad_accounts) === 1 ? "" : "s"}{" "}
+                              included · {p.topup_fee_pct}% top-up fee
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* WHICH CURRENCY THIS CUSTOMER PAYS IN.
-                      The plan carries a price per currency — EUR 200 is
-                      $225, not $226.14 — and until this control existed
-                      there was no way to choose the second one, so a
-                      pinned USD price could be saved and never charged.
-                      The figure beside each option is the amount that
-                      will be invoiced, so nobody has to trust that the
-                      conversion happened. */}
+                      The plan carries a price per currency -- EUR 200 is
+                      $225, not $226.14 -- and the figure beside each
+                      option is the amount that will be invoiced, so
+                      nobody has to trust that the conversion happened.
+                      A converted, unpinned figure is a suggestion and
+                      not a price, so it cannot be chosen: see
+                      lib/pure-plan-price.ts. */}
                   {planId ? (
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="mt-3 flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">
-                        Bills in
+                        Invoice in
                       </span>
                       {(["EUR", "USD"] as const).map((c) => {
                         const p = tiers.find((x) => x.id === planId);
                         const price = p ? planPrice(p, c, "month", eurToUsd) : null;
-                        // ── NO RATE AND NO PINNED PRICE IS NOT A PRICE ──
-                        //
-                        // planPrice returns the BASE amount unchanged when
-                        // it has no rate to convert with — so with no
-                        // active exchange rate the chip rendered "$200 ~"
-                        // over the euro figure, and clicking it wrote
-                        // monthly_fee 200 with plan_currency USD: a $200
-                        // subscription for a EUR 200 plan, about EUR 23 a
-                        // month short, for ever.
-                        //
-                        // "No active rate" is a state this app documents
-                        // reaching — saving a rate stands the old one down
-                        // first — and the top-up path REFUSES in it rather
-                        // than pricing. So does this.
-                        // ── A CONVERSION IS A SUGGESTION, NOT A PRICE ──
-                        //
-                        // This only refused when there was NO rate. With
-                        // a rate present it happily wrote the converted,
-                        // rounded figure into monthly_fee and shipped it
-                        // as the agreed price — the only warning being a
-                        // "~" whose own tooltip says "this is a
-                        // conversion, not a chosen price".
-                        //
-                        // lib/pure-plan-price.ts states the rule that
-                        // breaks: conversion is only ever a suggestion
-                        // shown to the admin. And it is not an edge case
-                        // — monthly_fee_usd is seeded only for USD-base
-                        // plans, so every EUR plan has none until an
-                        // owner pins one. At 0.86 the EUR 200 plan
-                        // becomes $235 against the owner's stated $225,
-                        // a different number every time the rate moves,
-                        // so two customers on "the same plan" end up on
-                        // different subscriptions.
-                        //
-                        // So: no pinned price in that currency, no chip.
-                        // Pin one in Settings → Finance → Plans.
                         const isBase =
                           c ===
                           (String(p?.currency ?? "EUR").toUpperCase() === "USD"
@@ -906,115 +905,79 @@ export default function InviteForm() {
                   ) : null}
                 </div>
 
-                {/* Community (overrides the plan) */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label htmlFor="invite-community">
-                      Community{" "}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        (overrides plan)
-                      </span>
-                    </Label>
-                    {communityId && (
-                      <button
-                        type="button"
-                        className="text-xs text-primary underline"
-                        onClick={() => form.setValue("community_id", "")}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <Controller
-                    control={form.control}
-                    name="community_id"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value || ""}
-                        onValueChange={(v) => {
-                          field.onChange(v);
-                          // Picking a community empties the plan.
-                          form.setValue("plan_id", "");
-                        }}
-                      >
-                        <SelectTrigger id="invite-community">
-                          <SelectValue placeholder="No community" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {communities.length === 0 ? (
-                            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                              No communities defined
-                            </div>
-                          ) : (
-                            communities.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} · {p.currency}
-                                {p.monthly_fee}/mo · {p.included_ad_accounts} incl
-                                · {p.topup_fee_pct}%
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
+                {/* ---- THE FIGURES, WITH THEIR UNITS ON THEM ----------
+                    Three bare number boxes reading 200 / 2 / 3 said
+                    nothing about what they were. They are filled from
+                    the tile above and are only touched when this one
+                    customer is different, so they are marked as such.
 
-                {/* htmlFor/id on all three. These set the advertiser's monthly
-                    fee, how many ad accounts are included and the top-up fee
-                    percentage — three adjacent number boxes whose labels were
-                    only next to them, not bound to them. So nothing read them
-                    out, and tapping a label did not focus its field, which on
-                    a phone is how you hit a box this narrow. */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor="invite-monthly-fee" className="text-xs">
-                      Monthly fee
-                    </Label>
-                    <Input
-                      id="invite-monthly-fee"
-                      type="number"
-                      min="0"
-                      // NOT step="1": the form submits through a real
-                      // <form onSubmit>, so native validation runs first,
-                      // and a EUR 99.50 plan — which the Plans screen can
-                      // store and a live subscription already uses — made
-                      // Submit do nothing but show a browser tooltip.
-                      step="0.01"
-                      {...form.register("monthly_fee", BLANK_OR_NUMBER)}
-                    />
+                    htmlFor/id on all three: nothing read them out, and
+                    tapping a label did not focus its field, which on a
+                    phone is how you hit a box this narrow. */}
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Only if this customer is different
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label htmlFor="invite-monthly-fee" className="text-xs">
+                        Per month
+                      </Label>
+                      <InputGroup>
+                        <InputGroupAddon className="border-r pr-2 text-xs">
+                          {planCurrency === "USD" ? "$" : "€"}
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="invite-monthly-fee"
+                          type="number"
+                          min="0"
+                          // NOT step="1": the form submits through a real
+                          // <form onSubmit>, so native validation runs
+                          // first, and a EUR 99.50 plan made Submit do
+                          // nothing but show a browser tooltip.
+                          step="0.01"
+                          {...form.register("monthly_fee", BLANK_OR_NUMBER)}
+                        />
+                      </InputGroup>
+                    </div>
+                    <div>
+                      <Label htmlFor="invite-included-accts" className="text-xs">
+                        Accounts free
+                      </Label>
+                      <Input
+                        id="invite-included-accts"
+                        type="number"
+                        min="0"
+                        step="1"
+                        {...form.register("included_ad_accounts", BLANK_OR_NUMBER)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="invite-topup-fee" className="text-xs">
+                        Top-up fee
+                      </Label>
+                      <InputGroup>
+                        <InputGroupInput
+                          id="invite-topup-fee"
+                          type="number"
+                          min="0"
+                          max="100"
+                          // numeric(5,2) in the database, so two decimals
+                          // are storable and step="0.1" refused them.
+                          step="0.01"
+                          {...form.register("topup_fee_pct", BLANK_OR_NUMBER)}
+                        />
+                        <InputGroupAddon className="border-l pl-2 text-xs">
+                          %
+                        </InputGroupAddon>
+                      </InputGroup>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="invite-included-accts" className="text-xs">
-                      Included accts
-                    </Label>
-                    <Input
-                      id="invite-included-accts"
-                      type="number"
-                      min="0"
-                      step="1"
-                      {...form.register("included_ad_accounts", BLANK_OR_NUMBER)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="invite-topup-fee" className="text-xs">
-                      Topup fee %
-                    </Label>
-                    <Input
-                      id="invite-topup-fee"
-                      type="number"
-                      min="0"
-                      max="100"
-                      // numeric(5,2) in the database, so two decimals are
-                      // storable and step="0.1" refused them.
-                      step="0.01"
-                      {...form.register("topup_fee_pct", BLANK_OR_NUMBER)}
-                    />
-                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    A subscription is auto-created on signup (0 = free, no
+                    sub).
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  A subscription is auto-created on signup (0 = free, no sub).
-                </p>
 
                 {/* Referrer — super-admin only */}
                 {isSuperAdmin && (
