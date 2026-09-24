@@ -1269,7 +1269,23 @@ export async function verifyAdTopup(
     }
   }
 
-  if (newFeePercent !== null) {
+  // ---- THE CHECK RUNS ON EVERY VERIFY, NOT ONLY ON A RETYPE -------
+  //
+  // All of this used to sit inside `if (newFeePercent !== null)`, and
+  // the verify dialog sends null whenever the admin does not retype the
+  // fee -- which is the ordinary press. So on the ordinary press the
+  // fee was never held against the account's rate at all: whatever the
+  // row happened to carry was verified as-is.
+  //
+  // That matters because the row is not only written by this app.
+  // `top_ups` carries `Enable ALL for admins` and `authenticated` holds
+  // INSERT, so an employee admin can write a row with any fee they like
+  // straight from the browser and then press this button. The floor and
+  // the ceiling below are the only thing standing between that row and
+  // a completed top-up, so they have to run on the number that is
+  // actually going to be used.
+  {
+    const feeToVerify = newFeePercent ?? null;
     // ── A READ WE COULD NOT MAKE IS NOT PERMISSION ──────────────────
     //
     // This discarded `error` and then wrote both checks so that "no row"
@@ -1340,9 +1356,13 @@ export async function verifyAdTopup(
       // way, so it gets the same rule. A small upward correction --
       // a rounding fix, a rate that moved -- is still allowed.
       const CORRECTION_HEADROOM_PCT = 1;
-      const belowFloor = newFeePercent + 0.0001 < effective.pct;
+      // The number this verify will actually settle at: what the admin
+      // typed, or the row's own stored fee when they typed nothing.
+      const settledPct =
+        feeToVerify ?? (Number.isFinite(Number(row.fee)) ? Number(row.fee) : 0);
+      const belowFloor = settledPct + 0.0001 < effective.pct;
       const aboveCeiling =
-        newFeePercent > effective.pct + CORRECTION_HEADROOM_PCT + 0.0001;
+        settledPct > effective.pct + CORRECTION_HEADROOM_PCT + 0.0001;
       if (belowFloor || aboveCeiling) {
         const { data: tenant } = await supabase
           .from("tenants")
@@ -1353,7 +1373,7 @@ export async function verifyAdTopup(
           return {
             ok: false,
             error: belowFloor
-              ? `This account's rate is ${effective.pct}%. Only the super-admin can verify below it — ask them, or use a fee waiver so the reason is recorded.`
+              ? `This top-up carries ${settledPct}% and this account's rate is ${effective.pct}%. Only the super-admin can verify below it — ask them, or use a fee waiver so the reason is recorded.`
               : `This customer was quoted ${effective.pct}%. Verifying above ${
                   effective.pct + CORRECTION_HEADROOM_PCT
                 }% is the super-admin's — a higher fee is money the customer did not agree to, and it comes straight off what lands on their account.`,

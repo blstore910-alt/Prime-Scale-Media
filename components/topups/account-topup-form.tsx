@@ -305,6 +305,11 @@ export default function AccountTopupForm({
   // the best figure available here without the server, and it is never
   // shown as final: the submit button waits for the quote.
   const fee = feeQuote.data?.pct ?? parseAmount(selectedAccount?.fee);
+  // The server's order of operations, in one place: round the fee to
+  // the cent FIRST, then subtract it. See the note on the summary below.
+  const r2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const feeAmount = r2((parseAmount(amount) * fee) / 100);
+  const netAfterFee = r2(parseAmount(amount) - feeAmount);
   const feeIsSettled = !!accountId && feeQuote.isSuccess;
   // AN ERRORED QUERY IS NOT A LOADED ONE. In react-query v5 a failed
   // query has isLoading === false, so gating only on isLoading left the
@@ -324,13 +329,27 @@ export default function AccountTopupForm({
   // funds $0". The customer's own path read exchange_rates nowhere --
   // and saving a new rate stands the old one down first, so "no active
   // rate" is a real state, not a theoretical one.
-  const { rate: usdRate, isLoading: rateLoading } = useUsdToEur();
+  const {
+    rate: usdRate,
+    isLoading: rateLoading,
+    // ---- A DISABLED QUERY IS NOT A LOADED ONE --------------------
+    //
+    // react-query v5 computes isLoading as `isPending && isFetching`,
+    // so a query that is DISABLED or paused reports isLoading FALSE
+    // with undefined data. `!rateLoading && !usdRate` was therefore
+    // true the moment the rate query did not run at all, and the Top
+    // up button greyed out for good with the reason only in a `title`
+    // -- which on a phone is no reason at all. use-usd-to-eur exposes
+    // isPending for exactly this and says so in its own comment.
+    isPending: ratePending,
+  } = useUsdToEur();
   // rateReadFailed/rateLoading still feed the guard below; the customer
   // is no longer told a dollar figure, so there is nothing left to hide
   // behind an "unknown rate" hint.
   // Only for a non-USD wallet: a USD top-up needs no conversion.
+  const rateUnknown = rateLoading || ratePending;
   const blockedByRate =
-    selectedCurrency !== "USD" && !rateLoading && !usdRate;
+    selectedCurrency !== "USD" && !rateUnknown && !usdRate;
   useEffect(() => {
     if (account?.id) {
       setValue("account_id", account.id);
@@ -582,10 +601,20 @@ export default function AccountTopupForm({
             <BalanceSummary
               currency={selectedCurrency}
               balance={selectedBalance}
-              amount={parseAmount(amount) - parseAmount(amount) * (fee / 100)}
+              // ---- ROUND THE FEE FIRST, LIKE THE SERVER ---------
+              //
+              // The RPC does `fee_amount = round(gross * pct/100, 2)`
+              // and then `net = gross - fee_amount`. This did
+              // `net = gross - gross*pct/100` and rounded once at
+              // print, which is a different number: EUR 100,50 at 3%
+              // reads "fee 3,02 / lands 97,49" here and stores 97,48.
+              // Every x,50 amount at 3% diverges, and at 5% every
+              // x,10 / x,30 / x,50. The figure the customer taps must
+              // be the figure that is written.
+              amount={netAfterFee}
               gross={parseAmount(amount)}
               fee_pct={fee}
-              fee_amount={(parseAmount(amount) * fee) / 100}
+              fee_amount={feeAmount}
               remaining={remainingBalance}
               feePending={feeUnresolved}
               feeFailed={feeQuote.isError}
@@ -694,7 +723,7 @@ export default function AccountTopupForm({
           <ConfirmFact
             label={`Top-up fee (${fee}%)`}
             value={formatCurrency(
-              (parseAmount(amount) * fee) / 100,
+              feeAmount,
               selectedCurrency,
             )}
           />
@@ -709,7 +738,7 @@ export default function AccountTopupForm({
           // the same screen and leaks the supplier's settlement
           // currency.
           value={formatCurrency(
-            parseAmount(amount) - (parseAmount(amount) * fee) / 100,
+            netAfterFee,
             selectedCurrency,
           )}
           strong

@@ -3102,10 +3102,25 @@ export default function AdvertiserApp() {
           </div>
         ) : (
           <div className="acts">
+            {/* ---- A BUTTON THAT CANNOT WORK SAYS SO HERE ----------
+                Seven of the eleven ad accounts on this database have no
+                currency, and the funding dialog refuses those outright:
+                "This ad account has no currency set yet, so it cannot be
+                funded." The card offered Top up anyway, so the only way
+                to find out was to press it, read the refusal and close
+                it again. The card already prints "Currency: Not set
+                yet"; the button now agrees with it. */}
             <button
               className="btn sm"
+              disabled={!a.currency}
+              title={
+                a.currency
+                  ? undefined
+                  : "We still have to set this account's currency — message us and we will."
+              }
               onClick={(e) => {
                 e.stopPropagation();
+                if (!a.currency) return;
                 openAcctTopup(a);
               }}
             >
