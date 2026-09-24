@@ -134,17 +134,33 @@ export function useAffiliateEarnings(
         if (r.id && email) emailByLink.set(r.id, email);
       }
 
+      // TWO TABLES, TWO COLUMN LISTS. `referral_commissions` carries a
+      // `status` (a reversed one is already undone and must not be
+      // counted); `referral_clawbacks` has no such column, and asking
+      // for it is a 400 on the whole read -- which is what production
+      // did: every affiliate's earnings on /users failed, and the screen
+      // said "Couldn't load some data" over a column that never existed.
       const sumBy = async (
         table: "referral_commissions" | "referral_clawbacks",
       ) => {
         if (linkIds.length === 0) return [] as Record<string, unknown>[];
+        // Literal selects, not a variable: the generated types parse the
+        // column list at compile time and a `string` makes every row
+        // `ParserError`.
         const res = await pageAllRows<Record<string, unknown>>((from, to) =>
-          supabase
-            .from(table)
-            .select("referral_link_id, amount, currency, status")
-            .in("referral_link_id", linkIds)
-            .order("id", { ascending: true })
-            .range(from, to),
+          table === "referral_commissions"
+            ? supabase
+                .from("referral_commissions")
+                .select("referral_link_id, amount, currency, status")
+                .in("referral_link_id", linkIds)
+                .order("id", { ascending: true })
+                .range(from, to)
+            : supabase
+                .from("referral_clawbacks")
+                .select("referral_link_id, amount, currency")
+                .in("referral_link_id", linkIds)
+                .order("id", { ascending: true })
+                .range(from, to),
         );
         if (res.error) throw new Error(res.error);
         return res.rows;
