@@ -1,7 +1,7 @@
 "use client";
 
 import { copyText } from "@/lib/copy-text";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PsmSortFilter from "@/components/psm/sort-filter";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -83,6 +83,49 @@ function useAuditTableNames(): string[] {
   return [...AUDITED_TABLES];
 }
 
+/** Who did it, for the actors on the page in front of you.
+ *
+ *  WHY. The Actor column printed `actor_profile_id` -- a raw uuid, on
+ *  every row, on the screen whose entire purpose is "who changed this".
+ *  Reading it meant copying a uuid out and looking it up somewhere else,
+ *  and the two ids that fill most of the log look identical at a glance
+ *  until the fourth character.
+ *
+ *  One extra read, only for the ids actually on screen, and never
+ *  blocking: a name that will not load leaves the uuid, which is what
+ *  was there before.
+ */
+function useActorNames(ids: string[]): Record<string, string> {
+  const key = ids.join(",");
+  const { data } = useQuery({
+    queryKey: ["audit-actor-names", key],
+    enabled: ids.length > 0,
+    staleTime: 5 * 60_000,
+    meta: { silent: true },
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, email")
+        .in("id", ids);
+      if (error) throw error;
+      const out: Record<string, string> = {};
+      for (const row of data ?? []) {
+        const r = row as {
+          id?: string;
+          full_name?: string | null;
+          email?: string | null;
+        };
+        if (!r.id) continue;
+        const name = (r.full_name ?? "").trim() || (r.email ?? "").trim();
+        if (name) out[r.id] = name;
+      }
+      return out;
+    },
+  });
+  return data ?? {};
+}
+
 // Maps an audit action to one of the mockup's scoped `.badge` variants.
 function actionBadge(action: AuditEvent["action"]) {
   switch (action) {
@@ -146,6 +189,20 @@ export default function AuditEventsTable() {
     page,
     perPage,
   });
+
+  // Only the actors on THIS page, so the lookup is a handful of ids.
+  const actorIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (events ?? [])
+            .map((e) => e.actor_profile_id)
+            .filter((v): v is string => !!v),
+        ),
+      ),
+    [events],
+  );
+  const actorNames = useActorNames(actorIds);
 
   async function downloadCsv() {
     setExporting(true);
@@ -425,7 +482,11 @@ export default function AuditEventsTable() {
                     </td>
                     <td
                       data-label="Actor"
-                      className="mono"
+                      className={
+                        ev.actor_profile_id && actorNames[ev.actor_profile_id]
+                          ? undefined
+                          : "mono"
+                      }
                       style={{
                         color: "var(--txt-2)",
                         maxWidth: "10rem",
@@ -433,8 +494,15 @@ export default function AuditEventsTable() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                       }}
+                      title={ev.actor_profile_id ?? undefined}
                     >
-                      {ev.actor_profile_id ?? "—"}
+                      {ev.actor_profile_id
+                        ? (actorNames[ev.actor_profile_id] ??
+                          ev.actor_profile_id)
+                        : // No actor at all is the system itself -- a cron,
+                          // the deposit feed, a trigger firing without a
+                          // signed-in user. Say so instead of a dash.
+                          "System"}
                     </td>
                     <td data-label="Details" className="r">
                       <button
@@ -498,7 +566,12 @@ export default function AuditEventsTable() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <p className="text-muted-foreground">Actor profile</p>
-                  <p className="font-mono">{selected.actor_profile_id ?? "-"}</p>
+                  <p className="font-mono">
+                    {selected.actor_profile_id
+                      ? (actorNames[selected.actor_profile_id] ??
+                        selected.actor_profile_id)
+                      : "System"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Actor user</p>
