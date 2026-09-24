@@ -122,8 +122,21 @@ export default function AdvertiserAdAccountRequestsDialog({
   const { profile } = useAppContext();
   const [open, setOpen] = useState(false);
 
-  const advertiserId = profile?.advertiser?.[0]?.id;
-  const requesterEmail = profile?.email;
+  // ── AN ADMIN HAS NO ADVERTISER ROW, AND THAT WAS THE WHOLE BUG ────
+  //
+  // This dialog is mounted on /accounts, and accounts-router sends every
+  // advertiser to /dashboard -- so the ONLY person who can open it is an
+  // admin. It scoped on `profile.advertiser[0].id`, which an admin does
+  // not have, and then fell through to `.eq("email", <the admin's own
+  // login>)` against a column that holds the AD ACCOUNT's email. So
+  // "Pending Requests" answered "No ad account requests found." every
+  // single time, with a queue full of them one route away.
+  //
+  // For an admin the useful list is the tenant's, which is what the
+  // hook does when neither scope is given.
+  const isAdmin = (profile?.role ?? "").toLowerCase() === "admin";
+  const advertiserId = isAdmin ? undefined : profile?.advertiser?.[0]?.id;
+  const requesterEmail = isAdmin ? undefined : profile?.email;
   const tenantId = profile?.tenant_id;
 
   const { requests, isLoading, isError, error } = useAdAccountRequests({

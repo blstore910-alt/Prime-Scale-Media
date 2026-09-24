@@ -1270,6 +1270,95 @@ function RefundsSection() {
 
 // Copied verbatim from components/withdrawals/refund-panel.tsx so the refund
 // request flow (payload, validation, server action) is byte-identical.
+/**
+ * What is actually in the picked customer's wallet.
+ *
+ * NEITHER REQUEST DIALOG READ IT, AND BOTH RPCs REFUSE ON IT.
+ * wallet_refund_approve raises "Insufficient wallet balance for this
+ * refund"; wallet_adjustment_approve raises "Adjustment would make the
+ * balance negative". So an admin could pick a customer holding EUR 300,
+ * type 5000, and get a green "awaiting owner approval" -- and the owner's
+ * approve dialog showed Customer and Amount and nothing else, and then
+ * failed. There is no update path on wallet_refunds anywhere in the app,
+ * so the row can only be refused with a reason and raised again from
+ * scratch.
+ *
+ * Returned per currency, because the wallet holds two.
+ */
+function useWalletBalances(advertiserId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["request-wallet-balance", advertiserId],
+    enabled: enabled && !!advertiserId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("wallets")
+        .select("eur_balance, usd_balance")
+        .eq("advertiser_id", advertiserId)
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        EUR: Number((data as { eur_balance?: number } | null)?.eur_balance ?? 0),
+        USD: Number((data as { usd_balance?: number } | null)?.usd_balance ?? 0),
+      };
+    },
+  });
+}
+
+/**
+ * The line under the amount box: what they hold, and what it becomes.
+ * `delta` is negative when money leaves.
+ */
+function BalanceAfter({
+  balances,
+  currency,
+  delta,
+}: {
+  balances: { data?: { EUR: number; USD: number }; isError: boolean; isLoading: boolean };
+  currency: "USD" | "EUR";
+  delta: number;
+}) {
+  if (balances.isLoading) {
+    return (
+      <p className="muted" style={{ fontSize: ".78rem", margin: "4px 0 0" }}>
+        Checking their balance…
+      </p>
+    );
+  }
+  if (balances.isError || !balances.data) {
+    return (
+      <p className="muted" style={{ fontSize: ".78rem", margin: "4px 0 0" }}>
+        We couldn&apos;t read their balance — this is NOT zero. Check before
+        you raise this.
+      </p>
+    );
+  }
+  const now = balances.data[currency];
+  if (!Number.isFinite(delta) || delta === 0) {
+    return (
+      <p className="muted" style={{ fontSize: ".78rem", margin: "4px 0 0" }}>
+        They hold {formatCurrency(now, currency)}.
+      </p>
+    );
+  }
+  const after = now + delta;
+  const short = after < 0;
+  return (
+    <p
+      style={{
+        fontSize: ".78rem",
+        margin: "4px 0 0",
+        color: short ? "var(--danger)" : "var(--txt-2)",
+      }}
+    >
+      {formatCurrency(now, currency)} {"\u2192"} {formatCurrency(after, currency)}
+      {short
+        ? " — that is more than they have, and the owner's approval will refuse it."
+        : ""}
+    </p>
+  );
+}
+
 function RefundRequestDialog({
   open,
   onOpenChange,
@@ -1314,7 +1403,16 @@ function RefundRequestDialog({
     setPrimedFor(true);
     setAdvertiserId("");
     setAmount("");
-    setCurrency("USD");
+    // ── ONE DEFAULT, NOT TWO ──────────────────────────────────────
+    //
+    // The wallet currency primed to USD and the bank currency to EUR,
+    // in the same box, on the field that decides which balance is
+    // debited. An admin who changed only one of them raised a refund
+    // that takes dollars out and pays euros in -- or the reverse -- and
+    // nothing on the form said the two disagreed. EUR for both: it is
+    // what this tenant bills in, it is what every live wallet holds,
+    // and both are one click from the other.
+    setCurrency("EUR");
     setReason("");
     setPayoutDetails("");
     setBusinessName("");
@@ -1351,6 +1449,8 @@ function RefundRequestDialog({
       return (data ?? []) as unknown as AdvertiserOption[];
     },
   });
+
+  const balances = useWalletBalances(advertiserId, open);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -1485,6 +1585,13 @@ function RefundRequestDialog({
               </Select>
             </div>
           </div>
+          {advertiserId ? (
+            <BalanceAfter
+              balances={balances}
+              currency={currency}
+              delta={-(Number(amount) || 0)}
+            />
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="rf-reason">Reason (optional)</Label>
@@ -1941,6 +2048,7 @@ function AdjustmentRequestDialog({
   const queryClient = useQueryClient();
   const [advertiserId, setAdvertiserId] = useState("");
   const [direction, setDirection] = useState<"add" | "remove">("add");
+  const balances = useWalletBalances(advertiserId, open);
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [reason, setReason] = useState("");
@@ -1959,7 +2067,8 @@ function AdjustmentRequestDialog({
     setAdvertiserId("");
     setDirection("add");
     setAmount("");
-    setCurrency("USD");
+    // EUR, like the refund dialog beside it and like every live wallet.
+    setCurrency("EUR");
     setReason("");
   }
   if (!open && primedFor) setPrimedFor(false);
@@ -2126,6 +2235,13 @@ function AdjustmentRequestDialog({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
+            {advertiserId ? (
+              <BalanceAfter
+                balances={balances}
+                currency={currency}
+                delta={(direction === "remove" ? -1 : 1) * (Number(amount) || 0)}
+              />
+            ) : null}
           </div>
 
           <div className="space-y-2">
