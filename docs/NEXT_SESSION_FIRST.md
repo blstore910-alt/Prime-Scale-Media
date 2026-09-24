@@ -10,6 +10,110 @@
 
 > **D1 is NOT closed, and the reason is a login.** Its customer half is walked and verified on screen and against the database; the admin half needs an owner session and I have none. Chrome holds PSM0005 (advertiser) and the built-in pane holds PSM0008 (affiliate) — two customer sessions. Creating accounts and typing passwords are the owner's, by their own instruction. Sign in as the owner anywhere and D1, D2, D3 and S1-S3 can all be walked.
 
+## D2 - walked 2026-09-24, ONE step open: nobody has accepted the invitation yet
+
+Three of its four steps are walked on production as the owner and checked
+against the database to the cent. The fourth - a customer accepting the
+invitation - needs somebody to set a password, which is the owner's to do.
+
+| step | what was done | database |
+|---|---|---|
+| **invite** | created for `d2walk2409@robustq.com`, Prime, **without emailing anybody** | `invitations`: advertiser, pending, plan attached, 200.00 / 2 incl / 3.00%, expires exactly 7 days out |
+| **plan** | subscription added to PSM0011 from the dialog, Launch EUR 150 | `subscriptions`: 150.00 EUR, `inactive`, and the toast says so - "created, not billing yet" |
+| **ad account** | created for PSM0011, Meta-EU-PSM-RA, then corrected through Edit | `ad_accounts`: D2-0011-WALK, eu-meta-psm, **EUR**, fee 3.00, active |
+| **deactivate** | PSM0002 switched off and back on | `user_profiles`: back to `active` / `is_active = true` |
+
+**All the branches of the invite dialog were walked**, not just the happy
+one: Role -> Affiliate collapses the whole plan block (an affiliate buys
+nothing); each tier fills its own figures (Launch 150 / Prime 200 / Flex 75
+/ NSA 0); and picking the NSA community overrides Prime 200-2-3% with
+0-1-5%, which is exactly what `plans` holds for it.
+
+### What the sweep found, and what it would have cost
+
+1. **A new ad account came out in DOLLARS when the admin picked euro.** The
+   form has a currency picker, a default of EUR, a zod enum and a line of
+   help text saying the customer's wallet is matched on it - and `currency`
+   was not in the payload. So it arrived undefined and the server, which
+   normalises anything that is not EUR or USD to USD on purpose so an
+   account is never left unfundable, wrote USD. Walked: picked "EUR - euro
+   account", pressed Create, row came back USD. Every funding of that
+   account then debits the dollar wallet. The UPDATE form beside it had
+   been sending it correctly all along.
+2. **A referral can be approved that earns the affiliate nothing, and the
+   dialog said the opposite.** `_accrue_referral_commission` reads
+   `referral_links.commission_pct` and stops at `<= 0`, while the
+   confirmation read "The affiliate earns from this customer from now on".
+   PSM0010 -> PSM0005, created through the current RPC, carried no rate at
+   all. The rate is now a fact in that dialog, and with no rate the lead
+   says approving earns them NOTHING and where to set it first.
+3. **The plan badge stated the TEMPLATE's terms, not the customer's.**
+   `advertiser_plans` carries a copy per customer and three of the five
+   live rows disagree with the plan they are named after. PSM0004 wore a
+   plain "Prime" badge - which means 2 included at 3% - over a row that
+   says 1 included at 5%. That is the badge an admin reads to answer "does
+   their next ad account cost EUR 50?", and `advertiser_plans.topup_fee_pct`
+   is second in precedence for what is actually charged. It reads
+   "Prime · 1 incl · 5%" now.
+4. **An empty read rendered as an empty answer, on five screens.**
+   react-query pauses a query when the browser reports no connection, and
+   v5 computes `isLoading` as `isPending && isFetching` - so it is FALSE
+   while nothing has been read, `isError` is false too, and every screen
+   falls through to its empty state. Measured: "No advertisers yet." over
+   11 advertisers, "No ad accounts found" over 10 accounts, "You've not
+   sent any invites yet." over 13 invitations, "this customer has no
+   referrer AND there is nobody to set as one", and "No user selected" on a
+   drawer the admin had just opened by clicking that customer. One line -
+   `networkMode: "always"` - turns all of it into the error branch those
+   screens already have.
+5. **An invitation the table itself drew as Expired still handed over a
+   link**, under a toast promising "it works until it expires or is
+   cancelled" - and /invite/accept then told the customer it could not be
+   used. Nothing ever writes the status 'expired'; it is a date, compared
+   when the link is opened. A replacement invite to that address was
+   refused by that same dead row, with no hint that cancelling was the way
+   through.
+6. **An account closed on the customer's own deletion request got a plain
+   Activate button** whose confirmation talks about subscriptions and never
+   mentions the erasure. One press signed them back in and restarted the
+   monthly charge.
+7. **The second Save on /settings/plans was always refused as somebody
+   else's edit.** `dirty` was never cleared after a successful save and the
+   adopt-effect refuses fresh server rows while anything is dirty, so the
+   row kept the `updated_at` from before the save and failed its own
+   version check. That is the screen that prices every new customer.
+8. **The deactivate confirmation closed before its write.** Measured on
+   production: dialog gone at 675ms, write landed at 2675ms - two seconds
+   in which the only sign of life was a spinner in one cell. It now holds
+   with "Saving…" until the write lands; re-measured at six seconds open,
+   then closed.
+9. Smaller, all fixed: the client code read PSM000012 for somebody who will
+   be PSM0012 (the trigger pads to four, the form padded to six - and that
+   string is the first half of every payment reference); three lines of
+   preamble pushed the invite form below the fold; the helper line under
+   every commission type was never drawn, though three of the seven types
+   accrue nothing at all; a self-invite walked past the guard with one
+   capital letter; Copy link was not disabled while it ran; "Only the
+   account owner can cancel an invitation" was the refusal shown on a COPY
+   press; Review on a finished request opened a grey bar with no buttons
+   under "choose the next action"; and `send_email` had a branch in the
+   route, a field in the schema and no control anywhere - so "create the
+   link without mailing anyone" was unreachable. It has a checkbox now,
+   which is how the invitation above was created.
+
+### Still open on D2
+
+- **Nobody has accepted the invitation.** Until somebody does, the
+  invite-with-plan chain (`create_subscription_from_invite`) is not proven
+  end to end. PSM0011 came in through a referral link with no plan, so A1
+  does not cover it.
+- **`npm run check` fell over mid-session and it was not the settings.**
+  Supabase now publishes the direct host `db.<ref>.supabase.co` over IPv6
+  only; this machine has no IPv6 route, so node could not resolve it at
+  all. The pooler is dual-stack - `aws-1-eu-west-1.pooler.supabase.com`,
+  port 5432, user `psm_check.<projectref>`. The script now says this
+  itself instead of reading as a typo.
+
 ## D1 - CLOSED 2026-09-23. Admin queues: verify, refuse with a reason, tell the customer
 
 **Walked, not read.** Owner in Chrome, PSM0011 in the built-in pane, both
