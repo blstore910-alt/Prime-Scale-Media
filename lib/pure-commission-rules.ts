@@ -380,14 +380,44 @@ export function affiliateRateLine(
     }) ??
     pctAtLevel(rules, { affiliateAdvertiserId: null, source, typeSlug: null, at });
 
-  const topup = pick("topup");
+  // ── THE ALL-TYPES TOP-UP RULE MAY DELIBERATELY BE NULL ───────────
+  //
+  // This tenant set an all-types topup rule of 20% on 21-09, then on
+  // 22-09 set that same level to NULL and put 20% on each of the five
+  // ad-account types instead. So asking only at the all-types level
+  // answers "nothing", and the line read "50% of every paid invoice"
+  // for an affiliate who also earns 20% on every top-up.
+  //
+  // When the all-types level is empty, look at the types: if they all
+  // agree, that is the rate; if they differ, say so rather than pick
+  // one.
+  const topupAll = pick("topup");
+  const topupByType = (() => {
+    if (topupAll !== null) return null;
+    const seen = new Set<number>();
+    for (const r of rules) {
+      if (r.source !== "topup" || !r.ad_account_type) continue;
+      const p = num(r.pct);
+      if (p !== null && p > 0) seen.add(p);
+    }
+    if (seen.size === 0) return null;
+    if (seen.size === 1) return { pct: [...seen][0], varies: false };
+    return { pct: null as number | null, varies: true };
+  })();
+  const topup = topupAll;
   const sub = pick("subscription");
   const one =
     onetimeAtLevel(rules, { affiliateAdvertiserId, at }) ??
     onetimeAtLevel(rules, { affiliateAdvertiserId: null, at });
 
   const parts: string[] = [];
-  if (topup !== null && topup > 0) parts.push(`${topup}% of top-up profit`);
+  if (topup !== null && topup > 0) {
+    parts.push(`${topup}% of top-up profit`);
+  } else if (topupByType?.varies) {
+    parts.push("a share of top-up profit, per ad-account type");
+  } else if (topupByType && topupByType.pct !== null) {
+    parts.push(`${topupByType.pct}% of top-up profit`);
+  }
   if (sub !== null && sub > 0) parts.push(`${sub}% of every paid invoice`);
   if (one && one.amount > 0) {
     parts.push(
