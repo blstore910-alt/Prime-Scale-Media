@@ -4264,6 +4264,14 @@ export default function AdvertiserApp() {
                 to={affPeriod.to}
                 periodLabel={rangeCaption(affRange)}
                 leadCurrency={affLeadUsd ? "USD" : "EUR"}
+                // All time, net of clawbacks -- the same figure the
+                // Getting-paid card below uses, so the two cannot
+                // disagree about what a payout would be.
+                payableAllTime={
+                  aff.isPending || aff.isError
+                    ? null
+                    : { eur: aff.payable.eur, usd: aff.payable.usd }
+                }
               />
 
               {/* ── GETTING PAID, at the bottom ───────────────────────

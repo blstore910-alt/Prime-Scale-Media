@@ -141,6 +141,7 @@ export default function AffiliateCommissionsCard({
   to = null,
   periodLabel,
   leadCurrency = "EUR",
+  payableAllTime = null,
 }: {
   enabled: boolean;
   /** A referral picked in the table above -- the list narrows to them. */
@@ -153,6 +154,10 @@ export default function AffiliateCommissionsCard({
   periodLabel?: string;
   /** The currency the affiliate earned most in: it goes first in every sum. */
   leadCurrency?: "EUR" | "USD";
+  /** What a payout would ACTUALLY be, all time, net of clawbacks -- the
+   *  figure the Getting-paid card and the RPC both use. See the note by
+   *  the sums below for why this card needs it. */
+  payableAllTime?: { eur: number; usd: number } | null;
 }) {
   const [sort, setSort] = useState<Sort>("newest");
   // Five is enough to see what is going on; the rest is one tap away.
@@ -227,6 +232,27 @@ export default function AffiliateCommissionsCard({
   const owed = sumBy(ofKind, (r) => r.status === "owed");
   const paid = sumBy(ofKind, (r) => r.status === "paid");
 
+  // ---- THE SUMS ARE OF THE ROWS; A PAYOUT IS NOT ------------------
+  //
+  // These three tiles are the status filter: each is the sum of the rows
+  // it shows. That is right, and it is also not what will be paid -- a
+  // clawback takes money back WITHOUT changing any commission row, so
+  // this card said "Awaiting payout EUR 20,00" three inches above a
+  // Getting-paid card reading EUR 15,96, on the same screen, EUR 4,04
+  // apart. Measured on production for PSM0005.
+  //
+  // So the tiles stay sums of rows and one line underneath reconciles
+  // them with the figure that will actually land.
+  const leadKey = String(leadCurrency).toLowerCase() === "usd" ? "usd" : "eur";
+  const owedListed = Number(owed[leadCurrency] ?? 0);
+  const payableLead = payableAllTime
+    ? Number(payableAllTime[leadKey as "eur" | "usd"] ?? 0)
+    : null;
+  const clawedBack =
+    payableLead !== null && owedListed - payableLead > 0.005
+      ? owedListed - payableLead
+      : null;
+
   // isPending, not isLoading: react-query v5 reports isLoading FALSE for a
   // query that is switched off, so with no advertiser row this card printed
   // three confident EUR 0,00 sums and "No commission yet" for a read that
@@ -281,6 +307,22 @@ export default function AffiliateCommissionsCard({
 
       {/* The three sums ARE the status filter: one row, each the sum of
           the rows it shows when pressed. */}
+      {clawedBack !== null && !dash ? (
+        <p
+          className="xl-claw"
+          style={{
+            margin: "6px 2px 0",
+            fontSize: ".8rem",
+            lineHeight: 1.45,
+            color: "var(--txt-2)",
+          }}
+        >
+          {money({ [leadCurrency]: clawedBack }, leadCurrency)} of this came
+          back off an ad account and was taken off again, so a payout right
+          now would be{" "}
+          <b>{money({ [leadCurrency]: payableLead ?? 0 }, leadCurrency)}</b>.
+        </p>
+      ) : null}
       <div className="xl-money" role="radiogroup" aria-label="Status">
         {(
           [
