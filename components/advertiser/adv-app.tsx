@@ -903,14 +903,32 @@ export default function AdvertiserApp() {
         // instead, so an invoice whose items array is empty or omits the
         // key said "€120 from your EUR wallet" while the RPC took $120 off
         // the USD one. There is no undo.
+        // paid_from lands with plak 88 and says whether the wallet was
+        // actually debited. Asked for, and on 42703 asked again without
+        // it -- the statement then falls back to its old behaviour
+        // rather than the whole billing card going dark.
         .select(
-          "id, number, total, status, paid_at, created_at, due_date, items, type, currency",
+          "id, number, total, status, paid_at, created_at, due_date, items, type, currency, paid_from",
         )
         .eq("tenant_id", tenantId)
         .eq("advertiser_id", advertiserId)
         .order("created_at", { ascending: false })
         .limit(30);
-      if (error) throw error;
+      if (error) {
+        const retry = await supabase
+          .from("invoices")
+          .select(
+            "id, number, total, status, paid_at, created_at, due_date, items, type, currency",
+          )
+          .eq("tenant_id", tenantId)
+          .eq("advertiser_id", advertiserId)
+          .order("created_at", { ascending: false })
+          .limit(30);
+        if (retry.error) throw retry.error;
+        return (retry.data ?? []) as unknown as (InvoiceWithRelations & {
+          due_date?: string | null;
+        })[];
+      }
       return (data ?? []) as unknown as (InvoiceWithRelations & {
         due_date?: string | null;
       })[];
@@ -4369,22 +4387,64 @@ export default function AdvertiserApp() {
                               >
                                 {invoiceTypeLabel(inv.type)}
                               </td>
-                              {/* A minus, and the danger colour. Everything
-                                  else in this list is money arriving; the
-                                  one direction that is not has to look
-                                  different at a glance, not read the same
-                                  and start with a character. */}
-                              <td
-                                data-label="Amount"
-                                className="r mono"
-                                style={{ color: "var(--danger)" }}
-                              >
-                                −{sym}
-                                {money2(inv.total)}
-                              </td>
-                              <td data-label="Status" className="r">
-                                <span className="badge muted">Paid</span>
-                              </td>
+                              {/* ── A MINUS ONLY WHEN MONEY LEFT ──────
+                                  Every paid invoice was drawn here as a
+                                  wallet debit, and that is not what a paid
+                                  invoice means. An admin can mark one paid
+                                  because it was settled by bank transfer,
+                                  waived or netted off -- and then nothing
+                                  came out of the wallet.
+
+                                  Walked on production: PSM0007's statement
+                                  read 100 - 50 - 50 - 10 + 20 = EUR 10,00
+                                  over a balance of EUR 20,00, and the audit
+                                  on `wallets` confirms the tenner never
+                                  moved. Invoice 130 was flipped to paid by
+                                  a person a minute after it was raised.
+
+                                  `paid_from` (plak 88) is what the RPC
+                                  writes when the wallet really is debited.
+                                  Null means we do not know, which for
+                                  everything raised before today is the
+                                  truth. */}
+                              {(() => {
+                                const fromWallet =
+                                  String(
+                                    (inv as { paid_from?: string | null })
+                                      .paid_from ?? "",
+                                  ).toLowerCase() === "wallet";
+                                return (
+                                  <>
+                                    <td
+                                      data-label="Amount"
+                                      className="r mono"
+                                      style={{
+                                        color: fromWallet
+                                          ? "var(--danger)"
+                                          : "var(--txt-2)",
+                                      }}
+                                    >
+                                      {fromWallet ? "\u2212" : ""}
+                                      {sym}
+                                      {money2(inv.total)}
+                                    </td>
+                                    <td data-label="Status" className="r">
+                                      <span
+                                        className="badge muted"
+                                        title={
+                                          fromWallet
+                                            ? "Taken from your wallet."
+                                            : "Settled outside your wallet \u2014 your balance did not change for this."
+                                        }
+                                      >
+                                        {fromWallet
+                                          ? "Paid"
+                                          : "Paid \u00b7 not from wallet"}
+                                      </span>
+                                    </td>
+                                  </>
+                                );
+                              })()}
                             </tr>
                           );
                         }
