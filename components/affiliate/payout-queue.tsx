@@ -110,6 +110,21 @@ export default function PayoutQueue({
       </div>
     );
   }
+  // ---- STILL ASKING IS NOT "NOTHING TO DO" ----------------------
+  //
+  // Rendering nothing while the read is in flight makes the owner's
+  // queue indistinguishable from an empty one for the first moment, on
+  // the screen where they decide whether anybody is waiting for money.
+  if (payouts.isPending) {
+    return (
+      <div className="card">
+        <h2>Payouts</h2>
+        <p className="cap" style={{ margin: "6px 0 0" }}>
+          Checking whether anybody is waiting to be paid&hellip;
+        </p>
+      </div>
+    );
+  }
   if (!waiting.length && !settled.length) return null;
 
   const decide = async () => {
