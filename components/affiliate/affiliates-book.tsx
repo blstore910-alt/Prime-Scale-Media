@@ -18,6 +18,7 @@ import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import {
+  affiliateRateLine,
   resolveCommissionRule,
   ruleLevelLabel,
   type CommissionRule,
@@ -134,6 +135,7 @@ export default function AffiliatesBook() {
           }
           affiliates={data.affiliates}
           members={data.members}
+          rules={data.rules}
           upgrades={data.upgrades}
           rulesMissing={data.rulesMissing}
           linkStatusUnknown={data.linkStatusUnknown}
@@ -191,6 +193,7 @@ function WaitingForYou({
   applications,
   upgrades,
   pending,
+  rules,
   canDecide,
   onApproveApplication,
   statusUnknown,
@@ -198,6 +201,9 @@ function WaitingForYou({
   applications: AffiliateMember[];
   upgrades: UpgradeRequest[];
   pending: { link: BookLink; affiliate: AffiliateSummary }[];
+  /** For the approve confirmation: what the affiliate is ACTUALLY paid,
+   *  resolved from commission_rules rather than the link column. */
+  rules: CommissionRule[];
   canDecide: boolean;
   onApproveApplication: (m: AffiliateMember) => void;
   /** The referral-link statuses could not be read: the list may be short. */
@@ -316,8 +322,7 @@ function WaitingForYou({
                     <ReferralStatusAction
                       referralLinkId={l.id}
                       status={l.status}
-                      commissionType={l.commission_type}
-                      commissionPct={l.commission_pct}
+                      rateLine={affiliateRateLine(rules, a.affiliateId)}
                       affiliateName={[a.name, a.code].filter(Boolean).join(" · ") || null}
                       referredName={
                         [l.referred_advertiser_name, l.referred_advertiser_tenant_client_code]
@@ -520,6 +525,7 @@ function Overview({
   affiliates,
   members,
   upgrades,
+  rules,
   rulesMissing,
   linkStatusUnknown,
   tenantId,
@@ -530,6 +536,8 @@ function Overview({
   affiliates: AffiliateSummary[];
   members: AffiliateMember[];
   upgrades: UpgradeRequest[];
+  /** Passed straight down to the approve confirmation. */
+  rules: CommissionRule[];
   rulesMissing: boolean;
   /** The referral-link statuses could not be read. */
   linkStatusUnknown?: boolean;
@@ -681,6 +689,7 @@ function Overview({
         applications={applications}
         upgrades={upgrades}
         pending={pending}
+        rules={rules}
         canDecide={canDecide}
         onApproveApplication={onApproveApplication}
         statusUnknown={linkStatusUnknown}
@@ -1267,8 +1276,10 @@ function AffiliateDetail({
                               <ReferralStatusAction
                                 referralLinkId={l.id}
                                 status={l.status}
-                                commissionType={l.commission_type}
-                                commissionPct={l.commission_pct}
+                                rateLine={affiliateRateLine(
+                                  rules,
+                                  summary?.affiliateId ?? null,
+                                )}
                                 affiliateName={code}
                                 referredName={l.referred_advertiser_tenant_client_code}
                               />

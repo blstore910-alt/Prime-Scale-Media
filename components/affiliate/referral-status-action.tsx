@@ -17,20 +17,18 @@ export default function ReferralStatusAction({
   status,
   affiliateName,
   referredName,
-  commissionType,
-  commissionPct,
+  rateLine,
 }: {
   referralLinkId: string;
   status: string | null;
   /** For the confirmation, so it names who it is about. */
   affiliateName?: string | null;
   referredName?: string | null;
-  /** The rate on THIS LINK. _accrue_referral_commission reads
-   *  referral_links.commission_pct and stops at
-   *  `coalesce(v_link.commission_pct, 0) <= 0` -- so a link with no rate
-   *  earns nothing, no matter what the affiliate's settings say. */
-  commissionType?: string | null;
-  commissionPct?: number | null;
+  /** What this affiliate is ACTUALLY paid, in words, resolved from
+   *  `commission_rules` -- their own level where they have one, the
+   *  organisation's otherwise. NOT `referral_links.commission_pct`; see
+   *  the note on `noRate` below. Null means no rule applies. */
+  rateLine?: string | null;
 }) {
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<
@@ -94,13 +92,25 @@ export default function ReferralStatusAction({
   // against real spend. Neither should happen on a mis-aimed click.
   const [asking, setAsking] = useState<"active" | "rejected" | null>(null);
 
-  // A percentage arrangement with no percentage on it. The two live
-  // links that carry a rate got it from the affiliate's settings; the
-  // one created through the current RPC path did not, because nothing
-  // copied it -- and nothing on this screen said so before approving.
-  const noRate =
-    !commissionType || !Number.isFinite(Number(commissionPct)) ||
-    Number(commissionPct) <= 0;
+  // ── THE RATE THAT PAYS, NOT THE ONE ON THE ROW ──────────────────
+  //
+  // This printed `referral_links.commission_pct`, and that column is not
+  // what the live accrual reads: `_book_topup_commission` ->
+  // `_topup_commission_calc` -> `_commission_rule_at` all resolve
+  // against `commission_rules`, and only the legacy wallet_topups
+  // trigger still looks at the link.
+  //
+  // Measured on production: both live links carry 10.000, and every row
+  // they have booked is 20% of top-up profit and 50% of a paid invoice
+  // -- which is exactly what commission_rules holds. So the
+  // confirmation stated a rate nobody is paid at.
+  //
+  // Worse, the branch below told the owner that approving earns the
+  // affiliate NOTHING whenever the link had no rate -- and the one
+  // pending link on this tenant has none, while the organisation's own
+  // rules would pay them 20%, 50% and a EUR 10 one-off. The opposite of
+  // true, on the screen where it is decided.
+  const noRate = !rateLine;
 
   const current = (status ?? "active").toLowerCase();
 
@@ -166,7 +176,7 @@ export default function ReferralStatusAction({
           asking === "rejected"
             ? "The affiliate earns nothing from this customer. The customer stays yours; you can set a referrer for them later."
             : noRate
-              ? "There is no commission rate on this referral, so approving it earns the affiliate NOTHING — not now and not on their next top-up. Set the rate on the affiliate first (Commission, on the customer row), then approve."
+              ? "We couldn't work out what this affiliate is paid — no commission rule applies to them, at their own level or the organisation's. Approving would earn them nothing. Set a rule first."
               : "The affiliate earns from this customer from now on — and everything the customer already did since they signed up is booked straight away, with the rules as they are now."
         }
         cta={asking === "rejected" ? "Yes, refuse" : "Yes, approve"}
@@ -183,12 +193,8 @@ export default function ReferralStatusAction({
         <ConfirmFact label="Referred customer" value={referredName ?? "—"} />
         {asking === "active" ? (
           <ConfirmFact
-            label="Rate on this referral"
-            value={
-              noRate
-                ? "none — they earn nothing"
-                : `${commissionPct}% (${commissionType})`
-            }
+            label="What they get paid"
+            value={rateLine ?? "no rule applies — they earn nothing"}
             strong
           />
         ) : null}

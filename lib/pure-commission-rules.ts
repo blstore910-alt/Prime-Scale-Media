@@ -346,3 +346,53 @@ export function ruleLevelLabel(level: RuleLevel | null): string {
       return "no rule — earns nothing";
   }
 }
+
+/**
+ * What an affiliate is ACTUALLY paid, in one sentence.
+ *
+ * ── WHY THIS EXISTS ──────────────────────────────────────────────────
+ *
+ * `referral_links.commission_pct` is not the rate that pays. The live
+ * accrual path is `_book_topup_commission` -> `_topup_commission_calc`
+ * -> `_commission_rule_at`, and all three resolve against
+ * `commission_rules`; only the legacy wallet_topups trigger still reads
+ * the link column.
+ *
+ * Measured on production 2026-09-24: both live links carry 10.000, and
+ * every commission they have booked is 20% of top-up profit and 50% of
+ * a paid invoice -- which is what `commission_rules` holds. A screen
+ * that prints the link column states a rate nobody is paid at.
+ *
+ * Returns null when no rule applies at any level, which really does mean
+ * they earn nothing.
+ */
+export function affiliateRateLine(
+  rules: readonly CommissionRule[],
+  affiliateAdvertiserId: string | null,
+  at: number = Date.now(),
+): string | null {
+  const pick = (source: CommissionSource): number | null =>
+    pctAtLevel(rules, {
+      affiliateAdvertiserId,
+      source,
+      typeSlug: null,
+      at,
+    }) ??
+    pctAtLevel(rules, { affiliateAdvertiserId: null, source, typeSlug: null, at });
+
+  const topup = pick("topup");
+  const sub = pick("subscription");
+  const one =
+    onetimeAtLevel(rules, { affiliateAdvertiserId, at }) ??
+    onetimeAtLevel(rules, { affiliateAdvertiserId: null, at });
+
+  const parts: string[] = [];
+  if (topup !== null && topup > 0) parts.push(`${topup}% of top-up profit`);
+  if (sub !== null && sub > 0) parts.push(`${sub}% of every paid invoice`);
+  if (one && one.amount > 0) {
+    parts.push(
+      `${one.currency === "USD" ? "$" : "\u20ac"}${one.amount.toFixed(2)} one-off`,
+    );
+  }
+  return parts.length ? parts.join(" \u00b7 ") : null;
+}
