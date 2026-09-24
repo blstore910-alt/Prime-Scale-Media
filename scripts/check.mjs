@@ -456,7 +456,38 @@ async function main(override) {
   try {
     await client.connect();
   } catch (err) {
-    console.error(`Could not connect: ${mask(err?.message ?? err)}`);
+    const raw = String(err?.message ?? err);
+    console.error(`Could not connect: ${mask(raw)}`);
+    // ── THE ONE THAT COST AN AFTERNOON ─────────────────────────────
+    //
+    // Supabase's DIRECT host, db.<ref>.supabase.co, has no A record any
+    // more -- it is IPv6-only. On a network without a working IPv6
+    // route node cannot resolve it at all, and the failure reads as a
+    // typo in a string that has not changed in weeks. The pooler is
+    // dual-stack, so the fix is to point at that instead.
+    if (/ENOTFOUND|EAI_AGAIN/.test(raw) && /db\..*\.supabase\.co/.test(raw)) {
+      console.error("");
+      console.error(
+        "That is the DIRECT host, and Supabase now publishes it over IPv6 only.",
+      );
+      console.error(
+        "If this machine has no IPv6 route it cannot be resolved at all. Use the",
+      );
+      console.error(
+        "Session pooler instead -- aws-<n>-<region>.pooler.supabase.com, port 5432,",
+      );
+      console.error(
+        "with the project reference after the user name (psm_check.<projectref>):",
+      );
+      console.error("");
+      console.error("    npm run check -- --init");
+      console.error("");
+      console.error(
+        "The string is in Supabase -> Project Settings -> Database -> Connection",
+      );
+      console.error("string -> Session pooler.");
+      return 4;
+    }
     console.error(
       "Check the host, the user (it carries .projectref through the pooler) and the password in .env.check.",
     );
