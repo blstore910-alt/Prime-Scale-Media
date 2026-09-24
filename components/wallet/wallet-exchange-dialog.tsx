@@ -299,6 +299,24 @@ export default function WalletExchangeDialog({
       // wallet_exchange exists only on the live database, so nothing
       // here can say whether it is idempotent. Sending them back to the
       // form re-reads both balances, which is where the answer is.
+      //
+      // ---- AND IT HAS TO ACTUALLY RE-READ THEM -------------------
+      //
+      // That last sentence was the intention and not the code: every
+      // invalidate sat in onSuccess, so after a lost response the
+      // dialog went back to the form still showing the balance from
+      // before the call, with the amount still typed and Exchange live
+      // -- over a conversion that may well have committed. The RPC has
+      // no idempotency key; its only backstop is the balance check, so
+      // a customer holding twice the amount converts it twice and pays
+      // the fee twice.
+      //
+      // So: ask for both balances again, and empty the box. If the
+      // money did move, the next thing they see is the new balance.
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["adv-wallet-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["wallets"] });
+      setValue("from_amount", 0, { shouldDirty: false });
       setConfirming(null);
     },
   });

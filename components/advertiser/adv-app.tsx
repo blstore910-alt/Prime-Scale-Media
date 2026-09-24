@@ -10,6 +10,10 @@ import PlatformMark from "@/components/psm/platform-mark";
 import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
+// The three notices that go out by email whether or not the phone ping
+// is switched on. app/api/push/notify/route.ts sends them at step
+// 3a-ter, before it reads the preference, deliberately.
+import { BILLING_EMAIL_TYPES as ALWAYS_EMAILED } from "@/lib/pure-billing-email";
 import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
@@ -7261,7 +7265,8 @@ function Toggle({
   desc: string;
   notifType: NotificationType;
 }) {
-  const { isEnabled, setPreference, isError } = useNotificationPreferences();
+  const { isEnabled, setPreference, isError, isLoading } =
+    useNotificationPreferences();
   const on = isEnabled(notifType);
   return (
     <div className="toggle-row">
@@ -7276,12 +7281,35 @@ function Toggle({
             there. Say what happened instead, and do not draw a state
             we do not have. */}
         <div className="d">
-          {isError ? "We couldn't read your setting just now." : desc}
+          {isError
+            ? "We couldn't read your setting just now."
+            : isLoading
+              ? "Reading your setting…"
+              : desc}
         </div>
+        {/* ---- THIS ONE SWITCHES THE PING, NOT THE EMAIL ----------
+            The three billing notices are emailed before this
+            preference is even read (app/api/push/notify/route.ts,
+            step 3a-ter), on purpose and in the owner's words: nobody
+            should learn about a debit from their bank. The switch is
+            honest about what it does now, because "Pick what's worth a
+            ping" over a toggle that leaves the email running is not.
+        */}
+        {ALWAYS_EMAILED.has(notifType) ? (
+          <div className="d" style={{ opacity: 0.85 }}>
+            We always email this one — this switches the phone ping.
+          </div>
+        ) : null}
       </div>
       <button
-        className={`sw${isError ? "" : on ? " on" : ""}`}
-        disabled={setPreference.isPending || isError}
+        // ---- AND NOT PRESSABLE BEFORE WE KNOW ITS STATE ----------
+        // The hook starts with an empty preference list, and "no row"
+        // means enabled -- so every switch renders ON until the read
+        // lands. A customer who had muted something and taps it in
+        // that window writes the state it was already in and watches
+        // it settle to off.
+        className={`sw${isError || isLoading ? "" : on ? " on" : ""}`}
+        disabled={setPreference.isPending || isError || isLoading}
         onClick={() => setPreference.mutate({ type: notifType, enabled: !on })}
         aria-label={label}
       />

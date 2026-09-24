@@ -456,47 +456,58 @@ export default function InviteForm() {
   // set it -- the server drops these fields for anybody else.
   const showTerms = role === "advertiser" && isSuperAdmin;
 
-  // ---- WHAT WILL ACTUALLY BE WRITTEN, IN ONE SENTENCE --------------
-  const summaryLine = (() => {
+  // ---- WHAT WILL ACTUALLY BE WRITTEN, LINE BY LINE -----------------
+  //
+  // This was one dot-separated sentence and it wrapped into a wall.
+  // Label on the left, value on the right: you find the one figure you
+  // are checking without reading the rest.
+  const summaryRows: Array<[string, string]> = (() => {
     const chosen =
       (communityId && communities.find((c) => c.id === communityId)) ||
       (planId && tiers.find((t) => t.id === planId)) ||
       null;
     const sym = planCurrency === "USD" ? "$" : "€";
-    const bits: string[] = [];
-    bits.push(`${tenant?.initials ?? ""}${nextClientCode}`);
-    bits.push(role === "affiliate" ? "affiliate" : "advertiser");
+    const rows: Array<[string, string]> = [];
+    rows.push(["Client code", `${tenant?.initials ?? ""}${nextClientCode}`]);
+    rows.push(["Role", role === "affiliate" ? "Affiliate" : "Advertiser"]);
     if (showTerms) {
-      bits.push(chosen ? chosen.name : "no plan");
+      rows.push([
+        communityId ? "Community" : "Plan",
+        chosen ? chosen.name : "None chosen",
+      ]);
       const fee = Number(monthlyFee);
-      bits.push(
+      rows.push([
+        "Monthly",
         Number.isFinite(fee)
           ? fee > 0
-            ? `${sym}${fee}/mo`
-            : "free, no subscription"
-          : "no monthly fee set",
-      );
+            ? `${sym}${fee}`
+            : "Free — no subscription"
+          : "Not set",
+      ]);
       const incl = Number(includedAccts);
-      if (Number.isFinite(incl)) {
-        bits.push(`${incl} ad account${incl === 1 ? "" : "s"} included`);
-      }
+      rows.push([
+        "Ad accounts included",
+        Number.isFinite(incl) ? String(incl) : "Not set",
+      ]);
       const tf = Number(topupFeePct);
-      if (Number.isFinite(tf)) bits.push(`${tf}% top-up fee`);
+      rows.push(["Top-up fee", Number.isFinite(tf) ? `${tf}%` : "Not set"]);
       const ref = affiliateId
         ? (advertisers ?? []).find((a) => a.id === affiliateId)
         : null;
-      if (ref) {
-        bits.push(
-          `referred by ${ref.tenant_client_code ?? advName(ref.profile) ?? "an affiliate"}`,
-        );
-      }
+      rows.push([
+        "Referrer",
+        ref
+          ? `${ref.tenant_client_code ?? "—"} · ${advName(ref.profile) ?? "—"}`
+          : "Nobody",
+      ]);
     }
-    bits.push(
+    rows.push([
+      "Invitation",
       sendEmail === false
-        ? "no email — you pass the link on"
-        : `emailed to ${String(emailValue ?? "").trim() || "the address above"}`,
-    );
-    return bits.join(" · ");
+        ? "Not sent — you pass the link on"
+        : `Emailed to ${String(emailValue ?? "").trim() || "the address above"}`,
+    ]);
+    return rows;
   })();
 
   return (
@@ -1114,11 +1125,23 @@ export default function InviteForm() {
                 something different, and the owner had to assemble the
                 answer in their head every time. This reads back what
                 will actually be written. */}
-            <div className="rounded-md border bg-muted/40 px-3 py-2.5 text-sm">
+            <div className="rounded-lg border bg-muted/40 px-4 py-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 About to create
               </span>
-              <p className="mt-1 leading-relaxed">{summaryLine}</p>
+              <dl className="mt-2 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+                {summaryRows.map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-1 last:border-0 sm:border-0 sm:pb-0"
+                  >
+                    <dt className="shrink-0 text-muted-foreground">{k}</dt>
+                    <dd className="min-w-0 truncate text-right font-medium">
+                      {v}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
 
             <DialogFooter>
