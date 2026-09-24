@@ -13,6 +13,24 @@
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## A1 re-walked 2026-09-24 - a brand-new customer, end to end
+
+Invite created from the owner's dashboard, opened, signed up, onboarded,
+landed on the dashboard. Every figure checked.
+
+| step | screen | database |
+|---|---|---|
+| invite | PSM0013, advertiser, Prime pre-filled, emailed | `invitations` row |
+| signup | A1 Walkthrough, "No, I found you another way", heard via Google | `user_profiles` active, role advertiser |
+| the plan came with the invite | - | `subscriptions` active **EUR 200.00**; `advertiser_plans` 2 included, 3.00% top-up, plan **Prime** - exactly what the invite carried |
+| client code | PSM0013 | `advertisers.tenant_client_code` PSM0013 |
+| onboarding | ten company fields, saved | `companies`: A1 Walkthrough BV, NL123456789B01, Netherlands, 1015CJ |
+| dashboard | EUR 0,00 / USD 0,00, "Outstanding EUR 200,00 · due 27 Sep", Plan Unpaid, Ad accounts 0 | invoice **138**, subscription, EUR 200.00, unpaid, due **2026-09-27** |
+| the empty state | "No ad accounts yet. Pay your subscription invoice first - that is what your included ad accounts come from." | true: the included accounts come from the paid plan |
+
+The onboarding checklist ticked the company step and reads "2 steps left"
+(top up, request an account), which is what is actually left.
+
 ## A4 and A6 re-walked 2026-09-24, with four agents on A4 first
 
 ### The loop, walked as the customer and the owner, EUR 70,00 -> EUR 68,50

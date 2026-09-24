@@ -1067,7 +1067,16 @@ export default function AdvertiserApp() {
 
   const {
     data: company,
-    isLoading: companyLoading,
+    // ---- isPending, NOT isLoading ---------------------------------
+    //
+    // react-query v5 computes isLoading as `isPending && isFetching`,
+    // so a DISABLED query reports isLoading FALSE with undefined data.
+    // `comp` then stays the ten empty strings it is seeded with, Save
+    // is enabled, and the server's allowlist copies every key that is
+    // present -- writing blanks over the name, the VAT number and the
+    // whole invoice address. The wallet query in this same file uses
+    // isPending for exactly this reason.
+    isPending: companyLoading,
     isError: companyError,
   } = useQuery<
     Record<string, unknown> | null
@@ -1234,8 +1243,16 @@ export default function AdvertiserApp() {
         toast.success("Company saved");
       }
     } catch (e) {
+      // CLAUDE.md: never put a raw Supabase message in front of a
+      // customer. This printed PostgREST straight through, so a refused
+      // write surfaced as 'new row violates row-level security policy
+      // for table "companies"'. saveMe, twenty lines up, gets this
+      // right.
       toast.error("Couldn't save company", {
-        description: e instanceof Error ? e.message : undefined,
+        description: userFacingErrorMessage(
+          e,
+          "We couldn't save your company details. Try again in a moment.",
+        ),
       });
     } finally {
       setSavingComp(false);
@@ -6618,13 +6635,23 @@ export default function AdvertiserApp() {
                   >
                     {savingComp ? "Saving…" : "Save company"}
                   </button>
-                  {companyError && (
+                  {companyError ? (
                     <p className="cap" style={{ marginTop: 8 }}>
                       We couldn&apos;t load your company details, so this form
                       is empty — saving it would wipe what is stored. Reload
                       and try again.
                     </p>
-                  )}
+                  ) : companyLoading ? (
+                    /* A title attribute is invisible on a phone, and this
+                       is a phone app -- the same point this file makes
+                       about another control. An empty form with a greyed
+                       button and no words reads as "there is nothing
+                       stored", which is the one thing it must not say
+                       while the read is still in flight. */
+                    <p className="cap" style={{ marginTop: 8 }}>
+                      Loading your company details…
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="card">

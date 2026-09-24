@@ -205,7 +205,18 @@ export default function WalletExchangeDialog({
   // under.
   useEffect(() => {
     if (!open) return;
-    if (!needIsTarget || needFrom <= 0) return;
+    // ---- FLIPPING THE DIRECTION EMPTIES THE BOX -------------------
+    //
+    // The prefill is computed for one direction: "you need EUR 92, so
+    // convert $106.11". Flip From to the other currency and the amber
+    // panel and the "covers what you need" line both disappear -- but
+    // this returned early and left 106.11 sitting in the box, now
+    // meaning EUR 106.11 -> USD, in the wrong direction, with nothing
+    // on screen tying it to the invoice any more.
+    if (!needIsTarget || needFrom <= 0) {
+      setValue("from_amount", 0, { shouldDirty: false });
+      return;
+    }
     setValue("from_amount", needFrom, { shouldDirty: true });
     // needFrom is derived from needRate, which arrives with the rates.
   }, [open, needIsTarget, needFrom, setValue]);
