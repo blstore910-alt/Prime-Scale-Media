@@ -184,15 +184,30 @@ export async function GET(
     const lines = rows.flatMap((r) => {
       const src = String(r.currency).toUpperCase();
       const dst = String(r.payout_currency ?? r.currency).toUpperCase();
+      // ---- THE LINES HAVE TO ADD UP TO THE TOTAL ------------------
+      //
+      // `affiliate_payouts.amount` is ALREADY gross minus the clawback
+      // (affiliate_payout_request_multi), and this printed that net
+      // figure as line one and then took the clawback off again
+      // underneath, while Total stayed equal to line one. On a payout
+      // of 24,96 gross with 4,04 clawed back the document read
+      // "commission 20,92 / settled against returned ad spend -4,04 /
+      // Total 20,92" -- three numbers that do not make a sum, on a
+      // paper somebody files.
+      //
+      // So line one is the GROSS when there is a clawback, and the two
+      // lines then land exactly on the total.
+      const claw = Number(r.clawback_amount) || 0;
+      const net = Number(r.amount) || 0;
       const out: { text: string; amount: string }[] = [
         {
           text: `Referral commission — ${r.commission_count ?? 0} ${
             (r.commission_count ?? 0) === 1 ? "commission" : "commissions"
           } in ${src}`,
-          amount: money(r.amount, src),
+          amount: money(claw > 0 ? net + claw : net, src),
         },
       ];
-      if (Number(r.clawback_amount) > 0) {
+      if (claw > 0) {
         out.push({
           text: "Already settled against returned ad spend",
           amount: `− ${money(r.clawback_amount, src)}`,

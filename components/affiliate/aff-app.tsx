@@ -1196,8 +1196,29 @@ export default function AffiliateApp() {
                   Awaiting payout
                 </div>
                 <div className="v gold">
-                  {refsUnavailable ? dash : legs(refs.payable.eur, refs.payable.usd)}
+                  {refsUnavailable
+                    ? dash
+                    : legs(
+                        Math.max(Number(refs.payable.eur) || 0, 0),
+                        Math.max(Number(refs.payable.usd) || 0, 0),
+                      )}
                 </div>
+                {/* ---- NEVER A NEGATIVE AMOUNT WAITING ---------------
+                    `affiliate_referral_stats` puts no floor on unpaid --
+                    deliberately, so the owner's book matches what the
+                    payout RPC will compute over the whole set. Over a
+                    PERIOD that is a different thing: pick the two days
+                    the clawbacks landed and every commission falls
+                    outside it, so this tile read "Awaiting payout
+                    -EUR 4,04". Nobody is waiting for minus four euro.
+                    The floor is on the reading, not on the book. */}
+                {!refsUnavailable &&
+                (Number(refs.payable.eur) < -0.005 ||
+                  Number(refs.payable.usd) < -0.005) ? (
+                  <div className="k" style={{ marginTop: 4, opacity: 0.85 }}>
+                    In this period more came back than was earned.
+                  </div>
+                ) : null}
               </div>
               <div className="stat g-win">
                 <div className="k">
@@ -1403,6 +1424,20 @@ export default function AffiliateApp() {
                 to={affPeriod.to}
                 periodLabel={rangeCaption(affRange)}
                 leadCurrency={affLeadUsd ? "USD" : "EUR"}
+                // ---- THE SAME RECONCILIATION AS THE OTHER PORTAL ----
+                //
+                // The advertiser-as-affiliate screen got this and the
+                // standalone one did not, so on THIS page the hero said
+                // EUR 20,92, the tile under it said EUR 15,96, and the
+                // commission card between them said EUR 24,96 earned and
+                // EUR 20,00 awaiting -- three answers to one question.
+                // A clawback takes money back without touching a
+                // commission row, and no affiliate-facing list shows one.
+                payableAllTime={
+                  all.isPending || all.isError
+                    ? null
+                    : { eur: all.payable.eur, usd: all.payable.usd }
+                }
               />
             </div>
           </div>
@@ -1440,10 +1475,15 @@ export default function AffiliateApp() {
                 </div>
                 <div className="wal-pots">
                   {(["EUR", "USD"] as const).map((c) => {
-                    const owed =
+                    // Same floor as the tile above, and for the same
+                    // reason: a pot cannot hold less than nothing. The
+                    // book keeps the negative; the screen does not.
+                    const owed = Math.max(
                       c === "EUR"
                         ? Number(all.payable.eur) || 0
-                        : Number(all.payable.usd) || 0;
+                        : Number(all.payable.usd) || 0,
+                      0,
+                    );
                     const lifetime =
                       c === "EUR"
                         ? Number(all.totals.earnings_eur) || 0

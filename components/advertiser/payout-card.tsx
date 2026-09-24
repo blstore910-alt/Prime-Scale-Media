@@ -158,9 +158,22 @@ export default function PayoutCard({
     const c = String(p.currency).toUpperCase() as Cur;
     if (c === "EUR" || c === "USD") inFlight[c] = round2(inFlight[c] + (Number(p.amount) || 0));
   }
+  // ---- AND NOT SUBTRACTED TWICE ---------------------------------
+  //
+  // The comment above is out of date and the sum below was wrong
+  // because of it. The live `affiliate_referral_stats` filters
+  // `rc.payout_id is null`, so a commission that is already pinned to an
+  // open request is ALREADY out of `payable` -- taking `inFlight` off
+  // again removes it a second time. With a EUR 15,96 request open and a
+  // EUR 30,00 commission booked after it, this bar read EUR 14,04 for
+  // money that is really EUR 30,00 free, and "EUR 185,96 to go" against
+  // a floor it had in fact cleared.
+  //
+  // `blockedByOpen` below is what stops a second request while one is
+  // in flight; that is the guard, not this subtraction.
   const owed: Record<Cur, number> = {
-    EUR: Math.max(round2(owedEur - inFlight.EUR), 0),
-    USD: Math.max(round2(owedUsd - inFlight.USD), 0),
+    EUR: Math.max(round2(owedEur), 0),
+    USD: Math.max(round2(owedUsd), 0),
   };
   const available = (["EUR", "USD"] as Cur[]).filter((c) => owed[c] > 0.005);
   // Asked for together is one transfer: shown as one.
@@ -195,6 +208,33 @@ export default function PayoutCard({
     );
   }
 
+  // ---- A FAILED READ IS NOT "NO PAYOUTS" ------------------------
+  //
+  // This branched on isPending and `missing` only. On a read that
+  // FAILED the card drew as if there were none: no open request, no
+  // history, inFlight 0 -- so the whole balance was offered again, with
+  // nothing on screen saying anything had gone wrong. On the one card
+  // that asks for money.
+  if (payouts.isError) {
+    return (
+      <div className="card xpay">
+        <div className="xp-top">
+          <span className="ci g">
+            <Ic name="i-download" />
+          </span>
+          <div>
+            <h2>Getting paid</h2>
+            <p className="cap" style={{ color: "var(--danger)" }}>
+              We couldn&apos;t read your payouts just now. This is NOT
+              &quot;you have none&quot; &mdash; reload before asking for
+              one, so you do not ask twice.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (payouts.missing) {
     return (
       <div className="card xpay">
@@ -222,15 +262,32 @@ export default function PayoutCard({
     );
   }
 
+  // ---- AFTER THE FEE, LIKE THE SERVER -----------------------------
+  //
   // Can they reach 200 in SOME currency? Either pot on its own, or both
-  // of them converted into one. That is exactly what the RPC checks.
-  const bestEur = round2(owed.EUR + (rate ? owed.USD * rate : 0));
-  const bestUsd = round2(owed.USD + (rate ? owed.EUR / rate : 0));
-  const reachable = Math.max(
-    owed.EUR >= MIN_PER_CURRENCY ? 1 : 0,
-    owed.USD >= MIN_PER_CURRENCY ? 1 : 0,
-    bestEur >= MIN_PER_CURRENCY || bestUsd >= MIN_PER_CURRENCY ? 1 : 0,
-  );
+  // converted into one. This ignored the 0,6% conversion fee, and the
+  // RPC applies the floor per receiving bank AFTER that fee -- so the
+  // card turned green, step 2 opened with "Keep them separate" already
+  // chosen, and Send the request came back "A payout starts at EUR 200
+  // -- this one is EUR 120,00", with nothing recorded.
+  //
+  // EUR 120 + $110 at 0,92 was the case: about EUR 221 converted, so the
+  // card said yes; neither pot is 200 on its own, so the preselected
+  // mode could never pass. And EUR 100 + $108,70 cleared the old test by
+  // 0,60 and was refused on the fee alone.
+  const afterFee = (n: number) => round2(n * (1 - FEE_PCT / 100));
+  const bestEur = afterFee(round2(owed.EUR + (rate ? owed.USD * rate : 0)));
+  const bestUsd = afterFee(round2(owed.USD + (rate ? owed.EUR / rate : 0)));
+  // A pot paid out in its OWN currency is not converted, so no fee.
+  const sameEur = owed.EUR >= MIN_PER_CURRENCY;
+  const sameUsd = owed.USD >= MIN_PER_CURRENCY;
+  const reachable =
+    sameEur || sameUsd || bestEur >= MIN_PER_CURRENCY || bestUsd >= MIN_PER_CURRENCY
+      ? 1
+      : 0;
+  // Which way it can actually be done, so step 2 does not open on the
+  // one the server will refuse.
+  const onlyByConverting = !sameEur && !sameUsd && reachable === 1;
   const blockedByOpen = available.some((c) => inFlight[c] > 0);
   const canRequest = available.length > 0 && !blockedByOpen && reachable === 1;
   const shortBy = Math.max(round2(MIN_PER_CURRENCY - bestEur), 0);
@@ -272,7 +329,15 @@ export default function PayoutCard({
   // every time is how a digit gets dropped.
   setForm(mergeDetails(detailsOf(last), defaults));
     setPicked(available);
-    setPayIn("SAME");
+    // ---- START ON A MODE THAT CAN PASS ---------------------------
+    //
+    // "Keep them separate" was always preselected, including when
+    // neither pot reaches the floor on its own and the only way through
+    // is converting both into one. Then the very first thing the
+    // customer sees is the option the server is going to refuse.
+    setPayIn(
+      onlyByConverting ? (bestEur >= MIN_PER_CURRENCY ? "EUR" : "USD") : "SAME",
+    );
     setStep(available.length > 1 ? 1 : 2);
     setOpen(true);
   };
