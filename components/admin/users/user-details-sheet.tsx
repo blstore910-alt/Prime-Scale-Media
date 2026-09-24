@@ -195,11 +195,25 @@ export default function UserDetailsSheet({
 
   const clientCode = advertiser?.tenant_client_code;
 
-  // ── WHO ACTUALLY REFERRED THEM ────────────────────────────────────
+  // ---- WHO ACTUALLY REFERRED THEM ---------------------------------
   //
-  // Same row the Assigned-affiliate section below reads, so the two
-  // halves of this sheet cannot disagree about one fact. Cheap: one row,
-  // and it shares its cache key with that section.
+  // The same row the Assigned-affiliate section further down reads, so
+  // the two halves of this sheet cannot disagree about one fact.
+  //
+  // ONE KEY, ONE queryFn, TWO SHAPES. This shared its key with
+  // UserAffiliates and asked for a NARROWER set of columns -- and a
+  // react-query key holds ONE cache entry, filled by whichever observer
+  // mounts first. So this line was handed the whole
+  // referral_links_with_details ROW, rendered an object as a React
+  // child, and React #31 took the entire page down: opening any
+  // customer on /users as the owner landed on "We couldn't load this
+  // page -- your session expired", which was neither true nor fixed by
+  // signing in. Measured on production at 15:30 today, twice.
+  //
+  // `select` is how two callers share one read: it runs per observer,
+  // so the request and the cache entry stay single while each side
+  // keeps its own shape. The queryFn below is therefore deliberately
+  // IDENTICAL to the one in user-affiliates.tsx, down to the `*`.
   const { data: realReferrer } = useQuery({
     queryKey: ["admin-user-referral-link", advertiser?.id],
     enabled: !!advertiser?.id,
@@ -207,23 +221,26 @@ export default function UserDetailsSheet({
       const supabase = createClient();
       const { data: link, error } = await supabase
         .from("referral_links_with_details")
-        .select(
-          "affiliate_advertiser_tenant_client_code, affiliate_advertiser_name",
-        )
+        .select("*")
         .eq("referred_advertiser_id", advertiser!.id)
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      const l = link as {
+      return (link ?? null) as Record<string, unknown> | null;
+    },
+    select: (link) => {
+      const l = (link ?? {}) as {
         affiliate_advertiser_tenant_client_code?: string | null;
         affiliate_advertiser_name?: string | null;
-      } | null;
-      if (!l) return null;
-      return (
-        [l.affiliate_advertiser_name, l.affiliate_advertiser_tenant_client_code]
-          .filter(Boolean)
-          .join(" · ") || null
-      );
+      };
+      const label = [
+        l.affiliate_advertiser_name,
+        l.affiliate_advertiser_tenant_client_code,
+      ]
+        .filter((v) => typeof v === "string" && v.trim() !== "")
+        .join(" · ");
+      // A string, or nothing. Never an object -- see above.
+      return label || null;
     },
   });
 
@@ -471,7 +488,7 @@ export default function UserDetailsSheet({
                       and is marked as their words. */}
                   <span className="k">Referred By</span>
                   <span className="v">
-                    {realReferrer ? (
+                    {typeof realReferrer === "string" && realReferrer ? (
                       realReferrer
                     ) : data.referral_status === "referred" ? (
                       data.referred_by ? (
