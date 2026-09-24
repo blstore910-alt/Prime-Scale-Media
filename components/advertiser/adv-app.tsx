@@ -1530,6 +1530,28 @@ export default function AdvertiserApp() {
   //
   // Saying it is the fix that is honest at any cap. A source that came
   // back exactly full is a source that has more.
+  // ── A LIST WITH ROWS IN IT CAN STILL BE MISSING MONEY ─────────────
+  //
+  // The "we couldn't load all of your wallet activity" line lived INSIDE
+  // the empty-row branch, so it could only ever appear when there was
+  // nothing at all. With sixteen rows on screen and one source refusing,
+  // the customer saw sixteen rows and no warning -- a statement that
+  // reads as complete and is not.
+  //
+  // Measured on production today, as PSM0005: `wallet_adjustments` and
+  // `wallet_refunds` are admin-read-only, so the corrections query
+  // throws for EVERY customer. A +10.00 correction and a -5.00 refund
+  // were missing from the statement, it added up to 75.00 against a
+  // balance of 70.00, and nothing on the screen said a word.
+  const activityIncomplete =
+    !!activityError ||
+    !!exchangesError ||
+    !!invError ||
+    !!fundingsError ||
+    !!returnsError ||
+    !!requestChargesError ||
+    !!movesError;
+
   const activityTruncated =
     (activity?.length ?? 0) >= 30 ||
     (exchanges?.length ?? 0) >= 30 ||
@@ -4349,6 +4371,20 @@ export default function AdvertiserApp() {
                 <h2>
                   <Ic name="i-wallet" /> Wallet activity
                 </h2>
+                {activityIncomplete ? (
+                  <p
+                    style={{
+                      margin: "8px 0 0",
+                      fontSize: ".84rem",
+                      fontWeight: 600,
+                      color: "var(--danger)",
+                    }}
+                  >
+                    Part of your activity didn&apos;t load, so this list is
+                    incomplete and may not add up to your balance. Give it a
+                    reload — if it keeps happening, tell us.
+                  </p>
+                ) : null}
               </div>
               <div className="tblwrap">
                 <table className="tbl wide">
@@ -4408,11 +4444,33 @@ export default function AdvertiserApp() {
                                   everything raised before today is the
                                   truth. */}
                               {(() => {
+                                // THREE STATES, NOT TWO. 'wallet' is a
+                                // debit. Anything else RECORDED is not.
+                                // But NULL is neither -- it is every
+                                // invoice raised before the column
+                                // existed, and calling those "not from
+                                // wallet" was a claim, not a reading.
+                                //
+                                // Proven on production: invoices 121 and
+                                // 124 have paid_at 18-09 16:02:15 and
+                                // 21-09 07:40:44, and PSM0005's wallet
+                                // went 5 -> 0.00 and 200 -> 195 at
+                                // exactly those seconds. They came out of
+                                // the wallet, and this screen told the
+                                // customer they had not.
+                                //
+                                // Until plak 92 fills the column in from
+                                // the audit trail, an unrecorded one is
+                                // drawn the way it always was: as a
+                                // debit. That is the assumption the rest
+                                // of the statement was built on, so at
+                                // least the column keeps adding up.
+                                const paidFrom = String(
+                                  (inv as { paid_from?: string | null })
+                                    .paid_from ?? "",
+                                ).toLowerCase();
                                 const fromWallet =
-                                  String(
-                                    (inv as { paid_from?: string | null })
-                                      .paid_from ?? "",
-                                  ).toLowerCase() === "wallet";
+                                  paidFrom === "wallet" || paidFrom === "";
                                 return (
                                   <>
                                     <td
