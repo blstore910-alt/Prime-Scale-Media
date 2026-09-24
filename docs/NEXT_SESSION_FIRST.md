@@ -1,4 +1,149 @@
-# THE NUMBER: 13 of 16 journeys closed (A1-A7, F1-F4, D1, D2) - 2026-09-24
+# THE NUMBER: every journey on the list is closed - A1-A7, F1-F4, D1-D3, S1-S3 - 2026-09-24
+
+> The list has seventeen rows; you call it sixteen. Either way there is
+> nothing left open on it.
+
+> **S1, S2 and S3 CLOSED 2026-09-24.** Walked as the owner on production,
+> every figure held against the database. Their blocks are directly below;
+> **D3 is closed too.** Its one missing step was a withdrawal walked end
+> to end, and that happened today: **WD-036508**, EUR 20,00, filed by
+> PSM0007 himself at 11:20 ("D3/A6 walkthrough 24-09 - terug naar de
+> wallet") and approved by the owner at 12:18, with the clawback of EUR
+> 2,05 booked in the same second (20 returned of 97 lifetime volume,
+> share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
+> actor.
+
+## S3 - money overview: invoices, reconciliation, audit. CLOSED
+
+### What was walked, and what it was held against
+
+| screen | database |
+|---|---|
+| /invoices, 20 rows over two pages | `invoices` has exactly 20 for this tenant; the other 7 belong to E2E0001 and never appear |
+| 136 PSM0012 subscription EUR 200,00 unpaid ... 127 PSM0007 wallet_topup EUR 100,00 paid | number, code, type, amount, status and both dates equal on all twenty |
+| 125 PSM0006 shows **Overdue** | `due_date` 2026-09-24 08:26, and it is past that |
+| "Mark paid" says "This settles it in the books. No money moves" | true: it writes no wallet movement, and since plak 88 it leaves `paid_from` null so the customer's statement says "Paid - not from wallet" |
+| /reconciliation: Credited EUR 665,00 | 5 completed `wallet_topups`, sum 665,00 |
+| Credited USD 0,00, "Balanced" | no completed USD top-ups on this tenant |
+| /audit renders 44 pages | ~3.400 events, newest first |
+| Table filter offers 33 tables | `select count(distinct table_name) ... where tenant_id = <ours>` is 33 (the other 2 are E2E0001's, and RLS keeps them out) |
+| `GET /api/audit/export` without a session | 307 to the login. Nothing leaks. |
+
+### What was wrong, and is fixed
+
+1. **The bank book could not write down a pound.** The top-up dialog lets
+   a customer pay in USD, EUR, GBP or HKD and TURLIT holds a real account
+   for each; `bank_ledger_entries.currency` allowed two. So a GBP deposit
+   could not be recorded at all, and the EUR row sat at "Credited 665,00 -
+   Received 0,00" for ever. An alarm that can never be cleared is not an
+   alarm, and once it is known to be false a real gap is invisible.
+
+   Plak 89 widens it to four and adds what a deposit was CREDITED as
+   (EUR/USD + amount), because only the owner knows the rate the bank
+   gave. **Proven on production:** a GBP 100,00 deposit credited as EUR
+   115,00 made the GBP card appear at GBP 100,00, moved Received to EUR
+   115,00 and the gap to EUR 550,00 - and the row in the database reads
+   `our_bank / GBP / deposit / 100.00 / EUR / 115.00`. Plak 91 then took
+   that test row back out; the book is empty again.
+
+2. **The form defaulted to the supplier bank.** Pressing "Check" on a gap
+   fills the currency, the direction and the amount and does not touch
+   the destination - so one press and one Add put the whole missing
+   amount against the supplier whether or not that is where it landed.
+   There is no default now; the server already refused an empty one.
+
+3. **The ledger list stopped at 100 and said nothing.** It asks for one
+   more than it shows and says so when there are older ones.
+
+4. **The audit Table filter was seventeen hand-typed names** over a
+   database with events on thirty-five tables - `wise_incoming_transfers`
+   alone is 1.756 rows, neither selectable nor avoidable. The names come
+   from `audit_table_names()` now (SECURITY INVOKER, so RLS decides), with
+   the old list as the fallback until the plak lands.
+
+5. **980 of the 1.039 audit rows about customers were a heartbeat.** The
+   app writes `last_seen_at` every five minutes per signed-in user and
+   `user_profiles` carries an audit trigger. Measured: 980 rows changed
+   nothing but `last_seen_at`/`updated_at`, 18 changed nothing at all, and
+   22 were real. Plak 90 makes the trigger look at WHAT changed and skip
+   the timestamp-only writes. Across all tables that was 1.409 of 3.420
+   rows. The existing ones stay - a log somebody deletes from is not a log.
+
+6. **The Actor column was a raw uuid**, on the screen whose one question
+   is "who did this". It resolves to a name now, falls back to the uuid if
+   that read fails, keeps the uuid in the tooltip, and says "System" for a
+   row with no actor instead of a dash.
+
+### Still open on S3 - one question for the owner
+
+**The Wise deposit feed is running on production and it is the mock.**
+`WISE_MODE` defaults to `"mock"` (lib/integrations/wise.ts) and the
+integration-jobs cron runs every minute. There are 298 rows in
+`wise_incoming_transfers` and **20 of them sit unmatched in the owner's
+money-in queue** - that is the red 20 on "Wallet Topups" in the sidebar,
+and it is a correct count of made-up deposits. `docs/WISE_SETUP.md` says
+the feed is off; it is not. Set `WISE_MODE=live` with the credentials, or
+switch the cron off, before real customers arrive. Not fixed here: it is
+an environment decision, not a code fault.
+
+## S2 - affiliates, commissions, invites, promotions. CLOSED
+
+| screen | database |
+|---|---|
+| /affiliates PSM0005: earned EUR 20,92, paid EUR 4,96, owed EUR 15,96 | 24,96 commissions - 4,04 clawbacks = 20,92; one payout of 4,96 |
+| /commissions: 10,00 + 5,00 + 5,00 + 0,11 + 4,85 | the same five `referral_commissions` rows, same types, statuses and dates |
+| the banner "EUR 4,04 has been clawed back and is NOT reflected in the rows below" | 1,99 (wallet_refund) + 2,05 (ad_account_withdrawal) = 4,04, and neither carries a `payout_id`, so neither is paid |
+| /invites: 10 of 14, two pages | 8 accepted advertisers, 2 accepted affiliates, 4 cancelled |
+| /promotions: "No perks to show" | this tenant has none; the 6 that exist are E2E0001's |
+| the perk form: count field for free requests, percent field for a discount, neither for a waiver | and it refuses an empty count and an empty or >100 percentage |
+
+### What was wrong, and is fixed
+
+1. **The approve dialog named a rate nobody is paid.** It printed
+   `referral_links.commission_pct`, and the live accrual does not read
+   that column - `_book_topup_commission` -> `_topup_commission_calc` ->
+   `_commission_rule_at` resolve against `commission_rules`. Both live
+   links carry 10.000 while every booked row is 20% and 50%. Worse, its
+   "no rate" branch told the owner that approving earns the affiliate
+   NOTHING, on the screen where that is decided.
+
+2. **And then it named half.** The replacement read the all-types top-up
+   rule, which this tenant set to NULL on 22-09 when it moved to five
+   per-type 20% rules - so the line said "50% of every paid invoice" and
+   left out the top-up share, which is where most of the money is. It
+   falls back to the per-type rules now, and says "per ad-account type"
+   when they disagree instead of picking one.
+
+3. **Two admin screens disagreed about one affiliate.** /users summed
+   `referral_links.earnings_*`, a counter kept by two triggers with a
+   `greatest(...,0)` clamp; /affiliates sums the rows. PSM0005 read EUR
+   27,93 on one and EUR 22,97 on the other, the same day. The rows are the
+   record; the counter is a cache, and nothing is paid from a cache.
+
+4. **And then that read asked for a column that does not exist.**
+   `referral_clawbacks` has no `status`, so the whole earnings read
+   returned 400 and every affiliate showed a dash under "Couldn't load
+   some data". No wrong figure - the screen is careful - but no figure.
+
+**Not approved, on purpose:** the pending referral PSM0011 -> PSM0008.
+Approving books commission retroactively on everything PSM0011 has
+already done, and that is EUR 260 of top-ups. The dialog is correct and
+waiting; say the word.
+
+## S1 - prices: plans, rates, ad-account types, exchange rates. CLOSED
+
+| screen | database |
+|---|---|
+| Launch 150 / $170 / 1 incl / 3,5% / 20% | 150.00 / 170.00 / 1 / 3.50 / 20.00 |
+| Prime 200 / $225 / 2 / 3% / 20% | the same |
+| Flex 75 / $85 / 1 / 5% / 20% | the same |
+| NSA 0 / - / 1 / 5% | 0.00 / null / 1 / 5.00 |
+| GBP 0.747516 - EUR 0.872361 - HKD 7.84527 | the same row |
+| eight ad-account types, with fee, api flag and active flag | all eight equal |
+
+Two saves in a row both landed ("Saved 1 plan(s)") - the loop that used
+to refuse the second one is gone.
+
 
 > **D2 CLOSED 2026-09-24.** Its last open step landed: the invitation was
 > accepted, PSM0012 exists, and `create_subscription_from_invite` attached
