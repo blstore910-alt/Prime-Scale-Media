@@ -1,4 +1,16 @@
-# THE NUMBER: 12 of 16 journeys closed (A1-A7, F1-F4, D1) - 2026-09-23
+# THE NUMBER: 13 of 16 journeys closed (A1-A7, F1-F4, D1, D2) - 2026-09-24
+
+> **D2 CLOSED 2026-09-24.** Its last open step landed: the invitation was
+> accepted, PSM0012 exists, and `create_subscription_from_invite` attached
+> Prime by itself - EUR 200,00 active, and `advertiser_plans` reads
+> 200.00 / 2 incl / 3.00%, exactly what the invite carried. The client code
+> came out **PSM0012**, which is what the form now promises.
+>
+> **D3 is walked but not closed.** Its three queues are read and every
+> figure held against the database; the clawback is PROVEN on production
+> (see its block). What is missing is a withdrawal walked end to end,
+> because only a customer can file one and no test customer has a funded
+> ad account they can reach.
 
 > **D1 CLOSED 2026-09-23.** Walked end to end on production with two roles at
 > once - the owner in Chrome, a brand-new advertiser (PSM0011, Gers padoel)
@@ -9,6 +21,126 @@
 > customer's bell with the figure or the sentence in it. See its block below.
 
 > **D1 is NOT closed, and the reason is a login.** Its customer half is walked and verified on screen and against the database; the admin half needs an owner session and I have none. Chrome holds PSM0005 (advertiser) and the built-in pane holds PSM0008 (affiliate) — two customer sessions. Creating accounts and typing passwords are the owner's, by their own instruction. Sign in as the owner anywhere and D1, D2, D3 and S1-S3 can all be walked.
+
+## D3 - walked 2026-09-24. The clawback had never fired, and now it has
+
+**The one that mattered.** `20260918230000_commission_clawback.sql` creates
+two functions and two triggers. On production the functions were there,
+`referral_clawbacks` was there, and **neither trigger existed** - only the
+two `create trigger` statements had failed to land, and no later migration
+drops them. So every approved withdrawal and every approved refund left the
+affiliate holding commission on money that had come back. Two approved
+withdrawals and one approved refund were already sitting on live.
+
+Plak 85 placed them, and then I walked it rather than reading it, netting to
+zero: a EUR 20 adjustment onto PSM0007's wallet, approved; a EUR 20 refund
+off it, approved; wallet back to EUR 0.
+
+| | |
+|---|---|
+| returned | EUR 20.00 of EUR 100.00 lifetime top-up volume |
+| share | 0.2000 |
+| PSM0005's commission on PSM0007 | 4.85 + 0.11 + 5.00 = EUR 9.96 |
+| **clawback written** | **EUR 1.99** |
+
+20% of 9.96 is 1.992. Before plak 85 it would have been nothing.
+
+### The three queues, held against the database
+
+| screen | database |
+|---|---|
+| WD-379727 EUR 20.00 approved, WD-081494 EUR 50.00 approved | same, same |
+| WD-927138 $50.00 rejected, with BOTH sentences - "They said: A6 walkthrough" and "We said: This was filed in the wrong currency..." | `reason` and `decision_reason`, both stored |
+| RF-951740 EUR 5.00 approved | same |
+| ADJ-783784 +EUR 10.00 approved | `delta` 10, EUR |
+| AA-PSM0007-EU-01: funded EUR 100.00, on the account EUR 97.00, fees EUR 3.00, two top-ups of 50 -> 48.50 at 3% | 2 x 48.50 = 97.00 and 2 x 1.50 = 3.00 |
+
+### What the sweep found, worst first
+
+1. **A failed read of the ad-account types handed back the SEED.** The
+   fallback tested `data && data.length > 0`, and `undefined` - which is
+   what a refused read leaves - went the same way as a fresh tenant with no
+   types. The seed is 5% for everything and 6% for TikTok; this tenant
+   charges 3, 3, 4, 3, 3. So a failed read filled the fee box with FIVE
+   where the answer was three, under six Meta options instead of three
+   (including the three that are switched off), and that number is written
+   onto the ad account and is what we earn on every top-up for the life of
+   it. It also defeated the warning written for exactly this: that warning
+   fires when the slug is not in the map, and with the seed in place it
+   always was.
+2. **A request in `payment_pending` was stuck, and voiding its invoice gave
+   the account away.** No control could move it - "I'm on it" wants
+   pending, "Back to pending" wanted in_progress, and Review hides Create
+   Invoice outside the fee stage - so an invoice raised for the wrong
+   amount could not be replaced. Void it on /invoices and the unpaid-fee
+   guard, which asked only for status `unpaid`, found nothing: Create Ad
+   Account then succeeded with the fee neither paid nor outstanding, and no
+   way left to raise one.
+3. **Refusing a request refunds EUR 50 and the dialog never said so.** A
+   reason box and one button; the figure appeared only in the toast
+   afterwards, and the act is irreversible three ways over.
+4. **Neither request dialog read the wallet balance, and both RPCs refuse on
+   it.** An admin could pick a customer holding EUR 300, type 5000, and get
+   a green "awaiting owner approval" - then the owner's approve dialog
+   showed Customer and Amount and nothing else, and failed. There is no
+   update path on `wallet_refunds` anywhere in the app, so that row can only
+   be refused with a reason and raised again from scratch.
+5. **A refusal wiped the reason it was asked for.** `wallet_refund_reject`
+   and `wallet_adjustment_reject` do `reason = coalesce(p_reason, reason)` -
+   the owner's refusal over the admin's own justification, in the database.
+   Withdrawals got a separate `decision_reason` in plak 71; these two never
+   did. Plak 86 adds it and points both RPCs at it.
+6. **An employee admin could mark a request completed from the console.**
+   `ad_account_requests` is the one table on this journey that
+   `authenticated` may UPDATE, and the session guard stops `-> rejected`
+   but not `-> completed`: no ad account created, the EUR 50 kept, the
+   fee check skipped. Closed in plak 85.
+7. **The withdrawal ceiling was summed unpaged** while the server pages the
+   identical expression, with a comment saying why: missing top-ups
+   under-count (safe), missing WITHDRAWALS inflate the balance (not safe).
+8. **The withdrawal request dialog closed mid-write** and there is no
+   duplicate guard on the RPC - its own comment says the natural next step
+   is to file it again, and then both pending rows count against the
+   ceiling and the customer cannot reach their own money.
+9. **Three more that hid failures**: "Ad account created from request."
+   swallowed the warning that the customer was never told;
+   `rejectAdAccountWithdrawal` was the only refusal of four with no
+   server-side reason check; and the approve path's single warning slot was
+   already taken by the supplier message, so the two would have overwritten
+   each other.
+10. Smaller, all fixed: the cover check could hang on "Asking the platform
+    what it holds..." for ever on a rejected promise while the tick box
+    still released Confirm; the confirm modal went `busy` for a DIFFERENT
+    row and locked with Escape and the backdrop dead; the three tab badges
+    all cried "we couldn't read this queue" on every hard load; nothing
+    invalidated `pending-counts`, so a badge and the header beneath it
+    disagreed for up to a minute; the invoice dialog reset the form twice
+    and read the rate without a tenant filter (0.86317 vs 0.872361, i.e.
+    58 or 57 dollars); "Pending Requests" on /accounts answered "none"
+    every time because it filtered on the admin's own advertiser row, which
+    does not exist; `MAINTENANCE_MODE` froze two READS, including the live
+    balance on the screen where an account is released; and the withdrawals
+    queue printed `Eu-Meta-Psm` - the slug run through text-transform -
+    where the tenant's own label is Meta-EU-PSM-RA.
+
+### Still open on D3
+
+- **No withdrawal walked end to end.** Filing one is the customer's action
+  and there is no admin path to it; the only funded ad account belongs to
+  PSM0007, whose login I do not have. Approve and reject are read and their
+  guards checked, but not pressed on a live row.
+- **Plak 86 is not applied yet** - `decision_reason`, the two empty
+  wallets, and `wallets.tenant_id NOT NULL`.
+- **`trg_withdrawal_takes_the_account_currency` is BEFORE INSERT OR
+  UPDATE.** If an admin corrects an ad account's currency between filing
+  and approval, the wallet is credited in the currency read before the
+  update and the row records the one after. Narrow, and it fails closed for
+  anything that is not USD or EUR. Worth an `on insert` narrowing in the
+  next plak.
+- **The "Create Invoice" branch of the request journey is dead code.**
+  `ad_account_request_create_paid` always stamps `request_fee` or
+  `request_fee_included`, and the button only appears when both are absent.
+  All nine live requests carry one.
 
 ## D2 - walked 2026-09-24, ONE step open: nobody has accepted the invitation yet
 
