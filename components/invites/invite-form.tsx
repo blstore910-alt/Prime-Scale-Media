@@ -31,7 +31,7 @@ import { createClient } from "@/lib/supabase/client";
 import { listActivePlans } from "@/actions/plan-actions";
 import type { PlanOption } from "@/lib/types/plan";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send } from "lucide-react";
+import { Check, Copy, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -99,6 +99,11 @@ export default function InviteForm() {
   const [loading, setLoading] = useState(false);
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [emailWasSent, setEmailWasSent] = useState(false);
+  // What the done-screen says it did. Read off the form at submit time,
+  // because `nextClientCode` moves on the moment the tenant row
+  // refreshes and the address box is cleared for the next invite.
+  const [lastInviteEmail, setLastInviteEmail] = useState("");
+  const [lastClientCode, setLastClientCode] = useState("");
   const supabase = createClient();
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -227,6 +232,12 @@ export default function InviteForm() {
   const planId = form.watch("plan_id");
   const communityId = form.watch("community_id");
   const affiliateId = form.watch("affiliate_id");
+  const monthlyFee = form.watch("monthly_fee");
+  const nextClientCodeRef = useRef("");
+  const includedAccts = form.watch("included_ad_accounts");
+  const topupFeePct = form.watch("topup_fee_pct");
+  const sendEmail = form.watch("send_email");
+  const emailValue = form.watch("email");
 
   // Fee precedence: picking a tier prefills; picking a community overrides;
   // manual edits win (nothing re-runs unless you pick again). A community
@@ -416,6 +427,8 @@ export default function InviteForm() {
         queryClient.invalidateQueries({ queryKey: ["invites"] });
         setCreatedLink((data.inviteLink as string) ?? null);
         setEmailWasSent(data.emailSent === true);
+        setLastInviteEmail(String(values.email ?? "").trim());
+        setLastClientCode(nextClientCodeRef.current);
         toast.success(data.message);
       }
     } catch (error) {
@@ -437,6 +450,54 @@ export default function InviteForm() {
     4,
     "0",
   );
+  nextClientCodeRef.current = nextClientCode;
+
+  // The money half only exists for an advertiser, and only the owner may
+  // set it -- the server drops these fields for anybody else.
+  const showTerms = role === "advertiser" && isSuperAdmin;
+
+  // ---- WHAT WILL ACTUALLY BE WRITTEN, IN ONE SENTENCE --------------
+  const summaryLine = (() => {
+    const chosen =
+      (communityId && communities.find((c) => c.id === communityId)) ||
+      (planId && tiers.find((t) => t.id === planId)) ||
+      null;
+    const sym = planCurrency === "USD" ? "$" : "€";
+    const bits: string[] = [];
+    bits.push(`${tenant?.initials ?? ""}${nextClientCode}`);
+    bits.push(role === "affiliate" ? "affiliate" : "advertiser");
+    if (showTerms) {
+      bits.push(chosen ? chosen.name : "no plan");
+      const fee = Number(monthlyFee);
+      bits.push(
+        Number.isFinite(fee)
+          ? fee > 0
+            ? `${sym}${fee}/mo`
+            : "free, no subscription"
+          : "no monthly fee set",
+      );
+      const incl = Number(includedAccts);
+      if (Number.isFinite(incl)) {
+        bits.push(`${incl} ad account${incl === 1 ? "" : "s"} included`);
+      }
+      const tf = Number(topupFeePct);
+      if (Number.isFinite(tf)) bits.push(`${tf}% top-up fee`);
+      const ref = affiliateId
+        ? (advertisers ?? []).find((a) => a.id === affiliateId)
+        : null;
+      if (ref) {
+        bits.push(
+          `referred by ${ref.tenant_client_code ?? advName(ref.profile) ?? "an affiliate"}`,
+        );
+      }
+    }
+    bits.push(
+      sendEmail === false
+        ? "no email — you pass the link on"
+        : `emailed to ${String(emailValue ?? "").trim() || "the address above"}`,
+    );
+    return bits.join(" · ");
+  })();
 
   return (
     <Dialog
@@ -459,7 +520,7 @@ export default function InviteForm() {
           last won, and if 90vh won the sheet was taller than the
           visible viewport and "Send invite" started below the fold on
           the longest form in the admin app. */}
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Invite a Member</DialogTitle>
           {/* Three lines of preamble above the first field pushed the form
@@ -473,22 +534,53 @@ export default function InviteForm() {
 
         {createdLink ? (
           <div className="space-y-4">
-            <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
-              <p className="text-sm font-medium">
-                {emailWasSent ? "Invite emailed ✓" : "Invite created ✓"} — share
-                this link:
-              </p>
-              <div className="flex items-center gap-2">
+            {/* ---- THE DONE STATE IS A SCREEN, NOT A NOTICE ----------
+                The owner does this every day and this is the moment
+                they act on: copy the link, or check it went to the
+                right address. So it says WHO it went to, WHAT was
+                created, and puts the link under one big button. */}
+            <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                  <Check className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-tight">
+                    {emailWasSent
+                      ? "Invitation sent"
+                      : "Invitation ready"}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground break-words">
+                    {emailWasSent ? (
+                      <>
+                        We emailed the link to{" "}
+                        <span className="font-medium text-foreground">
+                          {lastInviteEmail || "them"}
+                        </span>
+                        . {tenant?.initials}
+                        {lastClientCode} is reserved for them.
+                      </>
+                    ) : (
+                      <>
+                        Nothing was sent. Pass this link on yourself —{" "}
+                        {tenant?.initials}
+                        {lastClientCode} is reserved for them.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <InputGroupInput
                   readOnly
                   value={createdLink}
-                  className="text-xs"
+                  className="font-mono text-xs"
                   onFocus={(e) => e.currentTarget.select()}
                 />
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  className="shrink-0"
                   onClick={async () => {
                     try {
                       if (!(await copyText(createdLink))) throw new Error("copy refused");
@@ -498,7 +590,8 @@ export default function InviteForm() {
                     }
                   }}
                 >
-                  Copy
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy link
                 </Button>
               </div>
             </div>
@@ -527,46 +620,80 @@ export default function InviteForm() {
           </div>
         ) : (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-            <div>
-              <Label className="mb-1.5">Assigned Client Code</Label>
-              <InputGroup className="cursor-not-allowed">
-                <InputGroupAddon className="border-r pr-2">
-                  {tenant?.initials}
-                </InputGroupAddon>
-                <InputGroupInput value={nextClientCode} disabled />
-              </InputGroup>
-            </div>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* ---- WHO ON THE LEFT, WHAT THEY PAY ON THE RIGHT -------
+                One long scroll put the address, the role and six money
+                fields in a single column, and this form is opened every
+                day. The two halves answer different questions, so they
+                sit side by side and neither pushes the send button off
+                the screen. On a phone it is still one column. */}
+            <div
+              className={
+                showTerms
+                  ? "grid gap-4 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:items-start"
+                  : ""
+              }
+            >
+              <div className="space-y-3">
+                <InputField
+                  control={form.control}
+                  id="invite-email"
+                  name="email"
+                  label="Email"
+                  placeholder="user@example.com"
+                  type="email"
+                />
 
-            <InputField
-              control={form.control}
-              id="invite-email"
-              name="email"
-              label="Email"
-              placeholder="user@example.com"
-              type="email"
-            />
+                <div>
+                  <Label className="mb-1.5">Role</Label>
+                  {/* Two options is a pair of buttons, not a dropdown:
+                      one press instead of open-read-pick, and both
+                      choices are readable without opening anything. */}
+                  <Controller
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <div className="grid grid-cols-2 gap-2">
+                        {(
+                          [
+                            ["advertiser", "Advertiser"],
+                            ["affiliate", "Affiliate"],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => field.onChange(value)}
+                            aria-pressed={field.value === value}
+                            className={
+                              "rounded-md border px-3 py-2 text-sm font-medium transition-colors " +
+                              (field.value === value
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-input text-muted-foreground hover:bg-muted/60")
+                            }
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="invite-role" className="mb-1.5">
-                Role
-              </Label>
-              <Controller
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="invite-role">
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="advertiser">Advertiser</SelectItem>
-                      <SelectItem value="affiliate">Affiliate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
+                <div>
+                  <Label className="mb-1.5">Assigned client code</Label>
+                  <InputGroup className="cursor-not-allowed">
+                    <InputGroupAddon className="border-r pr-2">
+                      {tenant?.initials}
+                    </InputGroupAddon>
+                    <InputGroupInput value={nextClientCode} disabled />
+                  </InputGroup>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Given out on signup. It is the first half of every
+                    payment reference.
+                  </p>
+                </div>
+              </div>
 
             {/* ── PRICING IS THE OWNER'S, ON THE SCREEN TOO ──────────
                 The server drops these fields for a non-owner rather
@@ -582,7 +709,7 @@ export default function InviteForm() {
                 Same class as the four controls on /subscriptions that
                 were hidden for this reason: a control that can only
                 ever fail is not a control. */}
-            {role === "advertiser" && isSuperAdmin && (
+              {showTerms && (
               <div className="rounded-md border p-3 space-y-3">
                 {/* Plan (tier) */}
                 <div>
@@ -942,7 +1069,8 @@ export default function InviteForm() {
                   </div>
                 )}
               </div>
-            )}
+              )}
+            </div>
 
             {/* ── EMAIL IT, OR JUST GIVE ME THE LINK ────────────────
                 `send_email` has been in the schema, in the defaults and
@@ -980,6 +1108,18 @@ export default function InviteForm() {
                 </label>
               )}
             />
+
+            {/* ---- ONE SENTENCE OF WHAT IS ABOUT TO BE CREATED -----
+                Plan, community and the three overrides can all say
+                something different, and the owner had to assemble the
+                answer in their head every time. This reads back what
+                will actually be written. */}
+            <div className="rounded-md border bg-muted/40 px-3 py-2.5 text-sm">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                About to create
+              </span>
+              <p className="mt-1 leading-relaxed">{summaryLine}</p>
+            </div>
 
             <DialogFooter>
               <Button type="submit" disabled={loading}>
