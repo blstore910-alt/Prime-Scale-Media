@@ -103,11 +103,36 @@ export function getNotificationCopy(notification: Notification): {
   const type = notification.type as NotificationType;
 
   switch (type) {
-    case "topup_completed":
+    // ---- THE OTHER ONE WHERE MONEY LANDS ------------------------
+    //
+    // "Your top-up has been verified successfully" over a movement of
+    // EUR 48,50 onto a named ad account. The sibling case below carries
+    // the figure and this one did not, because the LIVE trigger that
+    // writes it (`notify_topup_completed`, hand-authored, in no
+    // migration here) only put topup_id, author and approved_at in the
+    // payload. Plak 96 adds the amount, the currency and the account.
+    //
+    // Both shapes are handled: without those keys it says exactly what
+    // it always said, so this is safe before the plak and better after.
+    case "topup_completed": {
+      const p = parseNotificationPayload(notification);
+      const amount = asNumber(p.amount);
+      const currency = String(asString(p.currency) ?? "EUR").toUpperCase();
+      const sym = currency === "USD" ? "$" : "€";
+      const account = asString(p.account_name);
+      if (amount === null) {
+        return {
+          title: "Top-up Completed",
+          description: "Your top-up has been verified successfully.",
+        };
+      }
       return {
-        title: "Top-up Completed",
-        description: "Your top-up has been verified successfully.",
+        title: "Money is on your ad account",
+        description: account
+          ? `${sym}${amount.toFixed(2)} has landed on ${account}.`
+          : `${sym}${amount.toFixed(2)} has landed on your ad account.`,
       };
+    }
     // ── AND THE ONE WHERE THE MONEY ACTUALLY ARRIVES ───────────────
     //
     // With the figure in it. subscription_invoice carries `amount` and
