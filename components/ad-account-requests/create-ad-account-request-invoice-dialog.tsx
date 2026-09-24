@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { CURRENCIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { useAppContext } from "@/context/app-provider";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -94,6 +95,8 @@ export default function CreateAdAccountRequestInvoiceDialog({
 }) {
   const { createInvoiceFromRequest, isPending } =
     useCreateAdAccountRequestInvoice();
+  const { profile } = useAppContext();
+  const tenantId = profile?.tenant_id ?? null;
 
   const {
     control,
@@ -108,15 +111,30 @@ export default function CreateAdAccountRequestInvoiceDialog({
   // On OPEN, so a dialog re-used for a second request does not keep the
   // first one's currency — the same fault the wallet top-up dialog had.
   // The live rate, read once the dialog opens. Same row the RPC reads.
-  const { data: feeRate } = useQuery({
-    queryKey: ["request-fee-rate"],
+  const {
+    data: feeRate,
+    isError: rateUnreadable,
+    isPending: ratePending,
+  } = useQuery({
+    queryKey: ["request-fee-rate", tenantId],
     enabled: open,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("exchange_rates")
         .select("eur")
+        // ── THE TENANT'S OWN ROW ────────────────────────────────────
+        //
+        // No tenant filter and no order: live has one active row per
+        // tenant, 0.86317 and 0.872361, and Math.round(50/r) is 58
+        // against one and 57 against the other. RLS hides the other
+        // tenant's row from a single-tenant admin, so today the figure
+        // is right -- but this codebase explicitly supports an admin in
+        // two tenants (see actions/_fee-is-a-price), and for them the
+        // row that came back was whichever one PostgREST felt like.
+        .eq("tenant_id", tenantId ?? "")
         .eq("is_active", true)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -126,8 +144,17 @@ export default function CreateAdAccountRequestInvoiceDialog({
 
   useEffect(() => {
     if (!open) return;
+    // ── NOT TWICE ──────────────────────────────────────────────────
+    //
+    // This effect depends on feeRate, and the rate query only starts
+    // when the dialog opens -- so the form was reset once with no rate
+    // and again a round trip later with it. Anything typed into Amount
+    // in that window was silently replaced, and for a USD request with
+    // no stored fee the figure changed under the admin as well (58 to
+    // 57 at today's rate). The sibling dialog guards exactly this.
+    if (ratePending) return;
     reset(getDefaultValues(request, feeRate ?? null));
-  }, [open, reset, request, feeRate]);
+  }, [open, reset, request, feeRate, ratePending]);
 
   const onSubmit = (values: FormValues) => {
     if (!request?.id || !request.advertiser_id) {
@@ -239,6 +266,17 @@ export default function CreateAdAccountRequestInvoiceDialog({
             </InputGroup>
             {errors.currency && <FieldError errors={[errors.currency]} />}
             {errors.amount && <FieldError errors={[errors.amount]} />}
+            {/* A fallback rate presented as the price is how the invoice
+                ends up a dollar over what the customer was quoted. The
+                figure still fills in -- refusing to show one would be
+                worse -- but it says it is not the live rate. */}
+            {rateUnreadable ? (
+              <p className="text-xs text-muted-foreground">
+                We couldn&apos;t read today&apos;s exchange rate, so this
+                figure is worked out from a fallback. Check it against what
+                the customer was quoted before you send it.
+              </p>
+            ) : null}
           </Field>
         </form>
 

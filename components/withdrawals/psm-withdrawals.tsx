@@ -351,7 +351,16 @@ const loadingRow = (colSpan: number) => (
 /** A tab's own queue length. A dash, never a 0, for a count we could
  *  not read -- that is the difference between "nothing waiting" and
  *  "we could not ask". */
-function QueueCount({ n }: { n: number | null }) {
+function QueueCount({ n, loading }: { n: number | null; loading?: boolean }) {
+  // ── "UNKNOWN YET" IS NOT "UNKNOWN" ──────────────────────────────
+  //
+  // usePendingCounts returns every count as null until the first
+  // response, and this screen did not read its isLoading -- so on every
+  // hard load all three tabs wore an em dash meaning "we could not read
+  // this queue" over three queues that were merely still in flight. The
+  // hook's own docblock says why that matters: an alarm that cries wolf
+  // reliably enough trains people to ignore the real one.
+  if (loading) return null;
   if (n === null) {
     return (
       <span className="badge pend" title="We couldn't read this queue">
@@ -412,17 +421,26 @@ export default function PsmWithdrawals() {
             done. A dash, never a 0, when a count could not be read. */}
         <SegBtn active={tab === "withdrawals"} onClick={() => setTab("withdrawals")}>
           <ArrowDownToLine /> Withdrawals{" "}
-          <QueueCount n={pendingCounts.adAccountWithdrawals} />
+          <QueueCount
+            n={pendingCounts.adAccountWithdrawals}
+            loading={pendingCounts.isLoading}
+          />
         </SegBtn>
         <SegBtn active={tab === "refunds"} onClick={() => setTab("refunds")}>
-          <RotateCcw /> Refunds <QueueCount n={pendingCounts.walletRefunds} />
+          <RotateCcw /> Refunds <QueueCount
+            n={pendingCounts.walletRefunds}
+            loading={pendingCounts.isLoading}
+          />
         </SegBtn>
         <SegBtn
           active={tab === "adjustments"}
           onClick={() => setTab("adjustments")}
         >
           <SlidersHorizontal /> Adjustments{" "}
-          <QueueCount n={pendingCounts.walletAdjustments} />
+          <QueueCount
+            n={pendingCounts.walletAdjustments}
+            loading={pendingCounts.isLoading}
+          />
         </SegBtn>
       </div>
 
