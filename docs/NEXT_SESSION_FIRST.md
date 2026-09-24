@@ -1,7 +1,33 @@
-# THE NUMBER: every journey on the list is closed - A1-A7, F1-F4, D1-D3, S1-S3 - 2026-09-24
+# THE NUMBER: every journey on the list is closed - 2026-09-24
 
 > The list has seventeen rows; you call it sixteen. Either way there is
 > nothing left open on it.
+
+## Where each one stands after the second pass
+
+A journey closed on Monday is not closed on Wednesday if the code moved
+under it. So after closing all seventeen, they were walked AGAIN, oldest
+first — and that second pass found real money faults in four of them.
+
+| journey | state |
+|---|---|
+| A1 invite -> signup -> onboarding -> dashboard | **re-walked 24-09** with a brand-new account (PSM0013), end to end |
+| A2 wallet top-up | **re-walked**: eight dialog branches, four minimums, every bank detail against the database. The submit itself needs a file upload the built-in browser cannot do; that path was walked on 23-09 in D1. |
+| A3 ad-account request | **re-walked**, end to end: EUR 70 -> 20 on sending, 20 -> 70 on the refusal |
+| A4 funding an ad account | **re-walked**, end to end, with four agents first |
+| A5 invoice -> Pay now | **re-walked**: the statement nets to the balance again |
+| A6 money back off an ad account | **re-walked** inside the A4 loop: 20,00 -> 68,50 |
+| A7 settings | **re-walked and closed 24-09**, including the exchange to the cent |
+| F1 affiliate invite -> portal | link, attribution and portal verified; a NEW affiliate's signup needs a password, which is the owner's |
+| F2 referral -> commission | **re-walked**; the portal's three contradicting figures are reconciled |
+| F3 payout | **blocked, and not by a bug**: the owner's own EUR/USD 200 floor from 22-09. PSM0005 is owed EUR 15,96. The admin half was walked in S2. |
+| F4 all three commission kinds | **verified**: one-off, subscription % and top-up %, all booked live and all on screen |
+| D1, D2, D3 | walked 23/24-09, each with two roles |
+| S1, S2, S3 | walked 24-09 |
+
+**Saved for us to run together, not handed over:** plak 94 (the four
+`real` money columns to `numeric`, which rebuilds `top_ups_view`) and
+plak 95 (two latent affiliate grants). Plaks 89 to 93 are applied.
 
 > **S1, S2 and S3 CLOSED 2026-09-24.** Walked as the owner on production,
 > every figure held against the database. Their blocks are directly below;
