@@ -693,6 +693,43 @@ export default function InviteForm() {
                     payment reference.
                   </p>
                 </div>
+
+              {/* ── EMAIL IT, OR JUST GIVE ME THE LINK ────────────────
+                  `send_email` has been in the schema, in the defaults and
+                  in the POST body all along, and /api/send-invite has the
+                  branch for it -- right down to its own reply, "Invite
+                  created — share the link below." No control was ever
+                  rendered, so the flag was always true and that branch was
+                  unreachable. An owner who wants to hand the link over
+                  themselves (a customer who reads mail somewhere else, an
+                  address they are not sure of yet, a link going into a
+                  chat) had no way to say so. */}
+              <Controller
+                control={form.control}
+                name="send_email"
+                render={({ field }) => (
+                  <label
+                    className="flex items-start gap-2.5 rounded-md border p-3 text-sm"
+                    htmlFor="invite-send-email"
+                  >
+                    <input
+                      id="invite-send-email"
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={field.value !== false}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                    <span>
+                      <span className="font-medium">Email the invitation</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {field.value !== false
+                          ? "We send them the link."
+                          : "Nothing is sent — you get the link to pass on yourself."}
+                      </span>
+                    </span>
+                  </label>
+                )}
+              />
               </div>
 
             {/* ── PRICING IS THE OWNER'S, ON THE SCREEN TOO ──────────
@@ -1071,43 +1108,6 @@ export default function InviteForm() {
               </div>
               )}
             </div>
-
-            {/* ── EMAIL IT, OR JUST GIVE ME THE LINK ────────────────
-                `send_email` has been in the schema, in the defaults and
-                in the POST body all along, and /api/send-invite has the
-                branch for it -- right down to its own reply, "Invite
-                created — share the link below." No control was ever
-                rendered, so the flag was always true and that branch was
-                unreachable. An owner who wants to hand the link over
-                themselves (a customer who reads mail somewhere else, an
-                address they are not sure of yet, a link going into a
-                chat) had no way to say so. */}
-            <Controller
-              control={form.control}
-              name="send_email"
-              render={({ field }) => (
-                <label
-                  className="flex items-start gap-2.5 rounded-md border p-3 text-sm"
-                  htmlFor="invite-send-email"
-                >
-                  <input
-                    id="invite-send-email"
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={field.value !== false}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                  />
-                  <span>
-                    <span className="font-medium">Email the invitation</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {field.value !== false
-                        ? "We send them the link."
-                        : "Nothing is sent — you get the link to pass on yourself."}
-                    </span>
-                  </span>
-                </label>
-              )}
-            />
 
             {/* ---- ONE SENTENCE OF WHAT IS ABOUT TO BE CREATED -----
                 Plan, community and the three overrides can all say
