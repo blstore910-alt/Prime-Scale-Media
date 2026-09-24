@@ -13,6 +13,51 @@
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## F1, F2, F4 re-walked 2026-09-24. F3 is blocked by the owner's own rule
+
+Walked in the affiliate portal of PSM0005, who is an approved affiliate
+with two live referrals.
+
+| what | screen | database |
+|---|---|---|
+| the referral link | `.../auth/sign-up?t=prime-scale-media&ref=PSM0005` | opening it renders "INVITED BY A PARTNER - Referral code PSM0005" over the signup form |
+| total earnings | EUR 20,92 | 24,96 commissions - 4,04 clawbacks |
+| per referral | PSM0007 EUR 5,92 - PSM0010 EUR 15,00 | 9,96 - 4,04 = 5,92; 10,00 + 5,00 = 15,00; together 20,92 |
+| awaiting payout / paid | EUR 15,96 / EUR 4,96 | same |
+| spend driven | EUR 97,00 | PSM0007's completed fundings landed 48,50 + 48,50 |
+| **F4, all three kinds** | "Welcome bonus EUR 10,00 on EUR 10,00", "Subscription EUR 5,00 on EUR 10,00" x2, "Top-up · Meta EUR 0,11 and EUR 4,85 on EUR 48,50" | `referral_commissions`: onetime, subscription_pct x2, pct x2 |
+
+### Fixed
+
+**Two answers to "what will I be paid", on one screen.** The top of the
+portal said EUR 15,96 and the Getting-paid card at the bottom said EUR
+15,96 - and the commission list between them said EUR 20,00. Both were
+right in their own way: those three sums ARE the status filter, each the
+sum of the rows it shows, and a clawback takes money back without
+touching a commission row. The tiles stay sums of rows, and one line
+under them now reconciles them with what will land, from the same source
+the payout RPC uses.
+
+### F3 - blocked, and not by a bug
+
+`payout-card.tsx:37-40` carries the owner's own instruction from 22-09:
+"200 usd of 200 eur ondergrens", per transfer, per currency. PSM0005 is
+owed EUR 15,96, so "Request payout" is correctly disabled and the screen
+says "EUR 184,04 to go". The journey's request half therefore cannot be
+walked without either lowering that threshold or manufacturing EUR 200 of
+real commission - both the owner's call, neither something to do
+unsupervised.
+
+The admin half WAS walked, in S2: payout #1 of EUR 4,96 exists, paid on
+22 September, and the book nets to the cent around it.
+
+### F1 - the half that needs a password
+
+A brand-new affiliate signing up from an invitation was not walked: it
+needs a password typed, which is the owner's. The link itself, the
+attribution on the signup page and the portal behind it are all verified
+above.
+
 ## A7 re-walked and CLOSED 2026-09-24 - settings, and the exchange to the cent
 
 Walked as PSM0005 in the customer browser. Four agents went over the
