@@ -318,13 +318,28 @@ export default function PsmRequests() {
               ? "Their free-request credit was given back."
               : "No fee was charged for this one, so there is nothing to refund.",
       });
-      await queryClient.invalidateQueries({
+      // ---- CLOSE FIRST, REFRESH AFTER -------------------------------
+      //
+      // This awaited `invalidateQueries` BEFORE closing, and
+      // invalidateQueries waits for every matching active query to
+      // settle. Measured on production today: the EUR 50 was refunded,
+      // the toast said so -- and both dialogs were still open minutes
+      // later, because that await never came back. Worse, the reject
+      // dialog had re-rendered off the refreshed row and now read "No
+      // fee was charged for this one, so nothing moves" about the
+      // request whose fee it had just returned.
+      //
+      // The write has landed. What the screen does next must not hang on
+      // a cache refresh. Close both -- there is nothing left to review on
+      // a rejected request -- then refresh in the background.
+      setRequestToReject(null);
+      setSelectedRequestId(null);
+      void queryClient.invalidateQueries({
         queryKey: ["ad-account-request-details", requestToReject.id],
       });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
-      setRequestToReject(null);
-      await refetch();
+      void refetch();
     } catch (err) {
       // A version conflict invites a retry that cannot win: the row in
       // requestToReject still carries the ifUpdatedAt that just lost, so
@@ -333,11 +348,14 @@ export default function PsmRequests() {
       // what is actually there.
       const message = err instanceof Error ? err.message : "Failed to reject.";
       if (/changed by someone else/i.test(message)) {
-        await queryClient.invalidateQueries({
+        // Close first here too: the point of this branch is that the
+        // next press must start from a fresh row, and a dialog that
+        // waits on the refresh before closing can sit there for ever.
+        setRequestToReject(null);
+        void queryClient.invalidateQueries({
           queryKey: ["ad-account-request-details", requestToReject.id],
         });
-        await refetch();
-        setRequestToReject(null);
+        void refetch();
       }
       toast.error("Unable to reject request", { description: message });
     } finally {
