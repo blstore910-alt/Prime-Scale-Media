@@ -181,16 +181,30 @@ export function getNotificationCopy(notification: Notification): {
         title: "Wallet Top-up Request",
         description: "A wallet top-up is pending approval.",
       };
+    // ---- MONEY NOTICES SAY HOW MUCH ---------------------------
+    //
+    // Three of them carried `amount` and `currency` in the payload and
+    // printed neither. Read on PSM0005's own notifications screen:
+    // "We couldn't put this money on your ad account", "the fee is back
+    // in your wallet", "What you asked back ... has landed in your
+    // wallet" -- three movements of real money, no figure in any of
+    // them, while the row above them said "EUR 5,00 has left your
+    // wallet". The data was already there.
     case "topup_rejected": {
       const p = notification.payload as
         | { reason?: string | null; amount?: unknown; currency?: string | null }
         | null;
       const why = String(p?.reason ?? "").trim();
+      const amt = asNumber(p?.amount);
+      const cur = String(asString(p?.currency) ?? "EUR").toUpperCase();
+      const sum = amt === null
+        ? "this money"
+        : `${cur === "USD" ? "$" : "€"}${amt.toFixed(2)}`;
       return {
         title: "Ad-account top-up refused",
         description: why
-          ? `We couldn't put this money on your ad account. ${why}`
-          : "We couldn't put this money on your ad account. Your wallet is unchanged.",
+          ? `We couldn't put ${sum} on your ad account. ${why}`
+          : `We couldn't put ${sum} on your ad account. Your wallet is unchanged.`,
       };
     }
 
@@ -262,11 +276,21 @@ export function getNotificationCopy(notification: Notification): {
         | { amount?: unknown; currency?: string | null; account_name?: string | null }
         | null;
       const where = String(p?.account_name ?? "").trim();
+      const amt = asNumber(p?.amount);
+      const cur = String(asString(p?.currency) ?? "EUR").toUpperCase();
+      const sum =
+        amt === null
+          ? null
+          : `${cur === "USD" ? "$" : "€"}${amt.toFixed(2)}`;
       return {
         title: "Money is back in your wallet",
-        description: where
-          ? `What you asked back from ${where} has landed in your wallet.`
-          : "What you asked back from your ad account has landed in your wallet.",
+        description: sum
+          ? where
+            ? `${sum} from ${where} has landed in your wallet.`
+            : `${sum} from your ad account has landed in your wallet.`
+          : where
+            ? `What you asked back from ${where} has landed in your wallet.`
+            : "What you asked back from your ad account has landed in your wallet.",
       };
     }
 
@@ -293,9 +317,14 @@ export function getNotificationCopy(notification: Notification): {
         | { reason?: string | null; amount?: number | string | null }
         | null;
       const why = String(p?.reason ?? "").trim();
-      const back = Number(p?.amount ?? 0) > 0;
+      const amt = asNumber(p?.amount);
+      const back = (amt ?? 0) > 0;
+      const cur = String(
+        asString((p as { currency?: unknown } | null)?.currency) ?? "EUR",
+      ).toUpperCase();
+      const sum = amt === null ? null : `${cur === "USD" ? "$" : "€"}${amt.toFixed(2)}`;
       const lead = back
-        ? "We couldn't set this account up, so the fee is back in your wallet."
+        ? `We couldn't set this account up, so ${sum ?? "the fee"} is back in your wallet.`
         : "We couldn't set this account up. Nothing was charged for it.";
       return {
         title: back
