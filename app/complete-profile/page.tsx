@@ -6,6 +6,7 @@ import { isCompanyComplete } from "@/lib/pure-company-complete";
 import CompanyOnboardingForm from "@/components/company/company-onboarding-form";
 import { UserProfile } from "@/lib/types/user";
 import { LogoutButton } from "@/components/auth/logout-button";
+import PsmAvatar from "@/components/ui/psm-avatar";
 
 export default async function CompleteProfilePage() {
   const supabase = await createClient();
@@ -149,27 +150,42 @@ export default async function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Two lines, not one. Email, joined date and role used to share a
-          single truncated line, so on a phone it read
-          "xifape4500@jobscai.com | Joined Se…" — cut mid-word, with the role
-          lost entirely. The address is the identity and keeps the ellipsis;
-          the rest is short enough to wrap on its own line. px-4 on a phone
-          too: 32px of side padding each way is a lot of a 400px screen. */}
-      <div className="w-full px-4 sm:px-8 py-4 border-b bg-muted/20 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">
-            Signed in as {displayName}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+      {/* ── THE FIRST THING A NEW CUSTOMER SEES OF US ────────────────
+          Three grey lines of plain text against a grey bar, with a solid
+          button shouting LOGOUT beside them. It reads like a debug strip,
+          and it is the screen somebody lands on thirty seconds after
+          creating their account.
+          Now: their own mark (the same one the admin sees on every
+          queue), the name with real weight, the address under it, and the
+          role and joining date as a quiet pill rather than a third line
+          of prose. Log out steps back to a text button — it is the one
+          thing on this screen they should NOT be pressing. */}
+      <div className="w-full border-b bg-gradient-to-b from-muted/40 to-background">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3.5 sm:px-8">
+          <PsmAvatar
+            seed={profile.id}
+            name={displayName}
+            email={userEmail}
+            role={String(profile.role) === "affiliate" ? "affiliate" : "advertiser"}
+            size={40}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[0.95rem] font-semibold leading-tight">
+              {displayName}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {userEmail}
+            </p>
+          </div>
           {(roleLabel || joinedDate) && (
-            <p className="text-xs text-muted-foreground">
-              {[roleLabel, joinedDate ? `Joined ${joinedDate}` : null]
+            <span className="hidden shrink-0 rounded-full border bg-background/70 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-muted-foreground sm:inline-block">
+              {[roleLabel, joinedDate ? `since ${joinedDate}` : null]
                 .filter(Boolean)
                 .join(" · ")}
-            </p>
+            </span>
           )}
+          <LogoutButton />
         </div>
-        <LogoutButton />
       </div>
 
       <div className="flex-1 bg-background flex items-center justify-center">
