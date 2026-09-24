@@ -246,8 +246,13 @@ export async function financeReportForMe(): Promise<
   // construction; `currency` is what the customer paid in, and
   // amount_received is what actually left their wallet. See the note in
   // the loop for why that distinction decides the whole report.
+  // topup_usd is the discriminator landedOnAccount keys on -- present
+  // means the customer's RPC wrote the row and topup_amount is in
+  // , absent means an admin path wrote dollars. Leaving it out
+  // of this select made every row look like an admin row, so the line
+  // read "$48.50 landed" over a euro funding.
   const TOPUP_COLS =
-    "id, account_id, topup_amount, fee_amount, amount_received, currency, status, created_at, type";
+    "id, account_id, topup_amount, topup_usd, fee_amount, amount_received, currency, status, created_at, type";
   for (const r of await sourceTolerant(
     "ad account funding",
     // A DELETED TOP-UP IS NOT A DEBIT. `is_deleted` is the only way to
