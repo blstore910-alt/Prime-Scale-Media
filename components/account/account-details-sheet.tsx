@@ -825,16 +825,37 @@ function TopupHistory({ account }: { account: AdAccount }) {
       {!isLoading && !isError && !!data?.length && (
         <div className="mb-3 grid grid-cols-3 gap-2">
           {(() => {
+            // ---- DO NOT ADD TWO CURRENCIES TOGETHER ---------------
+            //
+            // These three tiles summed `amount_received` and the landed
+            // figure over every completed row and then stamped the
+            // ACCOUNT's currency on all three. A row in another currency
+            // -- which an admin-created funding can still be, and which
+            // plak 93 now refuses only for a non-owner -- therefore went
+            // into the same pot: one EUR 100 customer row (landed 97)
+            // beside one admin row that landed $1.089,89 printed "Fees
+            // paid EUR -86,89". A negative fee.
+            //
+            // So: add per currency, and when there is more than one, say
+            // so instead of printing a number that means nothing.
             const done = data.filter((t) => t.status === "completed");
-            const paid = done.reduce(
-              (n, t) => n + (Number(t.amount_received) || 0),
-              0,
-            );
-            const landed = done.reduce((n, t) => {
+            const paidBy: Record<string, number> = {};
+            const landedBy: Record<string, number> = {};
+            for (const t of done) {
+              const rowCur = String(t.currency ?? account.currency ?? "EUR")
+                .toUpperCase();
+              paidBy[rowCur] = (paidBy[rowCur] ?? 0) + (Number(t.amount_received) || 0);
               const l = landedOnAccount(t);
-              return n + (l.amount ?? 0);
-            }, 0);
-            const cur = account.currency ?? "EUR";
+              const lCur = String(l.currency ?? rowCur).toUpperCase();
+              landedBy[lCur] = (landedBy[lCur] ?? 0) + (l.amount ?? 0);
+            }
+            const currencies = Array.from(
+              new Set([...Object.keys(paidBy), ...Object.keys(landedBy)]),
+            );
+            const mixed = currencies.length > 1;
+            const cur = (currencies[0] ?? account.currency ?? "EUR") as string;
+            const paid = paidBy[cur] ?? 0;
+            const landed = landedBy[cur] ?? 0;
             const tile = (label: string, value: string) => (
               <div
                 key={label}
@@ -850,9 +871,40 @@ function TopupHistory({ account }: { account: AdAccount }) {
             );
             return (
               <>
-                {tile("Funded", formatCurrency(paid, cur))}
-                {tile("On the account", formatCurrency(landed, cur))}
-                {tile("Fees paid", formatCurrency(Math.round((paid - landed) * 100) / 100, cur))}
+                {tile(
+                  "Funded",
+                  mixed
+                    ? currencies
+                        .map((c) => formatCurrency(paidBy[c] ?? 0, c))
+                        .join(" + ")
+                    : formatCurrency(paid, cur),
+                )}
+                {tile(
+                  "On the account",
+                  mixed
+                    ? currencies
+                        .map((c) => formatCurrency(landedBy[c] ?? 0, c))
+                        .join(" + ")
+                    : formatCurrency(landed, cur),
+                )}
+                {tile(
+                  "Fees paid",
+                  mixed
+                    ? currencies
+                        .map((c) =>
+                          formatCurrency(
+                            Math.round(
+                              ((paidBy[c] ?? 0) - (landedBy[c] ?? 0)) * 100,
+                            ) / 100,
+                            c,
+                          ),
+                        )
+                        .join(" + ")
+                    : formatCurrency(
+                        Math.round((paid - landed) * 100) / 100,
+                        cur,
+                      ),
+                )}
               </>
             );
           })()}

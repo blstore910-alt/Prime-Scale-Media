@@ -718,7 +718,7 @@ export default function AdvertiserApp() {
   // because topup_amount is USD by construction for every payment
   // currency.
   const { data: accountTotals, isError: accountTotalsError } = useQuery<
-    Record<string, { amount: number; currency: string }>
+    Record<string, { amount: number; currency: string; mixed?: boolean }>
   >({
     queryKey: ["adv-account-totals", advertiserId],
     enabled: !!advertiserId,
@@ -764,7 +764,7 @@ export default function AdvertiserApp() {
       // lib/pure-topup-landed.
       const byAccount: Record<
         string,
-        { amount: number; currency: string }
+        { amount: number; currency: string; mixed?: boolean }
       > = {};
       for (const row of (data ?? []) as unknown as {
         account_id: string | null;
@@ -777,9 +777,24 @@ export default function AdvertiserApp() {
         const { amount, currency } = landedOnAccount(row);
         if (amount === null) continue;
         const soFar = byAccount[key];
+        // ---- AND NOT ACROSS CURRENCIES ------------------------------
+        //
+        // `currency: soFar?.currency ?? currency` stamps the FIRST row's
+        // currency on the running sum, so a later row in another
+        // currency is added straight into it and the total comes out as
+        // one number wearing one symbol. Same account, two currencies,
+        // one wrong figure on the customer's own card. When they differ
+        // we keep the first and stop adding, because a partial total is
+        // a lie in a way a missing one is not -- the details sheet
+        // breaks it out per currency.
+        if (soFar && soFar.currency !== currency) {
+          byAccount[key] = { ...soFar, mixed: true };
+          continue;
+        }
         byAccount[key] = {
           amount: Math.round(((soFar?.amount ?? 0) + amount) * 100) / 100,
           currency: soFar?.currency ?? currency,
+          mixed: soFar?.mixed ?? false,
         };
       }
       return byAccount;
@@ -3072,6 +3087,18 @@ export default function AdvertiserApp() {
                 accountTotals![a.id].amount,
                 accountTotals![a.id].currency,
               )}
+              {/* Two currencies on one account: the sum above is only
+                  the first of them, so say that rather than let it read
+                  as the whole story. The details sheet breaks it out. */}
+              {accountTotals![a.id].mixed ? (
+                <span
+                  className="cap"
+                  style={{ marginLeft: 6, fontWeight: 500 }}
+                  title="This account has been funded in more than one currency. Open Details for the full breakdown."
+                >
+                  + another currency
+                </span>
+              ) : null}
             </b>
           </div>
         ) : null}
