@@ -375,7 +375,19 @@ export default function ReconciliationView() {
           {/* Per-destination balances */}
           <h2>Bank destinations</h2>
           <div className="dgrid">
-            {(reconQ.data?.balances ?? []).map((b) => (
+            {/* Eight cards, four of which read 0.00 until somebody records
+                a pound or a Hong Kong dollar, is four cards of nothing on
+                a screen that has to be read at a glance. The two wallet
+                currencies always show -- a EUR account at zero IS news --
+                and the other two appear once they hold something. */}
+            {(reconQ.data?.balances ?? [])
+              .filter(
+                (b) =>
+                  b.currency === "EUR" ||
+                  b.currency === "USD" ||
+                  Math.abs(b.balance) >= 0.01,
+              )
+              .map((b) => (
               <div key={`${b.destination}-${b.currency}`} className="dcard">
                 <div className="dl">
                   {DESTINATION_LABELS[b.destination]} · {b.currency}
