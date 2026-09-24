@@ -13,6 +13,41 @@
 > share 0.2062, x EUR 9,96). Both halves are in `audit_events` with an
 > actor.
 
+## A5 re-walked 2026-09-24 - the statement now nets to the balance
+
+A journey closed on Monday is not closed on Wednesday if the code moved
+under it. Walked again as PSM0005 in the customer browser, and it did
+not add up: every line on Wallet activity summed to EUR 75,00 over a
+balance of EUR 70,00.
+
+Three things, and they hid each other.
+
+1. **A +10,00 correction and a -5,00 refund had no line.** Both approved,
+   both real. The code fetched them; `wallet_adjustments` and
+   `wallet_refunds` only had an admin SELECT policy - and **RLS does not
+   raise, it hides rows**. The query succeeded with zero rows, `isError`
+   was false, and the statement was silently short. That is why no error
+   handling anywhere could have caught it. Plak 92 gives the row's owner
+   the read.
+
+2. **The "we couldn't load all of your activity" warning lived inside the
+   empty-list branch**, so it could only appear when there was nothing at
+   all. Sixteen rows and a refusing source showed sixteen rows and no
+   warning. It now sits above the table either way.
+
+3. **My own `paid_from` fix from that morning lied about the rest.** I
+   read NULL as "not from wallet". Invoices 121 and 124 have `paid_at`
+   18-09 16:02:15 and 21-09 07:40:44, and PSM0005's wallet went 5 ->
+   0,00 and 200 -> 195 at exactly those seconds - they DID come out of
+   the wallet. Three states now, and plak 92 filled the 15 historical
+   rows in from `audit_events`: 2 wallet, 13 other. PSM0007/130, the one
+   that started all of this, came out 'other', which is correct - a
+   person marked it paid and no money moved.
+
+**Measured after the plak, on production:** +20 +50 +50 +300 +5 +10 minus
+50 +50 +100 +50 +5 +100 +5 +5 = **EUR 70,00**, and `wallets.eur_balance`
+is 70.00.
+
 ## S3 - money overview: invoices, reconciliation, audit. CLOSED
 
 ### What was walked, and what it was held against
