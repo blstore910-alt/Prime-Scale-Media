@@ -35,6 +35,7 @@ import {
 import CommissionRulesEditor from "./commission-rules-editor";
 import ReferralStatusAction from "./referral-status-action";
 import PayoutQueue from "./payout-queue";
+import PayoutMinimumCard from "./payout-minimum-card";
 
 // ── THE AFFILIATE BOOK ──────────────────────────────────────────────────
 //
@@ -1132,6 +1133,8 @@ function AffiliateDetail({
               <div className="v" style={{ fontSize: "1.15rem" }}>{money(summary?.paid ?? {})}</div>
             </div>
           </div>
+
+          <PayoutMinimumCard advertiserId={advertiserId} canEdit={canEdit} />
 
           <div className="card" style={{ padding: 0 }}>
             <div style={{ padding: "16px 18px 6px" }}>

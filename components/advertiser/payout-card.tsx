@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { toast } from "sonner";
 
@@ -9,6 +9,8 @@ import { Ic } from "@/components/advertiser/adv-icons";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { payoutMinimumFor } from "@/lib/pure-payout-min";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useAffiliatePayouts, { type AffiliatePayout } from "@/hooks/use-affiliate-payouts";
 import type { PayoutDetails } from "@/actions/payout-actions";
@@ -34,10 +36,6 @@ import type { PayoutDetails } from "@/actions/payout-actions";
 // afterwards.
 
 const FEE_PCT = 0.6;
-// The owner, 22-09: "200 usd of 200 eur ondergrens" — per TRANSFER, so
-// per currency they receive. Checked here so the button says so before it
-// is pressed, and again in the RPC so it is a rule and not a suggestion.
-const MIN_PER_CURRENCY = 200;
 
 type Cur = "EUR" | "USD";
 
@@ -130,6 +128,45 @@ export default function PayoutCard({
   defaults,
 }: Props) {
   const queryClient = useQueryClient();
+
+  // ── THE FLOOR, AND THE ONE EXCEPTION TO IT ──────────────────────
+  //
+  // The owner, 22-09: "200 usd of 200 eur ondergrens" — per TRANSFER, so
+  // per currency they receive. Checked here so the button says so before
+  // it is pressed, and again in affiliate_payout_request_multi so it is a
+  // rule and not a suggestion.
+  //
+  // The owner, 25-09: "tenzij admin het vrijgeeft, super admin". So a
+  // super-admin can lift it for one affiliate, and this card has to read
+  // the same number the RPC will, or the button and the refusal disagree.
+  //
+  // Two things stay deliberately on the safe side. The column arrives
+  // with plak 98 and migrations are pasted by hand, so a 42703 means the
+  // standing 200 — the behaviour of yesterday, not an open door. And
+  // while the read is in flight `undefined` resolves to 200 as well: a
+  // button that turns on a moment late is a nuisance, one that turns on
+  // wrongly is a refusal in the customer's face.
+  const { data: minOverride } = useQuery<number | string | null>({
+    queryKey: ["affiliate-payout-min", scope],
+    enabled: !!scope,
+    queryFn: async () => {
+      const supabase = createClient();
+      const r = await supabase
+        .from("advertisers")
+        .select("payout_min_override")
+        .eq("id", scope!)
+        .maybeSingle();
+      if (!r.error) {
+        return (
+          (r.data as { payout_min_override?: number | string | null } | null)
+            ?.payout_min_override ?? null
+        );
+      }
+      if ((r.error as { code?: string } | null)?.code === "42703") return null;
+      throw r.error;
+    },
+  });
+  const MIN_PER_CURRENCY = payoutMinimumFor(minOverride);
   const payouts = useAffiliatePayouts(enabled, scope);
   const { rate } = useUsdToEur();
 
@@ -522,7 +559,14 @@ export default function PayoutCard({
                is what it takes, this much to go. */
             <div className={`xp-prog${canRequest ? " ok" : ""}`}>
               {available.map((c) => {
-                const pctFull = Math.min(100, (owed[c] / MIN_PER_CURRENCY) * 100);
+                // A released floor of 0 makes this 0/0 -- NaN -- and
+                // `width: NaN%` is no width at all, so the bar vanishes
+                // instead of reading full. There is nothing left to
+                // reach, so it is full.
+                const pctFull =
+                  MIN_PER_CURRENCY > 0
+                    ? Math.min(100, (owed[c] / MIN_PER_CURRENCY) * 100)
+                    : 100;
                 return (
                   <div className="xp-pr" key={c}>
                     <span className="top">
