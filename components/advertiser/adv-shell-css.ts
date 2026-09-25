@@ -340,6 +340,15 @@ export const ADV_CSS = `
      header; in a card corner it out-weighs the badge it sits next to. */
   .acard .cardx{flex:0 0 auto;width:26px;height:26px;margin:-3px -4px 0 2px;border-radius:8px;border:0;background:transparent;color:var(--faint);font-size:.95rem;line-height:1;display:grid;place-items:center;cursor:pointer;transition:.15s}
   .acard .cardx:hover{background:var(--line-2);color:var(--ink)}
+  /* The reason a request was turned down. It used to be a <span> inside
+     the Platform cell of a stacked table, which put it in the VALUE
+     column, right-aligned, grey on white -- a paragraph of prose set
+     like a number. It is the most important thing on the card. */
+  .reqwhy{background:var(--danger-soft);border:1px solid #f7cfd0;border-radius:12px;padding:10px 12px;font-size:.85rem;line-height:1.5;color:#8d2d30;text-align:left}
+  .reqwhy-lab{display:block;margin-bottom:3px;font-size:.66rem;letter-spacing:.07em;text-transform:uppercase;font-weight:800;color:var(--danger)}
+  .reqok{background:var(--win-soft);border:1px solid #b9e8d7;border-radius:12px;padding:10px 12px;font-size:.85rem;line-height:1.5;color:#0b6b4f;text-align:left}
+  .reqback{margin:0;font-size:.82rem;color:var(--txt-2);line-height:1.45}
+  .reqback b{color:var(--ink);font-weight:700}
   .hiddenline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 2px 14px;font-size:.82rem;color:var(--faint)}
   .hiddenline button{border:0;background:transparent;padding:0;font:inherit;font-weight:700;color:var(--primary-600);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   /* The figures, as one block with hairlines between rather than four

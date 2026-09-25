@@ -27,5 +27,16 @@ export type AdAccountRequest = {
   status: string | null;
   rejection_reason: string | null;
   email: string | null;
+  // What the request cost and what came back when it was turned down.
+  // Optional for the same reason updated_at is: these five are added by a
+  // migration that is pasted by hand, and the customer's Requests list
+  // reads them with select("*") -- so where the migration has not landed
+  // they are simply undefined and the refund line does not render,
+  // instead of the screen breaking on a column that is not there.
+  charged_amount?: number | string | null;
+  charged_currency?: string | null;
+  charged_at?: string | null;
+  refunded_amount?: number | string | null;
+  refunded_at?: string | null;
   advertiser?: AdAccountRequestAdvertiser | null;
 };

@@ -40,6 +40,7 @@ import {
 } from "@/lib/pure-invoice-due";
 import { getRate, neededFromAmount, otherWalletCovers } from "@/lib/pure-exchange";
 import TaxRatesDialog from "./tax-rates-dialog";
+import { requestStatusView } from "@/lib/pure-request-status";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { useDismissedNotices } from "@/hooks/use-dismissed-notices";
@@ -1594,18 +1595,18 @@ export default function AdvertiserApp() {
     },
   });
 
-  // Which of those cards actually render, and how many this customer
-  // pushed aside. Both halves matter: the second is what the line under
-  // the grid counts, and a count taken from the wrong half would offer
-  // to un-hide nothing.
+  // Which of those cards actually render.
   //
   // Only a REFUSAL can be hidden. Something still in flight is live
   // state -- "Ad account on the way" is the only place it is said -- and
   // a customer who could hide that would be hiding the answer to "where
   // is my account".
-  const requestCards = useMemo(() => {
+  //
+  // Nothing is left behind once a card is closed: no counter, no "show
+  // them again". The card says where it goes before it goes, and the
+  // Requests tab has every request that was ever filed, with its reason.
+  const liveRequestCards = useMemo(() => {
     const live: NonNullable<typeof openRequests> = [];
-    let hidden = 0;
     for (const r of openRequests ?? []) {
       if (String(r.status ?? "").toLowerCase() !== "rejected") {
         live.push(r);
@@ -1615,13 +1616,10 @@ export default function AdvertiserApp() {
       // fee is long back and the customer has moved on.
       const age = (Date.now() - new Date(r.created_at).getTime()) / 86400000;
       if (!Number.isFinite(age) || age > 30) continue;
-      if (refusals.hidden(r.id)) {
-        hidden += 1;
-        continue;
-      }
+      if (refusals.hidden(r.id)) continue;
       live.push(r);
     }
-    return { live, hidden };
+    return live;
   }, [openRequests, refusals]);
 
   // ── THE TWO MOVEMENTS THE LIST DID NOT CARRY ────────────────────
@@ -5346,9 +5344,9 @@ export default function AdvertiserApp() {
                 to see it.
               </p>
             ) : null}
-            {requestCards.live.length ? (
+            {liveRequestCards.length ? (
               <div className="grid3" style={{ marginBottom: 14 }}>
-                {requestCards.live.map((r) => {
+                {liveRequestCards.map((r) => {
                   const st = String(r.status ?? "").toLowerCase();
                   const refused = st === "rejected";
                   const back = Number(r.refunded_amount) || 0;
@@ -5382,7 +5380,7 @@ export default function AdvertiserApp() {
                         </div>
                         <span style={{ marginLeft: "auto" }}>
                           <span
-                            className={`badge ${refused ? "bad" : "pend"}`}
+                            className={`badge ${refused ? "due" : "pend"}`}
                           >
                             {refused
                               ? "Not approved"
@@ -5442,25 +5440,6 @@ export default function AdvertiserApp() {
                   );
                 })}
               </div>
-            ) : null}
-            {requestCards.hidden ? (
-              <p className="hiddenline">
-                <span>
-                  {requestCards.hidden === 1
-                    ? "1 notice about a request you closed."
-                    : requestCards.hidden +
-                      " notices about requests you closed."}{" "}
-                  Every request you ever sent is on the Requests tab, with
-                  the reason it was turned down.
-                </span>
-                <button type="button" onClick={() => go("requests")}>
-                  Open Requests
-                </button>
-                <span aria-hidden="true">·</span>
-                <button type="button" onClick={() => refusals.restoreAll()}>
-                  Show them here again
-                </button>
-              </p>
             ) : null}
             {(accounts ?? []).length ? (
               <div className="grid3">
@@ -5601,71 +5580,73 @@ export default function AdvertiserApp() {
                 {requestBlockedReason()}.
               </p>
             ) : null}
+            {/* ── CARDS, NOT A TABLE SQUEEZED INTO CARDS ───────────
+                This was a three-column table that the phone stylesheet
+                folds into stacked cards. That works for rows of figures
+                and it does not work here, because one of the three cells
+                holds PROSE -- the reason a request was turned down. The
+                fold puts every value in the right-hand column,
+                right-aligned, so the reason came out as a ragged grey
+                paragraph pushed against the edge under the word
+                PLATFORM, which is not what it is.
+                So: the same card the Ad accounts tab uses, with the
+                reason in a box of its own. Same words for the status as
+                that tab too -- they printed different ones for the same
+                row. */}
             {myRequests.length ? (
-              <div className="card" style={{ padding: 0 }}>
-                <div className="tblwrap">
-                  <table className="tbl wide">
-                    <thead>
-                      <tr>
-                        <th style={{ paddingLeft: 14 }}>Date</th>
-                        <th>Platform</th>
-                        <th className="r">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {myRequests.map((r) => {
-                        const st = (r.status ?? "pending").toLowerCase();
-                        // GREEN MEANS DONE. This read "rejected or
-                        // declined -> red, pending or in_review ->
-                        // amber, ANYTHING ELSE -> green", and the real
-                        // statuses are pending, payment_pending,
-                        // in_progress, completed, rejected and
-                        // cancelled. So a request blocked on money, one
-                        // still being built and one that was cancelled
-                        // all rendered as completed. in_review is not a
-                        // status anywhere; that branch was dead.
-                        const cls =
-                          st === "completed"
-                            ? "ok"
-                            : st === "rejected" || st === "cancelled"
-                              ? "due"
-                              : "pend";
-                        return (
-                          <tr key={r.id}>
-                            <td
-                              data-label="Date"
-                              style={{ fontWeight: 600, whiteSpace: "nowrap" }}
-                            >
-                              {dayjs(r.created_at).format("D MMM YYYY")}
-                            </td>
-                            <td data-label="Platform">
-                              {platformLabel(r.platform) || "—"}
-                              {r.rejection_reason ? (
-                                <span
-                                  style={{
-                                    display: "block",
-                                    color: "var(--faint)",
-                                    fontSize: ".78rem",
-                                  }}
-                                >
-                                  {r.rejection_reason}
-                                </span>
-                              ) : null}
-                            </td>
-                            <td data-label="Status" className="r">
-                              <span
-                                className={`badge ${cls}`}
-                                style={{ textTransform: "capitalize" }}
-                              >
-                                {st.replace(/_/g, " ")}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="grid3">
+                {myRequests.map((r) => {
+                  const v = requestStatusView(r.status);
+                  const back = Number(r.refunded_amount) || 0;
+                  const cur =
+                    String(r.currency ?? "").toUpperCase() === "USD" ? "$" : "€";
+                  return (
+                    <div key={r.id} className="acard">
+                      <div className="top">
+                        <span className="pfi">
+                          <PlatformMark slug={r.platform} className="pmark" />
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="nm">
+                            {platformLabel(r.platform) || "Ad account"}
+                          </div>
+                          <div className="sub">
+                            {[
+                              dayjs(r.created_at).format("D MMM YYYY"),
+                              String(r.currency ?? "").toUpperCase(),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </div>
+                        <span style={{ marginLeft: "auto" }}>
+                          <span className={`badge ${v.badge}`}>{v.label}</span>
+                        </span>
+                      </div>
+                      {r.rejection_reason ? (
+                        <div className="reqwhy">
+                          <span className="reqwhy-lab">Why not</span>
+                          {r.rejection_reason}
+                        </div>
+                      ) : null}
+                      {back > 0 ? (
+                        <p className="reqback">
+                          <b>
+                            {cur}
+                            {money2(back)}
+                          </b>{" "}
+                          went back into your wallet.
+                        </p>
+                      ) : null}
+                      {v.badge === "pend" ? (
+                        <p className="reqback">
+                          We set it up on our Business Manager. It appears
+                          under Ad accounts as soon as it is live.
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="card">
