@@ -22,6 +22,38 @@
 > genuinely empty (Top-ups 0, Deposits 29, Precharge 0), and /admins is
 > short because there is one admin.
 
+## 25-09: the admin journeys re-checked figure by figure
+
+The route sweep only proved the screens render. These are the numbers.
+
+| screen | screen says | database |
+|---|---|---|
+| /wallets | ten wallets on page 1, PSM0005 58,50 / 68,37, PSM0011 260,00, PSM0007 20,00, PSM0004 0 / 100,00 | all thirteen identical |
+| /subscriptions | 5 active · 1 past due · 2 inactive, and eight rows | same statuses, amounts and next-payment dates |
+| /invoices | 0013-138, 0005-137, 0012-136, 0011-135 ... | same numbers, codes, types, amounts, statuses; 22 for this tenant |
+| /reconciliation | Credited EUR 665,00 · Received EUR 0,00 | 5 completed wallet top-ups summing 665,00 |
+
+### Fixed
+
+1. **"Past_due"** — the raw enum, underscore and all, in the Status
+   column, beside "Active" and "Inactive" which only look right because
+   they are one word. The filter above the same table already said "Past
+   due".
+2. **The first invoice of every new customer says "N/A" where the
+   company and the VAT number belong.** `invoices.company_id` is set
+   when the invoice is raised, and the first subscription invoice is
+   raised at SIGNUP — before anybody has filled their company in. Four
+   live invoices on production are in that state, including PSM0012's
+   and PSM0013's EUR 200, both of whom filled their company in
+   afterwards. The PDF now reads the advertiser's own company when the
+   invoice names none; **plak 97** (saved) repairs the existing rows at
+   the source so the list sees it too.
+
+**Not verified on screen:** the PDF fallback. The View button opens the
+document in a tab outside the automation's group, so it was gated and
+built but not read back. Plak 97 makes it moot for every existing
+invoice.
+
 # WHAT IS LEFT — paste this into a new session
 
 > Everything on the seventeen-journey list is closed, and thirteen of
