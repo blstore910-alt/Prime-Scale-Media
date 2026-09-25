@@ -1149,6 +1149,15 @@ export default function AdvertiserApp() {
     phone: "",
     website_url: "",
     vat_no: "",
+    // ---- A VAT-EXEMPT COMPANY HAD NO WAY TO SAY SO --------------
+    //
+    // `is_not_vat` is selected by this screen and allowlisted by the
+    // server, and lib/pure-company-complete requires either a VAT
+    // number OR this flag before the company counts as complete. There
+    // was no control for it here, so a customer without a VAT number
+    // could never clear the gate from Settings and had to be bounced to
+    // /complete-profile, which does have the box.
+    is_not_vat: false,
     registration_no: "",
     address: "",
     zipcode: "",
@@ -1205,6 +1214,7 @@ export default function AdvertiserApp() {
         phone: (company.phone as string) ?? "",
         website_url: (company.website_url as string) ?? "",
         vat_no: (company.vat_no as string) ?? "",
+        is_not_vat: (company.is_not_vat as boolean) ?? false,
         registration_no: (company.registration_no as string) ?? "",
         address: (company.address as string) ?? "",
         zipcode: (company.zipcode as string) ?? "",
@@ -6622,10 +6632,37 @@ export default function AdvertiserApp() {
                       <input className="mono"
                         placeholder="NL0000.00.000.B00"
                         value={comp.vat_no}
+                        disabled={comp.is_not_vat}
                         onChange={(e) =>
                           setComp((c) => ({ ...c, vat_no: e.target.value }))
                         }
                       />
+                      {/* Ticking it clears the number: a company cannot
+                          be exempt AND have one, and leaving a stale
+                          number behind is what ends up on an invoice. */}
+                      <label
+                        className="cap"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginTop: 6,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={comp.is_not_vat}
+                          onChange={(e) =>
+                            setComp((c) => ({
+                              ...c,
+                              is_not_vat: e.target.checked,
+                              vat_no: e.target.checked ? "" : c.vat_no,
+                            }))
+                          }
+                        />
+                        My company isn&apos;t VAT registered
+                      </label>
                     </div>
                     <div className="field">
                       <label>Registration no.</label>
@@ -6713,9 +6750,20 @@ export default function AdvertiserApp() {
                     wall nobody reads. One switch per subject, and the
                     individual ones are one tap away for anybody who
                     wants them. */}
-                {groupsForRole("advertiser").map((g) => (
-                  <GroupToggle key={g.id} group={g} />
-                ))}
+                {groupsForRole("advertiser")
+                  // ---- NOT THE AFFILIATE GROUP IF THEY ARE NOT ONE --
+                  //
+                  // `audienceForRole` maps everything that is not an
+                  // admin to "customer", so a plain advertiser was
+                  // offered ten referral and payout switches for
+                  // notices they can never receive. The catalogue's own
+                  // docblock says the point is to avoid dangling dead
+                  // toggles. It is one row now rather than ten, and for
+                  // somebody who is not an affiliate it is none.
+                  .filter((g) => g.id !== "referrals" || isAffiliate)
+                  .map((g) => (
+                    <GroupToggle key={g.id} group={g} />
+                  ))}
               </div>
             </div>
             {/* Not for people who already are one. isAffiliate was read
