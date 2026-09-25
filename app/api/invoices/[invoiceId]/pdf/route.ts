@@ -76,6 +76,7 @@ type InvoiceRecord = {
   currency?: string | null;
   tenant_id: string;
   company_id: string | null;
+  advertiser_id?: string | null;
   items: InvoiceItem[] | null;
   sub_total: number | null;
   total: number | null;
@@ -1052,6 +1053,30 @@ export async function GET(
     if (invoiceError) throw invoiceError;
     if (!invoice) {
       return refuse(request, "That invoice isn't on your account.", 404);
+    }
+
+    // ---- AN INVOICE RAISED BEFORE ONBOARDING HAS NO BILL-TO -------
+    //
+    // `invoices.company_id` is set when the invoice is raised, and the
+    // FIRST subscription invoice is raised the moment somebody signs
+    // up -- before they have filled their company in. So it stays null,
+    // and this PDF printed "N/A" where the company name and the VAT
+    // number belong, for ever, on the very first document a new
+    // customer files. Measured on production: 4 live invoices, among
+    // them PSM0012's and PSM0013's EUR 200 subscription.
+    //
+    // The bill-to party is the advertiser's company either way, so when
+    // the invoice does not name one, read theirs. Nothing is invented:
+    // if they have no company row either, it stays N/A as before.
+    if (!(invoice as InvoiceRecord).company_id && (invoice as InvoiceRecord).advertiser_id) {
+      const { data: ownCompany } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("advertiser_id", (invoice as InvoiceRecord).advertiser_id as string)
+        .maybeSingle();
+      if (ownCompany) {
+        (invoice as InvoiceRecord).company = ownCompany as CompanyRecord;
+      }
     }
 
     // Attach the tenant-level company row as the issuer party on the
