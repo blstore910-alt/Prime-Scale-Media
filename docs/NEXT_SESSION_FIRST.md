@@ -24,6 +24,33 @@
 > (gefixt en gelopen), de tien affiliate-schakelaars, de
 > is_not_vat-knop, en nu ook de concept-opslag op het bedrijfsformulier.
 
+## F3 GESLOTEN, 25-09 — met de vrijgave die de eigenaar vroeg
+
+Beide rollen, elk bedrag tegen de database.
+
+| stap | scherm | database |
+|---|---|---|
+| vrijgave (eigenaar) | "Can ask for a payout from EUR 15,00 / $15,00 — released by the owner" | `payout_min_override = 15.00` |
+| klantkaart | "EUR 15,96 — ready to pay out", knop OPEN (`disabled: false`) | 3 onbetaalde commissies 20,00 min 2 clawbacks 4,04 = **15,96** |
+| dialoog, tak EUR | ontvangt EUR 15,96, geen fee | - |
+| dialoog, tak USD | 15,96 -> $18,30 min 0,6% ($0,11) = **$18,19**, koers 1 USD = 0,8724 EUR | `exchange_rates.eur = 0.872361` voor Prime Scale Media; 15,96 / 0,872361 = 18,2952 |
+| verstuurd | "Payout #2 · 25 Sep, 16:42 · EUR 15,96 · 3 commissions", Waiting for us | `affiliate_payouts` requested, EUR 15.96, 3 commissies EN 2 clawbacks eraan |
+| wachtrij eigenaar | "Payouts waiting (1)", met houder en IBAN | - |
+| tak "Send back" | vraagt eerst een reden; bevestigen staat uit tot je hem typt | - |
+| afgehandeld | Paid, referentie F3-WALKTHROUGH-2509 | `paid`, paid_at gezet, **alle 3 de commissies op paid**, 2 clawbacks verrekend |
+| klant daarna | Awaiting payout **EUR 0,00**, Paid out **EUR 20,92** | 4,96 + 15,96 = 20,92 |
+| melding | - | `affiliate_payout_paid`, amount 15.96, EUR, zelfde seconde |
+
+De lege staat op de klantkaart zegt nu **"As soon as you have EUR 15,00
+or $15,00 in commission"** — dat is de vrijgegeven grens die de kaart
+leest. Voor vandaag stond daar hard EUR 200, ook voor een affiliate met
+een uitzondering.
+
+**Ingetrokken tijdens deze reis:** ik zag twee rijen met `is_active =
+true` op `exchange_rates` en noemde dat een fout. Dat is het niet -- ze
+horen bij verschillende tenants (0,86317 bij de E2E-testtenant, 0,872361
+bij Prime Scale Media) en elke lezer filtert op `tenant_id`.
+
 ## F1 GESLOTEN, 25-09 — en F3 staat klaar op een halve stap na
 
 **F1 (affiliate: uitnodiging -> aanmelding -> portaal met een werkende
