@@ -40,6 +40,8 @@ import {
 } from "@/lib/pure-invoice-due";
 import { getRate, neededFromAmount, otherWalletCovers } from "@/lib/pure-exchange";
 import TaxRatesDialog from "./tax-rates-dialog";
+import { useFormDraft } from "@/hooks/use-form-draft";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { useDismissedNotices } from "@/hooks/use-dismissed-notices";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
@@ -233,6 +235,25 @@ function subStatusLabel(status: string | null | undefined): string {
   if (s === "past_due") return "Payment due";
   return s[0].toUpperCase() + s.slice(1).replace(/_/g, " ");
 }
+
+// The company fields this screen edits, and the only ones it compares
+// against the server to decide whether anything was typed. Kept next to
+// the form rather than derived from Object.keys(comp), so adding a field
+// to the form without adding it here shows up as "nothing changed"
+// exactly once, in review, instead of as a lost draft on production.
+const COMPANY_FIELDS = [
+  "name",
+  "official_email",
+  "phone",
+  "website_url",
+  "vat_no",
+  "is_not_vat",
+  "registration_no",
+  "address",
+  "zipcode",
+  "state",
+  "country",
+] as const;
 
 export default function AdvertiserApp() {
   const { profile } = useAppContext();
@@ -1173,6 +1194,33 @@ export default function AdvertiserApp() {
   });
   const [savingComp, setSavingComp] = useState(false);
 
+  // ── TEN FIELDS AND NOTHING CATCHING THEM ──────────────────────────
+  //
+  // CLAUDE.md names four long forms that keep a draft; this is a fifth
+  // of the same shape and it had none. Ten fields, one of them a whole
+  // invoice address, and a closed tab or a crash took the lot.
+  //
+  // The beforeunload warning only fires once the customer has actually
+  // touched something -- comparing against what came back from the
+  // server, not against blank, so an empty company on a first visit is
+  // not "unsaved changes".
+  const compDraft = useFormDraft<typeof comp>({
+    formKey: "adv-settings-company",
+    values: comp,
+    userScope: profile?.id ?? null,
+    enabled: !companyLoading,
+  });
+  const compDirty = useMemo(() => {
+    if (companyLoading) return false;
+    return COMPANY_FIELDS.some((k) => {
+      const server = company?.[k];
+      const here = comp[k];
+      if (typeof here === "boolean") return here !== ((server as boolean) ?? false);
+      return String(here ?? "") !== String(server ?? "");
+    });
+  }, [comp, company, companyLoading]);
+  useUnsavedChangesWarning(compDirty);
+
   // ── THE PROFILE THE AVATAR MENU PROMISES ──────────────────────────
   //
   // Walked on production: the menu behind the avatar has an item called
@@ -1213,22 +1261,37 @@ export default function AdvertiserApp() {
     }
   };
 
+  // ── A REFETCH USED TO WIPE WHAT WAS BEING TYPED ───────────────────
+  //
+  // This ran on `[company]`, which is a react-query result: every
+  // refetch is a NEW object, and react-query refetches on window focus.
+  // So alt-tabbing to look up the VAT number and coming back reset all
+  // ten fields to the server's copy, mid-sentence, with no warning.
+  //
+  // It now runs on the row's own version. If an admin really did change
+  // the record, updated_at moves and reseeding is the right thing; a
+  // plain refetch of the same row leaves the form alone. Where
+  // companies.updated_at is not there yet (the migration is pasted by
+  // hand) this is undefined for every fetch, which seeds once and never
+  // again -- also correct, and the concurrency guard is dark anyway.
+  const companyVersion = (company?.updated_at as string | undefined) ?? null;
   useEffect(() => {
-    if (company)
-      setComp({
-        name: (company.name as string) ?? "",
-        official_email: (company.official_email as string) ?? "",
-        phone: (company.phone as string) ?? "",
-        website_url: (company.website_url as string) ?? "",
-        vat_no: (company.vat_no as string) ?? "",
-        is_not_vat: (company.is_not_vat as boolean) ?? false,
-        registration_no: (company.registration_no as string) ?? "",
-        address: (company.address as string) ?? "",
-        zipcode: (company.zipcode as string) ?? "",
-        state: (company.state as string) ?? "",
-        country: (company.country as string) ?? "",
-      });
-  }, [company]);
+    if (!company) return;
+    setComp({
+      name: (company.name as string) ?? "",
+      official_email: (company.official_email as string) ?? "",
+      phone: (company.phone as string) ?? "",
+      website_url: (company.website_url as string) ?? "",
+      vat_no: (company.vat_no as string) ?? "",
+      is_not_vat: (company.is_not_vat as boolean) ?? false,
+      registration_no: (company.registration_no as string) ?? "",
+      address: (company.address as string) ?? "",
+      zipcode: (company.zipcode as string) ?? "",
+      state: (company.state as string) ?? "",
+      country: (company.country as string) ?? "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advertiserId, companyVersion, !!company]);
   const saveCompany = async () => {
     setSavingComp(true);
     try {
@@ -1243,6 +1306,9 @@ export default function AdvertiserApp() {
         queryKey: ["adv-company"],
         exact: false,
       });
+      // It is on the server now; the copy in the browser is only a way
+      // to lose it twice.
+      void compDraft.clear();
       // ── "SAVED" IS NOT THE SAME AS "DONE" ─────────────────────────
       //
       // This form writes `companies` and never `billings` -- only
@@ -6612,6 +6678,42 @@ export default function AdvertiserApp() {
                 <p className="cap" style={{ margin: "4px 0 0" }}>
                   This is what your invoices are made from.
                 </p>
+                {compDraft.hasDraft && compDraft.restoredDraft ? (
+                  <div className="alert" style={{ marginTop: 12 }}>
+                    <span className="ai">
+                      <Ic name="i-clock" />
+                    </span>
+                    <span className="atx">
+                      <b>You were filling this in earlier.</b>{" "}
+                      <span>
+                        Saved on this device{" "}
+                        {dayjs(compDraft.restoredDraft.savedAt).format(
+                          "D MMM, HH:mm",
+                        )}
+                        . Nothing was sent to us.
+                      </span>
+                    </span>
+                    <button
+                      className="btn sm"
+                      type="button"
+                      onClick={() => {
+                        const v = compDraft.restoredDraft?.values;
+                        if (v) setComp(v);
+                        compDraft.dismissDraft();
+                        toast.success("Put back what you had typed");
+                      }}
+                    >
+                      Put it back
+                    </button>
+                    <button
+                      className="btn sm ghost"
+                      type="button"
+                      onClick={() => void compDraft.clear()}
+                    >
+                      Discard
+                    </button>
+                  </div>
+                ) : null}
                 <div style={{ marginTop: 16 }}>
                   <div className="field">
                     <label>Company name</label>
