@@ -1825,3 +1825,80 @@ export async function pushAdTopupToSupplier(
   });
   return { ok: true, data: { enqueued: push.enqueued, reason: push.reason } };
 }
+
+// ─────────────────────────────────────────
+// createAccountTopupForSelf — the CUSTOMER's own funding, behind the
+// maintenance freeze.
+//
+// ── WHY THIS WRAPPER EXISTS ────────────────────────────────────────
+//
+// The browser called `top_up_create_for_advertiser` straight from
+// use-create-account-topup.ts. That is allowed -- CLAUDE.md names a
+// SECURITY DEFINER RPC as one of the three ways to write -- and it is
+// also the one money path in the app that `MAINTENANCE_MODE` cannot
+// stop, because the guard lives in the server actions and this call
+// never passed through one. During an incident every other write is
+// frozen and customers keep moving money onto ad accounts.
+//
+// So: the same RPC, the same arguments, the same answer, with
+// `resolveUserContext()` in front of it -- which is `maintenanceGuard()`
+// plus the session, the profile_id cookie and the refusal for a
+// deactivated account. The RPC still derives the advertiser from
+// auth.uid() and still re-checks that the ad account is theirs, so this
+// adds a lock and takes nothing away.
+// ─────────────────────────────────────────
+export async function createAccountTopupForSelf(input: {
+  account_id: string;
+  currency: string;
+  amount: number;
+}): Promise<ActionResult<unknown>> {
+  const auth = await resolveUserContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth.ctx;
+
+  const accountId = String(input?.account_id ?? "");
+  const currency = String(input?.currency ?? "").toUpperCase();
+  const amount = Number(input?.amount);
+  if (!accountId) return { ok: false, error: "Pick an ad account." };
+  if (!["EUR", "USD"].includes(currency)) {
+    return { ok: false, error: "Unsupported currency." };
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false, error: "Enter an amount above zero." };
+  }
+
+  const { data, error } = await supabase.rpc("top_up_create_for_advertiser", {
+    p_account_id: accountId,
+    p_currency: currency,
+    p_amount_received: amount,
+    p_type: "top-up",
+    p_payment_slip: null,
+  });
+  if (error) {
+    // safeErrorMessage is the LOG-safe helper -- it strips Supabase's
+    // details/hint/row before they reach a log file and does nothing
+    // about the message itself, which is the customer-facing half. So
+    // the detail goes to the log and the customer gets a sentence.
+    console.error("[account-topup]", safeErrorMessage(error));
+    return {
+      ok: false,
+      error: "The top-up did not go through. Your wallet is unchanged.",
+    };
+  }
+
+  // The refusal the RPC can return in its PAYLOAD rather than raising.
+  // The caller used to test this itself; it is tested here now, in the
+  // one place that talks to the function.
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { ok?: boolean; error?: string }
+    | null
+    | undefined;
+  if (row && typeof row === "object" && row.ok === false) {
+    return {
+      ok: false,
+      error:
+        row.error ?? "The top-up did not go through. Your wallet is unchanged.",
+    };
+  }
+  return { ok: true, data };
+}
