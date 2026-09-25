@@ -24,6 +24,48 @@
 > (gefixt en gelopen), de tien affiliate-schakelaars, de
 > is_not_vat-knop, en nu ook de concept-opslag op het bedrijfsformulier.
 
+## F1 GESLOTEN, 25-09 — en F3 staat klaar op een halve stap na
+
+**F1 (affiliate: uitnodiging -> aanmelding -> portaal met een werkende
+link) is rond.** Als eigenaar de uitnodiging gemaakt met beide takken van
+het rolkeuzeveld opengeklapt; de eigenaar zette het wachtwoord; PSM0014
+staat erin als `affiliate`. Het portaal tegen de database:
+
+| scherm | database |
+|---|---|
+| "Welcome back, F1", totale verdiensten EUR 0,00 | 0 commissies |
+| 0 referred, 0 active | 0 referral_links |
+| Lifetime 0,00 / This month 0,00 / Spend driven 0,00 | 0 payouts |
+| link `…/auth/sign-up?t=prime-scale-media&ref=PSM0014` | code PSM0014 |
+
+Die nullen zijn dus echt leeg en geen mislukte lees. De attributiehelft
+zelf is niet opnieuw gelopen -- dat kost een derde aanmelding en dus een
+derde wachtwoord -- maar F2 bewees hem al end to end, en de code is er
+hard op: `app/auth/confirm/route.ts:125` neemt de verwijzer uit de
+metadata van de AANMELDING, niet uit `?ref=` in de adresbalk, precies
+zodat niemand zich achteraf aan een affiliate kan hangen.
+
+**Meteen gevonden en gefixt:** de affiliate kwam binnen op My Referrals
+terwijl de nav Home in het midden van de onderbalk zet. Overblijfsel van
+de mockup-port. Staat nu op `dash`, met een test die allebei de shells
+daarop vastpint.
+
+**F3 wacht nog op één ding: een sessie als PSM0005.** De vrijgave werkt:
+op /affiliates -> Test Advertiser staat "Can ask for a payout from
+EUR 15,00 / $15,00 — released by the owner", database
+`payout_min_override = 15.00`, en PSM0005 heeft EUR 15,96 openstaan. De
+knop in het klantportaal hoort dus open te staan. De pane draagt nu
+PSM0014, dus daarvoor moet de eigenaar even als PSM0005 inloggen.
+
+**Plak 99 is nagelopen op wat hij beloofde.** Voor de plak:
+`audit_events` had de wijziging wel en `actor_user_id` NULL -- de service
+key heeft geen `auth.uid()`. Na de plak, gemeten op dezelfde kaart:
+
+| wanneer | was | nu | wie |
+|---|---|---|---|
+| 14:02 | (leeg) | 10.00 | GEEN ACTOR |
+| 14:11 | 10.00 | 15.00 | **Bart** |
+
 ## Gedaan op 25-09, na de middag
 
 **Een afgewezen aanvraag kun je wegklikken** (fc989ce). Het Ad
