@@ -1,3 +1,27 @@
+# WHAT IS LEFT — two of the five are now done
+
+> **1 and 2 are done, 25-09.** Everything below the fence still stands
+> for 3, 4 and 5.
+>
+> **1. After plak 94 — walked, nothing broke.** `numeric` comes back from
+> PostgREST as a STRING where `real` was a number, and every reader
+> coerces. Proven on production rather than read: the exchange preview
+> still gives rate 1 EUR = 1.146314 USD, fee 0,07 and receive 11,39 on
+> EUR 10 (identical to before the plak); the customer's financial report
+> still totals EUR In 433,50 / Out 375,00 / **Net 58,50** against a
+> wallet of EUR 58,50, and USD Net 68,37 against 68,37, with no NaN
+> anywhere; and Settings -> Finance shows GBP 0.747516, EUR 0.872361,
+> HKD 7.84527 — exactly the active `exchange_rates` row.
+>
+> **2. The admin routes after the night's deploys — all nineteen render
+> with data.** /users /accounts /ad-account-requests /wallet-topups
+> /withdrawals /top-ups /wallets /dst /invoices /subscriptions
+> /promotions /reconciliation /affiliates /commissions /settings/finance
+> /activity-logs /audit /invites /admins — no error text, no toast, no
+> NaN on any of them. /wallet-topups is short because its first tab is
+> genuinely empty (Top-ups 0, Deposits 29, Precharge 0), and /admins is
+> short because there is one admin.
+
 # WHAT IS LEFT — paste this into a new session
 
 > Everything on the seventeen-journey list is closed, and thirteen of
