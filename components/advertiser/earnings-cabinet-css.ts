@@ -389,7 +389,16 @@ export const EARNINGS_CABINET_CSS = `
   .xo-when{margin-left:auto;font-size:.74rem;color:rgba(238,241,255,.6)}
   .xo-amt{position:relative;display:block;font-family:var(--hd);font-weight:800;font-size:1.9rem;
     letter-spacing:-.03em;line-height:1.05;color:#fff;text-shadow:0 8px 28px rgba(124,92,255,.45)}
-  .xo-amt .cur{font-size:.62em;margin-right:2px;color:var(--gold)}
+  /* WIT GETAL, WIT TEKEN. Dit stond op var(--gold) -- overgenomen van
+     de hero hierboven, waar het KLOPT: daar is het hele bedrag een
+     gouden verloop en is het teken een tint lichter goud. Hier is het
+     getal wit, dus plakte er een oranje teken voor een wit bedrag.
+     En goud betekent in DEZE kaart al iets: de statuspil en zijn puls
+     zijn goud voor waiting, dus hetzelfde goud op het valutateken trok
+     het oog naar het verkeerde ding. Nu dezelfde familie als .xo-no,
+     .xo-sub en .plus -- ondergeschikt door grootte en dekking, niet
+     door een andere kleur. */
+  .xo-amt .cur{font-size:.62em;vertical-align:.1em;margin-right:2px;color:rgba(238,241,255,.72)}
   .xo-amt .plus{font-size:.6em;color:rgba(238,241,255,.55);font-weight:700}
   .xo-sub{position:relative;display:block;font-size:.78rem;color:rgba(238,241,255,.72)}
   .xo-steps{position:relative;display:flex;gap:6px;margin-top:2px}
