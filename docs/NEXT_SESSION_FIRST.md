@@ -63,6 +63,26 @@ toont de nieuwe kaart met "The exception needs plak 98 in the SQL
 editor": de kolom bestaat nog niet op productie en het scherm houdt het,
 precies zoals de regel in CLAUDE.md voorschrijft.
 
+### Vier agents op A3 en A7/F3 — 25-09, en wat ze vonden (043f064)
+
+Alles gefixt, niets genoteerd. De vier die het meest kostten:
+
+| waar | wat er mis was |
+|---|---|
+| Financial report | kende de EUR 50 aanvraagkosten niet, afboeking noch teruggave — het CSV dat naar de boekhouder gaat stond EUR 50 naast het afschrift op het scherm ernaast |
+| afwijzing van een aanvraag | een kost die per FACTUUR was betaald kwam nooit terug: de RPC geeft alleen `metadata.request_fee`, de factuur bleef `paid`, het geld bleef bij ons. Nu een goedgekeurde wallet-correctie, met een regel op het afschrift |
+| de vrijgave van vanmiddag | werkte voor NIEMAND: `a0_guard_advertisers_session_write` weigert elke kolom buiten zijn lijst zodra `current_user = 'authenticated'`, dus 42501 voor de eigenaar zelf. Nu met de service key, en de kolom staat met opzet niet op die lijst |
+| de concept-opslag van vanmorgen | schreef zichzelf terug: Save wiste, de refetch bumpte `updated_at`, de debounce vuurde een halve seconde later met de serverrij erin. Zeven dagen lang "nothing was sent to us" over iets dat verstuurd was |
+
+En verder: `payment_pending` zei op twee schermen dat WIJ ermee bezig
+waren terwijl de factuur op de klant wacht; de payoutkaart drukte een
+"to go"-bedrag af over een mislukte lees; `who.isLoading` maakte van een
+gepauzeerde query "deze affiliate bestaat niet"; `maybeSingle()` maakte
+van een onleesbare rij "geen uitzondering"; `openRequests` viel om op een
+kolom die een migratie nog moet toevoegen; `activityTruncated` telde twee
+bronnen niet mee; twee geldknoppen hadden `try/finally` zonder `catch`;
+en de push zei "je fee staat terug" ook bij een bedrag van 0.
+
 **Wat nog niet gedraaid is:** plak 97 (4 facturen zonder bedrijfsnaam)
 en plak 98 (de ondergrens). Allebei liggen ze klaar in
 `supabase/checks/`.
