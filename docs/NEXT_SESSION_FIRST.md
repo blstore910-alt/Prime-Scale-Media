@@ -1,4 +1,76 @@
-# WHAT IS LEFT — two of the five are now done
+# WHAT IS LEFT — 25-09, middag
+
+> **Van de vijf punten zijn er drie weg.** 3 en 4 liggen bij de eigenaar
+> en staan hieronder.
+>
+> **3. F3 — niet meer geblokkeerd, maar wacht op plak 98.** De eigenaar
+> koos geen van beide opties: "ik wil pas payout vanaf 200 eu, of tenzij
+> admin het vrijgeeft, super admin". Dus de grens blijft en er komt een
+> uitzondering naast, per affiliate, alleen door de eigenaar te zetten.
+> Gebouwd en live (ee58d5d): `advertisers.payout_min_override`, de kaart
+> "Can ask for a payout from" op /affiliates -> een affiliate, en de
+> klantkaart leest dezelfde kolom. **Plak 98 moet nog in de SQL editor.**
+> Daarna: vrijgeven op PSM0005 (EUR 15,96 openstaand), aanvragen als
+> klant, afhandelen als eigenaar, en F3 is rond.
+>
+> **4. F1's aanmeldhelft — uitnodiging staat klaar.** PSM0014,
+> `f1walk2509@robustq.com`, rol affiliate, aangemaakt 25-09 13:20, zeven
+> dagen geldig. Het formulier is ingevuld op naam F1 Walkthrough
+> Affiliate, "No, I found you another way", Google. Alleen het
+> wachtwoord en de knop Join zijn van de eigenaar. Daarna loop ik
+> portaal -> link -> attributie.
+>
+> **5. Alle vier de geparkeerde punten zijn weg.** MAINTENANCE_MODE
+> (gefixt en gelopen), de tien affiliate-schakelaars, de
+> is_not_vat-knop, en nu ook de concept-opslag op het bedrijfsformulier.
+
+## Gedaan op 25-09, na de middag
+
+**Een afgewezen aanvraag kun je wegklikken** (fc989ce). Het Ad
+accounts-scherm van PSM0005 had twee "Request not approved"-kaarten
+onder elkaar met niets te doen en niets weg te klikken. Nu een kruisje op
+een AFWIJZING (nooit op iets dat nog loopt), de kaart zegt vooraf waar
+hij blijft, en het onthouden zit in de browser per gebruiker — geen
+zakelijk feit, de aanvraag blijft ongemoeid op het Requests-tabblad.
+Gelopen op productie: wegklikken, herladen (bleef weg), Requests
+(stond er, met reden), terughalen.
+
+**Het Requests-tabblad is geen gevouwen tabel meer** (480773e). Drie
+kolommen waarvan er een PROZA bevat: de reden van afwijzing kwam
+rechts uitgelijnd in de waardekolom terecht. Nu dezelfde kaart als Ad
+accounts, met de reden in een eigen rood "WHY NOT"-blok. Twee dingen
+vielen daarbij op en zijn mee gefixt: de twee schermen gebruikten
+verschillende woorden voor dezelfde status (nu
+`lib/pure-request-status.ts` met een test dat niets onafs groen is), en
+de afwijzingsbadge vroeg om `badge bad`, een variant die deze shell niet
+heeft.
+
+**Het bedrijfsformulier verloor wat er getypt werd** (2f97199). De
+useEffect stond op `[company]`, een react-query-resultaat: elke refetch
+is een nieuw object en react-query refetcht bij window focus. Alt-tabben
+om een btw-nummer op te zoeken zette dus alle tien velden terug. Nu op
+de versie van de rij, plus concept-opslag met een terughaalbalk en de
+beforeunload-waarschuwing.
+
+**De ondergrens is vrij te geven** (ee58d5d, plak 98). Zie punt 3
+hierboven. `lib/pure-payout-min.ts` houdt vast dat LEEG niet NUL is:
+`Number(x) || 200` zou een bewuste vrijgave van 0 stilletjes weer 200
+maken.
+
+**De negentien adminroutes opnieuw gelopen** na deze drie deploys — alle
+negentien renderen met data, geen foutmelding, geen NaN. /affiliates
+toont de nieuwe kaart met "The exception needs plak 98 in the SQL
+editor": de kolom bestaat nog niet op productie en het scherm houdt het,
+precies zoals de regel in CLAUDE.md voorschrijft.
+
+**Wat nog niet gedraaid is:** plak 97 (4 facturen zonder bedrijfsnaam)
+en plak 98 (de ondergrens). Allebei liggen ze klaar in
+`supabase/checks/`.
+
+<details>
+<summary>De stand van 25-09 ochtend</summary>
+
+## WHAT IS LEFT — two of the five are now done
 
 > **1 and 2 are done, 25-09.** Everything below the fence still stands
 > for 3, 4 and 5.
@@ -21,6 +93,8 @@
 > NaN on any of them. /wallet-topups is short because its first tab is
 > genuinely empty (Top-ups 0, Deposits 29, Precharge 0), and /admins is
 > short because there is one admin.
+
+</details>
 
 ## The rewired funding path — WALKED 25-09, end to end
 
