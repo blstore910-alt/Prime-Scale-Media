@@ -37,8 +37,12 @@ do $blk0$
 declare
   v_n integer;
 begin
+  -- (array_agg(...))[1] en niet min(): Postgres heeft geen min() voor
+  -- uuid, en de having-regel hieronder garandeert toch al dat er precies
+  -- een rij in zit. De eerste poging viel hierop om met
+  -- "42883: function min(uuid) does not exist".
   with eenduidig as (
-    select c.advertiser_id, min(c.id) as company_id
+    select c.advertiser_id, (array_agg(c.id))[1] as company_id
       from public.companies c
      where c.advertiser_id is not null
      group by c.advertiser_id
