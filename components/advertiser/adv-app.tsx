@@ -40,6 +40,7 @@ import {
 } from "@/lib/pure-invoice-due";
 import { getRate, neededFromAmount, otherWalletCovers } from "@/lib/pure-exchange";
 import TaxRatesDialog from "./tax-rates-dialog";
+import { useDismissedNotices } from "@/hooks/use-dismissed-notices";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
 import { isCustomerVisibleType } from "@/lib/notification-catalog";
@@ -62,7 +63,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useRouter } from "next/navigation";
 import { userFacingErrorMessage } from "@/lib/pure-error";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BalanceHero from "./balance-hero";
 import { toast } from "sonner";
 import { ADV_CSS } from "./adv-shell-css";
@@ -309,6 +310,12 @@ export default function AdvertiserApp() {
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   const tenantId = profile?.tenant_id ?? null;
+
+  // A refusal card is news for a day and clutter for a month. Pushing one
+  // aside hides the CARD and nothing else -- the request, its reason and
+  // its refund stay on the Requests tab, which is where the card now
+  // points. Kept in the browser, per user; see lib/pure-dismissed.ts.
+  const refusals = useDismissedNotices("refused-requests", profile?.id);
 
   // isError, not only isLoading. An extra ad-account request charges EUR
   // 50 from the wallet on submit and ad_account_request_create_paid has
@@ -1520,6 +1527,36 @@ export default function AdvertiserApp() {
       return (data ?? []) as never;
     },
   });
+
+  // Which of those cards actually render, and how many this customer
+  // pushed aside. Both halves matter: the second is what the line under
+  // the grid counts, and a count taken from the wrong half would offer
+  // to un-hide nothing.
+  //
+  // Only a REFUSAL can be hidden. Something still in flight is live
+  // state -- "Ad account on the way" is the only place it is said -- and
+  // a customer who could hide that would be hiding the answer to "where
+  // is my account".
+  const requestCards = useMemo(() => {
+    const live: NonNullable<typeof openRequests> = [];
+    let hidden = 0;
+    for (const r of openRequests ?? []) {
+      if (String(r.status ?? "").toLowerCase() !== "rejected") {
+        live.push(r);
+        continue;
+      }
+      // A refusal drops off by itself after a month, by which time the
+      // fee is long back and the customer has moved on.
+      const age = (Date.now() - new Date(r.created_at).getTime()) / 86400000;
+      if (!Number.isFinite(age) || age > 30) continue;
+      if (refusals.hidden(r.id)) {
+        hidden += 1;
+        continue;
+      }
+      live.push(r);
+    }
+    return { live, hidden };
+  }, [openRequests, refusals]);
 
   // ── THE TWO MOVEMENTS THE LIST DID NOT CARRY ────────────────────
   //
@@ -5243,21 +5280,11 @@ export default function AdvertiserApp() {
                 to see it.
               </p>
             ) : null}
-            {(openRequests ?? []).length ? (
+            {requestCards.live.length ? (
               <div className="grid3" style={{ marginBottom: 14 }}>
-                {(openRequests ?? []).map((r) => {
+                {requestCards.live.map((r) => {
                   const st = String(r.status ?? "").toLowerCase();
                   const refused = st === "rejected";
-                  // A refusal is news for a while and then it is clutter.
-                  // Anything still in flight stays until it is resolved;
-                  // a refusal drops off after a month, by which time the
-                  // fee is long back and the customer has moved on.
-                  if (refused) {
-                    const age =
-                      (Date.now() - new Date(r.created_at).getTime()) /
-                      86400000;
-                    if (!Number.isFinite(age) || age > 30) return null;
-                  }
                   const back = Number(r.refunded_amount) || 0;
                   const cur =
                     String(r.currency ?? "EUR").toUpperCase() === "USD"
@@ -5298,6 +5325,17 @@ export default function AdvertiserApp() {
                                 : "Waiting for us"}
                           </span>
                         </span>
+                        {refused ? (
+                          <button
+                            type="button"
+                            className="cardx"
+                            onClick={() => refusals.dismiss(r.id)}
+                            aria-label="Hide this notice"
+                            title="Hide this — it stays on the Requests tab"
+                          >
+                            &#10005;
+                          </button>
+                        ) : null}
                       </div>
                       <p
                         style={{
@@ -5320,7 +5358,11 @@ export default function AdvertiserApp() {
                                   {money2(back)} fee is back in your wallet.
                                 </strong>
                               </>
-                            ) : null}
+                            ) : null}{" "}
+                            <span style={{ color: "var(--faint)" }}>
+                              You can close this — it stays on the Requests
+                              tab.
+                            </span>
                           </>
                         ) : (
                           <>
@@ -5334,6 +5376,25 @@ export default function AdvertiserApp() {
                   );
                 })}
               </div>
+            ) : null}
+            {requestCards.hidden ? (
+              <p className="hiddenline">
+                <span>
+                  {requestCards.hidden === 1
+                    ? "1 notice about a request you closed."
+                    : requestCards.hidden +
+                      " notices about requests you closed."}{" "}
+                  Every request you ever sent is on the Requests tab, with
+                  the reason it was turned down.
+                </span>
+                <button type="button" onClick={() => go("requests")}>
+                  Open Requests
+                </button>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => refusals.restoreAll()}>
+                  Show them here again
+                </button>
+              </p>
             ) : null}
             {(accounts ?? []).length ? (
               <div className="grid3">

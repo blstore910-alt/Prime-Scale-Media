@@ -336,6 +336,12 @@ export const ADV_CSS = `
   .pfi .pmark{width:20px;height:20px}
   .acard .nm{font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
   .acard .sub{color:var(--faint);font-size:.76rem;margin-top:1px}
+  /* The x on a refusal card. .iconbtn is 40px and made for a modal
+     header; in a card corner it out-weighs the badge it sits next to. */
+  .acard .cardx{flex:0 0 auto;width:26px;height:26px;margin:-3px -4px 0 2px;border-radius:8px;border:0;background:transparent;color:var(--faint);font-size:.95rem;line-height:1;display:grid;place-items:center;cursor:pointer;transition:.15s}
+  .acard .cardx:hover{background:var(--line-2);color:var(--ink)}
+  .hiddenline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 2px 14px;font-size:.82rem;color:var(--faint)}
+  .hiddenline button{border:0;background:transparent;padding:0;font:inherit;font-weight:700;color:var(--primary-600);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   /* The figures, as one block with hairlines between rather than four
      separate lines floating in the card. */
   .acard .kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:.84rem;padding:7px 0;border-top:1px solid var(--line-2)}
