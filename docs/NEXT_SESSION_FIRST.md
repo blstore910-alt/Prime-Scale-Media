@@ -69,12 +69,15 @@ plakken 89 t/m 96 gedraaid.
    Doe wat we bij A1 deden -- ik maak de uitnodiging, jij zet het
    wachtwoord, en ik loop de rest.
 
-5. WAT BEWUST BLIJFT LIGGEN TOT NA DE LIVEGANG, met de reden erbij
-   verderop in dit bestand: MAINTENANCE_MODE bevriest de klant-funding
-   niet (de browser roept die RPC rechtstreeks aan), tien
-   affiliate-schakelaars worden aan een gewone adverteerder getoond, er
-   is geen is_not_vat-knop op het instellingenscherm, en het
-   bedrijfsformulier gebruikt geen concept-opslag.
+5. WAT BEWUST BLIJFT LIGGEN TOT NA DE LIVEGANG: MAINTENANCE_MODE
+   bevriest de klant-funding niet (de browser roept die RPC rechtstreeks
+   aan, dus de guard draait nergens), en het bedrijfsformulier gebruikt
+   geen concept-opslag.
+
+   De twee andere van dit punt zijn 25-09 alsnog gedaan: het
+   is_not_vat-vinkje staat op Instellingen (aanvinken maakt het
+   nummerveld leeg), en de tien affiliate-schakelaars worden niet meer
+   getoond aan iemand die geen affiliate is.
 
 Werkwijze blijft dezelfde: per reis vier agents, bevindingen FIXEN, dan
 zelf lopen, gate met && geketend, push naar main, en daarna zelf kijken
