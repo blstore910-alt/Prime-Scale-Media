@@ -1,3 +1,62 @@
+# WHAT IS LEFT — paste this into a new session
+
+> Everything on the seventeen-journey list is closed, and thirteen of
+> them were walked a SECOND time on 24-09, which found eleven more money
+> faults. All of those are fixed and live. Plaks 89 to 96 are applied.
+>
+> Five things remain. Four of them need the owner; one needs one walk.
+
+```
+Vijf dingen staan nog open. Verder is elke reis afgesloten en zijn
+plakken 89 t/m 96 gedraaid.
+
+1. NA PLAK 94 EEN KEER ROND LOPEN. Die zette vier kolommen van `real`
+   naar `numeric` (top_ups.eur_value, eur_topup, topup_usd, rate en
+   exchange_rates.eur) en bouwde top_ups_view opnieuw op. PostgREST
+   stuurt een numeric als STRING terug waar een real een getal was. Ik
+   heb elke lezer nagelezen en ze halen allemaal Number() erover heen
+   (lib/utils-pure.ts calculateTopupAmount, hooks/use-usd-to-eur.ts,
+   lib/pure-topup-landed.ts, adv-app.tsx) -- maar ik kon het niet meer
+   in de browser nalopen, want beide sessies waren verlopen. Loop dus
+   een keer: klant -> wallet -> Exchange (bedrag, fee, netto), klant ->
+   Financial report (de totalen tegen de portemonnee), en eigenaar ->
+   Settings -> Finance -> de koersen. Eén ronde is genoeg.
+
+2. DE ADMIN-ROUTES NA ~20 DEPLOYS. Er zijn vannacht twintig keer
+   wijzigingen live gegaan en de eigenaar-sessie verliep twee keer na 30
+   minuten. Loop als eigenaar elke route langs en kijk alleen of hij
+   rendert MET DATA en zonder foutmelding: /users /accounts
+   /ad-account-requests /wallet-topups /withdrawals /top-ups /wallets
+   /dst /invoices /subscriptions /promotions /reconciliation /affiliates
+   /commissions /settings/finance /activity-logs /audit /invites
+   /admins.
+
+3. F3 KAN NIET GELOPEN WORDEN ZOALS HET NU STAAT. payout-card.tsx:37-40
+   draagt jouw eigen regel van 22-09: "200 usd of 200 eur ondergrens",
+   per transfer, per valuta. PSM0005 heeft EUR 15,96 openstaan, dus de
+   knop staat terecht uit met "EUR 184,04 to go". Kies er een:
+   (a) de ondergrens omlaag (en per affiliate instelbaar maken, wat al
+       op de wenslijst staat), of
+   (b) er staat genoeg commissie klaar bij een affiliate, dan loop ik
+       aanvragen -> eigenaar ziet het -> afgehandeld in één keer.
+
+4. F1's AANMELDHELFT. Een verse affiliate uitnodigen en aanmelden kan
+   ik niet afmaken: daar hoort een wachtwoord bij en dat typ ik niet.
+   Doe wat we bij A1 deden -- ik maak de uitnodiging, jij zet het
+   wachtwoord, en ik loop de rest.
+
+5. WAT BEWUST BLIJFT LIGGEN TOT NA DE LIVEGANG, met de reden erbij
+   verderop in dit bestand: MAINTENANCE_MODE bevriest de klant-funding
+   niet (de browser roept die RPC rechtstreeks aan), tien
+   affiliate-schakelaars worden aan een gewone adverteerder getoond, er
+   is geen is_not_vat-knop op het instellingenscherm, en het
+   bedrijfsformulier gebruikt geen concept-opslag.
+
+Werkwijze blijft dezelfde: per reis vier agents, bevindingen FIXEN, dan
+zelf lopen, gate met && geketend, push naar main, en daarna zelf kijken
+of het scherm er is en rendert MET DATA.
+```
+
 # THE NUMBER: every journey on the list is closed - 2026-09-24
 
 > The list has seventeen rows; you call it sixteen. Either way there is
