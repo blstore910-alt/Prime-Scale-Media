@@ -23,6 +23,12 @@
 -- pg_get_functiondef geeft op deze database CRLF terug, dus elke
 -- vervanging grijpt BINNEN een regel aan en nooit over een regeleinde.
 --
+-- TWEEDE POGING. De eerste viel om op blok 2 met "42601: syntax error
+-- at or near ||", en voerde daardoor NIETS uit -- de kolom en de rechten
+-- landden wel, de functie bleef zoals hij was. De oorzaak staat bij (d)
+-- hieronder. De blokken 0, 1 en 3 mogen gewoon nog een keer: ze zijn
+-- alle drie herhaalbaar.
+--
 -- Plak dit hele bestand in de SQL editor. Onderaan staat EEN
 -- rapporttabel.
 -- ════════════════════════════════════════════════════════════════════
@@ -89,10 +95,17 @@ begin
   -- (a) een variabele voor de grens van DEZE affiliate
   v_step := 'declaratie v_min';
   v_prev := v_new;
+  -- ERVOOR, niet erachter: die regel draagt een commentaar aan het
+  -- eind ("-- wat hij in USD ontvangt"), en dat verhuist anders mee naar
+  -- de nieuwe declaratie en beschrijft daar de verkeerde variabele.
   v_new := replace(v_new,
     'v_recv_usd numeric(14,2) := 0;',
-    'v_recv_usd numeric(14,2) := 0;' || v_nl ||
-    '  v_min numeric(14,2) := 200;');
+    '-- De ondergrens voor DEZE affiliate; 200 tenzij een super-admin' ||
+    v_nl ||
+    '  -- hem heeft vrijgegeven via advertisers.payout_min_override.' ||
+    v_nl ||
+    '  v_min numeric(14,2) := 200;' || v_nl ||
+    '  v_recv_usd numeric(14,2) := 0;');
   if v_new = v_prev then raise exception '%', v_step; end if;
   v_done := v_done || v_step || ' ok | ';
 
@@ -122,24 +135,43 @@ begin
   -- (d) en de twee foutmeldingen, zodat er geen 200 in staat als de
   --     grens iets anders is. Een verkeerd getal in een foutmelding is
   --     precies wat een klant doorbelt.
+  --
+  --     EERSTE POGING VIEL HIER OM met 42601, syntax error at or near
+  --     "||". RAISE neemt een LITERAL als formaatstring, geen expressie:
+  --     `raise exception 'a' || to_char(...)` bestaat niet. Dus wordt de
+  --     200 een tweede %, en gaat de grens als EXTRA ARGUMENT mee, voor
+  --     het bedrag dat er al stond. De regel eronder draagt dat
+  --     argument, dus die moet in dezelfde beweging mee.
   v_step := 'de euromelding';
   v_prev := v_new;
   v_new := replace(v_new,
     'A payout starts at EUR 200 ',
-    'A payout starts at EUR ' || chr(39) ||
-    ' || to_char(v_min, ' || chr(39) || 'FM999G999G990D00' || chr(39) ||
-    ') || ' || chr(39) || ' ');
+    'A payout starts at EUR % ');
   if v_new = v_prev then raise exception '%', v_step; end if;
+  v_prev := v_new;
+  v_new := replace(v_new,
+    'to_char(v_recv_eur, ' || chr(39) || 'FM999G999G990D00' || chr(39) ||
+      ') using errcode',
+    'to_char(v_min, ' || chr(39) || 'FM999G999G990D00' || chr(39) || '), ' ||
+      'to_char(v_recv_eur, ' || chr(39) || 'FM999G999G990D00' || chr(39) ||
+      ') using errcode');
+  if v_new = v_prev then raise exception '%', v_step || ' (argument)'; end if;
   v_done := v_done || v_step || ' ok | ';
 
   v_step := 'de dollarmelding';
   v_prev := v_new;
   v_new := replace(v_new,
     'A payout starts at USD 200 ',
-    'A payout starts at USD ' || chr(39) ||
-    ' || to_char(v_min, ' || chr(39) || 'FM999G999G990D00' || chr(39) ||
-    ') || ' || chr(39) || ' ');
+    'A payout starts at USD % ');
   if v_new = v_prev then raise exception '%', v_step; end if;
+  v_prev := v_new;
+  v_new := replace(v_new,
+    'to_char(v_recv_usd, ' || chr(39) || 'FM999G999G990D00' || chr(39) ||
+      ') using errcode',
+    'to_char(v_min, ' || chr(39) || 'FM999G999G990D00' || chr(39) || '), ' ||
+      'to_char(v_recv_usd, ' || chr(39) || 'FM999G999G990D00' || chr(39) ||
+      ') using errcode');
+  if v_new = v_prev then raise exception '%', v_step || ' (argument)'; end if;
   v_done := v_done || v_step || ' ok';
 
   execute v_new;
