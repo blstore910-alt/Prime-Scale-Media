@@ -22,24 +22,29 @@
 > genuinely empty (Top-ups 0, Deposits 29, Precharge 0), and /admins is
 > short because there is one admin.
 
-## ⚠ ONE THING NEEDS A WALK BEFORE ANYTHING ELSE
-
-**The customer's ad-account funding was rewired and has NOT been walked.**
+## The rewired funding path — WALKED 25-09, end to end
 
 It called `top_up_create_for_advertiser` straight from the browser, which
-made it the one money path `MAINTENANCE_MODE` could not stop — the guard
-lives in the server actions and that call never passed through one.
-During an incident every other write is frozen and customers keep moving
-money onto ad accounts. It now goes through
-`createAccountTopupForSelf`: same RPC, same arguments, same answer, with
-`resolveUserContext()` in front of it.
+made it the one money path `MAINTENANCE_MODE` could not stop. It now goes
+through `createAccountTopupForSelf`: same RPC, same arguments, with
+`resolveUserContext()` in front of it. Walked as PSM0005 and as the
+owner, every figure against the database:
 
-`tsc`, `lint`, `npm test` and a real `next build` all pass, the deploy is
-live (7a83023) and `/api/health` is ok — but **both sessions expired
-before it could be walked**, so it is gated and not proven. First thing
-with a customer session: fund an ad account with a small amount and check
-the wallet moves by exactly that, the row lands in `top_ups` with the
-right fee, and the owner's queue shows it.
+| step | screen | database |
+|---|---|---|
+| preview | out EUR 10,00 · fee 3% 0,30 · lands 9,70 · wallet afterwards 48,50 | - |
+| sent | "Taken from your wallet" | `top_ups` #10 pending, amount_received 10.00, fee 3.000, fee_amount 0.30, topup_amount **9.70**, eur_topup **9.70** (recomputed, not from the payload), wallet_debited true |
+| wallet | EUR 58,50 -> **48,50** | 48.50 |
+| owner's queue | "#10 Pending EUR 9,70 — paid EUR 10,00 · fee EUR 0,30" | - |
+| verify dialog | supplier 2% = EUR 0,19, our margin EUR 0,11 | 9,70 x 2% = 0,194 -> 0,19; 0,30 - 0,19 = 0,11 |
+| verified | "Topup verified successfully" | completed, verified_at set, invoice **139** EUR 9,70 paid |
+| the notification | **"Money is on your ad account — EUR 9,70 has landed on AA-PSM0005-EU-01."** | plak 96's payload: `amount 9.70, currency EUR, account_name` |
+| "Funded to date" | EUR **300,70** | sum of completed `topup_amount` = 300.70 |
+
+Two things this also proves: the fee floor now runs on EVERY verify and
+does **not** block a legitimate one, and plak 96 lands — the notice
+written before the plak still reads the old generic sentence, which is
+the intended fallback.
 
 ## 25-09: the admin journeys re-checked figure by figure
 
