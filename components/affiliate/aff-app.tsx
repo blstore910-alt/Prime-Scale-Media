@@ -128,7 +128,22 @@ function monthStartIso() {
 
 export default function AffiliateApp() {
   const { profile } = useAppContext();
-  const [view, setView] = useState<View>("refs");
+  // ── OPEN ON THE ONE THE NAV CALLS HOME ────────────────────────────
+  //
+  // This opened on My Referrals. Not a decision -- it came over with the
+  // mockup port, which happened to be drawn on that screen. The nav says
+  // something else with both of its voices: the sidebar lists Dashboard
+  // first, and the bottom bar puts Home in the CENTRE, which is the
+  // primary slot on a phone. So a new affiliate signed up, landed on a
+  // tab that is not the one marked home, and the highlighted item did
+  // not match the middle button.
+  //
+  // The advertiser shell next door opens on "dash" for the same reason,
+  // and the dashboard here is a real screen -- "Welcome back, <name>",
+  // the tier, the figures -- not a placeholder.
+  //
+  // A ?view= in the URL still wins; that is the effect below.
+  const [view, setView] = useState<View>("dash");
 
   // ── THE URL DECIDES THE FIRST VIEW ────────────────────────────────
   //

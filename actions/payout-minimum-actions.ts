@@ -115,7 +115,51 @@ export async function setAffiliatePayoutMinimum(input: {
     };
   }
 
+  // ── THE RPC FIRST, BECAUSE IT KEEPS THE NAME ─────────────────────
+  //
+  // Measured a minute after the first release: audit_events had the
+  // change -- was (leeg), nu 10.00 -- with actor_user_id NULL. The
+  // service key has no auth.uid(), so `_audit_row_change` finds no
+  // actor. On "who lowered this affiliate's payout floor" that is the
+  // one question the log exists to answer.
+  //
+  // A SECURITY DEFINER function runs as its OWNER, so current_user is
+  // not 'authenticated' and the column trigger lets it through -- while
+  // auth.uid() reads the request's JWT claim, not the role, so it is
+  // still the owner who pressed the button. One function fixes both,
+  // and it is the shape CLAUDE.md asks for anyway.
+  const viaRpc = await supabase.rpc("affiliate_payout_min_set", {
+    p_advertiser_id: id,
+    p_min: minimum,
+  });
+  if (!viaRpc.error) return { ok: true, data: { minimum } };
+
+  const rpcCode = String(
+    (viaRpc.error as { code?: string } | null)?.code ?? "",
+  );
+  // 42883 is Postgres' "function does not exist"; PGRST202 is
+  // PostgREST's. Anything else is the function refusing for a reason,
+  // and that reason is the answer -- it must not be worked around.
+  if (rpcCode !== "42883" && rpcCode !== "PGRST202") {
+    if (rpcCode === MISSING_COLUMN) {
+      return {
+        ok: false,
+        error:
+          "The exception needs plak 98 in the SQL editor first. Nothing was changed.",
+      };
+    }
+    console.error("setAffiliatePayoutMinimum rpc", safeErrorMessage(viaRpc.error));
+    return { ok: false, error: "Could not save it. Nothing was changed." };
+  }
+
+  // ── AND WITHOUT IT WHILE PLAK 99 IS NOT PASTED ───────────────────
+  //
   // Column-allowlisted by construction: one named column, one value.
+  // This path still writes the right number; it is only the actor on
+  // the audit row that is missing, and that stops the day plak 99 runs.
+  console.warn(
+    "setAffiliatePayoutMinimum: plak 99 is not applied, writing with the service key — the audit row will carry no actor",
+  );
   const admin = await createAdminClient();
   const { data: wrote, error } = await admin
     .from("advertisers")
