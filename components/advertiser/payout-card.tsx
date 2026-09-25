@@ -146,7 +146,9 @@ export default function PayoutCard({
   // while the read is in flight `undefined` resolves to 200 as well: a
   // button that turns on a moment late is a nuisance, one that turns on
   // wrongly is a refusal in the customer's face.
-  const { data: minOverride } = useQuery<number | string | null>({
+  const { data: minOverride, isError: minUnknown } = useQuery<
+    number | string | null
+  >({
     queryKey: ["affiliate-payout-min", scope],
     enabled: !!scope,
     queryFn: async () => {
@@ -326,7 +328,12 @@ export default function PayoutCard({
   // one the server will refuse.
   const onlyByConverting = !sameEur && !sameUsd && reachable === 1;
   const blockedByOpen = available.some((c) => inFlight[c] > 0);
-  const canRequest = available.length > 0 && !blockedByOpen && reachable === 1;
+  // minUnknown, not just owedUnknown. The floor is half of the sum --
+  // an affiliate the owner released to 50 who is owed 60 would otherwise
+  // be told "140,00 to go" over a server that would have accepted the
+  // request. A figure we cannot stand behind is not printed.
+  const canRequest =
+    available.length > 0 && !blockedByOpen && !minUnknown && reachable === 1;
   const shortBy = Math.max(round2(MIN_PER_CURRENCY - bestEur), 0);
   // The bar already says how much and how far; this line only carries
   // what the bar cannot -- that a request is already with us, or that
@@ -441,6 +448,12 @@ export default function PayoutCard({
       setView(null);
       await payouts.refetch();
       queryClient.invalidateQueries({ queryKey: ["affiliate-stats"] });
+    } catch {
+      // Without this the promise rejects unhandled: "Withdrawing…" goes
+      // back to "Withdraw request", the request is still open, and
+      // nothing on screen says the attempt failed. The submit handler
+      // twenty lines up has had this catch all along.
+      toast.error("We couldn't withdraw it just now. Your request is still with us.");
     } finally {
       setCancelling(null);
     }
@@ -543,10 +556,11 @@ export default function PayoutCard({
       })}
 
       {/* ── READY TO ASK FOR ───────────────────────────────────────── */}
-      {owedUnknown ? (
+      {owedUnknown || minUnknown ? (
         <p className="cap">
-          We couldn&apos;t read your balance just now — this is not a zero.
-          Reload before requesting a payout.
+          {owedUnknown
+            ? "We couldn't read your balance just now — this is not a zero. Reload before requesting a payout."
+            : "We couldn't check the amount a payout starts at, so we are not going to print one. Reload, and tell us if it keeps happening."}
         </p>
       ) : (
         <>
@@ -595,7 +609,9 @@ export default function PayoutCard({
             <p className="xp-empty">
               {waitingGroups.length
                 ? "Everything you are owed is in that request. What you earn from now on can be asked for once it is settled."
-                : "This is where you ask to be paid. As soon as you have €200 or $200 in commission, the button below opens."}
+                : minUnknown
+                  ? "This is where you ask to be paid. We could not check the amount you need to reach — reload before you count on a figure."
+                  : `This is where you ask to be paid. As soon as you have ${formatCurrency(MIN_PER_CURRENCY, "EUR")} or ${formatCurrency(MIN_PER_CURRENCY, "USD")} in commission, the button below opens.`}
             </p>
           )}
           {/* The button stays, and says why it cannot be pressed. A

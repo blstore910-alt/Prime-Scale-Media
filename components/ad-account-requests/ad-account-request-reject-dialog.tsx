@@ -68,9 +68,17 @@ export default function AdAccountRequestRejectDialog({
             Account refuses it. The queue next door puts Customer, Ad
             account and Amount in front of exactly this decision. */}
         <div className="rounded-xl border bg-muted/40 p-3 text-sm">
+          {/* `chargedAmount` is null on the INVOICED path -- the fee was
+              not taken off the wallet, it was billed -- and this said
+              "nothing moves" over a EUR 50 invoice the customer may
+              already have paid. It is the one figure this box exists to
+              get right, so when we do not have it we say we do not have
+              it rather than guessing the comfortable answer. */}
           {Number(chargedAmount) > 0
             ? `${money(chargedAmount, chargedCurrency)} goes straight back to their wallet.`
-            : "No fee was charged for this one, so nothing moves."}
+            : chargedAmount === null || chargedAmount === undefined
+              ? "Whatever was charged for this one goes back: an unpaid fee invoice is voided, and one already paid is credited to their wallet."
+              : "No fee was charged for this one, so nothing moves."}
         </div>
         <div className="space-y-3">
           {/* The reason is printed on the customer's screen. The

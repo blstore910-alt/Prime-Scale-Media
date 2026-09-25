@@ -43,28 +43,44 @@ export default function PayoutMinimumCard({
   // on ONE key with different SHAPES hand each other the wrong object,
   // which is what crashed /users this morning. Same column, two readers,
   // two keys.
-  const q = useQuery<{ value: number | string | null; supported: boolean }>({
+  const q = useQuery<{
+    value: number | string | null;
+    supported: boolean;
+    /** maybeSingle() hands back null with NO error when RLS, a stale id
+     *  or a deleted row means there is nothing to read. That is not the
+     *  same as "no exception is set", and printing the standing rule in
+     *  bold over a row we never saw is exactly the confident-zero this
+     *  codebase keeps finding. */
+    found: boolean;
+    updatedAt: string | null;
+  }>({
     queryKey: ["affiliate-payout-min-admin", advertiserId],
     queryFn: async () => {
       const supabase = createClient();
       const r = await supabase
         .from("advertisers")
-        .select("payout_min_override")
+        .select("payout_min_override, updated_at")
         .eq("id", advertiserId)
         .maybeSingle();
       if (!r.error) {
+        const row = r.data as {
+          payout_min_override?: number | string | null;
+          updated_at?: string | null;
+        } | null;
         return {
-          value:
-            (r.data as { payout_min_override?: number | string | null } | null)
-              ?.payout_min_override ?? null,
+          value: row?.payout_min_override ?? null,
           supported: true,
+          found: !!row,
+          updatedAt: row?.updated_at ?? null,
         };
       }
       // The column arrives with plak 98 and migrations are pasted by hand.
       // Until it lands this says so, instead of the whole affiliate page
-      // dying on a column that is not there yet.
+      // dying on a column that is not there yet. `updated_at` is asked for
+      // in the same breath, so a 42703 could be either one -- and the
+      // answer is the same either way: hold, say so, change nothing.
       if ((r.error as { code?: string } | null)?.code === "42703") {
-        return { value: null, supported: false };
+        return { value: null, supported: false, found: true, updatedAt: null };
       }
       throw r.error;
     },
@@ -72,8 +88,13 @@ export default function PayoutMinimumCard({
 
   const raw = q.data?.value ?? null;
   const supported = q.data?.supported ?? true;
+  const found = q.data?.found ?? false;
   const effective = payoutMinimumFor(raw);
   const released = isReleased(raw);
+  // Nothing is offered until the read has answered. The owner must not be
+  // able to set a floor over a value they have not been shown, nor press
+  // Release before the card knows plak 98 is missing.
+  const canAct = canEdit && supported && found && !q.isPending;
 
   const save = async (value: number | null) => {
     setSaving(true);
@@ -81,6 +102,9 @@ export default function PayoutMinimumCard({
       const res = await setAffiliatePayoutMinimum({
         affiliateAdvertiserId: advertiserId,
         minimum: value,
+        // What this card was built from. Two owners with the page open
+        // would otherwise overwrite each other without either noticing.
+        ifUpdatedAt: q.data?.updatedAt ?? null,
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -99,6 +123,11 @@ export default function PayoutMinimumCard({
           ? `Back on the standing ${STANDING_PAYOUT_MIN} per currency`
           : `They can ask from ${value} per currency`,
       );
+    } catch {
+      // A dropped connection or a server action that never answered.
+      // Without this the promise rejects unhandled, the button un-busies
+      // and the screen says nothing at all -- so it reads as saved.
+      toast.error("Could not reach us. Nothing was changed.");
     } finally {
       setSaving(false);
     }
@@ -144,6 +173,12 @@ export default function PayoutMinimumCard({
           <p className="cap" style={{ margin: "4px 0 0" }}>
             {q.isPending ? (
               "Reading…"
+            ) : !found ? (
+              <>
+                We could not read this affiliate&rsquo;s row, so we cannot say
+                what they may ask for. That is not the same as &ldquo;no
+                exception&rdquo; — reload before you change anything.
+              </>
             ) : !supported ? (
               <>
                 The exception needs plak 98 in the SQL editor. Everyone is on
@@ -169,7 +204,7 @@ export default function PayoutMinimumCard({
             )}
           </p>
         </div>
-        {canEdit && supported ? (
+        {canAct ? (
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {released ? (
               <button
@@ -178,7 +213,7 @@ export default function PayoutMinimumCard({
                 disabled={saving}
                 onClick={() => void save(null)}
               >
-                Put back to {STANDING_PAYOUT_MIN}
+                Back to the standing minimum
               </button>
             ) : null}
             <button
@@ -196,7 +231,7 @@ export default function PayoutMinimumCard({
         ) : null}
       </div>
 
-      {editing && canEdit && supported ? (
+      {editing && canAct ? (
         <div
           style={{
             marginTop: 14,

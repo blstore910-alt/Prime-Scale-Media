@@ -351,6 +351,73 @@ export async function financeReportForMe(): Promise<
     });
   }
 
+  // ── The fee for asking for an extra ad account ──────────────────────
+  //
+  // EUR 50 off the wallet on submit, and back again if we refuse. The
+  // wallet statement on the customer's own screen has carried both lines
+  // since 23-09; this report -- the one they hand their bookkeeper as a
+  // CSV -- carried neither, so its Net was EUR 50 high for every request
+  // ever filed and EUR 50 low again after a refusal. Two screens, two
+  // answers, and the wrong one is the exported file.
+  //
+  // Tolerant: charged_amount and friends arrive with 20260920250000, and
+  // a report that throws is worse than one without this source.
+  for (const r of await sourceTolerant(
+    "request fees",
+    (from, to) =>
+      supabase
+        .from("ad_account_requests")
+        .select(
+          "id, platform, charged_amount, charged_currency, charged_at, refunded_amount, refunded_at",
+        )
+        .eq("advertiser_id", advertiserId)
+        .not("charged_at", "is", null)
+        .order("charged_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    // Without the columns there is nothing to report, and asking for
+    // `id` alone keeps the source present and empty rather than failed.
+    (from, to) =>
+      supabase
+        .from("ad_account_requests")
+        .select("id")
+        .eq("advertiser_id", advertiserId)
+        .limit(0)
+        .range(from, to),
+  )) {
+    const charged = Math.abs(num(r.charged_amount));
+    const back = Math.abs(num(r.refunded_amount));
+    const feeCur = cur(r.charged_currency);
+    if (r.charged_at && charged > 0) {
+      lines.push({
+        id: `rqf-${r.id}`,
+        at: String(r.charged_at ?? ""),
+        kind: "fee",
+        label: "Ad-account request fee",
+        reference: null,
+        account: null,
+        counterparty: null,
+        currency: feeCur,
+        amount: -charged,
+        status: "charged",
+      });
+    }
+    if (r.refunded_at && back > 0) {
+      lines.push({
+        id: `rqr-${r.id}`,
+        at: String(r.refunded_at ?? ""),
+        kind: "fee",
+        label: "Ad-account request fee returned",
+        reference: null,
+        account: null,
+        counterparty: null,
+        currency: feeCur,
+        amount: back,
+        status: "returned",
+      });
+    }
+  }
+
   // ── Money coming back out of an ad account ──────────────────────────
   for (const r of await source("withdrawals", (from, to) =>
     supabase

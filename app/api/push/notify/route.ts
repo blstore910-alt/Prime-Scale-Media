@@ -231,12 +231,33 @@ function buildPushFromRecord(record: NotificationRecord) {
         url: "/dashboard?view=wallet",
       };
 
-    case "request_fee_refunded":
+    case "request_fee_refunded": {
+      // ── NOT EVERY REFUSAL RETURNS MONEY ──────────────────────────
+      //
+      // A request that was free -- included in the plan, or covered by
+      // a perk -- is refused with `amount: 0`, and this told the
+      // customer their fee was back. The in-app copy has branched on
+      // the amount since it was written; the push did not, so the
+      // phone said one thing and the app said another about the same
+      // event. Same test, same two sentences.
+      const amt = Number(
+        (record.payload as { amount?: unknown } | null)?.amount ?? 0,
+      );
+      const back = Number.isFinite(amt) && amt > 0;
+      const cur =
+        String(
+          (record.payload as { currency?: unknown } | null)?.currency ?? "EUR",
+        ).toUpperCase() === "USD"
+          ? "$"
+          : "€";
       return {
-        title: "Your request fee is back",
-        body: "We couldn't set that account up, so the fee has been returned to your wallet.",
+        title: back ? "Your request fee is back" : "Your account request was refused",
+        body: back
+          ? `We couldn't set that account up, so ${cur}${amt.toFixed(2)} is back in your wallet.`
+          : "We couldn't set that account up. Nothing was charged for it.",
         url: "/dashboard?view=wallet",
       };
+    }
 
     case "billing_run_failed":
       // ── THE ONE THAT MEANS NOBODY WAS BILLED ────────────────────

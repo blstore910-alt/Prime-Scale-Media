@@ -349,8 +349,6 @@ export const ADV_CSS = `
   .reqok{background:var(--win-soft);border:1px solid #b9e8d7;border-radius:12px;padding:10px 12px;font-size:.85rem;line-height:1.5;color:#0b6b4f;text-align:left}
   .reqback{margin:0;font-size:.82rem;color:var(--txt-2);line-height:1.45}
   .reqback b{color:var(--ink);font-weight:700}
-  .hiddenline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 2px 14px;font-size:.82rem;color:var(--faint)}
-  .hiddenline button{border:0;background:transparent;padding:0;font:inherit;font-weight:700;color:var(--primary-600);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   /* The figures, as one block with hairlines between rather than four
      separate lines floating in the card. */
   .acard .kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:.84rem;padding:7px 0;border-top:1px solid var(--line-2)}

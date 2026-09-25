@@ -921,7 +921,14 @@ function AffiliateDetail({
   const code = summary?.code ?? who.data?.tenant_client_code ?? null;
   const email = summary?.email ?? whoProfile?.email ?? null;
   const label = name || code || "this affiliate";
-  const notFound = !who.isLoading && !who.isError && !who.data && !summary;
+  // isPending, NOT isLoading. react-query v5 computes isLoading as
+  // `isPending && isFetching`, so a PAUSED query -- offline, a dropped
+  // connection -- reports isLoading false with undefined data. This then
+  // says "There is no advertiser with this link in your organisation"
+  // about an affiliate that exists, disables Edit rules and hides the
+  // payout-minimum card entirely. The guard one line down was written
+  // for this class and only covers isError.
+  const notFound = !who.isPending && !who.isError && !who.data && !summary;
   // A read that FAILED used to fall through to the full layout: four
   // tiles at 0,00, "nobody referred", "no commission" -- five confident
   // statements about somebody we could not look up.
@@ -1086,7 +1093,7 @@ function AffiliateDetail({
       <div className="phead phead-actions">
         <div className="ptxt">
           <h1>
-            {who.isLoading && !summary ? "Loading…" : name || code || "Affiliate"}{" "}
+            {who.isPending && !summary ? "Loading…" : name || code || "Affiliate"}{" "}
             {code ? <span className="mono muted" style={{ fontSize: ".9rem" }}>{code}</span> : null}
           </h1>
           <p>{email || DASH}</p>

@@ -59,3 +59,40 @@ test("an unknown status is readable and never blank", () => {
   assert.equal(requestStatusView(null).label, "Waiting for us");
   assert.equal(requestStatusView("  REJECTED ").label, "Not approved");
 });
+
+/**
+ * The fault this guards, measured on production 25-09: the Ad accounts
+ * card printed "Ad account on the way — Waiting for us" and the Requests
+ * tab printed "We set it up on our Business Manager" for a request whose
+ * status is `payment_pending`. That status means the fee invoice is
+ * raised and it is waiting on the CUSTOMER. We were telling somebody who
+ * owes us money that we were busy on it.
+ */
+test("payment_pending never claims we are working on it", () => {
+  const v = requestStatusView("payment_pending");
+  assert.match(v.title, /payment/i);
+  assert.ok(v.hint);
+  assert.doesNotMatch(v.hint!, /Business Manager/i);
+  assert.match(v.hint!, /paid|pay/i);
+});
+
+test("only what is really in flight says we are building it", () => {
+  const building = REAL.filter((s) =>
+    /Business Manager/i.test(requestStatusView(s).hint ?? ""),
+  );
+  assert.deepEqual(building, ["pending", "in_progress"]);
+});
+
+test("a finished request adds no instruction, because it has none", () => {
+  for (const st of ["completed", "rejected", "cancelled"]) {
+    assert.equal(requestStatusView(st).hint, null, st);
+  }
+});
+
+test("every status has a card title that is not the raw column", () => {
+  for (const st of [...REAL, "needs_documents", null]) {
+    const t = requestStatusView(st).title;
+    assert.ok(t.length > 5, String(st));
+    assert.ok(!t.includes("_"), `${String(st)} -> ${t}`);
+  }
+});

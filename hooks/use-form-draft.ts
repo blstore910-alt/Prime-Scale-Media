@@ -15,6 +15,22 @@ type UseFormDraftOptions<T> = {
   userScope?: string | null;
   saveDebounceMs?: number;
   enabled?: boolean;
+  /**
+   * Whether there is anything worth keeping RIGHT NOW. Separate from
+   * `enabled`, which governs whether this form uses drafts at all.
+   *
+   * Without it a form that re-seeds itself from the server writes the
+   * server's own row straight back into the draft. Measured on the
+   * company card 25-09: Save cleared the draft, the awaited refetch
+   * bumped `updated_at`, the seeding effect handed this hook a fresh
+   * `values` object, and the debounce fired half a second LATER. Every
+   * visit for the next seven days then said "You were filling this in
+   * earlier — nothing was sent to us", about values that were sent, and
+   * "Put it back" restored them onto themselves.
+   *
+   * Default true, so the four callers that predate this are unchanged.
+   */
+  saveWhen?: boolean;
 };
 
 type UseFormDraftReturn<T> = {
@@ -39,6 +55,7 @@ export function useFormDraft<T>({
   userScope,
   saveDebounceMs = 500,
   enabled = true,
+  saveWhen = true,
 }: UseFormDraftOptions<T>): UseFormDraftReturn<T> {
   const [restoredDraft, setRestoredDraft] = useState<DraftRecord<T> | null>(
     null,
@@ -65,7 +82,7 @@ export function useFormDraft<T>({
 
   // Debounced save on every value change
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !saveWhen) return;
     // Skip save while initial load is still in flight — otherwise we
     // race the load and overwrite the draft with defaults.
     if (!initialLoadDone.current) return;
@@ -85,7 +102,7 @@ export function useFormDraft<T>({
     return () => {
       saveRef.current?.cancel();
     };
-  }, [formKey, values, userScope, saveDebounceMs, enabled]);
+  }, [formKey, values, userScope, saveDebounceMs, enabled, saveWhen]);
 
   return {
     restoredDraft,

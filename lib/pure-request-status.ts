@@ -23,26 +23,81 @@ export type RequestStatusView = {
   badge: RequestBadge;
   /** Whether this is the end of the road for this request. */
   done: boolean;
+  /**
+   * The headline on the Ad accounts card, where the row is one card
+   * among the live accounts rather than a line in a list.
+   */
+  title: string;
+  /**
+   * What happens next, or null when the card says it some other way (a
+   * refusal prints its reason; a finished one is an account by now).
+   *
+   * This exists because "We set it up on our Business Manager" was
+   * printed under EVERY unfinished request, including `payment_pending`
+   * — which means the fee invoice is raised and it is waiting on the
+   * CUSTOMER. We were telling somebody who owes us money that we were
+   * busy on it.
+   */
+  hint: string | null;
 };
+
+const BUILDING =
+  "We set it up on our Business Manager. It appears under Ad accounts as soon as it is live.";
 
 export function requestStatusView(
   status: string | null | undefined,
 ): RequestStatusView {
   switch (String(status ?? "pending").toLowerCase().trim()) {
     case "completed":
-      return { label: "Ready", badge: "ok", done: true };
+      return {
+        label: "Ready",
+        badge: "ok",
+        done: true,
+        title: "Ad account ready",
+        hint: null,
+      };
     case "rejected":
     case "declined":
-      return { label: "Not approved", badge: "due", done: true };
+      return {
+        label: "Not approved",
+        badge: "due",
+        done: true,
+        title: "Request not approved",
+        hint: null,
+      };
     case "cancelled":
     case "canceled":
-      return { label: "Cancelled", badge: "muted", done: true };
+      return {
+        label: "Cancelled",
+        badge: "muted",
+        done: true,
+        title: "Request cancelled",
+        hint: null,
+      };
     case "in_progress":
-      return { label: "Being set up", badge: "pend", done: false };
+      return {
+        label: "Being set up",
+        badge: "pend",
+        done: false,
+        title: "Ad account on the way",
+        hint: BUILDING,
+      };
     case "payment_pending":
-      return { label: "Waiting for payment", badge: "pend", done: false };
+      return {
+        label: "Waiting for payment",
+        badge: "pend",
+        done: false,
+        title: "Waiting for your payment",
+        hint: "The fee invoice for this one is open. We start on it as soon as it is paid — you can pay it under Billing.",
+      };
     case "pending":
-      return { label: "Waiting for us", badge: "pend", done: false };
+      return {
+        label: "Waiting for us",
+        badge: "pend",
+        done: false,
+        title: "Ad account on the way",
+        hint: BUILDING,
+      };
     default:
       // An unknown status is a status we added and did not come back
       // here for. Amber and readable beats a blank pill: the customer
@@ -54,6 +109,8 @@ export function requestStatusView(
           .trim() || "In progress",
         badge: "pend",
         done: false,
+        title: "Ad account on the way",
+        hint: BUILDING,
       };
   }
 }

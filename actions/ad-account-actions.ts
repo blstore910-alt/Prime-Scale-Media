@@ -719,13 +719,30 @@ export async function rejectAdAccountRequest(
   // was refused, and nothing can put it back: the request is already
   // rejected, so the refund RPC refuses it. The invoice is not in that
   // RPC's transaction, so it has to be closed here.
+  //
+  // ── AND ONE THAT WAS ALREADY PAID MUST COME BACK ──────────────────
+  //
+  // This only looked at `status = 'unpaid'`. An invoiced fee the
+  // customer had ALREADY paid -- from their wallet, with a Pay now --
+  // was skipped entirely: the refund RPC returns `metadata.request_fee`
+  // and there is none on that path, the invoice stays paid because it
+  // was, and the EUR 50 simply stays with us. The reject dialog then
+  // says "No fee was charged for this one, so nothing moves", because
+  // it reads `charged_amount`, which is null here.
+  //
+  // A paid invoice is not voided -- it was paid, and rewriting that is
+  // not bookkeeping. The money goes back as an approved wallet
+  // adjustment, which is the same vehicle every other hand-made
+  // correction uses: it lands on the customer's statement with a
+  // reason, and it notifies them.
+  const returnedByHand: { amount: number; currency: string }[] = [];
   try {
     const { data: openFees } = await supabase
       .from("invoices")
-      .select("id, items")
+      .select("id, items, status, total, currency")
       .eq("advertiser_id", (req as { advertiser_id?: string | null }).advertiser_id)
       .eq("type", "ad_account_fee")
-      .eq("status", "unpaid")
+      .in("status", ["unpaid", "paid"])
       .limit(500);
     for (const inv of openFees ?? []) {
       const items = (inv as { items?: unknown }).items;
@@ -737,13 +754,42 @@ export async function rejectAdAccountRequest(
             requestId,
         );
       if (!mine) continue;
-      const { voidInvoiceAsAdmin } = await import("./invoice-actions");
-      await voidInvoiceAsAdmin(
-        String((inv as { id: string }).id),
+      const row = inv as {
+        id: string;
+        status?: string | null;
+        total?: number | string | null;
+        currency?: string | null;
+      };
+      const because =
         trimmedReason.length >= 3
           ? trimmedReason
-          : "The ad-account request it was raised for was rejected.",
+          : "The ad-account request it was raised for was rejected.";
+
+      if (String(row.status ?? "").toLowerCase() !== "paid") {
+        const { voidInvoiceAsAdmin } = await import("./invoice-actions");
+        await voidInvoiceAsAdmin(String(row.id), because);
+        continue;
+      }
+
+      const amount = Math.round((Number(row.total) || 0) * 100) / 100;
+      const currency =
+        String(row.currency ?? "EUR").toUpperCase() === "USD" ? "USD" : "EUR";
+      if (amount <= 0) continue;
+
+      const { requestWalletAdjustment, approveWalletAdjustment } = await import(
+        "./adjustment-actions"
       );
+      const made = await requestWalletAdjustment({
+        advertiser_id: String(
+          (req as { advertiser_id?: string | null }).advertiser_id,
+        ),
+        delta: amount,
+        currency,
+        reason: `Ad-account request fee returned — ${because}`,
+      });
+      if (!made.ok || !made.data?.id) continue;
+      const done = await approveWalletAdjustment(String(made.data.id));
+      if (done.ok) returnedByHand.push({ amount, currency });
     }
   } catch {
     // Best effort, and deliberately after the refusal has landed: a
@@ -763,14 +809,31 @@ export async function rejectAdAccountRequest(
   // a free-request perk -- was refused in silence: the reason the admin
   // was FORCED to type reached nobody at all. The notification goes out
   // either way now, and says which of the two happened.
+  //
+  // What came back is whichever path it took. The RPC's figure is the
+  // wallet-charged one; `returnedByHand` is the invoice-paid one, put
+  // back as an adjustment above. Only ever one of the two, but they are
+  // added per currency rather than assumed, and a mixed pair falls back
+  // to the RPC's own currency rather than inventing a total.
+  const rpcBack = Number(paid?.refunded ?? 0) || 0;
+  const rpcCur = String(paid?.currency ?? "EUR").toUpperCase();
+  const byHand = returnedByHand.filter(
+    (r) => rpcBack === 0 || r.currency === rpcCur,
+  );
+  const totalBack =
+    Math.round(
+      (rpcBack + byHand.reduce((n, r) => n + r.amount, 0)) * 100,
+    ) / 100;
+  const backCur = rpcBack > 0 ? rpcCur : byHand[0]?.currency ?? rpcCur;
+
   await notifyAdvertiser(supabase, {
     advertiserId: (req as { advertiser_id?: string | null } | null)
       ?.advertiser_id,
     tenantId: profile.tenant_id,
     type: "request_fee_refunded",
     payload: {
-      amount: paid?.refunded ?? 0,
-      currency: paid?.currency ?? "EUR",
+      amount: totalBack,
+      currency: backCur,
       reason: trimmedReason || null,
     },
   });
@@ -778,8 +841,8 @@ export async function rejectAdAccountRequest(
   return {
     ok: true,
     data: {
-      refunded: Number(paid?.refunded ?? 0),
-      currency: String(paid?.currency ?? "EUR"),
+      refunded: totalBack,
+      currency: backCur,
       perkRestored: !!paid?.perk_restored,
     },
   };

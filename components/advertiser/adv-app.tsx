@@ -1205,12 +1205,6 @@ export default function AdvertiserApp() {
   // touched something -- comparing against what came back from the
   // server, not against blank, so an empty company on a first visit is
   // not "unsaved changes".
-  const compDraft = useFormDraft<typeof comp>({
-    formKey: "adv-settings-company",
-    values: comp,
-    userScope: profile?.id ?? null,
-    enabled: !companyLoading,
-  });
   const compDirty = useMemo(() => {
     if (companyLoading) return false;
     return COMPANY_FIELDS.some((k) => {
@@ -1220,6 +1214,24 @@ export default function AdvertiserApp() {
       return String(here ?? "") !== String(server ?? "");
     });
   }, [comp, company, companyLoading]);
+  // `saveWhen: compDirty`, not just `enabled`. Save cleared the draft,
+  // the awaited refetch bumped companies.updated_at, the seeding effect
+  // handed the hook a fresh object, and the debounce fired half a second
+  // AFTER the clear -- writing the server's own row back in. Every visit
+  // for the next seven days then claimed unsent typing that had been
+  // sent, and "Put it back" restored the values onto themselves.
+  //
+  // `enabled` also drops on companyError: with the read broken, Save is
+  // disabled and the card says reload, so offering a restore leads
+  // straight into a beforeunload dialog over typing that cannot be
+  // saved.
+  const compDraft = useFormDraft<typeof comp>({
+    formKey: "adv-settings-company",
+    values: comp,
+    userScope: profile?.id ?? null,
+    enabled: !companyLoading && !companyError,
+    saveWhen: compDirty,
+  });
   useUnsavedChangesWarning(compDirty);
 
   // ── THE PROFILE THE AVATAR MENU PROMISES ──────────────────────────
@@ -1567,6 +1579,8 @@ export default function AdvertiserApp() {
       status: string | null;
       rejection_reason: string | null;
       refunded_amount: number | string | null;
+      charged_amount?: number | string | null;
+      charged_currency?: string | null;
     }[]
   >({
     queryKey: ["adv-open-requests", advertiserId],
@@ -1576,7 +1590,10 @@ export default function AdvertiserApp() {
       const { data, error } = await supabase
         .from("ad_account_requests")
         .select(
-          "id, created_at, platform, currency, status, rejection_reason, refunded_amount",
+          // charged_amount and its currency come from the same migration
+          // as refunded_amount (20260920250000). The retry below drops
+          // all four together, because they land together.
+          "id, created_at, platform, currency, status, rejection_reason, refunded_amount, charged_amount, charged_currency",
         )
         .eq("advertiser_id", advertiserId!)
         // Anything still in flight, plus a refusal -- a customer whose
@@ -1590,8 +1607,29 @@ export default function AdvertiserApp() {
         ])
         .order("created_at", { ascending: false })
         .limit(10);
-      if (error) throw error;
-      return (data ?? []) as never;
+      if (!error) return (data ?? []) as never;
+      // ── ASK, THEN ASK WITHOUT ─────────────────────────────────
+      //
+      // A select naming a column a pending migration has not added
+      // throws 42703, and PostgREST's sentence lands on the screen.
+      // Here that would take the whole in-flight strip with it -- every
+      // "Ad account on the way" card, including one just paid EUR 50
+      // for. `requestCharges` a hundred lines up already does this.
+      if ((error as { code?: string } | null)?.code !== "42703") throw error;
+      const retry = await supabase
+        .from("ad_account_requests")
+        .select("id, created_at, platform, currency, status, rejection_reason")
+        .eq("advertiser_id", advertiserId!)
+        .in("status", [
+          "pending",
+          "payment_pending",
+          "in_progress",
+          "rejected",
+        ])
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (retry.error) throw retry.error;
+      return (retry.data ?? []) as never;
     },
   });
 
@@ -1759,12 +1797,19 @@ export default function AdvertiserApp() {
     !!requestChargesError ||
     !!movesError;
 
+  // EVERY source the statement is built from, or the caveat cannot fire
+  // for the one that ran out. requestCharges and walletMoves were added
+  // to the statement and not to this test, so the 51st request charge
+  // and the 31st adjustment would simply be missing while the column
+  // kept claiming to add up to the balance at the top.
   const activityTruncated =
     (activity?.length ?? 0) >= 30 ||
     (exchanges?.length ?? 0) >= 30 ||
     (invoices?.length ?? 0) >= 30 ||
     (accountFundings?.length ?? 0) >= 30 ||
-    (accountReturns?.length ?? 0) >= 30;
+    (accountReturns?.length ?? 0) >= 30 ||
+    (requestCharges?.length ?? 0) >= 50 ||
+    (walletMoves?.length ?? 0) >= 30;
 
   const walletEvents: WalletEvent[] = [
     // The charge, and the refund as its own line where there was one:
@@ -5347,13 +5392,23 @@ export default function AdvertiserApp() {
             {liveRequestCards.length ? (
               <div className="grid3" style={{ marginBottom: 14 }}>
                 {liveRequestCards.map((r) => {
+                  // The SAME words as the Requests tab. These were
+                  // hand-rolled here and `payment_pending` fell through
+                  // both ternaries, so a customer whose fee invoice is
+                  // open -- waiting on THEM -- was told "Ad account on
+                  // the way / Waiting for us". We were saying we were
+                  // busy on it to somebody who owes us money.
+                  const v = requestStatusView(r.status);
                   const st = String(r.status ?? "").toLowerCase();
                   const refused = st === "rejected";
                   const back = Number(r.refunded_amount) || 0;
-                  const cur =
-                    String(r.currency ?? "EUR").toUpperCase() === "USD"
-                      ? "$"
-                      : "€";
+                  // The symbol of the money that MOVED, not of the ad
+                  // account. The fee is credited back in
+                  // charged_currency; `currency` is what the account
+                  // will be denominated in and can be null on a legacy
+                  // row. The wallet statement two screens away already
+                  // uses charged_currency through this same helper.
+                  const cur = currencySymbol(r.charged_currency ?? r.currency);
                   return (
                     <div key={r.id} className="acard">
                       <div className="top">
@@ -5364,11 +5419,7 @@ export default function AdvertiserApp() {
                           />
                         </span>
                         <div style={{ minWidth: 0 }}>
-                          <div className="nm">
-                            {refused
-                              ? "Request not approved"
-                              : "Ad account on the way"}
-                          </div>
+                          <div className="nm">{v.title}</div>
                           <div className="sub">
                             {[
                               platformLabel(r.platform),
@@ -5379,15 +5430,7 @@ export default function AdvertiserApp() {
                           </div>
                         </div>
                         <span style={{ marginLeft: "auto" }}>
-                          <span
-                            className={`badge ${refused ? "due" : "pend"}`}
-                          >
-                            {refused
-                              ? "Not approved"
-                              : st === "in_progress"
-                                ? "Being set up"
-                                : "Waiting for us"}
-                          </span>
+                          <span className={`badge ${v.badge}`}>{v.label}</span>
                         </span>
                         {refused ? (
                           <button
@@ -5430,9 +5473,8 @@ export default function AdvertiserApp() {
                           </>
                         ) : (
                           <>
-                            Asked on {dayjs(r.created_at).format("D MMM")}. We set it up
-                            on our Business Manager and it appears here as a
-                            live account.
+                            Asked on {dayjs(r.created_at).format("D MMM")}.
+                            {v.hint ? ` ${v.hint}` : ""}
                           </>
                         )}
                       </p>
@@ -5598,8 +5640,12 @@ export default function AdvertiserApp() {
                 {myRequests.map((r) => {
                   const v = requestStatusView(r.status);
                   const back = Number(r.refunded_amount) || 0;
-                  const cur =
-                    String(r.currency ?? "").toUpperCase() === "USD" ? "$" : "€";
+                  // What it COST is as much a fact as what came back,
+                  // and it was on no line of this tab: a paid request
+                  // still waiting showed no figure at all while EUR 50
+                  // was gone from the wallet.
+                  const paid = Number(r.charged_amount) || 0;
+                  const cur = currencySymbol(r.charged_currency ?? r.currency);
                   return (
                     <div key={r.id} className="acard">
                       <div className="top">
@@ -5629,21 +5675,30 @@ export default function AdvertiserApp() {
                           {r.rejection_reason}
                         </div>
                       ) : null}
-                      {back > 0 ? (
+                      {paid > 0 || back > 0 ? (
                         <p className="reqback">
-                          <b>
-                            {cur}
-                            {money2(back)}
-                          </b>{" "}
-                          went back into your wallet.
+                          {paid > 0 ? (
+                            <>
+                              <b>
+                                {cur}
+                                {money2(paid)}
+                              </b>{" "}
+                              came off your wallet for this request.
+                            </>
+                          ) : null}
+                          {paid > 0 && back > 0 ? " " : null}
+                          {back > 0 ? (
+                            <>
+                              <b>
+                                {cur}
+                                {money2(back)}
+                              </b>{" "}
+                              went back in.
+                            </>
+                          ) : null}
                         </p>
                       ) : null}
-                      {v.badge === "pend" ? (
-                        <p className="reqback">
-                          We set it up on our Business Manager. It appears
-                          under Ad accounts as soon as it is live.
-                        </p>
-                      ) : null}
+                      {v.hint ? <p className="reqback">{v.hint}</p> : null}
                     </div>
                   );
                 })}
