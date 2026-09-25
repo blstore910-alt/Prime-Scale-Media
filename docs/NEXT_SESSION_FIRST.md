@@ -22,6 +22,25 @@
 > genuinely empty (Top-ups 0, Deposits 29, Precharge 0), and /admins is
 > short because there is one admin.
 
+## ⚠ ONE THING NEEDS A WALK BEFORE ANYTHING ELSE
+
+**The customer's ad-account funding was rewired and has NOT been walked.**
+
+It called `top_up_create_for_advertiser` straight from the browser, which
+made it the one money path `MAINTENANCE_MODE` could not stop — the guard
+lives in the server actions and that call never passed through one.
+During an incident every other write is frozen and customers keep moving
+money onto ad accounts. It now goes through
+`createAccountTopupForSelf`: same RPC, same arguments, same answer, with
+`resolveUserContext()` in front of it.
+
+`tsc`, `lint`, `npm test` and a real `next build` all pass, the deploy is
+live (7a83023) and `/api/health` is ok — but **both sessions expired
+before it could be walked**, so it is gated and not proven. First thing
+with a customer session: fund an ad account with a small amount and check
+the wallet moves by exactly that, the row lands in `top_ups` with the
+right fee, and the owner's queue shows it.
+
 ## 25-09: the admin journeys re-checked figure by figure
 
 The route sweep only proved the screens render. These are the numbers.
