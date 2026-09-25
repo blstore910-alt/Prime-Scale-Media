@@ -55,6 +55,19 @@ const planName = (s: Subscription): string | null => {
   return name || null;
 };
 
+// ---- THE ENUM IS NOT A LABEL --------------------------------------
+//
+// `{s.status}` with `text-transform: capitalize` printed "Past_due" in
+// the Status column -- the database value with its underscore, on the
+// owner's own screen, next to "Active" and "Inactive" which happen to
+// be one word. The filter above the table already says "Past due"
+// properly; the badge did not.
+const statusLabel = (s: SubscriptionStatus) => {
+  if (s === "past_due") return "Past due";
+  const t = String(s ?? "").replace(/_/g, " ").trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "—";
+};
+
 const statusCls = (s: SubscriptionStatus) => {
   if (s === "active") return "ok";
   if (s === "past_due") return "due";
@@ -466,11 +479,8 @@ export default function PsmSubscriptions() {
                         </span>
                       </td>
                       <td data-label="Status">
-                        <span
-                          className={`badge ${statusCls(s.status)}`}
-                          style={{ textTransform: "capitalize" }}
-                        >
-                          {s.status}
+                        <span className={`badge ${statusCls(s.status)}`}>
+                          {statusLabel(s.status)}
                         </span>
                       </td>
                       {/* .actrow: equal widths on ONE line. flexWrap here
