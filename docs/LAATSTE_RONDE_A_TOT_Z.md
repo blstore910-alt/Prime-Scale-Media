@@ -178,13 +178,14 @@ E-mailadressen: gebruik wegwerpadressen in dezelfde vorm als eerder
 
 **Venster 2: eigenaar. Venster 1: leeg.**
 
-- [ ] `git status` schoon, laatste commit staat live (`/api/version`)
+- [x] `git status` schoon, laatste commit staat live — **550d1be**, en
+      `/api/version` geeft `550d1be997de`. Dezelfde.
 - [x] De ondergrens van PSM0005 staat nog op **EUR 15** van de F3-loop.
       **Blijft staan** — besluit van de eigenaar 26-09: alle testaccounts
       gaan er straks toch af (blok 14), dus die waarde verdwijnt met het
       account mee. Wel hier genoteerd zodat niemand hem later voor een
       echte instelling aanziet.
-- [ ] Vastleggen wat er nú staat, zodat elk verschil daarna van ons is:
+- [x] Vastleggen wat er nú staat, zodat elk verschil daarna van ons is:
 
 ```sql
 select (select count(*) from advertisers)            as adverteerders,
@@ -196,7 +197,26 @@ select (select count(*) from advertisers)            as adverteerders,
        (select count(*) from top_ups)                 as account_topups;
 ```
 
-**Klaar als:** het nulpunt staat in dit document en de grens is terug op 200.
+### HET NULPUNT — 26-09-2026, vóór de eerste handeling
+
+| | aantal |
+|---|---|
+| adverteerders (beide tenants) | **16** |
+| admins | **3** (Bart = eigenaar; twee op de E2E-tenant) |
+| referral_links | **3** |
+| referral_commissions | **5** |
+| facturen | **30** |
+| wallet_topups | **19** |
+| ad-account-topups | **8** |
+| affiliate_payouts | **2** |
+| audit_events | **3.548** |
+
+Elk getal dat hierna hoger staat, moet te herleiden zijn tot een stap in
+dit document. Kan dat niet, dan is dat op zichzelf een bevinding.
+
+**BLOK 0 GELOPEN 26-09.** Het nulpunt staat vast, de werkkopie is
+schoon, en wat live draait is wat er in git staat. De EUR 15 van PSM0005
+blijft staan met de reden erbij.
 
 ---
 
@@ -755,7 +775,7 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 
 | blok | gelopen | gefixt | open |
 |---|---|---|---|
-| 0 | | | |
+| 0 | **26-09** | — (niets te fixen) | — |
 | 1 | | | |
 | 2 | | | |
 | 3 | | | |
