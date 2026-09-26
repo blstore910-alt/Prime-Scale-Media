@@ -1,5 +1,31 @@
 # WHAT IS LEFT — 25-09, middag
 
+## NA DE LIVEGANG — de teamleader en het rooster (gevraagd 26-09)
+
+De eigenaar wil een admin die teamleader is: iets meer bevoegdheden dan
+de rest, een weekrooster uitrollen, en zien hoeveel elke admin heeft
+gewerkt en hoeveel taken hij heeft gedaan.
+
+Dat valt in twee helften die heel verschillend kosten.
+
+**Bijna gratis, en zit in blok 14 van het draaiboek:** "wat mag deze
+admin wel en niet" wordt daar per admin instelbaar. De teamleader is dan
+geen aparte rol maar een admin met meer vinkjes. De `staff`-waarde staat
+al ongebruikt in de Role-enum als er later toch een vierde sport nodig
+is.
+
+**Ook bijna gratis:** "hoeveel heeft elke admin gedaan".
+`audit_events.actor_user_id` draagt dat al. Gemeten over 14 dagen,
+zonder de bankfeed: 996 regels mét actor tegen 213 zonder, en die 213
+worden in blok 14 dichtgezet. Er is dus geen urenregistratie nodig — een
+query en een scherm volstaan.
+
+**Wel een nieuw ding: het weekrooster.** Wie wanneer werkt, diensten,
+misschien een melding als je dienst begint. Dat raakt geen enkel geldpad
+en hoort daarom na de livegang. Het heeft een eigen tabel nodig en een
+eigen scherm; reken op een paar dagen.
+
+
 > **Van de vijf punten zijn er drie weg.** 3 en 4 liggen bij de eigenaar
 > en staan hieronder.
 >

@@ -182,7 +182,7 @@ E-mailadressen: gebruik wegwerpadressen in dezelfde vorm als eerder
       `/api/version` geeft `550d1be997de`. Dezelfde.
 - [x] De ondergrens van PSM0005 staat nog op **EUR 15** van de F3-loop.
       **Blijft staan** — besluit van de eigenaar 26-09: alle testaccounts
-      gaan er straks toch af (blok 14), dus die waarde verdwijnt met het
+      gaan er straks toch af (blok 15), dus die waarde verdwijnt met het
       account mee. Wel hier genoteerd zodat niemand hem later voor een
       echte instelling aanziet.
 - [x] Vastleggen wat er nú staat, zodat elk verschil daarna van ons is:
@@ -690,9 +690,118 @@ niet — een regel kan wijzigen of verwijderen.
 
 ---
 
-# BLOK 14 — DE TESTACCOUNTS ERAF, EN DAN PAS LIVE
+# BLOK 14 — TWEE EIGENAREN EN BEVOEGDHEDEN PER ADMIN
 
-**Als allerlaatste, na blok 13.** De eigenaar, 26-09: "we gaan toch
+**Bouwblok, geen loopblok.** Draai hem na blok 3, want blok 3 levert de
+kaart: welke actie is vandaag eigenaar-alleen en welke niet. Zonder die
+kaart bouw je bevoegdheden op een aanname.
+
+## Wat er mis is
+
+`tenants.owner_id` is **één uuid**. Elke eigenaar-actie vergelijkt
+daartegen via `resolveOwnerContext` in `actions/_shared.ts`. Er kan er
+dus precies één zijn.
+
+De eigenaar, 26-09: "we zijn 2 compagnons dus moeten beide erop kunnen
+inloggen". Twee mensen kunnen technisch al tegelijk op één account —
+Supabase geeft per aanmelding een eigen sessie, en "Sign out of all
+devices" bestaat juist daarvoor. **Het probleem is niet dat het niet
+kan; het is dat ze dan niet uit elkaar te houden zijn.** Elke
+goedkeuring, elke koerswijziging en elke vrijgave staat dan op één naam,
+en het auditlog — het enige dat na een geldfout nog vertelt wat er
+gebeurd is — wordt waardeloos.
+
+Dus: ieder een eigen login, allebei met eigenaarsrechten.
+
+En daarbovenop, de eigenaar: "mooiste zou zijn als ik per admin wat
+bevoegdheden kan instellen."
+
+## Het ontwerp
+
+**Drie lagen, en de onderste is instelbaar.**
+
+```
+eigenaar   — alles, inclusief bevoegdheden uitdelen. Meerdere mogelijk.
+admin      — de basis, plus wat hem per stuk is toegekend
+staff      — bestaat al als ongebruikte waarde in de Role-enum
+```
+
+**Eigenaarschap wordt een verzameling.** `tenant_owners (tenant_id,
+user_id, granted_by, granted_at)` in plaats van één kolom. `owner_id`
+blijft staan en blijft gevuld, zodat niets omvalt dat er nog naar kijkt.
+
+**`resolveOwnerContext` wordt één keer omgeschreven** naar "staat deze
+gebruiker in `tenant_owners` van deze tenant". Elke bestaande aanroep
+blijft ongewijzigd werken — dat is precies de opbrengst van het feit dat
+ze allemaal door dat ene hulpje lopen.
+
+**Bevoegdheden per admin** als rijen, niet als een jsonb-kolom:
+`admin_capabilities (tenant_id, user_id, capability, granted_by,
+granted_at)`. Een rij per toekenning, dus wie wat wanneer gaf staat
+vanzelf in het auditlog.
+
+Een nieuw hulpje `resolveCapability('naam')` zegt ja als de gebruiker
+eigenaar is, óf als de toekenning bestaat.
+
+**Twee regels die niet mogen buigen:**
+
+1. **Standaard nee.** Een bevoegdheid die niemand heeft, kan niemand —
+   behalve een eigenaar. Een nieuwe capability die per ongeluk nergens
+   wordt gecontroleerd moet dicht staan, niet open.
+2. **Bevoegdheden uitdelen is altijd eigenaar-alleen.** Een admin die
+   zichzelf rechten kan geven heeft alle rechten.
+
+**De namen komen uit blok 3.** Die agent levert de tabel van wat vandaag
+`resolveOwnerContext` draagt; elk van die dingen wordt een capability
+met een naam die een mens begrijpt — prijzen wijzigen, koersen
+wijzigen, commissieregels zetten, een uitbetalingsgrens vrijgeven,
+admins beheren.
+
+## De actor-fix hoort hierbij
+
+Gemeten over 14 dagen, zonder de bankfeed meegerekend: **213
+auditregels zonder actor tegen 996 met**. Die 213 zijn schrijfacties via
+de service key — hetzelfde lek dat plak 99 voor één actie dichtte.
+
+Dat is niet alleen rapportage. Een geldwijziging zonder naam is nu al
+een gat, en met twee eigenaren en instelbare admins wordt het groter:
+dan is "wie deed dit" de eerste vraag bij elk geschil.
+
+```sql
+-- de werklijst, en hij houdt zichzelf bij
+select table_name, count(*) as zonder_actor
+  from audit_events
+ where actor_user_id is null
+   and table_name <> 'wise_incoming_transfers'
+   and occurred_at > now() - interval '30 days'
+ group by table_name order by 2 desc;
+```
+
+## Stappen
+
+- [ ] Wacht op de rechtenkaart uit blok 3
+- [ ] Plak: `tenant_owners`, `admin_capabilities`, de rechten erop, en
+      één rapporttabel
+- [ ] `resolveOwnerContext` omschrijven; `resolveCapability` erbij
+- [ ] De tweede compagnon als eigenaar toevoegen, met een eigen login
+- [ ] Scherm op `/admins`: per admin de schakelaars, alleen zichtbaar
+      voor een eigenaar
+- [ ] De actorloze schrijfacties uit de query hierboven omleggen naar
+      een SECURITY DEFINER RPC, zoals plak 99 deed
+- [ ] Lopen: als compagnon 2 inloggen en een eigenaar-actie doen; als
+      admin met één toegekende bevoegdheid die wél en de rest niet
+
+**Klaar als:** beide compagnons kunnen elk met hun eigen login alles wat
+de eigenaar kan, hun handelingen staan met hun eigen naam in
+`audit_events`, een admin kan precies wat hem is toegekend en niets
+meer, en de query hierboven geeft alleen nog rijen die echt van een
+machine komen.
+
+---
+
+# BLOK 15 — DE TESTACCOUNTS ERAF, EN DAN PAS LIVE
+
+**Als allerlaatste, na blok 13 en 14.** De eigenaar, 26-09: "we gaan toch
 straks alle accounts verwijderen en fresh beginnen."
 
 Dit blok staat expres achteraan en expres apart, want het is het enige
@@ -789,4 +898,5 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 | 11 | | | |
 | 12 | | | |
 | 13 grootboek | | | |
-| 14 opruimen | | | |
+| 14 eigenaren+rechten | | | |
+| 15 opruimen | | | |
