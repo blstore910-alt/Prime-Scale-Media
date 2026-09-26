@@ -48,6 +48,10 @@ nodig hebt.
 
 ---
 
+> **Wanneer welke deur opengaat staat in `docs/UITROLPLAN.md`.** Dit
+> document zegt wat we controleren; dat zegt in welke volgorde we
+> klanten binnenlaten, en welke poort daartussen zit.
+
 ## Waarom deze ronde anders is dan de zeventien reizen
 
 De zeventien reizen zijn gesloten, maar allemaal op **bestaande**
