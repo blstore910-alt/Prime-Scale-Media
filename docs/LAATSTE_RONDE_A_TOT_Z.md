@@ -1,5 +1,43 @@
 # DE LAATSTE RONDE — A tot Z, elk accounttype, elk scherm
 
+## DE PROMPT — plak deze elke keer opnieuw
+
+```
+LAATSTE RONDE. Lees docs/LAATSTE_RONDE_A_TOT_Z.md en ga verder bij het
+EERSTE blok dat in het logboek onderaan nog geen "gelopen" heeft. Zeg in
+een zin waar je begint en waarom, en begin dan.
+
+TWEE VENSTERS, NOOIT DRIE. Paneel = klantkant. Mijn Chrome = beheerkant.
+Ik zie ze allebei; wat ik niet zie gebeurt niet. Ik typ elk wachtwoord,
+elke Join en elke in- en uitlog. Jij doet al het andere.
+
+PER BLOK EERST VIER AGENTS, gescoopt op de bestanden van DAT blok:
+geld-rekenwerk / doodlopers / laden-leeg-fout / rechten. Bevindingen
+worden GEFIXT, niet genoteerd.
+
+DAN LOPEN WE HET SAMEN, per scherm:
+  1. jij opent hem in het paneel op 390px - ik kijk naar het ontwerp
+  2. jij houdt elk cijfer tegen de database met npm run check
+  3. ik zeg wat anders moet - jij fixt het
+  4. gate: npx tsc --noEmit && npx next lint --max-warnings 0 && npm test
+     geketend met &&, NOOIT door tail of grep
+  5. git push origin feat/redesign-advertiser:main, dan zelf op
+     app.primescalemedia.com kijken of het er staat en rendert MET DATA
+  6. desktop, zelfde scherm
+  7. volgende
+
+ELKE KNOP indrukken, ook van de takken die we niet kiezen.
+Geen "waarschijnlijk" - lees de code of vraag mij een SQL.
+Zeg METEEN wat je niet hebt kunnen verifiëren, en waarom.
+Een zelfverzekerde 0 boven een mislukte lees is een fout.
+Stop niet om te vragen of je door mag.
+
+AAN HET EIND VAN ELK BLOK: vul het logboek in het document in, commit
+het, en meld in vier regels: gelopen / gefixt / open / wat je van mij
+nodig hebt.
+```
+
+
 > Draaiboek voor de slotcontrole vóór livegang. Geschreven 2026-09-26.
 > Volg dit van boven naar beneden. Elk blok is af of niet af; er is geen
 > "grotendeels".
@@ -137,9 +175,11 @@ E-mailadressen: gebruik wegwerpadressen in dezelfde vorm als eerder
 **Venster 2: eigenaar. Venster 1: leeg.**
 
 - [ ] `git status` schoon, laatste commit staat live (`/api/version`)
-- [ ] De ondergrens van PSM0005 staat nog op **EUR 15** van de F3-loop.
-      Terugzetten op de staande 200 vóór we beginnen, anders lopen we
-      straks een testwaarde als echte instelling voorbij.
+- [x] De ondergrens van PSM0005 staat nog op **EUR 15** van de F3-loop.
+      **Blijft staan** — besluit van de eigenaar 26-09: alle testaccounts
+      gaan er straks toch af (blok 13), dus die waarde verdwijnt met het
+      account mee. Wel hier genoteerd zodat niemand hem later voor een
+      echte instelling aanziet.
 - [ ] Vastleggen wat er nú staat, zodat elk verschil daarna van ons is:
 
 ```sql
@@ -523,6 +563,68 @@ zijn tot een stap in dit document.
 
 ---
 
+# BLOK 13 — DE TESTACCOUNTS ERAF, EN DAN PAS LIVE
+
+**Als allerlaatste, na blok 12.** De eigenaar, 26-09: "we gaan toch
+straks alle accounts verwijderen en fresh beginnen."
+
+Dit blok staat expres achteraan en expres apart, want het is het enige
+in dit document dat **niet terug te draaien is**. Alles hierboven voegt
+toe; dit haalt weg.
+
+## Eerst de lijst, dan pas iets verwijderen
+
+Dit staat er vandaag op de echte tenant:
+
+| code | naam | rol | stortingen | betaald |
+|---|---|---|---|---|
+| PSM0001 | Advertiser1 Advertiser1 Surname | advertiser | 0 | — |
+| PSM0002 | john doe | advertiser | 0 | — |
+| PSM0003 | Henk AD | advertiser | 0 | — |
+| PSM0004 | Jonny Refferking | advertiser | 0 | — |
+| PSM0005 | Test Advertiser | advertiser | 2 | **EUR 615,70** |
+| PSM0006 | John Doe | advertiser | 0 | — |
+| PSM0007 | F2 Walkthrough | advertiser | 1 | **EUR 207,00** |
+| PSM0008 | the affiliateking | affiliate | 0 | — |
+| PSM0009 | Parel AF | affiliate | 0 | — |
+| PSM0010 | Piet Hendrik | advertiser | 0 | **EUR 10,00** |
+| PSM0011 | Gers padoel | advertiser | 2 | **EUR 260,00** |
+| PSM0012 | D2 Walkthrough | advertiser | 0 | — |
+| PSM0013 | A1 Walkthrough | advertiser | 0 | — |
+| PSM0014 | F1 Walkthrough Affiliate | affiliate | 0 | — |
+
+Plus de vier die deze ronde zelf aanmaakt.
+
+**Vier daarvan dragen betaalde facturen.** De namen van PSM0010 en
+PSM0011 lezen niet als een walkthrough — "Piet Hendrik" en "Gers padoel"
+zijn geen testnamen zoals "A1 Walkthrough" dat is. Ik weet niet of
+daar een echt mens achter zit, en dat is precies het soort ding dat je
+niet mag gokken. **De eigenaar wijst aan welke weg mogen, met naam en
+code.** Ik verwijder er geen één op eigen initiatief.
+
+## De volgorde, als de lijst er is
+
+- [ ] **Back-up eerst.** Een Supabase-back-up van vandaag, en los
+      daarvan een export van `advertisers`, `wallets`, `wallet_topups`,
+      `top_ups`, `invoices`, `referral_commissions` en `audit_events`.
+      Opslagbestanden (de slips) zitten **niet** in een databaseback-up.
+- [ ] **Deactiveren vóór verwijderen.** Zet ze eerst op inactief en kijk
+      een dag of er niets omvalt. Een account dat nergens meer aan hangt
+      kan daarna weg; een account dat ergens aan hangt merk je zo.
+- [ ] **Wat er aan hangt, hangt er ook na afloop.** `audit_events` is
+      append-only en hoort te blijven staan, ook als de rij waar hij
+      over ging verdwijnt. Facturen met een nummer horen in de
+      boekhouding te blijven. Verwijderen is dus niet "rij weg" maar
+      "welke rijen mogen weg en welke moeten blijven" — dat is een plak
+      die ik schrijf als de lijst er is, met één rapporttabel eronder.
+- [ ] **Daarna opnieuw tellen** tegen het nulpunt uit blok 0.
+
+**Klaar als:** alleen de accounts staan er nog die de eigenaar bij naam
+heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
+`audit_events` is niet aangeraakt.
+
+---
+
 ## Wat "af" betekent voor deze ronde
 
 - Elk scherm is door **jou** gezien, op telefoon én desktop.
@@ -559,3 +661,4 @@ zijn tot een stap in dit document.
 | 10 | | | |
 | 11 | | | |
 | 12 | | | |
+| 13 | | | |
