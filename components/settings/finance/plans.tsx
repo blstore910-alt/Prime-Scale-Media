@@ -17,6 +17,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+import { useAppContext } from "@/context/app-provider";
 import { suggestPrice } from "@/lib/pure-plan-price";
 import useExchangeRates from "./use-exchange-rates";
 
@@ -52,9 +54,17 @@ const blankOrNumber = (v: string) =>
   v.trim() === "" ? (undefined as unknown as number) : Number(v);
 
 export default function PlansCard() {
+  const { profile } = useAppContext();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["plans", "all"],
+    // The query filters by tenant (the server action resolves it from
+    // the profile_id cookie) and the key did not, so after a profile
+    // switch this rendered the OTHER tenant's rows as fact for the
+    // cache's lifetime -- 30s of staleTime. Nothing was ever written
+    // cross-tenant (the action re-checks), but the list on screen was
+    // somebody else's. use-exchange-rates.ts next door already keys on
+    // the tenant and carries the same note; these did not follow.
+    queryKey: ["plans", profile?.tenant_id ?? null, "all"],
     queryFn: async () => {
       const res = await listPlans();
       if (!res.ok) throw new Error(res.error);
@@ -144,6 +154,7 @@ export default function PlansCard() {
         // a migration error.
         const was = initial.find((x) => x.id === r.id);
         const prices: {
+          monthly_fee_eur?: number | null;
           monthly_fee_usd?: number | null;
           yearly_discount_pct?: number | null;
         } = {};
@@ -156,6 +167,38 @@ export default function PlansCard() {
         if (was && r.yearPct !== was.yearPct) {
           prices.yearly_discount_pct =
             r.yearPct.trim() === "" ? null : Number(r.yearPct);
+        }
+
+        // ── THE MONTHLY BOX IS THE PRICE IN THE PLAN'S OWN CURRENCY ──
+        //
+        // And it has to be written into that currency's PIN as well,
+        // because that is what everything downstream reads first:
+        // `monthlyIn` in lib/pure-plan-price.ts takes monthly_fee_eur /
+        // monthly_fee_usd and only falls back to monthly_fee when the
+        // pin is null. Migration 20260918300000 backfilled the pin for
+        // every existing plan, so on this database the pin is never
+        // null and the fallback is dead.
+        //
+        // The effect, before this: change Prime from 200 to 210, get
+        // "Saved 1 plan(s)", reload and see 210 -- and every customer
+        // invited after that is still put on a EUR 200 subscription.
+        // For ever, and the same in reverse for a price cut. The invite
+        // form shows both figures on one screen and disagrees with
+        // itself: the plan chip prints monthly_fee, the Monthly box is
+        // prefilled from the pin.
+        //
+        // There is no separate EUR box, so for a EUR plan the mirror is
+        // unconditional. For a USD plan there IS one, so a deliberate
+        // edit of it in the same save wins.
+        if (was && r.monthly !== was.monthly) {
+          const v = r.monthly.trim() === "" ? null : Number(r.monthly);
+          if (String(r.currency).toUpperCase() === "USD") {
+            if (prices.monthly_fee_usd === undefined) {
+              prices.monthly_fee_usd = v;
+            }
+          } else {
+            prices.monthly_fee_eur = v;
+          }
         }
 
         // ── AND THE SAME RULE FOR THE THREE BOXES ABOVE ──────────────

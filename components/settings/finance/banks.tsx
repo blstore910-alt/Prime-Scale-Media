@@ -39,6 +39,8 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAppContext } from "@/context/app-provider";
+
 // The set of editable, non-key fields on a destination. Empty string in the
 // UI == cleared; the server action trims empties back to null.
 type BankDraft = {
@@ -252,10 +254,18 @@ function liveDestination(slug?: string | null): string | null {
 }
 
 export default function BanksCard() {
+  const { profile } = useAppContext();
   const queryClient = useQueryClient();
 
   const typesQuery = useQuery({
-    queryKey: ["ad-account-types", "all"],
+    // The query filters by tenant (the server action resolves it from
+    // the profile_id cookie) and the key did not, so after a profile
+    // switch this rendered the OTHER tenant's rows as fact for the
+    // cache's lifetime -- 30s of staleTime. Nothing was ever written
+    // cross-tenant (the action re-checks), but the list on screen was
+    // somebody else's. use-exchange-rates.ts next door already keys on
+    // the tenant and carries the same note; these did not follow.
+    queryKey: ["ad-account-types", profile?.tenant_id ?? null, "all"],
     queryFn: async () => {
       const res = await listAdAccountTypes();
       if (!res.ok) throw new Error(res.error);
@@ -264,7 +274,14 @@ export default function BanksCard() {
   });
 
   const banksQuery = useQuery({
-    queryKey: ["bank-accounts"],
+    // The query filters by tenant (the server action resolves it from
+    // the profile_id cookie) and the key did not, so after a profile
+    // switch this rendered the OTHER tenant's rows as fact for the
+    // cache's lifetime -- 30s of staleTime. Nothing was ever written
+    // cross-tenant (the action re-checks), but the list on screen was
+    // somebody else's. use-exchange-rates.ts next door already keys on
+    // the tenant and carries the same note; these did not follow.
+    queryKey: ["bank-accounts", profile?.tenant_id ?? null],
     queryFn: async () => {
       const res = await listBankAccounts();
       if (!res.ok) throw new Error(res.error);

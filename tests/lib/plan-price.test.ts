@@ -122,3 +122,39 @@ test("a pinned zero is a price, not an absent one", () => {
   assert.equal(usd.amount, 0);
   assert.equal(usd.pinned, true);
 });
+
+/**
+ * ── THE PIN WINS, SO EVERY WRITER HAS TO KEEP IT IN STEP ────────────
+ *
+ * Found on 26-09 by the money agent on block 1, then verified on the
+ * live database. `/settings/plans` wrote `monthly_fee` and never
+ * `monthly_fee_eur`, while migration 20260918300000 had backfilled the
+ * pin for every existing plan — so the fallback below is dead on this
+ * database and the pin answers every question.
+ *
+ * The effect: change Prime from 200 to 210, see 210 on the screen after
+ * a reload, and invite every customer after that onto EUR 200. For
+ * ever, and the same in reverse for a price cut.
+ *
+ * These two tests pin the behaviour that makes the mirror necessary. If
+ * anyone ever decides the pin should NOT win, these fail first and the
+ * writer in plans.tsx can go.
+ */
+test("a stale EUR pin beats a freshly changed monthly_fee", () => {
+  const plan = { currency: "EUR", monthly_fee: 210, monthly_fee_eur: 200 };
+  const eur = planPrice(plan, "EUR", "month", 1.13);
+  assert.equal(eur.amount, 200, "the pin is what is charged, not the 210");
+  assert.equal(eur.pinned, true);
+});
+
+test("with the pin kept in step the two agree again", () => {
+  const plan = { currency: "EUR", monthly_fee: 210, monthly_fee_eur: 210 };
+  assert.equal(planPrice(plan, "EUR", "month", 1.13).amount, 210);
+});
+
+test("no pin at all still falls back to monthly_fee", () => {
+  const plan = { currency: "EUR", monthly_fee: 210, monthly_fee_eur: null };
+  const eur = planPrice(plan, "EUR", "month", 1.13);
+  assert.equal(eur.amount, 210);
+  assert.equal(eur.pinned, true);
+});

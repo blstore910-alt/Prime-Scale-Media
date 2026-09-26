@@ -24,6 +24,8 @@ import { Loader2, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAppContext } from "@/context/app-provider";
+
 const GROUP_LABELS: Record<AdAccountPlatformGroup, string> = {
   meta: "Meta",
   google: "Google",
@@ -66,9 +68,17 @@ function parsePct(v: string): number | null {
 }
 
 export default function AdAccountTypesCard() {
+  const { profile } = useAppContext();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["ad-account-types", "all"],
+    // The query filters by tenant (the server action resolves it from
+    // the profile_id cookie) and the key did not, so after a profile
+    // switch this rendered the OTHER tenant's rows as fact for the
+    // cache's lifetime -- 30s of staleTime. Nothing was ever written
+    // cross-tenant (the action re-checks), but the list on screen was
+    // somebody else's. use-exchange-rates.ts next door already keys on
+    // the tenant and carries the same note; these did not follow.
+    queryKey: ["ad-account-types", profile?.tenant_id ?? null, "all"],
     queryFn: async () => {
       const res = await listAdAccountTypes();
       if (!res.ok) throw new Error(res.error);
@@ -226,6 +236,20 @@ export default function AdAccountTypesCard() {
           duration: 15000,
         });
       }
+      // ── AND LET GO OF THE ROW ────────────────────────────────────
+      //
+      // `dirty` was never cleared here. The adopt-effect above
+      // deliberately refuses fresh server rows while ANYTHING is dirty,
+      // so the row kept the updated_at it had BEFORE the save while the
+      // trigger on the table had just bumped the real one. The next
+      // Save sent that stale stamp as ifUpdatedAt and was refused with
+      // "This type was changed elsewhere. Reload and try again." --
+      // changed by nobody but the same admin, one press earlier, and
+      // every further edit to that row refused until a full reload.
+      //
+      // plans.tsx carries this exact fix with the same note. It was
+      // never brought across; found by the dead-ends agent on 26-09.
+      setRows((prev) => prev.map((r) => ({ ...r, dirty: false })));
       invalidate();
     },
     onError: (err: Error) =>
