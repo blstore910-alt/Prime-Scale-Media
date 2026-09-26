@@ -343,6 +343,21 @@ export default function PlansCard() {
               <span className="text-right">Year %</span>
               <span className="text-right">On</span>
             </div>
+            {/* ── AN EMPTY LIST HAS TO SAY SO ──────────────────────
+                Without this the owner sees the column header and then
+                straight to the Add form -- no line, no distinction
+                between "this tenant has none" and "the read came back
+                with nothing". The action returns `data ?? []`, which is
+                exactly the null-data-no-error case this repo guards
+                against by name elsewhere. Live has four of these, so an
+                empty list here is always worth a sentence. */}
+            {rows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No plans yet. Add one below — until there is an active
+                plan, a new customer signs up with no subscription and is
+                never invoiced.
+              </p>
+            ) : null}
             {rows.map((r, i) => (
               <div key={r.id} className={cols}>
                 <label className="col-span-2 grid gap-1 sm:col-span-1">

@@ -57,6 +57,21 @@ export type AutoPushStatus = {
   failed: number;
   /** When the newest failure happened, so "3 failed" has an age. */
   lastFailureAt: string | null;
+  /**
+   * The queue could not be READ.
+   *
+   * `count ?? 0` turned a refused or failed count into a clean queue,
+   * and the card only renders those two lines when the value is above
+   * zero -- so a broken read looked exactly like "nothing waiting,
+   * nothing failed". On the one tile that reports money taken from a
+   * customer without the account being funded, that is the worst
+   * possible direction to be wrong in.
+   *
+   * The lesson is written up at length in ad-account-type-actions.ts
+   * ("A COUNT WE DID NOT GET IS NOT A COUNT OF ZERO"); it had not been
+   * brought here.
+   */
+  queueUnknown: boolean;
 };
 
 // Whether the app is allowed to fund ad accounts at the supplier by itself.
@@ -74,7 +89,7 @@ export async function getAutoPushStatus(): Promise<
   let held = 0;
   if (!guard.ctx.ok) return { error: "Forbidden" };
   const { supabase, profile } = guard.ctx.ctx;
-  const { count } = await supabase
+  const { count, error: heldErr } = await supabase
     .from("integration_jobs")
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", profile.tenant_id)
@@ -82,10 +97,15 @@ export async function getAutoPushStatus(): Promise<
     .in("operation", ["push_topup", "push_withdraw"])
     .eq("status", "pending");
   held = count ?? 0;
+  let queueUnknown = !!heldErr || count === null || count === undefined;
 
   // ...and the ones that gave up. See the type above for what a 0 here
   // was hiding.
-  const { data: failedRows, count: failedCount } = await supabase
+  const {
+    data: failedRows,
+    count: failedCount,
+    error: failedErr,
+  } = await supabase
     .from("integration_jobs")
     .select("finished_at", { count: "exact" })
     .eq("tenant_id", profile.tenant_id)
@@ -94,6 +114,9 @@ export async function getAutoPushStatus(): Promise<
     .eq("status", "failed")
     .order("finished_at", { ascending: false })
     .limit(1);
+  if (failedErr || failedCount === null || failedCount === undefined) {
+    queueUnknown = true;
+  }
   const lastFailureAt =
     (failedRows?.[0] as { finished_at?: string | null } | undefined)
       ?.finished_at ?? null;
@@ -105,6 +128,7 @@ export async function getAutoPushStatus(): Promise<
     held,
     failed: failedCount ?? 0,
     lastFailureAt,
+    queueUnknown,
   };
 }
 

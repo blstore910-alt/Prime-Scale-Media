@@ -174,6 +174,30 @@ export async function upsertPlan(input: {
   if (monthly == null) return { ok: false, error: "Monthly fee must be ≥ 0." };
   if (included == null) return { ok: false, error: "Included accounts must be ≥ 0." };
   if (pct == null) return { ok: false, error: "Topup fee must be 0–100%." };
+  // ── THE COLUMN HOLDS TWO DECIMALS ─────────────────────────────────
+  //
+  // topup_fee_pct is numeric(5,2). `num` accepted 5.125, the column
+  // stored 5.13, and the screen read it back as 5.13 under a success
+  // toast. On a EUR 10,000 top-up that collects 513.00 where 512.50 was
+  // set, with nothing saying the figure moved.
+  //
+  // Refusing beats silently storing something else: the owner retypes
+  // one digit instead of finding it on an invoice. fee-defaults.tsx
+  // already states this rule; it was never brought to the two screens
+  // that are actually on a route.
+  if (Math.abs(pct * 100 - Math.round(pct * 100)) > 1e-9) {
+    return {
+      ok: false,
+      error: "A top-up fee is set to two decimals — 5.13, not 5.125.",
+    };
+  }
+  // Same column, same rule, for the price.
+  if (monthly !== null && Math.abs(monthly * 100 - Math.round(monthly * 100)) > 1e-9) {
+    return {
+      ok: false,
+      error: "A monthly price is set to two decimals — 199.99, not 199.995.",
+    };
+  }
 
   const patch: Record<string, unknown> = {
     name,

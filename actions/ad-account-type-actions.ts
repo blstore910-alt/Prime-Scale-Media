@@ -76,8 +76,22 @@ async function writeSupplier(
   return `The supplier details were not saved: ${error.message}`;
 }
 
+// ── THE COLUMN HOLDS TWO DECIMALS ──────────────────────────────
+//
+// numeric(5,2). The validator accepted 5.125, the column stored
+// 5.13, and the screen read it back as 5.13 under a success toast.
+// On a EUR 10,000 top-up that collects 513.00 where 512.50 was set,
+// with nothing saying the figure moved.
+//
+// Refusing beats silently storing something else: the admin retypes
+// one digit instead of finding it on an invoice. fee-defaults.tsx
+// already states this rule in its own comment; it was never brought
+// to the two screens that are actually on a route.
 function isValidPct(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 100) {
+    return false;
+  }
+  return Math.abs(v * 100 - Math.round(v * 100)) <= 1e-9;
 }
 
 // ─────────────────────────────────────────

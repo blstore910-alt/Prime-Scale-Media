@@ -334,6 +334,21 @@ export default function AdAccountTypesCard() {
               <span className="text-right" title="Auto-topup via supplier API (Supplier 1)">API</span>
               <span className="text-right">Active</span>
             </div>
+            {/* ── AN EMPTY LIST HAS TO SAY SO ──────────────────────
+                Without this the owner sees the column header and then
+                straight to the Add form -- no line, no distinction
+                between "this tenant has none" and "the read came back
+                with nothing". The action returns `data ?? []`, which is
+                exactly the null-data-no-error case this repo guards
+                against by name elsewhere. Live has four of these, so an
+                empty list here is always worth a sentence. */}
+            {rows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No ad-account types yet. Add one below — with none active,
+                the customer&apos;s request form falls back to a built-in list
+                at rates this tenant never set.
+              </p>
+            ) : null}
             {rows.map((row, idx) => (
               <div
                 key={row.id}

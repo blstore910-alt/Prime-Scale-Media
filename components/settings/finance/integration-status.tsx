@@ -105,6 +105,22 @@ function AutoPushRow() {
               : "Auto-push is OFF — top-ups are funded by hand"}
           </div>
           <div className="mt-0.5 text-muted-foreground">{status.reason}</div>
+          {/* ── AND SAY SO WHEN WE DID NOT GET AN ANSWER ─────────
+              Both lines below render only when their number is above
+              zero, so a refused or failed count looked exactly like a
+              clean queue. This is the tile that reports money taken
+              without the account being funded; silence is the one thing
+              it must not do. */}
+          {status.queueUnknown && (
+            <div
+              className="mt-1 font-medium"
+              style={{ color: "var(--danger, #b91c1c)" }}
+            >
+              We couldn&apos;t read the push queue, so the two lines below
+              are not a clean bill of health. Reload before you conclude
+              that nothing is waiting.
+            </div>
+          )}
           {status.held > 0 && (
             <div className="mt-1 text-muted-foreground">
               {status.held} push job{status.held === 1 ? "" : "s"} waiting.
