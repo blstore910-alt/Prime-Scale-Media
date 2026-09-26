@@ -26,6 +26,10 @@ DAN LOPEN WE HET SAMEN, per scherm:
   6. desktop, zelfde scherm
   7. volgende
 
+BLOK 13 IS EEN BOUWBLOK, geen loopblok: daar zijn geen schermen en geen
+twee vensters, daar bouw je het grootboek en lever je de plak. De lus
+hierboven geldt voor de andere blokken.
+
 ELKE KNOP indrukken, ook van de takken die we niet kiezen.
 Geen "waarschijnlijk" - lees de code of vraag mij een SQL.
 Zeg METEEN wat je niet hebt kunnen verifiëren, en waarom.
@@ -177,7 +181,7 @@ E-mailadressen: gebruik wegwerpadressen in dezelfde vorm als eerder
 - [ ] `git status` schoon, laatste commit staat live (`/api/version`)
 - [x] De ondergrens van PSM0005 staat nog op **EUR 15** van de F3-loop.
       **Blijft staan** — besluit van de eigenaar 26-09: alle testaccounts
-      gaan er straks toch af (blok 13), dus die waarde verdwijnt met het
+      gaan er straks toch af (blok 14), dus die waarde verdwijnt met het
       account mee. Wel hier genoteerd zodat niemand hem later voor een
       echte instelling aanziet.
 - [ ] Vastleggen wat er nú staat, zodat elk verschil daarna van ons is:
@@ -563,9 +567,112 @@ zijn tot een stap in dit document.
 
 ---
 
-# BLOK 13 — DE TESTACCOUNTS ERAF, EN DAN PAS LIVE
+# BLOK 13 — HET GROOTBOEK, VÓÓR DE EERSTE ECHTE EURO
 
-**Als allerlaatste, na blok 12.** De eigenaar, 26-09: "we gaan toch
+**Dit is geen loopblok maar een bouwblok.** Geen schermen, geen twee
+vensters — code, een plak, en een controle.
+
+## Waarom dit vóór de livegang moet
+
+`wallets` draagt twee kolommen: `usd_balance` en `eur_balance`. Dat is
+een **stand**, geen grootboek. De bewegingen liggen verspreid over acht
+tabellen — `wallet_topups`, `wallet_adjustments`, `wallet_exchanges`,
+`wallet_precharges`, `wallet_refunds`, `top_ups`,
+`ad_account_withdrawals`, `invoices` — elk met een eigen vorm, en het
+saldo wordt ter plekke opgehoogd of verlaagd.
+
+Gevolg: gaat er ooit één saldo fout, dan kunnen we niet **bewijzen** wat
+het had moeten zijn. Alleen reconstrueren uit `audit_events`, en dat is
+precies waarom `actions/wallet-recovery-actions.ts` bestaat. Dat is een
+reddingsboei, geen boekhouding.
+
+Dit blok verandert elke toekomstige geldfout van "onoplosbaar" in "we
+zien precies waar het misging". Het lost de andere risico's niet op —
+gelijktijdigheid, combinaties, tijd — maar het maakt ze **overleefbaar**.
+
+## Wat er komt
+
+**Eén append-only tabel.** Per beweging één regel:
+
+```
+wallet_ledger
+  id, occurred_at, tenant_id, advertiser_id, wallet_id, currency,
+  delta, balance_before, balance_after,
+  source, source_id, reason, actor_user_id
+```
+
+**Geschreven door een TRIGGER op `wallets`, niet door de twaalf RPC's.**
+Dat is de kern van het ontwerp. Een trigger op de saldokolommen ziet
+élke beweging, ook die van een functie die iemand volgend jaar toevoegt
+en vergeet aan te sluiten. Volledigheid eerst.
+
+**De reden komt er als hint bij.** Elke money-RPC zet vóór zijn schrijf
+een sessievariabele (`set local psm.ledger_source = 'topup_verify'` met
+het id erbij); de trigger leest hem en zet hem in `source`. Staat hij er
+niet, dan landt de regel alsnog met `source = 'unknown'`. Dus: een
+ontbrekende hint kost ons het *waarom*, nooit het *dat*.
+
+Zo hoeven we niet twaalf live-only functies in één keer open te leggen.
+Die sluiten we daarna één voor één aan, en `source = 'unknown'` is de
+werklijst die zichzelf bijhoudt.
+
+**Echt append-only.** Geen UPDATE- en DELETE-recht voor wie dan ook, en
+een trigger die het alsnog weigert. Plus `revoke` van `anon` in hetzelfde
+blok als de `create`, zoals altijd.
+
+## De controle die er de hele tijd bij hoort
+
+Eén query die zegt of de som van de regels gelijk is aan het saldo:
+
+```sql
+select w.advertiser_id, w.eur_balance, w.usd_balance,
+       coalesce(sum(l.delta) filter (where l.currency='EUR'), 0) as eur_uit_regels,
+       coalesce(sum(l.delta) filter (where l.currency='USD'), 0) as usd_uit_regels
+  from wallets w
+  left join wallet_ledger l on l.wallet_id = w.id
+ group by w.id, w.advertiser_id, w.eur_balance, w.usd_balance
+having w.eur_balance is distinct from coalesce(sum(l.delta) filter (where l.currency='EUR'), 0)
+    or w.usd_balance is distinct from coalesce(sum(l.delta) filter (where l.currency='USD'), 0);
+```
+
+**Nul rijen is goed.** Elke rij is een portemonnee waar de boeken niet
+kloppen, en die query is vanaf dag één de eerste die 's ochtends draait.
+
+## De historie
+
+De regels van vóór vandaag zijn er niet, en die kunnen we niet uit het
+niets maken. Wat wel kan: een **beste-poging-backfill** uit
+`audit_events`, met `source = 'backfill'` en een `balance_before` die
+uit de audit komt in plaats van uit de werkelijkheid.
+
+Die backfill is **geen bewijs** en moet zo genoemd worden, in de kolom
+en in het scherm dat hem toont. Het grootboek is gezaghebbend vanaf de
+dag dat de trigger aan gaat, en geen dag eerder.
+
+## Stappen
+
+- [ ] Plak: de tabel, de trigger op `wallets`, het append-only-slot,
+      de rechten, en één rapporttabel eronder
+- [ ] De acht bestaande bewegingstabellen doorlopen: welke `source`
+      hoort bij welke, zodat de hint-namen vastliggen vóór de eerste
+      RPC hem zet
+- [ ] De vier meest gebruikte RPC's de hint laten zetten
+      (wallet-topup verifiëren, ad-account funden, ad-account
+      terugboeken, factuur betalen uit de wallet)
+- [ ] De controlequery in `npm run check` en in de dagelijkse gang
+- [ ] Backfill uit `audit_events`, gemerkt als backfill
+- [ ] Een beweging maken en terugzien: één regel, juiste delta, juiste
+      before/after, juiste source, juiste actor
+
+**Klaar als:** de controlequery nul rijen geeft, een verse beweging
+binnen een seconde als regel terugkomt, en niemand — ook de service key
+niet — een regel kan wijzigen of verwijderen.
+
+---
+
+# BLOK 14 — DE TESTACCOUNTS ERAF, EN DAN PAS LIVE
+
+**Als allerlaatste, na blok 13.** De eigenaar, 26-09: "we gaan toch
 straks alle accounts verwijderen en fresh beginnen."
 
 Dit blok staat expres achteraan en expres apart, want het is het enige
@@ -661,4 +768,5 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 | 10 | | | |
 | 11 | | | |
 | 12 | | | |
-| 13 | | | |
+| 13 grootboek | | | |
+| 14 opruimen | | | |
