@@ -1550,10 +1550,25 @@ function RefundRequestDialog({
   // the customer and the amount -- so a refund approved with these empty
   // debits the wallet and leaves nobody an address to wire it to. There
   // is no edit path on wallet_refunds anywhere in the app.
+  // ── THE REASON IS NOT OPTIONAL ───────────────────────────────────
+  //
+  // The owner, 27-09: "ook reason to cancel, en advertisers moeten ook
+  // altijd reason to cancel invullen."
+  //
+  // This is money leaving the business to a bank account somebody typed
+  // in. The owner approves it afterwards, and "why" is the whole of
+  // what they are approving -- a closing customer, a duplicate payment,
+  // a mistake of ours. Optional meant it was usually blank, and then
+  // the approval is a yes/no on an amount with no story.
+  //
+  // Three characters, like every other reason in this app (the invoice
+  // cancel, the rejection dialogs). Long enough to stop an empty box,
+  // short enough that nobody games it.
   const valid =
     !!advertiserId &&
     Number.isFinite(numeric) &&
     numeric > 0 &&
+    reason.trim().length >= 3 &&
     payoutDetails.trim().length > 3 &&
     businessName.trim().length > 1;
 
@@ -1651,13 +1666,17 @@ function RefundRequestDialog({
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="rf-reason">Reason (optional)</Label>
+            <Label htmlFor="rf-reason">Why</Label>
             <Input
               id="rf-reason"
               placeholder="e.g. customer closing account"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              The owner sees this when they approve it. Say what happened,
+              not just &ldquo;refund&rdquo;.
+            </p>
           </div>
 
           <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
@@ -2220,7 +2239,16 @@ function AdjustmentRequestDialog({
   });
 
   const numeric = Number(amount);
-  const valid = !!advertiserId && Number.isFinite(numeric) && numeric > 0;
+  // Same rule as the refund above: this moves a customer's balance by
+  // hand and the owner approves it afterwards, so "why" is the whole of
+  // what they are approving. The field was already called Reason and
+  // already sent (`reason.trim() || undefined`) -- it just was not
+  // required, so it was usually empty.
+  const valid =
+    !!advertiserId &&
+    Number.isFinite(numeric) &&
+    numeric > 0 &&
+    reason.trim().length >= 3;
 
   return (
     // Not dismissable while the write is in flight -- Escape and the
