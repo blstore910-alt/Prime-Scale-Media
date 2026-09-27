@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
@@ -27,6 +27,18 @@ import { useQuery } from "@tanstack/react-query";
  * decide what to say when the two currencies cannot be compared, and this
  * hook must not decide it for them by guessing parity.
  */
+// ── ONE ASK PER TAB, NOT ONE PER HOOK ───────────────────────────────
+//
+// Module scope on purpose. This hook is mounted by five components and
+// more than one of them is on screen at once -- measured on production
+// 27-09, the affiliate's Referrals screen fired the refresh TWICE per
+// load, once from the shell and once from the payout card, and did it
+// again on every navigation.
+//
+// A per-instance ref cannot see the other instance. This can.
+const REASK_AFTER_MS = 10 * 60_000;
+let lastAskedAt = 0;
+
 export function useUsdToEur() {
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
@@ -73,11 +85,14 @@ export function useUsdToEur() {
   // screen keeps rendering the rate it has — a slightly old rate is worth
   // showing, and this is a background top-up, not a dependency. `asked`
   // holds it to once per mount so a re-render cannot loop.
-  const asked = useRef(false);
   useEffect(() => {
-    if (asked.current || !tenantId || !data?.updatedAt) return;
+    if (!tenantId || !data?.updatedAt) return;
     if (!rateAge(data.updatedAt).stale) return;
-    asked.current = true;
+    // Stamped BEFORE the request, so two instances rendering in the same
+    // tick cannot both get through, and a refresh that fails cannot be
+    // retried on every re-render.
+    if (Date.now() - lastAskedAt < REASK_AFTER_MS) return;
+    lastAskedAt = Date.now();
     (async () => {
       try {
         const res = await fetch("/api/exchange-rates/refresh", {

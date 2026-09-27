@@ -152,9 +152,31 @@ export async function refreshExchangeRates(
       continue;
     }
 
+    // ── updated_at MEANS "WHEN WE LAST CONFIRMED THIS" ─────────────
+    //
+    // Written explicitly, and this is the whole point of the fix.
+    //
+    // `_touch_updated_at` is `if new is distinct from old then
+    // new.updated_at := now()`, so writing the SAME rate left the stamp
+    // where it was. EUR/USD did not move between 08:00 and 14:20 on
+    // 27-09, so the row read "last updated 08:00" all day and I read
+    // that as a rate six hours stale and reported a money fault that did
+    // not exist. It also made the client-side refresh a loop: it wrote,
+    // the stamp did not move, the reader still saw "stale", and it asked
+    // again on every mount.
+    //
+    // A rate row wants to answer "how old is this information", not
+    // "when did the number last change" -- an unchanged rate confirmed a
+    // minute ago is FRESH. So the stamp moves on every confirmation,
+    // whether or not the figure did.
     const { error: writeErr } = await supabase
       .from("exchange_rates")
-      .update({ eur: fresh.eur, gbp: fresh.gbp, hkd: fresh.hkd })
+      .update({
+        eur: fresh.eur,
+        gbp: fresh.gbp,
+        hkd: fresh.hkd,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", row.id);
     if (writeErr) {
       console.error("exchange-rates: write", safeErrorMessage(writeErr));
