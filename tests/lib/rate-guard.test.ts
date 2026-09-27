@@ -64,3 +64,51 @@ test("a refusal carries a sentence a human can act on", () => {
   assert.ok(v.reason!.includes("0.872361"));
   assert.ok(v.reason!.length > 20);
 });
+
+import { RATE_STALE_HOURS, rateAge } from "../../lib/pure-rate-guard";
+
+const NOW = new Date("2026-09-27T12:00:00Z");
+const ago = (mins: number) =>
+  new Date(NOW.getTime() - mins * 60000).toISOString();
+
+test("a fresh rate reads as fresh and is not flagged", () => {
+  assert.equal(rateAge(ago(0), NOW).text, "updated just now");
+  assert.equal(rateAge(ago(14), NOW).text, "updated 14 minutes ago");
+  assert.equal(rateAge(ago(14), NOW).stale, false);
+});
+
+test("one of something is singular", () => {
+  assert.equal(rateAge(ago(1), NOW).text, "updated 1 minute ago");
+  assert.equal(rateAge(ago(60), NOW).text, "updated 1 hour ago");
+});
+
+/**
+ * The state this exists for. On 27-09 the hourly job ran once and
+ * stopped, and the rate sat there looking exactly like a fresh one.
+ */
+test("a job that stopped becomes visible", () => {
+  const justUnder = rateAge(ago(RATE_STALE_HOURS * 60 - 1), NOW);
+  const justOver = rateAge(ago(RATE_STALE_HOURS * 60 + 1), NOW);
+  assert.equal(justUnder.stale, false);
+  assert.equal(justOver.stale, true);
+});
+
+test("the ten-day case reads in days", () => {
+  const v = rateAge(ago(10 * 24 * 60), NOW);
+  assert.equal(v.text, "updated 10 days ago");
+  assert.equal(v.stale, true);
+});
+
+test("nothing to date says nothing, rather than guessing", () => {
+  for (const v of [null, undefined, "", "not a date"]) {
+    const r = rateAge(v as string, NOW);
+    assert.equal(r.text, null);
+    assert.equal(r.stale, false);
+  }
+});
+
+test("a clock that disagrees is unknown, not fresh", () => {
+  const future = new Date(NOW.getTime() + 60 * 60000).toISOString();
+  assert.equal(rateAge(future, NOW).text, null);
+  assert.equal(rateAge(future, NOW).stale, false);
+});

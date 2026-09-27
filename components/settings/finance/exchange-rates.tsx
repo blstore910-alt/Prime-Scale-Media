@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import ExchangeRateLogs from "./exchange-rates-logs";
 import useExchangeRates from "./use-exchange-rates";
+import { rateAge } from "@/lib/pure-rate-guard";
 
 export default function ExchangeRates() {
   const { exchangeRates, isLoading, isError, error } = useExchangeRates({
@@ -43,6 +44,36 @@ export default function ExchangeRates() {
             <CardDescription>
               Update conversion rates from USD to the currencies below.
             </CardDescription>
+            {/* ── HOW OLD THE FIGURE IS, WHERE THE FIGURE IS ──────────
+                An hourly job keeps these fresh, and on 27-09 that job
+                ran once and stopped. Nobody noticed, because a stale
+                rate looks exactly like a fresh one -- which is also how
+                the rate before it got to be ten days old.
+
+                A warning inside the job cannot report the job not
+                running, so it lives here instead, next to the numbers
+                it is about. */}
+            {(() => {
+              const age = rateAge(
+                (exchangeRates?.[0] as { updated_at?: string } | undefined)
+                  ?.updated_at,
+              );
+              if (!age.text) return null;
+              return (
+                <p
+                  className={
+                    "mt-1 text-xs " +
+                    (age.stale
+                      ? "font-medium text-destructive"
+                      : "text-muted-foreground")
+                  }
+                >
+                  {age.stale
+                    ? `Last ${age.text} — these should refresh every hour. Check that the rate job is still running before you rely on a conversion.`
+                    : `Last ${age.text}, automatically.`}
+                </p>
+              );
+            })()}
           </div>
           <CardAction>
             <ExchangeRateLogs />

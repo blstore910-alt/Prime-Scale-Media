@@ -79,7 +79,34 @@ export async function GET(req: NextRequest) {
     const usd = all?.usd ?? {};
     fresh = { eur: Number(usd.eur), gbp: Number(usd.gbp), hkd: Number(usd.hkd) };
   } catch (e) {
+    // ── A CRON THAT STOPS MUST NOT BE INVISIBLE ────────────────────
+    //
+    // This returned a 502 to Vercel and said nothing to anybody. The
+    // whole reason this job exists is that a rate quietly went ten days
+    // stale; a provider that starts refusing would put us straight
+    // back there, with the app happily converting on an old number.
+    //
+    // Measured 27-09: the job ran once at 08:00 and not at 09, 10, 11
+    // or 12 -- and the only way anyone found out was by reading
+    // updated_at by hand. So: tell the owner, on every tenant, and
+    // keep the old rate.
     console.error("exchange-rates cron: provider", safeErrorMessage(e));
+    try {
+      const { data: tenants } = await supabase
+        .from("exchange_rates")
+        .select("tenant_id")
+        .eq("is_active", true);
+      for (const t of (tenants ?? []) as { tenant_id: string }[]) {
+        await supabase.rpc("raise_integration_failure", {
+          p_tenant_id: t.tenant_id,
+          p_source: "exchange_rate",
+          p_detail:
+            "The hourly rate update could not reach the provider. The previous rate is still in use — check how old it is on Settings → Finance.",
+        });
+      }
+    } catch (inner) {
+      console.error("exchange-rates cron: alert", safeErrorMessage(inner));
+    }
     return NextResponse.json(
       { ok: false, error: "Could not reach the rate provider" },
       { status: 502 },

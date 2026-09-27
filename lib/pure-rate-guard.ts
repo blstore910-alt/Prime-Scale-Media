@@ -61,3 +61,50 @@ export function rateMoveVerdict(
   }
   return { ok: true, movePct, reason: null };
 }
+
+/**
+ * How old the stored rate is, in words, and whether that is a problem.
+ *
+ * The hourly job can stop — a provider that starts refusing, a schedule
+ * that does not fire — and on 27-09 it did exactly that: it ran once at
+ * 08:00 and not again, and the only way anyone found out was by reading
+ * `updated_at` by hand. A warning that lives inside the job cannot
+ * report the job not running, so this one lives on the screen.
+ */
+
+/** Past this, the figure on screen deserves a second look. */
+export const RATE_STALE_HOURS = 6;
+
+export type RateAge = {
+  /** "updated 14 minutes ago", or null when there is nothing to date. */
+  text: string | null;
+  /** Old enough that the owner should know. */
+  stale: boolean;
+  hours: number | null;
+};
+
+export function rateAge(
+  updatedAt: string | null | undefined,
+  now: Date = new Date(),
+): RateAge {
+  if (!updatedAt) return { text: null, stale: false, hours: null };
+  const then = new Date(updatedAt).getTime();
+  if (!Number.isFinite(then)) return { text: null, stale: false, hours: null };
+
+  const mins = Math.floor((now.getTime() - then) / 60000);
+  // A clock that disagrees is not a fresh rate. Treat the future as
+  // unknown rather than as "updated in 0 minutes".
+  if (mins < 0) return { text: null, stale: false, hours: null };
+
+  const hours = mins / 60;
+  const text =
+    mins < 1
+      ? "updated just now"
+      : mins < 60
+        ? `updated ${mins} minute${mins === 1 ? "" : "s"} ago`
+        : hours < 48
+          ? `updated ${Math.floor(hours)} hour${Math.floor(hours) === 1 ? "" : "s"} ago`
+          : `updated ${Math.floor(hours / 24)} days ago`;
+
+  return { text, stale: hours >= RATE_STALE_HOURS, hours };
+}
