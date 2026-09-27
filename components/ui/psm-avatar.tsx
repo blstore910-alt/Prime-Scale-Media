@@ -214,6 +214,20 @@ function lighten(hex: string, amount: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
+/** The other direction. lib/pure-avatar.ts has a `darken` of its own;
+ *  this file already keeps a local `lighten` for the same reason —
+ *  the drawing should not need an import to mix two shades of one hue. */
+function shade(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex ?? "").trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const mix = (c: number) => Math.round(c * (1 - amount));
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 /** The ten drawings. Each takes the same spec and paints the whole disc. */
 function Style({
   style,
@@ -428,86 +442,63 @@ function Style({
     // Everything comes from the seed's own two colours, so an advertiser,
     // an affiliate and an admin each keep their own family and nothing
     // here has to be told what the brand palette is.
-    case "mono":
+    // ── A FLAT TINT, AND NOTHING ELSE ────────────────────────────────
+    //
+    // The owner, 27-09: "heb al vaker gezegd, deze avatar met gradient
+    // voor advertiser, admin, super admin, alle accounts, zijn super
+    // lelijk." They HAD said it before, and I had been adjusting it one
+    // screen at a time -- which is exactly why it kept coming back. Every
+    // avatar in this app is drawn by this switch, and this was the
+    // drawing.
+    //
+    // What it was: a radial gradient body, a wash circle of the next
+    // palette colour, a white sweep across the top, the initials drawn
+    // TWICE (a dark copy offset behind a light one, for a letterpress
+    // shadow) and two rims. Six decorations on a 28px disc. At that size
+    // none of it resolves -- it reads as a smudge -- and at 48px it
+    // competes with cards that are themselves built out of gradients.
+    //
+    // Shown six directions and asked to pick, the owner chose the flat
+    // tint. So: a pale ground off the seed colour, the same hue darkened
+    // for the letters, one hairline to seat it on a white panel. The
+    // colour still comes from the name, so two colleagues are still told
+    // apart at a glance -- the one thing the decoration was doing that
+    // was worth keeping.
+    case "mono": {
+      const ground = lighten(a.bg, 0.78);
+      const letters = shade(a.bg, 0.3);
       return (
         <>
-          <defs>
-            {/* The body: the seed colour lifted towards white where the
-                light hits, dropping to its own dark end in the corner. */}
-            <radialGradient id={`${uid}s`} cx="0.32" cy="0.26" r="0.92">
-              <stop offset="0" stopColor={lighten(a.bg, 0.34)} />
-              <stop offset="0.52" stopColor={a.bg} />
-              <stop offset="1" stopColor={a.bg2} />
-            </radialGradient>
-            {/* The sweep. Opaque at the top, gone by the middle -- a
-                highlight that reaches the bottom reads as fog. */}
-            <linearGradient id={`${uid}h`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.42" />
-              <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0.06" />
-              <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-
-          <rect width="36" height="36" fill={`url(#${uid}s)`} />
-          {/* A wash of the next palette colour, bottom right, so two
-              people on neighbouring rows differ by more than hue. */}
-          <circle cx="30" cy="31" r="14" fill={c1} opacity="0.22" />
-          <path d="M0 0 H36 V15 C27 21 9 21 0 15 Z" fill={`url(#${uid}h)`} />
+          <rect width="36" height="36" fill={ground} />
           <text
             x="18"
-            y="19"
+            y="18.4"
             textAnchor="middle"
             dominantBaseline="central"
-            fill="#0B1020"
-            fillOpacity="0.32"
+            fill={letters}
             style={{
               fontSize: "14.5px",
               fontWeight: 800,
               fontFamily: "var(--hd, system-ui), system-ui, sans-serif",
-              letterSpacing: "0.6px",
+              letterSpacing: "0.4px",
             }}
           >
             {a.initials}
           </text>
-          <text
-            x="18"
-            y="18.2"
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill={a.ink}
-            style={{
-              fontSize: "14.5px",
-              fontWeight: 800,
-              fontFamily: "var(--hd, system-ui), system-ui, sans-serif",
-              letterSpacing: "0.6px",
-            }}
-          >
-            {a.initials}
-          </text>
-          {/* The rim, drawn INSIDE the clip so it is never clipped away:
-              bright where the light is, a darker line outside it to seat
-              the disc on a pale panel. */}
+          {/* One hairline, inside the clip so it is never cut away: a
+              pale disc on a white panel has no edge without it. */}
           <circle
             cx="18"
             cy="18"
-            r="17.2"
+            r="17.5"
             fill="none"
-            stroke="#FFFFFF"
-            strokeOpacity="0.34"
-            strokeWidth="1.1"
-          />
-          <circle
-            cx="18"
-            cy="18"
-            r="17.9"
-            fill="none"
-            stroke="#0B1020"
-            strokeOpacity="0.18"
-            strokeWidth="1.4"
+            stroke={letters}
+            strokeOpacity="0.16"
+            strokeWidth="1"
           />
         </>
       );
-
+    }
 
     // ── One big letter with a colour block offset behind it. ──────────
     case "slab":
