@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { withdrawalStatusLook } from "@/lib/pure-withdrawal-status";
 import { useAppContext } from "@/context/app-provider";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -25,6 +26,11 @@ import { useState } from "react";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  // Amber, like pending, and deliberately NOT the green of approved:
+  // the money has left the ad account and has not reached the wallet.
+  // An unknown status fell through to no class at all, which renders
+  // as a plain grey chip that reads like "done".
+  at_supplier: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   approved: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   rejected: "bg-muted text-muted-foreground",
   cancelled: "bg-muted text-muted-foreground",
@@ -160,9 +166,12 @@ export default function WithdrawalsTable() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      className={`${STATUS_STYLES[w.status] ?? ""} border-transparent capitalize`}
+                      className={`${STATUS_STYLES[w.status] ?? "bg-muted text-muted-foreground"} border-transparent`}
+                      title={withdrawalStatusLook(w.status).hint}
                     >
-                      {w.status}
+                      {/* Not the raw column under `capitalize`:
+                          at_supplier reads "At_supplier". */}
+                      {withdrawalStatusLook(w.status).label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

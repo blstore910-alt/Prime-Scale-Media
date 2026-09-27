@@ -37,6 +37,8 @@ export type NotificationType =
   // is a question, not an edit.
   | "fee_change_requested"
   | "fee_change_decided"
+  // Plak 113: the provider could not carry out a withdrawal we sent.
+  | "withdrawal_supplier_failed"
   | "account_deletion_declined"
   // Plak 42: a referral waits for the owner; approving counts back.
   | "referral_pending"
@@ -141,6 +143,18 @@ export interface NotificationPayloadByType {
     requested_fee?: number | string | null;
     reason?: string | null;
     by?: string | null;
+  };
+  /**
+   * To every admin: a withdrawal we sent came back refused, so the row
+   * is on the desk again. Admin-only — it names the provider's answer,
+   * which is not a customer's business.
+   */
+  withdrawal_supplier_failed: {
+    withdrawal_id?: string | null;
+    reference?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
   };
   /** Back to whoever asked, yes or no, with the reason either way. */
   fee_change_decided: {

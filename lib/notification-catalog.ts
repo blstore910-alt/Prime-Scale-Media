@@ -51,6 +51,16 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    // Every admin, not only the owner: the row lands back on `pending`
+    // and looks like any other, so without this it simply sits there
+    // while the customer waits for money that is not coming.
+    type: "withdrawal_supplier_failed",
+    label: "A withdrawal came back refused",
+    description:
+      "When a withdrawal we sent could not be carried out and needs doing by hand.",
+    audience: "admin",
+  },
+  {
     type: "account_deletion_declined",
     // ── NOT THE WORD "DELETE", IN A SETTINGS LIST ─────────────────
     // The owner, 27-09: "deletion request noti is raar, haal delete

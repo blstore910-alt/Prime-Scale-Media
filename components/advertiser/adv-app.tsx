@@ -1,6 +1,7 @@
 "use client";
 
 import PrivacyControls from "@/components/profile/privacy-controls";
+import { withdrawalStatusLook } from "@/lib/pure-withdrawal-status";
 
 import { copyText } from "@/lib/copy-text";
 import { dmSans, jakarta } from "@/lib/fonts";
@@ -897,7 +898,7 @@ export default function AdvertiserApp() {
             : "id, created_at, amount, currency, status",
         )
         .eq("advertiser_id", advertiserId!)
-        .in("status", ["approved", "pending", "rejected"])
+        .in("status", ["approved", "pending", "rejected", "at_supplier"])
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) {
@@ -907,7 +908,7 @@ export default function AdvertiserApp() {
             .from("ad_account_withdrawals")
             .select("id, created_at, amount, currency, status")
             .eq("advertiser_id", advertiserId!)
-            .in("status", ["approved", "pending", "rejected"])
+            .in("status", ["approved", "pending", "rejected", "at_supplier"])
             .order("created_at", { ascending: false })
             .limit(30);
           if (retry.error) throw retry.error;
@@ -5029,7 +5030,12 @@ export default function AdvertiserApp() {
                                     so it shows the amount asked for, in
                                     lighter type, and never lands in a
                                     running total. */}
-                                {["pending", "rejected"].includes(
+                                {/* at_supplier belongs here too: the
+                                    money has left the ad account and has
+                                    NOT reached the wallet, so it must not
+                                    print like a credit or land in a
+                                    running total. */}
+                                {["pending", "rejected", "at_supplier"].includes(
                                   String(w.status ?? "").toLowerCase(),
                                 ) ? (
                                   <span
@@ -5053,16 +5059,43 @@ export default function AdvertiserApp() {
                                 )}
                               </td>
                               <td data-label="Status" className="r">
+                                {/* ── "Credited" WAS THE else BRANCH ──
+                                    Anything not pending or rejected
+                                    printed as Credited, in green. With
+                                    at_supplier that is a confident lie
+                                    about money: the customer reads that
+                                    it is in their wallet while it is
+                                    still on its way. Named statuses
+                                    only now. */}
                                 {String(w.status ?? "").toLowerCase() ===
                                 "pending" ? (
                                   <span className="badge pend">
                                     Requested
                                   </span>
                                 ) : String(w.status ?? "").toLowerCase() ===
+                                  "at_supplier" ? (
+                                  <span
+                                    className="badge pend"
+                                    title={
+                                      withdrawalStatusLook("at_supplier")
+                                        .customerHint
+                                    }
+                                  >
+                                    {
+                                      withdrawalStatusLook("at_supplier")
+                                        .customerLabel
+                                    }
+                                  </span>
+                                ) : String(w.status ?? "").toLowerCase() ===
                                   "rejected" ? (
                                   <span className="badge bad">Refused</span>
-                                ) : (
+                                ) : String(w.status ?? "").toLowerCase() ===
+                                  "approved" ? (
                                   <span className="badge ok">Credited</span>
+                                ) : (
+                                  <span className="badge pend">
+                                    {withdrawalStatusLook(w.status).customerLabel}
+                                  </span>
                                 )}
                               </td>
                             </tr>

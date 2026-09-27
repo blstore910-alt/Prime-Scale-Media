@@ -2,7 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { pageAllRows, pageAllRowsTolerant } from "@/lib/page-all-rows";
-import { enqueueSupplierWithdrawPush } from "@/lib/integrations/enqueue";
+import {
+  enqueueSupplierWithdrawPush,
+  withdrawPushRoute,
+} from "@/lib/integrations/enqueue";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
@@ -605,6 +608,88 @@ export async function approveAdAccountWithdrawal(
     }
   }
 
+  // ── TWO ROUTES, AND THE MONEY MOVES AT A DIFFERENT MOMENT ────────
+  //
+  // The owner, 27-09: "B doen voor API-accounts en A houden voor
+  // handmatige -- bij handwerk is de bevestiging de medewerker zelf,
+  // met de screenshot erbij."
+  //
+  //   MANUAL  approve credits the wallet now. Correct: the admin has
+  //           already pulled the money in the supplier's dashboard and
+  //           attached the screenshot (plak 109), so the confirmation
+  //           has happened, by a person.
+  //
+  //   API     approve SENDS it. Status goes to `at_supplier`, nothing
+  //           is credited, and the cron credits the wallet when the
+  //           supplier says the money is off the account.
+  //
+  // Why the second one had to exist: pushWithdraw answers "queued",
+  // which is accepted and not done, and the worker recorded that as
+  // success. Crediting first and asking after put the same money in the
+  // wallet AND on the ad account — and releaseSupplierAdAccount then
+  // computes funded = 0 and hands the account to the next customer with
+  // the balance still on it.
+  //
+  // The route is decided BEFORE anything moves. Deciding it from a
+  // failed enqueue afterwards would mean finding out which branch we
+  // were on once the wallet had already changed.
+  const route = await withdrawPushRoute(
+    supabase,
+    {
+      adAccountId: accountId,
+      currency: String((row as { currency?: unknown }).currency ?? "USD"),
+    },
+  );
+
+  // A pool we could not READ is not a manual account. Falling through to
+  // the manual branch on an error credits the wallet for money the
+  // supplier may still be holding, which is the thing this whole split
+  // exists to prevent. Refuse and let somebody look.
+  if (route.reason.startsWith("UNKNOWN:")) {
+    return {
+      ok: false,
+      error:
+        "We couldn't tell whether this account is supplier-managed, so we'd rather not credit anything yet. Try again in a moment.",
+    };
+  }
+
+  if (route.push) {
+    const { error: sendErr } = await supabase.rpc(
+      "ad_account_withdrawal_send_to_supplier",
+      { p_withdrawal_id: withdrawalId },
+    );
+    if (sendErr) {
+      // 42883: plak 113 has not been pasted yet. The manual path is
+      // untouched and still works, so say exactly that rather than
+      // leaving somebody staring at a function signature.
+      if ((sendErr as { code?: string }).code === "42883") {
+        return {
+          ok: false,
+          error:
+            "Sending a withdrawal to the supplier is not switched on yet. Ask us to run the migration, or take it off by hand and approve it then.",
+        };
+      }
+      return { ok: false, error: safeErrorMessage(sendErr) };
+    }
+
+    const pushed = await enqueueSupplierWithdrawPush(supabase, {
+      withdrawalId,
+      tenantId: String(auth.ctx.profile.tenant_id),
+    });
+
+    return {
+      ok: true,
+      data: null,
+      warning: pushed.enqueued
+        ? undefined
+        : // The row is now at `at_supplier` with nothing sent. The
+          // sweeper reports exactly this state rather than letting it
+          // sit quietly for ever, but the person in front of the screen
+          // should hear it first.
+          `Marked as sent, but the push did not queue: ${pushed.reason}. Take it off in the supplier's dashboard — nothing has reached the customer's wallet yet.`,
+    };
+  }
+
   const { error } = await supabase.rpc("ad_account_withdrawal_approve", {
     p_withdrawal_id: withdrawalId,
   });
@@ -635,49 +720,29 @@ export async function approveAdAccountWithdrawal(
     },
   });
 
-  // ── AND TELL THE SUPPLIER TO TAKE IT OFF ──────────────────────────
+  // ── THIS IS THE MANUAL BRANCH, AND THAT IS DELIBERATE ─────────────
   //
-  // The wallet has just been credited. Until now nothing asked the
-  // supplier to remove the same money from the ad account, so it
-  // existed in both places: the customer could spend it from the wallet
-  // AND the account still held it, and releasing that account back to
-  // the pool handed the balance to the next customer — the release
-  // guard computes funded from OUR rows, which now say zero.
+  // No push is enqueued here, because `route.push` was false: either
+  // the account is not supplier-managed, or it is not USD, or the gate
+  // is shut. On all three the money comes off by hand, and on all three
+  // the admin has already done it — that is what approving means on
+  // this branch, and plak 109's screenshot is the record of it.
   //
-  // Reported rather than thrown: the money has already moved on our
-  // side and refusing here would not put it back. A refusal (a manual
-  // account, a currency we will not convert, the push gate closed) is
-  // an instruction to the admin, not a failure of the approval.
-  const pushed = await enqueueSupplierWithdrawPush(supabase, {
-    withdrawalId,
-    tenantId: String(auth.ctx.profile.tenant_id),
-  });
-
+  // What used to sit here was an enqueue plus a warning whenever it did
+  // not queue. That warning fired on the ordinary case: the gate is
+  // shut on production and is meant to be, so every approval threw an
+  // orange "take it off by hand", which teaches a desk working a queue
+  // to dismiss the one toast that will matter on the day a push really
+  // fails. The route is known before we get here now, so there is
+  // nothing left to warn about.
+  //
+  // The one thing worth saying is when the account IS supplier-managed
+  // and the gate is simply off — then a person really does have to go
+  // and do it, and that is not obvious from a green toast.
   return {
     ok: true,
     data: null,
-    // ── A SHUT GATE IS NOT NEWS ───────────────────────────────────
-    //
-    // This warned whenever the push did not queue, without asking WHY.
-    // The auto-push gate is shut on production and is meant to be, so
-    // every single approval threw a twenty-second orange "Take it off
-    // the ad account by hand" — which teaches a desk working through a
-    // queue to dismiss the one toast that matters on the day the gate
-    // IS armed and a push genuinely fails.
-    //
-    // All three top-up call sites already test heldByGate for exactly
-    // this reason; enqueue.ts says it in its own comment: the shut gate
-    // is "the ordinary state and nobody needs telling". This one was
-    // missed.
-    warning:
-      [
-        notifyWarning,
-        pushed.enqueued || pushed.heldByGate
-          ? null
-          : `The wallet is credited, but the supplier was not told to take it off the ad account: ${pushed.reason}. Do that by hand, or the money is on both.`,
-      ]
-        .filter(Boolean)
-        .join(" ") || undefined,
+    warning: notifyWarning || undefined,
   };
 }
 

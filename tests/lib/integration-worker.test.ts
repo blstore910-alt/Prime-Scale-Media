@@ -203,6 +203,16 @@ const okAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
     async getBalance() {
       return { ok: true, data: { balance_cents: 0, currency: "USD" } };
     },
+    async getWithdraw(id: string) {
+      return {
+        ok: true,
+        data: {
+          external_withdraw_id: id,
+          status: "completed" as const,
+          balance_after_cents: null,
+        },
+      };
+    },
     async listAccountTopups() {
       return { ok: true, data: [] };
     },
@@ -251,6 +261,9 @@ const brokenAdapter: { supplier1: Supplier1Adapter; wise: WiseAdapter } = {
       return { ok: false, error: "boom", retryable: true };
     },
     async getBalance() {
+      return { ok: false, error: "boom", retryable: true };
+    },
+    async getWithdraw() {
       return { ok: false, error: "boom", retryable: true };
     },
     async listAccountTopups() {

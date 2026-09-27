@@ -1,6 +1,10 @@
 "use client";
 
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import {
+  WITHDRAWAL_STATUS_CHOICES,
+  withdrawalStatusLook,
+} from "@/lib/pure-withdrawal-status";
 import { RejectReasonField } from "@/components/ui/reject-reason-field";
 import WithdrawalProof from "./withdrawal-proof";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
@@ -474,16 +478,6 @@ function SegBtn({
   );
 }
 
-const badgeFor = (
-  status: string,
-  okSet: string[],
-  pendSet: string[],
-): "ok" | "pend" | "due" => {
-  if (okSet.includes(status)) return "ok";
-  if (pendSet.includes(status)) return "pend";
-  return "due";
-};
-
 /* ------------------------------------------------------------------ */
 /* Withdrawals — ad-account balance pulled back to the wallet.         */
 /* ------------------------------------------------------------------ */
@@ -636,8 +630,10 @@ function WithdrawalsSection() {
               onChange: setStatus,
               options: [
                 { value: "all", label: "All statuses" },
-                { value: "pending", label: "Pending" },
-                { value: "approved", label: "Approved" },
+                // Every status the column can hold, including the new
+                // at_supplier — a filter that cannot select a state is
+                // a row nobody can find.
+                ...WITHDRAWAL_STATUS_CHOICES,
                 { value: "rejected", label: "Rejected" },
 // ── AN OPTION THAT MATCHES NOTHING IS NOT A FILTER ──────────────
 // ad_account_withdrawals.status allows 'cancelled', but nothing in
@@ -761,15 +757,17 @@ function WithdrawalsSection() {
                             ) : null}
                           </td>
                           <td className="r" data-label="Status">
+                            {/* withdrawalStatusLook, not the raw column:
+                                `at_supplier` printed through
+                                text-transform: capitalize reads
+                                "At_supplier", and that is the one status
+                                where the money has left our books and not
+                                yet arrived. */}
                             <span
-                              className={`badge ${badgeFor(
-                                w.status,
-                                ["approved"],
-                                ["pending"],
-                              )}`}
-                              style={{ textTransform: "capitalize" }}
+                              className={`badge ${withdrawalStatusLook(w.status).tone}`}
+                              title={withdrawalStatusLook(w.status).hint}
                             >
-                              {w.status}
+                              {withdrawalStatusLook(w.status).label}
                             </span>
                           </td>
                           <td className="r" data-label="Action">
@@ -1110,8 +1108,10 @@ function RefundsSection() {
               onChange: setStatus,
               options: [
                 { value: "all", label: "All statuses" },
-                { value: "pending", label: "Pending" },
-                { value: "approved", label: "Approved" },
+                // Every status the column can hold, including the new
+                // at_supplier — a filter that cannot select a state is
+                // a row nobody can find.
+                ...WITHDRAWAL_STATUS_CHOICES,
                 { value: "rejected", label: "Rejected" },
               ],
             },
@@ -1251,14 +1251,10 @@ function RefundsSection() {
                         </td>
                         <td className="r" data-label="Status">
                           <span
-                            className={`badge ${badgeFor(
-                              r.status,
-                              ["approved"],
-                              ["pending"],
-                            )}`}
-                            style={{ textTransform: "capitalize" }}
-                          >
-                            {r.status}
+                            className={`badge ${withdrawalStatusLook(r.status).tone}`}
+                              title={withdrawalStatusLook(r.status).hint}
+                                                      >
+                            {withdrawalStatusLook(r.status).label}
                           </span>
                         </td>
                         <td className="r" data-label="Action">
@@ -1980,8 +1976,10 @@ function AdjustmentsSection() {
               onChange: setStatus,
               options: [
                 { value: "all", label: "All statuses" },
-                { value: "pending", label: "Pending" },
-                { value: "approved", label: "Approved" },
+                // Every status the column can hold, including the new
+                // at_supplier — a filter that cannot select a state is
+                // a row nobody can find.
+                ...WITHDRAWAL_STATUS_CHOICES,
                 { value: "rejected", label: "Rejected" },
               ],
             },
@@ -2076,14 +2074,10 @@ function AdjustmentsSection() {
                           </td>
                           <td className="r" data-label="Status">
                             <span
-                              className={`badge ${badgeFor(
-                                r.status,
-                                ["approved"],
-                                ["pending"],
-                              )}`}
-                              style={{ textTransform: "capitalize" }}
-                            >
-                              {r.status}
+                              className={`badge ${withdrawalStatusLook(r.status).tone}`}
+                              title={withdrawalStatusLook(r.status).hint}
+                                                          >
+                              {withdrawalStatusLook(r.status).label}
                             </span>
                           </td>
                           <td className="r" data-label="Action">

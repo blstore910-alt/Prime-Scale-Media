@@ -431,6 +431,20 @@ const mockSupplier1Adapter: Supplier1Adapter = {
       } satisfies Supplier1WithdrawPushResult,
     };
   },
+
+  async getWithdraw(externalWithdrawId: string) {
+    // The mock settles at once. Anything else would mean a fake clock in
+    // a fake supplier, and the real waiting is what the live adapter is
+    // for; the sweeper's own tests drive the statuses directly.
+    return {
+      ok: true,
+      data: {
+        external_withdraw_id: externalWithdrawId,
+        status: "completed",
+        balance_after_cents: null,
+      } satisfies Supplier1WithdrawPushResult,
+    };
+  },
 };
 
 // Real SeamX adapter. Mapped to the endpoints SeamX documents today
@@ -597,6 +611,36 @@ const realSupplier1Adapter: Supplier1Adapter = {
     if (!ack.ok) return ack;
     return {
       ok: true,
+      data: {
+        external_withdraw_id: ack.id,
+        status: ack.status,
+        balance_after_cents: null,
+      } satisfies Supplier1WithdrawPushResult,
+    };
+  },
+
+  async getWithdraw(externalWithdrawId: string) {
+    const id = String(externalWithdrawId ?? "").trim();
+    if (!id) {
+      return {
+        ok: false as const,
+        error: "no external withdrawal id to read back",
+        retryable: false,
+      };
+    }
+    // Their path has no "a" -- /v1/withdrawls -- and that is not a typo
+    // here. See docs/SEAMX_API.md.
+    const res = await seamxFetch<{
+      data?: { id?: string | number; status?: string };
+    }>(`/v1/withdrawls/${encodeURIComponent(id)}`);
+    if (!res.ok) return res;
+    // Same reader as the push: an unknown status word is treated as
+    // "not settled" rather than guessed at, which for a read means we
+    // simply ask again next minute.
+    const ack = acknowledgedMovement(res.data, "withdrawal");
+    if (!ack.ok) return ack;
+    return {
+      ok: true as const,
       data: {
         external_withdraw_id: ack.id,
         status: ack.status,

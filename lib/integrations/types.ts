@@ -94,6 +94,24 @@ export interface Supplier1Adapter {
   pushWithdraw(
     input: Supplier1WithdrawPushInput,
   ): Promise<IntegrationResult<Supplier1WithdrawPushResult>>;
+  /**
+   * Read one withdrawal back, by the id their push handed us.
+   *
+   * ── WHY A READ-BACK EXISTS AT ALL ────────────────────────────────
+   *
+   * pushWithdraw answers "queued": accepted, not done. The worker was
+   * recording that as success and marking the job finished, so nothing
+   * ever established whether the money actually came off the account.
+   * With the wallet credited up front that is money in two places at
+   * once — the exact risk enqueue.ts describes.
+   *
+   * The owner chose to credit AFTER the supplier confirms on API
+   * accounts, so something has to ask. This is that ask. SeamX
+   * documents GET /v1/withdrawls/{id}, so no webhook is needed.
+   */
+  getWithdraw(
+    externalWithdrawId: string,
+  ): Promise<IntegrationResult<Supplier1WithdrawPushResult>>;
   // One ad account's top-up history AS THE SUPPLIER RECORDS IT. Used to
   // reconcile the fee we believe we pay against the fee actually charged —
   // the supplier computes its own fee server-side, so our recorded figure is

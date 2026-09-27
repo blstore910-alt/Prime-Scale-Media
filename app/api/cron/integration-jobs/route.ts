@@ -6,6 +6,7 @@ import { syncSupplierPool } from "@/lib/integrations/sync-pool";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
 import { processIntegrationJobs } from "@/lib/integrations/worker";
+import { settleWithdrawalsAtSupplier } from "@/lib/integrations/settle-withdrawals";
 import { isCronAuthorised } from "@/lib/cron-auth";
 
 // Vercel Cron target. Runs on a 1-minute schedule (vercel.json). Two
@@ -357,6 +358,31 @@ export async function GET(req: NextRequest) {
         error: err instanceof Error ? err.message : "balance check failed",
       };
     }
+    // ── WITHDRAWALS SITTING AT THE SUPPLIER ──────────────────────
+    //
+    // On a supplier-managed account approving no longer credits the
+    // wallet; it sends the withdrawal and the row waits in
+    // `at_supplier`. This is the half that hears back and credits when
+    // they confirm. A read, so it runs whenever the supplier is live —
+    // deliberately NOT behind the auto-push gate, because a row can be
+    // left waiting by a gate that was armed and has since been shut,
+    // and refusing to look at it then would strand a customer's money
+    // with nothing reporting it.
+    //
+    // Its own try/catch, like the others: one leg failing must not
+    // take the queue down with it.
+    let withdrawals;
+    try {
+      withdrawals = isSupplier1Live()
+        ? await settleWithdrawalsAtSupplier(supabase, getSupplier1Adapter())
+        : { ran: false };
+    } catch (err) {
+      withdrawals = {
+        ran: true,
+        error:
+          err instanceof Error ? err.message : "withdrawal settle failed",
+      };
+    }
     let rateLimitAbuse;
     try {
       rateLimitAbuse = await checkRateLimitAbuse(supabase);
@@ -372,6 +398,7 @@ export async function GET(req: NextRequest) {
       poolSync,
       supplierBalance,
       rateLimitAbuse,
+      withdrawals,
     });
   } catch (err) {
     return NextResponse.json(

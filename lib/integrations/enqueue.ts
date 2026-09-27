@@ -280,6 +280,68 @@ export async function enqueueSupplierTopupPush(
  * is not USD, is done by hand. Returning `enqueued: false` is the
  * caller's cue to say so — the money has already moved on our side.
  */
+/**
+ * Would this withdrawal go to the supplier, or is it ours to do by hand?
+ *
+ * Read-only, and deliberately separate from the enqueue: the approve
+ * path has to KNOW the answer before it moves anything, because the two
+ * routes now do different things with the money.
+ *
+ *   supplier-managed + gate armed  ->  send it, credit when they confirm
+ *   anything else                  ->  credit now, admin already did it
+ *
+ * Working that out by trying the enqueue and reading the refusal would
+ * mean deciding after the fact, which is the wrong order when one of the
+ * branches credits a wallet.
+ *
+ * Same three tests as the enqueue below, in the same order, so the probe
+ * and the thing it predicts cannot disagree.
+ */
+export async function withdrawPushRoute(
+  supabase: Pick<SupabaseClient, "from">,
+  params: { adAccountId: string; currency: string },
+  env: Record<string, string | undefined> = process.env,
+): Promise<{ push: boolean; reason: string }> {
+  const gate = autoPushGate(env);
+  if (!gate.enabled) return { push: false, reason: gate.reason };
+
+  const { data: pool, error } = await supabase
+    .from("supplier_ad_accounts")
+    .select("external_id, currency")
+    .eq("ad_account_id", params.adAccountId)
+    .eq("provider", "supplier1")
+    .maybeSingle();
+
+  // A read we could not make is NOT "this is a manual account". Falling
+  // through to the manual branch on an error would credit the wallet on
+  // an account the supplier still holds the money for -- the money in
+  // two places this whole change exists to stop. So an unreadable pool
+  // is treated as "we do not know", and the caller refuses.
+  if (error) {
+    return {
+      push: false,
+      reason: `UNKNOWN: could not read the supplier pool: ${safeErrorMessage(error)}`,
+    };
+  }
+  if (!pool?.external_id) {
+    return {
+      push: false,
+      reason: "ad account is not supplier-managed (manual account)",
+    };
+  }
+
+  const accountCurrency = String(pool.currency || "").toUpperCase();
+  const wdCurrency = String(params.currency || "").toUpperCase();
+  if (accountCurrency !== "USD" || wdCurrency !== "USD") {
+    return {
+      push: false,
+      reason: `only USD can be pushed safely (withdrawal ${wdCurrency || "unknown"}, account ${accountCurrency || "unknown"})`,
+    };
+  }
+
+  return { push: true, reason: "supplier-managed, auto-push armed" };
+}
+
 export async function enqueueSupplierWithdrawPush(
   supabase: Pick<SupabaseClient, "from">,
   params: { withdrawalId: string; tenantId: string },
@@ -307,7 +369,14 @@ export async function enqueueSupplierWithdrawPush(
     if (String(wd.tenant_id) !== String(params.tenantId)) {
       return { enqueued: false, reason: "withdrawal belongs to another tenant" };
     }
-    if (String(wd.status ?? "") !== "approved") {
+    // `at_supplier` as well as `approved`. On a supplier-managed account
+    // the wallet is no longer credited up front -- approving now SENDS
+    // the withdrawal and the money follows when they confirm -- so the
+    // row this is asked to push is in `at_supplier`, not `approved`.
+    // Manual accounts still go straight to `approved` and are never
+    // pushed at all.
+    const wdStatus = String(wd.status ?? "");
+    if (wdStatus !== "approved" && wdStatus !== "at_supplier") {
       return {
         enqueued: false,
         reason: `withdrawal is ${wd.status ?? "unknown"}, not approved`,
