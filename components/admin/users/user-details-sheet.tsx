@@ -11,7 +11,7 @@ import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/she
 import useUpdateAdvertiser from "@/components/advertiser/use-update-advertiser";
 import { dmSans, jakarta } from "@/lib/fonts";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
-import { AlertCircle, Loader2, Pencil, X } from "lucide-react";
+import { AlertCircle, Loader2, Mail, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import useUpdateUserProfile from "./use-update-user";
 import UserAccounts from "./user-accounts";
@@ -22,6 +22,7 @@ import UserWalletTopups from "./user-wallet-topups";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { useAppContext } from "@/context/app-provider";
 import { decideAccountDeletion } from "@/actions/gdpr-actions";
+import { changeCustomerEmail } from "@/actions/customer-email-actions";
 
 // The sheet renders in a Radix portal OUTSIDE the `.psmapp` shell, so the
 // mockup's scoped classes and font variables aren't in scope here. This
@@ -64,6 +65,13 @@ const SHEET_CSS = `
 .udsheet .uds-nm-in:focus{outline:0}
 .udsheet .uds-sub{display:flex;align-items:center;gap:6px;min-width:0;
   color:var(--faint);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The one control in this sheet that moves a LOGIN. Quiet until you
+   reach for it, like the rename pencil beside the name above it. */
+.udsheet .uds-mail-btn{flex:0 0 auto;display:grid;place-items:center;width:22px;height:22px;
+  border:0;background:none;padding:0;cursor:pointer;border-radius:6px;color:var(--faint)}
+.udsheet .uds-mail-btn svg{width:13px;height:13px}
+.udsheet .uds-mail-btn:hover{background:var(--primary-tint);color:var(--primary-600)}
+@media (hover:none){.udsheet .uds-mail-btn{color:var(--txt-2)}}
 .udsheet .uds-dot{color:var(--line-2);flex:0 0 auto}
 .udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--txt-2)}
 .udsheet .uds-x{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
@@ -246,9 +254,23 @@ export default function UserDetailsSheet({
 
   const { updateUserProfile, isPending } = useUpdateUserProfile();
   const queryClient = useQueryClient();
+  // Owner-only controls in this sheet. Read here rather than passed in:
+  // the same flag already gates the deletion decision further down.
+  const { isSuperAdmin } = useAppContext();
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  // ── CHANGING A LOGIN ADDRESS ──────────────────────────────────────
+  // The owner, 27-09: "wat als klant toegang tot email verliest en ik
+  // wil hem helpen". Until now the answer was the Supabase dashboard,
+  // by hand, in two places, with no line in audit_events.
+  //
+  // Not an inline field like the name. A name is a label; this is the
+  // LOGIN and the address "forgot password" goes to, so it gets a
+  // confirm that says what it does before it does it.
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
   const [note, setNote] = useState<string>("");
   const initialNotes = advertiser?.note || "";
 
@@ -401,6 +423,24 @@ export default function UserDetailsSheet({
               ) : (
                 "—"
               )}
+              {/* Owner only, and only where there is a login to move.
+                  An employee admin never sees this: whoever can set a
+                  login address can take the account by pointing it at
+                  their own and pressing "forgot password". */}
+              {isSuperAdmin && data?.email ? (
+                <button
+                  type="button"
+                  className="uds-mail-btn"
+                  title="Change their login email"
+                  aria-label="Change their login email"
+                  onClick={() => {
+                    setEmailDraft("");
+                    setEmailOpen(true);
+                  }}
+                >
+                  <Mail aria-hidden />
+                </button>
+              ) : null}
             </div>
           </div>
           {saving && (
@@ -682,6 +722,77 @@ export default function UserDetailsSheet({
         >
           <ConfirmFact label="Customer" value={data?.full_name ?? data?.email ?? "—"} />
           <ConfirmFact label="New status" value={pendingStatus ?? ""} />
+        </ConfirmModal>
+
+        {/* ── THE LOGIN ADDRESS ────────────────────────────────────
+            Both halves in one action: auth.users.email (the login, and
+            where "forgot password" goes) AND user_profiles.email (what
+            we print). Moving only the second would have left the
+            customer locked out with two records quietly disagreeing --
+            see actions/customer-email-actions.ts. */}
+        <ConfirmModal
+          open={emailOpen}
+          onOpenChange={(next) => {
+            if (!next && !emailSaving) setEmailOpen(false);
+          }}
+          title="Change their login email?"
+          lead="They can sign in with the new address straight away — we confirm it for them, because the whole point is that they cannot read mail at the old one. The old address is told it changed."
+          cta="Change it"
+          tone="danger"
+          busy={emailSaving}
+          busyLabel="Changing…"
+          disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailDraft.trim())}
+          disabledHint="Type the new address first."
+          onConfirm={async () => {
+            if (!data?.id) return;
+            setEmailSaving(true);
+            try {
+              const res = await changeCustomerEmail(
+                data.id,
+                emailDraft.trim(),
+              );
+              if (!res.ok) {
+                toast.error("Not changed", { description: res.error });
+                return;
+              }
+              toast.success("Login email changed", {
+                description: `They sign in with ${res.data.email} from now on.`,
+              });
+              setEmailOpen(false);
+              setEmailDraft("");
+              queryClient.invalidateQueries({ queryKey: ["user-details"] });
+              queryClient.invalidateQueries({ queryKey: ["users"] });
+            } finally {
+              setEmailSaving(false);
+            }
+          }}
+        >
+          <ConfirmFact label="Customer" value={data?.full_name ?? "—"} />
+          <ConfirmFact label="Now" value={data?.email ?? "—"} />
+          <div style={{ marginTop: 10 }}>
+            <label
+              htmlFor="uds-new-email"
+              style={{
+                display: "block",
+                fontSize: ".78rem",
+                fontWeight: 600,
+                marginBottom: 6,
+                color: "var(--txt-2)",
+              }}
+            >
+              New address
+            </label>
+            <input
+              id="uds-new-email"
+              className="uds-nm-in"
+              type="email"
+              autoComplete="off"
+              placeholder="them@example.com"
+              value={emailDraft}
+              onChange={(e) => setEmailDraft(e.target.value)}
+              style={{ width: "100%" }}
+            />
+          </div>
         </ConfirmModal>
 
       </SheetContent>
