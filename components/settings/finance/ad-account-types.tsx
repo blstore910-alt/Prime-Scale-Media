@@ -535,38 +535,67 @@ export default function AdAccountTypesCard() {
               <Label className="text-xs text-muted-foreground">
                 Add a type
               </Label>
-              <div className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-[1fr_100px_78px_52px_auto] sm:gap-2">
-                <Input
-                  className="col-span-2 sm:col-span-1"
-                  value={newLabel}
-                  placeholder="e.g. Meta-EU-Advantage"
-                  onChange={(e) => setNewLabel(e.target.value)}
-                />
-                <select
-                  value={newGroup}
-                  onChange={(e) =>
-                    setNewGroup(e.target.value as AdAccountPlatformGroup)
-                  }
-                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-                >
-                  {GROUPS.map((g) => (
-                    <option key={g} value={g}>
-                      {GROUP_LABELS[g]}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={newFee}
-                  placeholder="5"
-                  className="text-right"
-                  onChange={(e) => setNewFee(e.target.value)}
-                />
+              {/* ── EVERY BOX SAYS WHAT IT IS, AND ADD IS LAST ──────
+                  Two things the owner caught while walking this screen.
+
+                  The placeholders were doing duty as labels, and the fee
+                  box is prefilled, so that one's label was never once
+                  visible -- the same fault as the plan card next door.
+
+                  And the Add button sat in the MIDDLE, with the three
+                  supplier fields underneath it. You fill a form and then
+                  press the button; a button with more form below it
+                  reads as "these are something else". They are not: all
+                  six go into the same new type.
+
+                  The supplier wording is the owner's: name, dashboard
+                  link, and the percentage WE pay -- which is cost data
+                  and stays on the owner's screens only. */}
+              <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 sm:grid-cols-[1fr_100px_78px_auto] sm:gap-2">
+                <label className="col-span-2 grid gap-1 sm:col-span-1">
+                  <span className="text-xs text-muted-foreground">
+                    Type name
+                  </span>
+                  <Input
+                    value={newLabel}
+                    placeholder="e.g. Meta-EU-Advantage"
+                    onChange={(e) => setNewLabel(e.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Platform
+                  </span>
+                  <select
+                    value={newGroup}
+                    onChange={(e) =>
+                      setNewGroup(e.target.value as AdAccountPlatformGroup)
+                    }
+                    className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                  >
+                    {GROUPS.map((g) => (
+                      <option key={g} value={g}>
+                        {GROUP_LABELS[g]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Fee % we charge
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={newFee}
+                    className="text-right"
+                    onChange={(e) => setNewFee(e.target.value)}
+                  />
+                </label>
                 <label
-                  className="flex items-center gap-2 sm:justify-end sm:pr-2"
+                  className="col-span-2 flex items-center gap-2 sm:col-span-1 sm:justify-end sm:pb-2 sm:pr-2"
                   title="Auto-topup via supplier API (Supplier 1)"
                 >
                   <input
@@ -576,51 +605,67 @@ export default function AdAccountTypesCard() {
                     onChange={(e) => setNewApi(e.target.checked)}
                     className="h-4 w-4"
                   />
-                  <span className="text-xs text-muted-foreground sm:hidden">
+                  <span className="text-xs text-muted-foreground">
                     API auto-topup
                   </span>
                 </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="col-span-2 sm:col-span-1"
-                  disabled={adding}
-                  onClick={() => addType()}
-                >
-                  {adding ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  Add
-                </Button>
               </div>
+
               {/* Admin-only, and the person adding a type is the person
-                  who knows this. Leaving it blank is fine — the pill on
+                  who knows this. Leaving it blank is fine -- the pill on
                   the top-up queue then says so rather than nothing. */}
-              <div className="grid gap-2 sm:grid-cols-[1fr_2fr_92px]">
-                <Input
-                  value={newSupplier}
-                  placeholder="Supplier (admin only)"
-                  onChange={(e) => setNewSupplier(e.target.value)}
-                />
-                <Input
-                  value={newSupplierUrl}
-                  placeholder="Their dashboard, https://..."
-                  inputMode="url"
-                  onChange={(e) => setNewSupplierUrl(e.target.value)}
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  className="text-right"
-                  placeholder="We pay %"
-                  value={newSupplierFee}
-                  onChange={(e) => setNewSupplierFee(e.target.value)}
-                />
+              <div className="grid gap-3 sm:grid-cols-[1fr_2fr_110px]">
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Supplier name
+                  </span>
+                  <Input
+                    value={newSupplier}
+                    placeholder="Who we buy this from"
+                    onChange={(e) => setNewSupplier(e.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Supplier dashboard
+                  </span>
+                  <Input
+                    value={newSupplierUrl}
+                    placeholder="https://..."
+                    inputMode="url"
+                    onChange={(e) => setNewSupplierUrl(e.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Supplier fee % we pay
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="text-right"
+                    value={newSupplierFee}
+                    onChange={(e) => setNewSupplierFee(e.target.value)}
+                  />
+                </label>
               </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto sm:justify-self-end"
+                disabled={adding}
+                onClick={() => addType()}
+              >
+                {adding ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Add type
+              </Button>
             </div>
           </div>
         )}
