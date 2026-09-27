@@ -36,6 +36,10 @@ Zeg METEEN wat je niet hebt kunnen verifiëren, en waarom.
 Een zelfverzekerde 0 boven een mislukte lees is een fout.
 Stop niet om te vragen of je door mag.
 
+KIJK PER BLOK OOK IN "TESTS DIE NOG MOETEN" onderaan het document. Daar
+staat wat er gebouwd is maar nog nooit door een mens is gezien. Hoort er
+iets bij dit blok, dan loop je dat mee en vinkt het af.
+
 AAN HET EIND VAN ELK BLOK: vul het logboek in het document in, commit
 het, en meld in vier regels: gelopen / gefixt / open / wat je van mij
 nodig hebt.
@@ -913,6 +917,23 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
   het paneel onderdrukt die dialoog.
 
 ---
+
+## TESTS DIE NOG MOETEN
+
+> Alles hieronder is GEBOUWD en staat live, maar is nog nooit door een
+> mens op het scherm gezien. Een fix die niemand heeft zien werken is
+> een aanname. Per blok afvinken.
+
+| # | wat | bij welk blok | waarom het nog niet kon |
+|---|---|---|---|
+| T1 | **Twee bankfamilies bij het opwaarderen.** Een klant met accounts bij TURLIT én ZANEL moet de keuzeknoppen zien met beide begunstigden, en de gekozen bank moet op stap 2 verschijnen. | 5 | geen enkele klant heeft vandaag accounts in twee families. Tijdens blok 5 een tweede accounttype toevoegen aan de testklant, dan is de situatie er |
+| T2 | **De bankgegevens uit Settings bereiken de klant.** Een IBAN wijzigen op /settings/banks en hem terugzien op het opwaardeerscherm van de klant. En de terugval: de rij weghalen en zien dat de ingebouwde lijst weer verschijnt. | 5 | vergt een ingelogde klant naast de eigenaar |
+| T3 | **De verwijderknop van een plan weigert.** Een plan waar een klant op zit proberen te verwijderen; er hoort "2 customers are on Prime" te komen en er mag niets weg. | 1 of 4 | de vier bestaande plannen hebben klanten; een leeg testplan aanmaken en dat verwijderen bewijst alleen de makkelijke helft |
+| T4 | **De uurlijkse koerscron draait echt.** Na het hele uur kijken of `exchange_rates.updated_at` is opgeschoven, en of de plausibiliteitsband een absurde waarde tegenhoudt. | 1 | de cron is net uitgerold en draait op het hele uur |
+| T5 | **De bevestiging bij het laatste plan / laatste type.** Het venster moet verschijnen met de gevolgen erin. Alleen het VENSTER testen -- niet bevestigen, want dan staat de facturatie stil. | 1 | — |
+| T6 | **De beforeunload-waarschuwing op het bedrijfsformulier.** | 4 of 7 | het paneel onderdrukt die dialoog; dit kan alleen in een echte browser |
+| T7 | **De afwijzing van een aanvraag die per FACTUUR betaald was.** Het geld hoort terug te komen als goedgekeurde wallet-correctie. | 6 | vergt een aanvraag via "Create Invoice" in plaats van de wallet; geen enkele bestaande rij loopt zo |
+| T8 | **`/settings/general` opslaan als eigenaar.** Werkt pas sinds plak 102; daarvoor kon niemand het bedrijf van de organisatie bewaren. | 1 | plak 102 is net gedraaid |
 
 ## Logboek
 
