@@ -23,15 +23,26 @@ export const NOTIFICATIONS_CSS = `
    has no base rule for it at all -- that lives in the advertiser and
    affiliate shells -- so on the admin side these rendered as plain grey
    browser buttons with no indication of which one was selected. */
-.nfview{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;
-  margin:0 0 12px;max-width:280px;padding:3px;border-radius:10px;
-  background:rgba(120,130,160,.10);border:1px solid rgba(120,130,160,.18)}
-.nfview button{padding:8px 6px;border:0;border-radius:8px;background:none;
-  font:inherit;font-weight:700;font-size:.82rem;color:#5b647d;cursor:pointer;
-  text-align:center;transition:.13s}
-.nfview button:hover{color:#1b2135}
-.nfview button.on{background:#fff;color:#3a6fff;
-  box-shadow:0 1px 3px rgba(20,30,80,.16)}
+/* ── SMALLER, AND IN TOKENS ────────────────────────────────────────
+   The owner, 27-09: "niet mooi aligned en design." At 280px with two
+   items and 8px of padding these were two slabs the width of the
+   content, which made the choice look like the subject of the page
+   rather than a filter on it.
+
+   And every colour here was a light literal -- #fff, #3a6fff, #5b647d,
+   #1b2135 -- so in dark mode the selected tab stayed a white pill with
+   blue text on a navy strip. Tokens, so it follows the theme like
+   everything else. */
+.nfview{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;
+  margin:0;width:auto;min-width:200px;padding:3px;border-radius:9px;
+  background:var(--panel-2,rgba(120,130,160,.10));
+  border:1px solid var(--line,rgba(120,130,160,.18))}
+.nfview button{padding:6px 16px;border:0;border-radius:7px;background:none;
+  font:inherit;font-weight:700;font-size:.8rem;
+  color:var(--txt-2,#5b647d);cursor:pointer;text-align:center;transition:.13s}
+.nfview button:hover{color:var(--ink,#1b2135)}
+.nfview button.on{background:var(--panel,#fff);color:var(--primary-600,#3a6fff);
+  box-shadow:var(--shadow-sm,0 1px 3px rgba(20,30,80,.16))}
 
 /* The coloured panel sits behind the row and never moves; the row
    slides over it. Hence overflow:hidden and a stacking context. */

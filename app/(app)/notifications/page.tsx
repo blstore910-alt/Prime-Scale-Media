@@ -2,7 +2,7 @@
 
 import CreateAdAccountFromRequestDialog from "@/components/ad-account-requests/create-ad-account-from-request-dialog";
 import { Separator } from "@/components/ui/separator";
-import { CheckCheck, Loader2, Settings2, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Loader2, Settings2, Trash2 } from "lucide-react";
 import NotificationPreferencesDialog from "@/components/notifications/notification-preferences-dialog";
 import { cn } from "@/lib/utils";
 import useNotifications from "@/components/notifications/use-notifications";
@@ -299,8 +299,16 @@ export default function NotificationsPage() {
     );
   }
 
+  // ── THE RHYTHM ──────────────────────────────────────────────────
+  //
+  // The owner, 27-09: "dit ook wel lelijk, niet mooi aligned en design."
+  // Two of the three problems were spacing: sm:space-y-10 put 40px
+  // between a heading, a two-item tab strip and a card, so on a mostly
+  // empty inbox the page was four islands with nothing holding them
+  // together. Six feels like a page; ten feels like a layout that lost
+  // its content.
   return (
-    <div className="space-y-6 px-4 py-6 sm:space-y-10 sm:px-10 sm:py-10">
+    <div className="space-y-5 px-4 py-6 sm:space-y-6 sm:px-10 sm:py-10">
       {/* THREE buttons and a two-line heading did not fit a phone: the
           heading wrapped, the actions were squeezed, and "Mark all read"
           came out as "Mar". The text column may shrink, the actions keep
@@ -456,8 +464,27 @@ export default function NotificationsPage() {
           </div>
         ) : (
           notifications.length === 0 && (
-            <div className="text-center py-20 text-muted-foreground italic">
-              No notifications found.
+            /* ── AN EMPTY INBOX IS GOOD NEWS ──────────────────────
+               This was italic grey text alone in a 160px-tall white
+               box: it read as a form that failed to load rather than
+               as an inbox with nothing in it. The affiliate portal
+               already says this properly -- a mark, a plain sentence
+               and what will appear here -- so this says it the same
+               way. Italics come off; nothing here is a quotation. */
+            <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
+              <span className="grid h-11 w-11 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Bell className="h-5 w-5" />
+              </span>
+              <p className="font-medium">
+                {view === "archived"
+                  ? "Nothing archived yet"
+                  : "You're all caught up"}
+              </p>
+              <p className="max-w-[34ch] text-sm text-muted-foreground">
+                {view === "archived"
+                  ? "Anything you archive from the inbox is kept here."
+                  : "Payments, requests and payouts appear here as they happen."}
+              </p>
             </div>
           )
         )}
