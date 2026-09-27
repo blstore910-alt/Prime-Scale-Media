@@ -33,6 +33,24 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    // Only the owner: a fee change is a question about what WE charge,
+    // and the rest of the desk does not need to watch a pricing
+    // discussion. The RPC sends it to tenants.owner_id alone.
+    type: "fee_change_requested",
+    label: "Someone asked to change a customer's fee",
+    description: "When an admin asks you to approve a different rate.",
+    audience: "admin",
+  },
+  {
+    // Back to whoever asked — including when the answer is no, with the
+    // reason attached. A refusal that arrives as silence teaches
+    // nothing and gets asked again next week.
+    type: "fee_change_decided",
+    label: "Your fee change was answered",
+    description: "When the owner approves or refuses a rate you asked for.",
+    audience: "admin",
+  },
+  {
     type: "account_deletion_declined",
     // ── NOT THE WORD "DELETE", IN A SETTINGS LIST ─────────────────
     // The owner, 27-09: "deletion request noti is raar, haal delete

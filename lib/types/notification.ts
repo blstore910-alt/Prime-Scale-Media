@@ -33,6 +33,10 @@ export type NotificationType =
   // Plak 36: deleting an account is a request the owner decides.
   | "account_deletion_requested"
   | "customer_deactivated"
+  // Plak 111: what we charge a customer is the owner's, so changing it
+  // is a question, not an edit.
+  | "fee_change_requested"
+  | "fee_change_decided"
   | "account_deletion_declined"
   // Plak 42: a referral waits for the owner; approving counts back.
   | "referral_pending"
@@ -129,6 +133,22 @@ export interface NotificationPayloadByType {
     client_code?: string | null;
   };
   account_deletion_declined: { reason?: string | null };
+  /** To the OWNER only: an admin wants a different rate on an account. */
+  fee_change_requested: {
+    request_id?: string | null;
+    account_name?: string | null;
+    current_fee?: number | string | null;
+    requested_fee?: number | string | null;
+    reason?: string | null;
+    by?: string | null;
+  };
+  /** Back to whoever asked, yes or no, with the reason either way. */
+  fee_change_decided: {
+    request_id?: string | null;
+    approved?: boolean | null;
+    requested_fee?: number | string | null;
+    reason?: string | null;
+  };
   /** To every admin: a customer was switched off, and by whom. */
   customer_deactivated: {
     profile_id?: string | null;

@@ -15,7 +15,7 @@ import {
   UseFormSetValue,
 } from "react-hook-form";
 import * as z from "zod";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -400,6 +400,48 @@ export default function UpdateAccountForm({
     filledCost.current = false;
   }, [account.id]);
 
+  const [askOpen, setAskOpen] = useState(false);
+  const [askFee, setAskFee] = useState("");
+  const [askWhy, setAskWhy] = useState("");
+  const [asking, setAsking] = useState(false);
+
+  const submitAsk = async () => {
+    const pct = Number(askFee);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      toast.error("Enter a percentage between 0 and 100.");
+      return;
+    }
+    if (askWhy.trim().length < 3) {
+      toast.error("Say why", {
+        description: "The owner is deciding on a price from this alone.",
+      });
+      return;
+    }
+    setAsking(true);
+    try {
+      const { requestFeeChange } = await import(
+        "@/actions/fee-change-actions"
+      );
+      const res = await requestFeeChange({
+        adAccountId: account.id,
+        requestedFee: pct,
+        reason: askWhy.trim(),
+      });
+      if (!res.ok) {
+        toast.error("That was not sent", { description: res.error });
+        return;
+      }
+      toast.success("Sent to the owner", {
+        description: "You will get a notice either way, with the reason.",
+      });
+      setAskOpen(false);
+      setAskFee("");
+      setAskWhy("");
+    } finally {
+      setAsking(false);
+    }
+  };
+
   const supplierFeeWatch = watch("supplier_fee_pct");
   const feeWatch = watch("fee");
   const marginText = (() => {
@@ -586,10 +628,30 @@ export default function UpdateAccountForm({
             disabled={!isSuperAdmin}
           />
           {!isSuperAdmin && (
-            <p className="text-xs text-muted-foreground">
-              Visible to admins; only the super-admin can change what a
-              customer is charged.
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                Visible to admins; only the super-admin can change what a
+                customer is charged.
+              </p>
+              {/* ── A REFUSAL WITH NOWHERE TO GO IS NOT A PROCESS ─────
+                  The owner, 27-09: "als admin de fee moet aanpassen dan
+                  moet de request bij a super admin belanden, niet
+                  aanpassen dan niet."
+
+                  The refusing half was already here, and stricter than
+                  it looks — feeIsAPrice allows only a blank, the plan
+                  rate or the type default. What was missing is where a
+                  refusal goes. Until now it ended at "ask the owner",
+                  which in practice means a message on the phone, or
+                  nothing at all. */}
+              <button
+                type="button"
+                className="text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setAskOpen(true)}
+              >
+                Ask the owner to change it
+              </button>
+            </div>
           )}
 
           {/* ── WHAT WE PAY, WHICH NO SCREEN SHOWED ─────────────────
@@ -678,6 +740,73 @@ export default function UpdateAccountForm({
           <span>{isPending ? "Saving…" : "Update Account"}</span>
         </Button>
       </DialogFooter>
+
+      {/* Not nested inside the form: a submit button inside a form
+          submits it, and this one has its own. */}
+      {askOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Ask the owner to change this fee"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !asking) setAskOpen(false);
+          }}
+        >
+          <div className="w-full max-w-sm space-y-3 rounded-lg bg-background p-4 shadow-lg">
+            <div>
+              <h3 className="text-sm font-semibold">Ask the owner</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {account.name ?? "This account"} is on{" "}
+                {account.fee == null ? "no rate of its own" : `${account.fee}%`}
+                . Nothing changes until the owner says yes.
+              </p>
+            </div>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium">New fee (%)</span>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                max={100}
+                value={askFee}
+                onChange={(e) => setAskFee(e.target.value)}
+                className="w-full rounded-md border px-2 py-1.5 text-sm"
+                autoFocus
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium">Why</span>
+              <textarea
+                rows={3}
+                value={askWhy}
+                onChange={(e) => setAskWhy(e.target.value)}
+                placeholder="What was agreed, and with whom"
+                className="w-full rounded-md border px-2 py-1.5 text-sm"
+              />
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={asking}
+                onClick={() => setAskOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={asking}
+                onClick={() => void submitAsk()}
+              >
+                {asking ? "Sending…" : "Send to the owner"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
