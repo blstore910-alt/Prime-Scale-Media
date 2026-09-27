@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
+import { rateAge } from "@/lib/pure-rate-guard";
 import { useQuery } from "@tanstack/react-query";
 
 /**
@@ -28,7 +31,7 @@ export function useUsdToEur() {
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
 
-  const { data, isError, isLoading, isPending } = useQuery({
+  const { data, isError, isLoading, isPending, refetch } = useQuery({
     queryKey: ["usd-to-eur", tenantId],
     enabled: !!tenantId,
     staleTime: 10 * 60_000,
@@ -36,19 +39,68 @@ export function useUsdToEur() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("exchange_rates")
-        .select("eur")
+        // updated_at as well, so the reader can tell a rate from a
+        // MEMORY of a rate. See the effect below.
+        .select("eur, updated_at")
         .eq("tenant_id", tenantId)
         .eq("is_active", true)
         .maybeSingle();
       if (error) throw error;
-      const eur = Number((data as { eur?: number } | null)?.eur);
-      return Number.isFinite(eur) && eur > 0 ? eur : null;
+      const row = data as { eur?: number; updated_at?: string } | null;
+      const eur = Number(row?.eur);
+      return {
+        eur: Number.isFinite(eur) && eur > 0 ? eur : null,
+        updatedAt: row?.updated_at ?? null,
+      };
     },
   });
 
+  // ── A RATE THAT HAS GONE STALE ASKS FOR A NEW ONE ────────────────
+  //
+  // The hourly cron in vercel.json does not keep to its schedule.
+  // Measured on production 27-09: one run at 08:00:26, then nothing at
+  // 09, 10, 11, 12 or 13 — and no integration alert either, so it did not
+  // run and fail, it did not run. By 13:31 the stored rate was 5,5 hours
+  // old, and it is the figure behind the EUR 50 request fee, every wallet
+  // exchange and every converted payout.
+  //
+  // This hook is on every screen that puts two currencies on one scale,
+  // which makes it the thing that notices first. So it asks
+  // /api/exchange-rates/refresh, which checks the age again server-side
+  // and only then calls the provider.
+  //
+  // Deliberately quiet: no toast, no spinner, nothing blocked on it. The
+  // screen keeps rendering the rate it has — a slightly old rate is worth
+  // showing, and this is a background top-up, not a dependency. `asked`
+  // holds it to once per mount so a re-render cannot loop.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current || !tenantId || !data?.updatedAt) return;
+    if (!rateAge(data.updatedAt).stale) return;
+    asked.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/exchange-rates/refresh", {
+          method: "POST",
+        });
+        // Only re-read when something was actually written. A "fresh" or a
+        // provider failure changes nothing, and refetching on those would
+        // be a second pointless read on every money screen.
+        const body = (await res.json().catch(() => null)) as
+          | { updated?: number }
+          | null;
+        if (res.ok && Number(body?.updated) > 0) await refetch();
+      } catch {
+        // The screen already has a rate and already says how old it is.
+      }
+    })();
+  }, [tenantId, data?.updatedAt, refetch]);
+
   return {
     /** EUR per 1 USD, or null when it could not be read. */
-    rate: data ?? null,
+    rate: data?.eur ?? null,
+    /** When the stored row was last written, or null. */
+    updatedAt: data?.updatedAt ?? null,
     isLoading,
     /** No answer yet -- including a query that never ran (no tenant id).
      *  Without it the caller states "there is no rate set today", which

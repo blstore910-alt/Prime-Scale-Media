@@ -351,6 +351,47 @@ select (select count(*) from referral_links rl where rl.affiliate_advertiser_id 
 **Klaar als:** elke nul op het scherm is een echte nul in de database —
 geen enkele is een mislukte lees.
 
+## Wat het scherm MOET zeggen — vooraf uitgerekend 27-09
+
+De code van blok 2 is klaar en staat live (`73484ea`). Deze cijfers zijn
+al tegen de database gehouden, dus de loop is een CONTROLE en geen
+zoektocht. Wijkt er een af, dan is dat meteen een bevinding.
+
+**De verse affiliate** (`aff-final-2609@robustq.com`, nog aan te maken)
+heeft geen klantrij zolang de uitnodiging niet is afgerond, en dan hoort
+elk scherm te zeggen dat het account nog niet af is — niet nullen te
+tonen. Op Home, op Mijn referrals (die melding is er net bij gekomen) en
+op Wallet. De tierspeld hoort `Tier — / 4` te zeggen en **niet**
+"Checking…", want er is geen lees onderweg.
+
+**De bestaande affiliate** (`xewama9321@robustq.com`) is de echte test van
+de geldtegels, want een verse staat op nul en nul verbergt een fout:
+
+| tegel | moet zeggen | waarom |
+|---|---|---|
+| Verdiend (levenslang) | **EUR 20,92** | 5 commissies = EUR 24,96, min EUR 4,04 teruggedraaid |
+| Wacht op uitbetaling | **EUR 0,00** | alles zit in een uitbetaling én beide terugdraaiingen hangen eraan |
+| Uitbetaald | **EUR 20,92** | payout 1 EUR 4,96 + payout 2 EUR 15,96, beide `paid` |
+| Elke commissie (de lijst) | **EUR 24,96** over 5 regels | de lijst is de som van de RIJEN, vóór terugdraaiingen |
+| de verzoenregel eronder | EUR 4,04, en dat een uitbetaling nu EUR 0,00 zou zijn | 24,96 − 20,92 |
+
+En 20,92 = 20,92 + 0,00: dat is de hele optelsom en die klopt tot de cent.
+
+Twee dingen in die lijst om specifiek naar te kijken, want daar zat de
+fout:
+
+- de **welkomstbonus** (EUR 10,00) mag GEEN "on EUR 10,00" meer dragen.
+  Hij hangt aan een factuur van EUR 10,00, maar hij is er niet op
+  gerekend — hij is een vast bedrag.
+- de commissie van **EUR 0,11** hoort "from a EUR 48,50 top-up" te zeggen
+  en niet "on EUR 48,50". Zijn echte grondslag is EUR 0,53 en die mag
+  niet op het scherm: daar staat onze marge in.
+
+**De uitbetaalknop** hoort dicht te staan bij deze affiliate (EUR 0,00
+openstaand) en te zeggen waarom. Met EUR 199 + $1,50 zou hij OPEN moeten
+staan — dat is de som die eerst verkeerd werd gerekend
+(`lib/pure-payout-reach.ts`, 19 tests).
+
 ---
 
 # BLOK 3 — DE MEDEWERKER-ADMIN — het grootste gat
@@ -950,7 +991,7 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 |---|---|---|---|
 | 0 | **26-09** | — (niets te fixen) | — |
 | 1 | **27-09** | ~30 bevindingen + 4 ontwerppunten van de eigenaar | leverancier staat in mock mode; T4 draaide een keer en stopte |
-| 2 | | | |
+| 2 | **code 27-09, loop wacht op de login** | 12 bevindingen, commit `73484ea` | de loop zelf: ik heb het wachtwoord van de affiliate nodig in venster 1 |
 | 3 | | | |
 | 4 | | | |
 | 5 | | | |

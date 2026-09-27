@@ -3,9 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isMaintenanceMode } from "@/actions/_shared";
 import { isCronAuthorised } from "@/lib/cron-auth";
-import { getExchangeRate } from "@/lib/get-exchange-rates";
-import { safeErrorMessage } from "@/lib/pure-error";
-import { rateMoveVerdict } from "@/lib/pure-rate-guard";
+import { refreshExchangeRates } from "@/lib/refresh-exchange-rates";
 
 // ── THE HOURLY RATE ─────────────────────────────────────────────────
 //
@@ -30,17 +28,16 @@ import { rateMoveVerdict } from "@/lib/pure-rate-guard";
 //     invoice", which is the first question in any dispute
 // The stored row stays the single source of truth. This job only keeps
 // it fresh.
+//
+// AND IT IS NO LONGER THE ONLY THING THAT DOES. Measured 27-09: this job
+// fired once at 08:00:26 and missed 09, 10, 11, 12 and 13. The work moved
+// into lib/refresh-exchange-rates.ts so /api/exchange-rates/refresh can do
+// the same thing when a reader notices the row has gone stale. Why the
+// schedule is not honoured is in Vercel's dashboard; the app no longer
+// depends on the answer.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type RateRow = {
-  id: string;
-  tenant_id: string;
-  eur: number | string | null;
-  gbp: number | string | null;
-  hkd: number | string | null;
-};
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorised(req)) {
@@ -58,7 +55,7 @@ export async function GET(req: NextRequest) {
 
   // A rate change re-prices every conversion in the app, so it is a
   // write, and MAINTENANCE_MODE freezes writes. Skipping costs nothing:
-  // the next hour's pass stores the same thing.
+  // the next pass stores the same thing.
   if (isMaintenanceMode()) {
     return NextResponse.json({ ok: true, skipped: "maintenance" });
   }
@@ -67,117 +64,6 @@ export async function GET(req: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // ── ASK THE PROVIDER ONCE, FOR EVERY TENANT ──────────────────────
-  //
-  // One fetch, not one per tenant: it is the same market.
-  let fresh: { eur: number; gbp: number; hkd: number };
-  try {
-    const all = (await getExchangeRate("usd")) as Record<
-      string,
-      Record<string, number>
-    >;
-    const usd = all?.usd ?? {};
-    fresh = { eur: Number(usd.eur), gbp: Number(usd.gbp), hkd: Number(usd.hkd) };
-  } catch (e) {
-    // ── A CRON THAT STOPS MUST NOT BE INVISIBLE ────────────────────
-    //
-    // This returned a 502 to Vercel and said nothing to anybody. The
-    // whole reason this job exists is that a rate quietly went ten days
-    // stale; a provider that starts refusing would put us straight
-    // back there, with the app happily converting on an old number.
-    //
-    // Measured 27-09: the job ran once at 08:00 and not at 09, 10, 11
-    // or 12 -- and the only way anyone found out was by reading
-    // updated_at by hand. So: tell the owner, on every tenant, and
-    // keep the old rate.
-    console.error("exchange-rates cron: provider", safeErrorMessage(e));
-    try {
-      const { data: tenants } = await supabase
-        .from("exchange_rates")
-        .select("tenant_id")
-        .eq("is_active", true);
-      for (const t of (tenants ?? []) as { tenant_id: string }[]) {
-        await supabase.rpc("raise_integration_failure", {
-          p_tenant_id: t.tenant_id,
-          p_source: "exchange_rate",
-          p_detail:
-            "The hourly rate update could not reach the provider. The previous rate is still in use — check how old it is on Settings → Finance.",
-        });
-      }
-    } catch (inner) {
-      console.error("exchange-rates cron: alert", safeErrorMessage(inner));
-    }
-    return NextResponse.json(
-      { ok: false, error: "Could not reach the rate provider" },
-      { status: 502 },
-    );
-  }
-
-  const { data: rows, error } = await supabase
-    .from("exchange_rates")
-    .select("id, tenant_id, eur, gbp, hkd")
-    .eq("is_active", true);
-  if (error) {
-    console.error("exchange-rates cron: read", safeErrorMessage(error));
-    return NextResponse.json(
-      { ok: false, error: "Could not read the stored rates" },
-      { status: 500 },
-    );
-  }
-
-  const updated: string[] = [];
-  const refused: { tenant: string; reason: string }[] = [];
-
-  for (const row of (rows ?? []) as RateRow[]) {
-    // ── THE BAND, PER CURRENCY ─────────────────────────────────────
-    //
-    // All three have to pass or none is written. A row where EUR moved
-    // sensibly and HKD did something absurd is a bad response, not a
-    // partially good one — and half a rate row is worse than a stale
-    // one, because nothing downstream would know.
-    const verdicts = [
-      ["eur", rateMoveVerdict(row.eur, fresh.eur)] as const,
-      ["gbp", rateMoveVerdict(row.gbp, fresh.gbp)] as const,
-      ["hkd", rateMoveVerdict(row.hkd, fresh.hkd)] as const,
-    ];
-    const bad = verdicts.filter(([, v]) => !v.ok);
-    if (bad.length > 0) {
-      const reason = bad
-        .map(([cur, v]) => `${cur.toUpperCase()} ${v.reason}`)
-        .join("; ");
-      refused.push({ tenant: row.tenant_id, reason });
-      // The owner has to hear about this — a rate that stopped updating
-      // is invisible otherwise, which is exactly how it got to ten days
-      // old. Best effort: a failed alert must not stop the other
-      // tenants being updated.
-      try {
-        await supabase.rpc("raise_integration_failure", {
-          p_tenant_id: row.tenant_id,
-          p_source: "exchange_rate",
-          p_detail: `Rate not updated: ${reason}. The previous rate is still in use.`,
-        });
-      } catch (e) {
-        console.error("exchange-rates cron: alert", safeErrorMessage(e));
-      }
-      continue;
-    }
-
-    const { error: writeErr } = await supabase
-      .from("exchange_rates")
-      .update({ eur: fresh.eur, gbp: fresh.gbp, hkd: fresh.hkd })
-      .eq("id", row.id);
-    if (writeErr) {
-      console.error("exchange-rates cron: write", safeErrorMessage(writeErr));
-      refused.push({ tenant: row.tenant_id, reason: "write failed" });
-      continue;
-    }
-    updated.push(row.tenant_id);
-  }
-
-  return NextResponse.json({
-    ok: true,
-    fetched: fresh,
-    updated: updated.length,
-    refused,
-  });
+  const out = await refreshExchangeRates(supabase);
+  return NextResponse.json(out, { status: out.ok ? 200 : 502 });
 }
