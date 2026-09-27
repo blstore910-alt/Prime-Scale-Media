@@ -213,11 +213,34 @@ export default function AdminShell({
     });
   }
 
+  // ── WHICH TOP-UP ─────────────────────────────────────────────────
+  //
+  // The owner, 27-09, pointing at the phone bar: "hier beter wallet
+  // topups en topups voor super admin en admin."
+  //
+  // Two things were wrong. "Topups" alone does not say WHICH -- money
+  // arriving in a wallet and money going out onto an ad account are
+  // opposite directions and two different queues -- and /wallet-topups,
+  // the busiest of the two, was not in this bar AT ALL. On a phone an
+  // admin had no route to the money-in queue except the menu.
+  //
+  // The sidebar has always called them "Wallet Topups" and "Ad-account
+  // Topups"; the dashboard tiles say "WALLET IN" and "AD TOPUPS". Those
+  // are the words, so they are the words here too -- short enough for a
+  // .6rem label and already learned everywhere else.
+  //
+  // Six items rather than five: .bb is flex:1 with a 46px icon, so six
+  // is 286px of a 375px phone. Nothing had to be dropped to make room,
+  // and the two lookup screens (Advertisers, Wallets) stay where an
+  // admin expects them.
   const bottom: Item[] = [
     { title: "Advertisers", href: "/users", icon: Users },
     { title: "Requests", href: "/ad-account-requests", icon: FileText },
     { title: "Home", href: "/dashboard", icon: LayoutGrid },
-    { title: "Topups", href: "/top-ups", icon: Coins },
+    // Upload, the same icon the sidebar gives this queue -- Landmark is
+    // already DST's and one icon for two things is worse than no icon.
+    { title: "Wallet in", href: "/wallet-topups", icon: Upload },
+    { title: "Ad topups", href: "/top-ups", icon: Coins },
     { title: "Wallets", href: "/wallets", icon: Wallet },
   ];
 
