@@ -927,22 +927,24 @@ export default function AffiliateApp() {
               </div>
               <div className="xh-in">
                 {/* ── THE GREETING, INSIDE THE CARD ─────────────────
-                    The owner, 27-09: "avatar gedeelte nog steeds niet
-                    mooi, er is 1 avatar en 3 lines tekst... anders
-                    alleen welcome back en naam in de card van total
-                    earnings, mooi linksboven ofzo."
+                    The owner, 27-09, in three goes: first "welcome back
+                    en naam is nu lelijk", then "er is 1 avatar en 3
+                    lines tekst... anders alleen welcome back en naam in
+                    de card van total earnings", and finally "avatar
+                    eruit, is erg lelijk, en miss tekst ook mid aligned."
 
-                    That is the better answer and it is theirs. Outside
-                    the card it was an avatar carrying three lines of
-                    text above the thing you actually came to look at,
-                    and one of those lines ("Here's what your referrals
-                    have brought in") said what the card's own eyebrow
-                    says one inch lower.
+                    They are right about the alignment and it is the
+                    reason the avatar never sat well: every other thing
+                    in this card is centred -- the eyebrow, the figure,
+                    the two pills, the month chip -- so a left-aligned
+                    row with a circle in it was the one element fighting
+                    the column it lives in.
 
-                    So: one row, top left, inside. One avatar, two short
-                    lines, and the page loses a whole floating block.
-                    The ring reads better on the dark ground too -- that
-                    is where it borrowed its colours from. */}
+                    So: one centred line, no avatar, sentence case. Not
+                    a second row of small caps either, because the gold
+                    eyebrow directly under it is already that and two
+                    stacked caps lines read as a header that lost its
+                    content. */}
                 {(() => {
                   // THE WHOLE NAME WHEN IT FITS. Taking the first word
                   // always is how "the affiliateking" became "Welcome
@@ -953,28 +955,10 @@ export default function AffiliateApp() {
                   const n = name.trim();
                   const shown =
                     !n ? "there" : n.length <= 20 ? n : n.split(/\s+/)[0];
-                  // Two letters at most, and never a stray punctuation
-                  // mark: an empty name would otherwise put "?" in a
-                  // circle where a person's initials go.
-                  const initials =
-                    n
-                      .split(/\s+/)
-                      .map((w) => w.replace(/[^\p{L}\p{N}]/gu, "").charAt(0))
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase() || "✦";
                   return (
-                    <div className="xh-who">
-                      <span className="xh-av" aria-hidden="true">
-                        {/* Nested: the ring turns, the letters must not. */}
-                        <span>{initials}</span>
-                      </span>
-                      <span className="xh-whotx">
-                        <span className="xh-whoeye">Welcome back</span>
-                        <span className="xh-whonm">{shown}</span>
-                      </span>
-                    </div>
+                    <p className="xh-who">
+                      Welcome back, <b>{shown}</b>
+                    </p>
                   );
                 })()}
                 <p className="xh-eyebrow">

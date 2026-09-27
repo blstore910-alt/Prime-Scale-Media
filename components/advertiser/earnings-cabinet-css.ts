@@ -53,39 +53,21 @@ export const EARNINGS_CABINET_CSS = `
   @keyframes xhcoin{0%{transform:translateY(0) rotate(0deg) scale(.9);opacity:0}12%{opacity:1}
     82%{opacity:1}100%{transform:translateY(-360px) rotate(240deg) scale(1.1);opacity:0}}
   .xhero .xh-in{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
-  /* ── THE GREETING ROW, TOP LEFT INSIDE THE CARD ──────────────
-     The owner, 27-09: "welcome back en naam in de card van total
-     earnings, mooi linksboven ofzo". The card itself is centred, so
-     this row stretches and aligns left against it.
-     Only the affiliate shell renders it; the advertiser's copy of this
-     card simply has no .xh-who and these rules cost it nothing. */
-  @keyframes xhavspin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){
-    .xh-av,.xh-av>span{animation:none}
-  }
-  .xh-who{align-self:stretch;display:flex;align-items:center;gap:11px;
-    text-align:left;margin:-8px 0 18px;min-width:0}
-  .xh-av{position:relative;flex:0 0 auto;width:40px;height:40px;border-radius:50%;
-    display:grid;place-items:center;
-    background:conic-gradient(from 0deg,#5B8DFF,#8B5CF6 26%,#22D3B7 52%,#EFB02C 72%,#8B5CF6 88%,#5B8DFF);
-    animation:xhavspin 14s linear infinite;
-    box-shadow:0 8px 20px -10px rgba(91,141,255,.9),0 0 0 1px rgba(255,255,255,.22)}
-  .xh-av::after{content:"";position:absolute;inset:3px;border-radius:50%;
-    background:linear-gradient(165deg,#0c1030,#171130);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
-  .xh-av>span{position:relative;z-index:1;color:#fff;font-family:var(--hd);
-    font-weight:800;font-size:.86rem;letter-spacing:.02em;
-    animation:xhavspin 14s linear infinite reverse}
-  .xh-whotx{min-width:0;display:flex;flex-direction:column;line-height:1.16}
-  .xh-whoeye{font-size:.62rem;font-weight:800;letter-spacing:.2em;
-    text-transform:uppercase;color:rgba(255,255,255,.58)}
-  .xh-whonm{font-family:var(--hd);font-weight:800;font-size:1.02rem;
-    letter-spacing:-.015em;color:#fff;
+  /* ── THE GREETING ─────────────────────────────────────────────
+     One centred line above the gold eyebrow. It began as a left-aligned
+     row with a gradient avatar; the owner, 27-09: "avatar eruit, is erg
+     lelijk, en miss tekst ook mid aligned." Right on both counts, and
+     the second explains the first -- everything else in this card is
+     centred, so that row was the one element fighting its own column.
+
+     Sentence case on purpose: the eyebrow directly beneath is small
+     caps, and two stacked caps lines read as a header that lost its
+     content. */
+  .xh-who{margin:0 0 12px;font-size:.82rem;line-height:1.3;
+    color:rgba(255,255,255,.62);max-width:100%;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  @media(max-width:480px){
-    .xh-who{gap:9px;margin:-6px 0 14px}
-    .xh-av{width:36px;height:36px}.xh-av>span{font-size:.8rem}
-    .xh-whonm{font-size:.96rem}}
+  .xh-who b{font-weight:700;color:rgba(255,255,255,.95)}
+  @media(max-width:480px){.xh-who{font-size:.78rem;margin-bottom:10px}}
   .xh-eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:800;
     font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:#ffd98a;
     text-shadow:0 2px 14px rgba(255,190,60,.45)}
