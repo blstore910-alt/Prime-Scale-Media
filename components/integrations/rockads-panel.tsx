@@ -136,17 +136,25 @@ export default function RockadsPanel() {
         </div>
       ) : (
         <>
+          {/* ── A COUNT THE SUPPLIER NEVER GAVE US IS NOT A ZERO ──
+              rockads-api turns any non-200 body into `[]`, so a 401, a
+              500 or a timeout published walletCount 0, accountCount 0
+              and no currencies -- and these three tiles printed that in
+              bold, ABOVE the error card that explains it. The reason
+              was on screen, underneath two confident zeros.
+              `live.said` is set exactly when the call did not come back
+              clean, so it is the right test. */}
           <div className="rkt">
             <div className="rk">
-              <b>{live.accountCount}</b>
+              <b>{live.said ? "—" : live.accountCount}</b>
               <span>Ad accounts</span>
             </div>
             <div className="rk">
-              <b>{live.walletCount}</b>
+              <b>{live.said ? "—" : live.walletCount}</b>
               <span>Credit accounts</span>
             </div>
             <div className="rk">
-              <b>{live.currencies.join(" · ") || "—"}</b>
+              <b>{live.said ? "—" : live.currencies.join(" · ") || "—"}</b>
               <span>Currencies</span>
             </div>
           </div>
@@ -164,13 +172,25 @@ export default function RockadsPanel() {
             <h3 style={{ margin: "0 0 8px", fontSize: ".95rem" }}>
               Credit we hold with them
             </h3>
-            {wallets.isLoading ? (
+            {/* isPending, not isLoading. Both sub-queries are gated on
+                `connected`, and react-query v5 computes isLoading as
+                `isPending && isFetching` -- so a DISABLED query reports
+                isLoading FALSE with undefined data. With credentials set
+                but /wallets answering non-200, this fell straight
+                through to `{wallets.data?.error}` and rendered an EMPTY
+                red line. A blank error is worse than no error. */}
+            {!connected ? (
+              <p className="muted" style={{ margin: 0 }}>
+                Not asked — we could not reach them with these
+                credentials. The reason is above.
+              </p>
+            ) : wallets.isPending ? (
               <p className="muted" style={{ margin: 0 }}>
                 Asking…
               </p>
             ) : !wallets.data?.ok ? (
               <p className="err" style={{ margin: 0 }}>
-                {wallets.data?.error}
+                {wallets.data?.error ?? "We couldn't read this just now."}
               </p>
             ) : wallets.data.data.wallets.length === 0 ? (
               <p className="muted" style={{ margin: 0 }}>
@@ -204,13 +224,19 @@ export default function RockadsPanel() {
             >
               What each one costs us. Admins only.
             </p>
-            {accounts.isLoading ? (
+            {/* Same disabled-query trap as the block above. */}
+            {!connected ? (
+              <p className="muted" style={{ margin: 0 }}>
+                Not asked — we could not reach them with these
+                credentials. The reason is above.
+              </p>
+            ) : accounts.isPending ? (
               <p className="muted" style={{ margin: 0 }}>
                 Asking…
               </p>
             ) : !accounts.data?.ok ? (
               <p className="err" style={{ margin: 0 }}>
-                {accounts.data?.error}
+                {accounts.data?.error ?? "We couldn't read this just now."}
               </p>
             ) : accounts.data.data.accounts.length === 0 ? (
               <p className="muted" style={{ margin: 0 }}>

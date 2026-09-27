@@ -418,7 +418,19 @@ export default function AdAccountRequestForm({
       return {
         usd: Number(w.data?.usd_balance ?? 0),
         eur: Number(w.data?.eur_balance ?? 0),
-        rate: Number(r.data?.eur) || 0.86,
+        // ── NO MADE-UP RATE ──────────────────────────────────────
+        //
+        // This was `|| 0.86`, mirroring the same invented fallback in
+        // ad_account_request_create_paid. Screen and server then agreed
+        // on the same wrong number and nothing said a rate was missing:
+        // at this tenant's real rate the fee is USD 57, at 0.86 it is
+        // USD 58. A dollar too much per request, on a rate that is 1.4%
+        // out.
+        //
+        // Plak 101 makes the RPC refuse instead of guess. Null here does
+        // the same on this side: the fee is not shown and submit is
+        // held, rather than quoting a figure we cannot stand behind.
+        rate: Number(r.data?.eur) > 0 ? Number(r.data?.eur) : null,
         included: Number(planRow?.included_ad_accounts ?? 0),
         used,
         hasFreePerk,
@@ -431,18 +443,25 @@ export default function AdAccountRequestForm({
   const included = feePreview?.included ?? 0;
   const used = feePreview?.used ?? 0;
   const isFree = used < included || (feePreview?.hasFreePerk ?? false);
+  // Null when the fee is in dollars and no rate could be read. Not 0 --
+  // 0 would read as "free", which is a different thing entirely.
+  const rateUnknown =
+    !isFree && selectedCurrency !== "EUR" && !feePreview?.rate;
   const feeAmount = isFree
     ? 0
     : selectedCurrency === "EUR"
       ? AD_ACCOUNT_REQUEST_FEE_EUR
-      : Math.round(AD_ACCOUNT_REQUEST_FEE_EUR / (feePreview?.rate || 0.86));
+      : feePreview?.rate
+        ? Math.round(AD_ACCOUNT_REQUEST_FEE_EUR / feePreview.rate)
+        : null;
   const feeSymbol = selectedCurrency === "USD" ? "$" : "€";
   const feeBalance =
     selectedCurrency === "USD" ? (feePreview?.usd ?? 0) : (feePreview?.eur ?? 0);
   // While the fee/balance preview is still loading (or errored) feePreview
   // is undefined and feeBalance defaults to 0 — don't flash a false
   // "not enough balance" or disable submit until we actually know.
-  const feeEnough = isFree || !feePreview || feeBalance >= feeAmount;
+  const feeEnough =
+    isFree || !feePreview || (feeAmount !== null && feeBalance >= feeAmount);
   // ── AND THE SAME THING FOR THE SENTENCES, NOT ONLY THE GATE ─────────
   //
   // The line above already treats an unloaded preview as "don't refuse".
@@ -690,19 +709,39 @@ export default function AdAccountRequestForm({
             </>
           ) : (
             <>
-              <div className="font-medium">
-                Ad-account request fee: {feeSymbol}
-                {feeAmount}
-              </div>
-              <div className="text-muted-foreground text-xs mt-0.5">
-                Charged from your wallet when you submit. Balance: {feeSymbol}
-                {feeBalance.toFixed(2)} → {feeSymbol}
-                {(feeBalance - feeAmount).toFixed(2)}
-              </div>
-              {!feeEnough && (
-                <div className="text-destructive text-xs mt-1 font-medium">
-                  Not enough balance — top up before requesting.
-                </div>
+              {/* No rate, no figure. Quoting one from a guessed rate is
+                  how the server and the screen came to agree on a fee
+                  that was a dollar out. */}
+              {rateUnknown || feeAmount === null ? (
+                <>
+                  <div className="font-medium">
+                    We can&apos;t work out the fee in {selectedCurrency} right
+                    now.
+                  </div>
+                  <div className="text-muted-foreground text-xs mt-0.5">
+                    The conversion rate could not be read. Ask us to set it, or
+                    request a EUR account instead — nothing is charged until
+                    you submit.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-medium">
+                    Ad-account request fee: {feeSymbol}
+                    {feeAmount}
+                  </div>
+                  <div className="text-muted-foreground text-xs mt-0.5">
+                    Charged from your wallet when you submit. Balance:{" "}
+                    {feeSymbol}
+                    {feeBalance.toFixed(2)} → {feeSymbol}
+                    {(feeBalance - feeAmount).toFixed(2)}
+                  </div>
+                  {!feeEnough && (
+                    <div className="text-destructive text-xs mt-1 font-medium">
+                      Not enough balance — top up before requesting.
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
