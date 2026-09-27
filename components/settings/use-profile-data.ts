@@ -101,11 +101,23 @@ export function useUpdateProfile() {
     mutationFn: async ({
       profileUpdates,
       companyUpdates,
+      ifUpdatedAt,
     }: {
       profileId: string;
       profileUpdates: Partial<UserProfile>;
       companyUpdates: Partial<Company>;
       advertiserId?: string;
+      /**
+       * The version of the company row this form was built from.
+       *
+       * updateOwnProfileAndCompany has accepted this since it was
+       * written, with a doc comment describing the exact case: an
+       * admin corrects a VAT number, the customer's next Save reverts
+       * it, and neither screen says a word. On the row printed on
+       * every invoice. This screen was the one caller that never sent
+       * it -- the advertiser's own settings do.
+       */
+      ifUpdatedAt?: string | null;
     }) => {
       const { updateOwnProfileAndCompany } = await import(
         "@/actions/company-actions"
@@ -113,6 +125,7 @@ export function useUpdateProfile() {
       const result = await updateOwnProfileAndCompany({
         profile: profileUpdates,
         company: companyUpdates,
+        ifUpdatedAt: ifUpdatedAt ?? null,
       });
       if (!result.ok) throw new Error(result.error);
     },

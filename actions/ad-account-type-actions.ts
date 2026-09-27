@@ -206,6 +206,35 @@ export async function ensureInitialAdAccountTypes(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
+  // ── SEEDING IS THE OWNER'S, TOO ───────────────────────────────────
+  //
+  // Every real write in this file is resolveOwnerContext. The SEEDER was
+  // left at admin level -- and app-provider calls ensureTenantBootstrap
+  // once per session from every admin shell, with no button. It then
+  // writes with the SERVICE ROLE, so RLS is bypassed and the
+  // owner-only column trigger short-circuits on
+  // `current_user <> 'authenticated'`. That made this the only
+  // non-owner write path into a pricing table in the whole block, and
+  // it needed no click.
+  //
+  // The guard is a row count, not a permission: it is a no-op once the
+  // tenant has rows, so gating it costs nothing in the normal case and
+  // closes the one case that matters. ensureInitialExchangeRates was
+  // raised this way already; these two did not follow.
+  {
+    const { data: ownerRow } = await supabase
+      .from("tenants")
+      .select("owner_id")
+      .eq("id", profile.tenant_id)
+      .maybeSingle();
+    if (
+      !ownerRow ||
+      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+    ) {
+      return { ok: false, error: "Forbidden" };
+    }
+  }
+
   const { count, error: countError } = await supabase
     .from("ad_account_types")
     .select("id", { count: "exact", head: true })

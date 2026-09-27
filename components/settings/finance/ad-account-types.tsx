@@ -25,6 +25,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/context/app-provider";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 
 const GROUP_LABELS: Record<AdAccountPlatformGroup, string> = {
   meta: "Meta",
@@ -298,6 +299,21 @@ export default function AdAccountTypesCard() {
   });
 
   const anyDirty = rows.some((r) => r.dirty);
+
+  // ── AND HERE THE LAST ONE DOES THE OPPOSITE OF WHAT IT SAYS ───────
+  //
+  // use-ad-account-types.ts returns a built-in SEED list when the query
+  // SUCCEEDED and came back empty -- which is exactly "the owner
+  // switched them all off". So the customer's request form does not go
+  // quiet; it offers six seed types at 5% and 6%, including types this
+  // tenant never offered and the ones just switched off, and writes
+  // that rate onto the account. Switching everything off makes MORE
+  // choices appear, at rates nobody set.
+  const [pendingLastOff, setPendingLastOff] = useState(false);
+  const willLeaveNoneActive =
+    rows.length > 0 && rows.every((r) => !r.is_active);
+  const wasSomeActive = initial.some((r) => r.is_active);
+  const turningOffTheLast = anyDirty && willLeaveNoneActive && wasSomeActive;
 
   return (
     <Card>
@@ -610,11 +626,44 @@ export default function AdAccountTypesCard() {
         )}
       </CardContent>
       <CardFooter className="justify-end">
-        <Button disabled={!anyDirty || saving} onClick={() => saveAll()}>
+        <Button
+          disabled={!anyDirty || saving}
+          onClick={() => {
+            if (turningOffTheLast) {
+              setPendingLastOff(true);
+              return;
+            }
+            saveAll();
+          }}
+        >
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save changes
         </Button>
       </CardFooter>
+
+      <ConfirmModal
+        open={pendingLastOff}
+        onOpenChange={(next) => {
+          if (!next) setPendingLastOff(false);
+        }}
+        tone="danger"
+        title="Switch off the last active type?"
+        lead="With none active, the customer's request form does not go quiet — it falls back to a built-in list of six types at 5% and 6%, including ones you never offered and the ones you just switched off. That rate is then written onto the account."
+        cta="Yes, switch it off"
+        busy={saving}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          setPendingLastOff(false);
+          saveAll();
+        }}
+      >
+        <ConfirmFact label="Types after this" value="none active" strong />
+        <ConfirmFact
+          label="The customer is then offered"
+          value="six built-in types at 5% / 6%"
+          strong
+        />
+      </ConfirmModal>
     </Card>
   );
 }

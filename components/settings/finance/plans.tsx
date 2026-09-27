@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppContext } from "@/context/app-provider";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { suggestPrice } from "@/lib/pure-plan-price";
 import useExchangeRates from "./use-exchange-rates";
 
@@ -283,6 +284,25 @@ export default function PlansCard() {
   });
 
   const anyDirty = rows.some((r) => r.dirty);
+
+  // ── SWITCHING OFF THE LAST ONE IS NOT A SMALL EDIT ────────────────
+  //
+  // There is no delete here, so the Active tick is the only lever
+  // anyone reaches for -- and the card shows no count of who is on a
+  // plan. With every plan inactive, listActivePlans returns [], the
+  // invite form's auto-prime bails, and create_subscription_from_invite
+  // reads `if v_fee <= 0 then return`: NO subscription is created. The
+  // customer signs up, is never invoiced, and is still charged EUR 50
+  // per ad account. Silently, and only visible a month later.
+  //
+  // Save had no confirmation of any kind, unlike Banks and Exchange
+  // rates next door. This is the one change on this card that deserves
+  // one.
+  const [pendingLastOff, setPendingLastOff] = useState(false);
+  const willLeaveNoneActive =
+    rows.length > 0 && rows.every((r) => !r.is_active);
+  const wasSomeActive = initial.some((r) => r.is_active);
+  const turningOffTheLast = anyDirty && willLeaveNoneActive && wasSomeActive;
   const sym = (c: PlanCurrency) => (c === "USD" ? "$" : "€");
 
   // EUR -> USD, from the tenant's OWN active rate rather than a provider.
@@ -580,11 +600,44 @@ export default function PlansCard() {
         )}
       </CardContent>
       <CardFooter className="justify-end">
-        <Button disabled={!anyDirty || saving} onClick={() => saveAll()}>
+        <Button
+          disabled={!anyDirty || saving}
+          onClick={() => {
+            if (turningOffTheLast) {
+              setPendingLastOff(true);
+              return;
+            }
+            saveAll();
+          }}
+        >
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save changes
         </Button>
       </CardFooter>
+
+      <ConfirmModal
+        open={pendingLastOff}
+        onOpenChange={(next) => {
+          if (!next) setPendingLastOff(false);
+        }}
+        tone="danger"
+        title="Switch off the last active plan?"
+        lead="With no active plan, a customer who signs up gets no subscription at all — they are never invoiced, while still being charged the per-ad-account fee. Nothing on the customer's screen says so, and you would notice a month from now."
+        cta="Yes, switch it off"
+        busy={saving}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          setPendingLastOff(false);
+          saveAll();
+        }}
+      >
+        <ConfirmFact label="Plans after this" value="none active" strong />
+        <ConfirmFact
+          label="A new customer then gets"
+          value="no subscription, no invoice"
+          strong
+        />
+      </ConfirmModal>
     </Card>
   );
 }

@@ -120,6 +120,10 @@ function GeneralSettingsForm({
     updateProfile({
       profileId: data.profile.id,
       advertiserId: data.advertiser?.id,
+      // The company read is a select("*"), so the version is in hand.
+      ifUpdatedAt:
+        (data.company as { updated_at?: string | null } | null)?.updated_at ??
+        null,
       profileUpdates: {
         full_name: values.full_name,
         // email: values.email,
