@@ -261,6 +261,36 @@ select slug, label, default_fee_pct, is_active from ad_account_types order by so
 **Klaar als:** elk getal op het scherm staat ook zo in de database, en
 elke knop is ingedrukt geweest.
 
+### De agentveeg op blok 1 — 26/27-09
+
+Vier agents, rond de dertig bevindingen. Dat is veel voor het KLEINSTE
+blok van de vijftien: zes schermen, geen geldbewegingen, alleen
+instellingen. Alles hieronder is gefixt en staat live.
+
+**De vier die geld of toegang kostten:**
+
+| wat | waarom het erg was |
+|---|---|
+| een prijswijziging werd genegeerd door elke uitnodiging | `monthlyIn` leest `monthly_fee_eur` eerst en het scherm schreef alleen `monthly_fee`. Prime van 200 naar 210 zetten en elke nieuwe klant blijft op EUR 200. Voor altijd, en net zo bij een verlaging |
+| elke klant kon zichzelf een adminprofiel geven | `tenants_owner_insert` op rol public, plus een SECURITY DEFINER trigger die `role='admin'` uitdeelt. Niet naar onze data, wel de adminschil in -- waar leverancierskosten en marge staan. **Plak 100, gedraaid: niemand is erdoor gelopen** |
+| de EUR 50 aanvraagkosten verzonnen een koers van 0,86 | USD 58 waar USD 57 hoort, op een koers die 1,4% mis is. Elk ander geldpad weigert in die toestand. **Plak 101** |
+| het bedrijf van de organisatie was door niemand op te slaan | `companies` heeft geen admin-schrijfregel; de UPDATE raakt nul rijen zonder fout. De eigenaar leest "Failed to update profile" terwijl de naamhelft er al in staat. Dat is de rij op elke factuur. **Plak 102** |
+
+**En verder gefixt:** het zelfslot op ad-account-types (tweede keer
+opslaan werd geweigerd door niemand), drie caches zonder tenant in de
+sleutel, `count ?? 0` dat een mislukte lees van de push-wachtrij
+verzweeg, fee-percentages die drie decimalen aannamen op een kolom van
+twee (EUR 513 waar 512,50 was ingesteld), twee lege lijsten zonder lege
+staat, geen bevestiging bij het uitzetten van het laatste plan of het
+laatste accounttype, twee zaaifuncties die elke admin een prijstabel
+lieten vullen met de service key, `/settings/general` zonder
+versiestempel, en de RockAds-tegels die 0 toonden boven een mislukte
+leverancierscall.
+
+**Nog te lopen.** De zes schermen zelf zijn nog niet door de eigenaar
+bekeken -- de sessie was verlopen. Dat is wat blok 1 nog open houdt.
+
+
 ---
 
 # BLOK 2 — DE KALE AFFILIATE
