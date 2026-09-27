@@ -20,9 +20,31 @@ export default async function InviteExpired({
   reason?: string;
 } = {}) {
   const supabase = await createClient();
-  const { data: profiles } = await supabase
-    .from("user_profiles")
-    .select("id, tenants(name, id)");
+
+  // ── FILTERED BY THE SESSION, NOT BY RLS ALONE ────────────────────
+  //
+  // This was an UNFILTERED select on user_profiles, running on a PUBLIC
+  // url: /auth/sign-up?token=<anything-invalid> renders this card, as
+  // anon. The only thing making it return nothing was the RLS policy on
+  // that table — one policy away from handing every profile id and
+  // every tenant name to a visitor with no account.
+  //
+  // And even with RLS intact it over-answered: a signed-in tenant admin
+  // hitting an expired invite got EVERY profile in their tenant back,
+  // and a rendered button for each. The buttons are inert
+  // (switchToProfile re-checks ownership), but the names were in the
+  // HTML.
+  //
+  // The card offers to switch to one of YOUR OWN profiles, so it only
+  // ever needed your own. No session, no query at all.
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth?.user?.id ?? null;
+  const { data: profiles } = uid
+    ? await supabase
+        .from("user_profiles")
+        .select("id, tenants(name, id)")
+        .eq("user_id", uid)
+    : { data: [] };
   // Only the ones we can actually offer. `tenants` is a left join, so a
   // profile whose tenant row is gone came back with null.
   type Row = { id: string; tenants: { name: string | null; id: string } | { name: string | null; id: string }[] | null };

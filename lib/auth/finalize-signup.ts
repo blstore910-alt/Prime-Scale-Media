@@ -78,19 +78,87 @@ type ReferrerRow = {
 // Only somebody the owner approved as an affiliate can refer (plak 42).
 // Before that column exists everyone falls back to the old rule, and an
 // explicitly switched-off profile never refers.
-async function findReferrer(
+/**
+ * Why a referral code did not produce a referrer.
+ *
+ * Four different facts used to come back as one `null`, and the
+ * difference matters: "unknown" is somebody mistyping a code, while
+ * "unreadable" is us losing an affiliate's income to a network blip.
+ */
+type ReferrerLookup =
+  | { outcome: "ok"; row: ReferrerRow }
+  | {
+      outcome: "unreadable" | "unknown" | "not-an-affiliate" | "inactive";
+      reason: string;
+    };
+
+/**
+ * The lookup, plus the shouting.
+ *
+ * Signup never stops for a referral problem — a code we cannot place is
+ * not a reason to refuse somebody an account. But "we could not read
+ * it" costs an affiliate every future commission on that customer and
+ * cannot be repaired later (the retry path refuses to attach a referral
+ * once the wallet exists), so it must not leave the building silently.
+ *
+ * `unknown` is logged at a lower key than the rest: a mistyped or made-up
+ * code is a visitor's doing, not ours.
+ */
+async function resolveReferrer(
   admin: AdminClient,
   tenantId: string,
   code: string,
 ): Promise<ReferrerRow | null> {
+  const found = await findReferrer(admin, tenantId, code);
+  if (found.outcome === "ok") return found.row;
+  const line = `referral ${code} not applied (${found.outcome}): ${found.reason}`;
+  if (found.outcome === "unreadable") {
+    // The one case that is OUR fault and costs somebody money.
+    console.error(`LOST REFERRAL — ${line}`);
+  } else {
+    console.warn(line);
+  }
+  return null;
+}
+
+async function findReferrer(
+  admin: AdminClient,
+  tenantId: string,
+  code: string,
+): Promise<ReferrerLookup> {
+  // NOT "*". `advertisers` carries affiliate_status, startup_fee and the
+  // client code, and this row is one careless return away from a
+  // response. Name what is used.
   const { data, error } = await admin
     .from("advertisers")
-    .select("*, profile:user_profiles(status, full_name, role)")
+    .select(
+      "id, tenant_id, user_id, affiliate_status, profile:user_profiles(status, full_name, role, is_active)",
+    )
     .eq("tenant_id", tenantId)
     .eq("tenant_client_code", code)
     .limit(1);
-  if (error || !data?.[0]) return null;
-  const row = data[0] as ReferrerRow;
+
+  // ── A READ WE COULD NOT MAKE IS NOT AN UNKNOWN CODE ──────────────
+  //
+  // `if (error || !data?.[0]) return null` collapsed two completely
+  // different facts into one: "PSM0015 does not exist" and "we could
+  // not ask". A transient PostgREST error, a schema-cache miss or a
+  // statement timeout on this single read produced NO REFERRAL — and
+  // it is permanent, because the retry path refuses to attach one once
+  // the wallet exists. The affiliate loses every future commission on
+  // that customer and nobody is told.
+  //
+  // The distinction is returned to the caller so signup still goes
+  // ahead — never a reason to stop somebody joining — while the loss
+  // is shouted about instead of swallowed.
+  if (error) {
+    return { outcome: "unreadable", reason: safeErrorMessage(error) };
+  }
+  if (!data?.[0]) {
+    return { outcome: "unknown", reason: `no advertiser holds code ${code}` };
+  }
+
+  const row = data[0] as unknown as ReferrerRow;
   // Somebody invited AS an affiliate was approved by being invited.
   const prof = Array.isArray(row.profile) ? row.profile[0] : row.profile;
   const invitedAffiliate = String(prof?.role ?? "").toLowerCase() === "affiliate";
@@ -99,11 +167,29 @@ async function findReferrer(
     row.affiliate_status !== "approved" &&
     !invitedAffiliate
   ) {
-    return null;
+    // `applied` is the expensive one: an advertiser has asked to become
+    // an affiliate and the owner has not answered yet. Approving does
+    // NOT back-fill the signups that arrived in the meantime, so every
+    // referral in that window is lost for good. Named separately so the
+    // log says which it was.
+    return {
+      outcome: "not-an-affiliate",
+      reason: `affiliate_status is ${row.affiliate_status ?? "not set"}`,
+    };
   }
+
+  // ── BOTH LEGS, LIKE EVERY OTHER GUARD IN THIS APP ────────────────
+  //
+  // This tested `status` alone. `is_active` is the flag the admin UI
+  // actually flips, so an affiliate who had been switched off kept
+  // earning commission on new signups. company-actions.ts and every
+  // resolve* helper test the pair; this one did not.
   const status = getReferralStatus(row.profile);
-  if ((status ?? "active").toLowerCase() === "inactive") return null;
-  return row;
+  const activeFlag = (prof as { is_active?: boolean | null } | null)?.is_active;
+  if ((status ?? "active").toLowerCase() === "inactive" || activeFlag === false) {
+    return { outcome: "inactive", reason: "that affiliate is switched off" };
+  }
+  return { outcome: "ok", row };
 }
 
 // ── THE WALLET AND THE REFERRAL, EACH AT MOST ONCE ─────────────────────
@@ -269,7 +355,7 @@ export async function finalizeSignup(params: {
           const adv = (advRows?.[0] ?? null) as { id: string; user_id: string } | null;
           if (adv) {
             const referrer = signupReferralCode
-              ? await findReferrer(admin, tenantRow.id, signupReferralCode)
+              ? await resolveReferrer(admin, tenantRow.id, signupReferralCode)
               : null;
             const problem = await ensureWalletAndReferral(admin, {
               tenantId: tenantRow.id,
@@ -302,7 +388,7 @@ export async function finalizeSignup(params: {
   // A code we cannot place is simply no referral -- never a reason to
   // stop somebody signing up.
   const referralAdvertiser = referralCode
-    ? await findReferrer(admin, tenant.id, referralCode)
+    ? await resolveReferrer(admin, tenant.id, referralCode)
     : null;
 
   const fullName =

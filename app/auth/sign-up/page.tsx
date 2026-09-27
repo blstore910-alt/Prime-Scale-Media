@@ -3,7 +3,6 @@ import InviteExpired from "@/components/invites/invite-expired";
 import { SignUpForm } from "@/components/sign-up-form";
 import { createClient } from "@/lib/supabase/server";
 import { UserInvitation } from "@/lib/types/invite";
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 
@@ -32,7 +31,40 @@ export default async function Page({ searchParams }: PageProps) {
     // parameter, and that bounced a brand-new prospect to a sign-in page
     // for an account they do not have, with no way to make one.
     if (!tenantSlug) {
-      redirect("/auth/login");
+      // ── THE COMMENT ABOVE, AND THEN THE LINE THAT DID IT ─────────
+      //
+      // The note four lines up describes this exact failure -- "that
+      // bounced a brand-new prospect to a sign-in page for an account
+      // they do not have, with no way to make one" -- and then
+      // redirected to /auth/login anyway. And the login form carries no
+      // link to sign up (I grepped it: none), so that really is the end
+      // of the road: no forward, no back, no explanation. A shortener
+      // or a mail client dropping one query parameter is enough.
+      //
+      // A silent bounce is the wrong answer even so. We genuinely
+      // cannot create an account without knowing which tenant it
+      // belongs to, so the honest thing is to say that and give them
+      // both doors.
+      return (
+        <div className="card login-card">
+          <div className="lmk">
+            <span className="mk">Almost</span>
+          </div>
+          <h1 className="lh">This sign-up link is incomplete</h1>
+          <p className="lsub">
+            The part that says which account to create is missing — a
+            shortener or an email client has most likely trimmed it. Ask
+            whoever sent it for the full link and it will work.
+          </p>
+          <p className="lsub">
+            Already have an account?{" "}
+            <a href="/auth/login" className="lnk">
+              Log in
+            </a>
+            .
+          </p>
+        </div>
+      );
     }
     // Straight into the auth shell's .side column, like the invite form: a
     // second full-height centring wrapper fought the one already there.

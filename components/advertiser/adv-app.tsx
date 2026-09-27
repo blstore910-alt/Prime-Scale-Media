@@ -417,6 +417,21 @@ export default function AdvertiserApp() {
     },
   });
 
+  // ── A WALLET THAT NEVER GETS MADE, AND NOBODY IS TOLD ────────────
+  //
+  // This had no onError, and make-query-client has a QueryCache handler
+  // but NO MutationCache one — so a failed wallet creation was reported
+  // absolutely nowhere. The effect below fires on `wallet === null`,
+  // and `wallet` stays null when the RPC fails, so it never retried
+  // either. The hero then said "Your wallet is still being set up.
+  // Reload in a moment." — advice that runs the same failing RPC and
+  // produces the same sentence, for ever, on a brand-new customer's
+  // first screen with Top up and Exchange both dead.
+  //
+  // Now: the failure is kept, shown once, and the effect stops asking.
+  const [walletCreateFailed, setWalletCreateFailed] = useState<string | null>(
+    null,
+  );
   const { mutate: createWallet } = useMutation<Wallet, Error, void>({
     mutationKey: ["create-wallet", advertiserId],
     mutationFn: async () => {
@@ -426,8 +441,20 @@ export default function AdvertiserApp() {
       return data as Wallet;
     },
     onSuccess: (data) => {
+      setWalletCreateFailed(null);
       queryClient.setQueryData(["wallet", advertiserId], data);
       queryClient.invalidateQueries({ queryKey: ["wallet", advertiserId] });
+    },
+    onError: (err) => {
+      // Not a toast on its own: this fires during first paint, when a
+      // new customer is reading the screen rather than the corner of
+      // it. The hero says it in place, where the dead buttons are.
+      setWalletCreateFailed(
+        userFacingErrorMessage(
+          err,
+          "We couldn't set up your wallet. Message us and we'll do it by hand.",
+        ),
+      );
     },
   });
   // Escape closes the navigation drawer, like every other overlay in the
@@ -442,14 +469,26 @@ export default function AdvertiserApp() {
   }, [navOpen]);
 
   useEffect(() => {
+    // `walletCreateFailed` stops the loop: without it this effect sees
+    // `wallet === null` on every render after a failure and asks again.
+    if (walletCreateFailed) return;
     if (advertiserId && tenantId && wallet === null) createWallet();
-  }, [advertiserId, tenantId, wallet, createWallet]);
+  }, [advertiserId, tenantId, wallet, createWallet, walletCreateFailed]);
 
   // isError matters here as much as the data. Without it a failed read is
   // indistinguishable from an empty one, and the screen tells a customer
   // with ten live ad accounts that they have none and should request their
   // first — which is both alarming and wrong.
-  const { data: accounts, isLoading: accountsLoading, isError: accountsError } =
+  // isPending, not isLoading. `isLoading` is `isPending && isFetching`,
+  // so it is FALSE for a query that is disabled — and this one is
+  // `enabled: !!advertiserId`. A customer whose advertiser embed came
+  // back empty therefore read as "loaded, and you have no ad accounts":
+  // a hard 0 on the tile and "None yet" underneath it, neither of which
+  // had been read. Its two siblings in this file (walletLoading at :404,
+  // companyLoading at :1141) already use isPending and say why; this one
+  // was missed. The `advBusy` wrapper below stops isPending hanging for
+  // ever in the no-advertiser case.
+  const { data: accounts, isPending: accountsLoading, isError: accountsError } =
     useQuery<AdAccount[]>({
     queryKey: ["adv-accounts", advertiserId],
     enabled: !!advertiserId,
@@ -1369,7 +1408,26 @@ export default function AdvertiserApp() {
           },
         });
       } else {
-        toast.success("Company saved");
+        // ── AND THE BILLING ADDRESS IS STILL NOT ON THIS CARD ───────
+        //
+        // This card writes `companies`; the invoice address lives on
+        // `billings`, which only /complete-profile writes — and that
+        // page redirects away the moment the company is complete. So a
+        // customer who mistyped the address they are INVOICED at had no
+        // way back to it, ever, and the wrong address printed on every
+        // invoice.
+        //
+        // ?edit=1 re-opens it. Offered here rather than as another
+        // permanent link, because most people saving this card are not
+        // looking for it.
+        toast.success("Company saved", {
+          action: {
+            label: "Edit invoice address",
+            onClick: () => {
+              window.location.href = "/complete-profile?edit=1";
+            },
+          },
+        });
       }
     } catch (e) {
       // CLAUDE.md: never put a raw Supabase message in front of a
@@ -1449,19 +1507,39 @@ export default function AdvertiserApp() {
   // `enabled: !!advertiserId`. Somebody without an advertiser row would
   // otherwise sit on a skeleton that never resolves, which is worse than
   // any flash. So: no advertiser, nothing to wait for.
-  const booting =
-    !!advertiserId && (walletLoading || accountsLoading || companyLoading);
+  // ── ONE PLACE THAT KNOWS THE READS WILL NEVER RUN ────────────────
+  //
+  // The reasoning above was right and was applied to `booting` alone.
+  // Everything downstream still read the raw flags, so the
+  // never-resolving skeleton just moved one level down: with no
+  // advertiser row the page cleared `booting`, then drew two shimmering
+  // balance boxes that never finish, a top-bar chip stuck on "Wallet …",
+  // an onboarding checklist frozen as a grey bar — and beside them a
+  // hard "0" ad accounts and "No subscription", because the flags that
+  // happened to be `isLoading` went false while the `isPending` ones
+  // stayed true. One screen, contradicting itself, none of it read.
+  //
+  // So: wrap each flag ONCE, here, and use the wrapped one everywhere.
+  // No advertiser means nothing is loading and nothing is known — and
+  // the `!wallet` / `accountsError` branches downstream already say "—"
+  // rather than a figure, which is the honest answer.
+  const advBusy = !!advertiserId;
+  const walletBusy = advBusy && walletLoading;
+  const accountsBusy = advBusy && accountsLoading;
+  const companyBusy = advBusy && companyLoading;
+
+  const booting = walletBusy || accountsBusy || companyBusy;
 
   // ── NO WALLET ROW IS NOT A BALANCE OF ZERO ────────────────────────
   //
   // `wallet === null` resolves SUCCESSFULLY through .maybeSingle(), so
-  // walletError is false and walletLoading is false and these fell
+  // walletError is false and walletBusy is false and these fell
   // through to eur(0). The card then printed "EUR 0.00" and "Available
   // to spend" beside its own line reading "No wallet on this account
   // yet" -- three statements, on one card, that cannot all be true.
   const eurText = walletError
     ? "—"
-    : walletLoading
+    : walletBusy
       ? "…"
       : !wallet
         ? "—"
@@ -1474,7 +1552,7 @@ export default function AdvertiserApp() {
     eurBal <= 0 && usdBal > 0 ? "USD" : "EUR";
   const usdText = walletError
     ? "—"
-    : walletLoading
+    : walletBusy
       ? "…"
       : !wallet
         ? "—"
@@ -2424,7 +2502,7 @@ export default function AdvertiserApp() {
     // Unknown keeps the Pay label and lets the RPC answer. Being wrong
     // that way costs one refusal message; the other way costs a customer
     // who cannot pay a bill they can afford.
-    if (walletLoading || walletError) return true;
+    if (walletBusy || walletError) return true;
     const bal = invCurrency(inv) === "USD" ? usdBal : eurBal;
     // A cent of tolerance: these columns are single-precision on live, so
     // an exact-balance payment must not be refused by a rounding artefact.
@@ -3113,7 +3191,7 @@ export default function AdvertiserApp() {
             // "€0.00 → €-99.00" in the one dialog whose whole purpose is
             // that its figures are real. The balance tiles 1,300 lines up
             // already print "—" for this; so does this now.
-            if (walletLoading || walletError) {
+            if (walletBusy || walletError) {
               return "We couldn't read your balance just now";
             }
             const before = cur === "USD" ? usdBal : eurBal;
@@ -3643,7 +3721,7 @@ export default function AdvertiserApp() {
                  entirely. That is the flicker: a checklist appearing to
                  undo itself while you read it. */
               hasToppedUp={(toppedUpCount ?? 0) > 0}
-              loading={companyLoading || walletLoading || accountsLoading}
+              loading={companyBusy || walletBusy || accountsBusy}
               /* AND WAIT FOR A FAILED READ TOO. `loading` goes false when a
                  query FAILS, and then company is null and both balances are
                  0 — indistinguishable from a brand-new account. So a
@@ -3738,7 +3816,7 @@ export default function AdvertiserApp() {
                       : "Add your company details first — including the billing address"
                     : null
               }
-              loading={walletLoading}
+              loading={walletBusy}
               // ── "WELCOME BACK" ON THE FIRST VISIT EVER ────────────
               //
               // finalizeSignup sends a brand-new account straight here,
@@ -3901,7 +3979,7 @@ export default function AdvertiserApp() {
                 <div className="sub">
                   {accountsError
                     ? "Couldn't load"
-                    : accountsLoading
+                    : accountsBusy
                       ? "Checking…"
                       : (accounts ?? []).length === 0
                         ? "None yet"
@@ -4547,7 +4625,7 @@ export default function AdvertiserApp() {
                       // "No wallet on this account yet" -- twice, once per
                       // card -- to a customer who has one, before flipping
                       // to their balance.
-                      walletLoading
+                      walletBusy
                       ? "Just a moment — loading your wallet"
                       : !wallet
                         ? "No wallet on this account yet"
@@ -4579,7 +4657,7 @@ export default function AdvertiserApp() {
                       // "No wallet on this account yet" -- twice, once per
                       // card -- to a customer who has one, before flipping
                       // to their balance.
-                      walletLoading
+                      walletBusy
                       ? "Just a moment — loading your wallet"
                       : !wallet
                         ? "No wallet on this account yet"
@@ -4600,7 +4678,7 @@ export default function AdvertiserApp() {
                 `companyComplete` is false before the answer arrives, so
                 this told a customer whose details are complete to go and
                 add them, every time they opened the Wallet view. */}
-            {!companyComplete && !companyUnknown && !companyLoading && (
+            {!companyComplete && !companyUnknown && !companyBusy && (
               <div className="duerow msg" style={{ marginTop: 12 }}>
                 <span className="ai">
                   <Ic name="i-building" />
@@ -5595,7 +5673,7 @@ export default function AdvertiserApp() {
                       // account, a paid PRIME plan and complete company
                       // details to "Add your company details first" and
                       // that "paying for [your plan] is the first step".
-                      accountsLoading || companyLoading
+                      accountsBusy || companyBusy
                       ? "Loading your ad accounts…"
                       : canRequestAccount
                         ? "No ad accounts yet"
@@ -5604,7 +5682,7 @@ export default function AdvertiserApp() {
                 <p>
                   {accountsError
                     ? "This isn't an empty list — the request didn't come back. Give it a reload."
-                    : accountsLoading || companyLoading
+                    : accountsBusy || companyBusy
                       ? "One moment."
                     : !canRequestAccount && invError
                       ? "Your invoices didn't load, so we can't tell whether the plan is paid. Reload to try again."
@@ -7004,11 +7082,11 @@ export default function AdvertiserApp() {
                   <button
                     className="btn sm"
                     onClick={saveCompany}
-                    disabled={savingComp || companyLoading || companyError}
+                    disabled={savingComp || companyBusy || companyError}
                     title={
                       companyError
                         ? "We couldn't read your company details, so saving now would overwrite them with this blank form. Reload first."
-                        : companyLoading
+                        : companyBusy
                           ? "Loading your company details…"
                           : undefined
                     }
@@ -7021,7 +7099,7 @@ export default function AdvertiserApp() {
                       is empty — saving it would wipe what is stored. Reload
                       and try again.
                     </p>
-                  ) : companyLoading ? (
+                  ) : companyBusy ? (
                     /* A title attribute is invisible on a phone, and this
                        is a phone app -- the same point this file makes
                        about another control. An empty form with a greyed
@@ -7279,7 +7357,7 @@ export default function AdvertiserApp() {
         accountTypeSlugs={(accounts ?? []).map((a) => a.platform)}
         /* A failed or in-flight accounts read is not "no accounts". It
            decides which company's IBAN the customer is told to pay. */
-        accountsUnknown={accountsError || accountsLoading}
+        accountsUnknown={accountsError || accountsBusy}
       />
       <WalletExchangeDialog
         initialFrom={exchangeFrom}

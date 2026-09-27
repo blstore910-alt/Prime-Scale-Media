@@ -9,7 +9,10 @@ import * as z from "zod";
 import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
-import { safeErrorMessage } from "@/lib/pure-error";
+import {
+  safeErrorMessage,
+  userFacingErrorMessage,
+} from "@/lib/pure-error";
 import { scorePassword } from "@/lib/password-strength";
 
 // ── THE SIGN-UP BEHIND A REFERRAL LINK ──────────────────────────────────
@@ -179,8 +182,25 @@ export function SignUpForm({
       }
       router.push("/auth/sign-up-success");
     } catch (error) {
+      // ── TWO DIFFERENT HELPERS, AND THIS USED THE LOG ONE ─────────
+      //
+      // safeErrorMessage is the LOG-safe one: it strips Supabase's
+      // details/hint/row (which carry PII) and hands back the message
+      // unchanged. userFacingErrorMessage is the one for a person — it
+      // swaps a database-shaped sentence for something actionable.
+      //
+      // So a PostgREST message went straight into a toast on the very
+      // first screen a new customer ever sees. The company onboarding
+      // form one step later already gets this right and says in a
+      // comment that CLAUDE.md calls it non-negotiable; the sign-up
+      // form was missed.
       console.error(safeErrorMessage(error));
-      toast.error("Sign up failed", { description: safeErrorMessage(error) });
+      toast.error("Sign up failed", {
+        description: userFacingErrorMessage(
+          error,
+          "We couldn't create the account just now. Check the address and try again, or log in if you already have one.",
+        ),
+      });
     }
   };
 

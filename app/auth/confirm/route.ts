@@ -3,6 +3,34 @@ import { type EmailOtpType, type User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { finalizeSignup, type ConfirmedUser } from "@/lib/auth/finalize-signup";
 
+/**
+ * Turn Supabase's own reason for refusing a confirmation link into a
+ * sentence with a next step in it.
+ *
+ * Their codes are stable and few; anything we do not recognise falls
+ * back to their own description rather than to a generic line, because
+ * a real message we did not anticipate beats a tidy one that says
+ * nothing.
+ */
+function confirmLinkMessage(
+  code: string,
+  description?: string | null,
+): string {
+  const c = String(code ?? "").toLowerCase();
+  if (c.includes("expired")) {
+    return "That confirmation link has expired. Sign up again with the same address and we'll send a fresh one.";
+  }
+  if (c.includes("access_denied") || c.includes("used")) {
+    return "That confirmation link has already been used. Try logging in — your account may be ready.";
+  }
+  const desc = String(description ?? "").trim();
+  if (desc) {
+    // Supabase sends these URL-encoded with plus signs for spaces.
+    return `${desc.replace(/\+/g, " ")} Try signing up again, or log in if your account is already active.`;
+  }
+  return "That confirmation link did not work. Try signing up again, or log in if your account is already active.";
+}
+
 function redirectWithError(request: NextRequest, message: string) {
   return NextResponse.redirect(
     new URL(`/auth/error?error=${encodeURIComponent(message)}`, request.url),
@@ -40,12 +68,21 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   let user: ConfirmedUser | null = null;
 
-  // Supabase sends the person here WITH the reason when the link is used
-  // up or too old (otp_expired, access_denied). Say that, instead of
-  // "no token provided".
+  // ── THE COMMENT WAS RIGHT AND THE CODE DID THE OTHER THING ──────
+  //
+  // Supabase sends the person here WITH the reason when the link is
+  // used up or too old (otp_expired, access_denied). This read that
+  // reason into `linkError`, used it only as an if-condition, threw the
+  // value away and emitted the exact string the comment says to avoid.
+  //
+  // So somebody whose confirmation link had expired was told "No
+  // confirmation token provided" — which points at nothing, suggests
+  // they did something wrong, and offers no way to get a new one. On a
+  // brand-new signup that is the last screen they ever see.
   const linkError = searchParams.get("error_code") ?? searchParams.get("error");
   if (linkError && !tokenHash && !code) {
-    return redirectWithError(request, "No confirmation token provided");
+    const description = searchParams.get("error_description");
+    return redirectWithError(request, confirmLinkMessage(linkError, description));
   }
 
   if (tokenHash && type) {

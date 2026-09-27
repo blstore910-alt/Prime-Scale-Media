@@ -43,11 +43,42 @@ export default async function Page() {
     const { data: me } = await supabase.auth.getUser();
     const meta = me?.user ? signupMetadata(me.user) : null;
     if (me?.user?.email && meta?.tenantSlug) {
+      // ── NO REFERRAL FROM THIS DOOR ──────────────────────────────
+      //
+      // `user_metadata` is writable by the user themselves:
+      // `auth.updateUser({ data: { referral_code: "PSM0007" } })` takes
+      // any key, with the anon key and their own JWT, and no server is
+      // involved. finalize-signup.ts says so in its own comment.
+      //
+      // The confirm route is safe because it runs on a token from the
+      // mailbox and compares the metadata against the URL. This path
+      // has neither: it exists for somebody who IS confirmed and has no
+      // profile, which is exactly the state from which the metadata can
+      // be rewritten. So a stranger could sign up with a tenant slug
+      // that does not exist, confirm, log in with no profile, set
+      // `referral_code` to any affiliate's code from the browser
+      // console, load /onboard -- and the service role would write a
+      // referral_links row crediting an affiliate who never referred
+      // them. It lands `pending`, but in the owner's queue it is
+      // indistinguishable from a real one, and approving books every
+      // commission earned since.
+      //
+      // Finishing the ACCOUNT here is right and stays. The attribution
+      // does not: it is money, and this is the one entrance where the
+      // claim cannot be checked against anything.
+      if (meta.referralCode) {
+        // Logged rather than dropped in silence -- a genuine customer
+        // whose confirm failed loses their referrer this way, and that
+        // is worth someone seeing and attaching by hand.
+        console.warn(
+          `onboard: not applying referral ${meta.referralCode} for ${me.user.email} — metadata is user-writable on this path`,
+        );
+      }
       const done = await finalizeSignup({
         user: { id: me.user.id, email: me.user.email, user_metadata: me.user.user_metadata },
         tenantSlug: meta.tenantSlug,
-        referralCode: meta.referralCode,
-        signupReferralCode: meta.referralCode,
+        referralCode: null,
+        signupReferralCode: null,
       });
       if (done.ok) redirect(done.path);
     }

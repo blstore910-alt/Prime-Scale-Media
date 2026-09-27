@@ -242,6 +242,23 @@ export default function CompanyOnboardingForm({
       });
       if (!result.ok) throw new Error(result.error);
 
+      // ── CLEARING THE DRAFT IS NOT ENOUGH ON ITS OWN ─────────────
+      //
+      // `finally { setIsSubmitting(false) }` below forces a re-render,
+      // `liveValues = watch()` hands back a fresh object identity, and
+      // the autosave effect re-arms its 500 ms debounce -- with
+      // `isDirty` still true, because the form was never reset. If the
+      // navigation takes longer than that (it is a router.push behind a
+      // 100 ms timer), the draft we just cleared is written back.
+      //
+      // The customer's next visit is then told "You were filling this
+      // in earlier" about values that were, in fact, saved -- and
+      // Restore puts the old ones back over them.
+      //
+      // reset(data) makes the saved values the new baseline, so isDirty
+      // goes false and both the autosave and the beforeunload warning
+      // stand down. Then clear.
+      reset(data);
       await draft.clear();
       toast.success("Company information saved!");
       router.refresh();

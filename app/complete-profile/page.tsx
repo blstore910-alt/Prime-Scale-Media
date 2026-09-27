@@ -8,7 +8,25 @@ import { UserProfile } from "@/lib/types/user";
 import { LogoutButton } from "@/components/auth/logout-button";
 import PsmAvatar from "@/components/ui/psm-avatar";
 
-export default async function CompleteProfilePage() {
+export default async function CompleteProfilePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ edit?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  // ── A ONE-WAY DOOR ONTO EVERY INVOICE ───────────────────────────────
+  //
+  // This form is the ONLY advertiser-facing writer of `billings` —
+  // Settings never touches it (saveOwnCompanyOnboarding is the one
+  // action that does). And the redirect below fires the moment the
+  // company is complete, so a customer who mistyped their invoice
+  // address could never open it again. The wrong address then prints on
+  // every invoice they ever get, and the only cure is asking us.
+  //
+  // `?edit=1` is the way back in. It does not weaken the gate: the gate
+  // exists to stop somebody skipping onboarding, and a person asking to
+  // re-open a form they already completed is not skipping anything.
+  const reopening = String(sp.edit ?? "") === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -183,7 +201,7 @@ export default async function CompleteProfilePage() {
   // lib/pure-company-complete.ts is the one the gate, the checklist and
   // the chip all use. A page that redirects on a stricter rule than the
   // one it is enforcing is a trap.
-  if (company && isCompanyComplete(company as never)) {
+  if (!reopening && company && isCompanyComplete(company as never)) {
     redirect("/");
   }
 

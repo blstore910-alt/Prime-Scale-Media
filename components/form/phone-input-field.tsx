@@ -42,10 +42,41 @@ export default function PhoneInputField<T extends FieldValues>({
         <Field data-invalid={fieldState.invalid}>
           {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
           <div className={cn("phone-input-container", className)}>
+            {/* ── IT FIRES ONCE BEFORE ANYBODY TYPES ────────────────
+                react-international-phone runs an effect on mount:
+                `if (!initialized) { …; value !== phone && onChange(…) }`.
+                With an empty value and defaultCountry="nl" its initial
+                state is "+31", so "" !== "+31" and onChange("+31")
+                fires before the field has been touched.
+
+                Through react-hook-form that marks the form DIRTY on
+                first paint, and two things this app relies on are
+                wired to `isDirty`:
+
+                  - the beforeunload warning, so pressing Back gave
+                    "Leave site? Changes you made may not be saved" to
+                    somebody who had typed nothing;
+                  - the draft autosave (`saveWhen: isDirty`), which then
+                    wrote the SERVER'S OWN prefilled row into IndexedDB.
+                    Next visit offered "Unsaved changes from earlier"
+                    about values nobody typed — and Restore overwrote
+                    anything typed since. That is exactly the lost
+                    typing CLAUDE.md names this form for.
+
+                So: the mount-time echo is swallowed. A bare dial code
+                against an empty field is not an edit. Anything else —
+                including the person actually picking a country — goes
+                straight through. */}
             <PhoneInput
               defaultCountry={defaultCountry}
               value={field.value}
-              onChange={(phone) => field.onChange(phone)}
+              onChange={(phone) => {
+                const next = String(phone ?? "");
+                const current = String(field.value ?? "");
+                const bare = /^\+\d{1,4}$/.test(next.replace(/[\s-]/g, ""));
+                if (current === "" && bare) return;
+                field.onChange(phone);
+              }}
               inputProps={{
                 id: id,
                 placeholder: placeholder,
