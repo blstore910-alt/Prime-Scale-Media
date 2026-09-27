@@ -26,6 +26,7 @@ export default function BalanceHero({
   disabled,
   disabledReason,
   loading,
+  returning,
 }: {
   firstName: string;
   eurText: string;
@@ -40,6 +41,16 @@ export default function BalanceHero({
   disabledReason?: string | null;
   /** The wallet has not been read yet. */
   loading?: boolean;
+  /**
+   * Have they been here before?
+   *
+   * "Welcome back" was unconditional, and finalizeSignup sends a brand-new
+   * account straight to this screen -- so the first sentence somebody ever
+   * read in this app welcomed them back to a place they had never been.
+   * Undefined means we do not know yet, and then the neutral greeting is
+   * the safe one: "Welcome" is never wrong, "Welcome back" can be.
+   */
+  returning?: boolean;
 }) {
   return (
     <section className="hero">
@@ -49,7 +60,7 @@ export default function BalanceHero({
       <span className="hero-ribbon" aria-hidden="true" />
       <span className="hero-stars" aria-hidden="true" />
 
-      <p className="hero-greet">Welcome back</p>
+      <p className="hero-greet">{returning ? "Welcome back" : "Welcome"}</p>
       <h1 className="hero-h">{firstName}</h1>
 
       <div className="hero-bal">

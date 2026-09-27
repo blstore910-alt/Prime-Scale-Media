@@ -178,11 +178,46 @@ export default function CommissionSetupDialog({
             got an error toast — with no way to know beforehand. The flag
             exists and is correct in the app context; nothing consulted
             it. */}
+        {/* ── LOOKING IS NOT CHANGING ────────────────────────────────
+            The owner, 27-09: "medewerkers mogen wel de setup zien van
+            commission maar niet veranderen."
+
+            This hid the whole form behind a sentence, so an employee
+            admin answering "what does this affiliate earn on me?" could
+            not see the answer -- on a screen called Commission Setup,
+            opened from their own menu. Nothing here is a secret from
+            them: it is what WE pay out, not what the supplier charges
+            us, and they need it to answer the phone.
+
+            So: the terms, plainly, read-only. The form stays behind the
+            owner check because setAdvertiserCommission refuses anybody
+            else, and offering a form the server will not take is the
+            fault this branch was written to fix in the first place. */}
         {!isSuperAdmin ? (
-          <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
-            Commission terms are set by the account owner. Ask them to
-            change this — the server will refuse it from here, so filling
-            it in would not save.
+          <div className="space-y-3">
+            <dl className="rounded-md border bg-muted/30 p-4 text-sm">
+              {(
+                [
+                  ["Type", commissionType || "—"],
+                  ["Percentage", commissionPct ? `${commissionPct}%` : "—"],
+                  ["One-off", commissionOnetime || "—"],
+                  ["Monthly", commissionMonthly || "—"],
+                  ["Currency", commissionCurrency || "—"],
+                ] as const
+              ).map(([k, v]) => (
+                <div
+                  key={k}
+                  className="flex items-baseline justify-between gap-4 border-b py-1.5 last:border-0"
+                >
+                  <dt className="text-muted-foreground">{k}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-sm text-muted-foreground">
+              These are set by the account owner. Ask them if they need
+              changing.
+            </p>
           </div>
         ) : (
         <div className="space-y-4">

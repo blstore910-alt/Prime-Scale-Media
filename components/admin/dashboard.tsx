@@ -24,6 +24,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { dailyQuote } from "@/lib/pure-daily-quote";
+import { dstBehind } from "@/lib/pure-dst-behind";
+import { createClient } from "@/lib/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
@@ -34,6 +37,11 @@ type Queue = {
   /** null = unknown (not read). Distinct from 0. */
   count?: number | null;
   label: string;
+  /**
+   * A standing check rather than a queue somebody is waiting in.
+   * It never outranks real work, however big its number is.
+   */
+  soft?: boolean;
 };
 
 // Dashboard-only classes ported verbatim from the approved mockup, scoped
@@ -224,7 +232,56 @@ export default function AdminDashboard() {
   // Owner-only: approving an affiliate or a referral is the owner's call.
   const affWaiting = useAffiliatesWaiting(profile?.tenant_id, !!isSuperAdmin);
 
+  // ── DST, ON THE SCREEN PEOPLE ACTUALLY OPEN ──────────────────────
+  //
+  // The owner, 27-09: "op home scherm moet nog een grid voor admin DST
+  // to fill in of iets."
+  //
+  // DST is typed in by hand, one week per customer, and nothing schedules
+  // or chases it -- so a missed week is invisible until somebody happens
+  // to open /dst. Which nobody does, because there is no reason to.
+  // Here it is a queue like the others: a number, and it is gone again
+  // the moment it is zero.
+  //
+  // Same reading and the same threshold as the DST screen itself
+  // (lib/pure-dst-behind.ts), so the two can never disagree.
+  const dstRows = useQuery({
+    queryKey: ["dst-behind", profile?.tenant_id ?? ""],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("dst_charges")
+        .select("advertiser_id, period_start, period_end")
+        .eq("tenant_id", profile!.tenant_id!)
+        .order("period_end", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  // isPending, not isLoading: gated on the tenant, so a query that never
+  // ran would otherwise report a confident zero weeks behind.
+  const dstBehindCount = dstRows.isPending
+    ? undefined
+    : dstRows.isError
+      ? null
+      : dstBehind(dstRows.data ?? []).length;
+
   const queues: Queue[] = [
+    // Only when somebody is actually behind. A card that says 0 every
+    // day is a card people stop reading.
+    ...(dstBehindCount === undefined || dstBehindCount === 0
+      ? []
+      : [
+          {
+            href: "/dst",
+            icon: Landmark,
+            ci: "g",
+            count: dstBehindCount,
+            label: "DST weeks to enter",
+          } as Queue,
+        ]),
     {
       href: "/wallet-topups",
       icon: Upload,
@@ -233,15 +290,34 @@ export default function AdminDashboard() {
       label: "Wallet topups to verify",
     },
     {
-      // Its own card, because it is its own queue: money that arrived in
+      // Its own card, because it is its own thing: money that arrived in
       // the bank and nobody has claimed. It used to be added into the
       // card above, which then read 5 on a tenant with no top-ups
       // waiting at all.
+      //
+      // ── AND IT IS NOT THE JOB ─────────────────────────────────────
+      //
+      // The owner, 27-09: "bank deposits to match lijkt mij lelijk op
+      // homescreen, onnodig? want we hebben toch wallet topups to
+      // verify, daar gaat het om toch?"
+      //
+      // Right, and the numbers say so. Of 336 deposits in the feed
+      // exactly ONE has ever matched a top-up -- correctly, because the
+      // references on the rest are the OLD system's client codes
+      // (docs/WISE_SETUP.md). So 59 of them sat at the top of this
+      // screen under a blue badge, above five queues reading 0, and the
+      // loudest number an admin saw on opening the app was the one
+      // thing that was not their work.
+      //
+      // Not removed, because money arriving with NO claim is real: a
+      // customer paid and nobody noticed. That is a standing check, not
+      // a queue -- so `soft`, and a label that says what it is.
       href: "/wallet-topups",
       icon: Landmark,
       ci: "t",
       count: pending.bankDeposits,
-      label: "Bank deposits to match",
+      label: "Bank money not yet placed",
+      soft: true,
     },
     {
       href: "/ad-account-requests",
@@ -423,9 +499,16 @@ export default function AdminDashboard() {
               </div>
             ))
           : [...queues].sort((a, b) => {
-            const weight = (c: number | null | undefined) =>
-              c === undefined ? 0 : c === null ? 2 : c > 0 ? 2 : 1;
-            return weight(b.count) - weight(a.count);
+            // A soft card is a standing check, not somebody waiting, so
+            // it sorts below every real queue -- including the empty
+            // ones. Its 59 legacy deposits were pushing five queues that
+            // actually need a person off the top of the screen.
+            const weight = (q: Queue) => {
+              if (q.soft) return 0;
+              const c = q.count;
+              return c === undefined ? 1 : c === null ? 3 : c > 0 ? 3 : 2;
+            };
+            return weight(b) - weight(a);
           })
           .map((q) => {
           const Icon = q.icon;

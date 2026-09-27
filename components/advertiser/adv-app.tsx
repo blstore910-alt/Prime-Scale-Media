@@ -3738,6 +3738,22 @@ export default function AdvertiserApp() {
                     : null
               }
               loading={walletLoading}
+              // ── "WELCOME BACK" ON THE FIRST VISIT EVER ────────────
+              //
+              // finalizeSignup sends a brand-new account straight here,
+              // so the first sentence somebody read in this app welcomed
+              // them back to a place they had never been.
+              //
+              // Returning means there is something to return TO: a
+              // company on file, an ad account, or money that has moved.
+              // While any of those reads is still unknown it stays
+              // false, because "Welcome" is never wrong and "Welcome
+              // back" can be.
+              returning={
+                companyComplete === true ||
+                (accounts?.length ?? 0) > 0 ||
+                (invoices?.length ?? 0) > 0
+              }
             />
             {/* Number(), not truthiness. subscriptions.amount is moving from
                 a float to numeric, and PostgREST serialises numeric as a
