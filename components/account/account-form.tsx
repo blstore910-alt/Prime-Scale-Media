@@ -325,7 +325,8 @@ export default function AccountForm({
   // right figure again, and only while the box is untouched.
   // One rule, shared with the create-from-request dialog, so the two
   // cannot drift apart again. See lib/pure-fee-suggestion.ts.
-  const suggestedPct = suggestFeePct({ planPct, typePct: typeDefaultPct }).pct;
+  const suggestion = suggestFeePct({ planPct, typePct: typeDefaultPct });
+  const suggestedPct = suggestion.pct;
   const prefilledFor = useRef<string | null>(null);
   useEffect(() => {
     if (suggestedPct === null || suggestedPct === undefined) return;
@@ -346,6 +347,42 @@ export default function AccountForm({
     setValue,
     formState.dirtyFields.fee,
   ]);
+  // ── BOTH FIGURES, ALWAYS ──────────────────────────────────────────
+  //
+  // "soms heeft iemand hk geven we hem 3% fee bijv en soms eu ra geven
+  // we hem 4% fee bijv" — so the plan rate and the type's rate are two
+  // different things and they disagree on purpose. The old sentence
+  // named only one of them at a time, which is how a 5% customer ended
+  // up shown a 3% box with an explanation that read like a decision
+  // somebody had made.
+  //
+  // Both are named whenever both are known, so the admin can see what
+  // they are choosing between rather than being told the answer.
+  const feeNotice = (() => {
+    const typed = feeWatch == null ? null : Number(feeWatch);
+    const both =
+      planPct != null && typeDefaultPct != null
+        ? `Their plan says ${planPct}%, this type is priced at ${typeDefaultPct}%.`
+        : planPct != null
+          ? `Their plan says ${planPct}%; this type has no rate of its own.`
+          : typeDefaultPct != null
+            ? `No plan rate for them; this type is priced at ${typeDefaultPct}%.`
+            : "We know neither their plan rate nor a rate for this type.";
+
+    if (typed == null || typed === 0) {
+      return suggestedPct == null
+        ? `${both} Left empty, this account has no rate of its own — and 0 is read as "not set", not as free.`
+        : `${both} Left empty nothing is charged here, so put ${suggestedPct}% in. To charge nothing, grant a top-up fee waiver instead.`;
+    }
+    if (suggestedPct != null && typed < suggestedPct) {
+      return `⚠ ${both} ${typed}% is ${(suggestedPct - typed).toFixed(2)} points below the higher of the two, on every top-up.`;
+    }
+    if (suggestedPct != null && typed === suggestedPct) {
+      return `${both} ${typed}% gets charged — the higher of the two, which is the rule.`;
+    }
+    return `${both} ${typed}% gets charged on this account's top-ups.`;
+  })();
+
   const marginText = (() => {
     const charge = Number(feeWatch);
     const cost = Number(supplierFeeWatch);
@@ -609,20 +646,7 @@ export default function AccountForm({
                 what a top-up fee waiver is for, and the note says so
                 rather than letting somebody try. */}
             <p className="text-xs text-muted-foreground" aria-live="polite">
-              {feeWatch == null || Number(feeWatch) === 0
-                ? planPct === null || planPct === undefined
-                  ? "Left empty, this account has no rate of its own — the rate is decided when the top-up is made."
-                  : `Left empty, their plan's ${planPct}% is charged. To charge nothing, grant a top-up fee waiver instead.`
-                : planPct === null || planPct === undefined
-                  ? typeDefaultPct === null ||
-                    Number(feeWatch) === typeDefaultPct
-                    ? `${feeWatch}% gets charged on this account's top-ups. They have no plan rate, so this type's own ${typeDefaultPct ?? "—"}% was used.`
-                    : `${feeWatch}% gets charged. No plan rate; this type's default is ${typeDefaultPct}%.`
-                  : Number(feeWatch) === planPct
-                    ? `Matches their plan (${planPct}%). ${feeWatch}% gets charged.`
-                    : Number(feeWatch) < planPct
-                      ? `⚠ Their plan says ${planPct}% and this charges ${feeWatch}% — ${(planPct - Number(feeWatch)).toFixed(2)} points less than agreed, on every top-up.`
-                      : `Their plan says ${planPct}% — this account overrides it and ${feeWatch}% gets charged.`}
+              {feeNotice}
             </p>
           </div>
 
