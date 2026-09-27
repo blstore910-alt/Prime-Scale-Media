@@ -24,6 +24,25 @@ type TenantRecord = {
  * every write was refused downstream, and the reads were not. The audit
  * log and the books are exactly what you take away first.
  */
+/**
+ * ── AND A SILENT BOUNCE IS NOT A REFUSAL ────────────────────────────
+ *
+ * Walked on production 27-09 with the tenant's first employee admin.
+ * /settings/plans, /settings/finance, /affiliates, /admins and
+ * /reconciliation all did the same thing: land on /dashboard, no
+ * message, no toast, nothing. The boundary holds -- not one of them
+ * leaked -- but the person is simply somewhere else now.
+ *
+ * That matters because the app SENDS them here. verify-topup-dialog
+ * tells an admin verifying a top-up with no supplier fee to go to
+ * "Settings -> Ad account types"; the request-fee notice points at
+ * Settings -> Finance -> Plans. They follow the instruction and end up
+ * on their own dashboard with no idea why.
+ *
+ * So the redirect carries WHY, and the dashboard says it once. A
+ * query parameter is enough: nothing secret is in it, and it survives
+ * the server-side redirect that a toast cannot.
+ */
 export async function requireSuperAdmin(redirectTo = "/dashboard") {
   // Cached per render, so this is free when the (app) layout already ran it.
   // See lib/auth/session.ts.
@@ -84,7 +103,12 @@ export async function requireSuperAdmin(redirectTo = "/dashboard") {
     !!ownerId && (ownerId === authUserId || ownerId === profileUserId);
 
   if (!isSuperAdmin) {
-    redirect(redirectTo);
+    // Only decorate the default landing. A caller that named its own
+    // destination meant it, and appending to an arbitrary path risks
+    // stepping on a query string it already carries.
+    redirect(
+      redirectTo === "/dashboard" ? "/dashboard?denied=owner" : redirectTo,
+    );
   }
 
   return { user: userData.user, profile };

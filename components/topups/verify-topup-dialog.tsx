@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Topup } from "@/lib/types/topup";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { useAppContext } from "@/context/app-provider";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import SupplierPill, { SUPPLIER_PILL_CSS } from "./supplier-pill";
 import {
@@ -130,6 +131,10 @@ function VerifyTopupInvoice({
   onVerified: (open: boolean) => void;
   onBusyChange?: (busy: boolean) => void;
 }) {
+  // Only to decide whether a sentence may name an owner-only screen --
+  // see the supplier-fee notice below. Nothing here is gated on it; the
+  // guards for that are on the server.
+  const { isSuperAdmin } = useAppContext();
   const {
     register,
     watch,
@@ -505,10 +510,20 @@ function VerifyTopupInvoice({
           {supplier ? (
             <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               {supplier.feePct === null ? (
+                /* ── DO NOT SEND THEM TO A DOOR THAT BOUNCES ───────
+                   This named the screen for everybody. /settings is
+                   requireSuperAdmin, and walked on production 27-09 an
+                   employee admin following that instruction lands back
+                   on their own dashboard — silently, before today.
+                   They cannot fix it and nothing said so. So the
+                   sentence matches who is reading it. */
                 <>
-                  No supplier fee set for {supplier.typeLabel || "this type"} —
-                  Settings → Ad account types. Any affiliate commission on this
-                  top-up goes on hold until it is.
+                  No supplier fee set for {supplier.typeLabel || "this type"} —{" "}
+                  {isSuperAdmin
+                    ? "Settings → Ad account types."
+                    : "ask the account owner to set it."}{" "}
+                  Any affiliate commission on this top-up goes on hold until
+                  it is.
                 </>
               ) : (
                 (() => {

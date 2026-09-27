@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
 type Queue = {
@@ -117,6 +118,16 @@ const DASH_CSS = `
 
 /* Profit & activity — one cohesive section: header + hero + control + metrics.
    A top hairline bounds the section; header carries title + honest subtitle. */
+/* Said once, at the top, when a guard sent them back here. */
+.psm-dash .denied{display:flex;align-items:flex-start;gap:4px 10px;flex-wrap:wrap;
+  border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:12px;
+  background:var(--primary-tint);padding:11px 13px;font-size:.86rem;color:var(--ink)}
+.psm-dash .denied b{font-weight:800}
+.psm-dash .denied span{flex:1 1 100%;color:var(--txt-2);line-height:1.45}
+.psm-dash .denied button{margin-left:auto;border:0;background:none;cursor:pointer;
+  color:var(--faint);font-size:.95rem;line-height:1;padding:2px 4px}
+.psm-dash .denied button:hover{color:var(--ink)}
+
 .psm-dash .pa{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:15px}
 .psm-dash .pa-head{display:flex;flex-direction:column;gap:2px}
 .psm-dash .pa-head .pa-sub{color:var(--txt-2);font-size:.86rem;margin:0}
@@ -144,6 +155,41 @@ const DASH_CSS = `
 
 export default function AdminDashboard() {
   const { isSuperAdmin, dispatch, profile } = useAppContext();
+
+  // ── WHY YOU ARE SUDDENLY BACK HERE ────────────────────────────────
+  //
+  // requireSuperAdmin used to redirect to /dashboard and say nothing.
+  // Walked on production 27-09 with the tenant's first employee admin:
+  // /settings/plans, /settings/finance, /affiliates, /admins and
+  // /reconciliation all bounced in silence. Nothing leaked -- and the
+  // person is simply somewhere else now, with no idea why.
+  //
+  // It matters because the app SENDS them there: the verify dialog tells
+  // an admin with no supplier fee to go to Settings, and the guard
+  // bounces them off it without a word.
+  //
+  // window.location rather than useSearchParams: that hook drags a
+  // Suspense boundary behind it, which is one of the few things only
+  // `next build` catches (CLAUDE.md), and this is a one-shot notice that
+  // does not need to survive anything.
+  const [denied, setDenied] = useState(false);
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("denied") !== "owner") return;
+      setDenied(true);
+      // Take it back out, so a reload or a shared link does not repeat it.
+      p.delete("denied");
+      const q = p.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (q ? `?${q}` : ""),
+      );
+    } catch {
+      // No URL to read is simply no notice.
+    }
+  }, []);
   const pending = usePendingCounts();
   // Owner-only: approving an affiliate or a referral is the owner's call.
   const affWaiting = useAffiliatesWaiting(profile?.tenant_id, !!isSuperAdmin);
@@ -244,6 +290,24 @@ export default function AdminDashboard() {
           </button>
         ) : null}
       </div>
+
+      {denied ? (
+        <div className="denied" role="status">
+          <b>That screen is the account owner&rsquo;s.</b>
+          <span>
+            Prices, exchange rates, commission terms, the other admins and
+            the books are theirs to change. Ask them, and everything else
+            here stays yours.
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setDenied(false)}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       {/* The "N items need action" hero is GONE. It restated, in a sentence,
           exactly what the queue cards below show as badges — and those cards
