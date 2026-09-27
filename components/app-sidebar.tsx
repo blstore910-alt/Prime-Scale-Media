@@ -5,6 +5,7 @@ import {
   IconCashRegister,
   IconMailForward,
   IconReceipt,
+  IconPercentage,
   IconUsers,
 } from "@tabler/icons-react";
 import {
@@ -236,6 +237,15 @@ const getAdminNavItems = (isSuperAdmin: boolean) => ({
           icon: IconUsers,
         },
         {
+          // Owner-only in the nav, because only an owner can answer one.
+          // The page itself lets an employee admin READ their own
+          // request -- they reach it from the notification -- but a menu
+          // item for a queue you cannot work is noise.
+          title: "Fee changes",
+          url: "/fee-changes",
+          icon: IconPercentage,
+        },
+        {
           title: "Get Help",
           url: "/help",
           icon: HelpCircleIcon,
@@ -269,6 +279,7 @@ function AdminSidebarContent({
     if (url === "/top-ups") return pending.topUps;
     if (url === "/ad-account-requests") return pending.adAccountRequests;
     if (url === "/withdrawals") return pending.withdrawals;
+    if (url === "/fee-changes") return pending.feeChangeRequests;
     return undefined;
   };
 

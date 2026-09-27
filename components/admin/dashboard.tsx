@@ -14,6 +14,7 @@ import {
   FileText,
   Gift,
   Landmark,
+  Percent,
   Receipt,
   RefreshCw,
   Server,
@@ -293,6 +294,23 @@ export default function AdminDashboard() {
             label: "DST weeks to enter",
           } as Queue,
         ]),
+    // ── A PRICE IS THE OWNER'S TO ANSWER ──────────────────────────
+    //
+    // Only shown to the owner, and only when somebody is actually
+    // waiting: an employee admin cannot decide one, so a card they can
+    // only look at is a card that teaches them to ignore cards.
+    ...(isSuperAdmin && (pending.feeChangeRequests ?? 0) > 0
+      ? [
+          {
+            key: "fee-changes",
+            href: "/fee-changes",
+            icon: Percent,
+            ci: "p",
+            count: pending.feeChangeRequests,
+            label: "Fee changes to approve",
+          } as Queue,
+        ]
+      : []),
     {
       key: "wallet-topups",
       href: "/wallet-topups",

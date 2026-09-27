@@ -32,6 +32,12 @@ export type PendingCounts = {
   topUps: number | null;
   adAccountRequests: number | null;
   /**
+   * Fee changes waiting on the OWNER. Only the owner can answer one, so
+   * an employee admin's dashboard must not show a card they cannot act
+   * on -- the dashboard filters it out for them.
+   */
+  feeChangeRequests: number | null;
+  /**
    * Pending across all three tables the /withdrawals page shows: ad-account
    * withdrawals, wallet refunds and wallet adjustments. They share one screen
    * and one queue card, so they share one count. null if ANY of the three
@@ -65,6 +71,7 @@ export function usePendingCounts(): PendingCounts {
     walletAdjustments: number | null;
     topUps: number | null;
     adAccountRequests: number | null;
+    feeChangeRequests: number | null;
     withdrawals: number | null;
   }>({
     queryKey: ["pending-counts", tenantId],
@@ -88,6 +95,7 @@ export function usePendingCounts(): PendingCounts {
         walletAdjustments,
         bankDeposits,
         outstandingPrecharges,
+        feeChangeRequests,
       ] = await Promise.all([
         supabase
           .from("wallet_topups")
@@ -135,6 +143,11 @@ export function usePendingCounts(): PendingCounts {
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", tenantId)
           .eq("status", "outstanding"),
+        // Fee changes waiting on the owner. The table arrives with plak
+        // 111, and code reaches production in minutes while migrations
+        // are pasted by hand -- so a missing table must leave every
+        // other badge working rather than taking the dashboard with it.
+        pendingIn("fee_change_requests"),
       ]);
 
       // A swallowed error here is the worst kind: `count ?? 0` turned an
@@ -174,7 +187,17 @@ export function usePendingCounts(): PendingCounts {
         ? null
         : moneyInParts.reduce((a: number, b) => a + (b as number), 0);
 
+      // 42P01 is "plak 111 is not pasted yet", which is a feature that
+      // is not switched on -- not a count we failed to read. Null would
+      // print "we don't know" on a card for something that cannot exist
+      // yet, so it reads as zero and the card hides itself.
+      const feeChanges =
+        (feeChangeRequests.error as { code?: string } | null)?.code === "42P01"
+          ? 0
+          : one(feeChangeRequests);
+
       return {
+        feeChangeRequests: feeChanges,
         walletTopups: one(walletTopups),
         bankDeposits: one(bankDeposits),
         outstandingPrecharges: one(outstandingPrecharges),
@@ -200,6 +223,7 @@ export function usePendingCounts(): PendingCounts {
     walletAdjustments: null,
     topUps: null,
     adAccountRequests: null,
+    feeChangeRequests: null,
     withdrawals: null,
   };
 
