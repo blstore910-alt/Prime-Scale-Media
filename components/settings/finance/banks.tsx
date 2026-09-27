@@ -404,13 +404,35 @@ export default function BanksCard() {
         <CardDescription>
           Beneficiary bank destinations per ad-account type and currency
           (EUR / USD / HKD).{" "}
+          {/* ── THIS USED TO SAY THE OPPOSITE, AND IT WAS WRONG ──────
+              In bold, here and again in the confirm dialog: "Not yet
+              wired to the advertiser top-up screen — edits here
+              don't change what advertisers see. Use this to prepare the
+              destinations; ask an engineer to switch the top-up flow
+              over to them."
+
+              The top-up flow WAS switched over, in blok 1, and this
+              screen was never told. wallet-topup-dialog.tsx reads
+              bank_accounts and hands the result to
+              bank-transfer-instructions as an `override`, which REPLACES
+              the built-in sheet.
+
+              So the sentence invited the owner to type a real IBAN as a
+              dry run, and the next customer would wire real money to it.
+              That is the worst shape a false sentence can take on a
+              money screen, and it was one of ours.
+
+              What it says now is what the resolver actually does —
+              including the one case where a saved row is NOT used, which
+              is the next thing an owner needs to know. */}
           <strong>
-            Not yet wired to the advertiser top-up screen — it currently shows
-            the built-in beneficiaries, so edits here don’t change what
-            advertisers see.
+            What you save here replaces the built-in beneficiary on the
+            customer&rsquo;s transfer screen, as soon as you save it.
           </strong>{" "}
-          Use this to prepare the destinations; ask an engineer to switch the
-          top-up flow over to them. Changes still ask for a double-confirm.
+          One exception: several ad-account types share a bank, and if the
+          active rows for one bank disagree on the account details we show
+          the built-in sheet rather than pick between them. Changes ask for
+          a double-confirm.
         </CardDescription>
         {/* ── NOT WHILE THE BANKS READ IS BROKEN ────────────────────
             bankByKey is built from banksQuery.data ?? [], and `fillable`
@@ -569,9 +591,9 @@ export default function BanksCard() {
                   <span className="font-medium text-foreground">
                     {pending.currency}
                   </span>
-                  . Note: this destination is not yet shown to advertisers
-                  (the top-up screen uses the built-in beneficiaries) — double-check
-                  the IBAN/account before confirming anyway.
+                  . <strong>This is what the customer will be told to
+                  transfer to</strong> — check the IBAN/account digit by
+                  digit before confirming.
                 </>
               )}
             </DialogDescription>

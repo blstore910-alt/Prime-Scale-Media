@@ -456,6 +456,42 @@ export default function InviteForm() {
   // set it -- the server drops these fields for anybody else.
   const showTerms = role === "advertiser" && isSuperAdmin;
 
+  // ── WHAT ACTUALLY GETS SENT ───────────────────────────────────────
+  //
+  // The owner, 27-09: "maak er een engels whatsapp bericht van als ik
+  // kopieer." Copying a bare URL means typing the sentence around it by
+  // hand every single time, in a chat window, to somebody who has no idea
+  // what the link is -- so half the invitations went out as a naked
+  // https://app.primescalemedia.com/invite/accept?token=... and nothing
+  // else.
+  //
+  // Role-aware, for the same reason the invitation EMAIL is: an affiliate
+  // has no company to file and nothing is ever billed to them, so telling
+  // them to "set up your account and add your company" describes somebody
+  // else's app.
+  //
+  // Seven days is INVITE_VALID_DAYS in app/api/send-invite/route.ts. It is
+  // repeated rather than imported because that file is a route handler;
+  // if it ever moves, the expiry on the invitations table is the truth.
+  const inviteMessage = (() => {
+    const org = tenant?.name || "Prime Scale Media";
+    const link = createdLink ?? "";
+    const what =
+      role === "affiliate"
+        ? `You'll get your own referral link, and you can follow what every referral earns you.`
+        : `You add your company details first — nothing is billed before that.`;
+    return [
+      `Hi! You've been invited to join ${org}.`,
+      ``,
+      what,
+      ``,
+      `Set up your account here:`,
+      link,
+      ``,
+      `The link works for 7 days. Any questions, just reply here.`,
+    ].join(String.fromCharCode(10));
+  })();
+
   // ---- WHAT WILL ACTUALLY BE WRITTEN, LINE BY LINE -----------------
   //
   // This was one dot-separated sentence and it wrapped into a wall.
@@ -550,59 +586,129 @@ export default function InviteForm() {
                 they act on: copy the link, or check it went to the
                 right address. So it says WHO it went to, WHAT was
                 created, and puts the link under one big button. */}
-            <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4">
+            {/* ── THE CARD YOU HAND ON ────────────────────────────
+                The owner, 27-09: "email moet op 1 rij, psm number moet op
+                1 rij, maak mooie card van, en copy link button moet klein
+                en subtiel, en maak er een engels whatsapp bericht van als
+                ik kopieer."
+
+                So: two facts on two lines that do not wrap (the address
+                truncates with the full value in the title rather than
+                breaking mid-word, which is how "aff-final-" ended up on a
+                line of its own), the link quiet underneath, and the copy
+                button small. What it copies is the MESSAGE, because that
+                is what actually gets sent -- pasting a bare URL into
+                WhatsApp and typing the sentence around it by hand is the
+                step this screen made the owner do every time. */}
+            <div className="rounded-xl border bg-card p-4">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
                   <Check className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold leading-tight">
-                    {emailWasSent
-                      ? "Invitation sent"
-                      : "Invitation ready"}
+                    {emailWasSent ? "Invitation sent" : "Invitation ready"}
                   </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground break-words">
-                    {emailWasSent ? (
-                      <>
-                        We emailed the link to{" "}
-                        <span className="font-medium text-foreground">
-                          {lastInviteEmail || "them"}
-                        </span>
-                        . {tenant?.initials}
-                        {lastClientCode} is reserved for them.
-                      </>
-                    ) : (
-                      <>
-                        Nothing was sent. Pass this link on yourself —{" "}
-                        {tenant?.initials}
-                        {lastClientCode} is reserved for them.
-                      </>
-                    )}
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {emailWasSent
+                      ? "We emailed them the link."
+                      : "Nothing was sent — pass it on yourself."}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <InputGroupInput
+              {/* One row each, and neither wraps. */}
+              <dl className="mt-3 space-y-1.5 text-sm">
+                <div className="flex items-baseline gap-3">
+                  <dt className="w-24 shrink-0 text-muted-foreground">Email</dt>
+                  <dd
+                    className="min-w-0 flex-1 truncate font-medium"
+                    title={lastInviteEmail || undefined}
+                  >
+                    {lastInviteEmail || "—"}
+                  </dd>
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <dt className="w-24 shrink-0 text-muted-foreground">
+                    Client code
+                  </dt>
+                  {/* ── NOTHING IS RESERVED ────────────────────────
+                      This used to read "PSM0015 is reserved for them".
+                      Measured on production 27-09: an affiliate invite
+                      was created saying exactly that, and the tenant's
+                      `last_client_code` stayed on 14.
+
+                      There is no client-code column on `invitations` at
+                      all. The figure is a PREVIEW -- last_client_code + 1
+                      -- and the real code is handed out by the
+                      generate_client_code trigger at SIGNUP. Two invites
+                      made back to back both promise PSM0015; whoever
+                      accepts first gets it and the other becomes PSM0016,
+                      after being told otherwise.
+
+                      That string is the first half of every payment
+                      reference (0015-1234567890), so it gets read out to
+                      a customer and typed into a bank. The field's own
+                      help text already says "Given out on signup"; only
+                      this panel overstated it. */}
+                  <dd className="min-w-0 flex-1 truncate font-medium">
+                    {tenant?.initials}
+                    {lastClientCode}
+                    <span className="ml-2 font-normal text-muted-foreground">
+                      if they sign up next
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-3 rounded-lg border bg-muted/40 px-2.5 py-2">
+                <input
                   readOnly
-                  value={createdLink}
-                  className="font-mono text-xs"
+                  value={createdLink ?? ""}
+                  aria-label="Invitation link"
+                  className="w-full bg-transparent font-mono text-[11px] leading-5 text-muted-foreground outline-none"
                   onFocus={(e) => e.currentTarget.select()}
                 />
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
-                  className="shrink-0"
+                  size="sm"
+                  variant="outline"
                   onClick={async () => {
                     try {
-                      if (!(await copyText(createdLink))) throw new Error("copy refused");
-                      toast.success("Link copied");
+                      if (!(await copyText(inviteMessage)))
+                        throw new Error("copy refused");
+                      toast.success("Message copied", {
+                        description: "Ready to paste into WhatsApp.",
+                      });
                     } catch {
-                      toast.error("Couldn't copy — select manually");
+                      toast.error(
+                        "Couldn't copy — select the link manually",
+                      );
                     }
                   }}
                 >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy link
+                  <Copy className="mr-2 h-3.5 w-3.5" />
+                  Copy message
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={async () => {
+                    try {
+                      if (!(await copyText(createdLink ?? "")))
+                        throw new Error("copy refused");
+                      toast.success("Link copied");
+                    } catch {
+                      toast.error("Couldn't copy — select it manually");
+                    }
+                  }}
+                >
+                  Link only
                 </Button>
               </div>
             </div>
