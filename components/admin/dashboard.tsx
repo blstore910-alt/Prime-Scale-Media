@@ -81,18 +81,17 @@ const DASH_CSS = `
 
 .psm-dash .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:10px}
 .psm-dash .qcard{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.15s;position:relative;overflow:hidden}
-/* The loading skeleton: the same card, with its contents as quiet blocks.
-   Same height and same count as the real thing, so nothing below it moves
-   when the answer arrives — the point is ONE transition instead of badges
-   appearing, numbers changing and tints flipping one after another. */
-.psm-dash .qcard.qskel{cursor:default;pointer-events:none}
-.psm-dash .qcard.qskel .qi{background:var(--line);box-shadow:none}
-.psm-dash .qcard.qskel .ql{height:12px;border-radius:6px;background:var(--line);flex:1 1 auto;max-width:180px}
-.psm-dash .qcard.qskel .qbadge{width:26px;height:20px;background:var(--line);color:transparent;border:0}
-.psm-dash .qcard.qskel .qi,
-.psm-dash .qcard.qskel .ql,
-.psm-dash .qcard.qskel .qbadge{animation:qpulse 1.1s ease-in-out infinite}
-@keyframes qpulse{0%,100%{opacity:.55}50%{opacity:.95}}
+/* The badge, while the count is still coming. The card itself renders
+   straight away now -- only this is unknown, so only this waits. Same
+   size as the real badge so the row does not move when the number
+   lands. */
+.psm-dash .qcard .qbadge:empty{width:26px;height:20px;background:var(--line);
+  color:transparent;border:0;box-shadow:none;
+  animation:qpulse 1.1s ease-in-out infinite}
+@keyframes qpulse{0%,100%{opacity:.5}50%{opacity:.9}}
+@media (prefers-reduced-motion:reduce){
+  .psm-dash .qcard .qbadge:empty{animation:none}
+}
 @media (prefers-reduced-motion:reduce){
   .psm-dash .qcard.qskel .qi,
   .psm-dash .qcard.qskel .ql,
@@ -490,14 +489,29 @@ export default function AdminDashboard() {
 
             The skeleton has the same number of rows at the same height, so
             nothing below it moves when the real cards replace it. */}
-        {pending.isLoading
-          ? queues.map((q) => (
-              <div key={q.href} className="qcard qskel" aria-hidden="true">
-                <span className="qi ci" />
-                <span className="ql" />
-                <span className="qbadge" />
-              </div>
-            ))
+        {/* ── THE LABELS DO NOT WAIT FOR THE COUNTS ────────────────
+            The owner, 27-09, on a refresh: "bij refresh blijft die queue
+            heel lang laden."
+
+            usePendingCounts is ONE query that Promise.alls eight counts,
+            so every card waited for the slowest -- and the skeleton hid
+            the icons and the labels too. For those seconds an admin
+            could not see which queues exist, let alone click into one.
+            The DST card rendered straight away because it has its own
+            read, which is exactly what made the wait visible.
+
+            The reasoning for one transition still holds, and it was
+            about the BADGE: a number appearing and a tint flipping from
+            grey to brand while you read is worse than a single change.
+            So the badge keeps its placeholder; the card around it does
+            not. You can read and click immediately, and the only thing
+            that moves is the one thing that was genuinely unknown.
+
+            The sort has to wait too -- ordering by counts we do not have
+            would shuffle the cards under the reader's finger the moment
+            they land. Declared order until then. */}
+        {(pending.isLoading
+          ? queues
           : [...queues].sort((a, b) => {
             // A soft card is a standing check, not somebody waiting, so
             // it sorts below every real queue -- including the empty
@@ -510,6 +524,7 @@ export default function AdminDashboard() {
             };
             return weight(b) - weight(a);
           })
+        )
           .map((q) => {
           const Icon = q.icon;
           // A queue that declares a count still has one when it is null —
@@ -529,7 +544,11 @@ export default function AdminDashboard() {
                 <Icon />
               </span>
               <span className="ql">{q.label}</span>
-              {hasCount ? (
+              {pending.isLoading ? (
+                /* Still counting. A quiet block, the same size as the
+                   badge, so nothing moves when the number lands. */
+                <span className="qbadge" aria-hidden="true" />
+              ) : hasCount ? (
                 /* Per-queue, deliberately: pending.isError is true when ANY
                    of the three failed, so testing it here would put a dash on
                    two queues whose counts came back perfectly well. */
