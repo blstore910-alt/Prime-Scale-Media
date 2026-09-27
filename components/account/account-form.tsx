@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { TIMEZONES } from "@/lib/constants";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
+import { suggestFeePct } from "@/lib/pure-fee-suggestion";
 
 const defaultValues = {
   name: "",
@@ -242,7 +243,8 @@ export default function AccountForm({
 }: {
   setOpen: (open: boolean) => void;
 }) {
-  const { control, handleSubmit, reset, watch, setValue } = useForm<FormValues>(
+  const { control, handleSubmit, reset, watch, setValue, formState } =
+    useForm<FormValues>(
     {
       defaultValues,
       resolver: zodResolver(validations) as Resolver<FormValues>,
@@ -257,17 +259,12 @@ export default function AccountForm({
     bySlug.get(selectedPlatform)?.platform_group ??
     platformGroupFromSlug(selectedPlatform);
 
-  // Auto-fill the fee from the selected type's default when the admin
-  // actively changes the platform (still editable afterwards). Guarded
-  // by a ref so the initial mount doesn't clobber a value.
-  const prevPlatformRef = useRef(selectedPlatform);
-  useEffect(() => {
-    if (selectedPlatform && selectedPlatform !== prevPlatformRef.current) {
-      const t = bySlug.get(selectedPlatform);
-      if (t) setValue("fee", t.default_fee_pct);
-    }
-    prevPlatformRef.current = selectedPlatform;
-  }, [selectedPlatform, bySlug, setValue]);
+  // The type's own default rate, as a fallback and as advice. Declared
+  // here; the prefill that uses it lives below, next to the plan rate,
+  // because the two were fighting and the wrong one was winning.
+  const typeDefaultPct = selectedPlatform
+    ? (bySlug.get(selectedPlatform)?.default_fee_pct ?? null)
+    : null;
 
   const queryClient = useQueryClient();
   const { profile, dispatch, isSuperAdmin } = useAppContext();
@@ -303,17 +300,52 @@ export default function AccountForm({
     },
   });
 
-  // Prefill only, and only while the field is untouched — never overwrite
-  // a number somebody has typed.
+  // ── THE PLAN RATE WINS OVER THE TYPE DEFAULT ─────────────────
+  //
+  // The owner, 27-09, looking at PSM0004: "psm 0004 is 5% dus moet hier
+  // ook 5% staan en geen 3%."
+  //
+  // There were two prefills and they fought. Picking a platform wrote
+  // the TYPE's default over the box unconditionally; the plan prefill
+  // then bailed out on `Number(feeWatch) !== 0`, because the box was no
+  // longer empty. So the type default always won, and the screen said
+  // out loud what it had just done: "Their plan says 5% — this account
+  // overrides it and 3% gets charged."
+  //
+  // All five ad accounts on the live tenant sit at 3.00 because of it,
+  // including this customer's, whose plan says five. Two points of
+  // margin on every top-up, given away by a prefill.
+  //
+  // The plan rate is what was agreed WITH THAT CUSTOMER. The type
+  // default is what to charge somebody who has no plan rate. So: plan
+  // first, type default second, and the admin can still type over
+  // either — what is gone is the silent overwrite.
+  //
+  // Keyed on advertiser AND platform, so changing either offers the
+  // right figure again, and only while the box is untouched.
+  // One rule, shared with the create-from-request dialog, so the two
+  // cannot drift apart again. See lib/pure-fee-suggestion.ts.
+  const suggestedPct = suggestFeePct({ planPct, typePct: typeDefaultPct }).pct;
   const prefilledFor = useRef<string | null>(null);
   useEffect(() => {
-    if (planPct === null || planPct === undefined) return;
+    if (suggestedPct === null || suggestedPct === undefined) return;
     if (!advertiserIdWatch) return;
-    if (prefilledFor.current === advertiserIdWatch) return;
-    if (feeWatch != null && Number(feeWatch) !== 0) return;
-    prefilledFor.current = advertiserIdWatch;
-    setValue("fee", planPct, { shouldDirty: false });
-  }, [planPct, advertiserIdWatch, feeWatch, setValue]);
+    const key = `${advertiserIdWatch}|${selectedPlatform}`;
+    if (prefilledFor.current === key) return;
+    // Somebody typed a figure of their own: that is the decision, and a
+    // later plan read must not undo it. react-hook-form's own dirty flag,
+    // because every prefill here passes shouldDirty: false — so dirty
+    // means a human, never us.
+    if (formState.dirtyFields.fee) return;
+    prefilledFor.current = key;
+    setValue("fee", suggestedPct, { shouldDirty: false });
+  }, [
+    suggestedPct,
+    advertiserIdWatch,
+    selectedPlatform,
+    setValue,
+    formState.dirtyFields.fee,
+  ]);
   const marginText = (() => {
     const charge = Number(feeWatch);
     const cost = Number(supplierFeeWatch);
@@ -582,10 +614,15 @@ export default function AccountForm({
                   ? "Left empty, this account has no rate of its own — the rate is decided when the top-up is made."
                   : `Left empty, their plan's ${planPct}% is charged. To charge nothing, grant a top-up fee waiver instead.`
                 : planPct === null || planPct === undefined
-                  ? `${feeWatch}% gets charged on this account's top-ups.`
+                  ? typeDefaultPct === null ||
+                    Number(feeWatch) === typeDefaultPct
+                    ? `${feeWatch}% gets charged on this account's top-ups. They have no plan rate, so this type's own ${typeDefaultPct ?? "—"}% was used.`
+                    : `${feeWatch}% gets charged. No plan rate; this type's default is ${typeDefaultPct}%.`
                   : Number(feeWatch) === planPct
                     ? `Matches their plan (${planPct}%). ${feeWatch}% gets charged.`
-                    : `Their plan says ${planPct}% — this account overrides it and ${feeWatch}% gets charged.`}
+                    : Number(feeWatch) < planPct
+                      ? `⚠ Their plan says ${planPct}% and this charges ${feeWatch}% — ${(planPct - Number(feeWatch)).toFixed(2)} points less than agreed, on every top-up.`
+                      : `Their plan says ${planPct}% — this account overrides it and ${feeWatch}% gets charged.`}
             </p>
           </div>
 

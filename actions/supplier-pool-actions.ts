@@ -408,6 +408,58 @@ export async function assignSupplierAdAccount(input: {
     }
   }
 
+  // ── THE COST IS THE OWNER'S TOO, AND THIS WAY IN WAS OPEN ─────────
+  //
+  // The owner, 27-09: "supplier fee moet ook admin kunnen zien niet
+  // changen."
+  //
+  // `upsertSupplierFee` refuses a non-owner in so many words ("Only the
+  // super-admin can set the supplier fee"), and both the create and the
+  // update form route through it. This action writes the SAME column
+  // further down, straight into ad_account_costs, behind nothing but
+  // requireAdminCtx and a 0-100 range check. So the allocate screen on
+  // /account-pool was an employee admin's way to set what we pay --
+  // exactly the write the other two paths exist to stop.
+  //
+  // The customer-facing `fee` on this same action has been owner-gated
+  // for weeks (forty lines up). The cost side was simply missed.
+  //
+  // A SEEDED value is not a typed one. When the admin sent nothing, the
+  // figure comes from the pool row -- the supplier's own reported
+  // percentage, arriving over the API -- and recording that is not an
+  // employee setting a price.
+  //
+  // Nor is a BLANK one: the manual-add path sends an explicit null for an
+  // empty box while the allocate path sends undefined, and both mean "no
+  // figure". Gating on `!== undefined` alone would have refused every
+  // employee admin adding an account by hand with the box empty -- a new
+  // refusal on a path that sets no price at all. So the test is whether a
+  // FIGURE arrived, not whether the key did. The account is being created
+  // here, so there is no existing cost a null could erase.
+  if (supplierFeePct != null && input.supplierFeePct !== undefined) {
+    const owner = await isTenantOwner(
+      supabase,
+      profile.tenant_id,
+      profile.user_id,
+    );
+    if (owner.unreadable) {
+      return {
+        ok: false,
+        error:
+          "We couldn't check who owns this tenant just now, so we'd rather not set what we pay. Try again in a moment.",
+        code: "conflict",
+      };
+    }
+    if (!owner.owner) {
+      return {
+        ok: false,
+        error:
+          "Only the super-admin can set what we pay the supplier. Leave it blank and the supplier's own reported rate is recorded.",
+        code: "forbidden",
+      };
+    }
+  }
+
   // CLAIM FIRST, then create. The order matters: these are two separate
   // writes, and the claim is the only point of mutual exclusion. Creating the
   // ad_accounts row first meant the admin who LOST the race — or any failure

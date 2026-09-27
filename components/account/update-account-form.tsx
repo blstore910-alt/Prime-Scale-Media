@@ -15,13 +15,14 @@ import {
   UseFormSetValue,
 } from "react-hook-form";
 import * as z from "zod";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { TIMEZONES } from "@/lib/constants";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
+import { useAdAccountCost } from "@/hooks/use-ad-account-cost";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccount } from "@/lib/types/account";
 import { AD_ACCOUNT_STATUS_CHOICES } from "@/lib/ad-account-status";
@@ -37,6 +38,11 @@ const validations = z
     name: z.string().min(1, "Name is required"),
     bm_id: z.string().optional(),
     fee: z.coerce.number().min(0).max(100),
+    // "" means "leave it alone" -- distinct from 0, which is a real
+    // supplier fee of nothing. Only sent when the owner changed it.
+    supplier_fee_pct: z
+      .union([z.literal(""), z.coerce.number().min(0).max(100)])
+      .optional(),
     advertiser_id: z.string().min(1, "Advertiser is required"),
     platform: z.string().min(1, "Platform is required"),
     currency: z.enum(["EUR", "USD"], {
@@ -358,6 +364,54 @@ export default function UpdateAccountForm({
     bySlug.get(selectedPlatform)?.platform_group ??
     platformGroupFromSlug(selectedPlatform);
 
+  // What we pay on THIS account. Read separately from the account row on
+  // purpose -- it lives in the admin-only ad_account_costs table so no
+  // customer-facing query can pick it up by accident.
+  const {
+    supplierFeePct,
+    isPending: costPending,
+    isError: costError,
+  } = useAdAccountCost(account.id);
+
+  // Fill the box once the figure arrives, and only while it is still
+  // untouched -- a value somebody typed is never overwritten by a
+  // late-arriving fetch.
+  const filledCost = useRef(false);
+  useEffect(() => {
+    if (filledCost.current) return;
+    if (costPending) return;
+    filledCost.current = true;
+    setValue("supplier_fee_pct", supplierFeePct == null ? "" : supplierFeePct, {
+      shouldDirty: false,
+    });
+  }, [costPending, supplierFeePct, setValue]);
+  // A fresh account means a fresh read.
+  useEffect(() => {
+    filledCost.current = false;
+  }, [account.id]);
+
+  const supplierFeeWatch = watch("supplier_fee_pct");
+  const feeWatch = watch("fee");
+  const marginText = (() => {
+    const charge = Number(feeWatch);
+    const cost = Number(supplierFeeWatch);
+    if (
+      supplierFeeWatch === "" ||
+      supplierFeeWatch == null ||
+      !Number.isFinite(charge) ||
+      !Number.isFinite(cost)
+    ) {
+      return "Leave blank if unknown — margin stays unreported rather than assumed.";
+    }
+    const margin = charge - cost;
+    // Deliberately "top-up margin": DST is a separate cost, charged
+    // against our reserve as the advertiser spends. Calling this the
+    // margin full stop would overstate what we earn.
+    return margin < 0
+      ? `⚠ Top-up margin ${margin.toFixed(2)}% — we would pay the supplier more than we charge.`
+      : `Top-up margin ${margin.toFixed(2)}% (we charge ${charge}%, we pay ${cost}%).`;
+  })();
+
   const handleUpdateAccount = (values: FormValues) => {
     let metadata: Record<string, unknown> = {};
 
@@ -390,6 +444,15 @@ export default function UpdateAccountForm({
           name: values.name,
           bm_id: values.bm_id || null,
           fee: values.fee,
+          // Only when the owner actually set one. An employee admin's
+          // payload never carries the key, so upsertSupplierFee is not
+          // even reached -- and it refuses them anyway, which is where
+          // the boundary is.
+          ...(isSuperAdmin &&
+          values.supplier_fee_pct !== "" &&
+          values.supplier_fee_pct != null
+            ? { supplier_fee_pct: Number(values.supplier_fee_pct) }
+            : {}),
           advertiser_id: values.advertiser_id,
           platform: values.platform,
           // Added with the field itself. The payload here is built by
@@ -518,6 +581,40 @@ export default function UpdateAccountForm({
               customer is charged.
             </p>
           )}
+
+          {/* ── WHAT WE PAY, WHICH NO SCREEN SHOWED ─────────────────
+              The owner, 27-09: "supplier fee moet ook admin kunnen zien
+              niet changen."
+
+              The CREATE form has carried this field all along; this one
+              never did, and neither does the details sheet. So the cost
+              was typed once and disappeared -- getAdAccountCosts had no
+              callers at all. An admin weighing a fee change could see
+              the price and not the cost, which is the half that says
+              whether the change sells at a loss.
+
+              Read-only unless you own the tenant, and that is enforced
+              in upsertSupplierFee, not here: a disabled input is not a
+              boundary. */}
+          <div className="space-y-1">
+            <InputField
+              label="Supplier top-up fee (%) — what we pay"
+              name="supplier_fee_pct"
+              id="update-supplier-fee-percent"
+              type="number"
+              control={control}
+              disabled={!isSuperAdmin}
+            />
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {costPending
+                ? "Looking up what we pay…"
+                : costError
+                  ? "We could not read what we pay on this account. Not zero — unknown."
+                  : !isSuperAdmin
+                    ? "Visible to admins; only the super-admin can change it."
+                    : marginText}
+            </p>
+          </div>
 
           {/* Inactive is NOT in this menu on purpose: it is worked out
               from the account's own history (no top-up in 30 days), so

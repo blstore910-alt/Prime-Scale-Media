@@ -9,7 +9,9 @@ import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { suggestFeePct } from "@/lib/pure-fee-suggestion";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { Resolver, useForm } from "react-hook-form";
@@ -110,6 +112,40 @@ export default function CreateAdAccountFromRequestDialog({
     resolver: zodResolver(schema) as Resolver<FormValues>,
   });
 
+  // ── THE CUSTOMER'S OWN RATE, WHICH THIS DIALOG NEVER READ ─────────
+  //
+  // The owner, 27-09: "psm 0004 is 5% dus moet hier ook 5% staan en geen
+  // 3%."
+  //
+  // This is the dialog admins actually use — it is how a request becomes
+  // an account — and it knew only the ad-account TYPE's default. The
+  // advertiser's agreed plan rate was never looked up at all, so every
+  // account born here was priced at the type's rate whatever had been
+  // agreed with that customer. All five ad accounts on the live tenant
+  // came out at 3.00 this way, one of them for a customer on 5%.
+  const advertiserId = request?.advertiser_id ?? null;
+  const { data: planPct } = useQuery({
+    queryKey: ["advertiser-plan-fee", advertiserId],
+    enabled: !!advertiserId && open,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("advertiser_plans")
+        .select("topup_fee_pct")
+        .eq("advertiser_id", advertiserId)
+        .maybeSingle();
+      // A rate we could not read is not "no rate" — throwing leaves the
+      // query in error rather than handing back a confident null that
+      // would silently price the account at the type default.
+      if (error) throw error;
+      const n = Number(
+        (data as { topup_fee_pct?: number | null } | null)?.topup_fee_pct,
+      );
+      return Number.isFinite(n) ? n : null;
+    },
+  });
+
   // ── THE RESET HAS TO CARRY THE DEFAULT FEE TOO ─────────────────────
   //
   // This reset fee to 0 on every open, and the auto-fill below only
@@ -135,24 +171,37 @@ export default function CreateAdAccountFromRequestDialog({
         description: "Set the fee by hand before saving — 0% is not a default.",
       });
     }
+    // Plan rate first, type default second. One shared rule with the
+    // ad-account create form — see lib/pure-fee-suggestion.ts.
+    const suggested = suggestFeePct({
+      planPct,
+      typePct: t?.default_fee_pct,
+    });
     form.reset({
       name: "",
-      fee: t ? Number(t.default_fee_pct) : 0,
+      fee: suggested.pct ?? 0,
       platform: slug,
     });
-  }, [open, request?.id, request?.platform, form, typesLoading]);
+  }, [open, request?.id, request?.platform, form, typesLoading, planPct]);
 
-  // Auto-fill the fee from the selected type's default when the platform
-  // changes (still editable). Ref-guarded so mount doesn't clobber.
+  // Changing the platform re-offers a rate — but through the same rule,
+  // so a customer's plan rate survives the change instead of being
+  // overwritten by the new type's default.
   const watchedPlatform = form.watch("platform");
   const prevPlatformRef = useRef(watchedPlatform);
   useEffect(() => {
     if (watchedPlatform && watchedPlatform !== prevPlatformRef.current) {
       const t = bySlug.get(watchedPlatform);
-      if (t) form.setValue("fee", t.default_fee_pct);
+      const suggested = suggestFeePct({
+        planPct,
+        typePct: t?.default_fee_pct,
+      });
+      // null means we could not work one out. Leaving the box as it is
+      // beats writing a 0 that reads as "charge nothing, for ever".
+      if (suggested.pct != null) form.setValue("fee", suggested.pct);
     }
     prevPlatformRef.current = watchedPlatform;
-  }, [watchedPlatform, bySlug, form]);
+  }, [watchedPlatform, bySlug, form, planPct]);
 
   const metadata =
     (request?.metadata as Record<string, unknown> | null | undefined) ?? null;
