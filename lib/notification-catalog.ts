@@ -24,8 +24,15 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
   },
   {
     type: "account_deletion_declined",
-    label: "Deletion request answered",
-    description: "When we could not delete your account yet, with the reason.",
+    // ── NOT THE WORD "DELETE", IN A SETTINGS LIST ─────────────────
+    // The owner, 27-09: "deletion request noti is raar, haal delete
+    // weg, is agressief." This row is shown to EVERY customer, most of
+    // whom have never asked us for anything -- so the first thing they
+    // read about their own account is us not deleting it. Still exactly
+    // as accurate: a deletion request is a request about your account,
+    // and the notice itself carries the reason.
+    label: "Account request answered",
+    description: "When we answer a request about your account, with the reason.",
     audience: "customer",
   },
   {
@@ -372,7 +379,7 @@ export const NOTIFICATION_GROUPS: NotificationGroup[] = [
   {
     id: "account",
     label: "Your account",
-    description: "Answers about your account itself, such as a deletion request.",
+    description: "Answers to requests you have sent us about your account.",
     types: ["account_deletion_declined"],
   },
 ];

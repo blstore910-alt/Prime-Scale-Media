@@ -904,58 +904,6 @@ export default function AffiliateApp() {
                 </span>
               </div>
             )}
-            {/* ── THE GREETING ────────────────────────────────────
-                The owner, 27-09: "welcome back en naam is nu lelijk."
-                It was one line -- "Welcome back," in black, then the
-                name in a blue-purple gradient at the same size and the
-                same weight. Two treatments of one sentence reads as two
-                fonts that failed to load, and the brightest thing on the
-                screen was a greeting sitting above the card that is
-                supposed to be the hero.
-
-                So the colour moves to an avatar, where a gradient reads
-                as decoration instead of as a broken heading, and the
-                sentence splits: a quiet "Welcome back" over the NAME as
-                the heading. The name is what you are looking at, so it
-                gets the size. */}
-            <div className="hello">
-              {(() => {
-                // THE WHOLE NAME WHEN IT FITS. Taking the first word
-                // always is how "the affiliateking" became "Welcome
-                // back, the" on production -- a first word is only a
-                // first NAME when somebody filled the field in that way.
-                // So: the name as given while it fits on the line, and
-                // only a long one gets shortened.
-                const n = name.trim();
-                const shown = !n ? "there" : n.length <= 20 ? n : n.split(/\s+/)[0];
-                // Two letters at most, and never a stray punctuation
-                // mark: an empty name would otherwise put "?" in a
-                // circle where a person's initials go.
-                const initials =
-                  n
-                    .split(/\s+/)
-                    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, "").charAt(0))
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .join("")
-                    .toUpperCase() || "✦";
-                return (
-                  <>
-                    <span className="hello-av" aria-hidden="true">
-                      {/* Nested, because the ring turns and the letters
-                          must not: the disc and the initials each carry
-                          the counter-rotation. */}
-                      <span>{initials}</span>
-                    </span>
-                    <div className="hello-tx">
-                      <p className="hello-eyebrow">Welcome back</p>
-                      <h1>{shown}</h1>
-                      <p>Here&apos;s what your referrals have brought in.</p>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
             {/* ── THE EARNINGS CARD ───────────────────────────────────
                 Same card as the advertiser's Affiliate program screen, to
                 the pixel: dark ground, a slow ribbon, gold light, coins
@@ -978,6 +926,57 @@ export default function AffiliateApp() {
                 <span>$</span>
               </div>
               <div className="xh-in">
+                {/* ── THE GREETING, INSIDE THE CARD ─────────────────
+                    The owner, 27-09: "avatar gedeelte nog steeds niet
+                    mooi, er is 1 avatar en 3 lines tekst... anders
+                    alleen welcome back en naam in de card van total
+                    earnings, mooi linksboven ofzo."
+
+                    That is the better answer and it is theirs. Outside
+                    the card it was an avatar carrying three lines of
+                    text above the thing you actually came to look at,
+                    and one of those lines ("Here's what your referrals
+                    have brought in") said what the card's own eyebrow
+                    says one inch lower.
+
+                    So: one row, top left, inside. One avatar, two short
+                    lines, and the page loses a whole floating block.
+                    The ring reads better on the dark ground too -- that
+                    is where it borrowed its colours from. */}
+                {(() => {
+                  // THE WHOLE NAME WHEN IT FITS. Taking the first word
+                  // always is how "the affiliateking" became "Welcome
+                  // back, the" on production -- a first word is only a
+                  // first NAME when somebody filled the field in that
+                  // way. So: the name as given while it fits, and only
+                  // a long one gets shortened.
+                  const n = name.trim();
+                  const shown =
+                    !n ? "there" : n.length <= 20 ? n : n.split(/\s+/)[0];
+                  // Two letters at most, and never a stray punctuation
+                  // mark: an empty name would otherwise put "?" in a
+                  // circle where a person's initials go.
+                  const initials =
+                    n
+                      .split(/\s+/)
+                      .map((w) => w.replace(/[^\p{L}\p{N}]/gu, "").charAt(0))
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase() || "✦";
+                  return (
+                    <div className="xh-who">
+                      <span className="xh-av" aria-hidden="true">
+                        {/* Nested: the ring turns, the letters must not. */}
+                        <span>{initials}</span>
+                      </span>
+                      <span className="xh-whotx">
+                        <span className="xh-whoeye">Welcome back</span>
+                        <span className="xh-whonm">{shown}</span>
+                      </span>
+                    </div>
+                  );
+                })()}
                 <p className="xh-eyebrow">
                   <Ic name="i-gift" /> Your total earnings
                 </p>

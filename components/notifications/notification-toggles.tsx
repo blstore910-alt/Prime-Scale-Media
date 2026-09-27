@@ -32,14 +32,15 @@ import type { NotificationType } from "@/lib/types/notification";
  * said in words instead.
  */
 export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
-  const { isEnabled, setPreference, isError, isLoading } =
+  const { isEnabled, setPreference, setGroup, isError, isLoading } =
     useNotificationPreferences();
   const [open, setOpen] = useState(false);
   const types = group.entries.map((e) => e.type);
   const onCount = types.filter((t) => isEnabled(t)).length;
   const anyOn = onCount > 0;
   const mixed = onCount > 0 && onCount < types.length;
-  const busy = setPreference.isPending || isError || isLoading;
+  const busy =
+    setPreference.isPending || setGroup.isPending || isError || isLoading;
 
   return (
     <div style={{ borderBottom: "1px solid var(--line)" }}>
@@ -85,12 +86,15 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
             // All of them, one way. A group that is partly on switches
             // fully off first, which is what pressing a lit switch
             // means everywhere else.
+            //
+            // ONE mutation, not one per type. Looping `setPreference`
+            // fired ten round-trips and left the screen on a half state
+            // until a reload -- see the note on setGroup. Only the ones
+            // that actually differ are sent.
             const next = !anyOn;
-            for (const t of types) {
-              if (isEnabled(t) !== next) {
-                setPreference.mutate({ type: t, enabled: next });
-              }
-            }
+            const todo = types.filter((t) => isEnabled(t) !== next);
+            if (todo.length === 0) return;
+            setGroup.mutate({ types: todo, enabled: next });
           }}
           aria-label={group.label}
         />
