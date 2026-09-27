@@ -95,11 +95,35 @@ export async function loginUser(formData: FormData) {
   if (!profiles?.length) {
     const meta = signupMetadata(data.user);
     if (meta.tenantSlug && data.user.email) {
+      // ── NO REFERRAL FROM A SIGN-IN EITHER ───────────────────────
+      //
+      // Same reasoning as /onboard. `user_metadata` is writable by the
+      // user: `auth.updateUser({ data: { referral_code: "PSM0007" } })`
+      // takes any key with their own JWT and no server involved.
+      //
+      // The CONFIRM route can be trusted with it, and keeps it: the
+      // metadata there was written by signUp before any session
+      // existed, the token came out of the mailbox, and the route
+      // compares the metadata against the URL. None of that is true
+      // here — reaching this line means the address is already
+      // confirmed, which is exactly the state from which the metadata
+      // can be rewritten.
+      //
+      // Finishing the ACCOUNT is the point of this branch and stays.
+      // The attribution is money and comes out.
+      if (meta.referralCode) {
+        // Said out loud, because a genuine customer whose confirmation
+        // link was eaten by a mail scanner loses their referrer this
+        // way, and that is worth repairing by hand.
+        console.warn(
+          `sign-in: not applying referral ${meta.referralCode} for ${data.user.email} — metadata is user-writable once signed in`,
+        );
+      }
       const done = await finalizeSignup({
         user: { id: data.user.id, email: data.user.email, user_metadata: data.user.user_metadata },
         tenantSlug: meta.tenantSlug,
-        referralCode: meta.referralCode,
-        signupReferralCode: meta.referralCode,
+        referralCode: null,
+        signupReferralCode: null,
       });
       if (done.ok) {
         const again = await supabase
