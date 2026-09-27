@@ -2,7 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isUrlLike } from "@/lib/url-field";
-import { Resolver, useForm, Control, Controller, Path } from "react-hook-form";
+import {
+  Resolver,
+  useForm,
+  useFieldArray,
+  Control,
+  Controller,
+  Path,
+} from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useRef, useState } from "react";
 import InputField from "../form/input-field";
@@ -22,6 +29,11 @@ import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateAdAccountRequest } from "@/hooks/use-create-ad-account-request";
+import {
+  BM_ID_MAX,
+  parseBmIds,
+  validateBmIds,
+} from "@/lib/pure-bm-ids";
 import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 
@@ -38,7 +50,17 @@ const validations = z
     tiktok_business_center_id: z.string().optional(),
     tiktok_email: z.string().optional(),
     tiktok_countries: z.string().optional(),
-    facebook_business_manager_id: z.string().optional(),
+    // ── ONE TO FIVE BUSINESS MANAGERS ────────────────────────────
+    // The owner, 27-09: "advertisers mogen meerdere bms doen bij nieuwe
+    // ad acc request en max 5 bm ids en min 1."
+    //
+    // Kept under the SAME metadata key, because the creating RPC passes
+    // the object through whole and every reader looks it up by name --
+    // a new key would have meant six readers finding nothing. The list
+    // is validated in one place (lib/pure-bm-ids.ts) so the form, the
+    // admin dialog and the account sheet cannot disagree about the
+    // shape.
+    facebook_business_manager_id: z.array(z.string()).optional(),
     personal_facebook_profile_link: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -89,10 +111,11 @@ const validations = z
     }
 
     if (data.platform === "meta-ads") {
-      if (!data.facebook_business_manager_id) {
+      const bm = validateBmIds(data.facebook_business_manager_id ?? []);
+      if (!bm.ok) {
         ctx.addIssue({
           code: "custom",
-          message: "FB Business Manager ID is required",
+          message: bm.error,
           path: ["facebook_business_manager_id"],
         });
       }
@@ -127,7 +150,9 @@ const defaultValues: FormValues = {
   tiktok_business_center_id: "",
   tiktok_email: "",
   tiktok_countries: "",
-  facebook_business_manager_id: "",
+  // One empty box to start: the minimum is one, so asking for it is
+  // honest about what has to be filled in.
+  facebook_business_manager_id: [""],
   personal_facebook_profile_link: "",
 };
 
@@ -170,15 +195,81 @@ const TikTokFields = ({ control }: { control: Control<FormValues> }) => (
   </div>
 );
 
+// ── ONE TO FIVE BUSINESS MANAGERS ───────────────────────────
+//
+// The owner, 27-09: "advertisers mogen meerdere bms doen bij nieuwe ad
+// acc request en max 5 bm ids en min 1."
+//
+// An advertiser who runs several business managers was filing a separate
+// request per BM, or putting them all in the notes where nothing reads
+// them. One row per BM, add and remove, first one required.
+const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    // A list of plain strings has no id of its own for react-hook-form to
+    // key on, so it makes one — `field.id`, not the index. Keying on the
+    // index re-uses the DOM node of a removed row and the value from the
+    // row below it slides up into the box you were typing in.
+    name: "facebook_business_manager_id" as never,
+  });
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm font-medium">
+        Facebook Business Manager ID{fields.length > 1 ? "s" : ""}
+      </span>
+      {fields.map((field, i) => (
+        <div key={field.id} className="flex items-start gap-2">
+          <div className="flex-1">
+            <InputField
+              label=""
+              name={`facebook_business_manager_id.${i}` as Path<FormValues>}
+              id={i === 0 ? "fb-bm-id" : `fb-bm-id-${i}`}
+              placeholder={i === 0 ? "Enter FB BM ID" : "Another BM ID"}
+              control={control}
+            />
+          </div>
+          {/* The first row has no remove button: one is the minimum, and
+              a button that refuses is worse than no button. */}
+          {fields.length > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-1 shrink-0"
+              onClick={() => remove(i)}
+              aria-label={`Remove Business Manager ID ${i + 1}`}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+      ))}
+      {fields.length < BM_ID_MAX ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => append("" as never)}
+        >
+          + Add another BM ID
+        </Button>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          That is the maximum of {BM_ID_MAX}. Ask us if you need more.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        One account is made per request. Give every BM you want accounts
+        for and we will come back to you about the rest.
+      </p>
+    </div>
+  );
+};
+
 const MetaFields = ({ control }: { control: Control<FormValues> }) => (
   <div className="my-4 space-y-4">
-    <InputField
-      label="Facebook Business Manager ID"
-      name="facebook_business_manager_id"
-      id="fb-bm-id"
-      placeholder="Enter FB BM ID"
-      control={control}
-    />
+    <BmIdFields control={control} />
     <InputField
       label="Personal Facebook Profile Link"
       name="personal_facebook_profile_link"
@@ -515,7 +606,6 @@ export default function AdAccountRequestForm({
         "platform",
         "currency",
         "timezone",
-        "facebook_business_manager_id",
         "personal_facebook_profile_link",
         "website_url",
         "notes",
@@ -526,6 +616,17 @@ export default function AdAccountRequestForm({
         setValue(k as Path<FormValues>, val as never, { shouldDirty: true });
       }
     });
+    // The BM ids are a list now, so the string-only loop above skips
+    // them -- and skipping them silently is exactly the lost typing this
+    // whole effect exists to prevent. Restored through the same parser,
+    // which also copes with a draft written when the field was one
+    // string.
+    const bm = parseBmIds(v.facebook_business_manager_id);
+    if (bm.length) {
+      setValue("facebook_business_manager_id" as Path<FormValues>, bm as never, {
+        shouldDirty: true,
+      });
+    }
     draft.dismissDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.hasDraft, draft.restoredDraft]);
@@ -603,7 +704,11 @@ export default function AdAccountRequestForm({
       };
     } else if (values.platform === "meta-ads") {
       metadata = {
-        facebook_business_manager_id: values.facebook_business_manager_id,
+        // Trimmed, de-duplicated and capped by the same parser the
+        // readers use, so what is stored is exactly what they expect.
+        facebook_business_manager_id: parseBmIds(
+          values.facebook_business_manager_id,
+        ),
         personal_facebook_profile_link: values.personal_facebook_profile_link,
       };
     }

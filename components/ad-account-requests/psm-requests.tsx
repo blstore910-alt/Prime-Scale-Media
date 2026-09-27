@@ -1,6 +1,7 @@
 "use client";
 
 import { PLATFORMS } from "@/lib/constants";
+import { formatBmIds, parseBmIds } from "@/lib/pure-bm-ids";
 import { CopyText } from "@/components/ui/copy-text";
 import { platformFamily, platformLabel } from "@/lib/pure-platform-badge";
 import PsmSortFilter from "@/components/psm/sort-filter";
@@ -58,8 +59,18 @@ function requestIdentity(
   };
   const fam = platformFamily(platform);
   if (fam === "meta") {
-    const bm = pick("facebook_business_manager_id");
-    return bm ? { label: "BM", value: bm } : null;
+    // ── UP TO FIVE, AND `String(array)` IS NOT A FORMATTER ─────
+    // `pick` would turn ["111","222"] into "1,2"-style output with no
+    // spaces via String(), and the result sits behind a Copy button an
+    // admin pastes straight into a supplier dashboard. formatBmIds
+    // joins properly and the label says how many there are, so nobody
+    // copies a merged string believing it is one id.
+    const ids = parseBmIds(m.facebook_business_manager_id);
+    if (!ids.length) return null;
+    return {
+      label: ids.length > 1 ? `BM (${ids.length})` : "BM",
+      value: formatBmIds(ids),
+    };
   }
   if (fam === "tiktok") {
     const bc = pick("tiktok_business_center_id");

@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { suggestFeePct } from "@/lib/pure-fee-suggestion";
+import { parseBmIds } from "@/lib/pure-bm-ids";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { Resolver, useForm } from "react-hook-form";
@@ -35,6 +36,10 @@ const schema = z.object({
   name: z.string().min(1, "Account name is required"),
   fee: z.coerce.number().min(0).max(100),
   platform: z.string().min(1, "Platform is required"),
+  // Which of the advertiser's business managers this account is for.
+  // Optional here because only Meta has one at all; the Meta branch of
+  // the submit sends it and the others send null.
+  bm_id: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -63,12 +68,17 @@ function isMetaRequest(platform: string | null) {
   return (platform || "").includes("meta");
 }
 
-function toBmId(metadata: Record<string, unknown> | null | undefined) {
-  const raw = metadata?.facebook_business_manager_id;
-  if (raw === null || raw === undefined || raw === "") return null;
-  const parsed = Number(raw);
-  return Number.isNaN(parsed) ? null : parsed;
-}
+// ── toBmId DROPPED A LIST ON THE FLOOR ──────────────────────
+//
+// It did `Number(raw)`, and Number(["111","222"]) is NaN, which became
+// null one line later. So a request naming two business managers made an
+// account with NO business manager on it and a green "created" toast.
+// Now that advertisers may give up to five, that was the whole feature
+// landing in a hole.
+//
+// An ad account belongs to ONE business manager, so the list is a
+// choice, not a merge -- and the admin makes it, below, rather than the
+// code taking the first and saying nothing.
 
 export default function CreateAdAccountFromRequestDialog({
   request,
@@ -108,9 +118,21 @@ export default function CreateAdAccountFromRequestDialog({
       name: "",
       fee: 0,
       platform: defaultPlatform,
+      bm_id: "",
     },
     resolver: zodResolver(schema) as Resolver<FormValues>,
   });
+
+  const metadata =
+    (request?.metadata as Record<string, unknown> | null | undefined) ?? null;
+  // Every BM the advertiser named, in the order they named them.
+  // Declared above the reset effect that uses it, and depended on as a
+  // joined STRING: `metadata` is a fresh object on every render of the
+  // query, so an object dependency would re-reset the form — and wipe
+  // what the admin was typing — on every refetch.
+  const bmIds = parseBmIds(metadata?.facebook_business_manager_id);
+  const bmKey = bmIds.join(",");
+  const watchedBm = form.watch("bm_id");
 
   // ── THE CUSTOMER'S OWN RATE, WHICH THIS DIALOG NEVER READ ─────────
   //
@@ -181,8 +203,13 @@ export default function CreateAdAccountFromRequestDialog({
       name: "",
       fee: suggested.pct ?? 0,
       platform: slug,
+      // The first one they named, pre-chosen. One BM is the common case
+      // and it should need no click; the picker below only appears when
+      // there is actually a choice to make.
+      bm_id: bmIds[0] ?? "",
     });
-  }, [open, request?.id, request?.platform, form, typesLoading, planPct]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, request?.id, request?.platform, form, typesLoading, planPct, bmKey]);
 
   // Changing the platform re-offers a rate — but through the same rule,
   // so a customer's plan rate survives the change instead of being
@@ -203,8 +230,6 @@ export default function CreateAdAccountFromRequestDialog({
     prevPlatformRef.current = watchedPlatform;
   }, [watchedPlatform, bySlug, form, planPct]);
 
-  const metadata =
-    (request?.metadata as Record<string, unknown> | null | undefined) ?? null;
   const { mutate, isPending } = useMutation({
     mutationKey: ["create-account-from-request", request?.id],
     mutationFn: async (values: FormValues) => {
@@ -221,7 +246,7 @@ export default function CreateAdAccountFromRequestDialog({
         name: values.name,
         bm_id:
           platformGroupFromSlug(values.platform) === "meta"
-            ? toBmId(metadata)
+            ? values.bm_id || null
             : null,
         fee: values.fee,
         currency: request.currency,
@@ -306,6 +331,47 @@ export default function CreateAdAccountFromRequestDialog({
               type="number"
               control={form.control}
             />
+
+            {/* ── WHICH BUSINESS MANAGER ──────────────────────
+                An advertiser may now name up to five on one request. An
+                ad account belongs to one, so this is a choice — and it
+                is the admin's, made here, rather than the code quietly
+                taking the first.
+
+                Only shown when there IS a choice. One BM, which is the
+                common case, needs no click: it is already selected. */}
+            {platformGroupFromSlug(form.watch("platform")) === "meta" &&
+              bmIds.length > 0 && (
+                <div className="space-y-1">
+                  {bmIds.length > 1 ? (
+                    <SelectField
+                      label="Business Manager"
+                      name="bm_id"
+                      id="request-bm-id"
+                      control={form.control}
+                      options={bmIds.map((id, i) => ({
+                        value: id,
+                        label: i === 0 ? `${id} (first named)` : id,
+                      }))}
+                      placeholder="Pick the BM this account is for"
+                    />
+                  ) : (
+                    <div className="rounded-md border px-3 py-2 text-sm">
+                      <span className="text-muted-foreground">
+                        Business Manager:
+                      </span>{" "}
+                      <span className="font-medium">{bmIds[0]}</span>
+                    </div>
+                  )}
+                  {bmIds.length > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      They asked for {bmIds.length}. This makes one account;
+                      the request stays open for the rest.
+                      {watchedBm ? "" : " Pick one before saving."}
+                    </p>
+                  )}
+                </div>
+              )}
 
             {shouldShowMetaPlatformSelect ? (
               <SelectField

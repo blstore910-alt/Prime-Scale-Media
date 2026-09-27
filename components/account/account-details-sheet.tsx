@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/utils-pure";
+import { formatBmIds } from "@/lib/pure-bm-ids";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { Card } from "@/components/ui/card";
 import {
@@ -550,7 +551,14 @@ export function AccountDetailsSheet({
                                   <span className="font-medium text-muted-foreground block">
                                     FB Business Manager ID:
                                   </span>
-                                  {metadata.facebook_business_manager_id || "—"}
+                                  {/* formatBmIds, not the raw value: a list of
+                                      ids renders as React children with NO
+                                      separator, so "111" and "222" printed as
+                                      111222 — a plausible-looking id that is not
+                                      one. */}
+                                  {formatBmIds(
+                                    metadata.facebook_business_manager_id,
+                                  )}
                                 </div>
                                 <div className="col-span-2">
                                   <span className="font-medium text-muted-foreground block">

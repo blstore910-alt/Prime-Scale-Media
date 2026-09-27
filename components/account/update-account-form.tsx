@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { TIMEZONES } from "@/lib/constants";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { useAdAccountCost } from "@/hooks/use-ad-account-cost";
+import { primaryBmId } from "@/lib/pure-bm-ids";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccount } from "@/lib/types/account";
 import { AD_ACCOUNT_STATUS_CHOICES } from "@/lib/ad-account-status";
@@ -275,9 +276,18 @@ function getInitialValues(account: AdAccount): FormValues {
     tiktok_business_center_id: getString(metadata?.tiktok_business_center_id),
     tiktok_email: getString(metadata?.tiktok_email),
     tiktok_countries: getCountries(metadata?.tiktok_countries),
-    facebook_business_manager_id: getString(
-      metadata?.facebook_business_manager_id,
-    ),
+    // ── A LIST WOULD HAVE EMPTIED THIS BOX ──────────────────
+    // getString returns "" for anything that is not a string, and this
+    // form's own validation then refuses to save until somebody
+    // retypes it -- so one account carrying the new multi-BM shape
+    // became uneditable, in every field, with the message pointing at
+    // a box that had just been silently cleared.
+    //
+    // An ad account has ONE business manager, so the first is the
+    // right one to show; the full list lives on the request.
+    facebook_business_manager_id:
+      primaryBmId(metadata?.facebook_business_manager_id) ??
+      getString(metadata?.facebook_business_manager_id),
     personal_facebook_profile_link: getString(
       metadata?.personal_facebook_profile_link,
     ),
