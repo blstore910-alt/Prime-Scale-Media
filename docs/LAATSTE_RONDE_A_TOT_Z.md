@@ -493,6 +493,48 @@ affiliate ziet de nieuwe klant in zijn portaal staan.
 
 ---
 
+## Wat het moet doen — vooraf uitgerekend 27-09
+
+De link van blok 2, nagelopen op de database:
+
+```
+https://app.primescalemedia.com/auth/sign-up?t=prime-scale-media&ref=PSM0015
+```
+
+`findReferrer` lost PSM0015 op naar **Blok2 Affiliate** — `affiliate_status`
+approved, rol affiliate, profiel actief. Alle drie de tests in die functie
+komen dus door, en de verwijzing hoort te landen.
+
+Startpunt vóór de aanmelding:
+
+| | |
+|---|---|
+| `tenants.last_client_code` | **15** — de nieuwe wordt dus PSM0016 |
+| verwijzingen van PSM0015 | **0** |
+| adverteerders in totaal | 17 |
+
+Na de Join hoort dit te staan, en anders is het een bevinding:
+
+| wat | moet zijn |
+|---|---|
+| `advertisers.tenant_client_code` | **PSM0016** |
+| `referral_links` van PSM0015 | **1**, status **`pending`** — een zelfaanmelding wordt niet automatisch goedgekeurd |
+| `referral_links.affiliate_advertiser_id` | `2a95c52a-ec0d-42a1-b15a-e3fb71bf7db9` |
+| `user_profiles.referral_status` | `referred` |
+| `user_profiles.referred_by` | `Blok2 Affiliate` |
+| wallets voor de nieuwe klant | **1** |
+| `last_client_code` | **16** |
+
+En op het scherm van de affiliate hoort die verwijzing dan te verschijnen
+als **wachtend op goedkeuring** — nul verdiend, want de eigenaar moet hem
+eerst goedkeuren. Dat is meteen de brug naar blok 11.
+
+**Let op bij het lopen:** het paneel moet eerst uit de sessie van Admin 1,
+anders stuurt `/auth/sign-up` door naar het dashboard (dat is gedrag, geen
+fout — ik heb het in blok 3 zo gezien).
+
+---
+
 # BLOK 5 — WALLET OPWAARDEREN (het basisste dat er is)
 
 **Venster 1: de nieuwe adverteerder. Venster 2: de ADMIN uit blok 3.**
