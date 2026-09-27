@@ -1921,15 +1921,56 @@ function ManualMatch({
                 ).toFixed(2)}`}
           </button>
         ) : null}
+        {/* ── ARMED ONLY FOR A MATCH THE SERVER WILL TAKE ────────
+            This was `disabled={!picked || saving || busy}` -- no check
+            on the amount at all -- and the candidate window above is
+            deliberately WIDE (±15%, minimum 100) so a human can see the
+            near misses. matchWiseDeposit refuses anything more than ONE
+            CENT apart:
+
+              if (Math.abs(depCents - topCents) > 1) return { ok: false, ... }
+
+            So every candidate that window exists to surface ended in a
+            red toast -- after the admin had read a confirm dialog saying
+            "credits their wallet by the amount THEY claimed... There is
+            no undo."
+
+            pickedGap was already computed a few hundred lines up and
+            already printed on each row ("claim is 12.00 higher"). It
+            just never reached the button. Compared in CENTS, like the
+            server, so a legitimate one-cent rounding still goes through.
+
+            What the admin should press instead is the sibling button on
+            the left, which is already there: "Set the claim to X". */}
         {candidates.length > 0 && (
           <button
             className="btn sm"
             onClick={() => setConfirming(true)}
-            disabled={!picked || saving || busy}
+            disabled={
+              !picked || Math.round(pickedGap * 100) > 1 || saving || busy
+            }
+            title={
+              picked && Math.round(pickedGap * 100) > 1
+                ? "The amounts are too far apart to match. Correct the claim to what actually arrived first."
+                : undefined
+            }
           >
             {saving ? "…" : "Match & credit"}
           </button>
         )}
+        {/* And say it, because a title attribute is invisible on a
+            phone -- the point this repo makes wherever a control greys
+            out. */}
+        {picked && Math.round(pickedGap * 100) > 1 ? (
+          <span
+            className="cap"
+            style={{ flexBasis: "100%", color: "var(--txt-2)" }}
+          >
+            That one is {(pickedGap).toFixed(2)} apart, so it cannot be
+            matched as it stands — correct the claim to what arrived
+            first.
+          </span>
+        ) : null}
       </div>
 
       <ConfirmModal

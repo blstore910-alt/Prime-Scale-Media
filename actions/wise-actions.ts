@@ -1165,6 +1165,64 @@ export async function adjustWalletTopupAmount(
     return { ok: true, data: { amount: was } };
   }
 
+  // ── UP IS WHERE THE MONEY COMES FROM ─────────────────────────────
+  //
+  // Found by the permissions agent on blok 3, then read through: this
+  // action is resolveAdminContext (not owner), writes with the SERVICE
+  // ROLE -- so no policy, grant or trigger sees it -- and had no upper
+  // bound of any kind. Any positive number went in. The verify step
+  // next door then credits exactly this figure to the wallet.
+  //
+  // So an employee admin could open a pending EUR 50 claim, correct it
+  // to EUR 500,000, press Verify, and the balance follows. Every OTHER
+  // route to that same figure is owner-gated: wallet_admin_adjust needs
+  // _is_wallet_tenant_owner, wallet_adjustment_approve and
+  // wallet_refund_approve test tenants.owner_id, and the precharge
+  // trigger refuses a free advance. This one was the way round all of
+  // them.
+  //
+  // WHAT THE BOUND IS, AND WHY THIS ONE
+  //
+  // The documented purpose is a claim that is too HIGH: "Bank sends EUR
+  // 618 against a EUR 630 claim, the admin presses Set the claim to EUR
+  // 618.00." Lowering a claim cannot over-credit anybody, so it stays
+  // where it is -- admin work, on the desk, every day.
+  //
+  // Raising one can only be right when the money is actually there, so
+  // it has to point at a deposit that exists: same tenant, same
+  // currency, that amount, not yet settled. Anything else is the owner's
+  // to do, through the adjustment flow that was built for it and that
+  // records an approval.
+  if (rounded > was + 0.005) {
+    const cents = Math.round(rounded * 100);
+    const { data: backing, error: backErr } = await supabase
+      .from("wise_incoming_transfers")
+      .select("id")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("amount_cents", cents)
+      .ilike("currency", String(topup.currency ?? "EUR"))
+      .not("status", "in", "(confirmed,completed,matched)")
+      .limit(1);
+    // A failed read is not a missing deposit. Refusing here costs one
+    // retry; passing would be the hole standing open on a bad query.
+    if (backErr) {
+      return {
+        ok: false,
+        error:
+          "We couldn't check the bank feed for a deposit of that amount, so this was not changed. Try again.",
+        code: "invalid",
+      };
+    }
+    if (!backing || backing.length === 0) {
+      return {
+        ok: false,
+        error:
+          "Raising a claim needs a bank deposit of that amount to point at, and there isn't one waiting. If the money did arrive another way, the account owner can post an adjustment.",
+        code: "forbidden",
+      };
+    }
+  }
+
   const stamp = new Date().toISOString().slice(0, 10);
   const cur = String(topup.currency ?? "EUR").toUpperCase();
   const line = `[${stamp}] Amount corrected from ${was.toFixed(2)} to ${rounded.toFixed(2)} ${cur}: ${why}`;

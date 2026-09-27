@@ -34,7 +34,7 @@ export default function useActivityLogs(params: ActivityLogsQueryParams = {}) {
     ],
   );
 
-  const { data, isLoading, isError, error } = useQuery<
+  const { data, isPending, isError, error } = useQuery<
     { items: ActivityLog[]; total: number } | undefined
   >({
     queryKey,
@@ -86,7 +86,16 @@ export default function useActivityLogs(params: ActivityLogsQueryParams = {}) {
   return {
     logs: data?.items ?? [],
     total: data?.total ?? 0,
-    isLoading,
+    // ── isPending, NOT isLoading ──────────────────────────────────
+    //
+    // react-query v5 reports isLoading as `isPending && isFetching`, so
+    // it is FALSE for a query that never ran -- and this one is gated on
+    // `enabled`. The screen then walks past the spinner AND past the
+    // error branch into the empty state, and prints "No activity logs found" over a
+    // read nobody made. Its siblings (use-topups, use-wallet-transactions,
+    // use-ad-account-requests) were all fixed for exactly this; these
+    // were missed.
+    isLoading: isPending,
     isError,
     error,
   };

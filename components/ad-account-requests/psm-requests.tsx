@@ -416,7 +416,6 @@ export default function PsmRequests() {
               options: [
                 { value: "all", label: "All statuses" },
                 { value: "pending", label: "Pending" },
-                { value: "payment_pending", label: "Payment pending" },
                 { value: "in_progress", label: "In progress" },
                 { value: "completed", label: "Completed" },
                 { value: "rejected", label: "Rejected" },
@@ -424,7 +423,23 @@ export default function PsmRequests() {
                    it -- REQUEST_STATUS excludes it and no SQL sets it --
                    so picking it emptied the queue every time. The same
                    dead option was already removed from the withdrawals
-                   filter. */
+                   filter.
+
+                   "Payment pending" has now gone the same way, and it
+                   took longer to prove. It is written in exactly one
+                   place -- use-create-ad-account-request-invoice, reached
+                   only through Create Invoice -- and the review dialog
+                   hides that button whenever the request carries a fee
+                   or has one included. Measured on live: of TEN requests,
+                   2 carry `metadata.request_fee > 0` and 8 carry
+                   `request_fee_included`, so the button appears on none
+                   of them. ad_account_request_create_paid always stamps
+                   one of the two, so it cannot appear on a new one
+                   either.
+
+                   The STATUS handling elsewhere stays: a row that somehow
+                   arrives in it should still render. It is the filter
+                   that was the dead end. */
               ],
             },
           ]}

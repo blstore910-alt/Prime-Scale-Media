@@ -62,7 +62,14 @@ export default function AdminsTable() {
 
   const {
     data: admins = [],
-    isLoading,
+    // ── isPending, NOT isLoading ────────────────────────────────────
+    //
+    // react-query v5 reports isLoading as `isPending && isFetching`, so
+    // it is FALSE for a query that never ran -- and this one is
+    // `enabled: !!tenantId`. Without a tenant the screen walked past the
+    // spinner and past the error branch into "No admins found", on the
+    // one screen whose job is to answer "who else has the keys".
+    isPending: isLoading,
     isError,
     error,
   } = useQuery<AdminProfile[]>({

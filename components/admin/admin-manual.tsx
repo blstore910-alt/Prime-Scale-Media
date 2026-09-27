@@ -179,15 +179,20 @@ const SECTIONS: Section[] = [
       "Recurring monthly plans for advertisers. Create new ones, and pause or disable existing ones; changing the monthly amount is reserved for the super-admin.",
     steps: [
       "Open Money › Subscriptions. Search by advertiser and filter by status (Active / Inactive / Paused) or start date.",
-      "New Subscription — opens the create dialog to set up a monthly plan for an advertiser.",
-      "On an inactive plan, click Activate to start billing; on a running plan use Pause / Unpause or Disable.",
-      "Amount — changes the monthly charge. This control is visible to the super-admin only.",
+      // ── STARTING AND STOPPING A PLAN IS THE OWNER'S TOO ──────────
+      // These three steps described five controls an employee admin does
+      // not have. subscription-actions refuses a non-owner with "Only the
+      // account owner can start, stop or price a subscription", and
+      // psm-subscriptions.tsx correctly hides all five behind
+      // isSuperAdmin with "Plans are the owner's to start, price and
+      // stop." The handbook was the only thing still promising them.
+      "New Subscription, Activate, Pause / Unpause, Disable and Amount are the account owner's. You can read every plan and its history; ask the owner to change one.",
     ],
     notes: [
       {
         label: "Super-admin only",
         tone: "info",
-        text: "Editing the monthly amount is owner-restricted; admins can create, pause, unpause and disable.",
+        text: "Starting, pausing, disabling and pricing a subscription are all owner-restricted. An admin reads them.",
       },
     ],
   },
@@ -224,6 +229,13 @@ const SECTIONS: Section[] = [
       "Reconciliation — the does-everything-add-up view. If a balance looks wrong, do not hand-edit; raise it here with the owner.",
       "Finance settings — bank destinations, fees and tenant configuration are owner-only.",
       "Admins & invites, activity and audit logs — managing other admins and reviewing the full audit trail is owner-only.",
+      // ── THE TWO THAT WERE MISSING FROM THIS LIST ─────────────────
+      // A list of what to escalate has to be the SAME list as what the
+      // guard refuses, or it is just advice. These two were refused and
+      // not listed, and the handbook actively instructed people to use
+      // them until the sections above were corrected.
+      "Subscriptions — starting, pausing, disabling and pricing a plan. You can read every plan and its history.",
+      "Promotions & perks — granting or revoking a perk. The screen does not open for an admin at all.",
     ],
     notes: [
       {
@@ -283,7 +295,29 @@ export default function AdminManual() {
   // the customer cannot already read. The super-admin handbook holds
   // pricing, margin and bank routing, so it is owner-only.
   const manuals = useMemo(
-    () => manualsFor(isSuperAdmin, buildManuals(SECTIONS)),
+    // ── DO NOT INSTRUCT SOMEBODY TO USE A DOOR THAT BOUNCES ────────
+    //
+    // manualsFor drops the OWNER handbook for an employee admin, and
+    // that was the whole of the filtering -- so the Admin handbook still
+    // told them, in numbered steps, to "Open More › Promotions. Under
+    // Grant a perk, pick the advertiser..." /promotions is
+    // requireSuperAdmin and the nav entry is inside `if (isSuperAdmin)`,
+    // so the menu line does not exist for them and the URL bounces.
+    // Walked on production 27-09 with the tenant's first employee admin:
+    // it lands on /dashboard.
+    //
+    // A handbook that sends somebody somewhere they cannot go is worse
+    // than one that stays quiet about it, because they will conclude
+    // their account is broken.
+    () =>
+      manualsFor(
+        isSuperAdmin,
+        buildManuals(
+          isSuperAdmin
+            ? SECTIONS
+            : SECTIONS.filter((x) => x.id !== "promotions"),
+        ),
+      ),
     [isSuperAdmin],
   );
   const [audience, setAudience] = useState<Audience>("admin");
