@@ -810,6 +810,20 @@ function AdvertiserRow({
   // billing, and the Activate button that appears next does not undo it.
   // The admins table already asks before its equivalent; this did not.
   const [askDeactivate, setAskDeactivate] = useState(false);
+  // ── AND THEN ONE MORE, WITH THE CODE TYPED ───────────────────────
+  //
+  // The owner, 27-09: "na deactivate moet er nog een popup komen, dus
+  // als ik nu yes deactivate doe nog 1 modal met zekerheid."
+  //
+  // Not a second yes/no: somebody who clicked through the first one
+  // clicks through the second at the same speed, and two identical
+  // dialogs teach people to press the red button twice without reading.
+  // Typing the client code is the standard shape for an action you
+  // cannot take back by pressing the same button again -- it cannot
+  // happen with a stray tap, and it puts the customer's own identifier
+  // in front of the person's eyes at the last moment.
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [typedCode, setTypedCode] = useState("");
   const [askActivate, setAskActivate] = useState(false);
 
   const toggleStatus = () => {
@@ -832,6 +846,11 @@ function AdvertiserRow({
         onSettled: () => {
           setAskDeactivate(false);
           setAskActivate(false);
+          // The typed-code step too, and its field -- otherwise the next
+          // customer opens with the previous one's code already in it,
+          // which would defeat the whole point of typing it.
+          setConfirmDeactivate(false);
+          setTypedCode("");
         },
       },
     );
@@ -1235,8 +1254,11 @@ function AdvertiserRow({
           //
           // Measured on production before this line: dialog gone at
           // 675ms, write landed at 2675ms.
-          closeGuard();
-          toggleStatus();
+          // Step one no longer writes anything: it hands over to the
+          // typed confirmation below.
+          setAskDeactivate(false);
+          setTypedCode("");
+          setConfirmDeactivate(true);
         }}
       >
         <ConfirmFact
@@ -1244,6 +1266,57 @@ function AdvertiserRow({
           value={profile.advertiser?.[0]?.tenant_client_code ?? profile.email ?? "—"}
         />
         <ConfirmFact label="Also stops" value="Their subscriptions" strong />
+      </ConfirmModal>
+
+      {/* Step two. */}
+      <ConfirmModal
+        open={confirmDeactivate}
+        onOpenChange={(next) => {
+          if (!next && !isPending) {
+            closeGuard();
+            setConfirmDeactivate(false);
+            setTypedCode("");
+          }
+        }}
+        title="Type their code to switch them off"
+        lead="This is the last step. They lose access the moment you confirm."
+        cta="Switch them off"
+        tone="danger"
+        busy={isPending}
+        busyLabel="Saving…"
+        disabled={
+          typedCode.trim().toUpperCase() !==
+          String(profile.advertiser?.[0]?.tenant_client_code ?? "")
+            .trim()
+            .toUpperCase()
+        }
+        disabledHint="Type the client code above, exactly."
+        onConfirm={() => {
+          closeGuard();
+          toggleStatus();
+        }}
+      >
+        <ConfirmFact
+          label="Customer"
+          value={profile.full_name ?? profile.email ?? "—"}
+        />
+        <ConfirmFact
+          label="Type this"
+          value={profile.advertiser?.[0]?.tenant_client_code ?? "—"}
+          strong
+        />
+        <div style={{ marginTop: 10 }}>
+          <input
+            className="inp"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={profile.advertiser?.[0]?.tenant_client_code ?? "Client code"}
+            aria-label="Client code"
+            value={typedCode}
+            onChange={(e) => setTypedCode(e.target.value)}
+            style={{ width: "100%" }}
+          />
+        </div>
       </ConfirmModal>
 
       <ConfirmModal

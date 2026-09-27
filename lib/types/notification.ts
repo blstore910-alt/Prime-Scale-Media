@@ -32,6 +32,7 @@ export type NotificationType =
   | "referral_commission_failed"
   // Plak 36: deleting an account is a request the owner decides.
   | "account_deletion_requested"
+  | "customer_deactivated"
   | "account_deletion_declined"
   // Plak 42: a referral waits for the owner; approving counts back.
   | "referral_pending"
@@ -128,6 +129,13 @@ export interface NotificationPayloadByType {
     client_code?: string | null;
   };
   account_deletion_declined: { reason?: string | null };
+  /** To every admin: a customer was switched off, and by whom. */
+  customer_deactivated: {
+    profile_id?: string | null;
+    name?: string | null;
+    client_code?: string | null;
+    by?: string | null;
+  };
   /** To the owner: somebody signed up through an affiliate's link. */
   referral_pending: {
     link_id?: string | null;

@@ -159,20 +159,38 @@ export default function PsmDst() {
       ),
     [behindRows.data],
   );
+  // ── AN EMBED COMES BACK AS AN OBJECT OR AS AN ARRAY ───────────────
+  //
+  // PostgREST returns a joined row either way depending on how it reads
+  // the relationship, and reading only the object shape left the raw
+  // uuid on screen -- the owner, 27-09, looking at the card: "rare naam
+  // hier", over a 36-character id where a customer's name belongs.
+  //
+  // `first` takes whichever shape arrived. And the fallback is no longer
+  // the uuid: a name we could not resolve is "This customer", which is
+  // at least true, where an id is just noise that looks like a fault.
   const nameOf = useMemo(() => {
+    type Prof = { full_name?: string | null };
+    type Adv = {
+      tenant_client_code?: string | null;
+      profile?: Prof | Prof[] | null;
+    };
+    const first = <T,>(v: T | T[] | null | undefined): T | null =>
+      Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+
     const m = new Map<string, string>();
     for (const r of (behindRows.data ?? []) as Array<{
       advertiser_id: string;
-      advertiser?: {
-        tenant_client_code?: string | null;
-        profile?: { full_name?: string | null } | null;
-      } | null;
+      advertiser?: Adv | Adv[] | null;
     }>) {
       if (m.has(r.advertiser_id)) continue;
-      const a = r.advertiser;
+      const a = first(r.advertiser);
       const code = a?.tenant_client_code ?? "";
-      const nm = a?.profile?.full_name ?? "";
-      m.set(r.advertiser_id, [code, nm].filter(Boolean).join(" · ") || r.advertiser_id);
+      const nm = first(a?.profile)?.full_name ?? "";
+      m.set(
+        r.advertiser_id,
+        [code, nm].filter(Boolean).join(" · ") || "This customer",
+      );
     }
     return m;
   }, [behindRows.data]);
@@ -261,7 +279,7 @@ export default function PsmDst() {
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-background px-2.5 py-2 text-sm"
               >
                 <span className="font-medium">
-                  {nameOf.get(b.advertiserId) ?? b.advertiserId}
+                  {nameOf.get(b.advertiserId) ?? "This customer"}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {b.daysBehind} days behind · last week ended{" "}

@@ -618,6 +618,20 @@ export function getNotificationCopy(notification: Notification): {
           : "We couldn't accept your application this time. You can apply again whenever you like.",
       };
     }
+    case "customer_deactivated": {
+      const p = parseNotificationPayload(notification) as {
+        name?: string | null;
+        client_code?: string | null;
+        by?: string | null;
+      };
+      return {
+        title: "A customer was switched off",
+        description: `${p.name || "A customer"}${
+          p.client_code ? ` (${p.client_code})` : ""
+        } was deactivated${p.by ? ` by ${p.by}` : ""}. They have lost access and their subscriptions have stopped.`,
+      };
+    }
+
     case "account_deletion_requested": {
       const p = parseNotificationPayload(notification) as {
         name?: string | null;

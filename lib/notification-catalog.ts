@@ -23,6 +23,16 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "admin",
   },
   {
+    // Every admin, not only the owner: switching a customer off stops
+    // their access and their subscriptions, and the next person to pick
+    // up that customer's ticket needs to know it happened and who did
+    // it. The owner, 27-09: "ook dat admin melding krijgt."
+    type: "customer_deactivated",
+    label: "A customer was switched off",
+    description: "When somebody deactivates a customer account.",
+    audience: "admin",
+  },
+  {
     type: "account_deletion_declined",
     // ── NOT THE WORD "DELETE", IN A SETTINGS LIST ─────────────────
     // The owner, 27-09: "deletion request noti is raar, haal delete
