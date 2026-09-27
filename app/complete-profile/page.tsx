@@ -31,7 +31,7 @@ export default async function CompleteProfilePage() {
   const cookieStore = await cookies();
   const existingProfile = cookieStore.get("profile_id")?.value;
 
-  const { data: profiles } = await supabase
+  const { data: profiles, error: profilesError } = await supabase
     .from("user_profiles")
     .select(
       // Explicit columns, NOT advertisers(*) — see
@@ -39,6 +39,30 @@ export default async function CompleteProfilePage() {
       "*, advertiser:advertisers(id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at)",
     )
     .eq("user_id", user.id);
+
+  // ── AND A FAILED PROFILE READ IS NOT "NO ACCOUNT" ────────────────
+  //
+  // Same fault one read earlier, with a worse landing: an empty list
+  // redirects to /onboard, which walks a signed-in advertiser towards
+  // "create an organisation" -- a form that would make them the owner
+  // of a new tenant. Sending somebody there because a query blinked is
+  // not a recoverable mistake.
+  if (profilesError) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-muted/30 p-6">
+        <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-sm">
+          <h1 className="text-lg font-bold">We couldn&apos;t open your account</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Something went wrong reading your details. Nothing is lost —
+            reload and it should come back.
+          </p>
+          <a className="mt-4 inline-block underline" href="/complete-profile">
+            Reload
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   const profileList = (profiles ?? []) as UserProfile[];
   if (!profileList.length) {
@@ -105,12 +129,47 @@ export default async function CompleteProfilePage() {
     );
   }
 
-  // Fetch company with billings
-  const { data: company } = await supabase
+  // ── A FAILED READ IS NOT "NO COMPANY YET" ─────────────────────────
+  //
+  // The error was destructured away, and the two states are then
+  // byte-identical: `company = null`. So a refused or dropped read gave
+  // isCompanyComplete(null) === false, no redirect, and the form
+  // prefilled from `company?.*` into eleven empty strings.
+  //
+  // Pressing Save then DELETES what it never showed: the submit maps
+  // `website_url: data.website_url || null` and `vat_no: ... || null`,
+  // so a blank field writes a null over a stored value. The form's own
+  // comment says this is the worst outcome; the page above it was
+  // handing it exactly that state.
+  //
+  // Same shape as the payout-details form and the advertiser's own
+  // company card, both of which refuse to save over a read they did not
+  // get. Refusing costs one reload.
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("*, billings(*)")
     .eq("advertiser_id", advertiser.id)
     .maybeSingle();
+
+  if (companyError) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-muted/30 p-6">
+        <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-sm">
+          <h1 className="text-lg font-bold">
+            We couldn&apos;t read your company details
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Nothing is lost. We are not showing the form, because it would
+            open empty and saving it would write over what is stored.
+            Reload and it should come back.
+          </p>
+          <a className="mt-4 inline-block underline" href="/complete-profile">
+            Reload
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   // ── THE SAME PREDICATE THE REST OF THE APP USES ─────────────────────
   //

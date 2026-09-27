@@ -562,6 +562,19 @@ function AddDstDialog({
     seeded.current = key;
     setPeriodStart(prefill.periodStart);
     setPeriodEnd(prefill.periodEnd);
+    // ── THE CUSTOMER TOO, ON THE TAB THAT IS OPEN ─────────────────
+    //
+    // The first version set only the BULK selection, and the dialog
+    // opens on "One customer" -- which has its own `advertiserId`. So
+    // pressing "Enter 21-09 - 26-09" on somebody's row gave you the
+    // right dates over "Pick a customer…", which is the one thing the
+    // button was supposed to save you. The owner saw it immediately.
+    //
+    // Both are set: the mode is forced to "one" because the card names
+    // exactly one customer, and the bulk side is seeded too so that
+    // switching tabs keeps the choice instead of losing it.
+    setMode("one");
+    setAdvertiserId(prefill.advertiserId);
     setBulkPicked([prefill.advertiserId]);
     setBulkLines({ [prefill.advertiserId]: [{ country: "", base: "" }] });
   }, [open, prefill]);

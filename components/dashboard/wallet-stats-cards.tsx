@@ -52,6 +52,7 @@ function Tile({
   isLoading,
   isError,
   failedLabel,
+  amounts = true,
 }: {
   label: string;
   title: string;
@@ -64,6 +65,22 @@ function Tile({
   isLoading: boolean;
   isError: boolean;
   failedLabel: string;
+  /**
+   * Whether this tile may print money.
+   *
+   * ── WHY THIS EXISTS ─────────────────────────────────────────────
+   *
+   * The owner, 27-09, looking at an employee admin's dashboard: "hier
+   * zie je allemaal omzet hoor." They were right and I had said the
+   * opposite while looking at it. "Wallet in $0.00 / EUR 0.00",
+   * "Subscriptions EUR 0.00" -- those are the money totals flowing
+   * through the business, which is the one thing the desk is not shown.
+   * Taking the word "profit" out of the heading changed nothing.
+   *
+   * The count stays. It is what the desk did, it is what they can be
+   * proud of, and it is the number a bonus can honestly hang on.
+   */
+  amounts?: boolean;
 }) {
   const head = (
     <CardDescription className="psm-cardlbl">
@@ -108,13 +125,22 @@ function Tile({
         <CardDescription className="psm-cardlbl">
           <span className={`ci ${tint}`}>{icon}</span>
           <span title={title}>
-            {label} <span>({formatNumber(count)})</span>
+            {label}
+            {amounts ? <span> ({formatNumber(count)})</span> : null}
           </span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
-          <span>{formatCurrency(usd, "USD")}</span>
-          <span className="mx-2">/</span>
-          <span>{formatCurrency(eur, "EUR")}</span>
+          {amounts ? (
+            <>
+              <span>{formatCurrency(usd, "USD")}</span>
+              <span className="mx-2">/</span>
+              <span>{formatCurrency(eur, "EUR")}</span>
+            </>
+          ) : (
+            // The count, big, where the money was. Not a blank: a tile
+            // with a label and nothing under it reads as a failed read.
+            <span>{formatNumber(count)}</span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0 px-4">
@@ -132,9 +158,12 @@ function Tile({
 export function WalletTopupsStatsCard({
   period,
   dateRange,
+  amounts,
 }: {
   period: DashboardPeriod;
   dateRange?: DashboardDateRange;
+  /** false on an employee admin's dashboard -- see Tile. */
+  amounts?: boolean;
 }) {
   const { data, isLoading, isError } = useStatsDataset<WalletStatsResponse>(
     "wallet",
@@ -154,6 +183,7 @@ export function WalletTopupsStatsCard({
       isLoading={isLoading}
       isError={isError || !data}
       failedLabel="Failed to load wallet top-ups"
+      amounts={amounts}
     />
   );
 }
@@ -161,9 +191,12 @@ export function WalletTopupsStatsCard({
 export function WalletExchangesStatsCard({
   period,
   dateRange,
+  amounts,
 }: {
   period: DashboardPeriod;
   dateRange?: DashboardDateRange;
+  /** false on an employee admin's dashboard -- see Tile. */
+  amounts?: boolean;
 }) {
   const { data, isLoading, isError } = useStatsDataset<WalletStatsResponse>(
     "wallet",
@@ -183,6 +216,7 @@ export function WalletExchangesStatsCard({
       isLoading={isLoading}
       isError={isError || !data}
       failedLabel="Failed to load exchanges"
+      amounts={amounts}
     />
   );
 }

@@ -37,9 +37,21 @@ export type DstBehind = {
   daysBehind: number;
   /** Complete weeks that could be entered now. At least 1 when listed. */
   weeksMissing: number;
-  /** The first week nobody has entered yet, ready to prefill. */
+  /**
+   * The whole gap nobody has entered, ready to prefill: the day after
+   * the last entry, through to YESTERDAY.
+   *
+   * Not a fixed seven days. The owner, 27-09: "als iemand dus 13 dagen
+   * behind is vult die dst voor 13 dagen ofzo, altijd -1 dag want
+   * vandaag kan nog niet klaar." Right on both counts -- a 13-day gap
+   * filled as one 7-day week leaves six days behind and nobody notices,
+   * and a period ending today asks somebody to enter a base for a day
+   * the supplier has not finished billing.
+   */
   nextPeriodStart: string;
   nextPeriodEnd: string;
+  /** Days in that period. 13 behind is a 13-day period, not two weeks. */
+  periodDays: number;
 };
 
 const DAY = 86_400_000;
@@ -96,19 +108,26 @@ export function dstBehind(
   for (const [advertiserId, end] of latest) {
     const daysBehind = Math.floor((today.getTime() - end.getTime()) / DAY);
     if (daysBehind < thresholdDays) continue;
-    // The next week starts the day after the last one ended.
+    // The day after the last entry, through to yesterday. Today is not
+    // offered: the supplier has not finished billing it, so a base typed
+    // for it would be a guess that has to be corrected later.
     const nextStart = new Date(end.getTime() + DAY);
-    const nextEnd = new Date(nextStart.getTime() + 6 * DAY);
+    const nextEnd = new Date(today.getTime() - DAY);
+    // daysBehind >= thresholdDays >= 1 guarantees nextEnd >= nextStart,
+    // but a threshold of 0 would not, and a period that runs backwards
+    // is worse than no suggestion.
+    if (nextEnd < nextStart) continue;
     out.push({
       advertiserId,
       lastPeriodEnd: iso(end),
       daysBehind,
-      // Only whole weeks that have finished. A week still running is not
-      // missing yet, and offering it would have the desk entering a
-      // partial base and correcting it later.
+      // Still reported, because "three weeks behind" is the sentence a
+      // person understands -- but it is no longer what gets entered.
       weeksMissing: Math.floor(daysBehind / 7),
       nextPeriodStart: iso(nextStart),
       nextPeriodEnd: iso(nextEnd),
+      periodDays:
+        Math.round((nextEnd.getTime() - nextStart.getTime()) / DAY) + 1,
     });
   }
 

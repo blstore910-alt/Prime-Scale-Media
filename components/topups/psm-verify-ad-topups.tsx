@@ -335,11 +335,20 @@ export default function PsmVerifyAdTopups() {
                     row: it is context for the decision, not one of the
                     choices, and mixing it in made a four-item row that
                     wrapped differently on every card. */}
-                {pend ? (
-                  <div style={{ marginTop: 12 }}>
-                    <SupplierPill link={supplierFor(t.account_id)} />
-                  </div>
-                ) : null}
+                {/* ── ON EVERY ROW, NOT ONLY A PENDING ONE ──────────
+                    The owner, 27-09, looking at a COMPLETED card: "hier
+                    moeten we ook weer easy kunnen zien supplier
+                    dashboard link of pill."
+                    It was gated on `pend`, so the moment a top-up was
+                    verified the route to the supplier's own dashboard
+                    disappeared -- which is exactly when somebody goes
+                    looking for it: the money has gone out and they want
+                    to see it land. The pill returns null on its own
+                    when there is no link, so this needs no other
+                    guard. */}
+                <div style={{ marginTop: 12 }}>
+                  <SupplierPill link={supplierFor(t.account_id)} />
+                </div>
                 {/* All the buttons on ONE row, and they stay on it. */}
                 <div
                   style={{

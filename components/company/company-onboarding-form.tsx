@@ -17,6 +17,7 @@ import { Loader2, RotateCcw, X } from "lucide-react";
 import { UserProfile } from "@/lib/types/user";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { userFacingErrorMessage } from "@/lib/pure-error";
 import { useState } from "react";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
@@ -154,10 +155,17 @@ export default function CompanyOnboardingForm({
 
   // Auto-save + restore — long form, don't lose user's typing.
   const liveValues = watch();
+  // saveWhen, for the reason hooks/use-form-draft.ts documents: this
+  // form prefills from the stored company, so without it the debounced
+  // save writes the SERVER's row into IndexedDB and the next visit says
+  // "You were filling this in earlier" about values nobody typed -- and
+  // Restore then overwrites anything they have typed since. The
+  // advertiser's own company card already passes it.
   const draft = useFormDraft<FormValues>({
     formKey: "company-onboarding",
     values: liveValues,
     userScope: profile.id ?? null,
+    saveWhen: isDirty,
   });
 
   // ── TYPED, NOT PREFILLED ──────────────────────────────────────────
@@ -241,9 +249,20 @@ export default function CompanyOnboardingForm({
         router.push("/");
       }, 100);
     } catch (error) {
-      const err = error as Error;
-      toast.error("Failed to save company information", {
-        description: err.message,
+      // ── NOT THE DATABASE'S OWN WORDS ─────────────────────────────
+      //
+      // saveOwnCompanyOnboarding passes `updateError.message` straight
+      // back, so a refused write arrived here as `new row violates
+      // row-level security policy for table "companies"` -- on the
+      // first form a new customer ever fills in. The advertiser's own
+      // company card was fixed for exactly this and carries a comment
+      // about it; this form was missed. CLAUDE.md names it as a
+      // non-negotiable.
+      toast.error("Couldn't save your company details", {
+        description: userFacingErrorMessage(
+          error,
+          "Something went wrong on our side. Nothing was lost — try again in a moment.",
+        ),
       });
     } finally {
       setIsSubmitting(false);

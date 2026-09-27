@@ -519,11 +519,25 @@ export function DashboardStatsCards() {
                   see the figures, wrong that they are asked to look at
                   them. I added them to this grid tonight; they belong
                   on the owner's. */}
-              <WalletTopupsStatsCard period={period} dateRange={dateRange} />
-              <TopupsStatsCard period={period} dateRange={dateRange} />
-              <WalletExchangesStatsCard period={period} dateRange={dateRange} />
-              <SubscriptionsStatsCard period={period} dateRange={dateRange} />
-              <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} />
+              {/* ── COUNTS, NOT MONEY ─────────────────────────────
+                  The owner, 27-09, looking at this grid on an employee
+                  admin's screen: "hier zie je allemaal omzet hoor."
+                  Right, and I had said the opposite while looking at
+                  it. "Wallet in $0.00 / EUR 0.00", "Subscriptions
+                  EUR 0.00" -- those are the money totals flowing
+                  through the business, which is the one thing the desk
+                  is not shown. Taking the word "profit" out of the
+                  heading changed nothing at all.
+
+                  The COUNT stays, big, where the money was. It is what
+                  the desk did, it is what they can be proud of, and it
+                  is the only number a bonus can honestly hang on. The
+                  owner's own grid is unchanged. */}
+              <WalletTopupsStatsCard period={period} dateRange={dateRange} amounts={false} />
+              <TopupsStatsCard period={period} dateRange={dateRange} amounts={false} />
+              <WalletExchangesStatsCard period={period} dateRange={dateRange} amounts={false} />
+              <SubscriptionsStatsCard period={period} dateRange={dateRange} amounts={false} />
+              <ExtraAdAccountsStatsCard period={period} dateRange={dateRange} amounts={false} />
               <RegistrationsStatsCard period={period} dateRange={dateRange} />
             </div>
           </div>

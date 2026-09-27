@@ -241,7 +241,10 @@ export default function AdminShell({
     // already DST's and one icon for two things is worse than no icon.
     { title: "Wallet in", href: "/wallet-topups", icon: Upload },
     { title: "Ad topups", href: "/top-ups", icon: Coins },
-    { title: "Wallets", href: "/wallets", icon: Wallet },
+    // Wallets came off: the owner, 27-09, "wallets mag hier weg". It is
+    // a lookup screen, not a queue, and it was the sixth item on a bar
+    // whose other five are all things somebody is waiting on. Still one
+    // tap away in the menu.
   ];
 
   const logout = async () => {

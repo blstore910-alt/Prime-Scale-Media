@@ -23,7 +23,29 @@ describe("dstBehind", () => {
     assert.equal(out[0].daysBehind, 7);
     assert.equal(out[0].weeksMissing, 1);
     assert.equal(out[0].nextPeriodStart, "2026-09-21");
-    assert.equal(out[0].nextPeriodEnd, "2026-09-27");
+    // Yesterday, NOT today. The owner: "altijd -1 dag want vandaag kan
+    // nog niet klaar" -- the supplier has not finished billing today, so
+    // a base typed for it is a guess somebody has to correct.
+    assert.equal(out[0].nextPeriodEnd, "2026-09-26");
+    assert.equal(out[0].periodDays, 6);
+  });
+
+  it("a 13-day gap is offered as 13 days, not as one week", () => {
+    // The owner: "als iemand dus 13 dagen behind is vult die dst voor 13
+    // dagen." Filling a 13-day gap with a 7-day week silently leaves six
+    // days behind, and nobody would notice until the next time.
+    const out = dstBehind([row(A, "2026-09-08", "2026-09-14")], TODAY);
+    assert.equal(out[0].daysBehind, 13);
+    assert.equal(out[0].nextPeriodStart, "2026-09-15");
+    assert.equal(out[0].nextPeriodEnd, "2026-09-26");
+    assert.equal(out[0].periodDays, 12);
+  });
+
+  it("never offers a period that ends today", () => {
+    for (const end of ["2026-09-20", "2026-09-14", "2026-08-01"]) {
+      const out = dstBehind([row(A, "2026-01-01", end)], TODAY);
+      assert.ok(out[0].nextPeriodEnd < "2026-09-27", end);
+    }
   });
 
   it("leaves alone a customer whose last week only just ended", () => {
@@ -32,12 +54,13 @@ describe("dstBehind", () => {
     assert.deepEqual(out, []);
   });
 
-  it("counts whole weeks, never a part of one", () => {
-    // 20 days behind is two complete weeks plus a bit; the bit is a week
-    // that has not finished and must not be offered.
+  it("still says how many whole weeks, because that is the sentence", () => {
+    // weeksMissing is what a person reads ("three weeks behind"); the
+    // period that gets ENTERED is the whole gap, ending yesterday.
     const out = dstBehind([row(A, "2026-09-01", "2026-09-07")], TODAY);
     assert.equal(out[0].daysBehind, 20);
     assert.equal(out[0].weeksMissing, 2);
+    assert.equal(out[0].periodDays, 19);
   });
 
   it("takes the LATEST week per customer, not the first row it meets", () => {

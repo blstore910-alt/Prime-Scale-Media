@@ -73,7 +73,8 @@ const RECON_CSS = `
 .psm-recon .check.warn .cki{background:var(--danger-soft);color:var(--danger)}
 .psm-recon .check .cx{min-width:0}
 .psm-recon .check .ct{font-weight:700}
-.psm-recon .check .cd{color:var(--faint);font-size:.84rem}
+.psm-recon .check .cd{color:var(--faint);font-size:.84rem;display:flex;flex-direction:column;gap:1px}
+.psm-recon .check .cd b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
 .psm-recon .check .cw{color:var(--warn);font-size:.8rem;margin-top:4px;line-height:1.35}
 .psm-recon .check.actionable{cursor:pointer;transition:border-color .14s,box-shadow .14s}
 .psm-recon .check.actionable:hover{border-color:var(--warn);box-shadow:var(--shadow-sm)}
@@ -196,7 +197,29 @@ export default function ReconciliationView() {
     // negative one is the other way round.
     setDirection(r.gap >= 0 ? "deposit" : "withdrawal");
     setAmount(Math.abs(r.gap).toFixed(2));
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // ── SAY THAT SOMETHING HAPPENED ─────────────────────────────────
+    //
+    // The owner, 27-09, after pressing Check: "hier staat geen info
+    // niks van wat, en als ik check doe ook niks."
+    //
+    // It was not dead -- it filled the form and scrolled to it. But the
+    // form is below the fold, the page scrolls inside a container, and
+    // scrollIntoView on a smooth behaviour inside one does not always
+    // land. So the entire visible effect of pressing the one button on
+    // the card was: nothing.
+    //
+    // The scroll stays, and is no longer the only feedback. A sentence
+    // that names the amount is proof it registered even when the page
+    // has not moved a pixel.
+    toast.success("Filled in below", {
+      description: `${cur} ${Math.abs(r.gap).toFixed(2)} as a ${
+        r.gap >= 0 ? "deposit" : "withdrawal"
+      }. Pick which bank received it, then Add.`,
+    });
+    // Instant, not smooth: a smooth scroll inside a scroll container is
+    // the half of this that was already unreliable.
+    formRef.current?.scrollIntoView({ block: "start" });
   };
 
   const rows = reconQ.data?.rows ?? [];
@@ -331,9 +354,22 @@ export default function ReconciliationView() {
                   </span>
                   <div className="cx">
                     <div className="ct">{r.currency}</div>
+                    {/* ── SAY WHAT THE TWO NUMBERS ARE ─────────────
+                        The owner, 27-09: "hier staat geen info niks van
+                        wat." Two amounts labelled "Credited" and
+                        "Received" do not say which side is ours and
+                        which is the bank's, so the row was a figure
+                        without a question.
+                        One line each, named for where they come from. */}
                     <div className="cd">
-                      Credited {fmt(r.credited, r.currency)} · Received{" "}
-                      {fmt(r.received, r.currency)}
+                      <span>
+                        We credited customers{" "}
+                        <b>{fmt(r.credited, r.currency)}</b>
+                      </span>
+                      <span>
+                        Bank statement says{" "}
+                        <b>{fmt(r.received, r.currency)}</b>
+                      </span>
                     </div>
                     {/* The number alone does not say what to do about it.
                         This row is the only place the difference is

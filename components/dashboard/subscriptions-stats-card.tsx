@@ -66,9 +66,12 @@ function formatNumber(value: number) {
 export function SubscriptionsStatsCard({
   period,
   dateRange,
+  amounts,
 }: {
   period: DashboardPeriod;
   dateRange?: DashboardDateRange;
+  /** false on an employee admin's dashboard -- see Tile. */
+  amounts?: boolean;
 }) {
   // One shared batched request feeds every card on this dashboard —
   // see hooks/use-stats-batch.ts for why.
@@ -130,9 +133,18 @@ export function SubscriptionsStatsCard({
           <span>Subscriptions <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
+          {amounts === false ? (
+            // Counts, not money, on an employee admin's
+            // dashboard -- see the Tile note in
+            // wallet-stats-cards.tsx.
+            <span>{formatNumber(data.totals.count)}</span>
+          ) : (
+            <>
           <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>
           <span className="mx-2">/</span>
           <span>{formatCurrency(data.totals.eur.amount, "EUR")}</span>
+            </>
+          )}
         </CardTitle>
       </CardHeader>
 
