@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { listPlans, upsertPlan } from "@/actions/plan-actions";
+import { deletePlan, listPlans, upsertPlan } from "@/actions/plan-actions";
 import type { Plan, PlanCurrency, PlanKind } from "@/lib/types/plan";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { useAppContext } from "@/context/app-provider";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import { Trash2 } from "lucide-react";
 import { suggestPrice } from "@/lib/pure-plan-price";
 import useExchangeRates from "./use-exchange-rates";
 
@@ -299,6 +300,32 @@ export default function PlansCard() {
   // rates next door. This is the one change on this card that deserves
   // one.
   const [pendingLastOff, setPendingLastOff] = useState(false);
+
+  // ── DELETE, BUT ONLY WHEN NOBODY IS ON IT ─────────────────────────
+  //
+  // There was none at all, so a plan made with a typo could only be
+  // switched off -- and an inactive plan stays on this screen for ever.
+  // The server refuses while any customer or any waiting invitation
+  // points at the plan, and says how many; the database will NOT stop
+  // it, because neither advertiser_plans.plan_id nor
+  // invitations.plan_id carries a foreign key.
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const { mutate: removePlan, isPending: deleting } = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await deletePlan(id);
+      if (!res.ok) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      toast.success("Plan deleted");
+      setPendingDelete(null);
+      invalidate();
+    },
+    onError: (e: Error) =>
+      toast.error("Not deleted", { description: e.message, duration: 10000 }),
+  });
   const willLeaveNoneActive =
     rows.length > 0 && rows.every((r) => !r.is_active);
   const wasSomeActive = initial.some((r) => r.is_active);
@@ -516,16 +543,32 @@ export default function PlansCard() {
                     onChange={(e) => patch(i, { yearPct: e.target.value })}
                   />
                 </label>
-                <label className="flex items-center gap-2 sm:justify-end sm:pr-2">
-                  <input
-                    type="checkbox"
-                    checked={r.is_active}
-                    aria-label={`${r.name} active`}
-                    className="h-4 w-4"
-                    onChange={(e) => patch(i, { is_active: e.target.checked })}
-                  />
-                  <span className={lab}>Active</span>
-                </label>
+                <div className="flex items-center justify-between gap-2 sm:justify-end sm:pr-1">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={r.is_active}
+                      aria-label={`${r.name} active`}
+                      className="h-4 w-4"
+                      onChange={(e) => patch(i, { is_active: e.target.checked })}
+                    />
+                    <span className={lab}>Active</span>
+                  </label>
+                  {/* Only reachable when nobody is on the plan -- the
+                      server counts and refuses with the number, because
+                      the database will not: neither advertiser_plans nor
+                      invitations carries a foreign key to plans. */}
+                  <button
+                    type="button"
+                    aria-label={`Delete ${r.name}`}
+                    title={`Delete ${r.name}`}
+                    disabled={deleting}
+                    onClick={() => setPendingDelete({ id: r.id, name: r.name })}
+                    className="rounded-md p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -648,6 +691,28 @@ export default function PlansCard() {
           Save changes
         </Button>
       </CardFooter>
+
+      <ConfirmModal
+        open={!!pendingDelete}
+        onOpenChange={(next) => {
+          if (!next) setPendingDelete(null);
+        }}
+        tone="danger"
+        title={`Delete ${pendingDelete?.name ?? "this plan"}?`}
+        lead="This cannot be undone. It only goes through when no customer is on it and no invitation is still waiting on it — if either is true you will be told how many, and nothing is deleted."
+        cta="Yes, delete it"
+        busy={deleting}
+        busyLabel="Deleting…"
+        onConfirm={() => {
+          if (pendingDelete) removePlan(pendingDelete.id);
+        }}
+      >
+        <ConfirmFact label="Plan" value={pendingDelete?.name ?? "—"} strong />
+        <ConfirmFact
+          label="If anyone is on it"
+          value="nothing happens, and we say how many"
+        />
+      </ConfirmModal>
 
       <ConfirmModal
         open={pendingLastOff}

@@ -6,6 +6,7 @@ import {
   type PlanKind,
   type PlanOption,
 } from "@/lib/types/plan";
+import { safeErrorMessage } from "@/lib/pure-error";
 import {
   type ActionResult,
   resolveAdminContext,
@@ -309,4 +310,113 @@ export async function upsertPlan(input: {
     return { ok: false, error: error.message };
   }
   return { ok: true, data: { id: data.id } };
+}
+
+// ─────────────────────────────────────────
+// deletePlan — owner only, and only when nobody is on it.
+// ─────────────────────────────────────────
+/**
+ * Remove a plan for good.
+ *
+ * The owner, 27-09: there was no delete at all, so a plan created with a
+ * typo could only ever be switched off — and an inactive plan still sits
+ * on the settings screen for ever. They asked for a delete "that only
+ * works when no customer is on that plan".
+ *
+ * That guard has to live here, because the DATABASE will not stop it.
+ * `advertiser_plans.plan_id` and `invitations.plan_id` both point at this
+ * table and NEITHER carries a foreign key — checked against live. So a
+ * delete would succeed and leave those rows pointing at nothing:
+ * `advertiser_plans` is the snapshot a customer is billed from, and an
+ * open invitation would create a subscription from a plan that is gone.
+ *
+ * Both are counted, and both refuse. An invitation that was already
+ * accepted or cancelled does not block — only one still waiting.
+ */
+export async function deletePlan(
+  id: string,
+): Promise<ActionResult<{ deleted: true }>> {
+  const auth = await resolveOwnerContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+
+  const planId = String(id ?? "").trim();
+  if (!planId) return { ok: false, error: "No plan was named." };
+
+  // Whose, and does it still exist. Re-fetched rather than trusted.
+  const { data: row, error: readErr } = await supabase
+    .from("plans")
+    .select("id, name, tenant_id")
+    .eq("id", planId)
+    .maybeSingle();
+  if (readErr) {
+    console.error("deletePlan read", safeErrorMessage(readErr));
+    return { ok: false, error: "Could not look that plan up." };
+  }
+  if (!row) return { ok: false, error: "That plan no longer exists." };
+  if ((row as { tenant_id?: string | null }).tenant_id !== profile.tenant_id) {
+    return { ok: false, error: "That plan is not on this account." };
+  }
+  const planName = String((row as { name?: string | null }).name ?? "this plan");
+
+  // ── NOBODY ON IT, AND NOBODY ON THE WAY TO IT ────────────────────
+  //
+  // A count we did NOT get is not a count of zero: `count` is a header,
+  // and PostgREST can answer without it. On a delete that is the one
+  // direction we must not guess in, so an unreadable count refuses.
+  const { count: onPlan, error: onPlanErr } = await supabase
+    .from("advertiser_plans")
+    .select("advertiser_id", { count: "exact", head: true })
+    .eq("plan_id", planId);
+  if (onPlanErr || onPlan === null || onPlan === undefined) {
+    console.error("deletePlan count", safeErrorMessage(onPlanErr));
+    return {
+      ok: false,
+      error:
+        "We couldn't check whether anyone is on this plan, so it was not deleted.",
+    };
+  }
+  if (onPlan > 0) {
+    return {
+      ok: false,
+      error: `${onPlan} customer${onPlan === 1 ? " is" : "s are"} on ${planName}. Switch it off instead — deleting it would leave them billed from a plan that no longer exists.`,
+    };
+  }
+
+  const { count: waiting, error: waitingErr } = await supabase
+    .from("invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("plan_id", planId)
+    .eq("status", "pending");
+  if (waitingErr || waiting === null || waiting === undefined) {
+    console.error("deletePlan invite count", safeErrorMessage(waitingErr));
+    return {
+      ok: false,
+      error:
+        "We couldn't check the open invitations, so the plan was not deleted.",
+    };
+  }
+  if (waiting > 0) {
+    return {
+      ok: false,
+      error: `${waiting} invitation${waiting === 1 ? "" : "s"} still waiting on ${planName}. They would sign up onto a plan that is gone.`,
+    };
+  }
+
+  const { data: gone, error } = await supabase
+    .from("plans")
+    .delete()
+    .eq("id", planId)
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
+  if (error) {
+    console.error("deletePlan", safeErrorMessage(error));
+    return { ok: false, error: "Could not delete it. Nothing was changed." };
+  }
+  // A delete that matched nothing is not an error in PostgREST.
+  if (!Array.isArray(gone) || gone.length === 0) {
+    return { ok: false, error: "Nothing was deleted — reload and look again." };
+  }
+
+  return { ok: true, data: { deleted: true } };
 }
