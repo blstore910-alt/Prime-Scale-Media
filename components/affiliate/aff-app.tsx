@@ -942,7 +942,10 @@ export default function AffiliateApp() {
                 return (
                   <>
                     <span className="hello-av" aria-hidden="true">
-                      {initials}
+                      {/* Nested, because the ring turns and the letters
+                          must not: the disc and the initials each carry
+                          the counter-rotation. */}
+                      <span>{initials}</span>
                     </span>
                     <div className="hello-tx">
                       <p className="hello-eyebrow">Welcome back</p>

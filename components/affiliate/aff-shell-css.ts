@@ -764,11 +764,30 @@ export const AFF_CSS = `
    name only — a long name wraps to two lines on a phone and reads like
    a letterhead rather than a greeting. */
   .hello{margin:0 0 10px;display:flex;align-items:center;gap:12px}
-  .hello-av{flex:0 0 auto;width:42px;height:42px;border-radius:14px;
-    display:grid;place-items:center;color:#fff;
-    font-family:var(--font-sora);font-weight:800;font-size:.95rem;letter-spacing:.01em;
-    background:linear-gradient(135deg,var(--primary-600),#8B5CF6 58%,var(--teal));
-    box-shadow:0 10px 22px -12px rgba(91,141,255,.75),inset 0 1px 0 rgba(255,255,255,.28)}
+  /* ── THE AVATAR ─────────────────────────────────────────────
+     The owner, 27-09: "de huidige avatar moet ook mooier, nu niet wow".
+     It was a flat rounded square with a two-stop gradient -- a shape
+     that belongs to nothing else on this screen, sitting right above a
+     card built entirely out of rings and sweeps.
+
+     So it borrows the language the tier medal already speaks (.tx-ring
+     further down): a conic ring around a deep disc, the same navy as
+     the earnings card under it, initials lit on top. The ring turns
+     slowly and the initials counter-turn so they stay upright. The
+     global reduced-motion rule near the top of this file stops both
+     dead for anyone who asked for that. */
+  .hello-av{position:relative;flex:0 0 auto;width:48px;height:48px;border-radius:50%;
+    display:grid;place-items:center;
+    background:conic-gradient(from 0deg,#5B8DFF,#8B5CF6 26%,#22D3B7 52%,#EFB02C 72%,#8B5CF6 88%,#5B8DFF);
+    animation:spin 14s linear infinite;
+    box-shadow:0 12px 26px -14px rgba(91,141,255,.85),0 0 0 1px rgba(255,255,255,.6)}
+  .hello-av::after{content:"";position:absolute;inset:3px;border-radius:50%;
+    background:linear-gradient(165deg,#12142a,#1d1533);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+  .hello-av>span{position:relative;z-index:1;display:block;color:#fff;
+    font-family:var(--font-sora);font-weight:800;font-size:.98rem;letter-spacing:.02em;
+    animation:spin 14s linear infinite reverse;
+    text-shadow:0 1px 10px rgba(139,92,246,.6)}
   .hello-tx{min-width:0;flex:1 1 auto}
   .hello-eyebrow{margin:0;font-size:.7rem;font-weight:700;letter-spacing:.09em;
     text-transform:uppercase;color:var(--txt-2);opacity:.82}
@@ -779,7 +798,8 @@ export const AFF_CSS = `
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   @media(max-width:480px){
     .hello{gap:10px}
-    .hello-av{width:38px;height:38px;border-radius:12px;font-size:.88rem}
+    .hello-av{width:42px;height:42px}
+    .hello-av>span{font-size:.9rem}
     .hello h1{font-size:1.18rem}
     .hello p{font-size:.85rem}}
 
