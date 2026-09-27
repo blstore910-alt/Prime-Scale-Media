@@ -763,13 +763,25 @@ export const AFF_CSS = `
    The owner: "hier moet ook ergens welcome back en naam staan". First
    name only — a long name wraps to two lines on a phone and reads like
    a letterhead rather than a greeting. */
-  .hello{margin:0 0 4px}
+  .hello{margin:0 0 10px;display:flex;align-items:center;gap:12px}
+  .hello-av{flex:0 0 auto;width:42px;height:42px;border-radius:14px;
+    display:grid;place-items:center;color:#fff;
+    font-family:var(--font-sora);font-weight:800;font-size:.95rem;letter-spacing:.01em;
+    background:linear-gradient(135deg,var(--primary-600),#8B5CF6 58%,var(--teal));
+    box-shadow:0 10px 22px -12px rgba(91,141,255,.75),inset 0 1px 0 rgba(255,255,255,.28)}
+  .hello-tx{min-width:0;flex:1 1 auto}
+  .hello-eyebrow{margin:0;font-size:.7rem;font-weight:700;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--txt-2);opacity:.82}
   .hello h1{font-family:var(--font-sora);font-weight:800;font-size:1.32rem;
-    letter-spacing:-.025em;line-height:1.15;margin:0;color:var(--ink)}
-  .hello h1 b{font-weight:800;background:linear-gradient(120deg,var(--primary-600),#8B5CF6 60%,var(--teal));
-    -webkit-background-clip:text;background-clip:text;color:transparent}
-  .hello p{margin:5px 0 0;font-size:.9rem;color:var(--txt-2)}
-  @media(max-width:480px){.hello h1{font-size:1.18rem}}
+    letter-spacing:-.025em;line-height:1.18;margin:1px 0 0;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hello p{margin:3px 0 0;font-size:.9rem;color:var(--txt-2);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media(max-width:480px){
+    .hello{gap:10px}
+    .hello-av{width:38px;height:38px;border-radius:12px;font-size:.88rem}
+    .hello h1{font-size:1.18rem}
+    .hello p{font-size:.85rem}}
 
 /* ── THE TIER, ON ITS OWN, AND LIT ─────────────────────────────
    The owner: "alleen your tier mag blijven, die moet meer wow en

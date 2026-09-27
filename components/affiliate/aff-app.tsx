@@ -904,24 +904,54 @@ export default function AffiliateApp() {
                 </span>
               </div>
             )}
+            {/* ── THE GREETING ────────────────────────────────────
+                The owner, 27-09: "welcome back en naam is nu lelijk."
+                It was one line -- "Welcome back," in black, then the
+                name in a blue-purple gradient at the same size and the
+                same weight. Two treatments of one sentence reads as two
+                fonts that failed to load, and the brightest thing on the
+                screen was a greeting sitting above the card that is
+                supposed to be the hero.
+
+                So the colour moves to an avatar, where a gradient reads
+                as decoration instead of as a broken heading, and the
+                sentence splits: a quiet "Welcome back" over the NAME as
+                the heading. The name is what you are looking at, so it
+                gets the size. */}
             <div className="hello">
-              <h1>
-                {/* THE WHOLE NAME WHEN IT FITS. Taking the first word
-                    always is how "the affiliateking" became "Welcome
-                    back, the" on production — a first word is only a
-                    first NAME when somebody filled the field in that
-                    way. So: the name as given while it fits on the
-                    line, and only a long one gets shortened. */}
-                Welcome back,{" "}
-                <b>
-                  {(() => {
-                    const n = name.trim();
-                    if (!n) return "there";
-                    return n.length <= 20 ? n : n.split(/\s+/)[0];
-                  })()}
-                </b>
-              </h1>
-              <p>Here&apos;s what your referrals have brought in.</p>
+              {(() => {
+                // THE WHOLE NAME WHEN IT FITS. Taking the first word
+                // always is how "the affiliateking" became "Welcome
+                // back, the" on production -- a first word is only a
+                // first NAME when somebody filled the field in that way.
+                // So: the name as given while it fits on the line, and
+                // only a long one gets shortened.
+                const n = name.trim();
+                const shown = !n ? "there" : n.length <= 20 ? n : n.split(/\s+/)[0];
+                // Two letters at most, and never a stray punctuation
+                // mark: an empty name would otherwise put "?" in a
+                // circle where a person's initials go.
+                const initials =
+                  n
+                    .split(/\s+/)
+                    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, "").charAt(0))
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase() || "✦";
+                return (
+                  <>
+                    <span className="hello-av" aria-hidden="true">
+                      {initials}
+                    </span>
+                    <div className="hello-tx">
+                      <p className="hello-eyebrow">Welcome back</p>
+                      <h1>{shown}</h1>
+                      <p>Here&apos;s what your referrals have brought in.</p>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             {/* ── THE EARNINGS CARD ───────────────────────────────────
                 Same card as the advertiser's Affiliate program screen, to
