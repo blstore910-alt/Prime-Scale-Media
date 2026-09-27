@@ -268,6 +268,32 @@ this database, so text surgery on a live definition must match on
 signature string with parameter names in it — `regprocedure` takes types
 only.
 
+## Non-negotiable — a revoke belongs with every new TABLE too
+
+Same lesson as the function rule above, one level up. Supabase sets
+default privileges on `public` that hand **`anon` full `arwdDxtm`** —
+select, insert, update, delete — on every table created there. So a new
+table is open the moment it exists, and RLS is the only thing holding
+it. 2026-09-27: `fee_change_requests` came out of plak 111 as the only
+table in `public` readable by `anon`; RLS kept the rows in, but the
+grant should never have been there.
+
+Every `create table` in `public` ends with, in the same block:
+
+```sql
+alter table public.<name> enable row level security;
+revoke all on public.<name> from anon, public;
+grant select on public.<name> to authenticated;  -- and insert/update
+                                                 -- only if a policy
+                                                 -- actually needs it
+```
+
+The same goes for a `create or replace view`: it resets `reloptions` to
+empty and silently drops `security_invoker=on`. Put the option in the
+statement — `create or replace view … with (security_invoker = on)` —
+and revoke `anon` after it. That is how `top_ups_view` ended up readable
+without an account (plak 107).
+
 ## Checking a figure against the database
 
 `npm run check -- "select ..."` reads the live database from here, so a

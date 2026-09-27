@@ -390,6 +390,137 @@ export async function requestAdAccountWithdrawal(input: {
 }
 
 // ─────────────────────────────────────────
+// requestAdAccountWithdrawalAsAdmin — admin, on the customer's behalf
+// ─────────────────────────────────────────
+//
+// The owner, 27-09: "momenteel kan een admin nergens withdrawal
+// requesten of doen van ad acc van clients."
+//
+// He is right, and it goes deeper than the screen. The customer's RPC
+// opens with `select * from advertisers where user_id = auth.uid()` and
+// raises "No advertiser for caller" when there is none. An admin is not
+// an advertiser, so the function refuses them at the door — there is no
+// screen because there was no function.
+//
+// Which matters most on a `disabled` account: that is the step BEFORE
+// handing a supplier account back to the pool, the customer often
+// cannot reach it any more, and the balance is then stranded on a row
+// we are about to give to somebody else.
+//
+// Everything after this point is identical to the customer's path: same
+// table, same statuses, same approval, same proof. A withdrawal the
+// desk types is not a different withdrawal.
+export async function requestAdAccountWithdrawalAsAdmin(input: {
+  ad_account_id: string;
+  amount: number;
+  reason: string;
+}): Promise<ActionResult<{ id: string }>> {
+  // resolveAdminContext: role, tenant, still-active, and it carries the
+  // maintenance freeze. The RPC checks the same three again, because
+  // this is a path that moves money and one lock is a preference.
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth.ctx;
+
+  const amount = Number(input?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false, error: "Enter a positive amount." };
+  }
+  if (typeof input?.ad_account_id !== "string" || !input.ad_account_id) {
+    return { ok: false, error: "Pick an ad account." };
+  }
+  const reason = String(input?.reason ?? "").trim();
+  if (reason.length < 3) {
+    return {
+      ok: false,
+      error: "Say why — this moves someone else's money, so it needs a note.",
+    };
+  }
+
+  // ── THE ACCOUNT'S CURRENCY, NOT A CHOICE ─────────────────────────
+  //
+  // Deliberately not a parameter. On the customer's side the dropdown
+  // offering USD and EUR was a 16% round trip: ask for a EUR account's
+  // balance "in dollars" and the approve branch credits the other
+  // wallet one for one. The fix there was to read it from the account
+  // and only use the caller's value to catch a mismatch. Here there is
+  // no caller value at all, which is the same rule with nothing to get
+  // wrong.
+  const { data: acct, error: acctErr } = await supabase
+    .from("ad_accounts")
+    .select("id, name, currency, status")
+    .eq("id", input.ad_account_id)
+    .maybeSingle();
+  if (acctErr) return { ok: false, error: safeErrorMessage(acctErr) };
+  if (!acct) return { ok: false, error: "That ad account was not found." };
+
+  const acctStatus = String(
+    (acct as { status?: string | null }).status ?? "",
+  ).toLowerCase();
+  if (acctStatus === "banned" || acctStatus === "closed") {
+    return {
+      ok: false,
+      error:
+        accountLockedReason((acct as { status?: string | null }).status) +
+        " Nothing can be withdrawn from it.",
+    };
+  }
+
+  const fundedIn = (acct.currency ?? "USD").trim().toUpperCase();
+  const accountCurrency = fundedIn === "EUR" ? "EUR" : "USD";
+
+  // The same ceiling the customer's path uses, from the same function.
+  // A second copy of this sum that drifts out of step is worse than
+  // none: it is what let an advertiser ask for 5,000 off an account
+  // that was never funded.
+  const available = await fundedUsd(
+    supabase,
+    input.ad_account_id,
+    accountCurrency,
+  );
+  if (!available.ok) return { ok: false, error: available.error };
+  if (available.funded <= 0.005) {
+    return {
+      ok: false,
+      error: `There is nothing on ${acct.name ?? "this account"} to withdraw.`,
+    };
+  }
+  if (amount > available.funded + 0.005) {
+    return {
+      ok: false,
+      error: `${acct.name ?? "This account"} has ${money(
+        available.funded,
+        accountCurrency,
+      )} available — that already allows for any withdrawal still waiting on us.`,
+    };
+  }
+
+  const { data, error } = await supabase.rpc(
+    "ad_account_withdrawal_request_admin",
+    {
+      p_ad_account_id: input.ad_account_id,
+      p_amount: amount,
+      p_currency: accountCurrency,
+      p_reason: reason,
+    },
+  );
+  if (error) {
+    // 42883: plak 112 has not been pasted yet. Say that, rather than
+    // handing somebody PostgREST's sentence about a function signature.
+    if ((error as { code?: string }).code === "42883") {
+      return {
+        ok: false,
+        error:
+          "Raising a withdrawal for a customer is not switched on yet. Ask us to run the migration.",
+      };
+    }
+    return { ok: false, error: safeErrorMessage(error) };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return { ok: true, data: { id: String((row as { id?: string })?.id ?? "") } };
+}
+
+// ─────────────────────────────────────────
 // approveAdAccountWithdrawal — admin
 // Credits the advertiser wallet and marks the withdrawal approved.
 // ─────────────────────────────────────────

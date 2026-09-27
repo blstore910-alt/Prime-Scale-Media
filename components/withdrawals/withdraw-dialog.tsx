@@ -19,21 +19,41 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-// Advertiser-facing: request a withdrawal from one ad account back to
-// their wallet. The amount is theirs to enter; an admin reviews and
-// approves before the wallet is credited.
+// Request a withdrawal from one ad account back to the wallet. An admin
+// reviews and approves before the wallet is credited.
+//
+// ── THE SAME DIALOG, ON SOMEBODY ELSE'S BEHALF ──────────────────────
+//
+// The owner, 27-09: "momenteel kan een admin nergens withdrawal
+// requesten of doen van ad acc van clients."
+//
+// He is right, and it went deeper than the screen: the customer's RPC
+// opens with `where user_id = auth.uid()` and raises "No advertiser for
+// caller", so an admin was refused by the function itself. There was no
+// button because there was no way to make one work.
+//
+// `onBehalf` is that path. Deliberately the SAME dialog rather than a
+// second one: the balance ceiling, the currency rule and the two-step
+// confirm are the parts that keep this honest, and a separate admin
+// dialog is how one of them ends up missing. What changes is the action
+// it calls, and that a reason becomes required — a customer asking for
+// their own money owes nobody an explanation; somebody moving it for
+// them does.
 export default function WithdrawDialog({
   open,
   onOpenChange,
   adAccountId,
   adAccountName,
   defaultCurrency = "USD",
+  onBehalf = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   adAccountId: string;
   adAccountName?: string | null;
   defaultCurrency?: "USD" | "EUR";
+  /** True when an admin is raising this for the customer. */
+  onBehalf?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
@@ -169,6 +189,28 @@ export default function WithdrawDialog({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
+      if (onBehalf) {
+        // The reason is checked here as well as on the server, so the
+        // person finds out before the two-step confirm rather than
+        // after it.
+        if (reason.trim().length < 3) {
+          throw new Error(
+            "Say why — this moves someone else's money, so it needs a note.",
+          );
+        }
+        const { requestAdAccountWithdrawalAsAdmin } = await import(
+          "@/actions/withdrawal-actions"
+        );
+        const res = await requestAdAccountWithdrawalAsAdmin({
+          ad_account_id: adAccountId,
+          amount: Number(amount),
+          // No currency: the server reads it off the account. On the
+          // customer's side a free choice here was a 16% round trip.
+          reason: reason.trim(),
+        });
+        if (!res.ok) throw new Error(res.error);
+        return;
+      }
       const res = await requestAdAccountWithdrawal({
         ad_account_id: adAccountId,
         amount: Number(amount),
@@ -178,7 +220,11 @@ export default function WithdrawDialog({
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
-      toast.success("Request sent — an admin will review it.");
+      toast.success(
+        onBehalf
+          ? "Raised for the customer — it still needs approving."
+          : "Request sent — an admin will review it.",
+      );
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
       // ── THE CUSTOMER'S OWN SCREENS ────────────────────────────────
       //
@@ -401,13 +447,25 @@ export default function WithdrawDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wd-reason">Note for us (optional)</Label>
+            <Label htmlFor="wd-reason">
+              {onBehalf ? "Why, and who asked" : "Note for us (optional)"}
+            </Label>
             <Input
               id="wd-reason"
-              placeholder="e.g. campaign finished"
+              placeholder={
+                onBehalf
+                  ? "e.g. customer rang, closing this account"
+                  : "e.g. campaign finished"
+              }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
+            {onBehalf && (
+              <p className="text-xs text-muted-foreground">
+                Required. This goes on the row, so whoever approves it can
+                see who raised it and why.
+              </p>
+            )}
           </div>
 
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">

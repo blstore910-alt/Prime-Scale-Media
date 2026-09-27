@@ -186,6 +186,7 @@ export function AccountDetailsSheet({
   const { profile } = useAppContext();
   const isAdvertiser = profile?.role === "advertiser";
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawForThemOpen, setWithdrawForThemOpen] = useState(false);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["account-details", accountId],
     enabled: !!accountId,
@@ -739,6 +740,45 @@ export function AccountDetailsSheet({
                     Withdraw to wallet
                   </Button>
                 )}
+                {/* ── AND THE SAME THING, FOR THE DESK ────────────────
+                    The owner, 27-09: "momenteel kan een admin nergens
+                    withdrawal requesten of doen van ad acc van
+                    clients."
+
+                    It went deeper than a missing button: the customer's
+                    RPC resolves the advertiser from auth.uid() and
+                    raises "No advertiser for caller", so an admin was
+                    refused by the function. Plak 112 adds the one that
+                    reads the advertiser off the ACCOUNT instead.
+
+                    Where it matters most is `disabled` — the state an
+                    account is put in before it goes back to the pool,
+                    which the customer often cannot reach any more. The
+                    balance is then stranded on a row we are about to
+                    hand to somebody else. Same status rule as above:
+                    banned and closed refuse, disabled does not. */}
+                {!isAdvertiser && (
+                  <Button
+                    variant="outline"
+                    disabled={withdrawalRefused(
+                      (data as { status?: string | null } | null)?.status,
+                    )}
+                    title={
+                      withdrawalRefused(
+                        (data as { status?: string | null } | null)?.status,
+                      )
+                        ? accountLockedReason(
+                            (data as { status?: string | null } | null)?.status,
+                          ) ?? "This account is switched off."
+                        : "Raise a withdrawal for this customer — it still needs approving"
+                    }
+                    onClick={() => setWithdrawForThemOpen(true)}
+                    className="w-full justify-center gap-2 rounded-xl"
+                  >
+                    <ArrowDownLeft className="h-4 w-4" />
+                    Withdraw for this customer
+                  </Button>
+                )}
               </div>
 
               {/* Same cast, same reason: TopupHistory reads id and
@@ -758,6 +798,18 @@ export function AccountDetailsSheet({
           defaultCurrency={
             (data.currency as "USD" | "EUR") === "EUR" ? "EUR" : "USD"
           }
+        />
+      )}
+      {data && !isAdvertiser && (
+        <WithdrawDialog
+          open={withdrawForThemOpen}
+          onOpenChange={setWithdrawForThemOpen}
+          adAccountId={data.id}
+          adAccountName={data.name}
+          defaultCurrency={
+            (data.currency as "USD" | "EUR") === "EUR" ? "EUR" : "USD"
+          }
+          onBehalf
         />
       )}
     </div>
