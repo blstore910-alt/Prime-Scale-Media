@@ -51,6 +51,51 @@ export const DAILY_QUOTES: string[] = [
   "Somebody trusted you with their money today and you were worth it.",
 ];
 
+
+// ── AND A DIFFERENT SET FOR THE PEOPLE WHOSE COMPANY IT IS ──────────
+//
+// The owner, 27-09: "super admin moet entrepreneur quotes, wij zijn de
+// founders van PSM dus en andere bedrijven. Admins zijn meeste customer
+// service en client success manager."
+//
+// Two different jobs and two different tired. The desk is tired of
+// other people's problems; a founder is tired of decisions nobody else
+// can make. A line that helps one is noise to the other.
+//
+// Same two rules as the set above, and they matter MORE here because
+// this is the genre that invented both: nothing that demands ("crush
+// it"), and nothing that pretends the hard part is not hard ("embrace
+// the chaos"). A founder has read ten thousand of those and they are
+// worth less than silence.
+export const FOUNDER_QUOTES: string[] = [
+  "The boring version that ships beats the good version that does not.",
+  "You are allowed to change your mind about something you announced.",
+  "Most decisions are reversible. Spend the worry on the few that are not.",
+  "Revenue is the only feedback that is not being polite to you.",
+  "You cannot out-work a problem you have not named.",
+  "The thing you keep not doing is usually the thing.",
+  "Ask a customer. They will tell you in one sentence what a month of guessing will not.",
+  "Small company, short meetings. That is the whole advantage — do not spend it.",
+  "If two people can decide it, you should not be in the room.",
+  "Hire for the company you have, not the one in the deck.",
+  "A month of runway is worth more than a quarter of plans.",
+  "The competitor you are watching is watching someone else.",
+  "You do not have to answer today just because it was asked today.",
+  "Cut the feature. Nobody has ever missed the one that was not built.",
+  "Being trusted with other people's money is the whole business. The rest is software.",
+  "The problem you had at ten customers comes back at a hundred, louder.",
+  "Say the price out loud. If you cannot, it is the wrong price.",
+  "Good news travels on its own. Go and look for the other kind.",
+  "You built the thing. Let someone else run it for an afternoon.",
+  "The quiet customer is not happy. They are just quiet.",
+  "Two founders who disagree in private and agree in public is the whole job.",
+  "Write the hard message. The draft you keep rereading is already good enough.",
+  "Growth you cannot support is a refund with a delay on it.",
+  "Nobody is coming to tell you it is enough for today. Decide it yourself.",
+  "The company can survive a bad quarter. It cannot survive you not sleeping for one.",
+  "Do the unglamorous reconciliation. That is where the surprises live.",
+  "You are further along than the version of you who started would have believed.",
+];
 /**
  * A stable 32-bit hash. Not for anything that matters — it only has to
  * spread short strings evenly across a small list and give the same
@@ -94,10 +139,16 @@ function dayKey(d: Date): string {
 export function dailyQuote(
   seed: string | null | undefined,
   now: Date = new Date(),
+  /** "owner" gets the founder set; anything else gets the desk's. */
+  audience: "owner" | "desk" = "desk",
 ): string | null {
   const s = String(seed ?? "").trim();
   if (!s) return null;
-  if (DAILY_QUOTES.length === 0) return null;
-  const n = hash(`${s}|${dayKey(now)}`) % DAILY_QUOTES.length;
-  return DAILY_QUOTES[n];
+  const list = audience === "owner" ? FOUNDER_QUOTES : DAILY_QUOTES;
+  if (list.length === 0) return null;
+  // The audience is in the hash as well, so somebody who is both -- an
+  // owner reading their own desk screen -- does not get the same line
+  // twice in two places on the same day.
+  const n = hash(`${s}|${audience}|${dayKey(now)}`) % list.length;
+  return list[n];
 }

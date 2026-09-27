@@ -190,7 +190,17 @@ export default function AdminDashboard() {
   })();
   // Seeded on the profile, so two admins on the same day read different
   // lines, and it moves at midnight in their own clock.
-  const quote = dailyQuote(profile?.id ?? null);
+  //
+  // Two sets. The owner, 27-09: "super admin moet entrepreneur quotes,
+  // wij zijn de founders van PSM. Admins zijn meeste customer service en
+  // client success manager." Two different jobs and two different tired
+  // -- the desk is tired of other people's problems, a founder is tired
+  // of decisions nobody else can make.
+  const quote = dailyQuote(
+    profile?.id ?? null,
+    undefined,
+    isSuperAdmin ? "owner" : "desk",
+  );
 
   const [denied, setDenied] = useState(false);
   useEffect(() => {

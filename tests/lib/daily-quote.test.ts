@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { DAILY_QUOTES, dailyQuote } from "../../lib/pure-daily-quote";
+import {
+  DAILY_QUOTES,
+  FOUNDER_QUOTES,
+  dailyQuote,
+} from "../../lib/pure-daily-quote";
 
 const A = "11111111-1111-1111-1111-111111111111";
 const B = "22222222-2222-2222-2222-222222222222";
@@ -68,5 +72,49 @@ describe("dailyQuote", () => {
       // No targets, no hustle. A tired person does not need either.
       assert.doesNotMatch(q, /crush|hustle|grind|beast|smash|10x/i, q);
     }
+  });
+});
+
+describe("dailyQuote for the founders", () => {
+  const d = new Date(2026, 8, 27, 12, 0);
+
+  it("gives an owner a founder line, not a desk one", () => {
+    const q = dailyQuote(A, d, "owner");
+    assert.ok(q && FOUNDER_QUOTES.includes(q));
+    assert.ok(!DAILY_QUOTES.includes(q));
+  });
+
+  it("gives the desk a desk line", () => {
+    const q = dailyQuote(A, d, "desk");
+    assert.ok(q && DAILY_QUOTES.includes(q));
+  });
+
+  it("defaults to the desk when nobody says", () => {
+    assert.equal(dailyQuote(A, d), dailyQuote(A, d, "desk"));
+  });
+
+  it("the same person reads two different lines in the two places", () => {
+    // An owner who opens the desk view should not meet the same sentence
+    // twice on one day.
+    assert.notEqual(dailyQuote(A, d, "owner"), dailyQuote(A, d, "desk"));
+  });
+
+  it("the founder lines stay out of the hustle genre", () => {
+    for (const q of FOUNDER_QUOTES) {
+      assert.ok(q.length > 0 && q.length <= 95, `too long: ${q}`);
+      assert.doesNotMatch(
+        q,
+        /crush|hustle|grind|beast|smash|10x|rise and shine|no excuses/i,
+        q,
+      );
+    }
+  });
+
+  it("walks an owner through different lines over a fortnight", () => {
+    const seen = new Set<string>();
+    for (let day = 1; day <= 14; day++) {
+      seen.add(String(dailyQuote(A, new Date(2026, 8, day, 12, 0), "owner")));
+    }
+    assert.ok(seen.size >= 8, `only ${seen.size} distinct lines in 14 days`);
   });
 });

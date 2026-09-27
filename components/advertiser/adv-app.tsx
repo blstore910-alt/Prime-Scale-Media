@@ -71,6 +71,7 @@ import RequestAdAccountDialog from "@/components/account/request-ad-account-dial
 import useAdAccountRequests from "@/components/ad-account-requests/use-ad-account-requests";
 import { GroupToggle } from "@/components/notifications/notification-toggles";
 import ThemeToggle from "@/components/ui/theme-toggle";
+import InvoiceExportButton from "@/components/invoices/invoice-export-button";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 import AffiliateCommissionsCard from "./affiliate-commissions-card";
@@ -6272,10 +6273,27 @@ export default function AdvertiserApp() {
               </div>
             </div>
             <div className="card" style={{ padding: "16px 8px 8px" }}>
-              <div style={{ padding: "0 14px 8px" }}>
-                <h2>
+              {/* ── ONE BUTTON FOR A PERIOD ─────────────────────────
+                  The owner, 27-09: "in de app voor client moet ook 1
+                  knop zijn om invoices te downloaden, date from to date
+                  en invoice status." Until now a customer could only
+                  take them one at a time, off the row -- which is fine
+                  for the one they are looking at and useless when their
+                  bookkeeper asks for a quarter. */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "0 14px 8px",
+                }}
+              >
+                <h2 style={{ minWidth: 0 }}>
                   <Ic name="i-receipt" /> Invoices
                 </h2>
+                <span style={{ marginLeft: "auto" }}>
+                  <InvoiceExportButton />
+                </span>
               </div>
               <div className="tblwrap">
                 <table className="tbl wide lead-label">
