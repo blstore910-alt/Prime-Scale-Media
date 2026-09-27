@@ -2,6 +2,8 @@
 
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { RejectReasonField } from "@/components/ui/reject-reason-field";
+import WithdrawalProof from "./withdrawal-proof";
+import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import type { RejectContext } from "@/lib/pure-reject-reasons";
 import { createClient } from "@/lib/supabase/client";
 import PsmSortFilter from "@/components/psm/sort-filter";
@@ -602,6 +604,13 @@ function WithdrawalsSection() {
     return list;
   }, [data, status, search]);
 
+  // For the "no screenshot yet -- check it on <supplier>" line on a
+  // settled withdrawal. Off the rows on screen, and the hook sorts and
+  // de-duplicates the ids itself so the query key stays stable.
+  const { supplierFor } = useSupplierLinks(
+    rows.map((w) => String((w as { ad_account_id?: string }).ad_account_id ?? "")),
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <p className="muted" style={{ margin: 0, fontSize: ".9rem" }}>
@@ -840,16 +849,60 @@ function WithdrawalsSection() {
                                 </button>
                               </div>
                             ) : (
-                              <span
-                                className="muted"
-                                style={{ fontSize: ".8rem" }}
+                              /* ── WHAT HAPPENED, SO IT CAN BE CHECKED ──
+                                 The owner, 27-09: "hier moeten admin ook
+                                 payment details kunnen terugzien, dan
+                                 zien ze of het klopt later evt."
+
+                                 A settled row said one thing: a date.
+                                 Not who, and nothing at all about
+                                 whether the money was really pulled off
+                                 the ad account before the wallet was
+                                 credited -- which is the only part
+                                 somebody would come back to check.
+
+                                 The proof control carries both halves:
+                                 the screenshot when there is one, and
+                                 when there is not, where to go and look
+                                 instead. */
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gap: 6,
+                                  justifyItems: "end",
+                                }}
                               >
-                                {w.reviewed_at
-                                  ? new Date(
-                                      w.reviewed_at,
-                                    ).toLocaleDateString()
-                                  : "—"}
-                              </span>
+                                <span
+                                  className="muted"
+                                  style={{ fontSize: ".8rem" }}
+                                >
+                                  {w.reviewed_at
+                                    ? new Date(
+                                        w.reviewed_at,
+                                      ).toLocaleDateString()
+                                    : "—"}
+                                </span>
+                                {String(w.status ?? "").toLowerCase() ===
+                                "approved" ? (
+                                  <WithdrawalProof
+                                    withdrawalId={w.id}
+                                    tenantId={tenantId}
+                                    proofPath={
+                                      (w as { proof_path?: string | null })
+                                        .proof_path
+                                    }
+                                    supplier={supplierFor(
+                                      String(w.ad_account_id ?? ""),
+                                    )}
+                                    canAttach
+                                    onAttached={() => {
+                                      queryClient.invalidateQueries({
+                                        queryKey: ["ad-account-withdrawals"],
+                                      });
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
                             )}
                           </td>
                         </tr>

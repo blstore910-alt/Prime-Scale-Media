@@ -31,6 +31,17 @@ import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
 type Queue = {
+  /**
+   * Unique per card, and NOT the href.
+   *
+   * Two cards point at /wallet-topups -- the queue itself and the bank
+   * deposits beside it -- so keying on href gave React two children with
+   * the same key. It was latent until the list started changing order
+   * between "still counting" and "counted": on that re-order React
+   * reused the wrong node, and the owner got "Wallet topups to verify"
+   * twice, one of them stuck on its loading placeholder.
+   */
+  key: string;
   href: string;
   icon: LucideIcon;
   ci: string;
@@ -274,6 +285,7 @@ export default function AdminDashboard() {
       ? []
       : [
           {
+            key: "dst",
             href: "/dst",
             icon: Landmark,
             ci: "g",
@@ -282,6 +294,7 @@ export default function AdminDashboard() {
           } as Queue,
         ]),
     {
+      key: "wallet-topups",
       href: "/wallet-topups",
       icon: Upload,
       ci: "b",
@@ -311,6 +324,7 @@ export default function AdminDashboard() {
       // Not removed, because money arriving with NO claim is real: a
       // customer paid and nobody noticed. That is a standing check, not
       // a queue -- so `soft`, and a label that says what it is.
+      key: "bank-deposits",
       href: "/wallet-topups",
       icon: Landmark,
       ci: "t",
@@ -319,6 +333,7 @@ export default function AdminDashboard() {
       soft: true,
     },
     {
+      key: "requests",
       href: "/ad-account-requests",
       icon: FileText,
       ci: "p",
@@ -326,6 +341,7 @@ export default function AdminDashboard() {
       label: "Ad-account requests",
     },
     {
+      key: "ad-topups",
       href: "/top-ups",
       icon: Coins,
       ci: "t",
@@ -337,6 +353,7 @@ export default function AdminDashboard() {
     // your action right now". Its count spans all three tables the
     // /withdrawals screen shows.
     {
+      key: "withdrawals",
       href: "/withdrawals",
       icon: Download,
       ci: "g",
@@ -348,6 +365,7 @@ export default function AdminDashboard() {
     ...(isSuperAdmin
       ? [
           {
+            key: "affiliates",
             href: "/affiliates",
             icon: Gift,
             ci: "p",
@@ -356,9 +374,9 @@ export default function AdminDashboard() {
           },
         ]
       : []),
-    { href: "/invoices", icon: Receipt, ci: "g", label: "Invoices" },
-    { href: "/subscriptions", icon: RefreshCw, ci: "b", label: "Subscriptions" },
-    { href: "/wallets", icon: Wallet, ci: "t", label: "Wallets" },
+    { key: "invoices", href: "/invoices", icon: Receipt, ci: "g", label: "Invoices" },
+    { key: "subscriptions", href: "/subscriptions", icon: RefreshCw, ci: "b", label: "Subscriptions" },
+    { key: "wallets", href: "/wallets", icon: Wallet, ci: "t", label: "Wallets" },
 
   ];
 
@@ -539,7 +557,7 @@ export default function AdminDashboard() {
                right: present only when there is work, so the screen reads
                as "what needs me" at a glance instead of three large zeros
                repeating what the banner above already says. */
-            <Link key={q.href} href={q.href} className="qcard">
+            <Link key={q.key} href={q.href} className="qcard">
               <span className={`qi ci ${q.ci}`}>
                 <Icon />
               </span>
