@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { banksForAccountTypes } from "@/lib/bank-routing";
+import { bankOverrideFor } from "@/lib/pure-bank-override";
 import { copyText } from "@/lib/copy-text";
 import { DEFAULT_MIN_TOPUP } from "@/lib/min-topup";
 import { formatPaymentReference } from "@/lib/payment-reference";
@@ -32,6 +33,7 @@ import {
 } from "./bank-transfer-instructions";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 import { formatCurrency } from "@/lib/utils-pure";
@@ -276,6 +278,70 @@ export default function WalletTopupDialog({
   const minTopupAmount = minTopup ?? DEFAULT_MIN_TOPUP;
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
+
+  // ── THE BANK DETAILS THE OWNER TYPED, IF THEY TYPED ANY ──────────
+  //
+  // Settings -> Banks writes `bank_accounts` and, until now, nothing
+  // ever read it: this dialog showed the built-in list from
+  // lib/bank-beneficiaries.ts, which can only be changed by a deploy.
+  // So the owner could "correct" an IBAN, be told it was saved, and the
+  // customer would still be shown the old one -- money to the wrong
+  // account, with a screen that said it had been fixed.
+  //
+  // Three things this read must never do, in order of how badly they
+  // would end:
+  //   - show NOTHING. A failed read gives [] and bankOverrideFor then
+  //     answers "none", which is the built-in. Same as before.
+  //   - show a GUESS. Several ad-account types route to one bank group;
+  //     when their stored rows disagree the resolver refuses and the
+  //     built-in answers. The comments two hundred lines down record
+  //     four occasions on which picking anyway sent a real transfer to
+  //     the wrong legal entity.
+  //   - show HALF. The resolver requires an account number before a row
+  //     counts as a destination at all.
+  const { data: bankRows } = useQuery({
+    queryKey: ["topup-bank-accounts", profile?.tenant_id ?? null],
+    enabled: !!profile?.tenant_id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("bank_accounts")
+        .select(
+          "currency, is_active, label, beneficiary, account_no, swift_bic, bank_name, bank_address, routing_no, notes, ad_account_types(slug)",
+        )
+        .eq("tenant_id", profile!.tenant_id!)
+        .eq("is_active", true);
+      // A failure is the built-in, not an empty sheet. Logged, not shown:
+      // there is nothing the customer could do about it and the details
+      // they are about to read are still correct.
+      if (error) {
+        console.error("topup bank accounts", safeErrorMessage(error));
+        return [];
+      }
+      return (data ?? []).map((r) => {
+        const row = r as Record<string, unknown> & {
+          ad_account_types?: { slug?: string | null } | { slug?: string | null }[] | null;
+        };
+        const t = Array.isArray(row.ad_account_types)
+          ? row.ad_account_types[0]
+          : row.ad_account_types;
+        return {
+          slug: t?.slug ?? null,
+          currency: (row.currency as string) ?? null,
+          is_active: (row.is_active as boolean) ?? null,
+          label: (row.label as string) ?? null,
+          beneficiary: (row.beneficiary as string) ?? null,
+          account_no: (row.account_no as string) ?? null,
+          swift_bic: (row.swift_bic as string) ?? null,
+          bank_name: (row.bank_name as string) ?? null,
+          bank_address: (row.bank_address as string) ?? null,
+          routing_no: (row.routing_no as string) ?? null,
+          notes: (row.notes as string) ?? null,
+        };
+      });
+    },
+  });
   // Their own client code, for the payment reference below.
   const clientCode = profile?.advertiser?.[0]?.tenant_client_code ?? null;
   const [refCopied, setRefCopied] = useState(false);
@@ -971,6 +1037,10 @@ export default function WalletTopupDialog({
                   <BankTransferInstructions
                     group={bankGroup}
                     transferCurrency={transferCurrency}
+                    override={
+                      bankOverrideFor(bankRows, bankGroup, transferCurrency)
+                        .override
+                    }
                   />
                 </div>
 

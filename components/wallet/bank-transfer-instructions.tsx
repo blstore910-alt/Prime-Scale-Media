@@ -46,6 +46,8 @@ export type {
 } from "@/lib/bank-beneficiaries";
 export { bankInstructions } from "@/lib/bank-beneficiaries";
 
+import type { BankOverride } from "@/lib/pure-bank-override";
+
 
 // Canonical display order for currency chips.
 const CURRENCY_ORDER: TransferCurrency[] = ["USD", "EUR", "GBP", "HKD"];
@@ -64,11 +66,27 @@ interface BankTransferInstructionsProps {
   group: BankGroup;
   // The currency the advertiser is transferring in.
   transferCurrency: TransferCurrency;
+  /**
+   * Bank details the owner entered under Settings -> Banks, for this
+   * group and currency. When present they REPLACE the built-in sheet.
+   *
+   * Replace rather than merge, deliberately. Merging would mean
+   * guessing which stored column belongs behind which built-in label
+   * ("IBAN", "Account number", "Account no"), and a near-miss there
+   * puts a real transfer into the wrong field. When the owner has typed
+   * bank details, those details are the answer.
+   *
+   * Absent (the normal case, and every case where the read failed or
+   * two stored rows disagreed) leaves the built-in sheet exactly as it
+   * was. The customer is never shown nothing, and never shown a guess.
+   */
+  override?: BankOverride | null;
 }
 
 export function BankTransferInstructions({
   group,
   transferCurrency,
+  override = null,
 }: BankTransferInstructionsProps) {
   const detail = bankInstructions[group].accounts[transferCurrency];
 
@@ -102,7 +120,40 @@ export function BankTransferInstructions({
       </p>
 
       <div className="overflow-hidden rounded-xl border bg-[color:var(--panel,#fff)] shadow-[0_1px_2px_-1px_rgba(20,30,80,.14)]">
-        {detail.sections.map((section, idx) => (
+        {override ? (
+          <div>
+            <p className="border-b px-3.5 pb-1.5 pt-2.5 text-[10px] font-bold uppercase leading-none tracking-[.1em] text-muted-foreground/75">
+              {override.label || "Bank details"}
+            </p>
+            <div className="divide-y">
+              {(
+                [
+                  ["Beneficiary Name", override.beneficiary, true],
+                  ["Account number / IBAN", override.account_no, true],
+                  ["SWIFT / BIC", override.swift_bic, true],
+                  ["Bank name", override.bank_name, false],
+                  ["Routing number", override.routing_no, true],
+                  ["Bank address", override.bank_address, false],
+                  ["Note", override.notes, false],
+                ] as const
+              )
+                // Only what was actually filled in. An empty row on a
+                // sheet of bank details reads as "leave this blank",
+                // which is not what a missing value means.
+                .filter(([, value]) => !!value)
+                .map(([label, value, copyable]) => (
+                  <InstructionItem
+                    key={label}
+                    label={label}
+                    value={String(value)}
+                    copyable={copyable}
+                  />
+                ))}
+            </div>
+          </div>
+        ) : null}
+        {!override &&
+          detail.sections.map((section, idx) => (
           <div key={idx}>
             {/* A heading, not a ribbon. A filled band across the sheet
                 for every group turned three short lists into six visual
