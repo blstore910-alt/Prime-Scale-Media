@@ -937,19 +937,19 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 |---|---|---|---|
 | T1 | **Twee bankfamilies bij het opwaarderen.** Een klant met accounts bij TURLIT én ZANEL moet de keuzeknoppen zien met beide begunstigden, en de gekozen bank moet op stap 2 verschijnen. | 5 | geen enkele klant heeft vandaag accounts in twee families. Tijdens blok 5 een tweede accounttype toevoegen aan de testklant, dan is de situatie er |
 | T2 | **De bankgegevens uit Settings bereiken de klant.** Een IBAN wijzigen op /settings/banks en hem terugzien op het opwaardeerscherm van de klant. En de terugval: de rij weghalen en zien dat de ingebouwde lijst weer verschijnt. | 5 | vergt een ingelogde klant naast de eigenaar |
-| T3 | **De verwijderknop van een plan weigert.** Een plan waar een klant op zit proberen te verwijderen; er hoort "2 customers are on Prime" te komen en er mag niets weg. | 1 of 4 | de vier bestaande plannen hebben klanten; een leeg testplan aanmaken en dat verwijderen bewijst alleen de makkelijke helft |
-| T4 | **De uurlijkse koerscron draait echt.** Na het hele uur kijken of `exchange_rates.updated_at` is opgeschoven, en of de plausibiliteitsband een absurde waarde tegenhoudt. | 1 | de cron is net uitgerold en draait op het hele uur |
-| T5 | **De bevestiging bij het laatste plan / laatste type.** Het venster moet verschijnen met de gevolgen erin. Alleen het VENSTER testen -- niet bevestigen, want dan staat de facturatie stil. | 1 | — |
+| T3 ✅ | **GELOPEN 27-09.** "Not deleted - 6 customers are on Prime. Switch it off instead." Alle vier de plannen staan er nog. Oorspronkelijk: Een plan waar een klant op zit proberen te verwijderen; er hoort "2 customers are on Prime" te komen en er mag niets weg. | 1 of 4 | de vier bestaande plannen hebben klanten; een leeg testplan aanmaken en dat verwijderen bewijst alleen de makkelijke helft |
+| T4 ⚠ | **DEELS.** Draaide om 08:00:26, EUR 0,872361 -> 0,87786534 (+0,63%), beide tenants, binnen de band. Daarna NIETS meer om 09, 10, 11, 12. Vuurt niet of faalt voor de schrijf; Vercel-logs zitten niet in deze sessie. Sindsdien meldt hij een providerfout en toont /settings/finance de leeftijd. Oorspronkelijk: Na het hele uur kijken of `exchange_rates.updated_at` is opgeschoven, en of de plausibiliteitsband een absurde waarde tegenhoudt. | 1 | de cron is net uitgerold en draait op het hele uur |
+| T5 ✅ | **GELOPEN 27-09** op ad-account-types: het venster verschijnt met het gevolg erin, niet bevestigd, 5 van 8 nog actief. Oorspronkelijk: Het venster moet verschijnen met de gevolgen erin. Alleen het VENSTER testen -- niet bevestigen, want dan staat de facturatie stil. | 1 | — |
 | T6 | **De beforeunload-waarschuwing op het bedrijfsformulier.** | 4 of 7 | het paneel onderdrukt die dialoog; dit kan alleen in een echte browser |
 | T7 | **De afwijzing van een aanvraag die per FACTUUR betaald was.** Het geld hoort terug te komen als goedgekeurde wallet-correctie. | 6 | vergt een aanvraag via "Create Invoice" in plaats van de wallet; geen enkele bestaande rij loopt zo |
-| T8 | **`/settings/general` opslaan als eigenaar.** Werkt pas sinds plak 102; daarvoor kon niemand het bedrijf van de organisatie bewaren. | 1 | plak 102 is net gedraaid |
+| T8 ✅ | **GELOPEN 27-09.** "Profile updated successfully", database op United States. Meteen een tikfout gecorrigeerd die op elke factuur stond. Oorspronkelijk: Werkt pas sinds plak 102; daarvoor kon niemand het bedrijf van de organisatie bewaren. | 1 | plak 102 is net gedraaid |
 
 ## Logboek
 
 | blok | gelopen | gefixt | open |
 |---|---|---|---|
 | 0 | **26-09** | — (niets te fixen) | — |
-| 1 | | | |
+| 1 | **27-09** | ~30 bevindingen + 4 ontwerppunten van de eigenaar | leverancier staat in mock mode; T4 draaide een keer en stopte |
 | 2 | | | |
 | 3 | | | |
 | 4 | | | |
