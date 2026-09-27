@@ -387,7 +387,17 @@ export default function PlansCard() {
                     onChange={(e) => patch(i, { name: e.target.value })}
                   />
                 </label>
-                <label className="grid gap-1">
+                {/* ── THE TWO PRICES BELONG NEXT TO EACH OTHER ──────
+                    On a phone this is a two-column grid and the DOM
+                    order is Name, Kind, Monthly, USD, Included, Fee,
+                    Year, Active -- so Monthly landed beside Kind and
+                    the EUR price and the USD price of the same plan sat
+                    diagonally apart. The owner spotted it while walking
+                    the screen: they are one figure in two currencies.
+                    Kind takes the full width on a phone, and the pair
+                    below falls into place. The desktop table is a
+                    different track set and is unchanged. */}
+                <label className="col-span-2 grid gap-1 sm:col-span-1">
                   <span className={lab}>Kind</span>
                 <select
                   value={r.kind}
@@ -520,66 +530,90 @@ export default function PlansCard() {
             ))}
 
             <div className="mt-2 border-t pt-3 grid gap-2 sm:overflow-x-auto">
-              <Label className="text-xs text-muted-foreground">Add a plan</Label>
-              <div className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(140px,1fr)_90px_90px_70px_70px_auto] sm:min-w-[560px] sm:gap-2">
-                <Input
-                  className="col-span-2 sm:col-span-1"
-                  value={nName}
-                  placeholder="e.g. VIP"
-                  onChange={(e) => setNName(e.target.value)}
-                />
-                <select
-                  value={nKind}
-                  onChange={(e) => setNKind(e.target.value as PlanKind)}
-                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-                >
-                  {KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center gap-1">
+              <Label className="text-sm font-medium">Add a plan</Label>
+              {/* ── A PLACEHOLDER IS NOT A LABEL ──────────────────────
+                  These five boxes carried their name in the placeholder
+                  only -- and three of them are PREFILLED (0, 1, 5), so
+                  the placeholder was never once visible. The owner saw
+                  five unlabelled boxes with numbers in them. The rows
+                  above have had proper labels on a phone all along;
+                  this block never got them. */}
+              <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 sm:grid-cols-[minmax(140px,1fr)_90px_110px_70px_70px_auto] sm:min-w-[560px] sm:gap-2">
+                <label className="col-span-2 grid gap-1 sm:col-span-1">
+                  <span className="text-xs text-muted-foreground">Name</span>
+                  <Input
+                    value={nName}
+                    placeholder="e.g. VIP"
+                    onChange={(e) => setNName(e.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">Kind</span>
                   <select
-                    value={nCurrency}
-                    onChange={(e) =>
-                      setNCurrency(e.target.value as PlanCurrency)
-                    }
-                    className="h-9 rounded-md border border-input bg-transparent px-1 text-xs"
+                    value={nKind}
+                    onChange={(e) => setNKind(e.target.value as PlanKind)}
+                    className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
                   >
-                    {CURRENCIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
                       </option>
                     ))}
                   </select>
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Monthly
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={nCurrency}
+                      onChange={(e) =>
+                        setNCurrency(e.target.value as PlanCurrency)
+                      }
+                      className="h-9 rounded-md border border-input bg-transparent px-1 text-xs"
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={nMonthly}
+                      className="text-right"
+                      onChange={(e) => setNMonthly(e.target.value)}
+                    />
+                  </div>
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Included
+                  </span>
                   <Input
                     type="number"
                     min="0"
-                    value={nMonthly}
-                    placeholder="Monthly fee"
+                    value={nIncluded}
                     className="text-right"
-                    onChange={(e) => setNMonthly(e.target.value)}
+                    onChange={(e) => setNIncluded(e.target.value)}
                   />
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  value={nIncluded}
-                  placeholder="Included"
-                  className="text-right"
-                  onChange={(e) => setNIncluded(e.target.value)}
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={nPct}
-                  placeholder="Fee %"
-                  className="text-right"
-                  onChange={(e) => setNPct(e.target.value)}
-                />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    Top-up fee %
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={nPct}
+                    className="text-right"
+                    onChange={(e) => setNPct(e.target.value)}
+                  />
+                </label>
                 <Button
                   type="button"
                   variant="outline"
