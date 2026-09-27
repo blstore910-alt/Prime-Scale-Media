@@ -164,7 +164,20 @@ export default function useUsers({
 
   return {
     profiles,
-    total: profiles?.count ?? 0,
+    // ── A COUNT WE DID NOT GET IS NOT A COUNT OF ZERO ──────────────
+    //
+    // PostgREST returns `count` in a HEADER, and it can come back null
+    // with no error at all. `?? 0` turned that into a hard zero, and the
+    // pager downstream computes `hasNext = page * perPage < total` -- so
+    // a missing count printed "Showing 0-0 of 0" under twenty visible
+    // rows and disabled Next for ever. Nobody could reach page 2.
+    //
+    // Latent today: 13 customers against a page size of 20. It becomes
+    // real at fase 2 of the rollout (30 customers), which is exactly
+    // when nobody is looking for it.
+    //
+    // So null travels, and the screen says the total is unknown.
+    total: profiles?.count ?? null,
     isLoading,
     isError,
     error,

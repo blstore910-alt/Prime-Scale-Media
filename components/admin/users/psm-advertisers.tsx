@@ -325,11 +325,25 @@ export default function PsmAdvertisers() {
       return { byAdvertiser: out, degraded };
     },
   });
+  // null means the count did not come back -- see use-users.ts. It is a
+  // different thing from zero and the pager must not treat it as one:
+  // with an unknown total we know how many rows we are holding, so we
+  // say that and leave Next open rather than trapping the reader on
+  // page 1.
+  const countUnknown = total == null;
   const totalCount = total ?? 0;
-  const from = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
-  const to = Math.min(page * perPage, totalCount);
+  const shown = rows?.length ?? 0;
+  const from = countUnknown
+    ? (shown === 0 ? 0 : (page - 1) * perPage + 1)
+    : totalCount === 0
+      ? 0
+      : (page - 1) * perPage + 1;
+  const to = countUnknown
+    ? (page - 1) * perPage + shown
+    : Math.min(page * perPage, totalCount);
   const hasPrev = page > 1;
-  const hasNext = page * perPage < totalCount;
+  // A full page with an unknown total might have another behind it.
+  const hasNext = countUnknown ? shown >= perPage : page * perPage < totalCount;
 
   const handleDownload = async () => {
     // Customer-controlled text goes through csvSafe. Excel and Sheets
@@ -628,7 +642,9 @@ export default function PsmAdvertisers() {
             }}
           >
             <span className="muted" style={{ fontSize: ".85rem" }}>
-              Showing {from}–{to} of {totalCount}
+              {countUnknown
+                ? `Showing ${from}–${to} — we couldn't read the total`
+                : `Showing ${from}–${to} of ${totalCount}`}
             </span>
             <div style={{ display: "flex", gap: 8 }}>
               <button
