@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
+import { dailyQuote } from "@/lib/pure-daily-quote";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
@@ -119,6 +120,11 @@ const DASH_CSS = `
 /* Profit & activity — one cohesive section: header + hero + control + metrics.
    A top hairline bounds the section; header carries title + honest subtitle. */
 /* Said once, at the top, when a guard sent them back here. */
+/* The greeting. The name carries the weight; the line under it is quiet
+   on purpose -- it is there to be noticed once, not to be read again. */
+.psm-dash .phead .ptxt h1 b{font-weight:800;color:var(--primary-600)}
+.psm-dash .phead .ptxt p{max-width:52ch}
+
 .psm-dash .denied{display:flex;align-items:flex-start;gap:4px 10px;flex-wrap:wrap;
   border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:12px;
   background:var(--primary-tint);padding:11px 13px;font-size:.86rem;color:var(--ink)}
@@ -172,6 +178,20 @@ export default function AdminDashboard() {
   // Suspense boundary behind it, which is one of the few things only
   // `next build` catches (CLAUDE.md), and this is a one-shot notice that
   // does not need to survive anything.
+  // The name as given, shortened only when it would not fit -- the same
+  // rule the affiliate portal uses, and for the same reason: taking the
+  // first word always turned "the affiliateking" into "Welcome back,
+  // the" on production. A first word is only a first NAME when somebody
+  // filled the field in that way.
+  const firstName = (() => {
+    const n = (profile?.full_name ?? "").trim();
+    if (!n) return null;
+    return n.length <= 18 ? n : n.split(/\s+/)[0];
+  })();
+  // Seeded on the profile, so two admins on the same day read different
+  // lines, and it moves at midnight in their own clock.
+  const quote = dailyQuote(profile?.id ?? null);
+
   const [denied, setDenied] = useState(false);
   useEffect(() => {
     try {
@@ -266,9 +286,31 @@ export default function AdminDashboard() {
           and the subtitle was long enough to wrap to two — so the header
           alone ate ~150px before a single queue was visible. */}
       <div className="phead">
+        {/* ── WHO IS READING, AND ONE KIND LINE ────────────────────
+            The owner, 27-09: "op home dashboard ook leuk en netjes
+            Welcome Back en naam enz + miss een super mooie nette lieve
+            aardige quote van de dag, elke admin moet een andere. Het
+            zijn 100% vrouwelijke medewerkers bij ons momenteel die
+            customer service doen, soms zijn ze vermoeid."
+
+            "Dashboard / What needs your action right now" is a filing
+            cabinet greeting somebody opens forty times a day.
+
+            The quote is per person per day -- see lib/pure-daily-quote.ts
+            for why the lines are warm but not written at women. It is
+            only drawn when we know who is reading; a kind sentence
+            addressed to nobody is worse than none. */}
         <div className="ptxt">
-          <h1>Dashboard</h1>
-          <p>What needs your action right now.</p>
+          <h1>
+            {firstName ? (
+              <>
+                Welcome back, <b>{firstName}</b>
+              </>
+            ) : (
+              "Dashboard"
+            )}
+          </h1>
+          <p>{quote ?? "What needs your action right now."}</p>
         </div>
         {/* ── OWNER ONLY, LIKE EVERYTHING ELSE ABOUT INVITES ──────
             /invites is requireSuperAdmin and the sidebar entry is
