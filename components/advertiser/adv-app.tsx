@@ -70,6 +70,7 @@ import CreateTopupDialog from "@/components/topups/create-topup-dialog";
 import RequestAdAccountDialog from "@/components/account/request-ad-account-dialog";
 import useAdAccountRequests from "@/components/ad-account-requests/use-ad-account-requests";
 import { GroupToggle } from "@/components/notifications/notification-toggles";
+import ThemeToggle from "@/components/ui/theme-toggle";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 import AffiliateCommissionsCard from "./affiliate-commissions-card";
@@ -3472,6 +3473,9 @@ export default function AdvertiserApp() {
                 {subStatusLabel(subscription.status)}
               </button>
             )}
+            {/* Light / dark, in the same row as the bell in all three
+                shells. */}
+            <ThemeToggle />
             <button
               className="tool ic-btn"
               onClick={toggleNotifs}

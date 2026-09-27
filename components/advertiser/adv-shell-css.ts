@@ -1,4 +1,5 @@
 import { refineCss } from "./refine-css";
+import { shellDarkCss } from "@/lib/shell-dark-css";
 import { EARNINGS_CABINET_CSS } from "./earnings-cabinet-css";
 // AUTO-GENERATED verbatim from advertiser-app.html mockup (scoped .advapp).
 export const ADV_CSS = `
@@ -1313,4 +1314,4 @@ export const ADV_CSS = `
   .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
 
 ${EARNINGS_CABINET_CSS}
-`  + refineCss(".advapp");
+`  + refineCss(".advapp") + shellDarkCss(".advapp");

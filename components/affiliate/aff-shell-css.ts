@@ -1,4 +1,5 @@
 import { refineCss } from "../advertiser/refine-css";
+import { shellDarkCss } from "@/lib/shell-dark-css";
 import { EARNINGS_CABINET_CSS } from "../advertiser/earnings-cabinet-css";
 // AUTO-GENERATED verbatim from affiliate-jackpot-light.html mockup.
 // Scoped under .affapp (loaded only in the affiliate layout). Font
@@ -869,4 +870,6 @@ export const AFF_CSS = `
   }
 
 ${EARNINGS_CABINET_CSS}
-`  + refineCss(".affapp");
+`  + refineCss(".affapp") + shellDarkCss(".affapp", {
+  extra: "--gold-deep:#f0c46a;--bronze:#d99a63;--silver:#b9c3d4;",
+});

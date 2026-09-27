@@ -36,6 +36,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import PsmAvatar from "@/components/ui/psm-avatar";
+import ThemeToggle from "@/components/ui/theme-toggle";
 
 type Item = {
   title: string;
@@ -392,6 +393,10 @@ export default function AdminShell({
             <span className="tool st" style={{ cursor: "default" }}>
               {roleLabel}
             </span>
+            {/* Light / dark. First in the row, because it is the one
+                control here that is about the screen rather than about
+                the work. */}
+            <ThemeToggle />
             {/* ── THE BELL GOES BOTH WAYS ────────────────────────────
                 It was a one-way Link. You are halfway through reviewing
                 a top-up, you check whether anything came in, and then

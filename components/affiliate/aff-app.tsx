@@ -14,6 +14,7 @@ import { paidInPeriod } from "@/lib/pure-affiliate-paid";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import ThemeToggle from "@/components/ui/theme-toggle";
 import { GroupToggle } from "@/components/notifications/notification-toggles";
 import { groupsForRole } from "@/lib/notification-catalog";
 import { getURL } from "@/lib/utils";
@@ -781,6 +782,9 @@ export default function AffiliateApp() {
             >
               <Ic name="i-trophy" /> {tierUnknown ? dash : tier.name}
             </button>
+            {/* Light / dark, in the same row as the bell in all three
+                shells. */}
+            <ThemeToggle />
             <span className="tdiv" />
             <button
               className="tool ic-btn"

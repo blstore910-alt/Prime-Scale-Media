@@ -1,4 +1,5 @@
 import { refineCss } from "./refine-css";
+import { shellDarkCss } from "@/lib/shell-dark-css";
 // Scoped port of the approved advertiser mockup (advertiser-app.html).
 // Every selector is prefixed with .psmapp so it only affects the ported
 // advertiser area and never leaks into the rest of the app.
@@ -1434,4 +1435,4 @@ export const PSM_APP_CSS = `
    current component matches them. */
 .psmapp .avatar:has(> svg),.psmapp .avatar:has(> *){background:none;color:transparent;box-shadow:none}
 .psmapp .avatar > svg{width:100%;height:100%;border-radius:inherit;display:block}
-`  + refineCss(".psmapp");
+`  + refineCss(".psmapp") + shellDarkCss(".psmapp");
