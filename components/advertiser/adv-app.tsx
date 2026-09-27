@@ -10,14 +10,7 @@ import PlatformMark from "@/components/psm/platform-mark";
 import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
-// The three notices that go out by email whether or not the phone ping
-// is switched on. app/api/push/notify/route.ts sends them at step
-// 3a-ter, before it reads the preference, deliberately.
-import { BILLING_EMAIL_TYPES as ALWAYS_EMAILED } from "@/lib/pure-billing-email";
-import {
-  groupsForRole,
-  type NotificationGroupForRole,
-} from "@/lib/notification-catalog";
+import { groupsForRole } from "@/lib/notification-catalog";
 import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
@@ -76,8 +69,7 @@ import WalletExchangeDialog from "@/components/wallet/wallet-exchange-dialog";
 import CreateTopupDialog from "@/components/topups/create-topup-dialog";
 import RequestAdAccountDialog from "@/components/account/request-ad-account-dialog";
 import useAdAccountRequests from "@/components/ad-account-requests/use-ad-account-requests";
-import useNotificationPreferences from "@/hooks/use-notification-preferences";
-import type { NotificationType } from "@/lib/types/notification";
+import { GroupToggle } from "@/components/notifications/notification-toggles";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import OnboardingChecklist from "./onboarding-checklist";
 import AffiliateCommissionsCard from "./affiliate-commissions-card";
@@ -7566,155 +7558,6 @@ function WalletCard({
       {disabled && disabledReason && (
         <div className="wavail">{disabledReason}</div>
       )}
-    </div>
-  );
-}
-
-/**
- * One switch for a whole subject.
- *
- * On when ANY notice in the group is on -- because that is when the
- * customer still hears something from it. Pressing it writes every type
- * underneath, so there is no half state to puzzle over; "some on" is
- * said in words instead.
- */
-function GroupToggle({ group }: { group: NotificationGroupForRole }) {
-  const { isEnabled, setPreference, isError, isLoading } =
-    useNotificationPreferences();
-  const [open, setOpen] = useState(false);
-  const types = group.entries.map((e) => e.type);
-  const onCount = types.filter((t) => isEnabled(t)).length;
-  const anyOn = onCount > 0;
-  const mixed = onCount > 0 && onCount < types.length;
-  const busy = setPreference.isPending || isError || isLoading;
-
-  return (
-    <div style={{ borderBottom: "1px solid var(--line)" }}>
-      <div className="toggle-row">
-        <div>
-          <div className="t">{group.label}</div>
-          <div className="d">
-            {isError
-              ? "We couldn't read your settings just now."
-              : isLoading
-                ? "Reading your settings…"
-                : group.description}
-          </div>
-          {!isError && !isLoading ? (
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              className="d"
-              style={{
-                marginTop: 4,
-                background: "none",
-                border: 0,
-                padding: 0,
-                cursor: "pointer",
-                color: "var(--primary)",
-                textDecoration: "underline",
-              }}
-            >
-              {open
-                ? "Hide the individual notices"
-                : mixed
-                  ? `${onCount} of ${types.length} on — show them`
-                  : types.length === 1
-                    ? "Show the one notice"
-                    : `Show the ${types.length} notices`}
-            </button>
-          ) : null}
-        </div>
-        <button
-          className={`sw${isError || isLoading ? "" : anyOn ? " on" : ""}`}
-          disabled={busy}
-          onClick={() => {
-            // All of them, one way. A group that is partly on switches
-            // fully off first, which is what pressing a lit switch
-            // means everywhere else.
-            const next = !anyOn;
-            for (const t of types) {
-              if (isEnabled(t) !== next) {
-                setPreference.mutate({ type: t, enabled: next });
-              }
-            }
-          }}
-          aria-label={group.label}
-        />
-      </div>
-      {open ? (
-        <div style={{ paddingLeft: 14, paddingBottom: 6 }}>
-          {group.entries.map((entry) => (
-            <Toggle
-              key={entry.type}
-              label={entry.label}
-              desc={entry.description}
-              notifType={entry.type}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Toggle({
-  label,
-  desc,
-  notifType,
-}: {
-  label: string;
-  desc: string;
-  notifType: NotificationType;
-}) {
-  const { isEnabled, setPreference, isError, isLoading } =
-    useNotificationPreferences();
-  const on = isEnabled(notifType);
-  return (
-    <div className="toggle-row">
-      <div>
-        <div className="t">{label}</div>
-        {/* ── A FAILED READ IS NOT "IT IS ON" ─────────────────────────
-            The hook defaulted to an empty preference list on any
-            failure, which reads as "nothing is disabled" -- so a
-            customer who had switched this off saw it rendered ON. They
-            either leave it and keep getting alerts they refused, or
-            toggle it again and write a preference that was already
-            there. Say what happened instead, and do not draw a state
-            we do not have. */}
-        <div className="d">
-          {isError
-            ? "We couldn't read your setting just now."
-            : isLoading
-              ? "Reading your setting…"
-              : desc}
-        </div>
-        {/* ---- THIS ONE SWITCHES THE PING, NOT THE EMAIL ----------
-            The three billing notices are emailed before this
-            preference is even read (app/api/push/notify/route.ts,
-            step 3a-ter), on purpose and in the owner's words: nobody
-            should learn about a debit from their bank. The switch is
-            honest about what it does now, because "Pick what's worth a
-            ping" over a toggle that leaves the email running is not.
-        */}
-        {ALWAYS_EMAILED.has(notifType) ? (
-          <div className="d" style={{ opacity: 0.85 }}>
-            We always email this one — this switches the phone ping.
-          </div>
-        ) : null}
-      </div>
-      <button
-        // ---- AND NOT PRESSABLE BEFORE WE KNOW ITS STATE ----------
-        // The hook starts with an empty preference list, and "no row"
-        // means enabled -- so every switch renders ON until the read
-        // lands. A customer who had muted something and taps it in
-        // that window writes the state it was already in and watches
-        // it settle to off.
-        className={`sw${isError || isLoading ? "" : on ? " on" : ""}`}
-        disabled={setPreference.isPending || isError || isLoading}
-        onClick={() => setPreference.mutate({ type: notifType, enabled: !on })}
-        aria-label={label}
-      />
     </div>
   );
 }

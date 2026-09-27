@@ -11,6 +11,10 @@ import { whatsappUrl } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { payoutMinimumFor } from "@/lib/pure-payout-min";
+import {
+  PAYOUT_FEE_PCT,
+  payoutReach,
+} from "@/lib/pure-payout-reach";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useAffiliatePayouts, { type AffiliatePayout } from "@/hooks/use-affiliate-payouts";
 import type { PayoutDetails } from "@/actions/payout-actions";
@@ -35,7 +39,9 @@ import type { PayoutDetails } from "@/actions/payout-actions";
 // carries the rate the server actually used, and that is what is shown
 // afterwards.
 
-const FEE_PCT = 0.6;
+// Re-exported from the module that also does the arithmetic, so the
+// percentage on the screen and the percentage in the sum cannot drift.
+const FEE_PCT = PAYOUT_FEE_PCT;
 
 type Cur = "EUR" | "USD";
 
@@ -314,27 +320,32 @@ export default function PayoutCard({
   // card said yes; neither pot is 200 on its own, so the preselected
   // mode could never pass. And EUR 100 + $108,70 cleared the old test by
   // 0,60 and was refused on the fee alone.
-  const afterFee = (n: number) => round2(n * (1 - FEE_PCT / 100));
-  const bestEur = afterFee(round2(owed.EUR + (rate ? owed.USD * rate : 0)));
-  const bestUsd = afterFee(round2(owed.USD + (rate ? owed.EUR / rate : 0)));
-  // A pot paid out in its OWN currency is not converted, so no fee.
-  const sameEur = owed.EUR >= MIN_PER_CURRENCY;
-  const sameUsd = owed.USD >= MIN_PER_CURRENCY;
-  const reachable =
-    sameEur || sameUsd || bestEur >= MIN_PER_CURRENCY || bestUsd >= MIN_PER_CURRENCY
-      ? 1
-      : 0;
-  // Which way it can actually be done, so step 2 does not open on the
-  // one the server will refuse.
-  const onlyByConverting = !sameEur && !sameUsd && reachable === 1;
+  // ---- AND THE FEE ONLY ON THE LEG THAT IS CONVERTED --------------
+  //
+  // The line above took 0,6% off the WHOLE sum, including the pot that is
+  // already in the receiving currency. The RPC does not: v_fee_pct is set
+  // to 0 and stays 0 when `v_pay_cur = 'SAME' or v_pay_cur = v_cur`, and
+  // the 0,60 is applied per leg, to the converted amount only. Read off
+  // the live definition of affiliate_payout_request_multi.
+  //
+  // So this refused requests the server would have taken. EUR 199 + $1,50
+  // at 0,872361 arrives as EUR 199 + EUR 1,30 = EUR 200,30 and passes;
+  // the old line computed 0,994 x 200,31 = EUR 199,11 and the card said
+  // "payouts start at EUR 200,00" over a request that was good. Same
+  // shape as the bug the note above this one fixes, one layer in: the
+  // card has to predict the server, not approximate it.
+  //
+  // Which is why it now lives in lib/pure-payout-reach.ts with tests, and
+  // not in four lines here. Twice in a row this arithmetic has been wrong
+  // in a way only the server could tell us about.
+  const reach = payoutReach(owed, MIN_PER_CURRENCY, rate);
   const blockedByOpen = available.some((c) => inFlight[c] > 0);
   // minUnknown, not just owedUnknown. The floor is half of the sum --
   // an affiliate the owner released to 50 who is owed 60 would otherwise
   // be told "140,00 to go" over a server that would have accepted the
   // request. A figure we cannot stand behind is not printed.
   const canRequest =
-    available.length > 0 && !blockedByOpen && !minUnknown && reachable === 1;
-  const shortBy = Math.max(round2(MIN_PER_CURRENCY - bestEur), 0);
+    available.length > 0 && !blockedByOpen && !minUnknown && reach.reachable;
   // The bar already says how much and how far; this line only carries
   // what the bar cannot -- that a request is already with us, or that
   // two currencies TOGETHER would reach the floor.
@@ -342,28 +353,41 @@ export default function PayoutCard({
   // its own. Then the card has to say so, or the green and the open button
   // sit over two bars that both still read as short.
   const openOnlyTogether =
-    canRequest &&
-    available.length > 1 &&
-    owed.EUR < MIN_PER_CURRENCY &&
-    owed.USD < MIN_PER_CURRENCY;
+    canRequest && available.length > 1 && reach.onlyByConverting;
+  // ---- AND IT HAS TO QUOTE THE LEG THAT ACTUALLY PASSES -----------
+  //
+  // Both these sentences printed bestEur, whichever way the floor was
+  // reached. `reachable` is an OR, and at a rate of 0,872361 EUR per USD
+  // bestEur is always the smaller of the two -- so an affiliate whose
+  // pots only clear the floor in dollars read "about EUR 174,47 -- enough
+  // for a payout" under a card that had just said payouts start at 200.
+  // The refusal line had it the other way round: it quoted the EUR figure
+  // against the EUR floor while the USD one was nearer, so it overstated
+  // the gap.
+  const bestCur: Cur = reach.quoteCurrency;
+  const bestAmt = reach.quoteAmount ?? 0;
+  // Short of the floor it quotes the same way: whichever side comes
+  // closest, because that is the one the next commission carries over the
+  // line. payoutReach decides both.
+  const nearCur: Cur = reach.quoteCurrency;
+  const nearAmt = reach.quoteAmount ?? 0;
   const requestHint = blockedByOpen || (!available.length && waitingGroups.length)
     ? "Your request is with us. The next one can go out once it is settled."
     : !available.length
       ? null
       : openOnlyTogether && rate
         ? `Converted into one currency that is about ${formatCurrency(
-            bestEur,
-            "EUR",
+            bestAmt,
+            bestCur,
           )} — enough for a payout.`
         : canRequest
           ? null
           : available.length > 1 && rate
-            ? `Together that is about ${formatCurrency(bestEur, "EUR")} — payouts start at ${formatCurrency(
+            ? `Together that is about ${formatCurrency(nearAmt, nearCur)} — payouts start at ${formatCurrency(
                 MIN_PER_CURRENCY,
-                "EUR",
+                nearCur,
               )}.`
             : null;
-  void shortBy;
 
   const startRequest = () => {
     // Everything they gave us last time, per affiliate — the owner:
@@ -379,9 +403,10 @@ export default function PayoutCard({
     // neither pot reaches the floor on its own and the only way through
     // is converting both into one. Then the very first thing the
     // customer sees is the option the server is going to refuse.
-    setPayIn(
-      onlyByConverting ? (bestEur >= MIN_PER_CURRENCY ? "EUR" : "USD") : "SAME",
-    );
+    // reach.quoteCurrency IS the side that can pass -- the same figure the
+    // hint above quotes, so the mode that opens and the amount it names
+    // cannot disagree.
+    setPayIn(reach.onlyByConverting ? reach.quoteCurrency : "SAME");
     setStep(available.length > 1 ? 1 : 2);
     setOpen(true);
   };

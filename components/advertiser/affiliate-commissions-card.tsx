@@ -317,9 +317,27 @@ export default function AffiliateCommissionsCard({
             color: "var(--txt-2)",
           }}
         >
-          {money({ [leadCurrency]: clawedBack }, leadCurrency)} of this came
-          back off an ad account and was taken off again, so a payout right
-          now would be{" "}
+          {/* ── DO NOT NAME A CAUSE WE HAVE NOT ESTABLISHED ───────
+              This said the difference "came back off an ad account", and
+              it is two things at once:
+
+              * `payableAllTime` is unpaid MINUS the clawbacks not yet
+                attached to a payout, and `unpaid` itself already excludes
+                every commission with a payout_id -- so a commission
+                sitting in a request the affiliate has ALREADY made widens
+                this gap and was being reported as a clawback.
+              * and a clawback is not always an ad account. Of the two on
+                the live database, one reads "Wallet refund RF-763569" and
+                the other "Ad-account withdrawal WD-036508".
+
+              affiliate_commission_list does not return payout_id, so this
+              card cannot tell the two apart -- and saying which one it was
+              is not what the sentence is for. What it owes the reader is
+              the figure a payout would be. */}
+          {money({ [leadCurrency]: clawedBack }, leadCurrency)} of this
+          isn&apos;t free to ask for: it is either already in a payout you
+          asked for, or it came back to the customer and was taken off
+          again. A payout right now would be{" "}
           <b>{money({ [leadCurrency]: payableLead ?? 0 }, leadCurrency)}</b>.
         </p>
       ) : null}
@@ -377,15 +395,40 @@ export default function AffiliateCommissionsCard({
                     KIND_LABEL[r.kind] ?? "Commission",
                     r.kind === "topup" && r.network ? r.network : null,
                     r.referred_advertiser_code,
-                    // Undefined until plak 70 lands, and null for a
-                    // welcome bonus, which hangs on nothing.
+                    // ── "on X" ONLY WHERE X IS REALLY THE BASE ──────
+                    //
+                    // Undefined until plak 70 lands. It is NOT null for a
+                    // welcome bonus: the comment here said it "hangs on
+                    // nothing", but affiliate_commission_list returns
+                    // `i.total` for any row with a subscription_invoice_id
+                    // and the bonus carries one. Measured on the live
+                    // database: the one welcome bonus is EUR 10,00 and its
+                    // invoice is EUR 10,00, so the row read "Welcome bonus
+                    // · on EUR 10,00" -- a flat bonus dressed up as 100%
+                    // of an invoice. The two figures being equal is a
+                    // coincidence, which is what made it convincing.
+                    //
+                    // And for a top-up the figure is the TOP-UP, not the
+                    // base the percentage ran on. Same database: EUR 0,11
+                    // "on EUR 48,50" reads as 0,2%, where the row's own
+                    // base_amount is 0,53 and the rate was 20%. The real
+                    // base is not printable either -- it is what is left
+                    // of our fee after the supplier's cut, so it would
+                    // hand an affiliate our margin. So it says what it is:
+                    // the top-up it came from.
+                    //
+                    // A subscription commission genuinely is a percentage
+                    // of the invoice total (50% of EUR 10,00 = EUR 5,00,
+                    // both rows), and that invoice is the customer's own.
+                    // That one keeps "on".
+                    r.kind !== "onetime" &&
                     r.source_amount !== null &&
                     r.source_amount !== undefined &&
                     Number.isFinite(Number(r.source_amount))
-                      ? `on ${formatCurrency(
+                      ? `${r.kind === "topup" ? "from a" : "on"} ${formatCurrency(
                           Number(r.source_amount),
                           String(r.currency || "EUR"),
-                        )}`
+                        )}${r.kind === "topup" ? " top-up" : ""}`
                       : null,
                   ]
                     .filter(Boolean)

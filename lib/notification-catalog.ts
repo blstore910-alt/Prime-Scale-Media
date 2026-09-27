@@ -384,6 +384,24 @@ export type NotificationGroupForRole = {
   entries: NotificationCatalogEntry[];
 };
 
+// ── THE TWO GROUPS AN AFFILIATE ACTUALLY HAS ────────────────────────
+//
+// `audienceForRole` maps everything that is not an admin to "customer",
+// so asking for an affiliate's groups handed back the advertiser's as
+// well: wallet top-ups, invoices, a subscription, ad accounts. An
+// affiliate has none of those -- their balance comes from commissions and
+// leaves as a payout.
+//
+// The advertiser shell already drops the referral group for somebody who
+// is not an affiliate ("it is one row now rather than ten, and for
+// somebody who is not an affiliate it is none"). This is the same cut the
+// other way, and it lives here rather than in the shell so there is one
+// answer to "which switches does this role get".
+//
+// A NEW AFFILIATE NOTICE MUST JOIN ONE OF THESE GROUPS or it has no
+// switch on the affiliate's screen.
+const AFFILIATE_GROUP_IDS = new Set(["referrals", "account"]);
+
 /**
  * The groups a role actually sees, with the types that role can receive.
  * An empty group is dropped; a type in no group lands in "Everything
@@ -424,6 +442,12 @@ export function groupsForRole(
       description: "Anything that does not fall under the groups above.",
       entries: rest,
     });
+  }
+  // An affiliate gets the two groups above and not the advertiser's --
+  // including "Everything else", because an unclassified customer type is
+  // an advertiser one until somebody puts it in a group.
+  if (role === "affiliate") {
+    return out.filter((g) => AFFILIATE_GROUP_IDS.has(g.id));
   }
   return out;
 }

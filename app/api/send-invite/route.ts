@@ -420,9 +420,23 @@ export async function POST(request: NextRequest) {
       preheader: `${senderName} invited you to ${tenant.name} — accept to set up your account.`,
       eyebrow: "You're invited",
       title: `${who} invited you to ${org}`,
-      lead: "Accept the invitation to set up your account. You add your company details before anything is billed.",
+      // ── AN AFFILIATE IS NOT SENT TO TOP UP A WALLET ──────────────
+      //
+      // One lead and one set of steps went to both roles: "You add your
+      // company details before anything is billed", then "Add your
+      // company · Top up &amp; launch". An affiliate has no company to
+      // file, nothing is ever billed to them, and there is no top-up
+      // anywhere in their portal -- money goes the other way. The first
+      // thing the invitation did was describe somebody else's app.
+      //
+      // `isAdvertiser` is already read above for the plan fields.
+      lead: isAdvertiser
+        ? "Accept the invitation to set up your account. You add your company details before anything is billed."
+        : "Accept the invitation to set up your account. You get your own referral link, and you can follow what every referral earns you.",
       cta: { label: "Accept invitation", href: inviteLink },
-      steps: ["Accept &amp; set a password", "Add your company", "Top up &amp; launch"],
+      steps: isAdvertiser
+        ? ["Accept &amp; set a password", "Add your company", "Top up &amp; launch"]
+        : ["Accept &amp; set a password", "Share your link", "Get paid"],
       bodyHtml: planLines.length ? emailPanel("Your plan", planLines.join(" &middot; ")) : "",
       footnoteHtml: `This link is valid for ${INVITE_VALID_DAYS} days. Did not expect this invitation? Ignore this email — nothing happens until you accept it.`,
     });

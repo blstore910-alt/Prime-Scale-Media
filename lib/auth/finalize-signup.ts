@@ -130,7 +130,8 @@ async function ensureWalletAndReferral(
     .eq("advertiser_id", advertiser.id)
     .limit(1);
   if (walletReadError) return safeErrorMessage(walletReadError);
-  if (!wallets?.length) {
+  const walletExisted = !!wallets?.length;
+  if (!walletExisted) {
     const generatedRef = `${Date.now().toString().slice(-6)}${Math.floor(
       1000 + Math.random() * 9000,
     )}`;
@@ -146,6 +147,37 @@ async function ensureWalletAndReferral(
   }
 
   if (!referrer || referrer.id === advertiser.id) return null;
+
+  // ── A FINISHED ACCOUNT DOES NOT GAIN A REFERRER ───────────────────
+  //
+  // The retry branch in finalizeSignup calls this for a user who ALREADY
+  // has a profile, with the code out of their own user_metadata -- and
+  // user_metadata is writable by the user: auth.updateUser({ data: {...} })
+  // takes any key. So a customer of six months could set
+  // referral_code to an affiliate's code, ask for a fresh confirmation
+  // mail (type=email is in the signup family), press the link, and land a
+  // referral link on themselves pointing at whichever affiliate they
+  // chose. It is created `pending`, so the owner's approval stands
+  // between it and any money -- but approving books every commission the
+  // customer earned in the meantime, so what it really does is put a
+  // false claim in the admin queue looking exactly like a true one.
+  //
+  // The retry exists for a signup that stopped HALF WAY, and a signup
+  // that got as far as the wallet did not stop before the referral. So
+  // the referral is only written on the pass that also created the
+  // wallet. The genuine first-time flow creates both here, one after the
+  // other, and is unaffected.
+  //
+  // What this newly refuses: profile written, wallet written, referral
+  // insert failed. Narrow, and recoverable by an admin rather than by an
+  // address bar -- so it says so in the log instead of passing quietly.
+  if (walletExisted) {
+    console.error(
+      "finalize-signup: referral not attached to an account that was already set up",
+      { advertiser: advertiser.id, referrer: referrer.id },
+    );
+    return null;
+  }
 
   const { data: links, error: linkReadError } = await admin
     .from("referral_links")

@@ -9,9 +9,13 @@ import { useAppContext } from "@/context/app-provider";
 import { csvSafe } from "@/lib/csv-safe";
 
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
+import useAffiliatePayouts from "@/hooks/use-affiliate-payouts";
+import { paidInPeriod } from "@/lib/pure-affiliate-paid";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useNotifications from "@/components/notifications/use-notifications";
 import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import { GroupToggle } from "@/components/notifications/notification-toggles";
+import { groupsForRole } from "@/lib/notification-catalog";
 import { getURL } from "@/lib/utils";
 import { Parser } from "json2csv";
 import { useRouter } from "next/navigation";
@@ -274,6 +278,26 @@ export default function AffiliateApp() {
     from: affPeriod.from ?? undefined,
     to: affPeriod.to ?? undefined,
   });
+  // ── WHAT WAS PAID IS READ, NOT WORKED OUT ────────────────────────
+  //
+  // The tile below used to compute max(0, earnings - unpaid), and that
+  // can report a payment that never happened: `earnings` floors at zero
+  // per link after ALL clawbacks in the period, `unpaid` subtracts only
+  // the clawbacks not yet attached to a payout. Two bases, one
+  // subtraction -- and on 24 Sep, with two clawbacks booked and neither
+  // attached yet, `unpaid` went negative and the subtraction added it
+  // back: "Paid out EUR 4,04" on a day nothing was paid.
+  //
+  // affiliate_payouts is the record of what actually left the company.
+  const payoutRows = useAffiliatePayouts(
+    !!profile?.advertiser?.[0]?.id,
+    profile?.advertiser?.[0]?.id ?? null,
+  );
+  const paidOut = paidInPeriod(
+    payoutRows.rows,
+    affPeriod.from,
+    affPeriod.to,
+  );
   // The referral TABLE reports its own failure; the summary tiles above it
   // did not, so a failed read printed a commission of 0 directly above a
   // sentence saying the read failed.
@@ -1054,6 +1078,25 @@ export default function AffiliateApp() {
               <h1>Affiliate program</h1>
               <p>Everyone you brought in, and what they earned you.</p>
             </div>
+            {/* ── AND ON THIS SCREEN TOO ────────────────────────────
+                The Dashboard and the Wallet each say it; this one did
+                not, and it is the screen with the most dashes on it --
+                a tier card, four tiles and an empty referral list, none
+                of them explained. The reason the Dashboard gives for
+                saying it once at the top is the same reason it belongs
+                here: a screen full of "—" does not distinguish a bad
+                connection from a quiet month from an account that was
+                never finished. */}
+            {portalInert && (
+              <div className="notice warn" style={{ marginBottom: 14 }}>
+                <b>Your affiliate account isn&apos;t finished yet.</b>
+                <span>
+                  It isn&apos;t linked to a customer record, so we can&apos;t
+                  show your referrals or what they earned you. Nothing is
+                  lost — ask us to finish it and everything appears here.
+                </span>
+              </div>
+            )}
             <section className="tierx">
               <div className="tx-ribbon" aria-hidden="true" />
               <div className="tx-glow" aria-hidden="true" />
@@ -1067,10 +1110,20 @@ export default function AffiliateApp() {
                       to Starter, resets the track to 0% and tells the
                       affiliate how much MORE they need to reach a tier they
                       may already be past. */}
+                  {/* ── "CHECKING" ONLY WHILE SOMETHING IS BEING
+                      CHECKED ───────────────────────────────────────────
+                      statsUnavailable folds three states into one, and
+                      one of them never resolves: with no advertiser row
+                      (portalInert) there is no read in flight and there
+                      never will be, so this pill sat on "Checking…" for
+                      ever, while the banner at the top of the same screen
+                      already said the account is not finished. A spinner
+                      that cannot finish is worse than a dash — it says
+                      wait. */}
                   <span className="tx-pill">
-                    {statsUnavailable
+                    {all.isPending
                       ? "Checking\u2026"
-                      : tierUnknown
+                      : portalInert || all.isError || tierUnknown
                         ? `Tier \u2014 / ${TIERS.length}`
                         : `Tier ${tierIndex + 1} / ${TIERS.length}`}
                   </span>
@@ -1210,30 +1263,46 @@ export default function AffiliateApp() {
                       is our payout to them. */}
                   Awaiting payout
                 </div>
+                {/* ── THIS ONE DOES NOT OBEY THE PERIOD ──────────────
+                    The three tiles beside it are period figures and read
+                    correctly as such. This one cannot be: there is only
+                    one answer to "how much are you going to pay me", and
+                    it is not smaller because somebody narrowed the dates.
+                    Scoped to the period it read EUR 0,00 on "last 7 days"
+                    while the Wallet on the next tab said EUR 20,92 owed --
+                    same screen, same affiliate, and the tile is the one
+                    they see first.
+                    So: all-time here and on the Wallet, off the same
+                    figure the payout RPC will compute, and the caption
+                    says it ignores the picker. */}
                 <div className="v gold">
-                  {refsUnavailable
+                  {all.isError || all.isPending || portalInert
                     ? dash
                     : legs(
-                        Math.max(Number(refs.payable.eur) || 0, 0),
-                        Math.max(Number(refs.payable.usd) || 0, 0),
+                        Math.max(Number(all.payable.eur) || 0, 0),
+                        Math.max(Number(all.payable.usd) || 0, 0),
                       )}
                 </div>
                 {/* ---- NEVER A NEGATIVE AMOUNT WAITING ---------------
                     `affiliate_referral_stats` puts no floor on unpaid --
                     deliberately, so the owner's book matches what the
-                    payout RPC will compute over the whole set. Over a
-                    PERIOD that is a different thing: pick the two days
-                    the clawbacks landed and every commission falls
-                    outside it, so this tile read "Awaiting payout
-                    -EUR 4,04". Nobody is waiting for minus four euro.
-                    The floor is on the reading, not on the book. */}
-                {!refsUnavailable &&
-                (Number(refs.payable.eur) < -0.005 ||
-                  Number(refs.payable.usd) < -0.005) ? (
+                    payout RPC will compute over the whole set. The screen
+                    is a different thing: two clawbacks landed on 24 Sep
+                    and neither was attached to a payout, so this tile read
+                    "Awaiting payout -EUR 4,04". Nobody is waiting for
+                    minus four euro. The floor is on the reading, not on
+                    the book. */}
+                {!(all.isError || all.isPending || portalInert) &&
+                (Number(all.payable.eur) < -0.005 ||
+                  Number(all.payable.usd) < -0.005) ? (
                   <div className="k" style={{ marginTop: 4, opacity: 0.85 }}>
-                    In this period more came back than was earned.
+                    More came back than was earned — nothing is waiting.
                   </div>
-                ) : null}
+                ) : (
+                  <div className="k" style={{ marginTop: 4, opacity: 0.7 }}>
+                    All time, not this period.
+                  </div>
+                )}
               </div>
               <div className="stat g-win">
                 <div className="k">
@@ -1246,27 +1315,15 @@ export default function AffiliateApp() {
                   {/* Nothing referred is nothing paid: with no rows there
                       is no "unpaid" column to read, and a dash there reads
                       as "we don't know" beside three honest zeros. */}
-                  {refsUnavailable ||
-                  (refs.payable.isLifetime && refs.rows.length > 0)
+                  {/* Read off affiliate_payouts, not worked out. See
+                      the note where paidOut is built: the old
+                      subtraction could report a payment that never
+                      happened. A failed read of the payouts is a dash,
+                      not a zero -- "you have been paid nothing" is not
+                      a thing to say when we could not look. */}
+                  {payoutRows.isError || payoutRows.isPending
                     ? dash
-                    : legs(
-                        Math.max(
-                          0,
-                          Math.round(
-                            ((Number(refs.totals.earnings_eur) || 0) -
-                              (Number(refs.totals.unpaid_eur) || 0)) *
-                              100,
-                          ) / 100,
-                        ),
-                        Math.max(
-                          0,
-                          Math.round(
-                            ((Number(refs.totals.earnings_usd) || 0) -
-                              (Number(refs.totals.unpaid_usd) || 0)) *
-                              100,
-                          ) / 100,
-                        ),
-                      )}
+                    : legs(paidOut.eur, paidOut.usd)}
                 </div>
               </div>
               <div className="stat g-purple">
@@ -1482,7 +1539,17 @@ export default function AffiliateApp() {
                 <div className="wal-head">
                   <p className="wal-eyebrow">
                     <Ic name="i-wallet" />{" "}
-                    {all.payable.isLifetime ? "Earned to date" : "Still owed to you"}
+                    {/* `&& rows.length > 0`, like the two guards further down.
+                        With no referrals at all the reduce never sets
+                        hasUnpaid, so isLifetime stays true -- and a
+                        brand-new affiliate was shown "Earned to date"
+                        plus an apology for a limitation that does not
+                        apply to them. The RPC does return unpaid_eur /
+                        unpaid_usd; EUR 0,00 IS their outstanding
+                        figure. */}
+                    {all.payable.isLifetime && all.rows.length > 0
+                      ? "Earned to date"
+                      : "Still owed to you"}
                   </p>
                   <span className="wal-tier">
                     {tierUnknown ? "\u2014" : tier.name}
@@ -1531,7 +1598,7 @@ export default function AffiliateApp() {
                 <p className="wal-sub">
                   {statsUnavailable
                     ? "We couldn't read your balance just now \u2014 this is not a zero. Reload to try again."
-                    : all.payable.isLifetime
+                    : all.payable.isLifetime && all.rows.length > 0
                       ? "That is everything you have earned, not what is still outstanding \u2014 we'll confirm the exact figure when you ask."
                       : "Paid by hand, always. Nothing leaves automatically, and we confirm every transfer here with its reference."}
                 </p>
@@ -1740,24 +1807,30 @@ export default function AffiliateApp() {
               </div>
               <div className="card">
                 <h2>Notification preferences</h2>
-                {/* THESE ALERTS ARE NOT SENT YET. There is a real
-                    per-type preference system in this app
-                    (notification_preferences + the push route), but its
-                    catalog has no affiliate entries and nothing emits
-                    them — so wiring these switches to the server would be
-                    exactly as fake as the localStorage they write to now,
-                    with a more convincing face on it.
-                    The choice is kept for when the alerts exist; the
-                    sentence says that plainly instead of implying four
-                    working switches. */}
-                <p className="cap">
-                  Choose what pings you. These alerts aren&apos;t being sent
-                  yet — your choices are saved for when they are.
-                </p>
-                <NotifToggle label="New referral joined" desc="When someone signs up via your link" storeKey="new-referral" def />
-                <NotifToggle label="Commission earned" desc="When a referral tops up" storeKey="commission" def />
-                <NotifToggle label="Payout status" desc="When a payout is requested or paid" storeKey="payout" def />
-                <NotifToggle label="Tier changes" desc="When you reach a new tier" storeKey="tier" />
+                {/* ── THEY WERE BEING SENT ALL ALONG ───────────────────
+                    The note that stood here said the affiliate alerts
+                    "aren't being sent yet", so four switches wrote
+                    localStorage["aff-notif-*"] -- a key nothing in this
+                    repo reads -- and the customer was told their choice
+                    was saved for later.
+
+                    Counted on the live database, 27-09:
+                    referral_commission_earned 4, affiliate_payout_paid 2,
+                    referral_joined 2, referral_approved 1,
+                    affiliate_approved 1, the most recent two days old.
+                    They are sent, they are pushed, and switching one off
+                    did nothing at all.
+
+                    Same switches the advertiser has, on the same
+                    notification_preferences rows the push route reads --
+                    one per subject, the individual notices one tap away.
+                    "Tier changes" is gone with the fake ones: there is no
+                    such notification type, so there was nothing to
+                    switch. */}
+                <p className="cap">Pick what&apos;s worth a ping.</p>
+                {groupsForRole("affiliate").map((g) => (
+                  <GroupToggle key={g.id} group={g} />
+                ))}
               </div>
             </div>
             <div className="card">
@@ -1856,14 +1929,39 @@ Where your payouts go. Saved on your account, and filled in
                   Wallet asked for the same six again. The owner: "hij
                   moet gewoon hier kunnen opslaan als standaard voor new
                   requests." */}
+              {/* ── AND NOT SAVEABLE OVER A READ WE DID NOT GET ──────
+                  saveMyPayoutDetails REPLACES payout_details: clean()
+                  drops every empty string and the update writes the
+                  result, so what is not in the form is not in the row any
+                  more.
+
+                  The form is only seeded when the read comes back with
+                  something. On a failed read `seeded` stays false, the six
+                  fields stay empty, and one typed IBAN over Save wipes the
+                  holder, the tax id, the address and the BIC -- the four
+                  things a bank needs to accept the transfer, gone, with
+                  "Saved" on the screen.
+
+                  Same guard and the same reason as the company form on
+                  the advertiser's settings: refusing while the read is
+                  unknown costs one reload. */}
               <div className="pd-actions">
                 <button
                   className="btn"
-                  disabled={savingPayout || portalInert}
+                  disabled={
+                    savingPayout ||
+                    portalInert ||
+                    savedDetails.isPending ||
+                    savedDetails.isError
+                  }
                   title={
                     portalInert
                       ? "Your affiliate account isn't finished yet, so there is nowhere to keep these."
-                      : undefined
+                      : savedDetails.isError
+                        ? "We couldn't read what is stored, so saving now would overwrite it with this form. Reload first."
+                        : savedDetails.isPending
+                          ? "Reading what is stored…"
+                          : undefined
                   }
                   onClick={async () => {
                     setSavingPayout(true);
@@ -1888,7 +1986,17 @@ Where your payouts go. Saved on your account, and filled in
                   <Ic name="i-check" />{" "}
                   {savingPayout ? "Saving\u2026" : "Save as my default"}
                 </button>
-                {payoutDirty ? (
+                {/* A title attribute is invisible on a phone, and this is
+                    a phone app -- the point this repo makes wherever a
+                    control greys out. */}
+                {savedDetails.isError ? (
+                  <span className="pd-dirty">
+                    We couldn&apos;t read what is stored — reload before
+                    saving
+                  </span>
+                ) : savedDetails.isPending && !portalInert ? (
+                  <span className="pd-dirty">Reading what is stored…</span>
+                ) : payoutDirty ? (
                   <span className="pd-dirty">Not saved yet</span>
                 ) : payoutSaved ? (
                   <span className="pd-ok">
@@ -2069,45 +2177,3 @@ function LogoutGlyph() {
   );
 }
 
-function NotifToggle({
-  label,
-  desc,
-  storeKey,
-  def,
-}: {
-  label: string;
-  desc: string;
-  storeKey: string;
-  def?: boolean;
-}) {
-  // Affiliates have no server-side notification types yet, so the choice
-  // is remembered per-device rather than lost on reload.
-  const [on, setOn] = useState(!!def);
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(`aff-notif-${storeKey}`);
-      if (v !== null) setOn(v === "1");
-    } catch {}
-  }, [storeKey]);
-  const toggle = () =>
-    setOn((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem(`aff-notif-${storeKey}`, next ? "1" : "0");
-      } catch {}
-      return next;
-    });
-  return (
-    <div className="toggle-row">
-      <div>
-        <div className="t">{label}</div>
-        <div className="d">{desc}</div>
-      </div>
-      <button
-        className={`sw${on ? " on" : ""}`}
-        onClick={toggle}
-        aria-label={label}
-      />
-    </div>
-  );
-}

@@ -149,8 +149,22 @@ export function SignUpForm({
       // exist) -- and sends no email. Saying "check your inbox" for a mail
       // that never comes is the worst answer.
       if (signUpData?.user && (signUpData.user.identities ?? []).length === 0) {
+        // ---- AND A DOOR, NOT JUST THE NAME OF ONE ------------------
+        //
+        // "Sign in instead — or use Forgot password" named two screens and
+        // linked to neither. A toast is not a page: it dismisses itself,
+        // and what it said is then gone. The Log in link at the bottom of
+        // this form is below the fold on a phone, which is where this
+        // whole shell is designed to be read. One tap.
         toast.error("This email already has an account", {
-          description: "Sign in instead — or use “Forgot password” if you can't.",
+          description: "Log in instead, or reset your password if you can't.",
+          duration: 12_000,
+          action: {
+            label: "Log in",
+            onClick: () => {
+              router.push("/auth/login");
+            },
+          },
         });
         return;
       }
