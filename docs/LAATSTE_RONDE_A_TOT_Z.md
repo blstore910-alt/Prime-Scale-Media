@@ -992,7 +992,7 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 | 0 | **26-09** | — (niets te fixen) | — |
 | 1 | **27-09** | ~30 bevindingen + 4 ontwerppunten van de eigenaar | leverancier staat in mock mode; T4 draaide een keer en stopte |
 | 2 | **27-09 op 390, compleet** — verse affiliate PSM0015 aangemaakt via uitnodiging, Home/Referrals/Wallet/Alerts/Settings gelopen, elke nul tegen de database gehouden (klantcode, wallet, 0 links, teller op 15) | 16 bevindingen: `73484ea`, `9f56ea2`, `fba50ca`, `d345490`, `069c349`, `802663e` | alleen de **desktopronde** van dezelfde vijf schermen; vergt één keer opnieuw inloggen als de affiliate |
-| 3 | | | |
+| 3 | **27-09.** Admin 1 aangemaakt (eerste niet-eigenaar admin ooit op deze tenant) en ingelogd. Alle zes verboden schermen geprobeerd — allemaal correct dicht. Wachtrijbadges tegen de database gehouden: 0/0/0 kloppen (de 8 stortingen en 6 aanvragen zijn van `psm-e2e`), 59 stortingen klopt (277 van de 336 zijn gearchiveerd). /invoices gelezen + PDF opgehaald (200). | 10 bevindingen: `cf90fee`, `54aa2ee`, `e9f9138`, plus de afwijsreden. Plak 103 gedraaid, **plak 105 klaar** | één storting verifiëren / één aanvraag goedkeuren kan hier niet — niets staat op deze tenant in de wachtrij; loopt mee in blok 5 en 6 |
 | 4 | | | |
 | 5 | | | |
 | 6 | | | |

@@ -338,6 +338,34 @@ export function TopupDetailsSheet({
                     </Badge>
                   </span>
                 </p>
+                {/* ── THE REASON, BACK WHERE IT WAS WRITTEN ──────────
+                    The reject dialog tells the admin "your reason is
+                    shown to them", and makes it mandatory at three
+                    layers -- the dialog, the action and a database
+                    trigger. It lands in top_ups.rejection_reason and
+                    was then rendered NOWHERE: not on the queue card,
+                    not here, and top_ups_view (what the customer's own
+                    list reads) has no such column at all.
+                    Measured on live: one rejected top-up, reason
+                    stored, invisible to everyone. So when the customer
+                    emails "why?", the person who has to answer cannot
+                    read what a colleague wrote.
+                    use-get-topup does select("*") on top_ups, so the
+                    value was already in hand here. The customer's half
+                    needs the column on the view -- plak 105. */}
+                {String(topup.status ?? "") === "rejected" &&
+                (topup as { rejection_reason?: string | null })
+                  .rejection_reason ? (
+                  <p>
+                    <span className="font-medium text-foreground">
+                      Told the customer:
+                    </span>{" "}
+                    {
+                      (topup as { rejection_reason?: string | null })
+                        .rejection_reason
+                    }
+                  </p>
+                ) : null}
                 <p>
                   <span className="font-medium text-foreground">Created:</span>{" "}
                   {new Date(topup.created_at).toLocaleString()}
