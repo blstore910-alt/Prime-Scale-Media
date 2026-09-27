@@ -991,7 +991,7 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 |---|---|---|---|
 | 0 | **26-09** | — (niets te fixen) | — |
 | 1 | **27-09** | ~30 bevindingen + 4 ontwerppunten van de eigenaar | leverancier staat in mock mode; T4 draaide een keer en stopte |
-| 2 | **code 27-09, loop wacht op de login** | 12 bevindingen, commit `73484ea` | de loop zelf: ik heb het wachtwoord van de affiliate nodig in venster 1 |
+| 2 | **27-09 op 390, compleet** — verse affiliate PSM0015 aangemaakt via uitnodiging, Home/Referrals/Wallet/Alerts/Settings gelopen, elke nul tegen de database gehouden (klantcode, wallet, 0 links, teller op 15) | 16 bevindingen: `73484ea`, `9f56ea2`, `fba50ca`, `d345490`, `069c349`, `802663e` | alleen de **desktopronde** van dezelfde vijf schermen; vergt één keer opnieuw inloggen als de affiliate |
 | 3 | | | |
 | 4 | | | |
 | 5 | | | |
