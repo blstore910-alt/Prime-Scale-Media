@@ -89,7 +89,22 @@ export default function ActivityLogDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-2xl w-full overflow-auto">
-        <SheetHeader className="sticky top-0 bg-background">
+        {/* ── z-10, OR THE CLOSE BUTTON GOES UNDER THE CONTENT ──────
+            The owner, 27-09, on a phone: "als ik wallet details open
+            geen kruisje op mobiel."
+
+            There IS an X, and the header is sticky -- but a sticky
+            element with no z-index is painted in document order, so any
+            card below it that makes its own stacking context (a
+            transform, an opacity, a shadow) slides straight over the
+            top of it. Scroll two cards down and the header is gone,
+            with it the only way out: these sheets are w-full, so at
+            375px they cover the overlay completely and tapping outside
+            closes nothing.
+
+            A border and a shadow as well, so it reads as a bar rather
+            than as text that happens to be stuck. */}
+        <SheetHeader className="sticky top-0 z-10 border-b bg-background shadow-sm">
           <div className="flex items-center justify-between">
             <SheetTitle>Activity Log Details</SheetTitle>
             {/* A 10x10 target, not a bare 20-24px glyph. These sheets are
