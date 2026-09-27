@@ -33,8 +33,22 @@ const buttonVariants = cva(
         // highlight from the inset shadow.
         destructive:
           "bg-destructive text-white shadow-[inset_0_1px_0_rgba(255,255,255,.22),0_10px_22px_-14px_rgba(229,72,77,.9),0_2px_5px_-3px_rgba(20,30,80,.3)] hover:-translate-y-px hover:brightness-[1.06] active:brightness-[.98]",
+        // ── THE ONE LITERAL WHITE IN THIS FILE ────────────────────
+        //
+        // This was `from-white` with `inset 0 1px 0 #fff`, and in dark
+        // mode it drew a white bar with a white gloss on it -- the
+        // owner, 27-09, looking at the first dark screen: "alle buttons
+        // en highlighted en gradients zien wel raar toch." They were
+        // right, and this was most of it: the shell palettes went dark
+        // and the shared Button kept a hardcoded sheet of white.
+        //
+        // The light look is unchanged, token for token. Dark gets the
+        // same shape built the other way up: a faint lift off the
+        // surface instead of a white sheet, and a gloss at 6% instead
+        // of solid white, because on a dark ground a 100% highlight is
+        // a scratch.
         outline:
-          "border border-input bg-gradient-to-b from-white to-muted/60 shadow-[inset_0_1px_0_#fff,0_2px_5px_-4px_rgba(20,30,80,.4)] hover:border-ring hover:text-foreground hover:shadow-[inset_0_1px_0_#fff,0_8px_16px_-12px_rgba(20,30,80,.5)]",
+          "border border-input bg-gradient-to-b from-white to-muted/60 shadow-[inset_0_1px_0_#fff,0_2px_5px_-4px_rgba(20,30,80,.4)] hover:border-ring hover:text-foreground hover:shadow-[inset_0_1px_0_#fff,0_8px_16px_-12px_rgba(20,30,80,.5)] dark:from-white/[.07] dark:to-white/[.02] dark:shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_2px_5px_-4px_rgba(0,0,0,.6)] dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,.1),0_8px_16px_-12px_rgba(0,0,0,.7)]",
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",

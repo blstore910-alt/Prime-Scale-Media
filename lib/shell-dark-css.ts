@@ -83,5 +83,37 @@ export function shellDarkCss(root: string, o: DarkTokenOverrides = {}): string {
 .dark ${root} .card,
 .dark ${root} .panel,
 .dark ${root} .sheet{background:var(--panel);border-color:var(--line)}
+
+/* ── THE GLOWS ─────────────────────────────────────────────────────
+   The owner, 27-09, on the first dark screen: "alle buttons en
+   highlighted en gradients zien wel raar toch." Right, and this is the
+   half a token override cannot reach.
+
+   Between them the three shells carry 47 coloured drop shadows --
+   rgba(58,111,255,.7) under a button, rgba(20,30,80,.4) under a card.
+   On white those read as depth. On #0a0e1d a navy shadow is invisible
+   and a blue one is a halo around the button rather than under it.
+
+   Depth on a dark ground comes from the TOP: a hairline of light where
+   the surface would catch it. So every coloured glow becomes one. */
+.dark ${root} .btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+.dark ${root} .btn.grad,
+.dark ${root} .btn.danger{box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
+.dark ${root} .btn.ghost{background:var(--panel-2);border-color:var(--line-2);box-shadow:none}
+.dark ${root} .btn.ghost:hover{background:var(--line);border-color:var(--primary)}
+.dark ${root} .wallet,
+.dark ${root} .mark{box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+
+/* The selected segment was var(--panel) on a var(--panel-2) strip: a
+   3% difference, which is a visible choice on white and nothing at all
+   on navy. */
+.dark ${root} .seg2 button.on{background:var(--line-2);color:var(--ink)}
+
+/* Pale chips that are tints of white in light mode. Each is a real
+   background in these files, not a token. */
+.dark ${root} .ci.t{background:#0e3b42;color:#7fe0ef}
+.dark ${root} .ci.p{background:#2c1f4a;color:#c9aeff}
+.dark ${root} .alert .ai{background:var(--panel-2)}
+.dark ${root} .pfi.tiktok{background:#2b2140;color:#c9a8ff}
 `;
 }
