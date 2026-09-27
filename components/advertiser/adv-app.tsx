@@ -709,20 +709,40 @@ export default function AdvertiserApp() {
       fee_amount: number | string | null;
       account_name: string | null;
       status: string | null;
+      rejection_reason?: string | null;
     }[]
   >({
     queryKey: ["adv-account-fundings", advertiserId],
     enabled: !!advertiserId,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("top_ups_view")
-        .select(
-          "id, created_at, number, currency, amount_received, amount_usd, topup_amount, fee_amount, account_name, status",
-        )
-        .eq("advertiser_id", advertiserId!)
-        .order("created_at", { ascending: false })
-        .limit(30);
+      // ── ASK FOR THE REASON, AND HOLD WITHOUT IT ─────────────────
+      //
+      // The reject dialog promises the customer is told why, the reason
+      // is mandatory at three layers, and it landed in
+      // top_ups.rejection_reason -- which top_ups_view did not carry, so
+      // it reached nobody. Plak 105 adds the column.
+      //
+      // Asked for, and retried without on 42703: code reaches production
+      // in minutes and a plak is pasted whenever somebody gets to it
+      // (CLAUDE.md). Naming a column that is not there yet does not
+      // degrade, it throws -- and this query feeds the whole ad-account
+      // funding list.
+      const COLS =
+        "id, created_at, number, currency, amount_received, amount_usd, topup_amount, fee_amount, account_name, status";
+      const ask = (cols: string) =>
+        supabase
+          .from("top_ups_view")
+          .select(cols)
+          .eq("advertiser_id", advertiserId!)
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+      let res = await ask(`${COLS}, rejection_reason`);
+      if ((res.error as { code?: string } | null)?.code === "42703") {
+        res = await ask(COLS);
+      }
+      const { data, error } = res;
       if (error) throw error;
       return (data ?? []) as never;
     },
@@ -4830,6 +4850,29 @@ export default function AdvertiserApp() {
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 Funded {t.account_name || "an ad account"}
+                                {/* ── WHY, WHEN IT WAS REFUSED ──────────
+                                    The reject dialog tells the admin
+                                    "your reason is shown to them", and
+                                    it was shown to nobody: the reason
+                                    lives on top_ups.rejection_reason and
+                                    top_ups_view -- what this list reads
+                                    -- had no such column until plak 105.
+                                    A bare "Refused" badge and no
+                                    sentence is the message that makes
+                                    somebody email us. */}
+                                {String(t.status ?? "").toLowerCase() ===
+                                  "rejected" && t.rejection_reason ? (
+                                  <span
+                                    style={{
+                                      display: "block",
+                                      marginTop: 2,
+                                      fontSize: ".82rem",
+                                      color: "var(--faint)",
+                                    }}
+                                  >
+                                    {t.rejection_reason}
+                                  </span>
+                                ) : null}
                               </td>
                               <td
                                 data-label="Amount"
