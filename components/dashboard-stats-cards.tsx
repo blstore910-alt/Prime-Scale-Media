@@ -272,6 +272,29 @@ export function DashboardStatsCards() {
   const [calendarMonth, setCalendarMonth] = useState<Date | undefined>();
   const isAdminDashboard = profile?.role === "admin" && !isSuperAdmin;
 
+  // ── WHAT AN EMPLOYEE ADMIN MAY LOOK AT, AND HOW FAR BACK ─────────
+  //
+  // The owner, 27-09: "medewerker admin mag geen profit zien, alleen wel
+  // aantal topups en totaal topups, en wallet topups, exchanges ook, en
+  // subscriptions ook, en extra ad accounts ook. En alleen today en per
+  // week en month, geen jaar, en tot max 3 maanden terug."
+  //
+  // The cards were already right -- the grid below carries exactly that
+  // list and no profit, no fees, no commissions. The PERIOD was not: a
+  // year button and a calendar open to the beginning of time. A desk
+  // works in days and weeks; a year of trading volume is a picture of
+  // the business, which is the thing being withheld.
+  const ADMIN_MONTHS_BACK = 3;
+  const adminFloor = dayjs()
+    .subtract(ADMIN_MONTHS_BACK, "month")
+    .startOf("day");
+  const periods = isAdminDashboard
+    ? PERIODS.filter((p) => p.value !== "year")
+    : PERIODS;
+  // Two floors, because the calendar and the arrows are two ways to the
+  // same place and only blocking one of them is no block at all.
+  const calendarFloor = isAdminDashboard ? adminFloor.toDate() : undefined;
+
   // Rides the same batched request as the period cards below, so the whole
   // dashboard costs one round trip instead of five.
   const { data: stats, isError: isStatsError } =
@@ -342,8 +365,16 @@ export function DashboardStatsCards() {
   const canStepForward = monthAnchor
     .startOf("month")
     .isBefore(thisMonthStart, "month");
+  // The arrows are the other way to a date, so the floor holds here too.
+  const canStepBack =
+    !isAdminDashboard ||
+    !monthAnchor
+      .subtract(1, "month")
+      .startOf("month")
+      .isBefore(adminFloor.startOf("month"), "month");
   const stepMonth = (delta: number) => {
     if (delta > 0 && !canStepForward) return;
+    if (delta < 0 && !canStepBack) return;
     selectMonth(monthAnchor.add(delta, "month"));
   };
 
@@ -380,12 +411,16 @@ export function DashboardStatsCards() {
           className="stepbtn"
           aria-label="Previous month"
           onClick={() => stepMonth(-1)}
+          disabled={!canStepBack}
+          title={
+            canStepBack ? undefined : "Three months back is as far as this goes."
+          }
         >
           <ChevronLeft />
         </button>
       )}
       <div className="seg2" role="group" aria-label="Dashboard period">
-        {PERIODS.map((p) => (
+        {periods.map((p) => (
           <button
             key={p.value}
             type="button"
@@ -425,7 +460,11 @@ export function DashboardStatsCards() {
               onSelect={handleDateRangeSelect}
               numberOfMonths={1}
               hidden={{ from: new Date(2026, 0, 0), after: new Date() }}
-              disabled={{ after: new Date() }}
+              disabled={
+                calendarFloor
+                  ? { before: calendarFloor, after: new Date() }
+                  : { after: new Date() }
+              }
             />
           </DialogContent>
         </Dialog>
@@ -442,7 +481,11 @@ export function DashboardStatsCards() {
               onSelect={handleDateRangeSelect}
               numberOfMonths={2}
               hidden={{ from: new Date(2026, 0, 1), after: new Date() }}
-              disabled={{ after: new Date() }}
+              disabled={
+                calendarFloor
+                  ? { before: calendarFloor, after: new Date() }
+                  : { after: new Date() }
+              }
             />
           </PopoverContent>
         </Popover>

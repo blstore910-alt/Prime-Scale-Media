@@ -361,9 +361,27 @@ export default function AdminDashboard() {
           cohesive section. The wired DashboardStatsCards carries its own
           admin/super-admin gating and renders the hero + control + metrics. */}
       <section className="pa">
+        {/* ── THE HEADING HAS TO MATCH WHAT IS UNDER IT ───────────
+            "Profit & activity / Revenue, fees and growth at a glance"
+            went to everybody. An employee admin has no profit tile, no
+            fee tile and no commission tile under it -- those three are
+            apiRequireOwner at the source and were taken off this grid
+            on purpose. So the first thing they read was a promise of
+            three figures the app will not show them, over a panel
+            already correctly labelled "Activity".
+
+            The owner, 27-09: "medewerker admin mag geen profit zien,
+            alleen wel aantal topups en totaal topups, en wallet topups,
+            exchanges ook, en subscriptions ook, en extra ad accounts
+            ook." That is exactly what the grid carries; only the words
+            above it disagreed. */}
         <div className="pa-head">
-          <h2>Profit &amp; activity</h2>
-          <p className="pa-sub">Revenue, fees and growth at a glance.</p>
+          <h2>{isSuperAdmin ? "Profit & activity" : "Activity"}</h2>
+          <p className="pa-sub">
+            {isSuperAdmin
+              ? "Revenue, fees and growth at a glance."
+              : "Top-ups, exchanges and subscriptions at a glance."}
+          </p>
         </div>
         <DashboardStatsCards />
       </section>
