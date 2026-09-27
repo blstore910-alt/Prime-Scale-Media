@@ -1,4 +1,59 @@
-# WHAT IS LEFT — 25-09, middag
+# WHAT IS LEFT — 27-09, avond
+
+## GEDAAN OP 27-09 (avond) — tarieven, BM's en opnames
+
+Vijf deploys, `1c6fdec` .. `5e14d31`. Plak 107, 108, 109, 110, 111, 112
+en 113 staan allemaal op de database (nagemeten, niet aangenomen).
+
+**Het tarief van de klant.** Twee formulieren vulden het vakje voor en
+vochten: het platform kiezen schreef de standaard van het TYPE er
+onvoorwaardelijk overheen, waarna de voorvulling met het plantarief
+afbrak op `!== 0`. De typestandaard won dus altijd. Nu de HOOGSTE van
+plan en type (`lib/pure-fee-suggestion.ts`), omdat de eigenaar er twee
+dingen over zei: PSM0004 met plan 5 moet 5 zien, en "soms hk 3%, soms
+eu ra 4%". Allebei de getallen staan nu altijd onder het vakje.
+RockAds staat op 4,00. PSM0004 had trouwens nog geen ad-account — er
+was niets mis met de database, alleen met het formulier.
+
+**Wat wij betalen.** Stond alleen in het AANMAAK-formulier;
+`getAdAccountCosts` had nul aanroepers, dus de kostprijs werd een keer
+getypt en nooit meer getoond. Staat nu ook op het wijzigformulier.
+En `assignSupplierAdAccount` schreef diezelfde kolom rechtstreeks achter
+alleen `requireAdminCtx` — het toewijsscherm van de pool was de weg om
+de eigenaarscontrole heen. Dicht.
+
+**Een fee wijzigen is nu een aanvraag** (plak 111, tabel
+`fee_change_requests`). De weigerende helft stond er al en is strenger
+dan verwacht: `feeIsAPrice` laat een medewerker alleen leeg, het
+plantarief of de typestandaard opslaan, bij aanmaken EN bij wijzigen.
+Wat ontbrak was waar de weigering heen ging.
+
+**Een tot vijf BM's** op een aanvraag (`lib/pure-bm-ids.ts`). De opslag
+kon het al aan; zes lezers niet. `toBmId` deed `Number([...])` → NaN →
+account aangemaakt met GEEN business manager en een groene toast.
+
+**Opnames.** Een medewerker kan er nu een aanvragen namens de klant
+(plak 112) — dat kon niet, want de RPC zocht de advertiser op
+`auth.uid()`. En de API-route is gebouwd (plak 113): op een
+leveranciersaccount VERSTUURT goedkeuren de opname (`at_supplier`,
+niets gecrediteerd) en crediteert de minuut-cron zodra zij bevestigen.
+Handmatig blijft crediteren-bij-goedkeuren, want daar is de medewerker
+met de schermafdruk de bevestiging.
+
+## WAT NOG OPEN STAAT
+
+- **De API-route is nog nooit gelopen.** `integration_jobs` is leeg —
+  er is nog nooit een push van welk soort dan ook geweest, want
+  `SUPPLIER1_AUTOPUSH` staat uit. Alles is vandaag dus nog de
+  handmatige tak. De B-route gaat pas echt lopen als die vlag aan gaat,
+  en dan hoort er een opname op een echt leveranciersaccount
+  doorheen gehaald te worden voordat er een klant op zit.
+- **De wachtrij voor de eigenaar bij een fee-aanvraag** bestaat nog
+  niet als scherm. De aanvraag komt binnen als melding en de rij staat
+  in `fee_change_requests`; er is nog geen lijst met goedkeuren/afwijzen
+  erop. `decideFeeChange` in `actions/fee-change-actions.ts` is er wel.
+- De lijst hieronder van eerdere sessies staat nog.
+
 
 ## NA DE LIVEGANG — de teamleader en het rooster (gevraagd 26-09)
 
