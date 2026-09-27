@@ -5,7 +5,29 @@
 ```
 LAATSTE RONDE. Lees docs/LAATSTE_RONDE_A_TOT_Z.md en ga verder bij het
 EERSTE blok dat in het logboek onderaan nog geen "gelopen" heeft. Zeg in
-een zin waar je begint en waarom, en begin dan.
+een zin waar je begint, en begin dan.
+
+DOORWERKEN TOT HET BLOK DICHT IS. Niet rapporteren tussendoor. Een blok
+is pas af als zijn regel in het logboek is ingevuld en gecommit. Alles
+daarvoor -- agents, fixen, gate, push, kijken, nog een fix -- is een
+en dezelfde beurt.
+
+WAT GEEN REDEN IS OM TE STOPPEN:
+- een fixronde is klaar          -> pak de volgende bevinding
+- je hebt iets gepusht           -> ga door terwijl de deploy loopt
+- een agent is binnen            -> lees hem en fix, meld het niet apart
+- een scherm heeft mijn ogen     -> zet het klaar, zeg het in EEN regel
+                                    aan het eind, en doe intussen de rest
+- je wacht op een login van mij  -> start de agents van het VOLGENDE blok
+                                    en doe daar het codewerk alvast
+- je twijfelt over een detail    -> kies, en schrijf op waarom je koos
+- een plak moet nog gedraaid     -> lever hem en ga door met de code
+
+WAT WEL EEN REDEN IS OM TE STOPPEN:
+- een wachtwoord, een Join of een in/uitlog  -> alleen ik kan dat
+- geld dat echt weggaat, of iets verwijderen -> vraag het
+- beleid dat van mij is (marge, ondergrens, wie wat mag) -> vraag het
+- iets op productie is stuk                  -> meld direct, dat gaat voor
 
 TWEE VENSTERS, NOOIT DRIE. Paneel = klantkant. Mijn Chrome = beheerkant.
 Ik zie ze allebei; wat ik niet zie gebeurt niet. Ik typ elk wachtwoord,
@@ -13,7 +35,8 @@ elke Join en elke in- en uitlog. Jij doet al het andere.
 
 PER BLOK EERST VIER AGENTS, gescoopt op de bestanden van DAT blok:
 geld-rekenwerk / doodlopers / laden-leeg-fout / rechten. Bevindingen
-worden GEFIXT, niet genoteerd.
+worden GEFIXT, niet genoteerd. Start ze en wacht niet -- begin
+ondertussen aan wat je al weet.
 
 DAN LOPEN WE HET SAMEN, per scherm:
   1. jij opent hem in het paneel op 390px - ik kijk naar het ontwerp
@@ -21,40 +44,26 @@ DAN LOPEN WE HET SAMEN, per scherm:
   3. ik zeg wat anders moet - jij fixt het
   4. gate: npx tsc --noEmit && npx next lint --max-warnings 0 && npm test
      geketend met &&, NOOIT door tail of grep
-  5. git push origin feat/redesign-advertiser:main, dan zelf op
-     app.primescalemedia.com kijken of het er staat en rendert MET DATA
+  5. git push origin feat/redesign-advertiser:main -- per BLOK gebundeld,
+     niet per fix; alleen iets kapots gaat meteen
   6. desktop, zelfde scherm
   7. volgende
 
-BLOK 13 IS EEN BOUWBLOK, geen loopblok: daar zijn geen schermen en geen
-twee vensters, daar bouw je het grootboek en lever je de plak. De lus
-hierboven geldt voor de andere blokken.
+BLOK 13 EN 14 ZIJN BOUWBLOKKEN, geen loopblokken.
 
 ELKE KNOP indrukken, ook van de takken die we niet kiezen.
 Geen "waarschijnlijk" - lees de code of vraag mij een SQL.
 Zeg METEEN wat je niet hebt kunnen verifiëren, en waarom.
 Een zelfverzekerde 0 boven een mislukte lees is een fout.
-Stop niet om te vragen of je door mag.
 
 KIJK PER BLOK OOK IN "TESTS DIE NOG MOETEN" onderaan het document. Daar
 staat wat er gebouwd is maar nog nooit door een mens is gezien. Hoort er
 iets bij dit blok, dan loop je dat mee en vinkt het af.
 
-AAN HET EIND VAN ELK BLOK: vul het logboek in het document in, commit
-het, en meld in vier regels: gelopen / gefixt / open / wat je van mij
-nodig hebt.
+AAN HET EIND VAN HET BLOK, en pas dan: vul het logboek in, commit het,
+en meld in vier regels -- gelopen / gefixt / open / wat je van mij nodig
+hebt. Begin daarna meteen aan het volgende blok.
 ```
-
-
-> Draaiboek voor de slotcontrole vóór livegang. Geschreven 2026-09-26.
-> Volg dit van boven naar beneden. Elk blok is af of niet af; er is geen
-> "grotendeels".
-
----
-
-> **Wanneer welke deur opengaat staat in `docs/UITROLPLAN.md`.** Dit
-> document zegt wat we controleren; dat zegt in welke volgorde we
-> klanten binnenlaten, en welke poort daartussen zit.
 
 ## Waarom deze ronde anders is dan de zeventien reizen
 
