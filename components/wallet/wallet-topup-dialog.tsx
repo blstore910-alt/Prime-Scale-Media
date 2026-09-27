@@ -244,11 +244,34 @@ export default function WalletTopupDialog({
   const resolvedBank: BankGroup = routingUnknown
     ? DEFAULT_BANK_GROUP
     : (routed[0] ?? DEFAULT_BANK_GROUP);
+  // ── AND THE FORK THE COMMENT ABOVE PROMISES ──────────────────────
+  //
+  // "The only time a choice is still offered is when they genuinely
+  // hold accounts in BOTH families, which is a real fork and not a
+  // guess." That chooser was gone; only the sentence describing it was
+  // left. `routed.length > 1` made routingUnknown FALSE, so there was
+  // no notice either, and `routed[0]` silently picked the first --
+  // which is the same shape as the four incidents recorded above, where
+  // the code chose while it did not know and a real transfer went to
+  // the wrong legal entity.
+  //
+  // A customer holding Meta-EU-PSM (TURLIT) and Meta-EU-PSM-GH (ZANEL)
+  // has a genuine question to answer, and unlike a brand-new customer
+  // they CAN answer it: they were told which entity to pay when each
+  // account was set up. So this one gets asked.
+  const twoFamilies = !routingUnknown && routed.length > 1;
   // One possible destination: set it rather than ask. Also corrects a
   // restored draft that names a bank this advertiser has no accounts at.
   useEffect(() => {
+    if (twoFamilies) {
+      // Their choice stands, as long as it is one of theirs.
+      if (!routed.includes(bankGroup)) setBankGroup(routed[0]);
+      return;
+    }
     if (bankGroup !== resolvedBank) setBankGroup(resolvedBank);
-  }, [resolvedBank, bankGroup]);
+    // routed is rebuilt each render; its CONTENTS are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [twoFamilies, routed.join("|"), resolvedBank, bankGroup]);
   // The currency the advertiser will physically transfer in (picks the bank
   // account shown). Defaults to the wallet currency.
   const [transferCurrency, setTransferCurrency] =
@@ -951,6 +974,39 @@ export default function WalletTopupDialog({
                       ? "You don't have an ad account with us yet, so we've put our usual account below. If we gave you a different one, use that — and ask us if you're not sure."
                       : "We couldn't work the destination out from your ad accounts, so we've put our usual one below. If we gave you a different one, use that — and ask us if you're not sure."}
                   </p>
+                )}
+
+                {/* The real fork: accounts in both families. Asked, not
+                    guessed -- and unlike a new customer they can answer
+                    it, because they were told which entity to pay when
+                    each account was set up. */}
+                {twoFamilies && (
+                  <div className="space-y-2">
+                    <Label>Which of our accounts are you paying into?</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Your ad accounts are split across two of our
+                      companies, so this one is yours to pick. Use the one
+                      you were given for the account you are funding — ask
+                      us if you are not sure.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {routed.map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setBankGroup(g)}
+                          className={
+                            "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors " +
+                            (bankGroup === g
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "hover:bg-muted")
+                          }
+                        >
+                          {bankBeneficiary(g)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
 
