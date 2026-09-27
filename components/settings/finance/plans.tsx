@@ -479,7 +479,7 @@ export default function PlansCard() {
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className={lab}>Topup fee %</span>
+                  <span className={lab}>Top-up fee %</span>
                   <Input
                     type="number"
                     min="0"
