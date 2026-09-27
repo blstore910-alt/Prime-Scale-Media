@@ -19,9 +19,10 @@
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
+import { dstBehind } from "@/lib/pure-dst-behind";
 import { formatCurrency } from "@/lib/utils";
 import {
   recordDstCharges,
@@ -93,6 +94,39 @@ export default function PsmDst() {
   );
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [addOpen, setAddOpen] = useState(false);
+  // What the overdue card hands the dialog: one customer and the exact
+  // week that is missing. Null when the dialog is opened the normal way.
+  const [prefill, setPrefill] = useState<{
+    advertiserId: string;
+    periodStart: string;
+    periodEnd: string;
+  } | null>(null);
+
+  // ── WHO IS BEHIND ─────────────────────────────────────────────────
+  //
+  // The owner, 27-09: "we moeten zien bijv welke klanten al 7+ dagen
+  // achterlopen met dit, dan moet weer aangevuld worden."
+  //
+  // Its own read, deliberately: `charges` below is filtered by the
+  // status chips, and whether somebody is up to date has nothing to do
+  // with whether their last week happens to be invoiced yet. Asking the
+  // filtered list would make the answer change when you press a chip.
+  const behindRows = useQuery({
+    queryKey: ["dst-behind", tenantId],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dst_charges")
+        .select(
+          "advertiser_id, period_start, period_end, advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name))",
+        )
+        .eq("tenant_id", tenantId!)
+        .order("period_end", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const charges = useQuery({
     queryKey: ["dst-charges", tenantId, statusFilter],
@@ -115,6 +149,34 @@ export default function PsmDst() {
   });
 
   const rows = charges.data ?? [];
+  // Worst first, threshold 7 -- one whole week missed. See
+  // lib/pure-dst-behind.ts for why a customer with no line at all is not
+  // on this list.
+  const behind = useMemo(
+    () =>
+      dstBehind(
+        (behindRows.data ?? []) as unknown as Parameters<typeof dstBehind>[0],
+      ),
+    [behindRows.data],
+  );
+  const nameOf = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of (behindRows.data ?? []) as Array<{
+      advertiser_id: string;
+      advertiser?: {
+        tenant_client_code?: string | null;
+        profile?: { full_name?: string | null } | null;
+      } | null;
+    }>) {
+      if (m.has(r.advertiser_id)) continue;
+      const a = r.advertiser;
+      const code = a?.tenant_client_code ?? "";
+      const nm = a?.profile?.full_name ?? "";
+      m.set(r.advertiser_id, [code, nm].filter(Boolean).join(" · ") || r.advertiser_id);
+    }
+    return m;
+  }, [behindRows.data]);
+
   const chosen = rows.filter((r) => picked[r.id] && r.status === "reserved");
   /** One invoice is one customer in one currency — the RPC refuses the rest. */
   const chosenOk =
@@ -168,6 +230,69 @@ export default function PsmDst() {
         </Button>
       </div>
 
+      {/* ── WHO NEEDS A WEEK TYPING ─────────────────────────────────
+          The owner, 27-09: "we moeten zien bijv welke klanten al 7+
+          dagen achterlopen met dit, dan moet weer aangevuld worden,
+          moet fijne auto systeem en easy voor alle medewerkers."
+
+          Nothing schedules DST and nothing chased it, so a week nobody
+          typed was a week nobody saw. This is the chase: who, how far
+          behind, which week is missing, and a button that opens the
+          entry already filled in for exactly that customer and exactly
+          that week. The person does not have to work out the dates.
+
+          Only when there IS somebody. An empty reminder card every day
+          teaches people to skip the top of the screen. */}
+      {behind.length > 0 ? (
+        <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/5">
+          <p className="m-0 text-sm font-semibold">
+            {behind.length === 1
+              ? "One customer is behind on DST"
+              : `${behind.length} customers are behind on DST`}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Their last week ended more than seven days ago. Enter the missing
+            week so it can be charged on.
+          </p>
+          <div className="mt-2.5 grid gap-1.5">
+            {behind.map((b) => (
+              <div
+                key={b.advertiserId}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-background px-2.5 py-2 text-sm"
+              >
+                <span className="font-medium">
+                  {nameOf.get(b.advertiserId) ?? b.advertiserId}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {b.daysBehind} days behind · last week ended{" "}
+                  {b.lastPeriodEnd}
+                  {b.weeksMissing > 1
+                    ? ` · ${b.weeksMissing} weeks to catch up`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  className="btn ghost sm ml-auto"
+                  onClick={() => {
+                    // Prefilled: the customer picked and the week set to
+                    // the first one nobody has entered. The desk types a
+                    // base and saves; nobody works out the dates.
+                    setPrefill({
+                      advertiserId: b.advertiserId,
+                      periodStart: b.nextPeriodStart,
+                      periodEnd: b.nextPeriodEnd,
+                    });
+                    setAddOpen(true);
+                  }}
+                >
+                  Enter {b.nextPeriodStart} – {b.nextPeriodEnd}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {/* What is standing open, before the list. Reserved is money we have
           already paid and not yet billed on. */}
       <div className="mb-4 grid gap-2 sm:grid-cols-3">
@@ -205,6 +330,17 @@ export default function PsmDst() {
         </div>
       </div>
 
+      {/* ── THE FILTER IS NOT AN ACTION ────────────────────────────
+          The owner, 27-09: "buttons beter plaatsen." Three filter chips
+          and the one button that raises a real invoice were on the same
+          wrapping row, with the invoice button pushed right by ml-auto
+          -- so on a phone it wrapped onto its own line underneath and
+          read as a fourth chip. A control that bills a customer should
+          not sit in a row of view switches.
+
+          The chips stay where they are. The invoice button moves into
+          the selection bar below, where it appears only once something
+          is picked -- which is also the only time it can do anything. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {(["reserved", "charged", "all"] as const).map((s) => (
           <button
@@ -222,24 +358,41 @@ export default function PsmDst() {
                 : "All"}
           </button>
         ))}
-        <span className="ml-auto" />
-        <Button
-          disabled={!chosenOk || invoicing}
-          onClick={() => makeInvoice()}
-          title={
-            !chosen.length
-              ? "Pick some lines first"
-              : !chosenOk
-                ? "Every picked line has to be the same customer and the same currency."
-                : undefined
-          }
-        >
-          {invoicing ? <Loader2 className="animate-spin" /> : <Receipt />}
-          Raise the invoice
-        </Button>
       </div>
 
-      {charges.isLoading ? (
+      {/* Appears with the selection, and says what it will do. A title
+          attribute is invisible on a phone, so the reason it is greyed
+          out is a sentence, not a tooltip. */}
+      {chosen.length > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-2.5">
+          <span className="text-sm">
+            <b>{chosen.length}</b>{" "}
+            {chosen.length === 1 ? "line" : "lines"} picked ·{" "}
+            <b>{formatCurrency(chosenTotal, chosen[0].currency)}</b>
+          </span>
+          <Button
+            className="ml-auto"
+            disabled={!chosenOk || invoicing}
+            onClick={() => makeInvoice()}
+          >
+            {invoicing ? <Loader2 className="animate-spin" /> : <Receipt />}
+            Raise the invoice
+          </Button>
+          {!chosenOk ? (
+            <span className="basis-full text-xs text-muted-foreground">
+              Every picked line has to be the same customer and the same
+              currency.
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* isPending, not isLoading: react-query v5 reports isLoading FALSE
+          for a query that never ran, and this one is `enabled:
+          !!tenantId`. Without a tenant the screen walked past the
+          spinner into "Nothing reserved" -- a claim about the books,
+          over a read nobody made. */}
+      {charges.isPending ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
             Loading…
@@ -334,10 +487,17 @@ export default function PsmDst() {
 
       <AddDstDialog
         open={addOpen}
-        onOpenChange={setAddOpen}
+        onOpenChange={(v) => {
+          setAddOpen(v);
+          // Cleared on close, so the next plain "Enter a week" opens
+          // empty rather than on somebody else's overdue week.
+          if (!v) setPrefill(null);
+        }}
         tenantId={tenantId ?? null}
+        prefill={prefill}
         onDone={() => {
           queryClient.invalidateQueries({ queryKey: ["dst-charges"], exact: false });
+          queryClient.invalidateQueries({ queryKey: ["dst-behind"], exact: false });
         }}
       />
     </div>
@@ -349,11 +509,18 @@ function AddDstDialog({
   open,
   onOpenChange,
   tenantId,
+  prefill,
   onDone,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   tenantId: string | null;
+  /** One customer and the week they are missing, from the overdue card. */
+  prefill?: {
+    advertiserId: string;
+    periodStart: string;
+    periodEnd: string;
+  } | null;
   onDone: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -376,6 +543,28 @@ function AddDstDialog({
   const [advertiserId, setAdvertiserId] = useState("");
   const [periodStart, setPeriodStart] = useState(week.start);
   const [periodEnd, setPeriodEnd] = useState(week.end);
+
+  // ── WHAT THE OVERDUE CARD HANDED US ──────────────────────────────
+  //
+  // Applied when the dialog OPENS, not on every render: somebody who
+  // opens it prefilled and then changes the week must keep their change.
+  // Keyed on `open` plus the prefill itself, so a second customer from
+  // the same card also lands.
+  const seeded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) {
+      seeded.current = null;
+      return;
+    }
+    if (!prefill) return;
+    const key = `${prefill.advertiserId}|${prefill.periodStart}`;
+    if (seeded.current === key) return;
+    seeded.current = key;
+    setPeriodStart(prefill.periodStart);
+    setPeriodEnd(prefill.periodEnd);
+    setBulkPicked([prefill.advertiserId]);
+    setBulkLines({ [prefill.advertiserId]: [{ country: "", base: "" }] });
+  }, [open, prefill]);
   const [currency, setCurrency] = useState("EUR");
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<{ country: string; base: string }[]>([
