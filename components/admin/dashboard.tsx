@@ -97,12 +97,30 @@ const DASH_CSS = `
    straight away now -- only this is unknown, so only this waits. Same
    size as the real badge so the row does not move when the number
    lands. */
-.psm-dash .qcard .qbadge:empty{width:26px;height:20px;background:var(--line);
+/* ── AND WHILE IT LOADS, THE CARD IS EMPTY, NOT BUSY ───────────
+   The owner, 28-09, with a before and after screenshot: "SS1 is laden,
+   SS2 is geladen -- maak lader mooier, dus echt empty, anders is
+   raar."
+
+   He was looking at the selector above: :has(.qbadge:not(.zero)) is
+   how a queue with work earns its blue edge -- and the loading badge
+   is EMPTY, so it carries no .zero and matched too. Every card in
+   the list lit up as though somebody were waiting on it, and then
+   half of them dropped to 0 and went grey. The loading state said the
+   opposite of what it found.
+
+   So .skel is excluded from that rule, and the whole row is drawn
+   quiet while we do not know: muted icon, muted title, a soft block
+   where the number will be. Nothing moves when the count lands. */
+.psm-dash .qcard .qbadge.skel{width:26px;height:20px;background:var(--line);
   color:transparent;border:0;box-shadow:none;
   animation:qpulse 1.1s ease-in-out infinite}
+.psm-dash .qcard:has(.qbadge.skel) .qi{opacity:.45;filter:saturate(.35)}
+.psm-dash .qcard:has(.qbadge.skel) .ql{opacity:.5}
+.psm-dash .qcard:has(.qbadge.skel) .go{opacity:.3}
 @keyframes qpulse{0%,100%{opacity:.5}50%{opacity:.9}}
 @media (prefers-reduced-motion:reduce){
-  .psm-dash .qcard .qbadge:empty{animation:none}
+  .psm-dash .qcard .qbadge.skel{animation:none}
 }
 @media (prefers-reduced-motion:reduce){
   .psm-dash .qcard.qskel .qi,
@@ -115,8 +133,8 @@ const DASH_CSS = `
    empty queue keeps its place and goes quiet. This screen is scanned for
    "who is waiting on me", and the answer should be visible from across a
    desk, not counted. */
-.psm-dash .qcard:has(.qbadge:not(.zero)){border-color:#cfe0ff;background:linear-gradient(180deg,#fff,var(--primary-tint))}
-.psm-dash .qcard:has(.qbadge:not(.zero))::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary)}
+.psm-dash .qcard:has(.qbadge:not(.zero):not(.skel)){border-color:#cfe0ff;background:linear-gradient(180deg,#fff,var(--primary-tint))}
+.psm-dash .qcard:has(.qbadge:not(.zero):not(.skel))::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--primary)}
 .psm-dash .qcard:has(.qbadge.unknown)::before{background:var(--faint)}
 /* A queue with nothing in it AND a queue that carries no count at all are
    both just links — neither is telling you to do anything. They were styled
@@ -606,7 +624,7 @@ export default function AdminDashboard() {
               {pending.isLoading ? (
                 /* Still counting. A quiet block, the same size as the
                    badge, so nothing moves when the number lands. */
-                <span className="qbadge" aria-hidden="true" />
+                <span className="qbadge skel" aria-hidden="true" />
               ) : hasCount ? (
                 /* Per-queue, deliberately: pending.isError is true when ANY
                    of the three failed, so testing it here would put a dash on

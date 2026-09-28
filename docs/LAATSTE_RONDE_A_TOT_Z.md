@@ -1040,6 +1040,16 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 - Elke bevinding is **gefixt en live**, niet genoteerd.
 - Wat niet te verifiëren was, staat hieronder met de reden.
 
+## Geen fout: TURLIT LLC heeft geen btw- of KvK-nummer
+
+Ik meldde 28-09 dat de afzenderrij een leeg `vat_no` en een leeg
+`registration_no` heeft, en dat dat op een belastingdocument een gat
+is. De eigenaar: "ja, is US LLC, heeft dat niet."
+
+Klopt, en daarmee is het geen invulding maar de werkelijkheid. De PDF
+laat die regels weg als ze leeg zijn, wat precies goed is. **Niet
+opnieuw als bevinding opschrijven.**
+
 ## Wat ik niet kan, en waar ik jou voor nodig heb
 
 - **Wachtwoorden en accounts aanmaken.** Drie keer in deze ronde,
