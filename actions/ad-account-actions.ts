@@ -1,7 +1,7 @@
 "use server";
 
 import { feeIsAPrice, isTenantOwner } from "@/actions/_fee-is-a-price";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { wroteSomething } from "./_shared";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { cookies } from "next/headers";
@@ -1098,7 +1098,35 @@ export async function createAdAccountFromRequest(
   // take ifUpdatedAt; this one was missed, and a row-version check would
   // not have been enough anyway — the second write has to fail because the
   // row is no longer claimable, not because it changed.
-  const { data: reqRows, error: reqError } = await supabase
+  // ── AND THE SERVER HAS TO SAY THAT IT IS THE SERVER ───────────────
+  //
+  // Walked on production, 28-09: this refused with
+  //
+  //   "ad_account_requests: voltooien gaat via de server, niet vanaf
+  //    een sessie"
+  //
+  // so approving an ad-account request was impossible. The guard behind
+  // it (_guard_ad_account_requests_session_write) is right: a browser
+  // must not be able to PATCH {"status":"completed"} and close a
+  // request without an account being made, keeping the EUR 50 and
+  // skipping the unpaid-fee check.
+  //
+  // But it tells a browser from the server by `current_user`, and this
+  // action -- which IS the server -- was writing with the SESSION
+  // client (publishable key, role `authenticated`), so it was
+  // indistinguishable from the thing the guard exists to stop. The
+  // guard blocked the one caller allowed to do this and nothing else.
+  //
+  // The service client for this one write. Every check the guard would
+  // have made has already been made above, in this function: the
+  // caller is an active admin of this tenant (requireAdminCtx), the
+  // request belongs to that tenant, it is not already completed, it is
+  // not rejected, and any unpaid fee invoice has been settled. The
+  // predicates below are kept as well, so even with RLS off the write
+  // can only touch this tenant's row and only while it is not already
+  // completed -- which is what makes two admins racing safe.
+  const db = await createAdminClient();
+  const { data: reqRows, error: reqError } = await db
     .from("ad_account_requests")
     .update({ status: "completed", rejection_reason: null })
     .eq("id", requestId)
@@ -1115,10 +1143,15 @@ export async function createAdAccountFromRequest(
     // — and the retry creates a second one. A rollback runs on the same
     // client whose write just failed, which is precisely when it is least
     // trustworthy.
-    const { data: rolledBack } = await supabase
+    // Same client as the write that just failed to land: a rollback
+    // that is itself refused leaves the customer holding a real ad
+    // account beside a request that is still open, which is how the
+    // next admin makes a second one.
+    const { data: rolledBack } = await db
       .from("ad_accounts")
       .delete()
       .eq("id", created.data.id)
+      .eq("tenant_id", profile.tenant_id)
       .select("id");
     if ((rolledBack ?? []).length === 0) {
       console.error(
@@ -1127,9 +1160,14 @@ export async function createAdAccountFromRequest(
     }
     return {
       ok: false,
-      error:
-        reqError?.message ??
-        "The account was not created: the request could not be marked completed, so it was rolled back. Reload and try again.",
+      // safeErrorMessage, not .message. This is where the database's
+      // own refusal reached the admin's screen verbatim -- in Dutch,
+      // in an English app: "ad_account_requests: voltooien gaat via de
+      // server, niet vanaf een sessie". A sentence that names an
+      // internal rule and tells the reader nothing they can act on.
+      error: reqError
+        ? `The account was not created and has been rolled back. ${safeErrorMessage(reqError)}`
+        : "The account was not created: the request could not be marked completed, so it was rolled back. Reload and try again.",
     };
   }
 
