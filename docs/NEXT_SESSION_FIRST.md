@@ -3174,3 +3174,46 @@ terug.
 `subscriptions.next_payment_date` een maand vooruit. Een terugbetaling
 moet die datum terugzetten, anders is de maand betaald, teruggegeven, en
 wordt hij nooit opnieuw gefactureerd.
+
+## Geld dat buiten ons om van een ad-account af gaat
+
+De eigenaar, 28-09, bij het kiezen van de twee-paar-ogen-regel: "maar
+wat nou als we bijvoorbeeld een ad-account leeghalen via het
+supplier-dashboard en niet via ons dashboard -- hoe gaat het dan? Dan
+moeten we dus manual."
+
+Goede vraag, en het antwoord is dat er vandaag GEEN detectie is.
+
+**Wat ons systeem denkt te weten.** Het saldo van een ad-account is
+nergens opgeslagen. Elke plek die er een noemt rekent hem uit als
+*gefund min al teruggevraagd* (`actions/withdrawal-actions.ts` en de
+twee database-plafonds). Haalt iemand geld weg bij de leverancier, dan
+verandert er bij ons niets en blijft dat cijfer te hoog staan -- tot de
+klant een opname vraagt die niet meer kan.
+
+**De handmatige weg bestaat al**, en dat is de bedoelde weg:
+"Withdraw for this customer" op het accountscherm -> goedkeuren. Sinds
+plak 121 moet een tweede persoon die goedkeuren, precies zoals bij alle
+andere opnames. Dat is geen extra last, dat IS de controle -- het is de
+enige rem op geld dat een medewerker met de hand verplaatst.
+
+**Wat er nog ontbreekt, en wat het zou moeten zijn:**
+
+1. **Een echte saldolees.** `readAdAccountLiveBalance` bestaat en is
+   precies hiervoor gebouwd, maar hij geeft `available: false` tenzij
+   het account in `supplier_ad_accounts` staat -- en gemeten 28-09:
+   **nul van de twaalf ad-accounts staat daarin**. Dus het
+   dekkingspaneel bij Approve zegt altijd "not read" en het vinkje "I
+   have checked the balance myself" is het enige wat de knop vrijgeeft.
+   De pool vullen maakt die controle in één klap echt.
+2. **Een verschilsignaal.** Zodra (1) er is: wat wij denken naast wat de
+   leverancier zegt, en een melding zodra die twee uit elkaar lopen. Dat
+   is de enige manier waarop "iemand heeft het buitenom weggehaald" ooit
+   uit zichzelf zichtbaar wordt.
+3. **Het bewijs.** Sinds vandaag KAN de schermafdruk bij de opname
+   worden gehangen (dat kon nooit -- `authenticated` had geen UPDATE op
+   die tabel). Maak hem verplicht bij een opname die de balie zelf
+   invoerde, dan is elke handmatige verplaatsing gedocumenteerd.
+
+Zonder (1) en (2) is de boekhouding sluitend zolang iedereen via ons
+dashboard werkt, en stil scheef zodra iemand dat niet doet.
