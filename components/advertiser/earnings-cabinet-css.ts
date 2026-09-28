@@ -107,6 +107,21 @@ export const EARNINGS_CABINET_CSS = `
 /* The four figures under it: the same tiles as everywhere, each lit from
    its own corner in its own colour. */
   .xstats .stat{position:relative;overflow:hidden}
+  /* ── THE FOUR FIGURES ON ONE LINE ──────────────────────────────
+     The owner, 28-09: "earned en awaiting payout bedragen niet op
+     zelfde line UI".
+
+     The advertiser shell sets .stat .v{margin-top:auto}, which pins the
+     number to the BOTTOM of the tile. Three of these four tiles have
+     nothing after the number, so it sits on the floor; "Awaiting
+     payout" has a caption under it ("All time, not this period"), which
+     takes that floor -- so its figure sits a line higher than the other
+     three. Four numbers meant to be read across, on two heights.
+
+     So in this grid the number goes directly under its label, and
+     anything after it takes the space that is left. */
+  .xstats .stat .v{margin-top:9px;padding-top:0}
+  .xstats .stat .v ~ .k{margin-top:auto;padding-top:6px}
   .xstats .stat::after{content:"";position:absolute;right:-34px;top:-34px;width:96px;height:96px;
     border-radius:50%;pointer-events:none;background:radial-gradient(circle,var(--xg,rgba(58,111,255,.16)),transparent 70%)}
   .xstats .stat.g-gold{--xg:rgba(239,176,44,.26)}.xstats .stat.g-win{--xg:rgba(16,185,129,.22)}
@@ -155,7 +170,21 @@ export const EARNINGS_CABINET_CSS = `
   .xrow .av{width:34px;height:34px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
     font-family:var(--hd);font-weight:800;font-size:.76rem;color:var(--primary-600);
     background:linear-gradient(135deg,var(--primary-tint),#f3e8ff)}
-  .xrow .pfi{width:34px;height:34px;border-radius:11px}
+  /* ── display AND place-items, not only a size ─────────────────
+     The owner, 28-09: "invoice icon bij Gers is raar, niet in het
+     midden."
+
+     The base .pfi (a 30px grid box that centres its glyph) lives in
+     the ADVERTISER shell, and this row also renders in the AFFILIATE
+     portal, where that stylesheet is not loaded. So all that applied
+     was this rule plus the colours below: no display, no place-items,
+     and a width that a block element ignores in favour of shrinking to
+     its content. Measured on the live page: 22.58 x 34, place-items
+     normal, with the 17px icon sitting in the top-left corner.
+     The box carries its own centring now, so it does not depend on
+     which shell it happens to be rendered in. */
+  .xrow .pfi{display:grid;place-items:center;width:34px;height:34px;
+    border-radius:11px;flex:0 0 auto}
   .xrow .pfi .ic{width:17px;height:17px}
   .xrow .pfi.k-sub{background:var(--primary-tint);border-color:transparent;color:var(--primary-600)}
   .xrow .pfi.k-bonus{background:var(--gold-soft);border-color:transparent;color:#a9740b}
@@ -363,7 +392,14 @@ export const EARNINGS_CABINET_CSS = `
   .xp-pr .l{font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   .xp-pr .v{margin-left:auto;font-family:var(--hd);font-weight:800;font-size:1.25rem;letter-spacing:-.02em;
     color:var(--ink)}
-  .xp-pr .bar{display:block;height:6px;border-radius:99px;background:var(--line-2);overflow:hidden}
+  /* width AND max-width, both on purpose. The affiliate shell defines
+     its own .bar for the vertical bars of a CHART -- width:100% with
+     max-width:38px -- and this rule never declared either, so the
+     payout progress track inherited the 38px cap and came out as a
+     stub whatever the percentage. The owner, 28-09: "de balkje is erg
+     klein en raar". At EUR 75 of 200 it should be 37.5% of the card. */
+  .xp-pr .bar{display:block;width:100%;max-width:none;height:6px;
+    border-radius:99px;background:var(--line-2);overflow:hidden}
   .xp-pr .fill{display:block;height:100%;border-radius:99px;
     background:linear-gradient(90deg,#5b8dff,#8b5cf6);transition:width .5s cubic-bezier(.3,1,.4,1)}
   .xp-prog.ok .fill{background:linear-gradient(90deg,#34d399,#10b981)}
