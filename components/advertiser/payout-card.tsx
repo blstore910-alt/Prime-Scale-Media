@@ -698,26 +698,48 @@ export default function PayoutCard({
         <div className="xp-hist">
           <div className="xp-hh">Earlier payouts</div>
           {history.map((p) => (
-            <button className="xp-h" key={p.id} onClick={() => setView([p])}>
-              <span className={`hi ${p.status}`}>
-                <Ic name={p.status === "paid" ? "i-check" : "i-x"} />
-              </span>
-              <span className="mid">
-                <span className="m">{receives(p)}</span>
-                <span className="d">
-                  {refOf(p) ? `Payout ${refOf(p)} · ` : ""}
-                  {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
-                  {p.reference || p.reason ? ` · ${p.reference || p.reason}` : ""}
+            // ── THE INVOICE IS ON THE ROW, NOT ONLY BEHIND IT ──────
+            //
+            // The owner, 28-09: "ik kan ook nergens invoice zien". It
+            // existed -- click the row, read the dialog, press Invoice
+            // -- and that is two steps too many for the one document a
+            // partner has to keep for their books. It is now on the
+            // line it belongs to.
+            //
+            // Not on a refused or withdrawn one: there is no invoice
+            // for a transfer we did not make (the route answers 409).
+            <div className="xp-hrow" key={p.id}>
+              <button className="xp-h" onClick={() => setView([p])}>
+                <span className={`hi ${p.status}`}>
+                  <Ic name={p.status === "paid" ? "i-check" : "i-x"} />
                 </span>
-              </span>
-              <span
-                className={`badge xs ${
-                  p.status === "paid" ? "ok" : p.status === "rejected" ? "due" : "muted"
-                }`}
-              >
-                {STATUS_LABEL[p.status] ?? p.status}
-              </span>
-            </button>
+                <span className="mid">
+                  <span className="m">{receives(p)}</span>
+                  <span className="d">
+                    {refOf(p) ? `Payout ${refOf(p)} · ` : ""}
+                    {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
+                    {p.reference || p.reason ? ` · ${p.reference || p.reason}` : ""}
+                  </span>
+                </span>
+                <span
+                  className={`badge xs ${
+                    p.status === "paid" ? "ok" : p.status === "rejected" ? "due" : "muted"
+                  }`}
+                >
+                  {STATUS_LABEL[p.status] ?? p.status}
+                </span>
+              </button>
+              {p.status === "rejected" || p.status === "cancelled" ? null : (
+                <a
+                  className="xp-hinv"
+                  href={`/api/payouts/${p.id}/invoice`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Ic name="i-receipt" /> Invoice
+                </a>
+              )}
+            </div>
           ))}
         </div>
       ) : null}

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { maintenanceGuard } from "./_shared";
+import { safeErrorMessage } from "@/lib/pure-error";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -174,7 +175,10 @@ export async function decideAffiliateApplication(
         error: "Answering applications is not switched on in the database yet (plak 42).",
       };
     }
-    return { ok: false, error: error.message };
+    // safeErrorMessage, not the raw message: a Postgres error carries
+    // details/hint/row, and this one is returned straight into the
+    // customer's browser.
+    return { ok: false, error: safeErrorMessage(error) };
   }
   return { ok: true, data: null };
 }
@@ -197,6 +201,18 @@ export async function requestAdvertiserUpgrade(): Promise<
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
     return { ok: false, error: "Please sign in and try again." };
+  }
+
+  // The same bucket as the application, which is what its own comment
+  // says it covers ("asking to advertise too") -- it just was not wired
+  // here. The RPC answers `already_sent` while one is open, so the loop
+  // this stops is refuse -> ask again -> refuse, each round a fresh
+  // notification in the owner's queue. Errs open, like every bucket.
+  if (!(await rateLimitCheck(LIMITS.affiliateApplication, `user:${userData.user.id}`))) {
+    return {
+      ok: false,
+      error: "You've sent this a few times already. Give us a moment to look at it.",
+    };
   }
 
   const { data, error } = await supabase.rpc("affiliate_upgrade_request");
@@ -254,7 +270,10 @@ export async function decideAdvertiserUpgrade(
         error: "Advertiser mode is not switched on in the database yet (plak 43).",
       };
     }
-    return { ok: false, error: error.message };
+    // safeErrorMessage, not the raw message: a Postgres error carries
+    // details/hint/row, and this one is returned straight into the
+    // customer's browser.
+    return { ok: false, error: safeErrorMessage(error) };
   }
   return { ok: true, data: null };
 }

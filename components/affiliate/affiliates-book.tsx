@@ -378,6 +378,10 @@ function UpgradeDecision({
       });
     },
     onError: (e: Error) => toast.error("Couldn't save that", { description: e.message }),
+    // The dialog closes when the write has actually finished, not the
+    // moment the button is pressed. On the way it shows "Saving…"; if
+    // it fails, the toast lands on the dialog that asked for it.
+    onSettled: () => setAsking(null),
   });
 
   return (
@@ -405,10 +409,17 @@ function UpgradeDecision({
         tone={asking === "refuse" ? "danger" : undefined}
         busy={decide.isPending}
         busyLabel="Saving…"
+        // A greyed-out confirm that says nothing is a dead end, and
+        // ConfirmModal carries the slot for exactly this -- six other
+        // dialogs in this repo pass it.
+        disabledHint="Write a reason first — the affiliate reads it."
         disabled={asking === "refuse" && !reason.trim()}
         onConfirm={() => {
+          // NOT closed here. It was closed synchronously beside the
+          // mutate, so busy/busyLabel could never render and a failed
+          // RPC landed as a toast over a dialog that was already gone.
+          // The mutation closes it when it has actually finished.
           if (asking) decide.mutate(asking === "approve");
-          setAsking(null);
         }}
       >
         <ConfirmFact label="Affiliate" value={who} />
@@ -464,6 +475,10 @@ function ApplicationDecision({
       });
     },
     onError: (e: Error) => toast.error("Couldn't save that", { description: e.message }),
+    // The dialog closes when the write has actually finished, not the
+    // moment the button is pressed. On the way it shows "Saving…"; if
+    // it fails, the toast lands on the dialog that asked for it.
+    onSettled: () => setAsking(null),
   });
 
   const who = [member.name, member.code].filter(Boolean).join(" · ") || "—";
@@ -491,10 +506,17 @@ function ApplicationDecision({
         tone={asking === "refuse" ? "danger" : undefined}
         busy={decide.isPending}
         busyLabel="Saving…"
+        // A greyed-out confirm that says nothing is a dead end, and
+        // ConfirmModal carries the slot for exactly this -- six other
+        // dialogs in this repo pass it.
+        disabledHint="Write a reason first — the affiliate reads it."
         disabled={asking === "refuse" && !reason.trim()}
         onConfirm={() => {
+          // NOT closed here. It was closed synchronously beside the
+          // mutate, so busy/busyLabel could never render and a failed
+          // RPC landed as a toast over a dialog that was already gone.
+          // The mutation closes it when it has actually finished.
           if (asking) decide.mutate(asking === "approve");
-          setAsking(null);
         }}
       >
         <ConfirmFact label="Advertiser" value={who} />
@@ -1254,17 +1276,41 @@ function AffiliateDetail({
                         const st = (c.status ?? "unpaid").toLowerCase();
                         if (st === "on_hold" || st === "reversed") continue;
                         earned[cur] = Math.round(((earned[cur] ?? 0) + Number(c.amount)) * 100) / 100;
-                        if (st !== "paid") owed[cur] = Math.round(((owed[cur] ?? 0) + Number(c.amount)) * 100) / 100;
+                        // ── THE SAME ROWS THE TILE COUNTS ───────────
+                        //
+                        // "not paid" is not the same as "still owed". A
+                        // commission already stamped with a payout_id has
+                        // been ASKED FOR: the tile above excludes it and
+                        // so does the RPC that pays. This column did not,
+                        // so on 28-09 between 18:50 and 19:34 the card
+                        // read "Still owed EUR 0,00" with the customer
+                        // row under it reading "Owed EUR 75,00" -- the
+                        // same screen, two answers.
+                        if (st !== "paid" && !c.payout_id) {
+                          owed[cur] = Math.round(((owed[cur] ?? 0) + Number(c.amount)) * 100) / 100;
+                        }
                       }
                       // NET, like the tiles above and like the affiliate's
                       // own screen: what came back off this referral is off
                       // this referral. Gross here under a netted total made
                       // the column add up to more than the card.
+                      //
+                      // EARNED nets ALL clawbacks (it is lifetime), OWED
+                      // only the OPEN ones. A clawback already settled
+                      // against a transfer has come off that payment;
+                      // taking it off what is still to come as well
+                      // charges the affiliate twice, for ever. This file's
+                      // own hook says so at the top of use-affiliate-book.
                       const back = l.clawbacks ?? {};
-                      for (const cur of Object.keys(back)) {
+                      const backOpen = l.openClawbacks ?? {};
+                      for (const cur of new Set([
+                        ...Object.keys(back),
+                        ...Object.keys(backOpen),
+                      ])) {
                         const n = back[cur] ?? 0;
+                        const open = backOpen[cur] ?? 0;
                         earned[cur] = Math.max(Math.round(((earned[cur] ?? 0) - n) * 100) / 100, 0);
-                        owed[cur] = Math.max(Math.round(((owed[cur] ?? 0) - n) * 100) / 100, 0);
+                        owed[cur] = Math.max(Math.round(((owed[cur] ?? 0) - open) * 100) / 100, 0);
                       }
                       return (
                         <React.Fragment key={l.id}>

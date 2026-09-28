@@ -55,7 +55,7 @@ layout guards.
 | `/activity-logs` | requireSuperAdmin + requireAdmin | `activity-logs/activity-logs-table` |
 | `/ad-account-requests` | requireAdmin | `ad-account-requests/psm-requests` |
 | `/admins` | requireSuperAdmin + requireAdmin | `admins/admins-table` |
-| `/affiliates` | requireSuperAdmin + requireAdmin | `affiliate/affiliate-table` |
+| `/affiliates` | requireSuperAdmin | `affiliate/affiliates-book` (NOT `affiliate/affiliate-table`, which nothing imports) |
 | `/audit` | requireSuperAdmin + requireAdmin | `audit/audit-events-table` |
 | `/auth/error` | NONE | `ui/card` |
 | `/auth/forgot-password` | NONE | `forgot-password-form` |
@@ -75,7 +75,7 @@ layout guards.
 | `/invoices` | requireAdmin | `invoices/invoices-table` |
 | `/manual` | requireAdmin | `admin/admin-manual` |
 | `/my-invites` | NONE | `invites/invites-table` |
-| `/my-referrals` | requireAdmin | `affiliate/aff-app` |
+| `/my-referrals` | resolveActiveProfile | `affiliate/aff-app` |
 | `/my-subscription` | requireAdmin | `-` |
 | `/notifications` | redirectCustomersToTheirShell + requireAdmin | `ad-account-requests/create-ad-account-from-request-dialog` |
 | `/onboard` | NONE | `-` |

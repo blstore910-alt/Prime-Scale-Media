@@ -43,6 +43,10 @@ export type BookLink = {
   /** What was taken back on this referral, per currency. Filled in by
    *  groupAffiliateBook so a per-customer figure nets like the totals. */
   clawbacks?: Record<string, number>;
+  /** Of those, the part not yet settled against a transfer. The OWED
+   *  column must subtract only this -- an already-settled clawback has
+   *  come off a payment, not off what is still to come. */
+  openClawbacks?: Record<string, number>;
 };
 
 export type BookCommission = {
@@ -280,7 +284,10 @@ export function groupAffiliateBook(
   // The same figure the affiliate's own screen subtracts, carried on the
   // link so the per-customer table can show it too instead of printing a
   // gross number under a netted total.
-  for (const l of links) l.clawbacks = clawByLink.get(l.id) ?? {};
+  for (const l of links) {
+    l.clawbacks = clawByLink.get(l.id) ?? {};
+    l.openClawbacks = openClawByLink.get(l.id) ?? {};
+  }
 
   for (const [linkId, b] of perLink) {
     const affId = linkToAffiliate.get(linkId);
@@ -308,7 +315,24 @@ export function groupAffiliateBook(
       // link's open commission is silently forgiven and the owner's book
       // sits above the figure the RPC will actually pay.
       add(a.owed, cur, (b.owed[cur] ?? 0) - backOpen);
-      add(a.paid, cur, b.paid[cur] ?? 0);
+      // PAID IS WHAT LEFT THE BANK, so the clawbacks that were settled
+      // against a transfer come off it too. This added the gross
+      // commission and nothing else, and the owner's book therefore
+      // claimed more had been paid than ever was.
+      //
+      // Measured on PSM0005, 28-09: commissions marked paid 9,96 +
+      // 15,00 = 24,96; clawbacks 1,99 + 2,05 = 4,04, both stamped with
+      // payout 5addd41e so both were settled; `affiliate_payouts.amount`
+      // 4,96 + 15,96 = 20,92. The book showed Earned 20,92 / Still owed
+      // 0,00 / Paid 24,96 -- four euros four above the bank, and the
+      // three figures did not add up to each other on one card.
+      //
+      // The SETTLED half is `back - backOpen`: everything clawed back
+      // minus what is still open. An open clawback has not been taken
+      // off any transfer yet, so it belongs to `owed` (two lines up)
+      // and not here -- taking it off both is the double subtraction
+      // this file warns about at the top.
+      add(a.paid, cur, Math.max((b.paid[cur] ?? 0) - (back - backOpen), 0));
     }
   }
 

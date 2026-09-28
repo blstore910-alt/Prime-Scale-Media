@@ -551,6 +551,14 @@ export const EARNINGS_CABINET_CSS = `
   .xp-h .m{font-family:var(--hd);font-weight:800;font-size:.92rem;color:var(--ink)}
   .xp-h .d{font-size:.74rem;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .xp-h .badge{flex:0 0 auto}
+  /* The row and its invoice link are siblings -- an <a> cannot live
+     inside the <button> that opens the dialog. */
+  .xp-hrow{display:flex;flex-direction:column}
+  .xp-hinv{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
+    margin:-2px 0 4px 48px;padding:3px 8px;border-radius:8px;
+    font-size:.74rem;font-weight:700;color:var(--primary);text-decoration:none}
+  .xp-hinv svg{width:13px;height:13px}
+  .xp-hinv:hover{background:var(--panel-2);text-decoration:underline}
   .xp-cur{display:flex;gap:6px;margin-bottom:12px}
   .xp-cur button{flex:1 1 0;border:1px solid var(--line-2);background:var(--panel-2);font:inherit;font-weight:700;
     font-size:.82rem;color:var(--txt-2);padding:10px;border-radius:12px;cursor:pointer;white-space:nowrap}

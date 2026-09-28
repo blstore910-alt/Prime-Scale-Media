@@ -4452,6 +4452,34 @@ export default function AdvertiserApp() {
                 <span className="sk w70" />
                 <span className="sk btn" />
               </div>
+            ) : affiliateError ? (
+              // ── A FAILED READ IS NOT "NOT AN AFFILIATE" ──────────
+              //
+              // Without this branch the chain fell through to the
+              // `else` and rendered the FULL affiliate dashboard to
+              // somebody whose status we could not read: no "Join"
+              // button anywhere (that lives in the joinhero two
+              // branches up, which does not render), the payout card
+              // gone (`enabled={isAffiliate}` is false), and under the
+              // empty figures the sentence "We couldn't check your
+              // referral link just now" -- shown to people who have
+              // never applied. Every route into the feature closed at
+              // once, with nothing saying why.
+              //
+              // advertise-too-card.tsx solved this same shape already
+              // and writes it out: "the whole feature disappeared off
+              // the screen with no trace".
+              <div className="card">
+                <h2 style={{ marginTop: 0 }}>Affiliate program</h2>
+                <p className="cap" style={{ marginBottom: 14 }}>
+                  We couldn&apos;t check where you stand just now. This does
+                  not mean anything has changed — reload and it should be
+                  back.
+                </p>
+                <button className="btn" onClick={() => window.location.reload()}>
+                  Reload
+                </button>
+              </div>
             ) : !isAffiliate && !affiliateUnknown && (applicationOpen || applicationRefused) ? (
               // Applied, or refused: an answer, not the offer again with
               // its button greyed out (the owner: "erg lelijk").
@@ -4863,7 +4891,7 @@ export default function AdvertiserApp() {
                 <p className="xl-empty">
                   {affRanged.isError
                     ? "We couldn't read your referrals just now — this is not a zero. Reload to try again."
-                    : affRanged.isLoading
+                    : affRanged.isPending
                       ? "Loading your referrals…"
                       : "No referrals yet — share your link and they appear here."}
                 </p>
@@ -7614,7 +7642,14 @@ export default function AdvertiserApp() {
                   // docblock says the point is to avoid dangling dead
                   // toggles. It is one row now rather than ten, and for
                   // somebody who is not an affiliate it is none.
-                  .filter((g) => g.id !== "referrals" || isAffiliate)
+                  // `isAffiliate` is false while the read is still in
+                  // flight AND when it failed, and a switch that is not
+                  // there reads as "you do not get this kind of notice".
+                  // An approved affiliate opening Settings on a flaky
+                  // connection lost all ten referral and payout
+                  // switches with nothing saying why. Its neighbour two
+                  // lines down already guards on affiliateUnknown.
+                  .filter((g) => g.id !== "referrals" || isAffiliate || affiliateUnknown)
                   .map((g) => (
                     <GroupToggle key={g.id} group={g} />
                   ))}

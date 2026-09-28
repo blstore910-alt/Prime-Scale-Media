@@ -150,3 +150,20 @@ so that control could no longer work anyway — it would have failed with
 `actions/referral-actions.ts:setCommissionStatus` is still in the tree and
 now has no caller. Leave it there or delete it with its tests; do not
 mount a new button on it without a payout row behind the money.
+
+## 2026-09-28 — de affiliate-tabel naast het affiliate-boek
+
+`/affiliates` rendert `affiliate/affiliates-book.tsx`. ROUTE_MAP zei tot
+vandaag `affiliate/affiliate-table` — dat is de val die CLAUDE.md
+beschrijft, en het scheelde weinig of een fix uit blok 10 was daarin
+geland.
+
+| file | reached by |
+|---|---|
+| `affiliate/affiliate-table.tsx` | **nothing** (alleen zichzelf) |
+| `affiliate/affiliate-table-row.tsx` | alleen die tabel |
+
+Let op vóór verwijderen: `affiliate-table-row.tsx` draagt nog een
+volledige `ReferralStatusAction`-bedrading. Het boek heeft zijn eigen
+goedkeur/weiger-weg (`affiliates-book.tsx`), dus die twee zijn uit
+elkaar gelopen en de dode kant is niet meegegroeid.

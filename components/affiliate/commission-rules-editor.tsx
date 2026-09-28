@@ -356,11 +356,17 @@ export default function CommissionRulesEditor({
         } catch (e) {
           // Saying "the rules were not saved" here is false, and it
           // invites a second press that writes a second rule version.
-          throw new Error(
+          const err = new Error(
             `The rules are saved, but the approval did not go through: ${
               e instanceof Error ? e.message : "unknown error"
             } They are still waiting; try Approve again.`,
           );
+          // The title onError puts above this message was "The rules
+          // were not saved" -- the flat opposite of the sentence under
+          // it, on one toast. Flagged so onError can say the right
+          // thing; the message itself was already careful.
+          (err as Error & { rulesSaved?: boolean }).rulesSaved = true;
+          throw err;
         }
       }
       return res.data;
@@ -385,7 +391,11 @@ export default function CommissionRulesEditor({
       onOpenChange(false);
     },
     onError: (err: Error) => {
-      toast.error("The rules were not saved", { description: err.message });
+      const rulesSaved = (err as Error & { rulesSaved?: boolean }).rulesSaved;
+      toast.error(
+        rulesSaved ? "Approved failed — the rules are saved" : "The rules were not saved",
+        { description: err.message },
+      );
     },
   });
 

@@ -1,4 +1,24 @@
 -- =====================================================================
+-- ⚠ SUPERSEDED — DO NOT RE-APPLY THIS FILE (measured 28-09-2026)
+-- =====================================================================
+-- The live `affiliate_application_submit` is the one from plak 42
+-- (supabase/checks/PLAK-DIT-42-F1-GOEDKEUREN-TELT-TERUG.sql), and it
+-- does something this file does not: it SETS `affiliate_status` to
+-- 'applied' and stamps `affiliate_applied_at`. The body below only
+-- raises the notification.
+--
+-- Same name, same signature. `create or replace` therefore overwrites
+-- the live one, and after that an application leaves
+-- `affiliate_status` on null, so it never appears in "Waiting for you"
+-- on /affiliates and the owner never sees it. The customer still gets
+-- ok:true.
+--
+-- Kept for its reasoning, which is still correct and is why the RPC
+-- exists at all. If this ever needs to run again, take the live body
+-- (`select pg_get_functiondef(oid) …`) as the starting point.
+-- =====================================================================
+
+-- =====================================================================
 -- affiliate_application_submit — the button that could never write
 -- =====================================================================
 -- "Join the affiliate program" inserts a notification addressed to the

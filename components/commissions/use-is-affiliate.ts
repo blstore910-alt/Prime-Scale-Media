@@ -85,7 +85,7 @@ export default function useIsAffiliate() {
         query = query.eq("tenant_id", tenantId);
       }
       const { count, error } = await query;
-      if (!error && (count ?? 0) > 0) {
+      if (!error && typeof count === "number" && Number.isFinite(count) && count > 0) {
         return { isAffiliate: true, application: null, refusalReason: null };
       }
 
@@ -94,6 +94,23 @@ export default function useIsAffiliate() {
       // retries, and isError stays false — an entitlement denied on an
       // unknown, permanently, until the tab is closed.
       if (error) throw error;
+      // AND A MISSING COUNT IS AN UNKNOWN, not a zero. `count` is parsed
+      // out of the content-range HEADER and postgrest-js leaves it null
+      // -- with `error` null -- when that header is absent or
+      // unparseable. `count ?? 0` turned that into "no links", fell on
+      // through to the commission terms, and ended at
+      // `isAffiliate: false` for somebody with a live referral link:
+      // their payout card gone, their referral link replaced by "ask an
+      // admin to enable the affiliate program", cached for the tab.
+      //
+      // The paragraph directly above is the rule; this line was the
+      // exception to it. hooks/use-affiliates-waiting.ts carries the
+      // same guard for the same reason.
+      if (count === null || count === undefined || !Number.isFinite(count)) {
+        throw new Error(
+          "We could not read your referral links just now. Reload and it should appear.",
+        );
+      }
 
       const { data: terms, error: termsError } = await supabase
         .from("advertisers")
