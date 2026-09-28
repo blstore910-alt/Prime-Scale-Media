@@ -202,7 +202,7 @@ export default function ReadonlyTopupsTable({
         </Table>
       </div>
 
-      {!isLoading && !isError && total > perPage && (
+      {!isLoading && !isError && (total === null || total > perPage) && (
         <div className="p-4">
           <TablePagination
             page={page}

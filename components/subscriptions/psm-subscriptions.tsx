@@ -105,7 +105,8 @@ export default function PsmSubscriptions() {
           .select("id", { count: "exact", head: true })
           .eq("tenant_id", profile?.tenant_id)
           .eq("status", st);
-        return error ? null : (count ?? 0);
+        // null on BOTH failures -- see the twin in psm-advertisers.
+        return error || !Number.isFinite(count as number) ? null : (count as number);
       };
       const [active, pastDue, paused, inactive] = await Promise.all([
         one("active"),
@@ -221,9 +222,16 @@ export default function PsmSubscriptions() {
       (s.advertiser?.tenant_client_code ?? "").toLowerCase().includes(q)
     );
   });
-  const searchIsPageOnly = !!q && total > subscriptions.length;
+  // `total` is null when the content-range header could not be read.
+  // Unknown is not "there are none" and not "this page is all there
+  // is": the search hint stays quiet rather than claiming something,
+  // and the pager below keeps its arrows so page 2 stays reachable.
+  const totalKnown = typeof total === "number" && Number.isFinite(total);
+  const searchIsPageOnly = !!q && totalKnown && total > subscriptions.length;
 
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const totalPages = totalKnown
+    ? Math.max(1, Math.ceil(total / PER_PAGE))
+    : page + 1;
 
   return (
     <div
@@ -715,7 +723,7 @@ export default function PsmSubscriptions() {
         </div>
       )}
 
-      {total > PER_PAGE && (
+      {(!totalKnown || total > PER_PAGE) && (
         <div
           style={{
             display: "flex",

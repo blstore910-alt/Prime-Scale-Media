@@ -126,7 +126,10 @@ export default function SystemStatusPanel() {
       <div className="sgrid">
         {tiles.map((tile) => {
           const Icon = tile.icon;
-          const val = tile.value ?? (status.isLoading ? "…" : 0);
+          // A dash, not a zero. A tile whose read failed must not claim
+          // there is nothing waiting — that is the one thing this
+          // screen exists to say.
+          const val = tile.value ?? (status.isPending ? "…" : "—");
           return (
             <Link
               key={tile.key}

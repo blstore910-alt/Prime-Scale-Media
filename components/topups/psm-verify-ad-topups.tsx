@@ -140,6 +140,13 @@ export default function PsmVerifyAdTopups() {
     if (isLoading) return;
     if (page <= 1) return;
     if (shownCount > 0) return;
+    // Unknown is not zero: with no count we cannot work out the last
+    // page, so go back to the first rather than leaving the admin on
+    // an empty one with no control to get off it.
+    if (total === null) {
+      setPage(1);
+      return;
+    }
     if (total <= 0) return;
     setPage(Math.max(1, Math.ceil(total / perPage)));
   }, [isLoading, page, total, shownCount]);
@@ -446,7 +453,8 @@ export default function PsmVerifyAdTopups() {
           a reload escaped. The gate is `total`, which is the whole
           queue, not the slice. The clamp above walks the page back so
           this cannot be reached in the first place. */}
-      {!isLoading && total > perPage ? (
+      {!isLoading &&
+      (total === null ? shownCount >= perPage : total > perPage) ? (
         <div className="my-4 px-4">
           <TablePagination
             page={page}

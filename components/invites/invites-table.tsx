@@ -124,11 +124,17 @@ export default function InvitesTable() {
         .order("id", { ascending: false })
         .range(start, end);
       if (error) throw error;
-      return { items: data ?? [], total: count ?? 0 };
+      // null, not 0: `count` comes out of the content-range header and
+      // is null with no error when that header is missing. A 0 here
+      // hides the pager and makes page 2 unreachable.
+      return {
+        items: data ?? [],
+        total: Number.isFinite(count as number) ? (count as number) : null,
+      };
     },
   });
   const invites = invitesData?.items ?? [];
-  const total = invitesData?.total ?? 0;
+  const total = invitesData?.total ?? null;
 
   // The client code is NOT on the invitation — it is assigned when the
   // advertiser row is created at signup, so a pending invite genuinely does
@@ -464,7 +470,7 @@ export default function InvitesTable() {
         </div>
       </div>
 
-      {total > 0 && (
+      {(total === null || total > 0) && (
         <TablePagination
           total={total}
           page={page}

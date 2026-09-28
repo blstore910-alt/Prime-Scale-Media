@@ -102,7 +102,7 @@ export default function useTopups(params: TopupsQueryParams = {}) {
   );
 
   const { data, isPending, isError, error, refetch } = useQuery<
-    { items: Topup[]; total: number } | undefined
+{ items: Topup[]; total: number | null } | undefined
   >({
     queryKey,
     enabled: params.enabled ?? true,
@@ -111,7 +111,7 @@ export default function useTopups(params: TopupsQueryParams = {}) {
 
   async function runQuery(skipDeletedFilter: boolean): Promise<{
     items: Topup[];
-    total: number;
+    total: number | null;
   }> {
     {
       const {
@@ -231,13 +231,22 @@ export default function useTopups(params: TopupsQueryParams = {}) {
         });
       }
 
-      return { items: results, total: count ?? results.length };
+      // A COUNT WE DID NOT GET IS NOT A TOTAL. Both sister hooks were
+      // already fixed for this and say why; this one was the last.
+      // `count` comes out of the content-range HEADER and is null with
+      // no error when it is missing, so `?? results.length` means
+      // "this page is everything" -- the pager hides and page 2 is
+      // unreachable.
+      return {
+        items: results,
+        total: Number.isFinite(count as number) ? (count as number) : null,
+      };
     }
   }
 
   return {
     topups: data?.items ?? [],
-    total: data?.total ?? 0,
+    total: data?.total ?? null,
     // ── isPending, NOT isLoading ──────────────────────────────────
     //
     // react-query v5: isLoading = isPending && isFetching. A DISABLED

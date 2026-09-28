@@ -96,8 +96,11 @@ export async function getAutoPushStatus(): Promise<
     .eq("provider", "supplier1")
     .in("operation", ["push_topup", "push_withdraw"])
     .eq("status", "pending");
-  held = count ?? 0;
-  let queueUnknown = !!heldErr || count === null || count === undefined;
+  // `queueUnknown` carries the truth; `held` is only read when that is
+  // false, so it starts at 0 rather than dressing a null count up as a
+  // real one.
+  let queueUnknown = !!heldErr || !Number.isFinite(count as number);
+  held = queueUnknown ? 0 : (count as number);
 
   // ...and the ones that gave up. See the type above for what a 0 here
   // was hiding.
@@ -547,7 +550,13 @@ export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
   // refused read printed "0 Deposits" with nothing anywhere saying the
   // feed could not be reached. The third tile already renders a dash
   // for unknown; now the first two can too.
-  if (totalRes.error || refRes.error || newestRes.error) {
+  // A null count belongs in this branch too: postgrest-js leaves
+  // `count` null with `error` null when the content-range header is
+  // missing, and the panel already renders the unknown case properly.
+  const countMissing =
+    !Number.isFinite(totalRes.count as number) ||
+    !Number.isFinite(refRes.count as number);
+  if (totalRes.error || refRes.error || newestRes.error || countMissing) {
     return {
       ok: false,
       error:
@@ -562,8 +571,8 @@ export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
   return {
     ok: true,
     ...empty,
-    total: totalRes.count ?? 0,
-    withReference: refRes.count ?? 0,
+    total: totalRes.count as number,
+    withReference: refRes.count as number,
     newestReceivedAt: newestRes.data?.[0]?.created_at ?? null,
   };
 }

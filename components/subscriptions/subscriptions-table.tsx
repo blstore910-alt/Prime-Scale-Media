@@ -234,7 +234,7 @@ export default function SubscriptionsTable() {
           </Table>
         </div>
 
-        {total > PER_PAGE && (
+        {(total === null || total > PER_PAGE) && (
           <div className="px-2">
             <TablePagination
               total={total}

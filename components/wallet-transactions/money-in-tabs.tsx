@@ -87,10 +87,19 @@ function useQueueCounts(tenantId: string | null) {
           .eq("status", "outstanding"),
       ]);
 
+      // null on BOTH failures. The header at the top of this file
+      // and hooks/use-pending-counts both say why: `count` is parsed
+      // out of the content-range HEADER and postgrest-js leaves it
+      // null with `error` null. These three drive the tab badges, so
+      // a 0 here reads "nothing waiting" over a queue with 78 in it --
+      // while the sidebar, which uses the fixed helper, shows a dash.
+      // Two numbers for one queue, on one screen, disagreeing.
+      const n = (e: unknown, c: number | null) =>
+        e || !Number.isFinite(c as number) ? null : (c as number);
       return {
-        topups: topups.error ? null : (topups.count ?? 0),
-        deposits: deposits.error ? null : (deposits.count ?? 0),
-        precharge: precharges.error ? null : (precharges.count ?? 0),
+        topups: n(topups.error, topups.count),
+        deposits: n(deposits.error, deposits.count),
+        precharge: n(precharges.error, precharges.count),
       };
     },
   });

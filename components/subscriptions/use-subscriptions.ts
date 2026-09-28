@@ -26,7 +26,7 @@ export default function useSubscriptions(params: SubscriptionsQueryParams = {}) 
   );
 
   const { data, isLoading, isError, error } = useQuery<
-    { items: Subscription[]; total: number } | undefined
+    { items: Subscription[]; total: number | null } | undefined
   >({
     queryKey,
     enabled: profile?.role === "admin" && !!profile?.tenant_id,
@@ -88,14 +88,21 @@ export default function useSubscriptions(params: SubscriptionsQueryParams = {}) 
 
       return {
         items: (rows ?? []) as unknown as Subscription[],
-        total: count ?? (rows ?? []).length,
+        // A COUNT WE DID NOT GET IS NOT A TOTAL. postgrest-js parses
+        // `count` out of the content-range HEADER and leaves it null,
+        // with `error` null, when that header is missing -- so this
+        // read "this page is all there is": on a full first page the
+        // pager hides itself and page 2 becomes unreachable. null
+        // travels instead, and the consumer shows the pager anyway.
+        total: typeof count === "number" && Number.isFinite(count) ? count : null,
       };
     },
   });
 
   return {
     subscriptions: data?.items ?? [],
-    total: data?.total ?? 0,
+    // null = we could not read how many there are. Not zero.
+    total: data?.total ?? null,
     isLoading,
     isError,
     error,

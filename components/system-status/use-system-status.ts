@@ -4,13 +4,19 @@ import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
+/**
+ * Every figure may be null: "we could not read it". On a status screen
+ * that distinction is the whole point — a 0 over a failed read says
+ * nothing needs attention, which is the one thing this page must never
+ * say by accident.
+ */
 export type SystemStatus = {
-  activeAdmins24h: number;
-  auditEvents24h: number;
-  pendingWalletTopups: number;
-  pendingAdRequests: number;
-  pendingTopUps: number;
-  totalAudit: number;
+  activeAdmins24h: number | null;
+  auditEvents24h: number | null;
+  pendingWalletTopups: number | null;
+  pendingAdRequests: number | null;
+  pendingTopUps: number | null;
+  totalAudit: number | null;
 };
 
 export function useSystemStatus() {
@@ -83,13 +89,25 @@ export function useSystemStatus() {
       ].find((r) => r.error);
       if (failed?.error) throw failed.error;
 
+      // ── A STATUS SCREEN MAY NOT GUESS ──────────────────────────
+      //
+      // `count` comes out of the content-range HEADER, and postgrest-js
+      // leaves it null — with `error` null — when that header is
+      // missing. `?? 0` turns "we could not read it" into "there are
+      // none", and this is the worst screen in the app for that: the
+      // whole page exists to say whether anything needs attention, and
+      // a confident 0 says no.
+      //
+      // null travels; the panel prints a dash for it.
+      const n = (v: number | null) =>
+        typeof v === "number" && Number.isFinite(v) ? v : null;
       return {
-        activeAdmins24h: activeAdmins.count ?? 0,
-        auditEvents24h: auditEvents24h.count ?? 0,
-        totalAudit: totalAudit.count ?? 0,
-        pendingWalletTopups: walletTopups.count ?? 0,
-        pendingAdRequests: adRequests.count ?? 0,
-        pendingTopUps: topUps.count ?? 0,
+        activeAdmins24h: n(activeAdmins.count),
+        auditEvents24h: n(auditEvents24h.count),
+        totalAudit: n(totalAudit.count),
+        pendingWalletTopups: n(walletTopups.count),
+        pendingAdRequests: n(adRequests.count),
+        pendingTopUps: n(topUps.count),
       };
     },
   });

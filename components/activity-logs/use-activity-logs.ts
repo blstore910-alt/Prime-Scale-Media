@@ -35,7 +35,7 @@ export default function useActivityLogs(params: ActivityLogsQueryParams = {}) {
   );
 
   const { data, isPending, isError, error } = useQuery<
-    { items: ActivityLog[]; total: number } | undefined
+    { items: ActivityLog[]; total: number | null } | undefined
   >({
     queryKey,
     enabled: profile?.role === "admin" && !!profile?.tenant_id,
@@ -78,14 +78,21 @@ export default function useActivityLogs(params: ActivityLogsQueryParams = {}) {
 
       return {
         items: (rows ?? []) as ActivityLog[],
-        total: count ?? (rows ?? []).length,
+        // A COUNT WE DID NOT GET IS NOT A TOTAL. postgrest-js parses
+        // `count` out of the content-range HEADER and leaves it null,
+        // with `error` null, when that header is missing -- so this
+        // read "this page is all there is": on a full first page the
+        // pager hides itself and page 2 becomes unreachable. null
+        // travels instead, and the consumer shows the pager anyway.
+        total: typeof count === "number" && Number.isFinite(count) ? count : null,
       };
     },
   });
 
   return {
     logs: data?.items ?? [],
-    total: data?.total ?? 0,
+    // null = we could not read how many there are. Not zero.
+    total: data?.total ?? null,
     // ── isPending, NOT isLoading ──────────────────────────────────
     //
     // react-query v5 reports isLoading as `isPending && isFetching`, so

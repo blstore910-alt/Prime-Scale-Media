@@ -13,7 +13,17 @@ import {
 } from "./pagination";
 
 type Props = {
-  total: number;
+  /**
+   * How many rows there are in all — or null when we could not read it.
+   *
+   * NOT a number in that case. postgrest-js leaves `count` null, with
+   * `error` null, when the content-range header is missing, and
+   * `count ?? rows.length` then means "this page is everything": the
+   * pager hid itself on a full first page and page 2 became
+   * unreachable. Every list in this app funnels through here, so the
+   * unknown case is handled once — here — rather than in each screen.
+   */
+  total: number | null;
   page: number;
   perPage: number;
   onPageChange: (page: number) => void;
@@ -28,7 +38,12 @@ export default function TablePagination({
   onPageChange,
   className,
 }: Props) {
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  // Unknown means unknown: no page count and no numbers, but Previous
+  // and Next stay, so nothing is out of reach.
+  const unknown = total === null || !Number.isFinite(total);
+  const totalPages = unknown
+    ? page + 1
+    : Math.max(1, Math.ceil((total as number) / perPage));
 
   // ── HOW MANY NUMBERS FIT, NOT HOW MANY WE CAN THINK OF ─────────────
   //
@@ -72,9 +87,11 @@ export default function TablePagination({
     return pages;
   };
 
-  const pages = buildPages();
+  const pages = unknown ? [] : buildPages();
 
-  if (totalPages <= 1) return null;
+  // With an unknown total we cannot claim there is only one page, so
+  // the arrows stay. With a known one, a single page needs no pager.
+  if (!unknown && totalPages <= 1) return null;
 
   return (
     <div className={className}>

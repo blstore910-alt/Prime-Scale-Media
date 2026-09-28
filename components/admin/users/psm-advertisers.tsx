@@ -169,7 +169,10 @@ export default function PsmAdvertisers() {
           q = q.or("is_active.eq.false,status.neq.active");
         }
         const { count, error } = await q;
-        return error ? null : (count ?? 0);
+        // null on BOTH failures. `count` comes out of the
+        // content-range header and postgrest-js leaves it null with
+        // no error, so `?? 0` states there are none.
+        return error || !Number.isFinite(count as number) ? null : (count as number);
       };
       const [advertiser, affiliate, advertiserOn, affiliateOn] =
         await Promise.all([

@@ -388,7 +388,8 @@ export default function TopupsTable() {
           )}
         </div>
       )}
-      {!isLoading && !isError && topups?.length && total > perPage ? (
+      {!isLoading && !isError && topups?.length &&
+      (total === null || total > perPage) ? (
         <div className="my-4 px-4">
           <TablePagination
             page={page}
