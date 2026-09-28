@@ -1,4 +1,23 @@
 -- =====================================================================
+-- ⚠ NIET MEER PLAKKEN — 28-09
+-- =====================================================================
+-- Deze plak is een volledige `create or replace` van
+-- ad_account_request_create_paid, en de body die erin staat bevat nog
+-- de VERZONNEN wisselkoers `v_rate := 0.86`. Plak 101 heeft die eruit
+-- gehaald en vervangen door een weigering; nagemeten op de live
+-- database op 28-09: 0.86 staat er niet meer in en de functie weigert
+-- netjes als er geen actieve koers is.
+--
+-- Deze plak opnieuw draaien zet die verzonnen koers stil terug, en dan
+-- rekent de app de EUR 50 om tegen een getal dat niemand heeft
+-- vastgesteld. De inhoudelijke wijziging van plak 20 (een ad-account
+-- telt mee waar hij ook vandaan komt) staat al op de database.
+--
+-- Moet er ooit iets aan deze functie veranderen: haal de HUIDIGE body
+-- op met pg_get_functiondef en pas die aan, niet dit bestand.
+-- =====================================================================
+
+-- =====================================================================
 -- PLAK 20 - een ad account telt mee, waar hij ook vandaan komt
 -- =====================================================================
 -- De inbegrepen-teller in `ad_account_request_create_paid` telde alleen
