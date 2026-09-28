@@ -140,11 +140,28 @@ ${s} .card{
    whatever they contain. They did not: one label wrapped to two lines while
    its neighbour stayed on one, which pushed its value a whole line lower, and
    one tile had a sub-line the other did not. Both were visible as a wobble
-   between two tiles sitting side by side. */
-${s} .stat{display:grid;grid-template-rows:auto 1fr auto;align-content:start}
+   between two tiles sitting side by side.
+
+   THE SECOND HALF OF THAT ONLY HALF WORKED, and the owner caught it twice on
+   the affiliate's earnings tiles: "earned en awaiting payout bedragen niet op
+   zelfde line". Rows of "auto 1fr auto" with the value at the BOTTOM of the
+   1fr line up only while every tile in the row carries a sub — because the
+   third track is what the 1fr gives way to. Measured on production, two tiles
+   of identical height sitting side by side: the one with a caption came out
+   24 / 35.2 / 28.6 and put its number at y=606, the one without came out
+   24 / 63.8 / 0 and put its number at y=635. Twenty-nine pixels apart, which
+   is exactly the caption.
+
+   So the tracks are now label, value, rest — the value sits directly under
+   its own label and cannot be moved by what a neighbour does or does not have
+   underneath. align-content:start already sends the slack to the bottom, so
+   a sub still sits right under its value rather than dropping to the floor.
+   The label cannot wrap (nowrap + ellipsis two lines down), so row one is
+   always one line and that is what makes this safe. */
+${s} .stat{display:grid;grid-template-rows:auto auto auto;align-content:start}
 ${s} .stat .k{min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   font-size:.75rem;letter-spacing:.01em}
-${s} .stat .v{margin-top:11px;padding-top:0;line-height:1.08;align-self:end}
+${s} .stat .v{margin-top:11px;padding-top:0;line-height:1.08;align-self:start}
 ${s} .stat .sub{min-height:1.15em;margin-top:4px}
 ${s} .stat{transition:transform .14s,box-shadow .14s,border-color .14s}
 ${s} .stat:hover{transform:translateY(-2px);border-color:var(--line-2);

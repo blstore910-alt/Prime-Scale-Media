@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
+import {
+  payoutInvoiceLines,
+  payoutInvoiceTotals,
+} from "@/lib/pure-payout-invoice";
 
 export const runtime = "nodejs";
 
@@ -214,59 +218,20 @@ export async function GET(
     const isPaid = head.status === "paid";
     const dateLine = isPaid ? day(head.paid_at ?? head.requested_at) : day(head.requested_at);
 
-    const lines = rows.flatMap((r) => {
-      const src = String(r.currency).toUpperCase();
-      const dst = String(r.payout_currency ?? r.currency).toUpperCase();
-      // ---- THE LINES HAVE TO ADD UP TO THE TOTAL ------------------
-      //
-      // `affiliate_payouts.amount` is ALREADY gross minus the clawback
-      // (affiliate_payout_request_multi), and this printed that net
-      // figure as line one and then took the clawback off again
-      // underneath, while Total stayed equal to line one. On a payout
-      // of 24,96 gross with 4,04 clawed back the document read
-      // "commission 20,92 / settled against returned ad spend -4,04 /
-      // Total 20,92" -- three numbers that do not make a sum, on a
-      // paper somebody files.
-      //
-      // So line one is the GROSS when there is a clawback, and the two
-      // lines then land exactly on the total.
-      const claw = Number(r.clawback_amount) || 0;
-      const net = Number(r.amount) || 0;
-      const out: { text: string; amount: string }[] = [
-        {
-          text: `Referral commission — ${r.commission_count ?? 0} ${
-            (r.commission_count ?? 0) === 1 ? "commission" : "commissions"
-          } in ${src}`,
-          amount: money(claw > 0 ? net + claw : net, src),
-        },
-      ];
-      if (claw > 0) {
-        out.push({
-          text: "Already settled against returned ad spend",
-          amount: `− ${money(r.clawback_amount, src)}`,
-        });
-      }
-      if (dst !== src) {
-        out.push({
-          text: `Converted to ${dst} at 1 USD = ${Number(r.fx_rate ?? 0).toFixed(4)} EUR`,
-          amount: money(
-            (Number(r.payout_amount) || 0) + (Number(r.fx_fee_amount) || 0),
-            dst,
-          ),
-        });
-        out.push({
-          text: `Conversion fee ${Number(r.fx_fee_pct ?? 0)}%`,
-          amount: `− ${money(r.fx_fee_amount, dst)}`,
-        });
-      }
-      return out;
-    });
-
-    const totals: Record<string, number> = {};
-    for (const r of rows) {
-      const dst = String(r.payout_currency ?? r.currency).toUpperCase();
-      totals[dst] = Math.round(((totals[dst] ?? 0) + (Number(r.payout_amount ?? r.amount) || 0)) * 100) / 100;
-    }
+    // ---- THE LINES HAVE TO ADD UP TO THE TOTAL --------------------
+    //
+    // The arithmetic lives in lib/pure-payout-invoice.ts, where the two
+    // shapes that cannot be produced on this tenant -- a clawback, and
+    // a conversion -- are covered by tests instead of by a real
+    // transfer. This file only formats what comes back.
+    const lines = payoutInvoiceLines(rows).map((l) => ({
+      text: l.text,
+      amount:
+        l.amount < 0
+          ? `− ${money(-l.amount, l.currency)}`
+          : money(l.amount, l.currency),
+    }));
+    const totals = payoutInvoiceTotals(rows);
 
     const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />

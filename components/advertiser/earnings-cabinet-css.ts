@@ -111,25 +111,17 @@ export const EARNINGS_CABINET_CSS = `
      The owner, 28-09: "earned en awaiting payout bedragen niet op
      zelfde line UI".
 
-     The advertiser shell sets .stat .v{margin-top:auto}, which pins the
-     number to the BOTTOM of the tile. Three of these four tiles have
-     nothing after the number, so it sits on the floor; "Awaiting
-     payout" has a caption under it ("All time, not this period"), which
-     takes that floor -- so its figure sits a line higher than the other
-     three. Four numbers meant to be read across, on two heights.
+     This was first written here, and it did nothing at all: the rule it
+     had to beat is the scoped .stat rule in refine-css.ts, which carries the same
+     specificity and is injected AFTER this sheet, so the later one won
+     and the page kept the rows it always had. Measured, not assumed --
+     the computed grid-template-rows on production stayed "auto 1fr
+     auto" with the override supposedly live.
 
-     So in this grid the number goes directly under its label, and
-     anything after it takes the space that is left. */
-  /* Measured on the live page before writing this: the tile is a GRID,
-     not a flex column, so margin-top:auto does nothing here. With two
-     children the rows came out 24 / 63.8 / 0 and the figure sat 81px
-     down; with three (a caption under it) they came out 24 / 35.2 /
-     28.6 and the figure sat at 52. Same tile height, two heights for
-     the number -- which is what you see reading the four across.
-     Rows stated instead of inferred: label, figure, and whatever is
-     left goes to the bottom. */
-  .xstats .stat{grid-template-rows:auto auto 1fr}
-  .xstats .stat .v{align-self:start;margin-top:9px;padding-top:0}
+     So it is fixed where it belongs, in refine-css.ts, for every shell
+     at once. Only the caption's own spacing stays here, because a
+     caption written as a second .k is this cabinet's shape, not a
+     general one. */
   .xstats .stat .v ~ .k{align-self:start;padding-top:6px}
   .xstats .stat::after{content:"";position:absolute;right:-34px;top:-34px;width:96px;height:96px;
     border-radius:50%;pointer-events:none;background:radial-gradient(circle,var(--xg,rgba(58,111,255,.16)),transparent 70%)}
