@@ -787,6 +787,9 @@ function AdvertiserRow({
   const planFeePct = planBadge?.feePct ?? null;
   // One pill, however many perks: a row is not the place for a list, and
   // "3 perks" with the names on hover is honest about there being more.
+  /** They are on a plan, whether or not we invoice them for it. */
+  const hasPlanRow =
+    !!planName || planBadge?.included != null || planBadge?.feePct != null;
   const perks = planBadge?.perks ?? [];
   const perkLabel =
     perks.length === 0 ? null : perks.length === 1 ? perks[0] : `${perks.length} perks`;
@@ -952,7 +955,21 @@ function AdvertiserRow({
         </div>
       </td>
       <td data-label="Plan">
-        {hasSubscription ? (
+        {/* ── A PLAN WITHOUT A SUBSCRIPTION IS STILL A PLAN ────────
+            The owner, 28-09: "bij PSM0016 staat nog + Subscription?"
+
+            This branched on `subscriptions.length` alone. A community
+            plan (NSA) never gets a subscription row -- there is nothing
+            for us to invoice, they pay the community -- so the card
+            ignored the plan it could already see in planBadge and
+            offered to create one. The admin reads "no plan" on a
+            customer who has one, and pressing it would put a monthly
+            charge on somebody who should not have one.
+
+            planBadge comes from advertiser_plans, which is the row that
+            actually decides their included accounts and top-up rate. If
+            that exists, they have a plan. */}
+        {hasSubscription || hasPlanRow ? (
           <div>
             {/* The amount leads, because that is what a plan IS. A status
                 word here was indistinguishable from the account status pill
@@ -961,8 +978,14 @@ function AdvertiserRow({
                 NOT the ordinary case. */}
             {planAmount ? (
               <div style={{ fontWeight: 700 }}>{planAmount}</div>
-            ) : (
+            ) : hasSubscription ? (
               <div style={{ fontWeight: 700 }}>Subscribed</div>
+            ) : (
+              /* A plan row with no subscription: the monthly fee on
+                 their snapshot is nothing, which is why no subscription
+                 was made. Says it without claiming they pay nobody --
+                 a community customer pays their community. */
+              <div style={{ fontWeight: 700 }}>Not billed here</div>
             )}
             {/* THE PLAN'S NAME, WHICH IS WHAT AN ADMIN ASKS FOR.
                 "EUR 150 / mo" says what it costs and not which plan it

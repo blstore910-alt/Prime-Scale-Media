@@ -615,6 +615,8 @@ export default function AdvertiserApp() {
     features: string[];
     /** From the snapshot, not the catalogue: what THIS customer pays. */
     monthlyFee: number;
+    /** "tier" = one of ours. "community" = billed by somebody else. */
+    kind: string | null;
   } | null>({
     queryKey: ["adv-plan", advertiserId],
     enabled: !!advertiserId,
@@ -637,13 +639,13 @@ export default function AdvertiserApp() {
       {
         const full = await supabase
           .from("advertiser_plans")
-          .select("monthly_fee, plan:plans(name, features)")
+          .select("monthly_fee, plan:plans(name, kind, features)")
           .eq("advertiser_id", advertiserId)
           .maybeSingle();
         if (full.error) {
           const lean = await supabase
             .from("advertiser_plans")
-            .select("monthly_fee, plan:plans(name)")
+            .select("monthly_fee, plan:plans(name, kind)")
             .eq("advertiser_id", advertiserId)
             .maybeSingle();
           data = lean.data;
@@ -658,14 +660,15 @@ export default function AdvertiserApp() {
       const row = data as {
         monthly_fee?: number | string | null;
         plan?:
-          | { name?: string; features?: string[] | null }
-          | Array<{ name?: string; features?: string[] | null }>
+          | { name?: string; kind?: string | null; features?: string[] | null }
+          | Array<{ name?: string; kind?: string | null; features?: string[] | null }>
           | null;
       };
       const embedded = Array.isArray(row.plan) ? row.plan[0] : row.plan;
       return {
         // numeric arrives as a STRING over PostgREST.
         monthlyFee: Number(row.monthly_fee) || 0,
+        kind: (embedded?.kind ?? null) as string | null,
         name: (embedded?.name ?? "").trim() || null,
         features: (embedded?.features ?? []).filter(
           (f): f is string => typeof f === "string" && f.trim().length > 0,
@@ -2687,8 +2690,26 @@ export default function AdvertiserApp() {
   // flight is not mistaken for an absence -- the same care `subLoaded`
   // already takes.
   const noPlan = subLoaded && !subscription && planLoaded && !plan;
-  /** Their plan costs nothing here — NSA and the like pay elsewhere. */
+  /** Their plan costs nothing HERE. */
   const freePlan = planLoaded && !!plan && plan.monthlyFee <= 0;
+  // ── "NO MONTHLY CHARGE" IS NOT WHAT HAPPENS ──────────────────────
+  //
+  // The owner, 28-09: "voor NSA moet echt een speciale regeling -- zij
+  // betalen aan NSA. 'No monthly charge' kan raar overkomen. Check
+  // alle tekst overal in een NSA advertiser-account, alles moet echt
+  // duidelijk en kloppen. Zij betalen 50 euro per maand aan NSA."
+  //
+  // He is right and my wording was not. They are not on a free plan;
+  // they are on a plan somebody else invoices. Telling a customer who
+  // pays EUR 50 a month that there is "no monthly charge" is a
+  // sentence they will quote back at us.
+  //
+  // `plans.kind` already carries the distinction -- 'tier' is one of
+  // ours, 'community' is billed elsewhere -- so this is data and not
+  // a guess. We deliberately do NOT state their figure: it is not our
+  // price and we would be wrong the day it changes.
+  const communityPlan =
+    planLoaded && !!plan && String(plan.kind ?? "") === "community";
 
   // ── AND A FREE PLAN HAS A NAME ───────────────────────────────────
   //
@@ -4208,9 +4229,16 @@ export default function AdvertiserApp() {
                               ? subStatusLabel(subscription.status) + " · "
                               : ""
                           }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
-                        : noPlan
-                          ? "Not started yet"
-                          : "No subscription"}
+                        : communityPlan
+                          ? // "No subscription" is technically true and
+                            // reads as "nothing is set up". They have a
+                            // plan; it is invoiced by somebody else.
+                            `Billed by ${shownPlanName ?? "your community"}`
+                          : freePlan
+                            ? "No monthly charge"
+                            : noPlan
+                              ? "Not started yet"
+                              : "No subscription"}
                 </div>
               </div>
             </div>
@@ -6081,11 +6109,11 @@ export default function AdvertiserApp() {
                       screen, so there is nowhere else for them to check. */}
                   {subscription?.status
                     ? subStatusLabel(subscription.status)
-                    : freePlan
-                      ? // Nothing is billed and nothing is owed. "No
-                        // plan" would be plainly untrue -- they are on
-                        // one, it just costs nothing here.
-                        "Included"
+                    : communityPlan
+                      ? // They have a plan and somebody else invoices it.
+                        `Via ${shownPlanName ?? "your community"}`
+                      : freePlan
+                        ? "Included"
                       : subError
                         ? "Couldn't load"
                       : // ── AND "STILL ARRIVING" IS NOT "NO PLAN" EITHER ──
@@ -6126,16 +6154,20 @@ export default function AdvertiserApp() {
                         : lastChargedAmount != null
                           ? `${chargedMoneyNeat(lastChargedAmount)} / month`
                           : `${planMoneyNeat(subscription.amount)} / month`)
-                    : freePlan
-                      ? // Verified against the database: the billing run
-                        // reads from `subscriptions`, and a free plan has
-                        // no row there, so no invoice can ever be raised
-                        // for it. Say that plainly where the monthly
-                        // figure would be.
-                        "No monthly charge"
-                      : noPlan
-                        ? "No plan yet"
-                        : "Subscription"}
+                    : communityPlan
+                      ? // NOT "no monthly charge" -- they pay a monthly
+                        // fee, just not to us. Their figure is not ours
+                        // to print; who bills them is the useful fact.
+                        `Billed by ${shownPlanName ?? "your community"}`
+                      : freePlan
+                        ? // A genuinely free plan of ours. Verified
+                          // against the database: the billing run reads
+                          // from `subscriptions`, and a free plan has no
+                          // row there, so no invoice can ever be raised.
+                          "No monthly charge"
+                        : noPlan
+                          ? "No plan yet"
+                          : "Subscription"}
                 </div>
                 <div className="meta">
                   {/* ── "RENEWS" A DATE THAT HAS ALREADY PASSED ──────
@@ -6194,13 +6226,15 @@ export default function AdvertiserApp() {
                       makes them keep the wrong amount in the wallet. */}
                   {noPlan
                     ? "Ad accounts come with a plan. Ask us which one fits and we'll start it for you."
-                    : freePlan
-                      ? // "You pay the difference straight away" is about
-                        // switching between PAID plans. To somebody who
-                        // is invoiced nothing it reads as a charge they
-                        // cannot see coming.
-                        "You are invoiced nothing for this plan. Ask us if you want to move to one of ours."
-                      : "Switch anytime — you pay the difference straight away, never a part-month. Ask us for the figure first."}
+                    : communityPlan
+                      ? `You pay ${shownPlanName ?? "your community"} for this plan directly — we invoice you nothing for it. Ask us if you would rather move to one of ours.`
+                      : freePlan
+                        ? // "You pay the difference straight away" is
+                          // about switching between PAID plans, and to
+                          // somebody invoiced nothing it reads as a
+                          // charge they cannot see coming.
+                          "You are invoiced nothing for this plan. Ask us if you want to move to one of ours."
+                        : "Switch anytime — you pay the difference straight away, never a part-month. Ask us for the figure first."}
                 </div>
               </div>
               <div className="card">
@@ -6608,11 +6642,18 @@ export default function AdvertiserApp() {
                         and offered a button to ask for one -- under a
                         heading that had just named theirs. Their bill
                         really is nothing; that is the whole sentence. */}
-                    {freePlan ? (
+                    {communityPlan ? (
+                      <p className="cap" style={{ margin: 0 }}>
+                        Nothing is owed to us. You pay{" "}
+                        {shownPlanName ?? "your community"} for your plan
+                        directly, and your included ad accounts come with
+                        it.
+                      </p>
+                    ) : freePlan ? (
                       <p className="cap" style={{ margin: 0 }}>
                         {shownPlanName
-                          ? `${shownPlanName} costs you nothing here — you pay for it directly. Your included ad accounts come with it.`
-                          : "Your plan costs nothing here — you pay for it directly. Your included ad accounts come with it."}
+                          ? `${shownPlanName} costs you nothing — your included ad accounts come with it.`
+                          : "Your plan costs nothing — your included ad accounts come with it."}
                       </p>
                     ) : (
                       <>
