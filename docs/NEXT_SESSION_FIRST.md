@@ -3129,3 +3129,48 @@ nog steeds en weet dat hij is geweigerd. En het is een beslissing op
 een AANVRAAG -- het houdt niets tegen bij de aanmelding.
 
 Antwoord op de vraag zoals hij gesteld is: **nee, vandaag niet.**
+
+## Een abonnement kunnen terugbetalen (abo-refund)
+
+De eigenaar, 28-09, toen ik vroeg of een ad-accountopname de
+abonnementscommissie hoort terug te vorderen: "nee, abonnementscommissie
+pas terug als we het abonnement ook refunden. **Dus abo-refund moet ook
+kunnen.**"
+
+De eerste helft is gedaan (plak 120: een ad-accountopname rekent alleen
+nog over funding-commissie). De tweede helft is nieuw werk.
+
+**Wat er vandaag is.** Drie manieren om geld terug te geven, en geen
+daarvan is een abonnement:
+
+| tabel | waarvoor | wie keurt goed |
+|---|---|---|
+| `ad_account_withdrawals` | geld van een ad-account | admin |
+| `wallet_refunds` | geld uit de wallet | **eigenaar** |
+| `wallet_adjustments` | correctie op de wallet | **eigenaar** |
+
+Een betaalde abonnementsfactuur kan alleen `void` worden gezet, en
+`voidInvoiceAsAdmin` weigert dat juist voor een betaalde factuur --
+terecht, want de wallet is dan al afgeschreven en niets betaalt hem
+terug.
+
+**Wat het moet doen.**
+
+1. Een betaalde abonnementsfactuur terugbetalen: het bedrag terug naar
+   de wallet waar het vandaan kwam (`invoices.paid_from`), de factuur
+   naar een eigen status (`refunded`, niet `void` -- `void` betekent
+   "had nooit mogen bestaan" en dit is "is betaald en teruggegeven"),
+   met een reden die op het scherm van de klant komt.
+2. **En pas dan de commissie terugvorderen.** Dat is de hele reden dat
+   dit bestaat: `_claw_back_referral_commission` krijgt een derde bron,
+   `subscription_refund`, die rekent over commissie met
+   `source = 'subscription'` en het aandeel neemt van wat er van die
+   factuur terugging.
+3. Eigenaar-only, zoals `wallet_refund_approve` en
+   `wallet_adjustment_approve` -- geld dat naar buiten gaat is van de
+   eigenaar.
+
+**De valkuil.** `_on_subscription_invoice_paid` rolt bij betaling
+`subscriptions.next_payment_date` een maand vooruit. Een terugbetaling
+moet die datum terugzetten, anders is de maand betaald, teruggegeven, en
+wordt hij nooit opnieuw gefactureerd.
