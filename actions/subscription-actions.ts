@@ -162,43 +162,39 @@ export async function createSubscriptionAsAdmin(
   // only thing written -- and because a plan that saved while the
   // subscription failed is recoverable, whereas the other way round
   // bills somebody for nothing.
+  // ── AND IT HAS TO BE AN RPC ──────────────────────────────────────
+  //
+  // I wrote this as a plain .upsert first, and the button said "Plan
+  // set". Nothing was written. `advertiser_plans` has exactly ONE
+  // policy on this database -- advertiser_plans_read_own, SELECT --
+  // and no insert or update policy at all, so PostgREST writes
+  // nothing and returns no error. RLS gives back zero rows rather
+  // than raising; that is the trap this whole codebase has been
+  // swept for, and I walked into it in new code.
+  //
+  // The only thing that writes that table today is
+  // create_subscription_from_invite, a SECURITY DEFINER function --
+  // which is exactly why an invited customer has a plan and a
+  // referred one does not. So: the same shape, in plak 116, and the
+  // result is CHECKED rather than assumed.
   let warning: string | undefined;
   if (input.plan_id) {
-    const { data: planRow } = await supabase
-      .from("plans")
-      .select("id, monthly_fee, currency, included_ad_accounts, topup_fee_pct")
-      .eq("id", input.plan_id)
-      .eq("tenant_id", profile.tenant_id)
-      .maybeSingle();
-    if (!planRow) {
+    const { data: planned, error: planErr } = await supabase.rpc(
+      "advertiser_plan_set",
+      { p_advertiser_id: input.advertiser_id, p_plan_id: input.plan_id },
+    );
+    if (planErr) {
+      // 42883: plak 116 is not pasted yet. Say that rather than
+      // handing somebody PostgREST's sentence about a signature.
       warning =
-        "That plan could not be read, so the included ad accounts and top-up rate were not applied to this customer.";
-    } else {
-      const p = planRow as {
-        id: string;
-        monthly_fee: number | string | null;
-        currency: string | null;
-        included_ad_accounts: number | string | null;
-        topup_fee_pct: number | string | null;
-      };
-      const cur = String(p.currency ?? "EUR").toUpperCase();
-      const { error: planErr } = await supabase
-        .from("advertiser_plans")
-        .upsert(
-          {
-            advertiser_id: input.advertiser_id,
-            tenant_id: profile.tenant_id,
-            plan_id: p.id,
-            monthly_fee: Number(p.monthly_fee) || 0,
-            plan_currency: cur === "USD" ? "USD" : "EUR",
-            included_ad_accounts: Number(p.included_ad_accounts) || 0,
-            topup_fee_pct: Number(p.topup_fee_pct) || 0,
-          },
-          { onConflict: "advertiser_id" },
-        );
-      if (planErr) {
-        warning = `The plan's included accounts and top-up rate were not saved onto this customer: ${planErr.message}`;
-      }
+        (planErr as { code?: string }).code === "42883"
+          ? "Setting a plan on a customer is not switched on yet — ask us to run the migration. The monthly amount was still saved."
+          : `The plan's included accounts and top-up rate were not saved onto this customer: ${planErr.message}`;
+    } else if (!planned) {
+      // A refusal that came back as nothing. Never a silent success on
+      // a row that decides what a customer is charged.
+      warning =
+        "The plan did not save onto this customer, so their included ad accounts and top-up rate are not set. Try again, or tell us.";
     }
   }
 
@@ -220,7 +216,12 @@ export async function createSubscriptionAsAdmin(
           "A subscription of nothing needs a plan behind it — pick the plan this customer is on.",
       };
     }
-    return { ok: true, data: { id: "" }, warning };
+    // On a free plan the snapshot is the ONLY thing that happens. If
+    // it did not save, nothing did -- and "Plan set" would be a plain
+    // untruth. A warning beside a green tick is for a success with a
+    // caveat; this is a failure.
+    if (warning) return { ok: false, error: warning };
+    return { ok: true, data: { id: "" } };
   }
 
   // ── THE SAME SET THE BILLING RUN BILLS ──────────────────────────────
