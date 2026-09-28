@@ -382,7 +382,7 @@ function WiseTiles({
       owed a credit; a confident 0 closes the screen. */
   waitingUnknown?: boolean;
 }) {
-  const { data, isLoading } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ["wise-ingest-status"],
     queryFn: () => wiseIngestStatus(),
     staleTime: 60_000,
@@ -393,7 +393,7 @@ function WiseTiles({
   // pushed the whole deposits list down — and when the read failed, the
   // line that says "webhook NOT configured — no deposit can arrive" simply
   // was not there.
-  if (isLoading) {
+  if (isPending) {
     return <div style={{ height: 62, marginTop: 12 }} aria-hidden="true" />;
   }
   if (!data?.ok) {
@@ -477,7 +477,12 @@ export default function WiseReviewPanel() {
   const queryClient = useQueryClient();
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  // isPending, not isLoading. react-query v5 reports isLoading FALSE
+  // for a query that never ran, and this one is gated on the tenant —
+  // so the panel fell straight through to "Nothing waiting on you"
+  // over a feed with 78 rows in it. The two other panels on this same
+  // screen were already fixed and say so; this was the last one.
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["wise-incoming", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -608,7 +613,7 @@ export default function WiseReviewPanel() {
   // purpose: a toast for "nothing changed" on every page view is noise.
   const sweptRef = useRef(false);
   useEffect(() => {
-    if (sweptRef.current || isLoading) return;
+    if (sweptRef.current || isPending) return;
     const open = allRows.some(
       (r) =>
         r.status === "unmatched" ||
@@ -619,7 +624,7 @@ export default function WiseReviewPanel() {
     sweptRef.current = true;
     rematch.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
-  }, [isLoading, allRows.length]);
+  }, [isPending, allRows.length]);
 
   // WHOSE money the match says this is. A "Confirm & complete" button
   // credits a specific customer's wallet, and the row it sat on named the
@@ -633,7 +638,7 @@ export default function WiseReviewPanel() {
         .filter((v): v is string => !!v),
     ),
   ).sort();
-  const { data: matchedTo, isError: matchedToError, isLoading: matchedToLoading } = useQuery<
+  const { data: matchedTo, isError: matchedToError, isPending: matchedToLoading } = useQuery<
     Record<
       string,
       {
@@ -947,7 +952,7 @@ Statement tried: ${p.attempts.join(" | ")}`
   const autoSyncedRef = useRef(false);
   useEffect(() => {
     if (autoSyncedRef.current) return;
-    if (isLoading || isError) return;
+    if (isPending || isError) return;
     if (!hasBlankReference) return;
 
     // sessionStorage can throw (private windows, blocked site data), and a
@@ -977,7 +982,7 @@ Statement tried: ${p.attempts.join(" | ")}`
     // is ref-guarded to one run per mount either way; listing it only
     // silences the rule.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasBlankReference, isLoading, isError]);
+  }, [hasBlankReference, isPending, isError]);
 
   // Rendering all 100 made this page 28,000px tall on a phone — 35 screens of
   // scrolling, and the handful of deposits that actually need a decision were
@@ -1071,7 +1076,7 @@ Statement tried: ${p.attempts.join(" | ")}`
               flexWrap: "wrap",
             }}
           >
-            {isError || isLoading ? (
+            {isError || isPending ? (
               /* `data ?? []` makes suggestedCount 0 both while the read is
                  in flight and when it FAILED, and this is the line an
                  admin scans before deciding whether to close the screen.
@@ -1145,7 +1150,7 @@ Statement tried: ${p.attempts.join(" | ")}`
         {/* The tile says "Waiting for you", so it counts everything a
             person has to touch -- not just the ones with a suggestion
             ready to accept. */}
-        <WiseTiles waiting={anyWaiting} waitingUnknown={isError || isLoading} />
+        <WiseTiles waiting={anyWaiting} waitingUnknown={isError || isPending} />
         <div className="wsearch">
           <Search />
           <input
@@ -1188,7 +1193,7 @@ Statement tried: ${p.attempts.join(" | ")}`
         </div>
       ) : null}
 
-      {isLoading ? (
+      {isPending ? (
         <div className="card" style={{ padding: 34, textAlign: "center" }}>
           <Loader2
             className="animate-spin"
@@ -1263,7 +1268,7 @@ Statement tried: ${p.attempts.join(" | ")}`
             //
             // The customer strip, the reference comparison and the
             // "we asked for ..." warning all come from matchedTo, and
-            // its isError/isLoading were not destructured -- the only
+            // its isError/isPending were not destructured -- the only
             // read on this panel where that was true. So on a failed
             // or in-flight claim read, every card looked normal minus
             // one strip, and Confirm & credit stayed live: the admin
@@ -1689,7 +1694,7 @@ function ManualMatch({
 
   const {
     data: candidates = [],
-    isLoading,
+    isPending,
     isError: candidatesError,
     refetch: refetchCandidates,
   } = useQuery({
@@ -1808,7 +1813,7 @@ function ManualMatch({
       className="wmatch-open"
       style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}
     >
-      {isLoading ? (
+      {isPending ? (
         <span className="muted" style={{ fontSize: ".82rem" }}>
           Looking…
         </span>
