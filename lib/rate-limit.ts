@@ -92,9 +92,20 @@ export const LIMITS = {
   // request, ad-account withdrawal). Generous for a human, but stops a
   // scripted/compromised account from flooding the admin queue. Keyed
   // per user.
+  // ── THIRTY AN HOUR WAS NOT A LIMIT ──────────────────────────────
+  // The owner, 28-09: "30 financiele verzoeken per uur, dit is al
+  // veelste hoog."
+  //
+  // He is right. A person tops up, funds an account, maybe asks money
+  // back -- a handful in a day, not thirty in an hour. Thirty only
+  // ever bound a script, and by the time a script had made thirty the
+  // desk had thirty rows about the same money to read.
+  //
+  // Twelve is still four times what a busy customer does on their
+  // busiest day, and it is reached long before the queue is unusable.
   financialRequest: {
     bucket: "financial-request",
-    max: 30,
+    max: 12,
     windowSeconds: 3600,
   },
   // SIGNING IN HAD NO LIMIT AT ALL. loginUser is a server action, which

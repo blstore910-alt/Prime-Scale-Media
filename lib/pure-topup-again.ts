@@ -29,9 +29,14 @@ export const SAME_MONEY_MINUTES = 10;
 
 /**
  * More than this waiting at once and something is wrong -- with the
- * person, the screen, or us. Well under the database's 15.
+ * person, the screen, or us.
+ *
+ * The owner set the number, 28-09: five. The database backstop is the
+ * same five (plak 115, down from fifteen), so the app and the trigger
+ * refuse at the same point -- and the app gets there first, with a
+ * sentence instead of a database error.
  */
-export const MAX_PENDING = 3;
+export const MAX_PENDING = 5;
 
 export type TopupAgain =
   | { kind: "fine" }

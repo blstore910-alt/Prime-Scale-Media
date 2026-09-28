@@ -49,8 +49,15 @@ test("older than the window still asks, but differently", () => {
 });
 
 test("the ceiling refuses, and only the ceiling", () => {
+  // Five, the number the owner set on 28-09.
   const a = topupAgain({
-    pendingCreatedAt: [minsAgo(1), minsAgo(30), minsAgo(90)],
+    pendingCreatedAt: [
+      minsAgo(1),
+      minsAgo(30),
+      minsAgo(90),
+      minsAgo(120),
+      minsAgo(200),
+    ],
     now: NOW,
   });
   assert.equal(a.kind, "too-many");
@@ -59,8 +66,19 @@ test("the ceiling refuses, and only the ceiling", () => {
   assert.match(topupAgainMessage(a)!, /message us/);
 });
 
-test("the ceiling sits well under the runaway guard of 15", () => {
-  assert.ok(MAX_PENDING < 15);
+test("the app and the database refuse at the same number", () => {
+  // Plak 115 sets the wallet trigger to 5 as well, so the app gets
+  // there first with a sentence rather than a database error.
+  assert.equal(MAX_PENDING, 5);
+});
+
+test("four waiting still asks rather than refusing", () => {
+  const a = topupAgain({
+    pendingCreatedAt: [minsAgo(30), minsAgo(60), minsAgo(90), minsAgo(120)],
+    now: NOW,
+  });
+  assert.equal(a.kind, "several-waiting");
+  assert.equal(topupAgainBlocks(a), false);
 });
 
 test("the newest claim decides the window, not the oldest", () => {

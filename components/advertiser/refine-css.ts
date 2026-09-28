@@ -404,10 +404,25 @@ ${s} .field input:focus,${s} .field select:focus,${s} .field textarea:focus{
    happens next, and the button that does it. */
 ${s} .card.empty{display:flex;flex-direction:column;align-items:center;text-align:center;
   gap:4px;padding:34px 22px}
+/* ── IT WENT GREY IN THE DARK ────────────────────────────────────
+   The owner, 28-09: "icon kleur die back grey gradient moet allemaal
+   anders, in dark mode is lelijk zo."
+
+   The gradient ended in a literal #fff and the inset highlight was
+   another #fff. On a dark panel that is a pale slab with a white
+   hairline across the top -- a grey blob, exactly as he says.
+
+   Tokens instead: the tint at both ends, at two strengths, so it
+   picks up whatever the theme is. No inset highlight (that trick only
+   works on light), a softer glow, and the hairline from --line rather
+   than white. */
 ${s} .card.empty .empty-ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
   margin-bottom:10px;color:var(--primary-600);
-  background:linear-gradient(160deg,var(--primary-tint),#fff);
-  box-shadow:0 1px 0 #fff inset,0 10px 22px -14px rgba(58,111,255,.55),0 0 0 1px var(--line)}
+  background:linear-gradient(160deg,
+    color-mix(in srgb,var(--primary) 16%,transparent),
+    color-mix(in srgb,var(--primary) 5%,transparent));
+  box-shadow:0 8px 20px -14px color-mix(in srgb,var(--primary) 55%,transparent),
+    0 0 0 1px var(--line)}
 ${s} .card.empty .empty-ic svg{width:24px;height:24px}
 ${s} .card.empty h3{font-family:var(--hd);font-weight:800;font-size:1.05rem;letter-spacing:-.02em;margin:0}
 ${s} .card.empty p{color:var(--txt-2);font-size:.88rem;margin:6px 0 16px;max-width:42ch;line-height:1.5}
