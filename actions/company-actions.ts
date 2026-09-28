@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { createClient } from "@/lib/supabase/server";
 import {
   ActionResult,
@@ -398,6 +399,54 @@ export async function updateOwnProfileAndCompany(input: {
       } else {
         const { error } = await supabase.from("companies").insert(cleaned);
         if (error) return { ok: false, error: error.message };
+      }
+
+      // ── ONE ADDRESS, NOT TWO ─────────────────────────────────────
+      //
+      // The owner, 28-09, looking at Settings > Company: "er is een
+      // link is dubbel welke gebruikt die nou — wat we bij onboarding
+      // invullen moet gwn hier komen in settings en daarna editbaar."
+      //
+      // There were two places. `companies` is written here; `billings`
+      // is written by /complete-profile, and the invoice reads
+      // `companies` first and only falls back to `billings`
+      // (lib/invoice-pdf.ts). Measured on all 12 live customer rows
+      // today: the two addresses are identical, because onboarding
+      // writes both — so the fallback has never actually been used.
+      //
+      // The moment somebody edits the address HERE, that stops being
+      // true: `companies` moves and `billings` keeps yesterday's
+      // address. The invoice stays right, but a stale second copy of a
+      // customer's address is exactly the kind of thing that turns up
+      // on a document a year later. So this keeps them in step.
+      //
+      // Best-effort on purpose: the company IS saved, and the invoice
+      // reads the copy that just moved. Failing the save over the
+      // shadow would be refusing the thing that worked.
+      const addr = {
+        address: cleaned.address,
+        state: cleaned.state,
+        country: cleaned.country,
+        zipcode: cleaned.zipcode,
+      };
+      if (Object.values(addr).some((v) => String(v ?? "").trim() !== "")) {
+        const { data: co } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("advertiser_id", adv.id)
+          .maybeSingle();
+        if (co?.id) {
+          const { error: bErr } = await supabase
+            .from("billings")
+            .update(addr)
+            .eq("company_id", co.id);
+          if (bErr) {
+            console.error(
+              "company saved, billing address not mirrored:",
+              safeErrorMessage(bErr),
+            );
+          }
+        }
       }
     }
   }

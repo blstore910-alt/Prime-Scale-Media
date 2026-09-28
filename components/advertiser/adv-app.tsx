@@ -7574,38 +7574,28 @@ export default function AdvertiserApp() {
                   >
                     {savingComp ? "Saving…" : "Save company"}
                   </button>
-                  {/* ── TWO FORMS, AND ONLY ONE OF THEM FINISHES ──────
-                      The owner, 28-09: "de steps company details gaat
-                      naar andere modal dan in settings company details
-                      — maakt dat wat uit?"
+                  {/* ── ONE FORM, AND IT IS THIS ONE ─────────────────
+                      The owner, 28-09: "er is een link is dubbel welke
+                      gebruikt die nou — wat we bij onboarding invullen
+                      moet gwn hier komen in settings en daarna
+                      editbaar."
 
-                      It does, and it is the one thing about this card
-                      that is not obvious. This form writes `companies`.
-                      The INVOICE ADDRESS lives on `billings`, and the
-                      only advertiser-facing writer of that is
-                      /complete-profile — which is where the checklist
-                      sends you, and which redirects away once the
-                      profile is complete.
+                      There WAS a second door here, to /complete-profile,
+                      saying the invoice address lived over there. By now
+                      that is simply misleading: this card carries every
+                      field the invoice prints — name, email, phone,
+                      website, VAT, registration, address, postcode,
+                      state, country — and lib/invoice-pdf.ts reads
+                      `companies` FIRST, falling back to `billings` only
+                      when the company address is blank.
 
-                      So somebody who does it here fills in every box,
-                      is told "Company saved", and watches nothing
-                      unlock. That warning already exists on save; this
-                      is the same fact BEFORE they start, plus the way
-                      in, because a one-way door you cannot find is the
-                      same as a door that is not there. */}
-                  <a
-                    href="/complete-profile?edit=1"
-                    className="cap"
-                    style={{
-                      display: "inline-block",
-                      marginTop: 10,
-                      color: "var(--primary)",
-                      textDecoration: "underline",
-                      textUnderlineOffset: 2,
-                    }}
-                  >
-                    Invoice address is on the full form →
-                  </a>
+                      Measured on all 12 live customer rows, 28-09: the
+                      two addresses are identical, because onboarding
+                      writes both. The fallback has never been used, and
+                      sending somebody to a second form to change an
+                      address that is already on this one is a door to
+                      nowhere. Saving here now mirrors the address into
+                      `billings` too, so the two cannot drift apart. */}
                   {companyError ? (
                     <p className="cap" style={{ marginTop: 8 }}>
                       We couldn&apos;t load your company details, so this form
