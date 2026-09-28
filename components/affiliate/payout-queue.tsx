@@ -357,16 +357,34 @@ export default function PayoutQueue({
                       </td>
                       <td data-label="Reference / reason" style={{ fontSize: ".8rem" }}>
                         {first.reference || first.reason || DASH}
-                        <div>
-                          <a
-                            href={`/api/payouts/${first.id}/invoice`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: ".78rem" }}
-                          >
-                            Invoice
-                          </a>
-                        </div>
+                        {/* This table holds the finished rows, which
+                            includes the ones that were sent back and
+                            the ones the affiliate withdrew. There is no
+                            invoice for those -- we raise it ourselves,
+                            in the affiliate's name, and raising one for
+                            a transfer we refused is a paper that should
+                            not exist. The route says the same (409); the
+                            link goes so nobody has to find that out.
+
+                            And only the owner may read it -- the policy
+                            on affiliate_payouts has no admin branch, so
+                            for anyone else this link was a 404 with
+                            their own bank details behind it. Same flag
+                            that decides who may settle. */}
+                        {canDecide &&
+                        first.status !== "rejected" &&
+                        first.status !== "cancelled" ? (
+                          <div>
+                            <a
+                              href={`/api/payouts/${first.id}/invoice`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: ".78rem" }}
+                            >
+                              Invoice
+                            </a>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   );
