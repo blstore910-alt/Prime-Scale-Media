@@ -1016,11 +1016,47 @@ function AdvertiserRow({
             ) : null}
             {/* Never the bare word "Inactive": that is the customer's
                 word, one row below, and the two were being read as one. */}
-            {planStatusLabel(subscriptionStatus) && (
-              <span className="badge pend" style={{ marginTop: 4 }}>
-                {planStatusLabel(subscriptionStatus)}
-              </span>
-            )}
+            {/* ── A PILL THAT SAYS SOMETHING IS WRONG SHOULD TAKE YOU
+                   TO IT ─────────────────────────────────────────────
+                The owner, 28-09: "als je op plan overdue klikt moet
+                die je leiden naar wat er moet gebeuren, of anders info
+                en details als je erop klikt."
+
+                "Plan overdue" states a problem and then makes the
+                admin go and find it: out of this screen, into
+                /invoices, search the client code. Every time.
+
+                The unpaid invoice IS what has to happen, so the pill
+                goes there -- filtered to this customer, the same
+                destination and the same query the Subscriptions screen
+                already uses for its Invoices button.
+
+                Only when there is a code to filter on; without one the
+                link would land on every invoice we have, which is
+                worse than no link. Then it stays a plain pill. */}
+            {planStatusLabel(subscriptionStatus) &&
+              (clientCode ? (
+                <Link
+                  href={`/invoices?q=${encodeURIComponent(clientCode)}`}
+                  className="badge pend"
+                  onClick={(e) => e.stopPropagation()}
+                  title={`Open ${clientCode}'s invoices`}
+                  style={{
+                    marginTop: 4,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    textDecoration: "none",
+                  }}
+                >
+                  {planStatusLabel(subscriptionStatus)}
+                  <span aria-hidden="true">&rsaquo;</span>
+                </Link>
+              ) : (
+                <span className="badge pend" style={{ marginTop: 4 }}>
+                  {planStatusLabel(subscriptionStatus)}
+                </span>
+              ))}
             {!perkLabel && planBadgeDegraded ? (
               <span
                 className="badge"
