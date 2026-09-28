@@ -117,6 +117,15 @@ $blk0$;
 do $blk1$
 begin
   alter table public.fee_change_requests enable row level security;
+  -- 2026-09-28: `revoke ... from anon, public` does NOT reach
+  -- `authenticated`, whose rights come from Supabase DEFAULT
+  -- PRIVILEGES. This table came out of here as the only one in public
+  -- that anon could read, and authenticated could still write it --
+  -- RLS held the rows in, but the grant should never have been there.
+  -- Plak 130 had to come back for it.
+  revoke all on public.fee_change_requests from anon, public;
+  revoke insert, update, delete, truncate on public.fee_change_requests from authenticated;
+  grant select on public.fee_change_requests to authenticated;
 
   drop policy if exists fee_change_requests_admin_read on public.fee_change_requests;
   create policy fee_change_requests_admin_read on public.fee_change_requests

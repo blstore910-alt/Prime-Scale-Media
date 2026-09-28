@@ -107,6 +107,11 @@ begin
   -- public wordt gemaakt. Dus in hetzelfde blok eraf.
   alter table public.wallet_ledger enable row level security;
   revoke all on public.wallet_ledger from anon, public;
+  -- AND from authenticated, which the line above does NOT reach: that
+  -- role gets its rights from Supabase DEFAULT PRIVILEGES, not from
+  -- PUBLIC, and the grants below add rather than replace. Plak 130 had
+  -- to come back for exactly this.
+  revoke insert, update, delete, truncate on public.wallet_ledger from authenticated;
   -- Alleen LEZEN, en alleen wat van jou is of wat je als beheerder mag
   -- zien. Schrijven doet uitsluitend de trigger (SECURITY DEFINER).
   grant select on public.wallet_ledger to authenticated;

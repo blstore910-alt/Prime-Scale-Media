@@ -95,6 +95,11 @@ begin
   alter table public.poll_votes enable row level security;
   revoke all on public.polls from anon, public;
   revoke all on public.poll_votes from anon, public;
+  -- AND from authenticated: `from anon, public` does not reach that
+  -- role, whose rights come from Supabase DEFAULT PRIVILEGES. Plak 130
+  -- had to come back for exactly this.
+  revoke insert, update, delete, truncate on public.polls from authenticated;
+  revoke insert, update, delete, truncate on public.poll_votes from authenticated;
   grant select on public.polls to authenticated;
   -- Alleen SELECT, en de policy hieronder beperkt dat tot je eigen
   -- stem. Schrijven doet uitsluitend de RPC.

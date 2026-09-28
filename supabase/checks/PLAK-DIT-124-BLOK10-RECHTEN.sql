@@ -115,16 +115,16 @@ begin
     return;
   end if;
 
-  execute regexp_replace(v_def, v_pat,
-    'affiliate_decided_at = v_adv_keep.affiliate_decided_at' || chr(10) ||
-    '         -- het besluit blijft staan' || chr(10) ||
-    '         --' || chr(10) ||
-    '         -- Dit zette allebei op null, dus wie was afgewezen wiste' || chr(10) ||
-    '         -- met "Apply again" de datum en de reden van de eigenaar.' || chr(10) ||
-    '         -- De klant ziet ze niet meer zodra de status weer op' || chr(10) ||
-    '         -- applied staat; de eigenaar ziet bij de volgende' || chr(10) ||
-    '         -- beoordeling waarom hij de vorige keer nee zei.' || chr(10) ||
-    '         , affiliate_refusal_reason = v_adv_keep.affiliate_refusal_reason');
+  -- ── DE DODE EERSTE POGING IS HIER WEGGEHAALD ───────────────────
+  --
+  -- Hier stond een eerste regexp_replace die verwees naar een
+  -- variabele `v_adv_keep` die nergens is gedeclareerd, met daaronder
+  -- de verbeterde versie. De EERSTE liep, de tweede vond zijn patroon
+  -- daarna niet meer, en de Join-knop was twintig minuten stuk op
+  -- productie (plak 127 zette het recht).
+  --
+  -- De les staat nu in CLAUDE.md en in tests/lib/plak-rules.test.ts:
+  -- EEN execute per blok, en de test faalt op een tweede.
 
   -- v_adv_keep bestaat niet in de functie; we verwijzen naar de rij
   -- zelf. Postgres staat in een UPDATE toe om de OUDE waarde te lezen
