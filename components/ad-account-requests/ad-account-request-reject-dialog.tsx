@@ -22,6 +22,7 @@ export default function AdAccountRequestRejectDialog({
   isSubmitting,
   chargedAmount,
   chargedCurrency,
+  metadata,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,9 +32,32 @@ export default function AdAccountRequestRejectDialog({
    *  gives it back, and until now nothing on this box said so. */
   chargedAmount?: number | string | null;
   chargedCurrency?: string | null;
+  /**
+   * The request's own metadata. `charged_amount` is NULL both when the
+   * fee was INVOICED rather than debited and when the request was free
+   * because the plan covered it -- two opposite situations that the box
+   * below has to tell apart, and only this can.
+   */
+  metadata?: Record<string, unknown> | null;
 }) {
   const [reason, setReason] = useState("");
   const trimmedReason = useMemo(() => reason.trim(), [reason]);
+
+  /**
+   * True only when the database has SAID the request was free. Absent
+   * metadata is not "free" -- that is the unknown case, and it keeps
+   * the hedge.
+   */
+  const wasFree = useMemo(() => {
+    const m = metadata ?? null;
+    if (!m) return false;
+    const included = m["request_fee_included"];
+    const includedTrue =
+      included === true || String(included ?? "").toLowerCase() === "true";
+    const feeZero =
+      m["request_fee"] !== undefined && Number(m["request_fee"]) === 0;
+    return includedTrue || (feeZero && !!m["request_fee_free_source"]);
+  }, [metadata]);
 
   useEffect(() => {
     if (!open) setReason("");
@@ -74,11 +98,25 @@ export default function AdAccountRequestRejectDialog({
               already have paid. It is the one figure this box exists to
               get right, so when we do not have it we say we do not have
               it rather than guessing the comfortable answer. */}
+          {/* ── AND A FREE ONE IS NOT AN UNKNOWN ONE ────────────
+              Walked on production 28-09, rejecting a plan-included
+              request: `charged_amount` is NULL for those too, so this
+              fell into the hedge and told the admin "whatever was
+              charged for this one goes back: an unpaid fee invoice is
+              voided, and one already paid is credited to their
+              wallet" -- about a request where nothing was ever
+              charged and no invoice exists. The database says so
+              plainly (`request_fee: 0`, `request_fee_included: true`,
+              `request_fee_free_source: plan_included`), so the box
+              should too. The hedge stays for the one case that really
+              is unknown: the INVOICED path. */}
           {Number(chargedAmount) > 0
             ? `${money(chargedAmount, chargedCurrency)} goes straight back to their wallet.`
-            : chargedAmount === null || chargedAmount === undefined
-              ? "Whatever was charged for this one goes back: an unpaid fee invoice is voided, and one already paid is credited to their wallet."
-              : "No fee was charged for this one, so nothing moves."}
+            : wasFree
+              ? "Nothing was charged for this one — their plan covered it — so no money moves."
+              : chargedAmount === null || chargedAmount === undefined
+                ? "Whatever was charged for this one goes back: an unpaid fee invoice is voided, and one already paid is credited to their wallet."
+                : "No fee was charged for this one, so nothing moves."}
         </div>
         <div className="space-y-3">
           {/* The reason is printed on the customer's screen. The

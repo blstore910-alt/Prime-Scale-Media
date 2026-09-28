@@ -818,6 +818,15 @@ export default function PsmRequests() {
           (requestToReject as { charged_amount?: number | null } | null)
             ?.charged_amount
         }
+        // charged_amount is NULL for a plan-included request as well as
+        // for an invoiced one; only the metadata tells the two apart.
+        metadata={
+          (
+            requestToReject as {
+              metadata?: Record<string, unknown> | null;
+            } | null
+          )?.metadata ?? null
+        }
         chargedCurrency={
           (requestToReject as { charged_currency?: string | null } | null)
             ?.charged_currency
