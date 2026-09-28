@@ -1663,9 +1663,25 @@ export default function AffiliateApp() {
                           </span>
                         ) : null}
                       </div>
+                      {/* ── TWO ZEROS ARE NOT A STATUS ────────────────
+                          The owner, 28-09, looking at a referral who
+                          had signed up an hour earlier: "0 eu spend is
+                          toch raar? klopt dit?"
+
+                          The figures were right — that customer has no
+                          top-ups and no spend — but "0 top-ups · €0.00
+                          spend" under "Waiting for approval" states
+                          twice over something the badge already
+                          implies, and reads like a number that failed
+                          to load. Nothing can be spent before the
+                          referral is approved, so on a pending row the
+                          useful sentence is what happens next. */}
                       <div style={{ color: "var(--faint)", fontSize: ".83rem" }}>
-                        {r.topup_count} top-ups ·{" "}
-                        {twoLeg(r.spend_eur, r.spend_usd)} spend
+                        {String(r.link_status ?? "active") === "pending"
+                          ? "Signed up. You earn from their first top-up, once we approve the referral."
+                          : r.topup_count === 0
+                            ? "No top-ups yet."
+                            : `${r.topup_count} top-ups · ${twoLeg(r.spend_eur, r.spend_usd)} spend`}
                       </div>
                     </div>
                     <span className="amt">

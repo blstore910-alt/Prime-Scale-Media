@@ -271,6 +271,18 @@ export const AFF_CSS = `
   .track{height:10px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);margin:14px 0 0;overflow:hidden}
   .fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#dd9e15,var(--gold),#ffdc85);box-shadow:0 0 12px rgba(239,176,44,.5);transition:width 1.3s cubic-bezier(.2,.8,.2,1)}
   .prog-head{display:flex;justify-content:space-between;align-items:baseline;font-size:.88rem;color:var(--txt-2)}.prog-head b{color:var(--ink);font-family:var(--font-sora)}
+  /* ── THE BUTTON WAS TOUCHING THE RULE UNDER IT ───────────────
+     The owner, 27-09: "view all button height mag minder zodat die de
+     lijn eronder niet aanraakt."
+
+     The .btn.sm rule is 9px of padding top and bottom on a .85rem
+     line, taller than the heading beside it — and the head is
+     baseline aligned, so the extra height hangs BELOW the text and
+     lands on the first row's rule. Two changes, both needed: a
+     shorter button in this header only, and room under the header so
+     rule is a divider rather than an underline. */
+  .prog-head .btn.sm{padding:6px 12px;font-size:.82rem;border-radius:9px}
+  .card.feed .prog-head{padding-bottom:6px}
 
   .bars{display:flex;align-items:flex-end;gap:10px;height:150px;margin-top:14px;padding-top:22px}
   .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}

@@ -2009,7 +2009,11 @@ export default function AdvertiserApp() {
   // charged — so the list untick­ed itself and told a paying customer to
   // fund a wallet they had funded. head:true, so it fetches a number and
   // no rows.
-  const { data: toppedUpCount, isError: toppedUpError } = useQuery<number>({
+  const {
+    data: toppedUpCount,
+    isError: toppedUpError,
+    isPending: toppedUpPending,
+  } = useQuery<number>({
     queryKey: ["adv-ever-topped-up", wallet?.id],
     enabled: !!wallet?.id,
     staleTime: 5 * 60_000,
@@ -3745,7 +3749,28 @@ export default function AdvertiserApp() {
                  entirely. That is the flicker: a checklist appearing to
                  undo itself while you read it. */
               hasToppedUp={(toppedUpCount ?? 0) > 0}
-              loading={companyBusy || walletBusy || accountsBusy}
+              /* ── AND THE ONE READ IT DOES NOT WAIT FOR ──────────
+                 The owner, 28-09: "na inloggen zie ik alles op
+                 dashboard mooi maar daarna flitst die nog 1x en komt
+                 het opnieuw."
+
+                 This is that flash. The topped-up query is
+                 `enabled: !!wallet?.id`, so it only STARTS once the
+                 wallet lands — which is the same moment these three
+                 flags go false. The checklist therefore drew itself
+                 once with hasToppedUp false, and again a beat later
+                 with the real answer: the whole card repaints and the
+                 rows shift under the reader.
+
+                 It is gated on the wallet, so waiting for it cannot
+                 hang: no wallet means no query and `booting` has
+                 already given up for the same reason. */
+              loading={
+                companyBusy ||
+                walletBusy ||
+                accountsBusy ||
+                (!!wallet?.id && toppedUpPending)
+              }
               /* AND WAIT FOR A FAILED READ TOO. `loading` goes false when a
                  query FAILS, and then company is null and both balances are
                  0 — indistinguishable from a brand-new account. So a
