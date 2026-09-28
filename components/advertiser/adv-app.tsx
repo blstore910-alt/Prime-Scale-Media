@@ -613,6 +613,8 @@ export default function AdvertiserApp() {
   const { data: plan, isSuccess: planLoaded } = useQuery<{
     name: string | null;
     features: string[];
+    /** From the snapshot, not the catalogue: what THIS customer pays. */
+    monthlyFee: number;
   } | null>({
     queryKey: ["adv-plan", advertiserId],
     enabled: !!advertiserId,
@@ -635,13 +637,13 @@ export default function AdvertiserApp() {
       {
         const full = await supabase
           .from("advertiser_plans")
-          .select("plan:plans(name, features)")
+          .select("monthly_fee, plan:plans(name, features)")
           .eq("advertiser_id", advertiserId)
           .maybeSingle();
         if (full.error) {
           const lean = await supabase
             .from("advertiser_plans")
-            .select("plan:plans(name)")
+            .select("monthly_fee, plan:plans(name)")
             .eq("advertiser_id", advertiserId)
             .maybeSingle();
           data = lean.data;
@@ -654,6 +656,7 @@ export default function AdvertiserApp() {
       if (error) throw error;
       if (!data) return null;
       const row = data as {
+        monthly_fee?: number | string | null;
         plan?:
           | { name?: string; features?: string[] | null }
           | Array<{ name?: string; features?: string[] | null }>
@@ -661,6 +664,8 @@ export default function AdvertiserApp() {
       };
       const embedded = Array.isArray(row.plan) ? row.plan[0] : row.plan;
       return {
+        // numeric arrives as a STRING over PostgREST.
+        monthlyFee: Number(row.monthly_fee) || 0,
         name: (embedded?.name ?? "").trim() || null,
         features: (embedded?.features ?? []).filter(
           (f): f is string => typeof f === "string" && f.trim().length > 0,
@@ -2738,11 +2743,29 @@ export default function AdvertiserApp() {
   const unpaidPlanInvoice = (dueInvoices ?? []).some(
     (i) => i.type === "subscription" && i.status !== "paid" && i.status !== "void",
   );
+  // ── A FREE PLAN IS ACTIVE THE MOMENT IT IS SET ───────────────────
+  //
+  // The owner, 28-09: "NSA moet wel een plan, maar dan 0 eu in onze
+  // app -- zij betalen zelf aan de NSA academy."
+  //
+  // Every clause below asks a question about PAYING: is there a
+  // subscription, is it active, is there an unpaid invoice, has one
+  // been paid. A plan that costs nothing answers none of them, for
+  // ever -- no subscription is made (by design), so no invoice is
+  // raised, so none is ever paid.
+  //
+  // Fixing `noPlan` moved the wall one step along: the customer
+  // stopped reading "ask us to start a plan" and started reading
+  // "your plan has to be active first". Same lock, next door.
+  //
+  // Nothing to pay means nothing to wait for.
+  const freePlan = planLoaded && !!plan && plan.monthlyFee <= 0;
   const planActive =
-    !!subscription &&
-    subscription.status === "active" &&
-    !unpaidPlanInvoice &&
-    planPaid;
+    freePlan ||
+    (!!subscription &&
+      subscription.status === "active" &&
+      !unpaidPlanInvoice &&
+      planPaid);
   // How many accounts the plan includes is NOT on `subscriptions` — asking
   // for it there took the whole subscription query down with
   // "column subscriptions.included_ad_accounts does not exist", which also
