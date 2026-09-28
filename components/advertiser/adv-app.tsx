@@ -3749,8 +3749,25 @@ export default function AdvertiserApp() {
                     </span>
                     <span className="umenu-who">
                       <span className="nm">{name}</span>
+                      {/* ── THEIR OWN NUMBER, WHERE THEY LOOK FOR IT ──
+                          The owner, 28-09: "hier moet iedereen ook easy
+                          en subtiel zijn PSM nummer zien."
+
+                          It is the number on every payment reference and
+                          the first thing we ask for on the phone, and it
+                          was nowhere on the customer's own screens
+                          except inside a top-up dialog. Quietly, after
+                          the company name -- a middot and slightly
+                          faded, so it reads as a detail and not a
+                          heading. */}
                       <span className="sub">
                         {(profile?.tenant?.name as string) ?? "Advertiser"}
+                        {referralCode ? (
+                          <>
+                            {" · "}
+                            <span style={{ opacity: 0.75 }}>{referralCode}</span>
+                          </>
+                        ) : null}
                       </span>
                     </span>
                   </div>

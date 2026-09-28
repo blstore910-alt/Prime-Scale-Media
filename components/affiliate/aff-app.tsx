@@ -850,7 +850,19 @@ export default function AffiliateApp() {
                     </span>
                     <span className="umenu-who">
                       <span className="nm">{name}</span>
-                      <span className="sub">{tierUnknown ? "Partner" : `${tier.name} partner`}</span>
+                      {/* Their own number, quietly, after the tier --
+                          same reason as the advertiser shell. It is what
+                          we ask for on the phone and what every payment
+                          reference starts with. */}
+                      <span className="sub">
+                        {tierUnknown ? "Partner" : `${tier.name} partner`}
+                        {referralCode ? (
+                          <>
+                            {" · "}
+                            <span style={{ opacity: 0.75 }}>{referralCode}</span>
+                          </>
+                        ) : null}
+                      </span>
                     </span>
                   </div>
                   <button
