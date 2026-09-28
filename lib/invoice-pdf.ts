@@ -104,7 +104,7 @@ export type InvoiceRecord = {
   issuer?: CompanyRecord | null;
 };
 
-const DEFAULT_INVOICE_LOGO_PATH =
+export const DEFAULT_INVOICE_LOGO_PATH =
   process.env.INVOICE_PDF_LOGO_PATH ?? "/images/psm-logo.png";
 
 const numberFormatter = new Intl.NumberFormat("en-US", {
@@ -226,7 +226,7 @@ function getMimeType(filePath: string): string {
   return "application/octet-stream";
 }
 
-async function loadPublicImageDataUri(
+export async function loadPublicImageDataUri(
   relativePath: string,
 ): Promise<string | null> {
   const sanitizedPath = relativePath.replace(/^[/\\]+/, "");
@@ -241,7 +241,185 @@ async function loadPublicImageDataUri(
   }
 }
 
-export function buildInvoiceHtml(
+/**
+ * THE STYLESHEET OF THE DOCUMENT WE SEND CUSTOMERS.
+ *
+ * Pulled out of buildInvoiceHtml unchanged so a SECOND document -- the
+ * self-billed invoice we raise for an affiliate payout -- is the same
+ * piece of paper rather than a lookalike. The owner, 28-09, on the old
+ * payout page: "invoice moet mooier stijl net als wat wij naar klanten
+ * geven dit is lelijk geen echte invoice".
+ *
+ * One copy, so they cannot drift apart later.
+ */
+export const INVOICE_DOC_CSS = `
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        width: 210mm;
+        height: 297mm;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        width: 210mm;
+        min-height: 297mm;
+        background: #ffffff;
+        color: #111111;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .invoice {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 12mm;
+        background: #ffffff;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .logo {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+      }
+      .logo-placeholder {
+        width: 46px;
+        height: 46px;
+      }
+      .invoice-meta {
+        text-align: right;
+      }
+      .invoice-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .invoice-number {
+        margin-top: 4px;
+        font-size: 14px;
+      }
+      .invoice-status {
+        margin-top: 2px;
+        font-size: 13px;
+      }
+      .invoice-reference {
+        margin-top: 2px;
+        font-size: 12px;
+      }
+      .invoice-type {
+        margin-top: 2px;
+        font-size: 12px;
+      }
+      .invoice-status.unpaid {
+        color: #dc2626;
+      }
+      .invoice-status.paid {
+        color: #15803d;
+      }
+      .parties {
+        margin-top: 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+      }
+      .from,
+      .bill-to {
+        width: 48%;
+      }
+      .bill-to {
+        text-align: right;
+      }
+      .party-heading {
+        margin: 0 0 8px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .party-name {
+        margin: 0 0 3px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .line {
+        margin: 1px 0 0;
+        font-size: 11px;
+        color: #333333;
+        line-height: 1.35;
+      }
+      .invoice-date {
+        margin-top: 10px;
+        font-size: 11px;
+      }
+      .items {
+        margin-top: 24px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead tr {
+        background: #36414f;
+        color: #f8fafc;
+      }
+      th {
+        padding: 8px 10px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      td {
+        padding: 9px 10px;
+        border-bottom: 1px solid #d3d3d3;
+        font-size: 10.5px;
+      }
+      td.center {
+        text-align: center;
+        width: 36px;
+      }
+      .num {
+        text-align: right;
+      }
+      .item-name {
+        font-weight: 700;
+      }
+      .summary {
+        margin-top: 26px;
+        margin-left: auto;
+        width: 40%;
+      }
+      .summary-line {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+      .summary-line span:first-child {
+        font-weight: 700;
+      }
+      .summary-line.shaded {
+        background: #f3f4f6;
+      }
+      .summary-line.strong {
+        font-weight: 700;
+      }
+      .signature {
+        margin-top: 58px;
+        font-size: 11px;
+      }
+      .capitalize {
+        text-transform: capitalize;
+      }
+`;
+
+ export function buildInvoiceHtml(
   invoice: InvoiceRecord,
   billing: BillingRecord | null,
   logoDataUri: string | null,
@@ -594,172 +772,7 @@ export function buildInvoiceHtml(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Invoice #${escapeHtml(invoiceNumber)}</title>
-    <style>
-      @page {
-        size: A4;
-        margin: 0;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html {
-        width: 210mm;
-        height: 297mm;
-      }
-      body {
-        margin: 0;
-        padding: 0;
-        width: 210mm;
-        min-height: 297mm;
-        background: #ffffff;
-        color: #111111;
-        font-family: Arial, Helvetica, sans-serif;
-      }
-      .invoice {
-        width: 210mm;
-        min-height: 297mm;
-        padding: 12mm;
-        background: #ffffff;
-      }
-      .top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-      }
-      .logo {
-        width: 80px;
-        height: 80px;
-        object-fit: contain;
-      }
-      .logo-placeholder {
-        width: 46px;
-        height: 46px;
-      }
-      .invoice-meta {
-        text-align: right;
-      }
-      .invoice-title {
-        margin: 0;
-        font-size: 22px;
-        font-weight: 700;
-        letter-spacing: 0.2px;
-      }
-      .invoice-number {
-        margin-top: 4px;
-        font-size: 14px;
-      }
-      .invoice-status {
-        margin-top: 2px;
-        font-size: 13px;
-      }
-      .invoice-reference {
-        margin-top: 2px;
-        font-size: 12px;
-      }
-      .invoice-type {
-        margin-top: 2px;
-        font-size: 12px;
-      }
-      .invoice-status.unpaid {
-        color: #dc2626;
-      }
-      .invoice-status.paid {
-        color: #15803d;
-      }
-      .parties {
-        margin-top: 28px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 24px;
-      }
-      .from,
-      .bill-to {
-        width: 48%;
-      }
-      .bill-to {
-        text-align: right;
-      }
-      .party-heading {
-        margin: 0 0 8px;
-        font-size: 10px;
-        font-weight: 700;
-      }
-      .party-name {
-        margin: 0 0 3px;
-        font-size: 12px;
-        font-weight: 700;
-      }
-      .line {
-        margin: 1px 0 0;
-        font-size: 11px;
-        color: #333333;
-        line-height: 1.35;
-      }
-      .invoice-date {
-        margin-top: 10px;
-        font-size: 11px;
-      }
-      .items {
-        margin-top: 24px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      thead tr {
-        background: #36414f;
-        color: #f8fafc;
-      }
-      th {
-        padding: 8px 10px;
-        text-align: left;
-        font-size: 11px;
-        font-weight: 500;
-      }
-      td {
-        padding: 9px 10px;
-        border-bottom: 1px solid #d3d3d3;
-        font-size: 10.5px;
-      }
-      td.center {
-        text-align: center;
-        width: 36px;
-      }
-      .num {
-        text-align: right;
-      }
-      .item-name {
-        font-weight: 700;
-      }
-      .summary {
-        margin-top: 26px;
-        margin-left: auto;
-        width: 40%;
-      }
-      .summary-line {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 10px;
-        font-size: 11px;
-      }
-      .summary-line span:first-child {
-        font-weight: 700;
-      }
-      .summary-line.shaded {
-        background: #f3f4f6;
-      }
-      .summary-line.strong {
-        font-weight: 700;
-      }
-      .signature {
-        margin-top: 58px;
-        font-size: 11px;
-      }
-      .capitalize {
-        text-transform: capitalize;
-      }
-    </style>
+    <style>${INVOICE_DOC_CSS}</style>
   </head>
   <body>
     <main class="invoice">
@@ -923,3 +936,198 @@ export async function buildInvoicePdf(
   }
 }
 
+
+// ── THE SELF-BILLED INVOICE, ON THE SAME PIECE OF PAPER ─────────────
+//
+// The owner, 28-09, looking at the payout document: "invoice moet
+// mooier stijl net als wat wij naar klanten geven dit is lelijk geen
+// echte invoice".
+//
+// He was right twice over. It was a different-looking page — no logo,
+// no INVOICE heading, its own colours, a rounded card on a grey wash —
+// and more importantly it did not read as a document: a tax paper that
+// looks like a web page is not one an accountant files.
+//
+// So it is now drawn with INVOICE_DOC_CSS, the stylesheet of the
+// invoice we send customers, in the same A4 frame, with the same logo,
+// the same dark table head, the same summary block and the same
+// signature line. The only differences are the ones that MUST differ:
+// the heading says SELF-BILLED INVOICE, and the parties are the other
+// way round — the affiliate supplies, we buy.
+//
+// It is rendered as HTML rather than through puppeteer because a payout
+// document is opened far more often than it is filed, and the browser's
+// own "Save as PDF" produces the same A4 page from this markup. The
+// button hides itself when printing.
+
+export type SelfBilledParty = {
+  name: string;
+  lines: string[];
+};
+
+export type SelfBilledInvoiceInput = {
+  /** "PSM0008-02" — the partner's own series, never the house number. */
+  reference: string;
+  /** Paid, or awaiting the transfer. */
+  paid: boolean;
+  /** Already formatted for reading, e.g. "28 September 2026". */
+  date: string;
+  /** The bank reference of the transfer, when there is one. */
+  bankReference?: string | null;
+  supplier: SelfBilledParty;
+  customer: SelfBilledParty;
+  lines: { text: string; amount: string }[];
+  /** One per transferred currency; nearly always exactly one. */
+  totals: { label: string; amount: string }[];
+};
+
+export function buildSelfBilledInvoiceHtml(
+  input: SelfBilledInvoiceInput,
+  logoDataUri: string | null,
+): string {
+  const renderLines = (lines: string[]) =>
+    lines.map((line) => `<div class="line">${escapeHtml(line)}</div>`).join("");
+
+  const logoHtml = logoDataUri
+    ? `<img class="logo" src="${logoDataUri}" alt="Company logo" />`
+    : `<div class="logo-placeholder"></div>`;
+
+  const rowsHtml = input.lines
+    .map(
+      (l, i) => `
+        <tr>
+          <td class="center">${i + 1}</td>
+          <td class="item-name">${escapeHtml(l.text)}</td>
+          <td class="num">${escapeHtml(l.amount)}</td>
+        </tr>`,
+    )
+    .join("");
+
+  const totalsHtml = input.totals
+    .map(
+      (t) => `
+        <div class="summary-line shaded strong">
+          <span>${escapeHtml(t.label)}</span>
+          <span>${escapeHtml(t.amount)}</span>
+        </div>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Self-billed invoice ${escapeHtml(input.reference)}</title>
+    <style>${INVOICE_DOC_CSS}</style>
+    <style>
+      /* Only what a screen needs that a sheet of paper does not. The
+         document itself is untouched: everything here either shows the
+         A4 page on a phone or disappears when printing. */
+      body { background:#eef1f8; }
+      .invoice { margin:0 auto; box-shadow:0 20px 50px -30px rgba(20,30,80,.5); }
+      .savebar {
+        position:fixed; right:16px; top:16px;
+        display:inline-flex; align-items:center; gap:8px;
+        padding:10px 16px; border:0; border-radius:10px;
+        background:#3a6fff; color:#fff; font:700 14px/1 Arial, Helvetica, sans-serif;
+        cursor:pointer; box-shadow:0 10px 24px -12px rgba(58,111,255,.8);
+      }
+      @media print {
+        body { background:#fff; }
+        .invoice { box-shadow:none; }
+        .savebar { display:none; }
+      }
+      @media (max-width: 230mm) {
+        /* A4 is wider than a phone. Scaling the whole sheet keeps the
+           document a document instead of reflowing it into something
+           else that then prints differently from what was on screen. */
+        html, body { width:auto; }
+        body { padding:10px; }
+        .invoice { transform-origin: top left; }
+        .savebar { position:static; display:block; width:100%; margin:0 0 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <button class="savebar" onclick="window.print()">Save as PDF</button>
+    <main class="invoice">
+      <section class="top">
+        <div>${logoHtml}</div>
+        <div class="invoice-meta">
+          <h1 class="invoice-title">SELF-BILLED INVOICE</h1>
+          <div class="invoice-number"># ${escapeHtml(input.reference)}</div>
+          <div class="invoice-type">Referral commission</div>
+          ${
+            input.bankReference
+              ? `<div class="invoice-reference">Reference: ${escapeHtml(input.bankReference)}</div>`
+              : ""
+          }
+          <div class="invoice-status ${input.paid ? "paid" : "unpaid"}">${
+            input.paid ? "Paid" : "Awaiting transfer"
+          }</div>
+        </div>
+      </section>
+
+      <section class="parties">
+        <div class="from">
+          <p class="party-heading">Supplier</p>
+          <p class="party-name">${escapeHtml(input.supplier.name)}</p>
+          ${renderLines(input.supplier.lines)}
+        </div>
+        <div class="bill-to">
+          <p class="party-heading">Billed To</p>
+          <p class="party-name">${escapeHtml(input.customer.name)}</p>
+          ${renderLines(input.customer.lines)}
+          <div class="invoice-date">Invoice Date: ${escapeHtml(input.date)}</div>
+        </div>
+      </section>
+
+      <section class="items">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item</th>
+              <th class="num">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="summary">
+        ${totalsHtml}
+      </section>
+
+      <section class="signature">
+        This invoice is raised by ${escapeHtml(input.customer.name)} on behalf of the
+        supplier (self-billing) for referral commission earned through the
+        Prime Scale Media partner programme. Amounts are as transferred; VAT is
+        handled according to the supplier&#39;s own registration.
+      </section>
+    </main>
+    <script>
+      // The sheet is 210mm wide; a phone is not. Scale it down to fit
+      // rather than letting it scroll sideways, and give the page back
+      // the height it loses so nothing is cut off underneath.
+      (function () {
+        var sheet = document.querySelector(".invoice");
+        function fit() {
+          if (!sheet) return;
+          var avail = document.documentElement.clientWidth - 20;
+          var w = sheet.offsetWidth;
+          if (!w) return;
+          var s = Math.min(1, avail / w);
+          sheet.style.transform = s < 1 ? "scale(" + s + ")" : "";
+          sheet.style.marginBottom = s < 1 ? -(sheet.offsetHeight * (1 - s)) + "px" : "";
+        }
+        fit();
+        window.addEventListener("resize", fit);
+      })();
+    </script>
+  </body>
+</html>`;
+}

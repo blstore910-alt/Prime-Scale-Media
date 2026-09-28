@@ -8,6 +8,11 @@ import {
   payoutInvoiceTotals,
 } from "@/lib/pure-payout-invoice";
 import {
+  buildSelfBilledInvoiceHtml,
+  DEFAULT_INVOICE_LOGO_PATH,
+  loadPublicImageDataUri,
+} from "@/lib/invoice-pdf";
+import {
   payoutGroupKey,
   payoutRef,
   payoutSequence,
@@ -56,13 +61,6 @@ type PayoutRow = {
   payout_amount?: number | string | null;
   details?: Record<string, string> | null;
 };
-
-const esc = (v: unknown) =>
-  String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 
 const money = (n: unknown, currency: string) => {
   const v = Number(n) || 0;
@@ -306,11 +304,6 @@ export async function GET(
       seq.get(payoutGroupKey(head as PayoutRefRow)),
     );
 
-    const no = ref
-      ? `Payout ${ref}`
-      : head.payout_no
-        ? `Payout #${head.payout_no}`
-        : `Payout ${head.id.slice(0, 8)}`;
     const isPaid = head.status === "paid";
     const dateLine = isPaid ? day(head.paid_at ?? head.requested_at) : day(head.requested_at);
 
@@ -329,110 +322,29 @@ export async function GET(
     }));
     const totals = payoutInvoiceTotals(rows);
 
-    const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${esc(no)} — ${esc(supplierName)}</title>
-<style>
-  :root{color-scheme:light}
-  *{box-sizing:border-box}
-  body{margin:0;background:#eef1f8;color:#12162a;
-    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  .sheet{max-width:820px;margin:24px auto;background:#fff;padding:44px 48px;border-radius:14px;
-    box-shadow:0 20px 50px -30px rgba(20,30,80,.5)}
-  .top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:32px}
-  h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.02em}
-  .muted{color:#5c6577}
-  .small{font-size:.86rem}
-  .pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:.74rem;font-weight:700;
-    background:#eaf1ff;color:#2f5ae6}
-  .pill.paid{background:#e7f8f1;color:#0e8f66}
-  .parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
-  .parties h2{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#8b93a6;margin:0 0 6px}
-  .parties b{display:block;font-size:1rem;margin-bottom:2px}
-  table{width:100%;border-collapse:collapse;margin-bottom:22px}
-  th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#8b93a6;
-    border-bottom:1px solid #e6e9f2;padding:0 0 8px}
-  td{padding:10px 0;border-bottom:1px solid #f1f4fb;vertical-align:top}
-  td.r,th.r{text-align:right}
-  .totals{display:flex;justify-content:flex-end}
-  .totals div{min-width:260px}
-  .totals .row{display:flex;justify-content:space-between;padding:8px 0}
-  .totals .row.big{border-top:2px solid #12162a;font-weight:800;font-size:1.1rem}
-  .note{margin-top:26px;padding:14px 16px;border-radius:12px;background:#f7f8fd;color:#5c6577;font-size:.84rem}
-  .print{position:fixed;right:18px;top:18px;background:#3a6fff;color:#fff;border:0;border-radius:10px;
-    padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 10px 24px -12px rgba(58,111,255,.8)}
-  @media print{body{background:#fff}.sheet{box-shadow:none;margin:0;max-width:none;padding:0}.print{display:none}}
-  @media (max-width:640px){
-    .sheet{margin:12px;padding:22px 18px;border-radius:12px}
-    .top{flex-direction:column;gap:10px}
-    .top .small{text-align:left}
-    h1{font-size:1.2rem}
-    .parties{grid-template-columns:1fr;gap:16px}
-    .totals div{min-width:0;width:100%}
-    .print{position:static;display:block;width:calc(100% - 24px);margin:12px auto 0}
-  }
-</style></head>
-<body>
-<button class="print" onclick="window.print()">Save as PDF</button>
-<div class="sheet">
-  <div class="top">
-    <div>
-      <h1>Self-billed invoice</h1>
-      <div class="muted small">${esc(no)} · ${esc(dateLine)}</div>
-      <div style="margin-top:8px"><span class="pill ${isPaid ? "paid" : ""}">${
-        isPaid ? "Paid" : "Awaiting transfer"
-      }</span></div>
-    </div>
-    <div class="small muted" style="text-align:right">
-      ${head.reference ? `Reference<br /><b>${esc(head.reference)}</b>` : ""}
-    </div>
-  </div>
-
-  <div class="parties">
-    <div>
-      <h2>From (supplier)</h2>
-      <b>${esc(supplierName)}</b>
-      ${supplierLines.map((l) => `<div class="small muted">${esc(l)}</div>`).join("")}
-    </div>
-    <div>
-      <h2>To (customer)</h2>
-      <b>${esc(issuerName)}</b>
-      ${issuerLines.map((l) => `<div class="small muted">${esc(l)}</div>`).join("")}
-    </div>
-  </div>
-
-  <table>
-    <thead><tr><th>Description</th><th class="r">Amount</th></tr></thead>
-    <tbody>
-      ${lines
-        .map(
-          (l) =>
-            `<tr><td>${esc(l.text)}</td><td class="r">${esc(l.amount)}</td></tr>`,
-        )
-        .join("")}
-    </tbody>
-  </table>
-
-  <div class="totals"><div>
-    ${Object.entries(totals)
-      .map(
-        ([cur, amt]) =>
-          `<div class="row big"><span>Total ${esc(cur)}</span><span>${esc(
-            money(amt, cur),
-          )}</span></div>`,
-      )
-      .join("")}
-  </div></div>
-
-  <div class="note">
-    This invoice is raised by ${esc(issuerName)} on behalf of the supplier
-    (self-billing) for referral commission earned through the Prime Scale
-    Media partner programme. Amounts are as transferred; VAT is handled
-    according to the supplier's own registration.
-  </div>
-</div>
-</body></html>`;
+    // The same document we send customers — same stylesheet, same A4
+    // frame, same logo, same table and summary. The owner, 28-09:
+    // "invoice moet mooier stijl net als wat wij naar klanten geven dit
+    // is lelijk geen echte invoice". Only the heading and the direction
+    // of the parties differ, because on a self-billed invoice the
+    // affiliate supplies and we buy.
+    const logoDataUri = await loadPublicImageDataUri(DEFAULT_INVOICE_LOGO_PATH);
+    const html = buildSelfBilledInvoiceHtml(
+      {
+        reference: ref ?? (head.payout_no ? `#${head.payout_no}` : head.id.slice(0, 8)),
+        paid: isPaid,
+        date: dateLine,
+        bankReference: head.reference ?? null,
+        supplier: { name: supplierName, lines: supplierLines },
+        customer: { name: issuerName, lines: issuerLines },
+        lines,
+        totals: Object.entries(totals).map(([cur, amt]) => ({
+          label: `Total ${cur}`,
+          amount: money(amt, cur),
+        })),
+      },
+      logoDataUri,
+    );
 
     return new NextResponse(html, {
       status: 200,
