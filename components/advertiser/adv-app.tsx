@@ -723,8 +723,24 @@ export default function AdvertiserApp() {
         // week later, asking why EUR 999 never arrived — had no trace of
         // it. Every reason on live is one of the six templates, all of
         // them addressed to the customer.
+        // ── AND `description` IS NOT ASKED FOR AT ALL ANY MORE ──
+        //
+        // Measured on production, 28-09, with the network log open on
+        // PSM0016's dashboard: this read returns 400 and the retry
+        // below carries it. The fallback works -- the screen is not
+        // broken -- but `wallet_topups.description` does not exist on
+        // this database and is in no migration, so the first attempt
+        // can only ever fail. Every wallet load therefore spent a
+        // round trip on a refusal and left a red 400 in the console;
+        // there were 56 of them on one page, which is how a real error
+        // goes unnoticed.
+        //
+        // The column is decorative (the row reads "Wallet top-up" when
+        // it is empty), so the honest thing is not to ask. The retry
+        // stays: if a migration ever adds it, re-add it here, and until
+        // then nothing pretends it is coming.
         .select(
-          "id, created_at, currency, amount, status, reference_no, description, rejection_reason",
+          "id, created_at, currency, amount, status, reference_no, rejection_reason",
         )
         .eq("wallet_id", wallet!.id)
         .order("created_at", { ascending: false })
@@ -756,7 +772,10 @@ export default function AdvertiserApp() {
         if (retryErr) throw retryErr;
         return (retry ?? []).map((r) => ({ ...r, description: null }));
       }
-      return data ?? [];
+      // The column is not in the select any more, so shape the rows the
+      // same way the retry does -- the renderer still reads
+      // `description` and falls back on null.
+      return (data ?? []).map((r) => ({ ...r, description: null }));
     },
   });
 

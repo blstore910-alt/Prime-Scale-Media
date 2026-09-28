@@ -363,10 +363,12 @@ const BmIdFields = ({
           That is the maximum of {BM_ID_MAX}. Ask us if you need more.
         </p>
       )}
-      <p className="text-xs text-muted-foreground">
-        One account is made per request. Give every BM you want accounts
-        for and we will come back to you about the rest.
-      </p>
+      {/* The second copy of the same sentence used to sit here, and it
+          promised something that is not true: "we will come back to you
+          about the rest". createAdAccountFromRequest marks the request
+          completed the moment the account is saved, so there is no
+          "rest" to come back to. The line under the label says what
+          actually happens, once. */}
     </div>
   );
 };
@@ -713,6 +715,26 @@ export default function AdAccountRequestForm({
   // sentence and a way out rather than a spinner for ever.
   const feeBlocksSubmit = !isFree && feeUnknown;
 
+  // ── A CURRENCY THE PICKER NO LONGER OFFERS ────────────────────────
+  //
+  // EUR is rendered only for Meta (`selectedPlatform === "meta-ads"`),
+  // and `currency` defaults to EUR. So somebody who picks TikTok or
+  // Google holds currency "EUR" while the only option on screen is USD
+  // -- the RadioGroup is controlled, so NOTHING is ticked, and the
+  // request is filed in a currency the customer was never shown and
+  // could not have chosen. Walked on production, 28-09.
+  //
+  // Whether EUR should be Meta-only at all is the owner's call. What
+  // cannot stand either way is a stored value the screen does not
+  // offer, so it is corrected to the one that IS offered, in an effect
+  // rather than during render.
+  const eurOffered = selectedPlatform === "meta-ads";
+  useEffect(() => {
+    if (!eurOffered && selectedCurrency === "EUR") {
+      setValue("currency", "USD", { shouldDirty: true, shouldValidate: false });
+    }
+  }, [eurOffered, selectedCurrency, setValue]);
+
 
   const draft = useFormDraft<FormValues>({
     formKey: "ad-account-request",
@@ -1057,7 +1079,23 @@ export default function AdAccountRequestForm({
               render={({ field }) => (
                 <RadioGroup
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
+                  // ── value, NOT defaultValue ─────────────────────
+                  //
+                  // Walked on production, 28-09, on PSM0016: the
+                  // picker said "Meta Ads" with the blue ring on it
+                  // while the form was on tiktok-ads -- the TikTok
+                  // fields were rendered underneath and the currency
+                  // row had collapsed to USD only. defaultValue is
+                  // read ONCE at mount, so anything that changes the
+                  // platform without a click (a restored draft, a
+                  // reset, a re-render that remounts the group) leaves
+                  // the tick on the wrong one. The customer picks a
+                  // platform, the screen shows another, and the
+                  // request is filed for the one they cannot see.
+                  //
+                  // The currency group two blocks down was already
+                  // controlled; this one was not.
+                  value={field.value}
                   className="grid grid-cols-1 sm:grid-cols-3 gap-4"
                 >
                   <div>
