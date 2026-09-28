@@ -64,7 +64,7 @@ begin
   ) then
     alter table public.polls add column kind text not null default 'choice';
     alter table public.polls add constraint polls_kind_ck
-      check (kind in ('choice', 'open'));
+      check (kind in ('choice', 'open', 'both'));
   end if;
 
   if not exists (
@@ -177,17 +177,20 @@ begin
 
     v_kind := coalesce(v_poll.kind, 'choice');
 
+    -- 280 tekens en geen stuurtekens, HIER en niet alleen op het
+    -- scherm: deze functie is rechtstreeks aanroepbaar.
+    v_text := left(btrim(regexp_replace(coalesce(p_answer_text, ''),
+                                        '[[:cntrl:]]+', ' ', 'g')), 280);
+    v_text := nullif(btrim(regexp_replace(v_text, '[ ]{2,}', ' ', 'g')), '');
+
     if v_kind = 'open' then
-      -- 280 tekens en geen stuurtekens, HIER en niet alleen op het
-      -- scherm: deze functie is rechtstreeks aanroepbaar.
-      v_text := left(btrim(regexp_replace(coalesce(p_answer_text, ''),
-                                          '[[:cntrl:]]+', ' ', 'g')), 280);
-      v_text := btrim(regexp_replace(v_text, '[ ]{2,}', ' ', 'g'));
-      if v_text = '' then
+      -- Geen antwoorden om naar te wijzen; de tekst IS het antwoord.
+      if v_text is null then
         return jsonb_build_object('ok', false, 'error', 'Write something first.');
       end if;
       v_opt := null;
     else
+      -- 'choice' en 'both' eisen allebei een bestaand antwoord.
       if not exists (
         select 1 from jsonb_array_elements(v_poll.options) o
          where o->>'id' = p_option_id
@@ -195,7 +198,12 @@ begin
         return jsonb_build_object('ok', false, 'error', 'That answer is not on this poll.');
       end if;
       v_opt := p_option_id;
-      v_text := null;
+      -- Bij 'both' mag er tekst bij, en die is optioneel: iemand die
+      -- alleen kiest heeft al geantwoord. Bij 'choice' hoort er geen
+      -- tekst te zijn, ook niet als iemand hem meestuurt.
+      if v_kind <> 'both' then
+        v_text := null;
+      end if;
     end if;
 
     insert into public.poll_votes

@@ -39,7 +39,7 @@ export type OpenPoll = {
   id: string;
   question: string;
   /** "choice" or "open" -- what kind of answer it wants. */
-  kind: "choice" | "open";
+  kind: "choice" | "open" | "both";
   options: PollOption[];
   /** What they typed, for an open poll they have already answered. */
   myText: string | null;
@@ -103,15 +103,18 @@ export function usePoll(args: {
         | null;
       const myVote = vr?.option_id ?? null;
       const myText = (vr?.answer_text ?? null) || null;
-      const kind = String((mine as { kind?: string | null }).kind ?? "choice") === "open"
-        ? ("open" as const)
-        : ("choice" as const);
+      const rawKind = String((mine as { kind?: string | null }).kind ?? "choice");
+      const kind: "choice" | "open" | "both" =
+        rawKind === "open" ? "open" : rawKind === "both" ? "both" : "choice";
       // An open poll is answered the moment there is text; there is no
       // option to point at.
+      // "both" is answered once an option is picked; the words are
+      // optional, so waiting for them would keep asking somebody who
+      // has already told us what they think.
       const answered = kind === "open" ? !!myText : !!myVote;
 
       let result: OpenPoll["result"] = null;
-      if (answered && kind === "choice") {
+      if (answered && kind !== "open") {
         const { data: counts, error: countError } = await supabase
           .from("poll_results")
           .select("option_id, votes")

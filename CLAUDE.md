@@ -177,6 +177,43 @@ So anything reading a column added by a pending migration must hold when
 it is absent: ask for it, and on error retry without it. The feature
 stays dark until the migration lands, instead of the screen breaking.
 
+## Non-negotiable — EVERY plak goes to the owner as a FILE
+
+Not a code block, not "plak 132 ligt klaar", not a path he has to go
+and open. **Attach the .sql file in the message that mentions it.**
+
+2026-09-28: plakken 132 and 133 were written, committed, and described
+in a report — and neither was run, because the owner never saw a file.
+He said it plainly: "je moet ook altijd een file geven anders zie ik
+niet". A plak that is not attached does not exist.
+
+The rule, in full:
+
+- one message, one or more attached `.sql` files, with a caption that
+  says what it does and what it is worth;
+- if several are open, attach them ALL again rather than referring
+  back to an earlier message;
+- after he says it is done, **verify with `npm run check`** before
+  saying it landed. Twice now a plak reported success while its own
+  marker was missing, and once a plak with two `execute` statements in
+  one block broke production (see below).
+
+## Non-negotiable — ONE `execute` per block in a plak
+
+A plak that does text surgery may contain exactly one `execute` per
+function it changes. 2026-09-28: plak 124 carried a first attempt
+referencing an undeclared variable and the corrected version below it.
+The first ran, the second no longer matched its pattern, and the Join
+button was broken on production for twenty minutes. Before sending any
+plak that rewrites a live function:
+
+```bash
+grep -c "execute regexp_replace\|execute v_new" supabase/checks/PLAK-DIT-NNN-*.sql
+```
+
+The count must equal the number of functions it changes, and nothing
+more.
+
 ## Non-negotiable — logging
 
 Never `console.error(err)` where `err` is a raw Supabase error object.

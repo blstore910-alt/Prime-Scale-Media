@@ -21,7 +21,11 @@ WAT GEEN REDEN IS OM TE STOPPEN:
 - je wacht op een login van mij  -> start de agents van het VOLGENDE blok
                                     en doe daar het codewerk alvast
 - je twijfelt over een detail    -> kies, en schrijf op waarom je koos
-- een plak moet nog gedraaid     -> lever hem en ga door met de code
+- een plak moet nog gedraaid     -> lever hem ALS BESTAND en ga door
+                                    met de code. Een plak die niet is
+                                    aangehecht bestaat niet: 132 en 133
+                                    zijn op 28-09 nooit gedraaid omdat
+                                    ze alleen in een verslag stonden
 
 WAT WEL EEN REDEN IS OM TE STOPPEN:
 - een wachtwoord, een Join of een in/uitlog  -> alleen ik kan dat

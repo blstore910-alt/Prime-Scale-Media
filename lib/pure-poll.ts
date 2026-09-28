@@ -26,13 +26,19 @@ export type PollStatus = "draft" | "open" | "closed";
  *
  *   "choice" — pick one of the answers the owner wrote.
  *   "open"   — say it in your own words.
+ *   "both"   — pick one, and add a line if you want to.
+ *
+ * The owner, 28-09: "het moet zijn poll + words of alleen poll of
+ * alleen words". "both" is the one people actually answer twice: the
+ * bars give you a number you can act on, and the comments tell you why
+ * the number is what it is.
  *
  * The owner, 28-09: "open answer moet ook mogelijk zijn en char limited
  * en veilig". Both halves of that are enforced below and again in the
  * database (plak 133), because a length checked only on the screen is
  * not a length check: the RPC is callable directly.
  */
-export type PollKind = "choice" | "open";
+export type PollKind = "choice" | "open" | "both";
 
 /** The longest answer somebody can type. Short enough to read in a
  *  list of two hundred, long enough to say something. */
@@ -126,7 +132,8 @@ export function pollProblems(input: {
 
   // An open poll has no answers to write, so none of the checks below
   // apply. Asking for two of them would be asking for something that
-  // does not exist on that form.
+  // does not exist on that form. "both" DOES have answers, so it keeps
+  // every check.
   if (input.kind === "open") return out;
 
   const opts = normalizeOptions(input.options);

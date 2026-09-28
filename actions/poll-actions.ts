@@ -86,7 +86,8 @@ export async function createPoll(input: {
   if (!owner.ok) return { ok: false, error: owner.error };
   const tenantId = owner.ctx.profile.tenant_id;
 
-  const kind: PollKind = input.kind === "open" ? "open" : "choice";
+  const kind: PollKind =
+    input.kind === "open" ? "open" : input.kind === "both" ? "both" : "choice";
   const problems = pollProblems({
     question: input.question,
     options: input.options ?? [],

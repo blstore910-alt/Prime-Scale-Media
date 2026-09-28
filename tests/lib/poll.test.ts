@@ -222,3 +222,17 @@ test("an open poll still needs a question", () => {
     "question-missing",
   ]);
 });
+
+test("'both' keeps every answer check — it has answers", () => {
+  // The owner, 28-09: "het moet zijn poll + words of alleen poll of
+  // alleen words." Only the words-only kind skips them.
+  assert.ok(
+    pollProblems({ question: "Q", options: [], kind: "both" }).includes(
+      "too-few-options",
+    ),
+  );
+  assert.deepEqual(
+    pollProblems({ question: "Q", options: ["a", "b"], kind: "both" }),
+    [],
+  );
+});

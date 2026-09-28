@@ -240,22 +240,34 @@ export default function PollAdmin({
           their mind while it is open.
         </p>
 
-        <div className="pa-kinds">
+        {/* Three ways to ask. The owner, 28-09: "het moet zijn poll +
+            words of alleen poll of alleen words." The middle one is the
+            one people answer twice: the bars give a number you can act
+            on, the words tell you why it is that number. */}
+        <div className="pa-kinds three">
           <button
             type="button"
             className={`pa-kind${kind === "choice" ? " on" : ""}`}
             onClick={() => setKind("choice")}
           >
             <b>Pick one</b>
-            <span>You write the answers. You get a result you can read at a glance.</span>
+            <span>Your answers, one number you can act on.</span>
+          </button>
+          <button
+            type="button"
+            className={`pa-kind${kind === "both" ? " on" : ""}`}
+            onClick={() => setKind("both")}
+          >
+            <b>Pick one + why</b>
+            <span>The same bars, plus a line if they want to explain.</span>
           </button>
           <button
             type="button"
             className={`pa-kind${kind === "open" ? " on" : ""}`}
             onClick={() => setKind("open")}
           >
-            <b>In their own words</b>
-            <span>One line of free text, up to {MAX_ANSWER} characters.</span>
+            <b>Their own words</b>
+            <span>No answers to pick — just {MAX_ANSWER} characters.</span>
           </button>
         </div>
 
@@ -272,7 +284,7 @@ export default function PollAdmin({
           onChange={(e) => setQuestion(e.target.value)}
         />
 
-        {kind === "choice" ? (
+        {kind !== "open" ? (
           <>
             <span className="pa-lab">Answers</span>
             <div className="pa-rows">
@@ -343,7 +355,8 @@ export default function PollAdmin({
       </div>
 
       {(polls.data?.rows ?? []).map((p) => {
-        const isOpen = String(p.kind ?? "choice") === "open";
+        const k = String(p.kind ?? "choice");
+        const isOpen = k === "open";
         const opts = Array.isArray(p.options) ? p.options : [];
         const counts = results.data?.[p.id] ?? [];
         const flat: { option_id: string | null }[] = [];
@@ -363,7 +376,7 @@ export default function PollAdmin({
                 <p className="pa-q">{p.question}</p>
                 <div className="pa-meta">
                   <span className={`pa-pill ${state}`}>{state}</span>
-                  {isOpen ? "Own words" : "Pick one"} ·{" "}
+                  {isOpen ? "Own words" : k === "both" ? "Pick one + why" : "Pick one"} ·{" "}
                   {p.audience === "everyone" ? "Everyone" : p.audience} ·{" "}
                   {pollTotalText(total)}
                 </div>
@@ -380,6 +393,18 @@ export default function PollAdmin({
               </div>
             </div>
 
+            {/* "both" shows the bars AND what people wrote underneath —
+                that is the whole reason to pick it. */}
+            {k === "both" && said.length ? (
+              <div className="pa-said">
+                {said.map((s, i) => (
+                  <div className="pa-say" key={i}>
+                    {s.text}
+                    <span className="pa-when">{dayjs(s.at).format("D MMM, HH:mm")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {isOpen ? (
               said.length ? (
                 <div className="pa-said">

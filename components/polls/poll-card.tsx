@@ -122,6 +122,36 @@ export default function PollCard({
             {pollTotalText(result.total)} You can change your answer while
             this is open.
           </p>
+          {/* "both": they have picked, now they may say why. Optional,
+              and after the bars -- asking first would make the pick
+              feel like the easy way out of writing something. */}
+          {kind === "both" ? (
+            myText ? (
+              <div className="pmine" style={{ marginTop: 10 }}>{myText}</div>
+            ) : (
+              <>
+                <textarea
+                  className="pta"
+                  style={{ marginTop: 10 }}
+                  rows={2}
+                  value={text}
+                  maxLength={MAX_ANSWER}
+                  placeholder="Want to say why? (optional)"
+                  onChange={(e) => setText(e.target.value)}
+                />
+                <div className="prow">
+                  <span className={`pcount`}>{left} left</span>
+                  <button
+                    className="psend"
+                    disabled={!typed || !!busy}
+                    onClick={() => send(myVote, text)}
+                  >
+                    {busy ? "Sending…" : "Add it"}
+                  </button>
+                </div>
+              </>
+            )
+          ) : null}
         </>
       ) : (
         <div className="popts">

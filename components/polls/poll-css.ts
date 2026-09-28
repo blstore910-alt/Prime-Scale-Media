@@ -37,6 +37,8 @@ export const POLL_CSS = `
   /* Two ways to ask, side by side, so the choice is visible rather than
      hidden in a dropdown. */
   .pa-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .pa-kinds.three{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:760px){.pa-kinds.three{grid-template-columns:1fr}}
   .pa-kind{text-align:left;padding:11px 13px;border-radius:12px;cursor:pointer;
     border:1px solid var(--line,#e3e8f4);background:var(--panel,#fff);font:inherit;
     transition:border-color .14s,background .14s}

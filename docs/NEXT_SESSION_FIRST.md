@@ -3261,3 +3261,19 @@ create or replace function public._referral_link_earnings_add(
 `affiliate_referral_stats` en alle hooks sommeren de rijen. Dus dit is
 verkeerde data, geen verkeerd cijfer op een scherm, en het heeft geen
 haast. Wel voordat iemand hem ooit gaat tonen.
+
+## ALTIJD: een plak gaat als BESTAND naar de eigenaar
+
+Niet als codeblok, niet als "plak 132 ligt klaar", niet als pad dat hij
+moet openen. **Hecht het .sql-bestand aan in het bericht waarin je hem
+noemt.**
+
+28-09: plakken 132 en 133 waren geschreven, gecommit en in een verslag
+beschreven — en geen van beide is gedraaid, omdat de eigenaar nooit een
+bestand heeft gezien. Zijn woorden: "je moet ook altijd een file geven
+anders zie ik niet". Een plak die niet is aangehecht bestaat niet.
+
+Staan er meerdere open, hecht ze dan ALLEMAAL opnieuw aan in plaats van
+terug te verwijzen. En controleer na "plak done" met `npm run check` of
+hij echt is geland: twee keer nu meldde een plak succes terwijl zijn
+eigen marker ontbrak.
