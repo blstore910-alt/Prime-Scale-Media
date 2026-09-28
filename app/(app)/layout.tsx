@@ -1,5 +1,6 @@
 import AdminLayout from "@/components/admin/layout";
 import AppVersionBanner from "@/components/app-version-banner";
+import ChunkReloadGuard from "@/components/chunk-reload-guard";
 import ErrorBoundary from "@/components/error-boundary";
 import Heartbeat from "@/components/heartbeat";
 import IdleTimeoutManager from "@/components/idle-timeout-manager";
@@ -160,6 +161,11 @@ export default async function AppLayout({
     <Layout user={data.user} profile={profile}>
       <MaintenanceBanner />
       <ErrorBoundary>{children}</ErrorBoundary>
+      {/* The floor under the banner: if the bundle this tab is
+          running has already gone from the server, its buttons are
+          inert and the banner's advice ("reload when you're done") is
+          the wrong advice. See lib/pure-chunk-error.ts. */}
+      <ChunkReloadGuard />
       <AppVersionBanner />
       <Heartbeat />
       <IdleTimeoutManager />

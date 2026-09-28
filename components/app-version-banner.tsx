@@ -38,8 +38,17 @@ export default function AppVersionBanner() {
     >
       <div className="flex-1">
         <p className="font-medium">New version available</p>
+        {/* ── AND THIS SENTENCE WAS THE WRONG ADVICE ─────────────
+            "Reload when you're done with what you're doing" assumes
+            you can still finish. Walked on production 28-09: once the
+            deploy has landed, the chunks this tab has not downloaded
+            yet are GONE, so any dialog or handler it still needs is
+            inert -- a customer pressed "Yes, send it" and an admin
+            pressed "Review" and both got nothing at all, no error.
+            So the banner says what is actually true. ChunkReloadGuard
+            catches the ones who carry on anyway. */}
         <p className="text-xs text-muted-foreground mt-0.5">
-          Reload when you&apos;re done with what you&apos;re doing.
+          Buttons and dialogs may stop responding until you reload.
         </p>
       </div>
       {/* Explicit colours, not a variant. This is the one button in the app
