@@ -14,6 +14,7 @@ import {
   FileText,
   Gift,
   Handshake,
+  MessageSquare,
   HelpCircle,
   History,
   Landmark,
@@ -69,6 +70,7 @@ const TITLES: Record<string, string> = {
   "/manual": "Manual",
   "/reconciliation": "Reconciliation",
   "/affiliates": "Affiliates",
+  "/polls": "Polls",
   "/commissions": "Referral Commissions",
   "/settings/finance": "Settings",
   "/activity-logs": "Activity Logs",
@@ -204,6 +206,8 @@ export default function AdminShell({
         // referrals and rules -- so the menu says "Affiliates".
         { title: "Affiliates", href: "/affiliates", icon: Handshake },
         { title: "Commissions", href: "/commissions", icon: Coins },
+        // Ask the whole book a question and read the answer.
+        { title: "Polls", href: "/polls", icon: MessageSquare },
         { title: "Settings", href: "/settings/finance", icon: Settings },
         { title: "Activity Logs", href: "/activity-logs", icon: History },
         { title: "Audit Log", href: "/audit", icon: ScrollText },

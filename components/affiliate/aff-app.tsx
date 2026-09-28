@@ -41,6 +41,7 @@ import RangePicker, {
 } from "@/components/advertiser/range-picker";
 import AffiliateCommissionsCard from "@/components/advertiser/affiliate-commissions-card";
 import PayoutCard from "@/components/advertiser/payout-card";
+import PollCard from "@/components/polls/poll-card";
 import { saveMyPayoutDetails } from "@/actions/payout-details-actions";
 import { AffIcons, Ic } from "./aff-icons";
 import { openWhatsapp } from "@/lib/whatsapp";
@@ -1102,6 +1103,15 @@ export default function AffiliateApp() {
             </div>
             {/* The other half of an affiliate account: advertising too. */}
             <AdvertiseTooCard advertiserId={profile?.advertiser?.[0]?.id} />
+            {/* The owner's question of the moment. Renders nothing when
+                there is none, so it costs no space the rest of the time. */}
+            <PollCard
+              tenantId={profile?.tenant_id}
+              profileId={profile?.id}
+              role={profile?.role}
+              isAffiliate
+              enabled={!portalInert}
+            />
           </div>
 
           {/* MY REFERRALS */}

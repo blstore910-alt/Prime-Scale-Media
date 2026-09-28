@@ -75,6 +75,7 @@ import { GroupToggle } from "@/components/notifications/notification-toggles";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import InvoiceExportButton from "@/components/invoices/invoice-export-button";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
+import PollCard from "@/components/polls/poll-card";
 import OnboardingChecklist from "./onboarding-checklist";
 import AffiliateCommissionsCard from "./affiliate-commissions-card";
 import useIsAffiliate from "@/components/commissions/use-is-affiliate";
@@ -3999,6 +4000,14 @@ export default function AdvertiserApp() {
               <DashSkeleton />
             ) : (
             <>
+            {/* The owner's question of the moment. Renders nothing when
+                there is none, so it costs no space the rest of the time. */}
+            <PollCard
+              tenantId={profile?.tenant_id}
+              profileId={profile?.id}
+              role={profile?.role}
+              isAffiliate={isAffiliate}
+            />
             <OnboardingChecklist
               /* WAIT FOR THE ANSWERS, not just for localStorage. The ticks
                  come from three separate queries — company, wallet,
