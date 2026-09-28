@@ -6,7 +6,11 @@ import dayjs from "dayjs";
 import { checkVersion, maintenanceGuard, wroteSomething } from "./_shared";
 
 type ActionResult<T = null> =
-  | { ok: true; data: T }
+  // `warning` is a success that came with something the caller has to
+  // be told -- here: the subscription exists but the plan's included
+  // accounts and top-up rate did not get saved. Surfaced by
+  // toastResult(), the same way the withdrawal actions do it.
+  | { ok: true; data: T; warning?: string }
   | { ok: false; error: string };
 
 async function requireAdminCtx() {
@@ -54,6 +58,12 @@ type CreateSubInput = {
   currency: "EUR" | "USD";
   amount: number;
   start_date: string;
+  /**
+   * The catalogue plan this subscription is for, when one was picked.
+   * Optional because a subscription can be a bare monthly amount with
+   * no plan behind it — that is how several live rows were made.
+   */
+  plan_id?: string | null;
 };
 
 export async function createSubscriptionAsAdmin(
@@ -172,7 +182,66 @@ export async function createSubscriptionAsAdmin(
     .single();
   if (insertError) return { ok: false, error: insertError.message };
 
-  return { ok: true, data: { id: inserted.id } };
+  // ── A SUBSCRIPTION IS NOT A PLAN ──────────────────────────────────
+  //
+  // The dialog lets the owner pick a plan and used it for one thing:
+  // filling in the amount. Nothing wrote `advertiser_plans`, which is
+  // the row that carries `included_ad_accounts` and `topup_fee_pct` --
+  // so a customer set up this way was billed the monthly fee and got
+  // NEITHER their included ad accounts NOR the top-up rate their plan
+  // says. Their first ad-account request cost EUR 50 that the plan had
+  // already covered.
+  //
+  // The invite path writes both, and has since the beginning; this one
+  // was never taught to. Same columns and the same `on conflict` as
+  // create_subscription_from_invite, deliberately -- two ways of
+  // writing the same thing that look slightly different is how two
+  // customers on one plan end up billed differently.
+  //
+  // Reported as a warning rather than thrown: the subscription exists
+  // and undoing it here would leave a worse mess than a missing
+  // snapshot somebody can re-save.
+  let warning: string | undefined;
+  if (input.plan_id) {
+    const { data: planRow } = await supabase
+      .from("plans")
+      .select("id, monthly_fee, currency, included_ad_accounts, topup_fee_pct")
+      .eq("id", input.plan_id)
+      .eq("tenant_id", profile.tenant_id)
+      .maybeSingle();
+    if (!planRow) {
+      warning =
+        "The subscription was created, but that plan could not be read, so the included ad accounts and top-up rate were not applied.";
+    } else {
+      const p = planRow as {
+        id: string;
+        monthly_fee: number | string | null;
+        currency: string | null;
+        included_ad_accounts: number | string | null;
+        topup_fee_pct: number | string | null;
+      };
+      const cur = String(p.currency ?? "EUR").toUpperCase();
+      const { error: planErr } = await supabase
+        .from("advertiser_plans")
+        .upsert(
+          {
+            advertiser_id: input.advertiser_id,
+            tenant_id: profile.tenant_id,
+            plan_id: p.id,
+            monthly_fee: Number(p.monthly_fee) || 0,
+            plan_currency: cur === "USD" ? "USD" : "EUR",
+            included_ad_accounts: Number(p.included_ad_accounts) || 0,
+            topup_fee_pct: Number(p.topup_fee_pct) || 0,
+          },
+          { onConflict: "advertiser_id" },
+        );
+      if (planErr) {
+        warning = `The subscription was created, but the plan's included accounts and top-up rate were not saved: ${planErr.message}`;
+      }
+    }
+  }
+
+  return { ok: true, data: { id: inserted.id }, warning };
 }
 
 // ─────────────────────────────────────────

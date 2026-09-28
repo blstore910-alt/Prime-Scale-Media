@@ -1067,10 +1067,23 @@ export const PSM_APP_CSS = `
    "4 active" sat 12px from the next dot and that dot sat 5px from
    "1 deactivated", so the two counts read as one run of text with a
    stray dot in the middle. */
-.psmapp .subcounts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:6px 0 0;
-  font-size:.8rem;color:var(--txt-2)}
-.psmapp .subcounts span{display:inline-flex;align-items:center;gap:6px}
-.psmapp .subcounts span::before{content:"";width:6px;height:6px;flex:0 0 auto;
+/* ── THREE COUNTS, ONE LINE ──────────────────────────────────────
+   The owner, 28-09: "3 active, past due en inactive, dit kan toch op 1
+   line?"
+
+   It can. The 22px column gap is what pushed the third one onto a
+   second row -- three short phrases fit easily, the spacing did not.
+   A smaller gap, a separator so they still read apart without it, and
+   no wrapping.
+
+   flex-wrap stays OFF rather than being made conditional: these are
+   at most four short counts, and a row that sometimes wraps is how
+   the header height changes under you while you read it. */
+.psmapp .subcounts{display:flex;flex-wrap:nowrap;gap:0 10px;margin:6px 0 0;
+  font-size:.8rem;color:var(--txt-2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.psmapp .subcounts span{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto}
+.psmapp .subcounts span::before{content:"";width:5px;height:5px;flex:0 0 auto;
   border-radius:50%;background:var(--line-2)}
 .psmapp .subcounts span.on{color:var(--win);font-weight:650}
 .psmapp .subcounts span.on::before{background:var(--win)}

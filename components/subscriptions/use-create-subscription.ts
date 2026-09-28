@@ -7,6 +7,9 @@ type CreateSubscriptionInput = {
   currency: "EUR" | "USD";
   amount: number;
   start_date: string;
+  /** The catalogue plan, so its included accounts and top-up rate are
+   *  written onto the customer and not just its price. */
+  plan_id?: string | null;
 };
 
 export default function useCreateSubscription() {
@@ -18,6 +21,17 @@ export default function useCreateSubscription() {
     mutationFn: async (values) => {
       const result = await createSubscriptionAsAdmin(values);
       if (!result.ok) throw new Error(result.error);
+      // A success that came with something to say: the subscription
+      // exists but the plan snapshot did not save. Not swallowed --
+      // the customer would be billed and get none of what they paid
+      // for, and nobody would know.
+      if (result.warning) {
+        const { toast } = await import("sonner");
+        toast.warning("Created, but not complete", {
+          description: result.warning,
+          duration: 12_000,
+        });
+      }
       return result.data;
     },
     onSuccess: async () => {

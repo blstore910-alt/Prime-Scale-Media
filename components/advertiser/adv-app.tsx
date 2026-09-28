@@ -610,7 +610,7 @@ export default function AdvertiserApp() {
   // two more this month — and the top-up fee is per AD ACCOUNT, where the
   // account's own rate overrides the plan's, so a flat figure here can be
   // untrue for the very account they are about to fund.
-  const { data: plan } = useQuery<{
+  const { data: plan, isSuccess: planLoaded } = useQuery<{
     name: string | null;
     features: string[];
   } | null>({
@@ -2661,7 +2661,27 @@ export default function AdvertiserApp() {
   // and Billing headlined PRIME over a "No plan" pill. The owner: "er is
   // geen plan maar er staat overal prime". With no subscription there is
   // no plan to name; the invoice lines keep using planName.
-  const noPlan = subLoaded && !subscription;
+  // ── A FREE PLAN IS STILL A PLAN ──────────────────────────────────
+  //
+  // This read `subscriptions` alone. A free plan deliberately gets NO
+  // subscription row -- create_subscription_from_invite returns early
+  // on `v_fee <= 0`, on purpose, because there is nothing to bill. So
+  // every customer on the NSA / community tier came out as "no plan"
+  // and read, for ever:
+  //
+  //   "Ad accounts come with a plan — ask us to start one for you
+  //    first"
+  //
+  // That is the whole free tier locked out of the product, on a
+  // sentence telling them to ask for something they already have.
+  // Walked on production 28-09: picking NSA in New Subscription is
+  // refused with "Amount must be greater than 0", so there is not even
+  // a way to give them one.
+  //
+  // Either row means they have a plan. `planLoaded` so a read still in
+  // flight is not mistaken for an absence -- the same care `subLoaded`
+  // already takes.
+  const noPlan = subLoaded && !subscription && planLoaded && !plan;
   const shownPlanName = subscription ? planName : null;
   const awaitingFirstInvoice =
     !!subscription &&

@@ -106,6 +106,8 @@ export default function CreateSubscriptionDialog({
   }
 
   const [planId, setPlanId] = useState("");
+  /** True when the chosen plan bills nothing, so no subscription is wanted. */
+  const [freePlanChosen, setFreePlanChosen] = useState(false);
 
   const {
     control,
@@ -175,6 +177,20 @@ export default function CreateSubscriptionDialog({
     const p = plans.find((pl) => pl.id === id);
     if (!p) return;
     setValue("amount", Number(p.monthly_fee) || 0);
+    // ── A FREE PLAN HAS NOTHING TO SUBSCRIBE TO ────────────────────
+    //
+    // The catalogue holds a EUR 0 plan (NSA / community), this list
+    // offers it, and picking it fills the amount with 0 -- which the
+    // schema then refuses with "Amount must be greater than 0". A
+    // plan you can pick and cannot use, and the message blames the
+    // number rather than explaining.
+    //
+    // The invite path is the authority here: `if v_fee <= 0 then
+    // return` -- a free plan gets its included accounts and its
+    // top-up rate and NO subscription, because there is nothing to
+    // bill monthly. So this is not a validation problem, it is a
+    // choice the dialog should not be offering.
+    setFreePlanChosen((Number(p.monthly_fee) || 0) <= 0);
     if (p.currency === "EUR" || p.currency === "USD") {
       setValue("currency", p.currency);
     }
@@ -199,7 +215,11 @@ export default function CreateSubscriptionDialog({
   });
 
   const onSubmit = (values: SubscriptionFormValues) => {
-    createSubscription(values, {
+    // The chosen plan travels with it. Until now it only filled in the
+    // amount, so the customer got the monthly fee and none of what the
+    // plan actually grants -- included ad accounts and the top-up rate
+    // both live on `advertiser_plans`, which nothing here wrote.
+    createSubscription({ ...values, plan_id: planId || null }, {
       onSuccess: () => {
         // It is created INACTIVE - subscription-actions.ts writes
         // status:"inactive", and its own comment says the billing run
@@ -383,11 +403,28 @@ export default function CreateSubscriptionDialog({
           />
         </form>
 
+        {freePlanChosen && (
+          <p className="px-6 pb-1 text-sm text-muted-foreground">
+            That plan bills nothing each month, so it needs no
+            subscription — a customer on it gets their included ad
+            accounts and their top-up rate without one. Pick a paid plan
+            here, or leave this and set the free plan on the customer
+            instead.
+          </p>
+        )}
         <DialogFooter>
           <Button
             form="subscription-form"
             type="submit"
-            disabled={isPending || isAdvertisersLoading || isAdvertisersError}
+            disabled={
+              isPending ||
+              isAdvertisersLoading ||
+              isAdvertisersError ||
+              // Refused here rather than by the amount field: "Amount
+              // must be greater than 0" blames the number, when the
+              // real answer is that a free plan has nothing to bill.
+              freePlanChosen
+            }
           >
             {isPending && <Loader2 className="animate-spin" />}
             Create Subscription
