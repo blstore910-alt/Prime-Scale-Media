@@ -68,6 +68,12 @@ function detailLines(p: AffiliatePayout): string[] {
   return out;
 }
 
+/**
+ * The shortest reason the server accepts. actions/payout-actions.ts and
+ * affiliate_payout_decide both refuse under three.
+ */
+const REASON_MIN = 3;
+
 export default function PayoutQueue({
   canDecide,
   nameOf,
@@ -386,7 +392,12 @@ export default function PayoutQueue({
         tone={asking?.action === "paid" ? "default" : "danger"}
         busy={busy}
         busyLabel={asking?.action === "paid" ? "Recording…" : "Sending…"}
-        disabled={asking?.action === "reject" && !reason.trim()}
+        // The SERVER refuses under three characters (payout-actions and
+      // affiliate_payout_decide both), so "ok" lit this up and came back
+      // as a red toast over a box the owner had just written in.
+      disabled={
+        asking?.action === "reject" && reason.trim().length < REASON_MIN
+      }
         disabledHint={
           asking?.action === "reject" && !reason.trim() ? "Write the reason first." : undefined
         }

@@ -337,7 +337,7 @@ export default function NotificationsPage() {
             <Settings2 className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Preferences</span>
           </Button>
-          {(unreadCount > 0 || countError) && (
+          {((unreadCount ?? 0) > 0 || countError) && (
             <Button
               variant="outline"
               size="sm"

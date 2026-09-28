@@ -258,6 +258,42 @@ export async function GET(request: NextRequest) {
 
   }
 
+  // ── AND WHAT CAME BACK IN THE SAME PERIOD ──────────────────────
+  //
+  // This counted paid commission and nothing else, so it answered the
+  // owner's "what did affiliates cost me" with the gross. Measured on
+  // live for September: this route returned EUR 24.96 while EUR 20.92
+  // actually left the company -- the difference is two clawbacks, and
+  // the figure was 19% high on the one screen that is supposed to say
+  // what we paid.
+  //
+  // Only clawbacks attached to a settled payout count, and only in
+  // this period: an unattached one has not reduced anything yet.
+  const clawed = await pageAllRows<{ created_at: string; currency: string | null; amount: unknown }>(
+    (from, to) =>
+      supabase
+        .from("referral_clawbacks")
+        .select("created_at, currency, amount")
+        .eq("tenant_id", profile.tenant_id)
+        .not("payout_id", "is", null)
+        .gte("created_at", periodStart)
+        .lt("created_at", periodEnd)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+  );
+  // A clawback read we could not make must not silently become zero --
+  // that is the same 19% error by another route. The table arrives in a
+  // hand-pasted migration, so "not on this database yet" stays quiet.
+  const clawCode = (clawed.error as { code?: string } | null)?.code ?? "";
+  if (clawed.error && clawCode !== "42P01" && clawCode !== "42703") {
+    return NextResponse.json(
+      { error: "Failed to load affiliate commission stats." },
+      { status: 500 },
+    );
+  }
+  const clawRows = clawed.error ? [] : clawed.rows;
+
   const rows = paged.rows;
   const series = buildSeries(rows, periodStart, periodEnd, granularity);
 
@@ -281,6 +317,18 @@ export async function GET(request: NextRequest) {
       eur: { amount: 0, count: 0 },
     }
   );
+
+  // Net of what was taken back. Never below zero: more coming back than
+  // went out in one period is a real thing, and a negative cost figure
+  // is not what the card means by it.
+  for (const r of clawRows) {
+    const amount = toNumber((r as { amount?: unknown }).amount);
+    const currency = normalizeCurrency(
+      (r as { currency?: string | null }).currency ?? null,
+    );
+    if (amount <= 0 || !currency) continue;
+    totals[currency].amount = Math.max(0, totals[currency].amount - amount);
+  }
 
   return NextResponse.json({
     range: {

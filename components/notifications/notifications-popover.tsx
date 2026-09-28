@@ -265,7 +265,7 @@ export function NotificationsPopover() {
         <PopoverTrigger asChild>
           <Button variant="outline" size="icon" className="relative">
             <Bell className="h-4 w-4 text-muted-foreground" />
-            {unreadCount > 0 && (
+            {(unreadCount ?? 0) > 0 && (
               <span className="absolute -top-1 -right-1 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
@@ -281,7 +281,7 @@ export function NotificationsPopover() {
               {isResolvingAction && (
                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
               )}
-              {unreadCount > 0 && (
+              {(unreadCount ?? 0) > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"

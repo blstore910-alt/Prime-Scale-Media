@@ -91,7 +91,21 @@ export default function CommissionsTable() {
       const { data, error } = await supabase
         .from("referral_clawbacks")
         .select("amount, currency")
-        .eq("tenant_id", profile!.tenant_id);
+        .eq("tenant_id", profile!.tenant_id)
+        // ── ONLY THE ONES NOT YET SETTLED ─────────────────────────
+        //
+        // This summed EVERY clawback the tenant has ever had, and the
+        // banner under it says they are "NOT reflected in the rows
+        // below -- take it off the unpaid rows before you pay". Once a
+        // clawback is attached to a payout it HAS been taken off: the
+        // payout's net is gross minus exactly these.
+        //
+        // Measured 28-09: both live clawbacks (1.99 + 2.05 = 4.04) are
+        // attached to payout #2, which is paid. The one unpaid
+        // commission is EUR 75.00, so an owner following the banner
+        // would pay EUR 70.96 against a EUR 75.00 liability -- and
+        // deduct the same 4.04 twice.
+        .is("payout_id", null);
       if (error) {
         // The table arrived in a migration that is pasted by hand, so a
         // missing relation is "not on this database yet" and stays

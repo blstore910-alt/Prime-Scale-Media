@@ -802,9 +802,9 @@ export default function AffiliateApp() {
                   title="We couldn't check for new notifications — this is not a zero."
                   aria-label="Unread count unavailable"
                 />
-              ) : unreadCount > 0 ? (
+              ) : (unreadCount ?? 0) > 0 ? (
                 <span className="badge-n">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+                  {(unreadCount ?? 0) > 99 ? "99+" : unreadCount}
                 </span>
               ) : null}
             </button>

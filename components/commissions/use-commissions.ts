@@ -57,7 +57,7 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
   );
 
   const { data, isLoading, isError, error } = useQuery<
-    { items: Commission[]; total: number } | undefined
+    { items: Commission[]; total: number | null } | undefined
   >({
     queryKey,
     queryFn: async () => {
@@ -118,7 +118,13 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
 
       return {
         items: (rows ?? []) as Commission[],
-        total: count ?? (rows ?? []).length,
+        // A missing count header is not "one page". Falling back to the
+        // length of THIS page makes totalPages 1, and TablePagination
+        // renders nothing at all below that -- ten rows, no pager, and a
+        // ledger the owner reconciles from as though it were complete.
+        // null means unknown; the caller decides what to say.
+        total:
+          typeof count === "number" && Number.isFinite(count) ? count : null,
       };
     },
   });

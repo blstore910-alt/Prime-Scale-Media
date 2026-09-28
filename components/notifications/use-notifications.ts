@@ -155,7 +155,15 @@ export default function useNotifications(
       };
 
       const { count, error } = await base().is("archived_at", null);
-      if (!error) return count ?? 0;
+      // Same header trap. At 0 the badge is simply absent, which reads
+      // exactly like "nothing new" -- and the thing that does not get
+      // read is the notification carrying a rejected payout and its
+      // reason. null is "we do not know", which the caller can show.
+      if (!error) {
+        return typeof count === "number" && Number.isFinite(count)
+          ? count
+          : null;
+      }
       // Same pending-column rule as the list above.
       if ((error as { code?: string } | null)?.code !== "42703") throw error;
       const { count: plain, error: plainError } = await base();

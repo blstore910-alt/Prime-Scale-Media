@@ -120,18 +120,51 @@ export async function GET(
       .eq("id", head.affiliate_advertiser_id)
       .maybeSingle();
 
-    // ── WHO MAY SEE IT ────────────────────────────────────────────
+    // ── WHO MAY SEE IT: THE AFFILIATE, OR THE OWNER ───────────────
+    //
+    // This allowed ANY admin of the tenant, and the page it stands in
+    // for does not. `affiliate_payouts` has exactly one policy --
+    // `affiliate_payouts_select` -- and it is
+    // `tenants.owner_id = auth.uid() OR advertisers.user_id = auth.uid()`.
+    // There is no admin branch. This route reads with the service key,
+    // so RLS never runs and the route WAS the policy; it was wider than
+    // the thing it replaced.
+    //
+    // What that hands over is not a figure: the invoice renders the
+    // affiliate's IBAN, BIC, bank name, account number, tax id and
+    // address out of the `details` jsonb. Measured 28-09: four admin
+    // profiles, two of them not the owner.
+    //
+    // And `status`, not only `is_active`. Every other guard in this app
+    // -- _is_admin_of, _require_profile, requireAdmin,
+    // resolveAdminContext, apiRequireAdmin -- tests both, because
+    // updateUserProfile allows the two columns to be set separately.
     let allowed = adv?.user_id === user.id;
     if (!allowed) {
-      const { data: profiles } = await admin
-        .from("user_profiles")
-        .select("role, tenant_id, is_active")
-        .eq("user_id", user.id)
-        .eq("tenant_id", head.tenant_id);
-      allowed = (profiles ?? []).some(
-        (p: { role?: string | null; is_active?: boolean | null }) =>
-          String(p.role ?? "").toLowerCase() === "admin" && p.is_active !== false,
-      );
+      const { data: tenantRow } = await admin
+        .from("tenants")
+        .select("owner_id")
+        .eq("id", head.tenant_id)
+        .maybeSingle();
+      const isOwner =
+        !!tenantRow?.owner_id && tenantRow.owner_id === user.id;
+      if (isOwner) {
+        const { data: profiles } = await admin
+          .from("user_profiles")
+          .select("role, tenant_id, is_active, status")
+          .eq("user_id", user.id)
+          .eq("tenant_id", head.tenant_id);
+        allowed = (profiles ?? []).some(
+          (p: {
+            role?: string | null;
+            is_active?: boolean | null;
+            status?: string | null;
+          }) =>
+            String(p.role ?? "").toLowerCase() === "admin" &&
+            p.is_active !== false &&
+            String(p.status ?? "active").toLowerCase() !== "inactive",
+        );
+      }
     }
     if (!allowed) {
       // The SAME answer as a payout id that does not exist. A 403 here

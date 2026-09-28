@@ -157,6 +157,24 @@ export default function PayoutCard({
   >({
     queryKey: ["affiliate-payout-min", scope],
     enabled: !!scope,
+    // ── THE OWNER RELEASING THE FLOOR HAS TO REACH THEM ───────────
+    //
+    // Walked on production, 28-09, and it did not: the owner pressed
+    // Release and set 0, and the affiliate's own tab still read
+    // "EUR 125,00 to go" with the button greyed out -- over a server
+    // that would now accept the request.
+    //
+    // The app default is refetchOnWindowFocus:false with a 30s
+    // staleTime, and this card is never unmounted (the affiliate views
+    // are CSS toggles, not routes), so it never remounts and never
+    // refetches. Its two neighbours -- useAffiliatePayouts and
+    // useAffiliateStats -- both already refetch on focus, which is why
+    // the balance updated and the floor did not.
+    //
+    // Nothing in the affiliate's browser can be invalidated from the
+    // owner's, so focus is the signal there is.
+    refetchOnWindowFocus: true,
+    staleTime: 15_000,
     queryFn: async () => {
       const supabase = createClient();
       const r = await supabase
@@ -1016,9 +1034,39 @@ export default function PayoutCard({
                 const converted = dst !== String(p.currency).toUpperCase();
                 return (
                   <div key={p.id}>
+                    {/* ── THREE NUMBERS THAT HAVE TO MAKE A SUM ─────
+                        `affiliate_payouts.amount` is the NET -- the RPC
+                        inserts gross minus clawback into that column.
+                        This row labelled it "From your EUR balance",
+                        and then a clawback row was hung underneath it,
+                        so live payout #2 read:
+
+                          You receive              EUR 15.96
+                          From your EUR balance    EUR 15.96
+                          Returned volume settled  EUR  4.04
+
+                        15.96 - 4.04 = 11.92. Neither figure follows
+                        from the other two. The INVOICE for that same
+                        payout reads 20.00 / -4.04 / Total 15.96 and is
+                        right -- its route carries a comment about this
+                        exact fault. The panel is the same fault, two
+                        files away, on the surface the affiliate reads
+                        first.
+
+                        So the top line is the gross again: net plus
+                        what was taken back. */}
                     <div className="row">
                       <span>From your {String(p.currency).toUpperCase()} balance</span>
-                      <b>{formatCurrency(Number(p.amount) || 0, p.currency)}</b>
+                      <b>
+                        {formatCurrency(
+                          Math.round(
+                            ((Number(p.amount) || 0) +
+                              (Number(p.clawback_amount) || 0)) *
+                              100,
+                          ) / 100,
+                          p.currency,
+                        )}
+                      </b>
                     </div>
                     {converted ? (
                       <>

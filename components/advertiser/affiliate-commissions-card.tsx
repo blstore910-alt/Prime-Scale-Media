@@ -370,7 +370,14 @@ export default function AffiliateCommissionsCard({
         </p>
       ) : null}
 
-      {q.isLoading ? (
+      {/* isLoading is FALSE for a disabled query in react-query v5, and
+          this one is gated on `enabled`. So during that window the card
+          fell past its error branch into the genuinely-empty sentence --
+          while `dash` twenty lines up, built on `!enabled || q.isPending`,
+          correctly printed a dash in the three money tiles directly
+          above. One card, two answers: "we don't know" over "you have
+          earned nothing", to an affiliate who is owed money. */}
+      {!enabled || q.isPending ? (
         <p className="xl-empty">Loading your commissions…</p>
       ) : q.isError ? (
         <p className="xl-empty">

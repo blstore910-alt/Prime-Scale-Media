@@ -30,7 +30,20 @@ export function useAffiliatesWaiting(tenantId: string | null | undefined, enable
       ): Promise<number | null> => {
         const { count, error } = await q;
         if (error) return MISSING.test(error.message) ? 0 : null;
-        return count ?? 0;
+        // NOT `count ?? 0`. `count` is parsed out of the content-range
+      // HEADER, and postgrest-js leaves it null -- with error null --
+      // when that header is missing or unparseable. The docblock at the
+      // top of this file promises the caller a null for "could not
+      // read", and this line broke that promise: the owner's home
+      // screen would state that nobody is waiting while applications
+      // and pending referrals sat in /affiliates.
+      //
+      // use-pending-counts.ts carries the same guard, for the same
+      // reason. NaN is caught here too -- it fails `n <= 0`, so it
+      // would reach a badge as the literal text "NaN".
+      return typeof count === "number" && Number.isFinite(count)
+        ? count
+        : null;
       };
       const [applications, upgrades, referrals] = await Promise.all([
         part(
