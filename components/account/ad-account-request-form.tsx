@@ -5,15 +5,17 @@ import { isUrlLike } from "@/lib/url-field";
 import {
   Resolver,
   useForm,
-  useFieldArray,
   useFormState,
+  useWatch,
   Control,
   Controller,
   Path,
+  UseFormSetValue,
 } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useRef, useState } from "react";
 import InputField from "../form/input-field";
+import { Input } from "../ui/input";
 import SelectField from "../form/select-field";
 import TextareaField from "../form/textarea-field";
 import { DialogFooter } from "../ui/dialog";
@@ -204,7 +206,13 @@ const TikTokFields = ({ control }: { control: Control<FormValues> }) => (
 // An advertiser who runs several business managers was filing a separate
 // request per BM, or putting them all in the notes where nothing reads
 // them. One row per BM, add and remove, first one required.
-const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
+const BmIdFields = ({
+  control,
+  setValue,
+}: {
+  control: Control<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
+}) => {
   // ── THE REFUSAL HAD NOWHERE TO LAND ───────────────────────────────
   //
   // The Meta branch attaches its error to the ARRAY ROOT
@@ -222,45 +230,67 @@ const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
   const bmError = (errors as Record<string, { message?: string } | undefined>)
     ?.facebook_business_manager_id?.message;
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    // A list of plain strings has no id of its own for react-hook-form to
-    // key on, so it makes one — `field.id`, not the index. Keying on the
-    // index re-uses the DOM node of a removed row and the value from the
-    // row below it slides up into the box you were typing in.
-    name: "facebook_business_manager_id" as never,
-  });
+  // ── useFieldArray DOES NOT DO STRINGS ─────────────────────────────
+  //
+  // This used useFieldArray on `facebook_business_manager_id`, which is
+  // an array of plain strings. react-hook-form's field array keeps an
+  // `id` on every entry so it can key rows, and it can only do that on
+  // OBJECTS -- given strings it hands back an empty `fields`.
+  //
+  // So the section rendered its heading and its "+ Add another BM ID"
+  // button with NO INPUT BETWEEN THEM. Walked on production: the
+  // required field a Meta request cannot be sent without had nowhere to
+  // type it. My own regression, from the 1-to-5 change this morning,
+  // and it blocked the entire journey.
+  //
+  // The list is short and the state is trivial, so it is held directly:
+  // useWatch to read it, setValue to change it. No ids to key on, so
+  // the index is the key -- which is safe here precisely because there
+  // is no library-managed identity to get out of step with it.
+  const watched = useWatch({ control, name: "facebook_business_manager_id" });
+  const ids: string[] = Array.isArray(watched)
+    ? (watched as string[])
+    : [""];
+  const rows = ids.length ? ids : [""];
+  const write = (next: string[]) =>
+    setValue("facebook_business_manager_id", next as never, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
 
   return (
     <div className="space-y-2">
       <span className="text-sm font-medium">
-        Facebook Business Manager ID{fields.length > 1 ? "s" : ""}
+        Facebook Business Manager ID{rows.length > 1 ? "s" : ""}
       </span>
       {bmError && (
         <p className="text-sm text-destructive" role="alert">
           {bmError}
         </p>
       )}
-      {fields.map((field, i) => (
-        <div key={field.id} className="flex items-start gap-2">
+      {rows.map((val, i) => (
+        <div key={i} className="flex items-start gap-2">
           <div className="flex-1">
-            <InputField
-              label=""
-              name={`facebook_business_manager_id.${i}` as Path<FormValues>}
+            <Input
               id={i === 0 ? "fb-bm-id" : `fb-bm-id-${i}`}
               placeholder={i === 0 ? "Enter FB BM ID" : "Another BM ID"}
-              control={control}
+              value={val ?? ""}
+              onChange={(e) => {
+                const next = [...rows];
+                next[i] = e.target.value;
+                write(next);
+              }}
             />
           </div>
           {/* The first row has no remove button: one is the minimum, and
               a button that refuses is worse than no button. */}
-          {fields.length > 1 && (
+          {rows.length > 1 && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="mt-1 shrink-0"
-              onClick={() => remove(i)}
+              onClick={() => write(rows.filter((_, j) => j !== i))}
               aria-label={`Remove Business Manager ID ${i + 1}`}
             >
               Remove
@@ -268,12 +298,12 @@ const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
           )}
         </div>
       ))}
-      {fields.length < BM_ID_MAX ? (
+      {rows.length < BM_ID_MAX ? (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => append("" as never)}
+          onClick={() => write([...rows, ""])}
         >
           + Add another BM ID
         </Button>
@@ -290,9 +320,15 @@ const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
   );
 };
 
-const MetaFields = ({ control }: { control: Control<FormValues> }) => (
+const MetaFields = ({
+  control,
+  setValue,
+}: {
+  control: Control<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
+}) => (
   <div className="my-4 space-y-4">
-    <BmIdFields control={control} />
+    <BmIdFields control={control} setValue={setValue} />
     <InputField
       label="Personal Facebook Profile Link"
       name="personal_facebook_profile_link"
@@ -1027,7 +1063,9 @@ export default function AdAccountRequestForm({
           {selectedPlatform === "tiktok-ads" && (
             <TikTokFields control={control} />
           )}
-          {selectedPlatform === "meta-ads" && <MetaFields control={control} />}
+          {selectedPlatform === "meta-ads" && (
+            <MetaFields control={control} setValue={setValue} />
+          )}
 
           <InputField
             label="Website URL"
