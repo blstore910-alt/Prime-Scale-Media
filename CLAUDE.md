@@ -283,9 +283,25 @@ Every `create table` in `public` ends with, in the same block:
 ```sql
 alter table public.<name> enable row level security;
 revoke all on public.<name> from anon, public;
+-- AND from authenticated, which the line above does NOT reach: that
+-- role gets its rights from Supabase DEFAULT PRIVILEGES, not from
+-- PUBLIC, and the grant below adds -- it does not replace.
+revoke insert, update, delete, truncate on public.<name> from authenticated;
 grant select on public.<name> to authenticated;  -- and insert/update
                                                  -- only if a policy
                                                  -- actually needs it
+```
+
+2026-09-28: this rule was followed to the letter on `wallet_ledger`,
+`polls` and `poll_votes` and `authenticated` still came out with
+insert, update and delete on all three -- plus `fee_change_requests`
+from earlier. RLS refused the writes (no policy allows them), so
+nothing was exploitable, but on an append-only ledger that is one
+forgotten policy away from being real. Plak 130 closed the four.
+Check it, do not assume it:
+
+```sql
+select has_table_privilege('authenticated', 'public.<name>', 'insert');
 ```
 
 The same goes for a `create or replace view`: it resets `reloptions` to
