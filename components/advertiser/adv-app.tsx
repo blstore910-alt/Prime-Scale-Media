@@ -405,6 +405,35 @@ export default function AdvertiserApp() {
   } = useQuery<Wallet | null>({
     queryKey: ["wallet", advertiserId],
     enabled: !!advertiserId,
+    // ── THE ONE NUMBER SOMEBODY ELSE CHANGES ────────────────────────
+    //
+    // The owner, 28-09: "is het evt mogelijk dat die live vanzelf
+    // bijwerkt in wallet?"
+    //
+    // Every other figure on this screen moves because the CUSTOMER did
+    // something, and those already update at once: each mutation
+    // invalidates its queries (see lib/make-query-client.ts, which
+    // says so). The balance is the exception — an admin verifies a
+    // top-up in a different window, and nothing reaches the tab the
+    // customer is sitting in front of. They waited, reloaded, waited.
+    //
+    // And this is exactly the moment they are watching: they have just
+    // wired money and are waiting for it to land.
+    //
+    // A minute's poll and a refetch when they come back to the tab.
+    // Both scoped to THIS query, deliberately: refetch-on-focus is off
+    // app-wide because it made every screen reload on tab-switch, and
+    // that reasoning holds everywhere except here.
+    //
+    // Not Supabase Realtime. That would be instant, and it costs a
+    // publication, an RLS-aware subscription and an open websocket per
+    // customer for a number that changes a handful of times a day.
+    // Sixty seconds is not worth a socket.
+    refetchInterval: 60_000,
+    // Only while the tab is actually in front of them — a backgrounded
+    // tab polling for ever is somebody's battery.
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -2072,6 +2101,13 @@ export default function AdvertiserApp() {
   >({
     queryKey: ["adv-pending-topups", wallet?.id],
     enabled: !!wallet?.id,
+    // With the balance. A wallet that jumps to EUR 500 while the card
+    // beside it still says "EUR 500 on its way" is worse than either
+    // one being late: the two disagree about the same money. They are
+    // both changed by the same admin press, so they refresh together.
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
