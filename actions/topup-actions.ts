@@ -608,9 +608,27 @@ export async function createTopupAsAdmin(
         : rateEur > 0
           ? r2(amountUSD * rateEur)
           : 0;
+    // ── EUR ON THE ROW, DOLLARS IN THE VARIABLE ──────────────────
+    //
+    // `=== "EUR" ? r2(topupAmount)` is only right when the wallet and
+    // the account are the SAME currency. On the other branch
+    // topupAmount comes out of calculateTopupAmount, which returns
+    // DOLLARS -- so a EUR 1,000 admin funding of a USD-currency (or
+    // currency-less) account stored eur_topup as the dollar net, about
+    // 1/rate too high. `eur_value` just above is right because it uses
+    // the received amount, which really is euros.
+    //
+    // Same shape as eur_value now: the euro receipt minus the euro
+    // value of the fee. The fee is dollars on that branch too, so it
+    // is converted rather than subtracted raw. eur_topup is what a
+    // deactivated customer's history prints.
     cleaned.eur_topup =
       currency.toUpperCase() === "EUR"
-        ? r2(topupAmount)
+        ? sameCurrency
+          ? r2(topupAmount)
+          : rateEur > 0
+            ? r2(amountReceived - feeAmount * rateEur)
+            : 0
         : rateEur > 0
           ? r2((amountUSD - feeAmount) * rateEur)
           : 0;
@@ -994,9 +1012,15 @@ export async function bulkCreateTopupsAsAdmin(
             : bulkRateEur > 0
               ? r2(amountUSD * bulkRateEur)
               : 0;
+        // Same fault, same fix, on the bulk path. See the note on the
+        // single-create path above.
         cleaned.eur_topup =
           rowCur === "EUR"
-            ? r2(topupAmount)
+            ? same
+              ? r2(topupAmount)
+              : bulkRateEur > 0
+                ? r2(received - feeAmount * bulkRateEur)
+                : 0
             : bulkRateEur > 0
               ? r2((amountUSD - feeAmount) * bulkRateEur)
               : 0;

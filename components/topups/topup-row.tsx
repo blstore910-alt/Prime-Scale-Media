@@ -1,4 +1,5 @@
 import { TableCell, TableRow } from "@/components/ui/table";
+import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { useAppContext } from "@/context/app-provider";
 import { DATE_TIME_FORMAT, TOPUP_TYPES } from "@/lib/constants";
 import { Topup } from "@/lib/types/topup";
@@ -140,7 +141,20 @@ export default function TopupRow({
                 reported €0 of fee revenue on the dashboard — two screens,
                 two answers, neither flagged. fee_amount is USD like every
                 other amount column on top_ups. */}
-            {formatCurrency(Number(topup.fee_amount) || 0, "USD")}
+            {/* ── THE FEE IS NOT ALWAYS DOLLARS ─────────────────
+                The note above says "fee_amount is USD like every other
+                amount column on top_ups". That is true of the rows an
+                ADMIN wrote. The customer's own RPC computes the fee in
+                the PAYMENT currency, and that is the whole reason
+                landedOnAccount exists -- it reads `topup_usd` as the
+                discriminator for `topup_amount`. The fee column never
+                got the same treatment, so a customer-created EUR row
+                rendered as "EUR 1,000 - $30.00 = EUR 970.00": three
+                columns that do reconcile, printed as two currencies. */}
+            {formatCurrency(
+              Number(topup.fee_amount) || 0,
+              landedOnAccount(topup).currency,
+            )}
           </span>
           <span className="text-xs text-muted-foreground font-semibold">
             {topup.fee}%

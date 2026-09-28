@@ -6,6 +6,7 @@ import {
   Resolver,
   useForm,
   useFieldArray,
+  useFormState,
   Control,
   Controller,
   Path,
@@ -204,6 +205,23 @@ const TikTokFields = ({ control }: { control: Control<FormValues> }) => (
 // request per BM, or putting them all in the notes where nothing reads
 // them. One row per BM, add and remove, first one required.
 const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
+  // ── THE REFUSAL HAD NOWHERE TO LAND ───────────────────────────────
+  //
+  // The Meta branch attaches its error to the ARRAY ROOT
+  // ("facebook_business_manager_id"), and the inputs are registered at
+  // `...0`, `...1`. InputField only renders the error for its own exact
+  // path, so nothing was highlighted -- and nothing is registered at
+  // the root either, so react-hook-form had no ref to scroll to.
+  //
+  // The dialog OPENS on Meta with one empty BM box. Leave it empty,
+  // fill in the rest, press "Send the request": zod refuses, no
+  // confirmation appears, and not one word is shown. The button simply
+  // does nothing. That is the default path through this form, and I
+  // put it there with the 1-to-5 change.
+  const { errors } = useFormState({ control });
+  const bmError = (errors as Record<string, { message?: string } | undefined>)
+    ?.facebook_business_manager_id?.message;
+
   const { fields, append, remove } = useFieldArray({
     control,
     // A list of plain strings has no id of its own for react-hook-form to
@@ -218,6 +236,11 @@ const BmIdFields = ({ control }: { control: Control<FormValues> }) => {
       <span className="text-sm font-medium">
         Facebook Business Manager ID{fields.length > 1 ? "s" : ""}
       </span>
+      {bmError && (
+        <p className="text-sm text-destructive" role="alert">
+          {bmError}
+        </p>
+      )}
       {fields.map((field, i) => (
         <div key={field.id} className="flex items-start gap-2">
           <div className="flex-1">
