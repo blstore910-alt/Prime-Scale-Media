@@ -6213,19 +6213,27 @@ export default function AdvertiserApp() {
                           ? `${chargedMoneyNeat(lastChargedAmount)} / month`
                           : `${planMoneyNeat(subscription.amount)} / month`)
                     : freePlan
-                      ? // NOT "no monthly charge": some of these
-                        // customers pay a monthly fee to their
-                        // community. What is true of all of them is
-                        // that WE do not invoice it. Verified against
-                        // the database: the billing run reads from
-                        // `subscriptions` and a free plan has no row
-                        // there, so no invoice can ever be raised here.
-                        "Not billed by us"
+                      ? // ── SAY THE ONE THING THAT IS TRUE, AND STOP ──
+                        //
+                        // The owner, 28-09: "deze tekst is raar voor NSA.
+                        // Haal die hele 'billed by us' weg en houd het
+                        // simpel: plan, actief, klaar, included."
+                        //
+                        // It read "Not billed by us" over a dash, with
+                        // small print about invoicing and a whole "This
+                        // month" card underneath explaining twice more
+                        // that nothing was owed. Four sentences about a
+                        // bill that does not exist. The pill beside the
+                        // name already says Included; the only other
+                        // fact worth a line is that the plan is running.
+                        "Active"
                       : noPlan
                         ? "No plan yet"
                         : "Subscription"}
                 </div>
-                <div className="meta">
+                {/* A free plan renews nothing, so the line under the
+                    headline was a bare em dash. Gone rather than empty. */}
+                <div className="meta" style={freePlan ? { display: "none" } : undefined}>
                   {/* ── "RENEWS" A DATE THAT HAS ALREADY PASSED ──────
                       next_payment_date only moves forward when the invoice
                       for the period is PAID, so between the invoice being
@@ -6283,15 +6291,27 @@ export default function AdvertiserApp() {
                   {noPlan
                     ? "Ad accounts come with a plan. Ask us which one fits and we'll start it for you."
                     : freePlan
-                      ? // "You pay the difference straight away" is
-                        // about switching between plans WE bill. Says
-                        // nothing about what they may owe elsewhere,
-                        // because we do not know that.
-                        "We invoice you nothing for this plan. Ask us if you want to move to one of ours."
+                      ? // Nothing. See the note on the headline above --
+                        // a plan we do not invoice needs no paragraph
+                        // about invoicing.
+                        null
                       : "Switch anytime — you pay the difference straight away, never a part-month. Ask us for the figure first."}
                 </div>
               </div>
-              <div className="card">
+              {/* ── NOT FOR A PLAN WE DO NOT INVOICE ────────────────
+                  The owner, 28-09: "haal this month weg en invoice dit
+                  dat, alle teksten weg."
+
+                  On a free plan this card could only ever say "Nothing
+                  owed right now" and then say it again in the sentence
+                  below it -- a clock icon, a heading about a billing
+                  month, and two paragraphs about invoices, for somebody
+                  we never invoice. The hero above already says Active
+                  and Included, and that is the whole story. */}
+              <div
+                className="card"
+                style={freePlan ? { display: "none" } : undefined}
+              >
                 <h2>
                   <Ic name="i-clock" /> This month
                 </h2>
@@ -6697,11 +6717,14 @@ export default function AdvertiserApp() {
                         heading that had just named theirs. Their bill
                         really is nothing; that is the whole sentence. */}
                     {freePlan ? (
-                      <p className="cap" style={{ margin: 0 }}>
-                        {shownPlanName
-                          ? `We invoice you nothing for ${shownPlanName}. Your included ad accounts come with it.`
-                          : "We invoice you nothing for your plan. Your included ad accounts come with it."}
-                      </p>
+                      /* Nothing. The owner, 28-09: "alle teksten weg."
+                         This was the fourth sentence on one screen
+                         telling an NSA customer we do not invoice them
+                         -- after the hero, the small print and the
+                         whole "This month" card, all of which are now
+                         gone for a free plan. The hero says Active and
+                         Included; there is nothing left to add. */
+                      null
                     ) : (
                       <>
                         <p className="cap" style={{ margin: 0 }}>
