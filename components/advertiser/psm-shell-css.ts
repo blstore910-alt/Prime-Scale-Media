@@ -199,6 +199,12 @@ export const PSM_APP_CSS = `
    says "Create Ne" cannot. */
 .psmapp .phead-actions .pacts{flex:0 0 auto;display:flex;gap:8px;align-items:center}
 .psmapp .phead-actions .pacts .btn{white-space:nowrap}
+/* A note where a button would be: it may shrink and wrap, which the
+   action group itself may not. Without this the sentence on
+   /subscriptions kept its full width at 400px and printed over the
+   page title. */
+.psmapp .phead-actions .pacts:has(> .pacts-note){flex:1 1 auto;min-width:0}
+.psmapp .pacts-note{flex:1 1 auto;min-width:0;text-align:right;line-height:1.35}
 
 /* Row actions: equal-width buttons on ONE line. Buttons of different widths
    wrapping onto a second row was the single most repeated ugliness in the

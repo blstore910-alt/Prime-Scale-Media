@@ -15,6 +15,12 @@ import { copyText } from "@/lib/copy-text";
 import { DEFAULT_MIN_TOPUP } from "@/lib/min-topup";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import {
+  topupAgain,
+  topupAgainBlocks,
+  topupAgainMessage,
+  topupAgainNeedsConfirm,
+} from "@/lib/pure-topup-again";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -438,6 +444,23 @@ export default function WalletTopupDialog({
     },
   });
   const openTopup = (openTopups ?? [])[0] ?? null;
+
+  // ── THE SAME TRANSFER, FILED AGAIN ────────────────────────────────
+  //
+  // The owner, 28-09: somebody files ten top-ups for one payment,
+  // because nothing lands until an admin verifies it and they think it
+  // did not go through. A real second transfer must still be possible,
+  // so this is a sentence and a second press, not a refusal -- only
+  // the ceiling refuses. See lib/pure-topup-again.ts.
+  //
+  // The query above already reads the pending claims and caps at 3,
+  // which is exactly the ceiling, so nothing new is fetched.
+  const again = topupAgain({
+    pendingCreatedAt: (openTopups ?? []).map((t) => t.created_at),
+  });
+  const againMessage = topupAgainMessage(again);
+  const againBlocks = topupAgainBlocks(again);
+  const [againAcknowledged, setAgainAcknowledged] = useState(false);
   const copyReference = async (override?: string | null) => {
     const ref = formatPaymentReference(clientCode, override ?? referenceNo);
     if (!ref) return;
@@ -511,9 +534,13 @@ export default function WalletTopupDialog({
     ? "One moment — the slip is still uploading."
     : !walletId
       ? "We couldn't read your wallet just now. Reload and try again."
-      : !paymentSlipUrl
-        ? "Add the payment slip to submit — it is how we match your transfer."
-        : null;
+      : againBlocks
+        ? againMessage
+        : !paymentSlipUrl
+          ? "Add the payment slip to submit — it is how we match your transfer."
+          : topupAgainNeedsConfirm(again) && !againAcknowledged
+            ? "Tick the box above to confirm this is a separate transfer."
+            : null;
 
   // Draft persistence: multi-step form, easy to lose input on tab close.
   // Save the composite of {currency, accountType, amount, step,
@@ -1510,6 +1537,42 @@ export default function WalletTopupDialog({
                       })()}
                   </div>
                 </div>
+
+                {/* ── YOU HAVE ALREADY TOLD US ABOUT ONE ─────────────
+                    Sat on step 3, beside the amount, because that is
+                    where somebody is about to file the second one --
+                    not on step 1, which they walked past five minutes
+                    ago. The tick is deliberate: a sentence alone is
+                    read as decoration by the person who is worried
+                    enough to be filing twice. */}
+                {againMessage ? (
+                  <div
+                    className={`rounded-xl border p-4 text-left ${
+                      againBlocks
+                        ? "border-destructive/40 bg-destructive/5"
+                        : "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
+                    }`}
+                  >
+                    <p className="text-sm">{againMessage}</p>
+                    {!againBlocks && (
+                      <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer"
+                          style={{ accentColor: "var(--primary)" }}
+                          checked={againAcknowledged}
+                          onChange={(e) =>
+                            setAgainAcknowledged(e.target.checked)
+                          }
+                        />
+                        <span>
+                          Yes — this is a different transfer I have actually
+                          made.
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                ) : null}
 
                 {/* Slip required for every topup now */}
                 {(

@@ -303,7 +303,19 @@ export default function PsmSubscriptions() {
               <Plus /> <span className="blab">New Subscription</span>
             </button>
           ) : (
-            <span className="cap" style={{ alignSelf: "center" }}>
+            /* ── A SENTENCE IS NOT A BUTTON ────────────────────────
+               `.pacts` is `flex: 0 0 auto` on purpose: an action group
+               must not shrink, because a primary button reading
+               "Create Ne" is worse than a clipped heading. A SENTENCE
+               has no such claim -- and this one is long. At 400px it
+               took its full width, squeezed `.ptxt` to nothing, and
+               printed itself straight over the word "Subscriptions"
+               with the subtitle cut to "Recur…".
+
+               `pacts-note` lets it shrink and wrap like the text it
+               is. The rule above it is untouched, so every page with
+               real buttons keeps the behaviour it was written for. */
+            <span className="cap pacts-note">
               Plans are the owner&apos;s to start, price and stop.
             </span>
           )}
