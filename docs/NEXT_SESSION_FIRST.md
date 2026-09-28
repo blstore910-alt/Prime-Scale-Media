@@ -3217,3 +3217,47 @@ enige rem op geld dat een medewerker met de hand verplaatst.
 
 Zonder (1) en (2) is de boekhouding sluitend zolang iedereen via ons
 dashboard werkt, en stil scheef zodra iemand dat niet doet.
+
+## De earnings-teller wordt dubbel opgeteld — de OORZAAK
+
+Plak 122 herberekent `referral_links.earnings_eur/_usd` uit de rijen, maar
+zet de oorzaak niet stil. Gemeten 28-09, alle vier de links:
+
+| link | opgeslagen | echt |
+|---|---|---|
+| a573fd96 | 15,88 | 5,92 |
+| 9385a77b | 30,00 | 15,00 |
+| 8fd91a63 | 75,00 | 75,00 |
+
+`15,88 = 2 x 9,96 - 4,04` en `30,00 = 2 x 15,00`. Twee keer opgeteld, een
+keer teruggevorderd. De derde klopt omdat die commissie nog nooit op
+`paid` is gezet.
+
+**Waar het zit.** Twee paden tellen op:
+
+1. `_referral_link_earnings_add(link, currency, amount)` wordt aangeroepen
+   door `_book_topup_commission`, `_book_invoice_commission`,
+   `_book_onetime_if_due` en `_reverse_referral_commission_on_topup` --
+   dus op het moment van BOEKEN.
+2. `update_referral_link_earnings_on_paid`, een AFTER UPDATE trigger op
+   `referral_commissions`, telt `NEW.amount` er nog eens bij zodra de rij
+   van `unpaid` naar `paid` gaat.
+
+Boeken plus uitbetalen = twee keer.
+
+**Wat het moet worden.** Eén van de twee, en de andere weg. De
+eenvoudigste en minst breekbare is `_referral_link_earnings_add`
+HERBEREKENEN uit de rijen in plaats van een delta op te tellen -- dan is
+hij idempotent en maakt het niet meer uit hoe vaak hij wordt aangeroepen:
+
+```sql
+create or replace function public._referral_link_earnings_add(
+  p_link uuid, p_currency text, p_amount numeric
+) returns void ...
+-- negeert p_amount en telt de rijen opnieuw, zoals plak 122 doet
+```
+
+**Wat het NIET raakt.** Geen enkel scherm leest deze teller vandaag --
+`affiliate_referral_stats` en alle hooks sommeren de rijen. Dus dit is
+verkeerde data, geen verkeerd cijfer op een scherm, en het heeft geen
+haast. Wel voordat iemand hem ooit gaat tonen.
