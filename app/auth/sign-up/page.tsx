@@ -51,12 +51,12 @@ export default async function Page({ searchParams }: PageProps) {
             <span className="mk">Almost</span>
           </div>
           <h1 className="lh">This sign-up link is incomplete</h1>
-          <p className="lsub">
+          <p className="meta">
             The part that says which account to create is missing — a
             shortener or an email client has most likely trimmed it. Ask
             whoever sent it for the full link and it will work.
           </p>
-          <p className="lsub">
+          <p className="meta">
             Already have an account?{" "}
             <a href="/auth/login" className="lnk">
               Log in

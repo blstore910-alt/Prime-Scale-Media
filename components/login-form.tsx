@@ -342,7 +342,12 @@ export function LoginForm() {
             form. Somebody who never had one lands on the "incomplete
             link" card, which tells them what to ask for. Either way
             they are not stuck. */}
-        <p className="lsub" style={{ textAlign: "center", marginTop: 12 }}>
+        {/* `.meta` — centred, muted, and it has a dark-mode colour of
+            its own. I first wrote `.lsub`, which is defined NOWHERE in
+            the auth shell, so "New here?" inherited the default text
+            colour and vanished into the dark background: the owner saw
+            a lone blue link with nothing in front of it. */}
+        <p className="meta" style={{ marginTop: 12 }}>
           New here?{" "}
           <Link className="lnk" href="/auth/sign-up">
             Create an account
