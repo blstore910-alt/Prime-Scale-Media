@@ -40,7 +40,10 @@ import { useFormDraft } from "@/hooks/use-form-draft";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { useDismissedNotices } from "@/hooks/use-dismissed-notices";
 import useNotifications from "@/components/notifications/use-notifications";
-import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import {
+  getNotificationCopy,
+  NOTIF_SHOWN,
+} from "@/components/notifications/notification-utils";
 import { isCustomerVisibleType } from "@/lib/notification-catalog";
 import { updateOwnProfileAndCompany } from "@/actions/company-actions";
 import { getURL } from "@/lib/utils";
@@ -1274,9 +1277,12 @@ export default function AdvertiserApp() {
   // picking their recipients correctly; one mis-addressed row put it
   // here and, because the GDPR export copies notifications.payload out
   // whole, into their download as well.
-  const notifs = (rawNotifs ?? []).filter((n) =>
-    isCustomerVisibleType((n as { type?: string | null })?.type),
-  );
+  // The last ten, not the last fifty -- see the twin in aff-app.tsx.
+  // The hook caps the READ at 50 so first paint does not pull a whole
+  // history; this caps what is SHOWN. The unread badge is unaffected.
+  const notifs = (rawNotifs ?? [])
+    .filter((n) => isCustomerVisibleType((n as { type?: string | null })?.type))
+    .slice(0, NOTIF_SHOWN);
 
 
   const {

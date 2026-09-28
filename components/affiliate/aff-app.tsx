@@ -13,7 +13,10 @@ import useAffiliatePayouts from "@/hooks/use-affiliate-payouts";
 import { paidInPeriod } from "@/lib/pure-affiliate-paid";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import useNotifications from "@/components/notifications/use-notifications";
-import { getNotificationCopy } from "@/components/notifications/notification-utils";
+import {
+  getNotificationCopy,
+  NOTIF_SHOWN,
+} from "@/components/notifications/notification-utils";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import { GroupToggle } from "@/components/notifications/notification-toggles";
 import { groupsForRole } from "@/lib/notification-catalog";
@@ -233,9 +236,20 @@ export default function AffiliateApp() {
   // picking their recipients correctly; one mis-addressed row put it
   // here and, because the GDPR export copies notifications.payload out
   // whole, into their download as well.
-  const notifs = (rawNotifs ?? []).filter((n) =>
-    isCustomerVisibleType((n as { type?: string | null })?.type),
-  );
+  // ── THE LAST TEN, NOT THE LAST FIFTY ──────────────────────────
+  //
+  // The owner, 28-09: "limit ook hoeveel notificaties laatste de
+  // advertisers en affiliates zien bijv 10 ofzo". The hook caps the
+  // READ at 50 for a different reason (it runs on first paint for
+  // everyone, so it must not pull a whole history); this caps what is
+  // SHOWN, which is a different question. A customer scrolling past
+  // forty notices to find the one that matters is not reading them.
+  //
+  // The count on the bell is unaffected -- it counts unread rows, and
+  // hiding older ones must not make the badge lie.
+  const notifs = (rawNotifs ?? [])
+    .filter((n) => isCustomerVisibleType((n as { type?: string | null })?.type))
+    .slice(0, NOTIF_SHOWN);
 
 
   const lifetimeEur = all.totals.earnings_eur;

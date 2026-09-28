@@ -678,3 +678,20 @@ export function getNotificationCopy(notification: Notification): {
       };
   }
 }
+
+/**
+ * How many notices a customer sees in their own list.
+ *
+ * The owner, 28-09: "limit ook hoeveel notificaties laatste de
+ * advertisers en affiliates zien bijv 10 ofzo".
+ *
+ * Not the same cap as the READ. `use-notifications` fetches 50 because
+ * that hook is mounted at the root of both shells and must not pull a
+ * whole history on first paint. This is what is put on the screen —
+ * scrolling past forty notices to find the one that matters is not
+ * reading them.
+ *
+ * The unread badge counts rows, not what is shown, so shortening the
+ * list cannot make the number on the bell lie.
+ */
+export const NOTIF_SHOWN = 10;
