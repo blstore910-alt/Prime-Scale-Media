@@ -12,14 +12,33 @@ import { createClient } from "@/lib/supabase/client";
 // too, and customers who signed up through a link and wait for approval --
 // so the tile and the list can never disagree.
 //
+// EXCEPT IT DID. /affiliates has a second waiting section, "Payouts
+// waiting", and this hook never counted it. The owner, 28-09, looking at
+// his own home screen with payout #4 sitting in that queue: "bij super
+// admin zie ik niks in wachtrij qua job bijv affiliate payout pending
+// ofzo". An affiliate had asked for EUR 75,00 and the home screen said
+// nothing at all.
+//
+// It is counted separately rather than added in, because it is a
+// different job: approving an application is a decision, paying out is a
+// bank transfer, and one number over two jobs tells you neither. The
+// dashboard gives it its own card, next to the other money going OUT.
+//
 // A column a plak has not added yet counts as "not switched on" (0 for
 // that part); any other failed read makes the whole figure unknown (null),
 // never a confident zero.
 
 const MISSING = /42703|does not exist|schema cache|PGRST20\d/i;
 
+export type AffiliatesWaiting = {
+  /** Applications, advertise-too requests and referrals to approve. */
+  decisions: number | null;
+  /** Payout requests waiting for a transfer. */
+  payouts: number | null;
+};
+
 export function useAffiliatesWaiting(tenantId: string | null | undefined, enabled: boolean) {
-  return useQuery<number | null>({
+  return useQuery<AffiliatesWaiting>({
     queryKey: ["affiliates-waiting", tenantId ?? ""],
     enabled: enabled && !!tenantId,
     refetchOnWindowFocus: true,
@@ -45,7 +64,7 @@ export function useAffiliatesWaiting(tenantId: string | null | undefined, enable
         ? count
         : null;
       };
-      const [applications, upgrades, referrals] = await Promise.all([
+      const [applications, upgrades, referrals, payouts] = await Promise.all([
         part(
           supabase
             .from("advertisers")
@@ -67,9 +86,23 @@ export function useAffiliatesWaiting(tenantId: string | null | undefined, enable
             .eq("tenant_id", tenantId!)
             .eq("status", "pending"),
         ),
+        // 'requested' is the one open status; the other three
+        // (paid/rejected/cancelled) are all finished. Grouped requests
+        // carry one row per currency, so a two-currency request counts
+        // as two -- which is right: they are two transfers.
+        part(
+          supabase
+            .from("affiliate_payouts")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenantId!)
+            .eq("status", "requested"),
+        ),
       ]);
-      if (applications === null || upgrades === null || referrals === null) return null;
-      return applications + upgrades + referrals;
+      const decisions =
+        applications === null || upgrades === null || referrals === null
+          ? null
+          : applications + upgrades + referrals;
+      return { decisions, payouts };
     },
   });
 }

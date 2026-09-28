@@ -11,6 +11,7 @@ import { whatsappUrl } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { payoutMinimumFor } from "@/lib/pure-payout-min";
+import { payoutGroupKey, payoutRef, payoutSequence } from "@/lib/pure-payout-ref";
 import {
   PAYOUT_FEE_PCT,
   payoutReach,
@@ -50,6 +51,10 @@ type Props = {
   enabled: boolean;
   /** Cache scope, so two identities never share a payout list. */
   scope?: string | null;
+  /** Their partner code (PSM0008). The reference they are shown is
+   *  built from it -- see lib/pure-payout-ref.ts for why they are not
+   *  shown the house-wide `payout_no`. */
+  clientCode?: string | null;
   owedEur: number;
   owedUsd: number;
   /** The owed figure could not be read (or is lifetime, not outstanding). */
@@ -142,6 +147,7 @@ function preview(amount: number, from: Cur, to: Cur, rate: number | null) {
 export default function PayoutCard({
   enabled,
   scope,
+  clientCode,
   owedEur,
   owedUsd,
   owedUnknown,
@@ -266,6 +272,13 @@ export default function PayoutCard({
     () => payouts.rows.filter((p) => p.status !== "requested").slice(0, 4),
     [payouts.rows],
   );
+  // Their OWN numbering. `payout_no` is house-wide and stays out of
+  // sight here -- the owner, 28-09: "hun mogen niet zien tenant payouts
+  // alleen per affiliate". lib/pure-payout-ref.ts explains why the
+  // database column still has to be house-wide.
+  const seq = useMemo(() => payoutSequence(payouts.rows), [payouts.rows]);
+  const refOf = (p: { id: string; group_id?: string | null }) =>
+    payoutRef(clientCode, seq.get(payoutGroupKey(p)));
 
   if (!enabled) return null;
 
@@ -562,7 +575,7 @@ export default function PayoutCard({
               <span className="xo-pill">
                 <span className="dot" /> {STATUS_LABEL.requested}
               </span>
-              {first.payout_no ? <span className="xo-no">Payout #{first.payout_no}</span> : null}
+              {refOf(first) ? <span className="xo-no">Payout {refOf(first)}</span> : null}
               <span className="xo-when">{dayjs(first.requested_at).format("D MMM, HH:mm")}</span>
             </span>
             <span className="xo-amt">
@@ -692,7 +705,7 @@ export default function PayoutCard({
               <span className="mid">
                 <span className="m">{receives(p)}</span>
                 <span className="d">
-                  {p.payout_no ? `Payout #${p.payout_no} · ` : ""}
+                  {refOf(p) ? `Payout ${refOf(p)} · ` : ""}
                   {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
                   {p.reference || p.reason ? ` · ${p.reference || p.reason}` : ""}
                 </span>
@@ -1014,27 +1027,15 @@ export default function PayoutCard({
           <div className="mback" onClick={() => setView(null)} />
           <div className="mcard" style={{ width: "min(460px,100%)" }}>
             <div className="mhead">
-              {/* The number is NOT a count of this partner's payouts.
-                  `_next_payout_no` is max(payout_no)+1 per TENANT, and
-                  it has to be: this document is a self-billed invoice
-                  we raise, so its number must be unique and sequential
-                  per issuer — restarting it per affiliate would give
-                  two partners an invoice #1.
-
-                  The owner read it the other way on first sight ("is
-                  dit de 4de payout van deze affiliate?" — it was their
-                  second), so an affiliate certainly will. The number
-                  stays; it just no longer stands alone. */}
-              <h2>{view[0].payout_no ? `Payout #${view[0].payout_no}` : "Your payout request"}</h2>
+              {/* Their own series, not the house one. See refOf above
+                  and lib/pure-payout-ref.ts. */}
+              <h2>
+                {refOf(view[0]) ? `Payout ${refOf(view[0])}` : "Your payout request"}
+              </h2>
               <button className="iconbtn" onClick={() => setView(null)} aria-label="Close">
                 ✕
               </button>
             </div>
-            {view[0].payout_no ? (
-              <p className="cap" style={{ margin: "-6px 0 12px" }}>
-                Our reference for this transfer — not a count of yours.
-              </p>
-            ) : null}
 
             <div className="xp-rhead">
               <span

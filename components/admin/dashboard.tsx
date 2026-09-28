@@ -428,8 +428,29 @@ export default function AdminDashboard() {
             href: "/affiliates",
             icon: Gift,
             ci: "p",
-            count: affWaiting.isLoading ? null : affWaiting.data ?? null,
+            count: affWaiting.isPending ? null : affWaiting.data?.decisions ?? null,
             label: "Affiliates waiting for you",
+          },
+          // ── AN AFFILIATE WAITING FOR HIS MONEY ──────────────────
+          //
+          // Its own card, not added into the one above. That one is
+          // decisions -- approve an application, approve a referral --
+          // and this one is a bank transfer. The owner, 28-09, with
+          // payout #4 sitting in the queue and nothing on his home
+          // screen saying so: "bij super admin zie ik niks in wachtrij
+          // qua job bijv affiliate payout pending ofzo".
+          //
+          // Owner only, like the queue itself: the policy on
+          // affiliate_payouts has no admin branch, so an employee admin
+          // would read 0 here whatever is waiting -- and a 0 that means
+          // "you may not see this" is worse than no card.
+          {
+            key: "affiliate-payouts",
+            href: "/affiliates?tab=payouts",
+            icon: Download,
+            ci: "t",
+            count: affWaiting.isPending ? null : affWaiting.data?.payouts ?? null,
+            label: "Affiliate payouts to pay",
           },
         ]
       : []),

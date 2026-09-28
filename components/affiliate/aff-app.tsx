@@ -1641,6 +1641,7 @@ export default function AffiliateApp() {
               <PayoutCard
                 enabled={!portalInert}
                 scope={profile?.advertiser?.[0]?.id ?? null}
+                clientCode={profile?.advertiser?.[0]?.tenant_client_code ?? null}
                 // Every new request starts from what they saved under
                 // Settings, instead of six empty boxes and an IBAN typed
                 // out again.

@@ -7,6 +7,12 @@ import {
   payoutInvoiceLines,
   payoutInvoiceTotals,
 } from "@/lib/pure-payout-invoice";
+import {
+  payoutGroupKey,
+  payoutRef,
+  payoutSequence,
+  type PayoutRefRow,
+} from "@/lib/pure-payout-ref";
 
 export const runtime = "nodejs";
 
@@ -202,11 +208,54 @@ export async function GET(
       issuer?.official_email,
     ].filter(Boolean) as string[];
 
+    // ── THE SUPPLIER IS THEIR COMPANY, IF THEY HAVE ONE ───────────
+    //
+    // The owner, 28-09: "moet een invoice ontstaan van zijn bedrijf
+    // naar turlit toe". This only ever read the payout's own `details`
+    // jsonb — the account holder, typed into the request dialog — and
+    // never the affiliate's `companies` row, where their registered
+    // name, address, VAT number and registration number actually live.
+    //
+    // On a self-billed invoice the supplier is the legal entity, not
+    // the name on a bank account (they can differ, and payout #3 was
+    // sent back for exactly that). So the company row leads where it
+    // exists, and what the affiliate typed fills the gaps — which is
+    // what happens for PSM0008 today, who has no company row at all.
+    //
+    // The bank line stays either way: it is how the transfer was made,
+    // and it belongs on the document that records it.
+    const { data: supplierCo } = adv?.id
+      ? await admin
+          .from("companies")
+          .select("name, address, state, country, zipcode, vat_no, registration_no")
+          .eq("advertiser_id", adv.id)
+          .maybeSingle()
+      : { data: null };
+
     const d = (head.details ?? {}) as Record<string, string>;
-    const supplierName = d.holder || profile?.full_name || "Affiliate";
+    const supplierName =
+      supplierCo?.name || d.holder || profile?.full_name || "Affiliate";
+    const coAddress = supplierCo
+      ? [
+          supplierCo.address,
+          [supplierCo.state, supplierCo.country, supplierCo.zipcode]
+            .filter(Boolean)
+            .join(", "),
+        ].filter(Boolean)
+      : [];
     const supplierLines = [
-      d.address,
-      d.taxId ? `VAT / Tax ID ${d.taxId}` : null,
+      ...(coAddress.length ? coAddress : [d.address]),
+      supplierCo?.vat_no
+        ? `VAT ${supplierCo.vat_no}`
+        : d.taxId
+          ? `VAT / Tax ID ${d.taxId}`
+          : null,
+      supplierCo?.registration_no ? `Reg. ${supplierCo.registration_no}` : null,
+      // The holder only when it is NOT the company name — otherwise it
+      // is the same line twice.
+      supplierCo?.name && d.holder && d.holder.trim() !== supplierCo.name.trim()
+        ? `Paid to ${d.holder}`
+        : null,
       d.iban ? `IBAN ${d.iban}` : null,
       d.bic ? `BIC ${d.bic}` : null,
       d.bankName ? `${d.bankName}${d.accountNumber ? ` · ${d.accountNumber}` : ""}` : null,
@@ -237,7 +286,31 @@ export async function GET(
       );
     }
 
-    const no = head.payout_no ? `Payout #${head.payout_no}` : `Payout ${head.id.slice(0, 8)}`;
+    // ── THE DOCUMENT NUMBER IS A SUB-SERIES PER PARTNER ───────────
+    //
+    // The owner, 28-09: "hun mogen niet zien tenant payouts alleen per
+    // affiliate". `payout_no` is house-wide, so printing it tells this
+    // supplier how many payouts everyone else received in between. The
+    // reference becomes PSM0008-02: still unique across the house,
+    // still sequential within one supplier, silent about the rest.
+    // lib/pure-payout-ref.ts has the reasoning and the tests.
+    const { data: mine } = adv?.id
+      ? await admin
+          .from("affiliate_payouts")
+          .select("id, group_id, requested_at, created_at")
+          .eq("affiliate_advertiser_id", adv.id)
+      : { data: null };
+    const seq = payoutSequence((mine ?? []) as PayoutRefRow[]);
+    const ref = payoutRef(
+      adv?.tenant_client_code,
+      seq.get(payoutGroupKey(head as PayoutRefRow)),
+    );
+
+    const no = ref
+      ? `Payout ${ref}`
+      : head.payout_no
+        ? `Payout #${head.payout_no}`
+        : `Payout ${head.id.slice(0, 8)}`;
     const isPaid = head.status === "paid";
     const dateLine = isPaid ? day(head.paid_at ?? head.requested_at) : day(head.requested_at);
 

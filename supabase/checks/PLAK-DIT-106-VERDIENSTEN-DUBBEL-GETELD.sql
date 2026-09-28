@@ -1,4 +1,19 @@
 -- ════════════════════════════════════════════════════════════════════
+-- ⚠ NIET MEER PLAKKEN — VERVANGEN DOOR PLAK 123 (28-09-2026)
+-- ════════════════════════════════════════════════════════════════════
+--
+-- Deze plak is nooit gedraaid. De diagnose eronder klopt nog steeds --
+-- de trigger stond er vanavond nog en telde bij uitbetaling #4 EUR
+-- 75,00 er een tweede keer bij -- maar de HERBOUW hieronder is van
+-- vóór `referral_clawbacks` en trekt die niet af. Hem nu draaien zet
+-- link a573fd96 van 5,92 terug op 9,96 en maakt het werk van plak 122
+-- ongedaan.
+--
+-- PLAK-DIT-123-DE-DUBBELE-TELLER-BIJ-DE-BRON.sql doet hetzelfde,
+-- met de clawbacks erin.
+-- ════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════
 -- PLAK 106 — de verdiensten op een verwijzing worden DUBBEL geteld
 -- ════════════════════════════════════════════════════════════════════
 --

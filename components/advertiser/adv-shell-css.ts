@@ -65,7 +65,15 @@ export const ADV_CSS = `
   .tool.st{background:var(--win-soft);border:1px solid rgba(16,185,129,.24);color:#0e8f66;font-weight:700;font-size:.82rem}.tool.st svg{color:var(--win)}
   .tool.ic-btn,.tool.ava-btn{background:var(--panel);border:1px solid var(--line)}.tool.ic-btn:hover,.tool.ava-btn:hover{background:var(--panel-2)}
   .tool.ic-btn{padding:7px 11px}
-  .badge-n{position:absolute;top:0;right:2px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;border:2px solid var(--panel)}
+  /* See the twin in aff-shell-css.ts for the measurement: place-items
+     centres the line box, and a line box carries a descender the digit
+     does not use, so the number hung 4.4px low in an 18px circle. A
+     line-height equal to the content height (circle minus its two
+     borders) centres the ink exactly. */
+  .badge-n{--bn:18px;position:absolute;top:0;right:2px;min-width:var(--bn);height:var(--bn);
+    padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;
+    font-weight:700;display:grid;place-items:center;line-height:calc(var(--bn) - 4px);
+    font-variant-numeric:tabular-nums;border:2px solid var(--panel)}
   /* ── THE UNKNOWN STATE IS NOT A COUNT ────────────────────────────
      When the count cannot be read the badge said "·" -- a full-size
      pill with a middot floating in it, which reads as a stray mark

@@ -59,7 +59,24 @@ export const AFF_CSS = `
   .epill .num{font-family:var(--font-sora);font-weight:800;font-size:.98rem;color:#0e9e6e;line-height:1.15}.epill svg{width:16px;height:16px;color:var(--win)}
   .tier{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:99px;font-weight:700;font-size:.76rem;color:var(--gold-deep);background:linear-gradient(135deg,var(--gold-soft),#fff5db);border:1px solid #f2d9a3;box-shadow:0 6px 18px -8px rgba(239,176,44,.55)}.tier svg{width:15px;height:15px;stroke-width:2.2}
   .iconbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--txt-2);display:grid;place-items:center;cursor:pointer;position:relative;transition:.15s}.iconbtn:hover{color:var(--ink);border-color:var(--line-2)}
-  .badge-n{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;border:2px solid var(--panel)}
+  /* THE DIGIT SITS IN THE MIDDLE OF THE CIRCLE. The owner, 28-09: "4 is
+     niet mooi in midden van cirkel".
+
+     place-items:center centres the LINE BOX, and a line box carries the
+     font's descender whether the glyph uses it or not. A digit has no
+     descender, so it hung low: measured on the live badge, the ink of
+     the 4 sat 7.18px below the top and 2.82px above the bottom -- 4.4px
+     off in an 18px circle.
+
+     Setting line-height to the CONTENT height (the circle minus its two
+     borders) makes the line box exactly the font box, so there is no
+     half-leading left to push anything, and Outfit's digits then land
+     dead centre: measured 5.00 above, 5.00 below. --bn keeps the two in
+     step if the circle ever changes size. */
+  .badge-n{--bn:18px;position:absolute;top:-6px;right:-6px;min-width:var(--bn);height:var(--bn);
+    padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;
+    font-weight:700;display:grid;place-items:center;line-height:calc(var(--bn) - 4px);
+    font-variant-numeric:tabular-nums;border:2px solid var(--panel)}
   /* ── THE UNKNOWN STATE IS NOT A COUNT ────────────────────────────
      When the count cannot be read the badge said "·" -- a full-size
      pill with a middot floating in it, which reads as a stray mark

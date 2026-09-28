@@ -4905,6 +4905,7 @@ export default function AdvertiserApp() {
               <PayoutCard
                 enabled={isAffiliate}
                 scope={advertiserId ?? null}
+                clientCode={referralCode ?? null}
                 owedEur={Number(aff.payable.eur) || 0}
                 owedUsd={Number(aff.payable.usd) || 0}
                 owedUnknown={affUnavailable || (aff.payable.isLifetime && aff.rows.length > 0)}
