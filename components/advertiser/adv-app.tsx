@@ -2687,7 +2687,26 @@ export default function AdvertiserApp() {
   // flight is not mistaken for an absence -- the same care `subLoaded`
   // already takes.
   const noPlan = subLoaded && !subscription && planLoaded && !plan;
-  const shownPlanName = subscription ? planName : null;
+  /** Their plan costs nothing here — NSA and the like pay elsewhere. */
+  const freePlan = planLoaded && !!plan && plan.monthlyFee <= 0;
+
+  // ── AND A FREE PLAN HAS A NAME ───────────────────────────────────
+  //
+  // This was `subscription ? planName : null`, for a good reason:
+  // PSM0007 was ASSIGNED Prime and never subscribed, so the dashboard
+  // read "Prime · No subscription" over a "No plan" pill. An assigned
+  // paid plan that nobody is paying for is not this customer's plan.
+  //
+  // But a free plan has no subscription BY DESIGN, so the same rule
+  // silently erased the name of a plan that really is running -- and
+  // every sentence downstream fell back to "you have no plan yet",
+  // under a button offering to set one up. That is the third screen
+  // in this chain making the same assumption: that a plan is
+  // something you pay for monthly.
+  //
+  // Both cases now read correctly: a paid plan needs its subscription,
+  // a free one does not.
+  const shownPlanName = subscription || freePlan ? planName : null;
   const awaitingFirstInvoice =
     !!subscription &&
     !planPaid &&
@@ -2759,7 +2778,6 @@ export default function AdvertiserApp() {
   // "your plan has to be active first". Same lock, next door.
   //
   // Nothing to pay means nothing to wait for.
-  const freePlan = planLoaded && !!plan && plan.monthlyFee <= 0;
   const planActive =
     freePlan ||
     (!!subscription &&
@@ -6063,8 +6081,13 @@ export default function AdvertiserApp() {
                       screen, so there is nowhere else for them to check. */}
                   {subscription?.status
                     ? subStatusLabel(subscription.status)
-                    : subError
-                      ? "Couldn't load"
+                    : freePlan
+                      ? // Nothing is billed and nothing is owed. "No
+                        // plan" would be plainly untrue -- they are on
+                        // one, it just costs nothing here.
+                        "Included"
+                      : subError
+                        ? "Couldn't load"
                       : // ── AND "STILL ARRIVING" IS NOT "NO PLAN" EITHER ──
                         // Every branch on this screen separates an ERROR
                         // from an empty answer, and none of them separated
@@ -6103,9 +6126,16 @@ export default function AdvertiserApp() {
                         : lastChargedAmount != null
                           ? `${chargedMoneyNeat(lastChargedAmount)} / month`
                           : `${planMoneyNeat(subscription.amount)} / month`)
-                    : noPlan
-                      ? "No plan yet"
-                      : "Subscription"}
+                    : freePlan
+                      ? // Verified against the database: the billing run
+                        // reads from `subscriptions`, and a free plan has
+                        // no row there, so no invoice can ever be raised
+                        // for it. Say that plainly where the monthly
+                        // figure would be.
+                        "No monthly charge"
+                      : noPlan
+                        ? "No plan yet"
+                        : "Subscription"}
                 </div>
                 <div className="meta">
                   {/* ── "RENEWS" A DATE THAT HAS ALREADY PASSED ──────
@@ -6164,7 +6194,13 @@ export default function AdvertiserApp() {
                       makes them keep the wrong amount in the wallet. */}
                   {noPlan
                     ? "Ad accounts come with a plan. Ask us which one fits and we'll start it for you."
-                    : "Switch anytime — you pay the difference straight away, never a part-month. Ask us for the figure first."}
+                    : freePlan
+                      ? // "You pay the difference straight away" is about
+                        // switching between PAID plans. To somebody who
+                        // is invoiced nothing it reads as a charge they
+                        // cannot see coming.
+                        "You are invoiced nothing for this plan. Ask us if you want to move to one of ours."
+                      : "Switch anytime — you pay the difference straight away, never a part-month. Ask us for the figure first."}
                 </div>
               </div>
               <div className="card">
@@ -6566,21 +6602,37 @@ export default function AdvertiserApp() {
                         says "Ask us to set up a plan". What the customer
                         needs is why they cannot request an account yet.
                         The button says the rest. */}
-                    <p className="cap" style={{ margin: 0 }}>
-                      You have no plan yet — that is where your included ad
-                      accounts come from.
-                    </p>
-                    <a
-                      className="btn block ghost"
-                      style={{ marginTop: 14 }}
-                      href={whatsappUrl(
-                        `Hi PSM, I'd like to set up a plan (${referralCode || "my account"}).`,
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <WhatsappIcon /> Ask us on WhatsApp to set up a plan
-                    </a>
+                    {/* ── AND NOT TO SOMEBODY WHO HAS ONE ──────────
+                        A free plan has no subscription by design, so
+                        this card told an NSA customer they had no plan
+                        and offered a button to ask for one -- under a
+                        heading that had just named theirs. Their bill
+                        really is nothing; that is the whole sentence. */}
+                    {freePlan ? (
+                      <p className="cap" style={{ margin: 0 }}>
+                        {shownPlanName
+                          ? `${shownPlanName} costs you nothing here — you pay for it directly. Your included ad accounts come with it.`
+                          : "Your plan costs nothing here — you pay for it directly. Your included ad accounts come with it."}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="cap" style={{ margin: 0 }}>
+                          You have no plan yet — that is where your included
+                          ad accounts come from.
+                        </p>
+                        <a
+                          className="btn block ghost"
+                          style={{ marginTop: 14 }}
+                          href={whatsappUrl(
+                            `Hi PSM, I'd like to set up a plan (${referralCode || "my account"}).`,
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <WhatsappIcon /> Ask us on WhatsApp to set up a plan
+                        </a>
+                      </>
+                    )}
                       </>
                     )}
                   </>
