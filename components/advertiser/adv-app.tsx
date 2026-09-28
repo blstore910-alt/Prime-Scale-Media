@@ -4293,10 +4293,16 @@ export default function AdvertiserApp() {
                               : ""
                           }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
                         : freePlan
-                          ? // "No subscription" reads as "nothing is set
-                            // up". They have a plan; we just do not
-                            // invoice it.
-                            "Not billed by us"
+                          ? // The owner, 28-09, on this tile as well:
+                            // "'Not billed by us' is lelijk, houd het
+                            // gewoon simpel." NSA is a large community
+                            // we work with, and their tile should read
+                            // like any other customer's -- the plan,
+                            // and that it is running. What we do or do
+                            // not invoice is our business, not a label
+                            // under their plan name. Same word as the
+                            // Billing hero, so the two agree.
+                            "Active"
                           : noPlan
                             ? "Not started yet"
                             : "No subscription"}

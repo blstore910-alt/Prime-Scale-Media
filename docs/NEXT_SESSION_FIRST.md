@@ -3059,3 +3059,47 @@ forget:
   `wroteSomething()`.
 - Keep 4–6 read-only agents running, one fault class each. Findings get
   FIXED, not filed.
+
+## Het affiliateprogramma per community kunnen verbergen
+
+De eigenaar, 28-09, op het scherm van PSM0016: "ik moet ook easy
+affiliate program kunnen hiden voor deze community als later nodig is."
+NSA is een grote community waarmee we werken, en daar hoort een eigen
+inrichting bij.
+
+**Niet nu.** "Als het later nodig is" zijn zijn eigen woorden, en het
+staat op geen van de acht reizen. Wel hier uitgeschreven, zodat het een
+kwartier is en geen ontwerpsessie.
+
+**Waar het hoort.** Er is GEEN `communities`-tabel op deze database
+(gemeten 28-09) -- een community is vandaag niets anders dan het plan
+waar die klanten op staan. Dus de vlag hoort op `plans`:
+
+```sql
+alter table public.plans
+  add column if not exists affiliate_hidden boolean not null default false;
+```
+
+Eén kolom, standaard uit, dus voor elke bestaande klant verandert er
+niets.
+
+**Waar het gelezen wordt.** Drie plekken in
+`components/advertiser/adv-app.tsx`, allemaal al gevonden:
+
+| regel | wat het is |
+|---|---|
+| ~4448 | de knop "Join the affiliate program" |
+| ~7537 | "Become an affiliate" in Settings |
+| ~4366 / ~4728 | "ask an admin to enable the affiliate program" |
+
+De `adv-plan` query leest al `plan:plans(name, kind, features)`, dus
+`affiliate_hidden` gaat daar simpelweg bij -- en volgens de regel in
+CLAUDE.md met een terugval: vraag de kolom, en bij een fout vraag hem
+opnieuw zonder. Zolang de migratie niet gedraaid is blijft alles staan
+zoals het staat.
+
+**Wat het NIET moet doen.** Een affiliate die al goedgekeurd is, moet
+zijn eigen boek en zijn openstaande commissie blijven zien. De vlag
+verbergt de UITNODIGING, niet het geld dat al verdiend is -- anders
+verdwijnt iemands uitbetaling van zijn scherm zonder dat er iets aan
+betaald is.
