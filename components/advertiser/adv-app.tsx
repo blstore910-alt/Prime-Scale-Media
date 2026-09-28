@@ -6808,20 +6808,34 @@ export default function AdvertiserApp() {
                       null
                     ) : (
                       <>
+                        {/* ── THE SAME FAULT, ONE CARD LOWER ──────────
+                            The hero was fixed to say "Inactive - EUR 150
+                            / month" for a stopped plan; this card
+                            underneath still told the same customer
+                            "You have no plan yet" and offered to set
+                            one up. Walked on production with PSM0011
+                            right after the fix went live. A plan that
+                            stopped is restarted, not set up. */}
                         <p className="cap" style={{ margin: 0 }}>
-                          You have no plan yet — that is where your included
-                          ad accounts come from.
+                          {stoppedSub
+                            ? "Your plan is not running at the moment, so nothing new is being charged. Your included ad accounts come with it, so ask us to start it again when you need them."
+                            : "You have no plan yet — that is where your included ad accounts come from."}
                         </p>
                         <a
                           className="btn block ghost"
                           style={{ marginTop: 14 }}
                           href={whatsappUrl(
-                            `Hi PSM, I'd like to set up a plan (${referralCode || "my account"}).`,
+                            stoppedSub
+                              ? `Hi PSM, I'd like to restart my plan (${referralCode || "my account"}).`
+                              : `Hi PSM, I'd like to set up a plan (${referralCode || "my account"}).`,
                           )}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <WhatsappIcon /> Ask us on WhatsApp to set up a plan
+                          <WhatsappIcon />{" "}
+                          {stoppedSub
+                            ? "Ask us on WhatsApp to start it again"
+                            : "Ask us on WhatsApp to set up a plan"}
                         </a>
                       </>
                     )}
