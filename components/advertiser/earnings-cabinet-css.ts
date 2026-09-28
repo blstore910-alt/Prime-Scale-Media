@@ -120,8 +120,17 @@ export const EARNINGS_CABINET_CSS = `
 
      So in this grid the number goes directly under its label, and
      anything after it takes the space that is left. */
-  .xstats .stat .v{margin-top:9px;padding-top:0}
-  .xstats .stat .v ~ .k{margin-top:auto;padding-top:6px}
+  /* Measured on the live page before writing this: the tile is a GRID,
+     not a flex column, so margin-top:auto does nothing here. With two
+     children the rows came out 24 / 63.8 / 0 and the figure sat 81px
+     down; with three (a caption under it) they came out 24 / 35.2 /
+     28.6 and the figure sat at 52. Same tile height, two heights for
+     the number -- which is what you see reading the four across.
+     Rows stated instead of inferred: label, figure, and whatever is
+     left goes to the bottom. */
+  .xstats .stat{grid-template-rows:auto auto 1fr}
+  .xstats .stat .v{align-self:start;margin-top:9px;padding-top:0}
+  .xstats .stat .v ~ .k{align-self:start;padding-top:6px}
   .xstats .stat::after{content:"";position:absolute;right:-34px;top:-34px;width:96px;height:96px;
     border-radius:50%;pointer-events:none;background:radial-gradient(circle,var(--xg,rgba(58,111,255,.16)),transparent 70%)}
   .xstats .stat.g-gold{--xg:rgba(239,176,44,.26)}.xstats .stat.g-win{--xg:rgba(16,185,129,.22)}

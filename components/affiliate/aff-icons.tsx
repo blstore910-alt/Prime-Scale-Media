@@ -25,6 +25,18 @@ export function AffIcons() {
   <symbol id="i-cal" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-8"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  {/* ── A MISSING SYMBOL IS A COLOURED SQUARE ──────────────────────
+      The owner, 28-09, on Earlier payouts: "hier kan mooiere icon in
+      plaats van vierkant kleurtje."
+
+      It was already an icon -- payout-card renders
+      `<Ic name={p.status === "paid" ? "i-check" : "i-x"} />` -- but
+      this sprite has 37 symbols and i-x was not one of them, so the
+      <use> resolved to nothing and all that showed was the red
+      rounded background of .hi.rejected. The advertiser sprite has
+      had it all along (adv-icons.tsx); the affiliate one was never
+      given it. Same path, so the two match. */}
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
   <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
   <symbol id="i-qr" viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M16 12h1"/><path d="M21 12v3"/><path d="M12 16v5"/></symbol>
