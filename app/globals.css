@@ -187,8 +187,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0 0.5rem;
+    /* The owner, 28-09: "het vlaggetje raakt links de rand, de form
+       moet iets naar rechts." The field has a rounded corner and the
+       flag sat inside the curve on 8px, so at the widest part of the
+       radius it read as touching the border. */
+    padding: 0 0.5rem 0 0.8rem;
     border-right: 0;
+    border-top-left-radius: calc(var(--radius) - 2px);
+    border-bottom-left-radius: calc(var(--radius) - 2px);
   }
   .phone-input-container .react-international-phone-country-selector-button__button-content {
     display: inline-flex;

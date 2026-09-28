@@ -7072,18 +7072,43 @@ export default function AdvertiserApp() {
                       {/* Ticking it clears the number: a company cannot
                           be exempt AND have one, and leaving a stale
                           number behind is what ends up on an invoice. */}
+                      {/* ── IT LOOKED LIKE A BROWSER DEFAULT ────────
+                          The owner, 28-09: "vat knop erg lelijk."
+
+                          It was a bare native checkbox beside bold
+                          dark text in a full-width flex row, so in a
+                          narrow column the label wrapped onto two
+                          lines and sat there shouting next to an
+                          unstyled grey square.
+
+                          One line that cannot wrap, a box that is
+                          actually sized and takes the brand colour,
+                          and the label in the quiet text colour --
+                          it is an aside about the field above, not a
+                          heading. */}
                       <label
-                        className="cap"
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 8,
-                          marginTop: 6,
+                          marginTop: 8,
                           cursor: "pointer",
+                          fontSize: ".82rem",
+                          fontWeight: 500,
+                          color: "var(--txt-2)",
+                          lineHeight: 1.2,
                         }}
                       >
                         <input
                           type="checkbox"
+                          style={{
+                            width: 15,
+                            height: 15,
+                            flex: "0 0 auto",
+                            margin: 0,
+                            accentColor: "var(--primary)",
+                            cursor: "pointer",
+                          }}
                           checked={comp.is_not_vat}
                           onChange={(e) =>
                             setComp((c) => ({
@@ -7093,7 +7118,7 @@ export default function AdvertiserApp() {
                             }))
                           }
                         />
-                        My company isn&apos;t VAT registered
+                        <span>Not VAT registered</span>
                       </label>
                     </div>
                     <div className="field">
@@ -7142,6 +7167,38 @@ export default function AdvertiserApp() {
                   >
                     {savingComp ? "Saving…" : "Save company"}
                   </button>
+                  {/* ── TWO FORMS, AND ONLY ONE OF THEM FINISHES ──────
+                      The owner, 28-09: "de steps company details gaat
+                      naar andere modal dan in settings company details
+                      — maakt dat wat uit?"
+
+                      It does, and it is the one thing about this card
+                      that is not obvious. This form writes `companies`.
+                      The INVOICE ADDRESS lives on `billings`, and the
+                      only advertiser-facing writer of that is
+                      /complete-profile — which is where the checklist
+                      sends you, and which redirects away once the
+                      profile is complete.
+
+                      So somebody who does it here fills in every box,
+                      is told "Company saved", and watches nothing
+                      unlock. That warning already exists on save; this
+                      is the same fact BEFORE they start, plus the way
+                      in, because a one-way door you cannot find is the
+                      same as a door that is not there. */}
+                  <a
+                    href="/complete-profile?edit=1"
+                    className="cap"
+                    style={{
+                      display: "inline-block",
+                      marginTop: 10,
+                      color: "var(--primary)",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    Invoice address is on the full form →
+                  </a>
                   {companyError ? (
                     <p className="cap" style={{ marginTop: 8 }}>
                       We couldn&apos;t load your company details, so this form

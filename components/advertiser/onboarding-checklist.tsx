@@ -264,7 +264,28 @@ export default function OnboardingChecklist({
   // `loading` as well as `hydrated`. localStorage answers in the same tick;
   // the three queries behind the ticks do not, and drawing the card before
   // they land is what made it appear to tick and untick itself.
-  if (!hydrated || loading || unavailable) {
+  // ── A BLANK BOX IS NOT A PLACEHOLDER ──────────────────────────────
+  //
+  // The owner, 28-09: "dit zie je nu super snel als flits, is lelijk —
+  // ik wil gwn de steps van get started zien."
+  //
+  // What flashed past was this: an empty 74px card with a shimmer, at
+  // the top of the dashboard, for as long as the slowest read took.
+  // Holding the HEIGHT was the right instinct and the wrong thing to
+  // hold — a reader does not know it is a placeholder, they see a card
+  // that failed to draw.
+  //
+  // The steps themselves are static text. Only the TICKS come from
+  // data. So the card renders in full straight away and simply does
+  // not claim anything is done yet: no meter, no "N steps left", and
+  // the ticks come alive when the reads land. Nothing moves, nothing
+  // shifts, and there is something to read the whole time.
+  //
+  // `unavailable` still holds the place: there the ticks are not
+  // late, they are unknown, and drawing three empty boxes would say
+  // "you have done none of this" to somebody who may have done all of
+  // it. The dashboard's own cards already say the read failed.
+  if (unavailable) {
     // A FAILED READ HOLDS THE PLACE TOO, rather than drawing a checklist
     // out of zeroes. Every tick here is derived from data: no company, no
     // balance, no accounts is indistinguishable from a read that did not
@@ -275,7 +296,13 @@ export default function OnboardingChecklist({
     return <div className="card onb-skel" aria-hidden="true" />;
   }
 
-  if (allDone) {
+  /** True while the ticks are not known yet — the card draws, unticked
+   *  and uncounted, rather than a blank box. */
+  const ticksUnknown = !hydrated || loading;
+
+  // Not while the ticks are unknown: a momentary all-done would flash
+  // "You're all set" at somebody who has done nothing.
+  if (allDone && !ticksUnknown) {
     if (dismissed) return null;
     return (
       /* ── A STRIP, NOT A CARD ──────────────────────────────────────
@@ -325,14 +352,19 @@ export default function OnboardingChecklist({
         <span className="onb-head-t">
           <h2>Get started</h2>
           <span className="onb-head-s">
-            {remaining === 1 ? "1 step left" : `${remaining} steps left`}
+            {ticksUnknown
+              ? " "
+              : remaining === 1
+                ? "1 step left"
+                : `${remaining} steps left`}
           </span>
         </span>
         {/* A thin bar rather than a "1/4" pill. The pill was the loudest
             thing on the dashboard and it was reporting the least urgent
             information on it. */}
         <span className="onb-meter" aria-hidden="true">
-          <i style={{ width: `${pct}%` }} />
+          {/* 0 while unknown rather than a guess that then jumps. */}
+          <i style={{ width: `${ticksUnknown ? 0 : pct}%` }} />
         </span>
         <span className={`onb-chev${collapsed ? "" : " up"}`} aria-hidden="true">
           <Ic name="i-chev" />
@@ -342,7 +374,11 @@ export default function OnboardingChecklist({
       {!collapsed && (
         <div className="onb-list">
           {visible.map((s) => {
-            const done = isDone(s);
+            // Nothing is "done" until we know. An unticked row that
+            // becomes ticked is a tick appearing; a ticked row that
+            // becomes unticked is the card contradicting itself, and
+            // that is the untick the comment above was written about.
+            const done = !ticksUnknown && isDone(s);
 
             // Finished steps collapse to one quiet line: tick, icon, title.
             // They used to keep the full block — description, Done badge and
