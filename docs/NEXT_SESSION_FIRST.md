@@ -3103,3 +3103,29 @@ zijn eigen boek en zijn openstaande commissie blijven zien. De vlag
 verbergt de UITNODIGING, niet het geld dat al verdiend is -- anders
 verdwijnt iemands uitbetaling van zijn scherm zonder dat er iets aan
 betaald is.
+
+### Tweede helft, gevraagd 28-09: ook bij de AANMELDING
+
+De eigenaar scherpte het aan: "kan ik per advertiser of community het
+earn-affiliateprogramma uit het menu verwijderen, **en dat het niet
+werkt voor hun aanmelding** enz.?"
+
+Dus twee dingen, niet een:
+
+1. **uit het menu** -- de drie leesplekken hierboven.
+2. **de referral-link doet niets voor hen** -- iemand die zich aanmeldt
+   via `?ref=PSMxxxx` van een affiliate terwijl zijn plan de vlag
+   draagt, hoort geen `referral_links`-rij te krijgen, of er een die
+   nooit actief kan worden. Anders staat er een link op `pending` die
+   niemand ooit goedkeurt, en dat is precies de stille nul waar deze
+   ronde vol van staat.
+
+**Wat er vandaag WEL is, gemeten 28-09.**
+`advertisers.affiliate_status` bestaat met de waarden `approved`,
+`applied` en `refused` (12 leeg, 6 approved op deze tenant).
+`refused` is NIET hetzelfde als verbergen: `use-is-affiliate.ts`
+toont die klant een afwijzing mét reden, dus hij ziet het programma
+nog steeds en weet dat hij is geweigerd. En het is een beslissing op
+een AANVRAAG -- het houdt niets tegen bij de aanmelding.
+
+Antwoord op de vraag zoals hij gesteld is: **nee, vandaag niet.**
