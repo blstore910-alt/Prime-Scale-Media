@@ -109,9 +109,23 @@ export async function createSubscriptionAsAdmin(
   if (input.currency !== "EUR" && input.currency !== "USD") {
     return { ok: false, error: "Invalid currency" };
   }
+  // ── ZERO IS A REAL PRICE HERE ────────────────────────────────────
+  //
+  // The owner, 28-09: "NSA moet wel een plan, maar dan 0 eu in onze
+  // app -- zij betalen zelf aan de NSA academy per maand, niet aan
+  // ons. Zijn zeer weinig mensen met een 0-euro plan, maar die zijn er
+  // wel."
+  //
+  // So a free plan is a real customer on a real plan, and it has to be
+  // settable. What it does NOT have is anything to bill monthly, which
+  // is exactly what the invite path already decided: it writes the
+  // plan and then `if v_fee <= 0 then return` before touching
+  // subscriptions.
+  //
+  // Same rule here. Zero is allowed; below zero is not a price.
   const amount = Number(input.amount);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, error: "Amount must be positive" };
+  if (!Number.isFinite(amount) || amount < 0) {
+    return { ok: false, error: "Amount cannot be negative" };
   }
   const startDate = dayjs(input.start_date);
   if (!startDate.isValid()) {
@@ -126,6 +140,87 @@ export async function createSubscriptionAsAdmin(
   if (!adv) return { ok: false, error: "Advertiser not found" };
   if (adv.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };
+  }
+
+  // ── A SUBSCRIPTION IS NOT A PLAN ──────────────────────────────────
+  //
+  // The dialog lets the owner pick a plan and used it for one thing:
+  // filling in the amount. Nothing wrote `advertiser_plans`, which is
+  // the row that carries `included_ad_accounts` and `topup_fee_pct` --
+  // so a customer set up this way was billed the monthly fee and got
+  // NEITHER their included ad accounts NOR the top-up rate their plan
+  // says. Their first ad-account request cost EUR 50 that the plan had
+  // already covered.
+  //
+  // The invite path writes both, and has since the beginning; this one
+  // was never taught to. Same columns and the same `on conflict` as
+  // create_subscription_from_invite, deliberately -- two ways of
+  // writing the same thing that look slightly different is how two
+  // customers on one plan end up billed differently.
+  //
+  // Written BEFORE the subscription, because on a free plan it is the
+  // only thing written -- and because a plan that saved while the
+  // subscription failed is recoverable, whereas the other way round
+  // bills somebody for nothing.
+  let warning: string | undefined;
+  if (input.plan_id) {
+    const { data: planRow } = await supabase
+      .from("plans")
+      .select("id, monthly_fee, currency, included_ad_accounts, topup_fee_pct")
+      .eq("id", input.plan_id)
+      .eq("tenant_id", profile.tenant_id)
+      .maybeSingle();
+    if (!planRow) {
+      warning =
+        "That plan could not be read, so the included ad accounts and top-up rate were not applied to this customer.";
+    } else {
+      const p = planRow as {
+        id: string;
+        monthly_fee: number | string | null;
+        currency: string | null;
+        included_ad_accounts: number | string | null;
+        topup_fee_pct: number | string | null;
+      };
+      const cur = String(p.currency ?? "EUR").toUpperCase();
+      const { error: planErr } = await supabase
+        .from("advertiser_plans")
+        .upsert(
+          {
+            advertiser_id: input.advertiser_id,
+            tenant_id: profile.tenant_id,
+            plan_id: p.id,
+            monthly_fee: Number(p.monthly_fee) || 0,
+            plan_currency: cur === "USD" ? "USD" : "EUR",
+            included_ad_accounts: Number(p.included_ad_accounts) || 0,
+            topup_fee_pct: Number(p.topup_fee_pct) || 0,
+          },
+          { onConflict: "advertiser_id" },
+        );
+      if (planErr) {
+        warning = `The plan's included accounts and top-up rate were not saved onto this customer: ${planErr.message}`;
+      }
+    }
+  }
+
+  // ── A FREE PLAN HAS NOTHING TO SUBSCRIBE TO ──────────────────────
+  //
+  // The plan is on the customer now: their included ad accounts and
+  // their top-up rate are set, and the gate on the customer's own
+  // screen reads either row. A subscription would be a recurring
+  // charge of nothing -- a row the billing run collects every month
+  // for zero, and an "Activate" button that means nothing.
+  //
+  // Exactly what create_subscription_from_invite does, in the same
+  // order.
+  if (amount <= 0) {
+    if (!input.plan_id) {
+      return {
+        ok: false,
+        error:
+          "A subscription of nothing needs a plan behind it — pick the plan this customer is on.",
+      };
+    }
+    return { ok: true, data: { id: "" }, warning };
   }
 
   // ── THE SAME SET THE BILLING RUN BILLS ──────────────────────────────
@@ -181,65 +276,6 @@ export async function createSubscriptionAsAdmin(
     .select("id")
     .single();
   if (insertError) return { ok: false, error: insertError.message };
-
-  // ── A SUBSCRIPTION IS NOT A PLAN ──────────────────────────────────
-  //
-  // The dialog lets the owner pick a plan and used it for one thing:
-  // filling in the amount. Nothing wrote `advertiser_plans`, which is
-  // the row that carries `included_ad_accounts` and `topup_fee_pct` --
-  // so a customer set up this way was billed the monthly fee and got
-  // NEITHER their included ad accounts NOR the top-up rate their plan
-  // says. Their first ad-account request cost EUR 50 that the plan had
-  // already covered.
-  //
-  // The invite path writes both, and has since the beginning; this one
-  // was never taught to. Same columns and the same `on conflict` as
-  // create_subscription_from_invite, deliberately -- two ways of
-  // writing the same thing that look slightly different is how two
-  // customers on one plan end up billed differently.
-  //
-  // Reported as a warning rather than thrown: the subscription exists
-  // and undoing it here would leave a worse mess than a missing
-  // snapshot somebody can re-save.
-  let warning: string | undefined;
-  if (input.plan_id) {
-    const { data: planRow } = await supabase
-      .from("plans")
-      .select("id, monthly_fee, currency, included_ad_accounts, topup_fee_pct")
-      .eq("id", input.plan_id)
-      .eq("tenant_id", profile.tenant_id)
-      .maybeSingle();
-    if (!planRow) {
-      warning =
-        "The subscription was created, but that plan could not be read, so the included ad accounts and top-up rate were not applied.";
-    } else {
-      const p = planRow as {
-        id: string;
-        monthly_fee: number | string | null;
-        currency: string | null;
-        included_ad_accounts: number | string | null;
-        topup_fee_pct: number | string | null;
-      };
-      const cur = String(p.currency ?? "EUR").toUpperCase();
-      const { error: planErr } = await supabase
-        .from("advertiser_plans")
-        .upsert(
-          {
-            advertiser_id: input.advertiser_id,
-            tenant_id: profile.tenant_id,
-            plan_id: p.id,
-            monthly_fee: Number(p.monthly_fee) || 0,
-            plan_currency: cur === "USD" ? "USD" : "EUR",
-            included_ad_accounts: Number(p.included_ad_accounts) || 0,
-            topup_fee_pct: Number(p.topup_fee_pct) || 0,
-          },
-          { onConflict: "advertiser_id" },
-        );
-      if (planErr) {
-        warning = `The subscription was created, but the plan's included accounts and top-up rate were not saved: ${planErr.message}`;
-      }
-    }
-  }
 
   return { ok: true, data: { id: inserted.id }, warning };
 }

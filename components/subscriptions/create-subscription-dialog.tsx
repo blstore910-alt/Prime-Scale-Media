@@ -56,7 +56,10 @@ type PlanPreset = {
 const subscriptionFormSchema = z.object({
   advertiser_id: z.string().min(1, "Advertiser is required"),
   currency: z.enum(["EUR", "USD"]),
-  amount: z.coerce.number().gt(0, "Amount must be greater than 0"),
+  // Zero is allowed: an NSA / community customer is on a real plan and
+  // pays the academy, not us. The action writes the plan and skips the
+  // subscription, exactly as the invite path does.
+  amount: z.coerce.number().gte(0, "Amount cannot be negative"),
   start_date: z
     .string()
     .min(1, "Start date is required")
@@ -227,12 +230,24 @@ export default function CreateSubscriptionDialog({
         // over a row showing the amount in bold read as a running plan
         // that bills nothing, indefinitely, until somebody opened
         // /subscriptions and activated it.
-        toast.success("Subscription created - not billing yet", {
-          description:
-            "It starts inactive. Activate it on the Subscriptions screen to begin invoicing.",
-        });
+        // Two different things happened, so two different sentences.
+        // Telling somebody who set a free plan to "activate it on the
+        // Subscriptions screen" sends them looking for a row that does
+        // not exist and should not.
+        if (freePlanChosen) {
+          toast.success("Plan set — nothing to invoice", {
+            description:
+              "They have their included ad accounts and their top-up rate. No subscription was made, because this plan bills nothing.",
+          });
+        } else {
+          toast.success("Subscription created - not billing yet", {
+            description:
+              "It starts inactive. Activate it on the Subscriptions screen to begin invoicing.",
+          });
+        }
         reset(getDefaultValues());
         setPlanId("");
+        setFreePlanChosen(false);
         onOpenChange(false);
       },
       onError: (error) => {
@@ -405,11 +420,9 @@ export default function CreateSubscriptionDialog({
 
         {freePlanChosen && (
           <p className="px-6 pb-1 text-sm text-muted-foreground">
-            That plan bills nothing each month, so it needs no
-            subscription — a customer on it gets their included ad
-            accounts and their top-up rate without one. Pick a paid plan
-            here, or leave this and set the free plan on the customer
-            instead.
+            This plan bills nothing each month, so no subscription is
+            made — the customer gets their included ad accounts and
+            their top-up rate, and nothing is invoiced.
           </p>
         )}
         <DialogFooter>
@@ -419,15 +432,11 @@ export default function CreateSubscriptionDialog({
             disabled={
               isPending ||
               isAdvertisersLoading ||
-              isAdvertisersError ||
-              // Refused here rather than by the amount field: "Amount
-              // must be greater than 0" blames the number, when the
-              // real answer is that a free plan has nothing to bill.
-              freePlanChosen
+              isAdvertisersError
             }
           >
             {isPending && <Loader2 className="animate-spin" />}
-            Create Subscription
+            {freePlanChosen ? "Set plan" : "Create Subscription"}
           </Button>
         </DialogFooter>
       </DialogContent>
