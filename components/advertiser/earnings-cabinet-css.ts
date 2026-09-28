@@ -430,8 +430,16 @@ export const EARNINGS_CABINET_CSS = `
     animation:xoB 11s ease-in-out infinite alternate}
   @keyframes xoA{to{transform:translate(-14px,10px) scale(1.12)}}
   @keyframes xoB{to{transform:translate(12px,-10px) scale(1.1)}}
-  .xo-head{position:relative;display:flex;align-items:center;gap:8px}
+  /* Pill, number and time on one line, and the line may break. It was
+     nowrap on a fixed row, which held only as long as the pill was
+     short: "Waiting for payout" (the owner's own wording, 28-09) broke
+     ACROSS TWO LINES inside its own rounded pill at 375px and shoved
+     the number and the time into the corner. A word can be changed for
+     the better without the row falling over -- the pill keeps its text
+     on one line and the row gives way instead. */
+  .xo-head{position:relative;display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:6px}
   .xo-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;
+    white-space:nowrap;
     font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
     background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#ffe8b0}
   .xo-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);
