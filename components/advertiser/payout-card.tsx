@@ -60,10 +60,24 @@ type Props = {
   defaults?: Record<string, string> | null;
 };
 
+/**
+ * The four words an affiliate reads about their own money.
+ *
+ * The owner, 28-09: "waiting for us is lelijk". It was also written from
+ * OUR side of the desk — the affiliate is not waiting for us, they are
+ * waiting for their money, and the progress bar right underneath
+ * already says who has it ("Requested / We check it / Transferred").
+ *
+ * `rejected` went with it. "Not paid" is what every unpaid state looks
+ * like, including the one two lines above that is merely waiting, and
+ * the admin queue calls this exact state "Sent back". One state should
+ * not have two names, and the affiliate's next move is to send it
+ * again — which "Sent back" says and "Not paid" does not.
+ */
 const STATUS_LABEL: Record<string, string> = {
-  requested: "Waiting for us",
+  requested: "Waiting for payout",
   paid: "Paid",
-  rejected: "Not paid",
+  rejected: "Sent back",
   cancelled: "Withdrawn",
 };
 
@@ -848,7 +862,13 @@ export default function PayoutCard({
                     className="btn ghost"
                     onClick={() => (available.length > 1 ? setStep(1) : setOpen(false))}
                   >
-                    {available.length > 1 ? "Back" : "Go back"}
+                    {/* With one currency there is no step 1, so this
+                        button closes the dialog. It said "Go back",
+                        which is what a step-back button says — pressed
+                        on an affiliate's only screen for asking to be
+                        paid, it shut the whole thing instead. Same
+                        action, honest word. */}
+                    {available.length > 1 ? "Back" : "Cancel"}
                   </button>
                   <button className="btn grad" disabled={!legs.length} onClick={() => setStep(3)}>
                     Next
@@ -994,11 +1014,27 @@ export default function PayoutCard({
           <div className="mback" onClick={() => setView(null)} />
           <div className="mcard" style={{ width: "min(460px,100%)" }}>
             <div className="mhead">
+              {/* The number is NOT a count of this partner's payouts.
+                  `_next_payout_no` is max(payout_no)+1 per TENANT, and
+                  it has to be: this document is a self-billed invoice
+                  we raise, so its number must be unique and sequential
+                  per issuer — restarting it per affiliate would give
+                  two partners an invoice #1.
+
+                  The owner read it the other way on first sight ("is
+                  dit de 4de payout van deze affiliate?" — it was their
+                  second), so an affiliate certainly will. The number
+                  stays; it just no longer stands alone. */}
               <h2>{view[0].payout_no ? `Payout #${view[0].payout_no}` : "Your payout request"}</h2>
               <button className="iconbtn" onClick={() => setView(null)} aria-label="Close">
                 ✕
               </button>
             </div>
+            {view[0].payout_no ? (
+              <p className="cap" style={{ margin: "-6px 0 12px" }}>
+                Our reference for this transfer — not a count of yours.
+              </p>
+            ) : null}
 
             <div className="xp-rhead">
               <span
@@ -1130,15 +1166,27 @@ export default function PayoutCard({
             <div className="mfoot xp-vfoot">
               {/* Their invoice, written for them from the payout itself
                   — the owner: "invoice met referral earning auto created
-                  met zijn bedrijfsgegevens". */}
-              <a
-                className="btn ghost"
-                href={`/api/payouts/${view[0].id}/invoice`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Ic name="i-receipt" /> Invoice
-              </a>
+                  met zijn bedrijfsgegevens".
+
+                  NOT ON A PAYOUT THAT WAS REFUSED. This button had no
+                  condition on it, so payout #3 — rejected the same
+                  minute, reason and all, visible two lines above —
+                  still handed out a self-billed invoice, and the
+                  document called itself "Awaiting transfer". That is a
+                  tax document raised by us, in the affiliate's name,
+                  for money we declined to pay; it is not a status
+                  wrinkle, it is a paper that should not exist. A
+                  `requested` one may be pro-forma, so that stays. */}
+              {view[0].status === "rejected" || view[0].status === "cancelled" ? null : (
+                <a
+                  className="btn ghost"
+                  href={`/api/payouts/${view[0].id}/invoice`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Ic name="i-receipt" /> Invoice
+                </a>
+              )}
               {view[0].status === "requested" ? (
                 <button
                   className="btn ghost"

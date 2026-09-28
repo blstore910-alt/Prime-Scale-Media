@@ -214,6 +214,29 @@ export async function GET(
       adv?.tenant_client_code ? `Partner ${adv.tenant_client_code}` : null,
     ].filter(Boolean) as string[];
 
+    // ── A REFUSED PAYOUT HAS NO INVOICE ───────────────────────────
+    //
+    // Hiding the button is not enough: this URL is /api/payouts/<id>/
+    // invoice and the affiliate owns the id — it is in their own
+    // dialog, and anyone who opened it once has it in their history.
+    //
+    // `status` has four values and only two of them describe money
+    // that is going somewhere. For the other two this route rendered
+    // a self-billed invoice, raised by us in the affiliate's name,
+    // headed "Awaiting transfer" — for a request we had already
+    // refused with a reason.
+    if (head.status === "rejected" || head.status === "cancelled") {
+      return NextResponse.json(
+        {
+          error:
+            head.status === "rejected"
+              ? "This payout request was not approved, so there is no invoice for it."
+              : "This payout request was withdrawn, so there is no invoice for it.",
+        },
+        { status: 409 },
+      );
+    }
+
     const no = head.payout_no ? `Payout #${head.payout_no}` : `Payout ${head.id.slice(0, 8)}`;
     const isPaid = head.status === "paid";
     const dateLine = isPaid ? day(head.paid_at ?? head.requested_at) : day(head.requested_at);
