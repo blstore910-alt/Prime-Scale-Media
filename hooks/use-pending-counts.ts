@@ -199,8 +199,28 @@ export function usePendingCounts(): PendingCounts {
       // mistake: it discarded the two counts that did come back, so one
       // unreadable table made all three unknown. Each count now reports its
       // own truth — a number, or null for "not read".
-      const one = (r: { count: number | null; error: unknown }) =>
-        r.error ? null : r.count ?? 0;
+      const one = (r: { count: number | null; error: unknown }) => {
+        if (r.error) return null;
+        // ── AND A MISSING HEADER IS NOT A ZERO EITHER ──────────────
+        //
+        // `count` is parsed out of the content-range HEADER, and
+        // postgrest-js leaves it null when that header is absent or
+        // unparseable -- with `error` null. So `count ?? 0` turned a
+        // header a proxy had stripped into "nobody is waiting", which
+        // is exactly what the type docstring at the top of this file
+        // forbids: "null means UNKNOWN -- never render it as 0".
+        //
+        // Three surfaces read these counts (sidebar badge, tab badge,
+        // dashboard card) and all three hide a zero, so the queue
+        // would look empty on every one of them at once.
+        //
+        // NaN is worse than null and has to be caught here too: it
+        // fails `n <= 0`, so it would have been rendered as the literal
+        // text "NaN" on a badge.
+        return typeof r.count === "number" && Number.isFinite(r.count)
+          ? r.count
+          : null;
+      };
 
       // One unreadable table makes the whole withdrawals figure unknown.
       // Showing "2" when a third table was denied means an admin reads a

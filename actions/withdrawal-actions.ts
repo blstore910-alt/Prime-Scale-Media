@@ -785,7 +785,17 @@ export async function rejectAdAccountWithdrawal(
   // Read it BEFORE the write, while it is still addressable: the RPC
   // returns nothing and the row's advertiser is what the notification
   // needs.
-  const { data: wdRow } = await supabase
+  // ── KEEP THE READ'S ERROR: notifyOrWarn IS WRITTEN FOR IT ────────
+  //
+  // The third argument exists precisely so a failed read is not
+  // reported as "this row has no advertiser". approveWalletRefund and
+  // approveWalletAdjustment both pass theirs; this one dropped it, so
+  // a refused or dropped pre-read made the admin read "The customer
+  // was NOT notified: there is no advertiser on it" -- about a row
+  // whose customer is visible in the table behind the toast. That
+  // reads as a bug to ignore, and the refusal is the only word the
+  // customer ever gets about their money.
+  const { data: wdRow, error: wdReadError } = await supabase
     .from("ad_account_withdrawals")
     .select(
       "advertiser_id, tenant_id, amount, currency, ad_account:ad_accounts(name)",
@@ -823,7 +833,10 @@ export async function rejectAdAccountWithdrawal(
           ?.ad_account?.name ?? null,
       reason: why,
     },
-  });
+  },
+  // The read's own error, so a failed pre-read is reported as that
+  // rather than as "there is no advertiser on it".
+  wdReadError);
   return { ok: true, data: null, warning };
 }
 

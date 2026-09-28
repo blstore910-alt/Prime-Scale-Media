@@ -1,6 +1,7 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
+import { createAdminClient } from "@/lib/supabase/server";
 import { maintenanceGuard, resolveAdminContext } from "./_shared";
 import { resolveUserContextForRead } from "./_shared";
 
@@ -76,7 +77,35 @@ export async function attachWithdrawalProof(
     return { ok: false, error: "Forbidden" };
   }
 
-  const { data: wrote, error: writeErr } = await supabase
+  // ── THE TABLE IS SHUT TO `authenticated`, ON PURPOSE ─────────────
+  //
+  // Measured on the live database, 28-09:
+  //
+  //   authenticated=rxtm    -- read, references, trigger, maintain
+  //
+  // No `w`. Plak 29 revoked insert/update/delete on
+  // ad_account_withdrawals from `authenticated` deliberately -- every
+  // decision on this table goes through a SECURITY DEFINER RPC -- and
+  // plak 109 later added `proof_path` and the bucket without leaving a
+  // write path for it. There is no RPC for the proof either; this is
+  // the only `.update` against the table in the whole repository.
+  //
+  // So this could never work. The file uploads, the row write comes
+  // back 42501, and the admin reads "Uploaded, but not attached --
+  // permission denied for table ad_account_withdrawals" while the row
+  // still says "No screenshot yet". Pressing it again leaves a second
+  // orphan file. All five live rows have proof_path null, four of them
+  // approved -- the owner's "ik wil bewijs zien dat een medewerker het
+  // geld echt heeft teruggehaald" has never once been possible.
+  //
+  // The service client for this one write, not a new GRANT: widening
+  // the table would hand `authenticated` every column, including
+  // status and amount. Everything the grant would have protected has
+  // already been checked above -- active admin of this tenant
+  // (resolveAdminContext), the row re-read and its tenant compared --
+  // and both predicates stay on the write.
+  const db = await createAdminClient();
+  const { data: wrote, error: writeErr } = await db
     .from("ad_account_withdrawals")
     .update({
       proof_path: clean,
@@ -98,8 +127,9 @@ export async function attachWithdrawalProof(
     }
     return { ok: false, error: safeErrorMessage(writeErr) };
   }
-  // RLS returns zero rows rather than raising, so a refused write looks
-  // like a successful one without this.
+  // The row count still matters: with RLS off the predicates are the
+  // only thing scoping this write, and a zero-row result means the id
+  // or the tenant did not match.
   if (!wrote || wrote.length === 0) {
     return {
       ok: false,
@@ -113,10 +143,24 @@ export async function attachWithdrawalProof(
 /**
  * A short-lived link to look at one.
  *
- * ...ForRead checks the session, the tenant AND that the account is still
- * active — the same reasoning as the payment slips: a deactivated admin
- * keeps a valid JWT, and every money action refuses them while a signed
- * link would not.
+ * ── AND IT IS ADMINS ONLY ─────────────────────────────────────────
+ *
+ * This used ...ForRead alone, and the comment here claimed that checked
+ * "the session, the tenant AND that the account is still active". It
+ * checks the session, that the account is active, and NOT the role and
+ * NOT the tenant of the path -- so any signed-in advertiser or
+ * affiliate could hand it any path string and get a 300-second signed
+ * URL.
+ *
+ * They hold the argument, too: the RLS policy on
+ * ad_account_withdrawals lets an advertiser read their OWN row with no
+ * column restriction, so `proof_path` comes back to them. The only
+ * thing refusing was the storage policy `wproof_admin_read` -- one
+ * lock, on a codebase that has twice had exactly one such lock come
+ * off silently (top_ups_view, fee_change_requests).
+ *
+ * What is behind it is the supplier's own dashboard: their name, and
+ * the account's real balance. The role test belongs here as well.
  */
 export async function getWithdrawalProofUrl(
   path: string,
@@ -126,6 +170,9 @@ export async function getWithdrawalProofUrl(
 
   const auth = await resolveUserContextForRead();
   if (!auth.ok) return { ok: false, error: auth.error };
+  if (auth.ctx.profile?.role !== "admin") {
+    return { ok: false, error: "Forbidden" };
+  }
 
   const { data, error } = await auth.ctx.supabase.storage
     .from(BUCKET)

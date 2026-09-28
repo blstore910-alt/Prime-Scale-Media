@@ -186,6 +186,17 @@ export function AccountDetailsSheet({
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
   const isAdvertiser = profile?.role === "advertiser";
+  // ── THE COST BRANCH IS ADMIN-ONLY, NOT NOT-ADVERTISER ────────────
+  //
+  // The wildcard read below (which returns ad_accounts.notes and
+  // .metadata -- a supplier account number and the rate we pay for it)
+  // was gated on `!isAdvertiser`. That is a POSITIVE test on one role,
+  // so everybody else takes the cost branch: an affiliate, and anybody
+  // whose profile has not resolved yet. Not reachable today -- the
+  // affiliate shell does not import this sheet and RLS would return
+  // nothing anyway -- but it is one import away from mattering, and
+  // the rule is that cost data is admin-only, stated as such.
+  const isAdmin = profile?.role === "admin";
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawForThemOpen, setWithdrawForThemOpen] = useState(false);
   const { data, isLoading, isError, error } = useQuery({
@@ -229,8 +240,9 @@ export function AccountDetailsSheet({
       };
 
       // An admin still needs the whole row — they are the ones the notes
-      // are written by and for.
-      if (!isAdvertiser) {
+      // are written by and for. isAdmin, not !isAdvertiser: see the note
+      // where isAdmin is derived.
+      if (isAdmin) {
         const { data, error } = await run("*");
         if (error) throw error;
         return data;
@@ -479,7 +491,7 @@ export function AccountDetailsSheet({
                     customer's account" — because it is where an operator
                     writes things like a supplier account number and the
                     rate we pay for it. */}
-                {!isAdvertiser && data.notes && (
+                {isAdmin && data.notes && (
                   <div className="mt-2 text-sm">
                     <span className="font-medium text-muted-foreground block">
                       Notes:
@@ -492,7 +504,7 @@ export function AccountDetailsSheet({
 
                 {/* Metadata Fields Section — admin-only for the same
                     reason: every key is rendered, whatever was put in it. */}
-                {!isAdvertiser &&
+                {isAdmin &&
                   (data.metadata as Record<string, string | string[]>) &&
                   Object.keys(data.metadata || {}).length > 0 &&
                   (() => {
@@ -943,8 +955,21 @@ function TopupHistory({ account }: { account: AdAccount }) {
                         .join(" + ")
                     : formatCurrency(paid, cur),
                 )}
+                {/* ── "ON THE ACCOUNT" WAS NOT WHAT IS ON IT ────────
+                    This tile sums the LANDED figure of every completed
+                    funding. It subtracts nothing for withdrawals, so on
+                    AA-PSM0007-EU-01 it read "On the account EUR 97.00"
+                    while the withdraw dialog two taps away said "Up to
+                    EUR 77.00" -- the EUR 20 already approved is in the
+                    second figure and not the first. Two numbers for the
+                    same thing, and the one in bigger type was the wrong
+                    one.
+                    The arithmetic is right for what it measures, so the
+                    LABEL is what changes: this is what we put on, after
+                    our fee. What is left is the dialog's business, and
+                    it says so there. */}
                 {tile(
-                  "On the account",
+                  "Funded, after fees",
                   mixed
                     ? currencies
                         .map((c) => formatCurrency(landedBy[c] ?? 0, c))

@@ -66,9 +66,20 @@ test("the desk counter counts only what is on the desk", () => {
   assert.equal(isOnOurDesk(null), false);
 });
 
-test("the filter offers every status, in the order a queue is worked", () => {
+test("the filter offers every status a row can actually have", () => {
+  // `cancelled` is out on purpose, 28-09. The column allows it and
+  // nothing writes it -- the only two writers are
+  // ad_account_withdrawal_approve and _reject -- so picking it gave
+  // "Nothing matches that filter", every time, for ever. And because
+  // all three screens appended their own `rejected` to work around
+  // its absence, Rejected appeared in the dropdown twice.
   assert.deepEqual(
     WITHDRAWAL_STATUS_CHOICES.map((c) => c.value),
-    ["pending", "at_supplier", "approved", "rejected", "cancelled"],
+    ["pending", "at_supplier", "approved", "rejected"],
   );
+});
+
+test("no option appears twice", () => {
+  const values = WITHDRAWAL_STATUS_CHOICES.map((c) => c.value);
+  assert.equal(new Set(values).size, values.length);
 });

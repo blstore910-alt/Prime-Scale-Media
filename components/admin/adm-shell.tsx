@@ -351,7 +351,23 @@ export default function AdminShell({
                   {/* An unreadable count used to render as no badge at all,
                       which says "nothing is waiting" — the one thing it does
                       not know. It gets a muted dash instead. */}
-                  {item.badge === null ? (
+                  {pending.isLoading ? (
+                    /* ── STILL COUNTING IS NOT UNREADABLE ────────────
+                       usePendingCounts returns every count as null
+                       until the first response lands, and this branch
+                       did not read isLoading -- so EVERY hard load of
+                       EVERY admin page painted a dash with the tooltip
+                       "Count could not be read" for the length of one
+                       ten-way Promise.all. On /withdrawals it
+                       contradicted itself in the same second: the
+                       sidebar said the count was unreadable while the
+                       tab badges beside it said nothing at all.
+                       An alarm that fires on every page load teaches
+                       people to ignore the real one. Both siblings
+                       (psm-withdrawals, the dashboard) were fixed for
+                       exactly this; the sidebar was missed. */
+                    null
+                  ) : item.badge === null ? (
                     <span className="n unknown" title="Count could not be read">
                       —
                     </span>

@@ -99,7 +99,12 @@ export default function WithdrawDialog({
   // Same expression the approve guard uses: everything completed and
   // not struck out, minus every withdrawal that is not rejected or
   // cancelled -- pending ones included, because they are spoken for.
-  const { data: ceiling, isError: ceilingError } = useQuery<number | null>({
+  const {
+    data: ceiling,
+    isError: ceilingError,
+    error: ceilingErrorObj,
+    refetch: refetchCeiling,
+  } = useQuery<number | null>({
     queryKey: ["withdraw-ceiling", adAccountId],
     enabled: open && !!adAccountId,
     staleTime: 15_000,
@@ -259,7 +264,34 @@ export default function WithdrawDialog({
   });
 
   const numeric = Number(amount);
-  const valid = Number.isFinite(numeric) && numeric > 0;
+  // ── OVER THE CEILING WAS ACCEPTED AND CONFIRMED ──────────────────
+  //
+  // Walked on production, 28-09, on an account holding EUR 190.00: the
+  // dialog printed "Up to EUR 190.00" one line above the box, I typed
+  // 500, "Review request" stayed live, and the confirmation said
+  // "Amount EUR 500.00" with nothing anywhere saying it was too much.
+  // A customer agrees to a figure the screen has already told them is
+  // impossible, and only the server says no -- if it does.
+  //
+  // Only when the ceiling is actually KNOWN. A failed or still-running
+  // read must never turn into a refusal: that would lock somebody out
+  // of their own money over a dropped connection.
+  const overCeiling =
+    typeof ceiling === "number" &&
+    Number.isFinite(ceiling) &&
+    Number.isFinite(numeric) &&
+    numeric > ceiling;
+  // ── AND THE REASON, WHICH WAS CHECKED TOO LATE ───────────────────
+  //
+  // For an admin withdrawing on a customer's behalf the reason is
+  // mandatory, and it was tested inside mutationFn -- so the refusal
+  // arrived AFTER the two-step confirmation, with the typing still on
+  // a form that showed no inline error. The comment above that check
+  // claimed it was tested here "so the person finds out before the
+  // two-step confirm rather than after it". Now it is.
+  const reasonMissing = onBehalf && reason.trim().length < 3;
+  const valid =
+    Number.isFinite(numeric) && numeric > 0 && !overCeiling && !reasonMissing;
   const formatted = valid
     ? // "en-US", like every other formatter in this app. `undefined`
       // uses the BROWSER's locale, so this one dialog rendered
@@ -373,24 +405,61 @@ export default function WithdrawDialog({
               {/* The ceiling as a figure you can tap, not a sentence
                   buried under the field. Never a 0 over a failed read. */}
               {ceilingError ? (
+                /* The query throws sentences written for this moment
+                   ("This account has more top-ups than we can add up at
+                   once -- ask us and we will work the figure out by
+                   hand"), and this rendered three words instead, with
+                   no way to try again. */
                 <span className="text-xs text-muted-foreground">
-                  balance unavailable
+                  <span className="text-destructive">
+                    {(ceilingErrorObj as Error | null)?.message ??
+                      "We couldn't read this account's balance."}
+                  </span>{" "}
+                  <button
+                    type="button"
+                    className="font-medium underline underline-offset-2"
+                    onClick={() => void refetchCeiling()}
+                  >
+                    Try again
+                  </button>
                 </span>
               ) : ceiling === null || ceiling === undefined ? (
                 <span className="text-xs text-muted-foreground">
                   checking...
                 </span>
               ) : (
-                <button
-                  type="button"
-                  className="text-xs font-semibold tabular-nums text-primary underline-offset-2 hover:underline"
-                  onClick={() => setAmount(String(ceiling))}
-                >
-                  Up to {currency === "EUR" ? "€" : "$"}
-                  {ceiling.toFixed(2)}
-                </button>
+                ceiling <= 0 ? (
+                  /* A max link of 0 set the box to 0, which disabled
+                     the only forward button, and nothing on the dialog
+                     said there was nothing to bring back. A locked or
+                     never-funded account lands here. */
+                  <span className="text-xs text-muted-foreground">
+                    Nothing on this account to bring back
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold tabular-nums text-primary underline-offset-2 hover:underline"
+                    onClick={() => setAmount(String(ceiling))}
+                  >
+                    Up to {currency === "EUR" ? "€" : "$"}
+                    {ceiling.toFixed(2)}
+                  </button>
+                )
               )}
             </div>
+            {overCeiling ? (
+              <p className="text-destructive text-xs font-medium">
+                That is more than is on this account. The most you can
+                ask back is {currency === "EUR" ? "€" : "$"}
+                {(ceiling as number).toFixed(2)}.
+              </p>
+            ) : null}
+            {reasonMissing && amount.trim() ? (
+              <p className="text-destructive text-xs font-medium">
+                Say why below — it goes on the record for this customer.
+              </p>
+            ) : null}
             <div className="relative">
               <Input
                 id="wd-amount"

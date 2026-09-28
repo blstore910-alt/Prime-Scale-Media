@@ -1989,6 +1989,16 @@ export default function AdvertiserApp() {
   // below is still worth having for the reads that DO fail; it is just
   // not what was wrong here.
   const activityIncomplete =
+    // ── AND THE READ THE OTHER TWO DEPEND ON ────────────────────────
+    //
+    // `activity` and `exchanges` are both enabled on !!wallet?.id, so a
+    // failed WALLET read means neither of them ever runs -- their
+    // isError stays false, this flag stays false, and the caveat "Part
+    // of your activity didn't load" never fires. The customer then
+    // reads a statement with their ad-account return coming in and no
+    // top-ups going out, and believes it. With no returns either, the
+    // same cell says "Nothing has moved yet".
+    !!walletError ||
     !!activityError ||
     !!exchangesError ||
     !!invError ||

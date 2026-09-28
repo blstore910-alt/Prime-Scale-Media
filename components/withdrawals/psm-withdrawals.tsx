@@ -6,6 +6,13 @@ import {
   withdrawalStatusLook,
 } from "@/lib/pure-withdrawal-status";
 import { RejectReasonField } from "@/components/ui/reject-reason-field";
+
+/**
+ * The shortest refusal the server will take. withdrawal-actions.ts,
+ * refund-actions.ts and adjustment-actions.ts all refuse under three,
+ * so the button must not light up before then.
+ */
+const REASON_MIN = 3;
 import WithdrawalProof from "./withdrawal-proof";
 import { useSupplierLinks } from "@/hooks/use-supplier-link";
 import type { RejectContext } from "@/lib/pure-reject-reasons";
@@ -118,11 +125,9 @@ type ActionAsk = {
 function ActionAskModal({
   ask,
   close,
-  busy,
 }: {
   ask: ActionAsk | null;
   close: () => void;
-  busy: boolean;
 }) {
   const [reason, setReason] = useState("");
   const needsReason = !!ask?.reasonFor;
@@ -219,8 +224,26 @@ function ActionAskModal({
       // row that was already approved, producing a red "Approve failed"
       // toast for an action that had succeeded. psm-subscriptions.tsx does
       // it in this order; this copy did not.
+      // ── THE SAME THRESHOLD THE SERVER USES ────────────────────
+      //
+      // This un-greyed on ONE character while the action refuses
+      // anything under three (withdrawal-actions, refund-actions and
+      // adjustment-actions all agree on three). So "no" lit the button
+      // up, the modal closed, and a red toast came back -- with the
+      // typing already cleared, because `reason` resets on every
+      // change of `ask`. And a greyed button with no hint is its own
+      // dead end; ConfirmModal has the slot, and five other screens
+      // use it.
       disabled={
-        (needsReason && !reason.trim()) || (!!ask?.coverCheck && !checked)
+        (needsReason && reason.trim().length < REASON_MIN) ||
+        (!!ask?.coverCheck && !checked)
+      }
+      disabledHint={
+        needsReason && reason.trim().length < REASON_MIN
+          ? "Write a reason first, at least a few words. The customer reads it."
+          : !!ask?.coverCheck && !checked
+            ? "Tick the box above to confirm you checked the balance yourself."
+            : undefined
       }
       onConfirm={() => {
         const a = ask;
@@ -270,7 +293,12 @@ function ActionAskModal({
               type="checkbox"
               className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
               checked={checked}
-              disabled={busy}
+              // NOT `busy`. That is "any row in this section is
+              // settling", and ConfirmModal is deliberately given
+              // busy={false} for the same reason -- so while row A was
+              // being approved, row B's dialog opened with the ONLY
+              // control that can enable its Confirm already dead, and
+              // said nothing about why.
               onChange={(e) => setChecked(e.target.checked)}
             />
             <span>
@@ -290,7 +318,6 @@ function ActionAskModal({
             context={ask.reasonFor}
             value={reason}
             onChange={setReason}
-            disabled={busy}
           />
         </div>
       ) : null}
@@ -634,7 +661,6 @@ function WithdrawalsSection() {
                 // at_supplier — a filter that cannot select a state is
                 // a row nobody can find.
                 ...WITHDRAWAL_STATUS_CHOICES,
-                { value: "rejected", label: "Rejected" },
 // ── AN OPTION THAT MATCHES NOTHING IS NOT A FILTER ──────────────
 // ad_account_withdrawals.status allows 'cancelled', but nothing in
 // the app ever writes it: the only two writers are
@@ -919,7 +945,6 @@ function WithdrawalsSection() {
       <ActionAskModal
         ask={ask}
         close={() => setAsk(null)}
-        busy={!!actingId}
       />
     </div>
   );
@@ -1112,7 +1137,6 @@ function RefundsSection() {
                 // at_supplier — a filter that cannot select a state is
                 // a row nobody can find.
                 ...WITHDRAWAL_STATUS_CHOICES,
-                { value: "rejected", label: "Rejected" },
               ],
             },
           ]}
@@ -1368,7 +1392,6 @@ function RefundsSection() {
       <ActionAskModal
         ask={ask}
         close={() => setAsk(null)}
-        busy={!!actingId}
       />
     </div>
   );
@@ -1980,7 +2003,6 @@ function AdjustmentsSection() {
                 // at_supplier — a filter that cannot select a state is
                 // a row nobody can find.
                 ...WITHDRAWAL_STATUS_CHOICES,
-                { value: "rejected", label: "Rejected" },
               ],
             },
           ]}
@@ -2181,7 +2203,6 @@ function AdjustmentsSection() {
       <ActionAskModal
         ask={ask}
         close={() => setAsk(null)}
-        busy={!!actingId}
       />
     </div>
   );

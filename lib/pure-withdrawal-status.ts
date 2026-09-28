@@ -94,12 +94,23 @@ export function withdrawalStatusLook(
   return (LOOKS as Record<string, WithdrawalStatusLook>)[key] ?? UNKNOWN;
 }
 
-/** The filter dropdown, in the order a queue is worked. */
+/**
+ * The filter dropdown, in the order a queue is worked.
+ *
+ * `cancelled` is deliberately NOT here. The column allows it and
+ * nothing in the app ever writes it -- the only two writers are
+ * ad_account_withdrawal_approve and _reject -- so an admin who picks
+ * it gets "Nothing matches that filter or search", every time, for
+ * ever. The three screens that use this list each appended their own
+ * `rejected` afterwards to work around its absence, which put
+ * Rejected in the dropdown TWICE (and gave the native select two
+ * options with the same React key). One list, said once.
+ */
 export const WITHDRAWAL_STATUS_CHOICES: Array<{
   value: WithdrawalStatus;
   label: string;
 }> = (
-  ["pending", "at_supplier", "approved", "rejected", "cancelled"] as const
+  ["pending", "at_supplier", "approved", "rejected"] as const
 ).map((v) => ({ value: v, label: LOOKS[v].label }));
 
 /**
