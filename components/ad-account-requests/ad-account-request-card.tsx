@@ -1,3 +1,4 @@
+import { safeExternalHref } from "@/lib/url-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
@@ -83,9 +84,9 @@ export default function AdAccountRequestCard({
           </div>
           <div className="col-span-2 flex flex-col gap-1">
             <span className="text-muted-foreground">Website</span>
-            {request.website_url ? (
+            {safeExternalHref(request.website_url) ? (
               <a
-                href={request.website_url}
+                href={safeExternalHref(request.website_url)!}
                 target="_blank"
                 rel="noreferrer"
                 className="font-medium text-primary underline break-all"
@@ -93,7 +94,9 @@ export default function AdAccountRequestCard({
                 {request.website_url}
               </a>
             ) : (
-              <span className="font-medium">-</span>
+              <span className="font-medium break-all">
+                {request.website_url || "-"}
+              </span>
             )}
           </div>
         </div>

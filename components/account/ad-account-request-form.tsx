@@ -1,7 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isUrlLike } from "@/lib/url-field";
+import {
+  requestAgain,
+  requestAgainMessage,
+} from "@/lib/pure-request-again";
+import {
+  isUrlLike,
+  normaliseUrl,
+  URL_FIELD_MESSAGE,
+} from "@/lib/url-field";
 import {
   Resolver,
   useForm,
@@ -46,7 +54,15 @@ const validations = z
     currency: z.enum(["USD", "EUR"]),
     timezone: z.string().min(1, "Timezone is required"),
     notes: z.string().optional(),
-    website_url: z.string().optional().or(z.literal("")),
+    website_url: z
+      .string()
+      // Normalised on the way IN, not only on the way out: what
+      // gets stored is what five screens later put in an href,
+      // and "acme.com" there is a link to our own 404.
+      .transform(normaliseUrl)
+      .refine(isUrlLike, URL_FIELD_MESSAGE)
+      .optional()
+      .or(z.literal("")),
 
     // Metadata fields
     google_email: z.string().optional(),
@@ -438,7 +454,12 @@ export default function AdAccountRequestForm({
   // Wallet-impact preview: fee is €50 (EUR) or the rounded USD equivalent
   // via the active rate; show current balance + balance after.
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
-  const { data: feePreview, isError: feePreviewError } = useQuery({
+  const {
+    data: feePreview,
+    isError: feePreviewError,
+    isFetching: feePreviewFetching,
+    refetch: refetchFeePreview,
+  } = useQuery({
     queryKey: ["request-fee-preview", advertiserId, profile?.tenant_id],
     enabled: !!advertiserId && !!profile?.tenant_id,
     queryFn: async () => {
@@ -463,7 +484,11 @@ export default function AdAccountRequestForm({
         // Requests that have NOT yet become an account.
         supabase
           .from("ad_account_requests")
-          .select("id, status")
+          // created_at/platform/currency are for the duplicate notice --
+          // see lib/pure-request-again.ts. Same read, so the count that
+          // decides the fee and the list that warns about a repeat can
+          // never disagree with each other.
+          .select("id, status, created_at, platform, currency")
           .eq("advertiser_id", advertiserId),
         // ── AND THE ACCOUNTS THEY ALREADY HOLD ────────────────────
         //
@@ -573,11 +598,15 @@ export default function AdAccountRequestForm({
       // lower(): the SQL compares raw, so one request stored as
       // "Rejected" must not make the screen count one fewer than the
       // server and print "Included in your plan" over a EUR 50 debit.
-      const openRequests = (reqs.data ?? []).filter(
+      const openRows = (reqs.data ?? []).filter(
         (x: { status: string | null }) =>
           !["completed", "rejected", "cancelled"].includes(x.status ?? ""),
-      ).length;
-      const used = (accts.data ?? []).length + openRequests;
+      ) as {
+        created_at: string | null;
+        platform: string | null;
+        currency: string | null;
+      }[];
+      const used = (accts.data ?? []).length + openRows.length;
       const nowMs = new Date().getTime();
       const hasFreePerk = (perkRows ?? []).some(
         (p: {
@@ -608,6 +637,11 @@ export default function AdAccountRequestForm({
         included: Number(planRow?.included_ad_accounts ?? 0),
         used,
         hasFreePerk,
+        open: openRows.map((x) => ({
+          createdAt: x.created_at,
+          platform: x.platform,
+          currency: x.currency,
+        })),
       };
     },
   });
@@ -652,6 +686,22 @@ export default function AdAccountRequestForm({
   // the fetch lands. A customer reads "€-50.00" and backs out of a
   // request that was free.
   const feeUnknown = !feePreview || feePreviewError;
+  // ── AND THE PRICE HAS TO BE ON SCREEN BEFORE THEY AGREE ──────────
+  //
+  // feeEnough deliberately lets an unknown preview through, so a
+  // still-loading read cannot flash a false "not enough balance". But
+  // it also left the SUBMIT live, so on a failed preview the customer
+  // could confirm with the card reading "Checking what this request
+  // costs..." and the confirmation reading "Cost: worked out when you
+  // submit" -- agreeing to a EUR 50 debit with no price and no
+  // balance, and with the insufficient-balance guard switched off by
+  // the same undefined value.
+  //
+  // A loading preview resolves in a moment and is worth waiting for.
+  // An ERRORED one will not resolve on its own, so it gets its own
+  // sentence and a way out rather than a spinner for ever.
+  const feeBlocksSubmit = !isFree && feeUnknown;
+
 
   const draft = useFormDraft<FormValues>({
     formKey: "ad-account-request",
@@ -765,6 +815,21 @@ export default function AdAccountRequestForm({
   // dialog rather than a second dialog, because a dialog on top of a dialog
   // in a portal is where focus handling goes wrong.
   const [confirming, setConfirming] = useState<FormValues | null>(null);
+  // ── ARE THEY ASKING FOR THE SAME ACCOUNT AGAIN? ─────────────────
+  //
+  // Nothing visibly happens after a request is sent -- somebody here
+  // sets it up by hand -- so a customer who is not sure it went through
+  // files it again, and the second one is another EUR 50 out of the
+  // wallet plus another slot off their plan allowance. The wallet
+  // dialog already says this; this journey said nothing.
+  //
+  // Warn, never refuse: see lib/pure-request-again.ts.
+  const again = requestAgain({
+    open: feePreview?.open ?? [],
+    platform: confirming?.platform ?? selectedPlatform,
+    currency: confirming?.currency ?? selectedCurrency,
+  });
+  const againMessage = requestAgainMessage(again);
   // A ref, because state read out of a closure is the latch that does
   // not latch. See the note on the confirm handler below.
   const submitLatch = useRef(false);
@@ -875,15 +940,35 @@ export default function AdAccountRequestForm({
                 : "border-destructive/50 bg-destructive/5"
           }`}
         >
-          {feeUnknown ? (
+          {feePreviewError && !feePreviewFetching ? (
+            /* The read FAILED. It will not resolve by itself, so this
+               says so and offers the one thing that can help, instead
+               of a spinner that never stops. The submit is off while
+               this shows -- see feeBlocksSubmit. */
+            <>
+              <div className="font-medium">
+                We couldn&apos;t work out what this costs
+              </div>
+              <div className="text-muted-foreground text-xs mt-0.5">
+                Your plan and balance didn&apos;t load, so we can&apos;t
+                tell you the price — and we won&apos;t take money from
+                your wallet without showing it first.
+              </div>
+              <button
+                type="button"
+                className="mt-2 text-xs font-medium underline underline-offset-2"
+                onClick={() => void refetchFeePreview()}
+              >
+                Try again
+              </button>
+            </>
+          ) : feeUnknown ? (
             <>
               <div className="font-medium">
                 Checking what this request costs…
               </div>
               <div className="text-muted-foreground text-xs mt-0.5">
-                {feePreviewError
-                  ? "We couldn't read your plan and balance just now. Your plan may include this request at no cost — we'll charge the right amount when you submit."
-                  : "Your plan may include it at no cost."}
+                Your plan may include it at no cost.
               </div>
             </>
           ) : isFree ? (
@@ -1112,9 +1197,19 @@ export default function AdAccountRequestForm({
         <Button
           type="submit"
           form="ad-account-request-form"
-          disabled={isPending || !feeEnough}
+          disabled={isPending || !feeEnough || feeBlocksSubmit}
         >
-          <span>Send the request</span>
+          {/* A greyed-out button with no reason is its own dead end.
+              The notice at the top of the form says what happened and
+              offers Try again; the label says which of the two it is
+              so nobody hunts for it. */}
+          <span>
+            {feeBlocksSubmit
+              ? feePreviewError
+                ? "Price unknown — try again above"
+                : "Working out the price…"
+              : "Send the request"}
+          </span>
         </Button>
       </DialogFooter>
 
@@ -1130,14 +1225,22 @@ export default function AdAccountRequestForm({
         }}
         title="Send this request?"
         lead={
-          isFree
-            ? "Someone here picks it up and sets the account up on our Business Manager. Only send it if you actually want this account."
-            : "The fee leaves your wallet the moment you send this, and someone here sets the account up on our Business Manager."
+          // The duplicate warning goes FIRST when there is one: it is the
+          // reason to stop, and the sentence after it is the reason to
+          // go ahead.
+          [
+            againMessage,
+            isFree
+              ? "Someone here picks it up and sets the account up on our Business Manager. Only send it if you actually want this account."
+              : "The fee leaves your wallet the moment you send this, and someone here sets the account up on our Business Manager.",
+          ]
+            .filter(Boolean)
+            .join(" ")
         }
         cta="Yes, send it"
         busy={isPending}
         busyLabel="Sending…"
-        disabled={!feeEnough}
+        disabled={!feeEnough || feeBlocksSubmit}
         /* ── SHUT THE DOOR BEFORE THE VALIDATION, NOT AFTER ──────────
            This is the only money confirmation in the app that does not
            call its mutation directly. handleSubmit is react-hook-form's

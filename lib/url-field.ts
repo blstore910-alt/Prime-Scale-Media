@@ -54,3 +54,33 @@ export function isUrlLike(input: string | null | undefined): boolean {
 }
 
 export const URL_FIELD_MESSAGE = "Enter a valid website, for example acme.com";
+
+/**
+ * The href to put on a link, or null when there is nothing safe to link to.
+ *
+ * Found 28-09 on the ad-account request screens. Five places render a
+ * customer-typed website straight into `href={value}`, and the request form
+ * does not normalise what it stores. So somebody who typed "acme.com" — the
+ * spelling this app deliberately accepts — gets a RELATIVE link: the admin
+ * reviewing the request clicks it and lands on
+ * app.primescalemedia.com/acme.com, a 404 inside our own app. The one thing
+ * the link exists for (look at their site before approving) silently does
+ * not work, and it looks like the customer gave a dead address.
+ *
+ * And the same href takes "javascript:..." just as happily. That is
+ * customer-supplied text executing on an ADMIN's session, on a screen whose
+ * whole purpose is that an admin opens things strangers typed. React warns
+ * about it; it does not stop it.
+ *
+ * So: normalise it (which adds the scheme), then hold it to the same bar the
+ * forms use — http/https and a real-looking host. Anything else gets no link,
+ * and the caller still prints the text so the admin can see what was typed.
+ */
+export function safeExternalHref(
+  input: string | null | undefined,
+): string | null {
+  const v = normaliseUrl(input);
+  if (!v) return null;
+  if (!isUrlLike(v)) return null;
+  return v;
+}

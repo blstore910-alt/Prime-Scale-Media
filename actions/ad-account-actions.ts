@@ -925,11 +925,21 @@ export async function setAdAccountRequestStatus(
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const { supabase, profile } = ctx;
 
-  const { data: req } = await supabase
+  const { data: req, error: reqReadError } = await supabase
     .from("ad_account_requests")
     .select("id, tenant_id")
     .eq("id", requestId)
     .maybeSingle();
+  // The third of the three. Its two siblings already say this; this one
+  // still threw the error away, so a dropped read told the admin the
+  // request was gone while it sat on the screen behind the dialog.
+  if (reqReadError) {
+    return {
+      ok: false,
+      error:
+        "We couldn't read this request just now — nothing has changed. Try again in a moment.",
+    };
+  }
   if (!req) return { ok: false, error: "Request not found" };
   if (req.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden" };

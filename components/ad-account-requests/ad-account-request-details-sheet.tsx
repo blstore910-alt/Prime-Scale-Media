@@ -1,4 +1,5 @@
 "use client";
+import { safeExternalHref } from "@/lib/url-field";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -178,9 +179,9 @@ export default function AdAccountRequestDetailsSheet({
               <DetailRow
                 label="Website URL"
                 value={
-                  data.website_url ? (
+                  safeExternalHref(data.website_url) ? (
                     <a
-                      href={data.website_url}
+                      href={safeExternalHref(data.website_url)!}
                       target="_blank"
                       rel="noreferrer"
                       className="text-primary underline break-all"
@@ -188,7 +189,7 @@ export default function AdAccountRequestDetailsSheet({
                       {data.website_url}
                     </a>
                   ) : (
-                    "-"
+                    data.website_url || "-"
                   )
                 }
               />

@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/utils-pure";
+import { safeExternalHref } from "@/lib/url-field";
 import { formatBmIds } from "@/lib/pure-bm-ids";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { Card } from "@/components/ui/card";
@@ -441,9 +442,9 @@ export function AccountDetailsSheet({
                     </span>
                     <dt className="text-muted-foreground">Website</dt>
                     <dd className="ml-auto min-w-0 text-right font-medium">
-                      {data.website_url ? (
+                      {safeExternalHref(data.website_url) ? (
                         <a
-                          href={data.website_url}
+                          href={safeExternalHref(data.website_url)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block truncate text-primary hover:underline"
@@ -451,7 +452,10 @@ export function AccountDetailsSheet({
                           {data.website_url}
                         </a>
                       ) : (
-                        "—"
+                        /* Still shown, just not clickable: an address we
+                           cannot make a real link out of is something the
+                           admin needs to SEE, not something to hide. */
+                        data.website_url || "—"
                       )}
                     </dd>
                   </div>

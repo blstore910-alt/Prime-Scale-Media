@@ -1,4 +1,5 @@
 "use client";
+import { safeExternalHref } from "@/lib/url-field";
 
 import { useAppContext } from "@/context/app-provider";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";
@@ -65,9 +66,9 @@ function AdvertiserRequestRowCard({ request }: { request: AdAccountRequest }) {
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
             Website
           </p>
-          {request.website_url ? (
+          {safeExternalHref(request.website_url) ? (
             <a
-              href={request.website_url}
+              href={safeExternalHref(request.website_url)!}
               target="_blank"
               rel="noreferrer"
               className="text-sm font-medium text-primary underline break-all"
@@ -75,7 +76,9 @@ function AdvertiserRequestRowCard({ request }: { request: AdAccountRequest }) {
               {request.website_url}
             </a>
           ) : (
-            <p className="text-sm font-medium">-</p>
+            <p className="text-sm font-medium break-all">
+              {request.website_url || "-"}
+            </p>
           )}
         </div>
 

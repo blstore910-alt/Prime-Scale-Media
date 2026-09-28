@@ -1,7 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isUrlLike } from "@/lib/url-field";
+import {
+  isUrlLike,
+  normaliseUrl,
+  URL_FIELD_MESSAGE,
+} from "@/lib/url-field";
 import {
   Resolver,
   useForm,
@@ -80,7 +84,15 @@ const validations = z
     start_date: z.string().min(1, "Start date is required"),
     timezone: z.string().min(1, "Timezone is required"),
     notes: z.string().optional(),
-    website_url: z.string().optional().or(z.literal("")),
+    website_url: z
+      .string()
+      // Normalised on the way IN, not only on the way out: what
+      // gets stored is what five screens later put in an href,
+      // and "acme.com" there is a link to our own 404.
+      .transform(normaliseUrl)
+      .refine(isUrlLike, URL_FIELD_MESSAGE)
+      .optional()
+      .or(z.literal("")),
 
     // Metadata fields
     google_email: z.string().optional(),

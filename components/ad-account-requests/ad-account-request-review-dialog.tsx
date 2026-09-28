@@ -1,4 +1,5 @@
 "use client";
+import { safeExternalHref } from "@/lib/url-field";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,11 @@ export default function AdAccountRequestReviewDialog({
   onCreateAdAccount: (request: AdAccountRequest) => void;
   onReject: (request: AdAccountRequest) => void;
 }) {
-  const { data, isLoading, isError, error } = useQuery<AdAccountRequest | null>(
+  // isPending, not isLoading. isLoading is `isPending && isFetching`, so
+  // it is FALSE for a disabled query -- and this one is disabled until
+  // the dialog is open with an id. That gap rendered the not-found
+  // panel for a frame on every open.
+  const { data, isPending, isError, error, refetch } = useQuery<AdAccountRequest | null>(
     {
       queryKey: ["ad-account-request-details", requestId],
       enabled: !!requestId && open,
@@ -154,7 +159,7 @@ export default function AdAccountRequestReviewDialog({
             no gesture that could reach it. The loading and not-found states
             keep their own min-height, which is what that 360 was for. */}
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-          {isLoading && (
+          {(isPending || !requestId) && (
             <div className="flex min-h-[360px] items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -169,9 +174,35 @@ export default function AdAccountRequestReviewDialog({
             </div>
           )}
 
-          {!isLoading && !isError && !data && (
-            <div className="flex min-h-[360px] items-center justify-center text-sm text-muted-foreground">
-              Request not found.
+          {!isPending && !!requestId && !isError && !data && (
+            /* ── AN EMPTY READ IS NOT A DELETED REQUEST ──────────────
+               RLS refuses by returning zero rows, not by raising. So a
+               policy that does not cover this admin -- or a row whose
+               tenant_id does not match -- arrives here as `data: null`
+               with no error, and this panel asserted the request was
+               gone. The admin is looking at it in the list BEHIND this
+               dialog. They conclude a colleague handled it and move on,
+               while the customer's EUR 50 stays held.
+               Say what is actually known, and offer the one thing that
+               can help. */
+            <div className="flex min-h-[360px] flex-col items-center justify-center gap-2 px-6 text-center">
+              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+              <p className="text-sm font-medium">
+                We couldn&apos;t open this request
+              </p>
+              <p className="text-muted-foreground text-xs max-w-sm">
+                It came back empty. That usually means it was just
+                handled by someone else — but it can also mean we
+                weren&apos;t allowed to read it. Nothing has been
+                changed either way.
+              </p>
+              <button
+                type="button"
+                className="mt-1 text-xs font-medium underline underline-offset-2"
+                onClick={() => void refetch()}
+              >
+                Try again
+              </button>
             </div>
           )}
 
@@ -208,9 +239,9 @@ export default function AdAccountRequestReviewDialog({
                 <DetailRow
                   label="Website URL"
                   value={
-                    data.website_url ? (
+                    safeExternalHref(data.website_url) ? (
                       <a
-                        href={data.website_url}
+                        href={safeExternalHref(data.website_url)!}
                         target="_blank"
                         rel="noreferrer"
                         className="text-primary underline break-all"
@@ -218,7 +249,7 @@ export default function AdAccountRequestReviewDialog({
                         {data.website_url}
                       </a>
                     ) : (
-                      "-"
+                      data.website_url || "-"
                     )
                   }
                 />
