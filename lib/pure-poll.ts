@@ -21,6 +21,48 @@ export type PollAudience = "everyone" | "advertisers" | "affiliates";
 
 export type PollStatus = "draft" | "open" | "closed";
 
+/**
+ * What kind of answer the poll wants.
+ *
+ *   "choice" — pick one of the answers the owner wrote.
+ *   "open"   — say it in your own words.
+ *
+ * The owner, 28-09: "open answer moet ook mogelijk zijn en char limited
+ * en veilig". Both halves of that are enforced below and again in the
+ * database (plak 133), because a length checked only on the screen is
+ * not a length check: the RPC is callable directly.
+ */
+export type PollKind = "choice" | "open";
+
+/** The longest answer somebody can type. Short enough to read in a
+ *  list of two hundred, long enough to say something. */
+export const MAX_ANSWER = 280;
+
+/**
+ * An open answer, ready to store: trimmed, capped, and with the
+ * characters that make a mess of a CSV or a log taken out.
+ *
+ * NOT escaped for HTML — React escapes what it renders, and escaping
+ * here would store `&amp;` in the database and show it to the owner.
+ * What IS removed are control characters: they are invisible on screen,
+ * they break a CSV export mid-row, and a NUL byte is refused by
+ * Postgres outright, which would turn a customer typing into an error
+ * they cannot understand.
+ */
+export function cleanAnswer(value: unknown): string {
+  let out = "";
+  for (const ch of String(value ?? "")) {
+    const code = ch.codePointAt(0) ?? 0;
+    // Control characters become a space: they are invisible on screen,
+    // they break a CSV export mid-row, and Postgres refuses a NUL byte
+    // outright — which would turn somebody typing into an error they
+    // cannot understand. Tab and newline are controls too, and a
+    // one-line answer does not need them.
+    out += code < 0x20 || code === 0x7f ? " " : ch;
+  }
+  return out.replace(/ {2,}/g, " ").trim().slice(0, MAX_ANSWER);
+}
+
 export type PollRow = {
   id: string;
   question: string;
@@ -75,11 +117,17 @@ export type PollProblem =
 export function pollProblems(input: {
   question: string;
   options: readonly string[];
+  kind?: PollKind;
 }): PollProblem[] {
   const out: PollProblem[] = [];
   const q = String(input.question ?? "").trim();
   if (!q) out.push("question-missing");
   if (q.length > MAX_QUESTION) out.push("question-too-long");
+
+  // An open poll has no answers to write, so none of the checks below
+  // apply. Asking for two of them would be asking for something that
+  // does not exist on that form.
+  if (input.kind === "open") return out;
 
   const opts = normalizeOptions(input.options);
   if (opts.length < MIN_OPTIONS) out.push("too-few-options");

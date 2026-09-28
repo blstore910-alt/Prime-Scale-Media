@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
 import {
+  cleanAnswer,
   isPollOpen,
   pollIsForRole,
   pollTally,
@@ -37,7 +38,11 @@ const MISSING = /42P01|does not exist|schema cache|PGRST20\d/i;
 export type OpenPoll = {
   id: string;
   question: string;
+  /** "choice" or "open" -- what kind of answer it wants. */
+  kind: "choice" | "open";
   options: PollOption[];
+  /** What they typed, for an open poll they have already answered. */
+  myText: string | null;
   /** The option id this person chose, or null if they have not. */
   myVote: string | null;
   /** Only filled once they have voted — the standing must not steer it. */
@@ -63,7 +68,7 @@ export function usePoll(args: {
 
       const { data: polls, error } = await supabase
         .from("polls")
-        .select("id, question, options, audience, status, closes_at")
+        .select("id, question, options, audience, status, closes_at, kind")
         .eq("tenant_id", tenantId!)
         .eq("status", "open")
         .order("created_at", { ascending: false })
@@ -84,7 +89,7 @@ export function usePoll(args: {
 
       const { data: voteRow, error: voteError } = await supabase
         .from("poll_votes")
-        .select("option_id")
+        .select("option_id, answer_text")
         .eq("poll_id", mine.id)
         .eq("profile_id", profileId!)
         .maybeSingle();
@@ -93,11 +98,20 @@ export function usePoll(args: {
       // answer, and the RPC would quietly replace their first.
       if (voteError && !MISSING.test(voteError.message)) throw voteError;
 
-      const myVote =
-        (voteRow as { option_id?: string | null } | null)?.option_id ?? null;
+      const vr = voteRow as
+        | { option_id?: string | null; answer_text?: string | null }
+        | null;
+      const myVote = vr?.option_id ?? null;
+      const myText = (vr?.answer_text ?? null) || null;
+      const kind = String((mine as { kind?: string | null }).kind ?? "choice") === "open"
+        ? ("open" as const)
+        : ("choice" as const);
+      // An open poll is answered the moment there is text; there is no
+      // option to point at.
+      const answered = kind === "open" ? !!myText : !!myVote;
 
       let result: OpenPoll["result"] = null;
-      if (myVote) {
+      if (answered && kind === "choice") {
         const { data: counts, error: countError } = await supabase
           .from("poll_results")
           .select("option_id, votes")
@@ -118,7 +132,7 @@ export function usePoll(args: {
         result = pollTally(options, flat);
       }
 
-      return { id: mine.id, question: mine.question, options, myVote, result };
+      return { id: mine.id, question: mine.question, kind, options, myVote, myText, result };
     },
   });
 }
@@ -126,11 +140,17 @@ export function usePoll(args: {
 /** Cast or change a vote, then show the result. */
 export function usePollVote() {
   const queryClient = useQueryClient();
-  return async (pollId: string, optionId: string) => {
+  return async (pollId: string, optionId: string | null, answerText?: string) => {
     const supabase = createClient();
+    // cleanAnswer here AND in the RPC. This one keeps what the customer
+    // sees honest (they typed 400 characters, 280 were kept); the one
+    // in the database is the check that actually holds, because this
+    // RPC is callable directly.
+    const text = answerText === undefined ? null : cleanAnswer(answerText);
     const { data, error } = await supabase.rpc("poll_vote", {
       p_poll_id: pollId,
       p_option_id: optionId,
+      ...(text === null ? {} : { p_answer_text: text }),
     });
     if (error) throw error;
     const res = (Array.isArray(data) ? data[0] : data) as

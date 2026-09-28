@@ -2,7 +2,9 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import {
+  cleanAnswer,
   isPollOpen,
+  MAX_ANSWER,
   normalizeOptions,
   pollIsForRole,
   pollProblems,
@@ -161,4 +163,62 @@ test("the sentence under the result", () => {
   assert.equal(pollTotalText(0), "Nobody has answered yet.");
   assert.equal(pollTotalText(1), "1 answer so far.");
   assert.equal(pollTotalText(12), "12 answers so far.");
+});
+
+// ── OPEN ANSWERS: char limited en veilig (de eigenaar, 28-09) ───────
+
+test("an open answer is capped, and the cap is exact", () => {
+  const long = "a".repeat(400);
+  assert.equal(cleanAnswer(long).length, MAX_ANSWER);
+});
+
+test("control characters become a space, not a broken row", () => {
+  // A NUL byte is refused by Postgres outright, which would turn a
+  // customer typing into an error they cannot understand; a newline
+  // breaks a CSV export mid-row.
+  const messy = "hello\u0000there\nand\ttabs\u007f";
+  const out = cleanAnswer(messy);
+  assert.equal(out, "hello there and tabs");
+  assert.ok(!/[\u0000-\u001f\u007f]/.test(out));
+});
+
+test("runs of spaces collapse, and the ends are trimmed", () => {
+  assert.equal(cleanAnswer("  a    b  "), "a b");
+});
+
+test("HTML is NOT escaped here — it is stored as typed", () => {
+  // React escapes what it renders. Escaping at the door would store
+  // &amp; in the database and show that to the owner.
+  assert.equal(cleanAnswer("<b>me & you</b>"), "<b>me & you</b>");
+});
+
+test("emoji survive, and are not cut in half at the cap", () => {
+  // Cutting a surrogate pair in half produces an invalid string.
+  const out = cleanAnswer("😀".repeat(200));
+  assert.ok(out.length <= MAX_ANSWER);
+  assert.ok(!/[\uD800-\uDBFF]$/.test(out), "no dangling high surrogate");
+});
+
+test("nothing typed is an empty string, not a space", () => {
+  assert.equal(cleanAnswer("   "), "");
+  assert.equal(cleanAnswer(null), "");
+  assert.equal(cleanAnswer(undefined), "");
+});
+
+test("an open poll is not asked for two answers it does not have", () => {
+  assert.deepEqual(
+    pollProblems({ question: "What do you think?", options: [], kind: "open" }),
+    [],
+  );
+  // A choice poll with no answers still is.
+  assert.ok(
+    pollProblems({ question: "What do you think?", options: [], kind: "choice" })
+      .includes("too-few-options"),
+  );
+});
+
+test("an open poll still needs a question", () => {
+  assert.deepEqual(pollProblems({ question: "  ", options: [], kind: "open" }), [
+    "question-missing",
+  ]);
 });

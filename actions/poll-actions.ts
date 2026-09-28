@@ -8,6 +8,7 @@ import {
   pollProblemText,
   POLL_AUDIENCES,
   type PollAudience,
+  type PollKind,
 } from "@/lib/pure-poll";
 import { type ActionResult, resolveOwnerContext } from "./_shared";
 
@@ -75,6 +76,8 @@ export async function createPoll(input: {
   question: string;
   options: string[];
   audience?: string;
+  /** "choice" (pick one) or "open" (their own words). */
+  kind?: string;
   closesAt?: string | null;
   /** Ask straight away, or keep it as a draft to look at first. */
   openNow?: boolean;
@@ -83,9 +86,11 @@ export async function createPoll(input: {
   if (!owner.ok) return { ok: false, error: owner.error };
   const tenantId = owner.ctx.profile.tenant_id;
 
+  const kind: PollKind = input.kind === "open" ? "open" : "choice";
   const problems = pollProblems({
     question: input.question,
     options: input.options ?? [],
+    kind,
   });
   if (problems.length) {
     return { ok: false, error: problems.map(pollProblemText).join(" ") };
@@ -100,7 +105,11 @@ export async function createPoll(input: {
     .insert({
       tenant_id: tenantId,
       question: String(input.question).trim(),
-      options: normalizeOptions(input.options ?? []),
+      // An open poll has no answers to store. `[]` rather than null:
+      // the column is not null, and every reader does
+      // Array.isArray(options) before touching it.
+      options: kind === "open" ? [] : normalizeOptions(input.options ?? []),
+      kind,
       audience: audienceOf(input.audience),
       status: input.openNow === false ? "draft" : "open",
       closes_at: closes.at,
