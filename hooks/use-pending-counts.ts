@@ -38,6 +38,24 @@ export type PendingCounts = {
    */
   feeChangeRequests: number | null;
   /**
+   * Invoices that are unpaid and past their due date.
+   *
+   * The owner, 28-09, looking at his own home screen: "op homescreen
+   * admin/super admin niet echt zien waarbij we past due invoices zien
+   * ofzo." He was right -- the Queues block listed DST weeks,
+   * affiliates, wallet top-ups, ad-account requests, ad-account
+   * top-ups and withdrawals, and nothing at all about money already
+   * owed to us. Measured the same day: SIX unpaid invoices on this
+   * tenant, every one of them with a due date, every one of them past
+   * it.
+   *
+   * Derived, never asked for as a status: nothing writes
+   * `status = 'overdue'` -- see applyInvoiceStatusFilter in
+   * lib/invoice-status.ts, which is the same derivation the admin list
+   * uses.
+   */
+  overdueInvoices: number | null;
+  /**
    * Pending across all three tables the /withdrawals page shows: ad-account
    * withdrawals, wallet refunds and wallet adjustments. They share one screen
    * and one queue card, so they share one count. null if ANY of the three
@@ -80,6 +98,7 @@ export function usePendingCounts(): PendingCounts {
     topUps: number | null;
     adAccountRequests: number | null;
     feeChangeRequests: number | null;
+    overdueInvoices: number | null;
     withdrawals: number | null;
   }>({
     queryKey: ["pending-counts", tenantId],
@@ -104,6 +123,7 @@ export function usePendingCounts(): PendingCounts {
         bankDeposits,
         outstandingPrecharges,
         feeChangeRequests,
+        overdueInvoices,
       ] = await Promise.all([
         supabase
           .from("wallet_topups")
@@ -156,6 +176,18 @@ export function usePendingCounts(): PendingCounts {
         // are pasted by hand -- so a missing table must leave every
         // other badge working rather than taking the dashboard with it.
         pendingIn("fee_change_requests"),
+        // Unpaid AND past due. Not `.eq("status","overdue")` -- nothing
+        // ever writes that value, so it would count zero for ever,
+        // which is exactly how this went unnoticed on the export
+        // dialog. new Date() on the client: a few seconds of clock skew
+        // cannot change whether an invoice is days late.
+        supabase
+          .from("invoices")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("status", "unpaid")
+          .not("due_date", "is", null)
+          .lt("due_date", new Date().toISOString()),
       ]);
 
       // A swallowed error here is the worst kind: `count ?? 0` turned an
@@ -206,6 +238,7 @@ export function usePendingCounts(): PendingCounts {
 
       return {
         feeChangeRequests: feeChanges,
+        overdueInvoices: one(overdueInvoices),
         walletTopups: one(walletTopups),
         bankDeposits: one(bankDeposits),
         outstandingPrecharges: one(outstandingPrecharges),
@@ -232,6 +265,7 @@ export function usePendingCounts(): PendingCounts {
     topUps: null,
     adAccountRequests: null,
     feeChangeRequests: null,
+    overdueInvoices: null,
     withdrawals: null,
   };
 

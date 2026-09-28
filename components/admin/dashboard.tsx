@@ -378,6 +378,29 @@ export default function AdminDashboard() {
       count: pending.withdrawals,
       label: "Withdrawal requests",
     },
+    // ── MONEY ALREADY OWED TO US ──────────────────────────────────
+    //
+    // The owner, 28-09, on his own home screen: "op homescreen
+    // admin/super admin niet echt zien waarbij we past due invoices
+    // zien ofzo." Six queues about work coming IN, and nothing about
+    // an invoice that has gone past its date. Measured that day: six
+    // unpaid invoices on this tenant, all six with a due date, all six
+    // past it -- and the only way to find them was to open /invoices
+    // and pick Overdue from a filter.
+    //
+    // `soft`, like the bank deposits: it is a standing check rather
+    // than a queue somebody empties, and it should not shout over the
+    // queues that are somebody's actual shift. The link lands on
+    // /invoices, where the Overdue filter is.
+    {
+      key: "overdue-invoices",
+      href: "/invoices?status=overdue",
+      icon: Receipt,
+      ci: "r",
+      count: pending.overdueInvoices,
+      label: "Invoices past their due date",
+      soft: true,
+    },
     // Applications, "advertise too" requests and referrals waiting for
     // approval -- the exact rows of "Waiting for you" on /affiliates.
     ...(isSuperAdmin

@@ -559,16 +559,17 @@ export default function AdvertiserApp() {
     },
   });
 
-  const {
-    data: subscription,
-    isError: subError,
-    isSuccess: subLoaded,
-  } = useQuery<{
+  type SubRow = {
     amount: number | null;
     currency: string | null;
     status: string | null;
     next_payment_date: string | null;
-  } | null>({
+  };
+  const {
+    data: subAnswer,
+    isError: subError,
+    isSuccess: subLoaded,
+  } = useQuery<{ billable: SubRow | null; stopped: SubRow | null }>({
     queryKey: ["adv-subscription", advertiserId, tenantId],
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
@@ -585,19 +586,57 @@ export default function AdvertiserApp() {
         .select("amount, currency, status, next_payment_date")
         .eq("advertiser_id", advertiserId)
         .eq("tenant_id", tenantId)
-        // The BILLABLE set, not every row. Without this the newest row won
-        // whatever its status, so an inactive draft sitting beside a live
-        // plan made this screen read "not active" while the server still
-        // saw a running subscription.
-        .in("status", ["active", "past_due"])
+        // ── EVERY ROW NOW, AND THE BILLABLE ONE PICKED HERE ─────────
+        //
+        // The filter used to be `.in("status", ["active","past_due"])`
+        // and it is still exactly right for "is a plan running" -- the
+        // note below says why. What it could not express is the
+        // DIFFERENCE between a customer who never had a plan and one
+        // whose plan stopped, because both came back as null.
+        //
+        // PSM0011 on 28-09: a subscriptions row of EUR 150.00 with
+        // status `inactive`, no advertiser_plans row, and an unpaid
+        // EUR 150 invoice eight days past its date. Their Billing
+        // screen read "No plan yet -- Ad accounts come with a plan.
+        // Ask us which one fits and we'll start it for you", directly
+        // above "an invoice of EUR 150.00 is still open". Two
+        // statements about the same money, on one screen, contradicting
+        // each other -- while the admin card next door said
+        // "PLAN EUR 150 / mo - Not billing" and was right.
+        //
+        // So: fetch the lot (a customer has one or two of these, not
+        // hundreds) and split it here. `billable` behaves exactly as
+        // before; `stopped` is what was being thrown away.
         .order("start_date", { ascending: false })
-        .limit(1);
+        .limit(10);
       if (error) throw error;
+      const rows = (data ?? []) as SubRow[];
+      const billableStatuses = ["active", "past_due"];
+      const billable =
+        rows.find((r) =>
+          billableStatuses.includes(String(r.status ?? "").toLowerCase()),
+        ) ?? null;
+      // Newest non-billable row, and only when nothing is running --
+      // a live plan beside an old cancelled one is just a live plan.
+      const stopped = billable
+        ? null
+        : rows.find(
+            (r) => !billableStatuses.includes(String(r.status ?? "").toLowerCase()),
+          ) ?? null;
       // Nothing billable is a real answer — it means no plan is running,
       // which is what every server rule means by the same words.
-      return data?.[0] ?? null;
+      return { billable, stopped };
     },
   });
+  // Same value the rest of this file has always read: the billable row.
+  const subscription = subAnswer?.billable ?? null;
+  /**
+   * A plan that was running and is not any more. Not the same thing as
+   * never having had one, and the difference is the whole sentence the
+   * customer reads.
+   */
+  const stoppedSub = subAnswer?.stopped ?? null;
+
 
   // WHICH PLAN. The billing screens said "Monthly plan" and the customer's
   // plan has a name — Prime, Starter, whatever they were sold. On the box
@@ -2725,7 +2764,8 @@ export default function AdvertiserApp() {
   // Either row means they have a plan. `planLoaded` so a read still in
   // flight is not mistaken for an absence -- the same care `subLoaded`
   // already takes.
-  const noPlan = subLoaded && !subscription && planLoaded && !plan;
+  const noPlan =
+    subLoaded && !subscription && !stoppedSub && planLoaded && !plan;
   /** Their plan costs nothing HERE. */
   const freePlan = planLoaded && !!plan && plan.monthlyFee <= 0;
   // ── "NO MONTHLY CHARGE" IS NOT WHAT HAPPENS ──────────────────────
@@ -6195,8 +6235,12 @@ export default function AdvertiserApp() {
                       screen, so there is nowhere else for them to check. */}
                   {subscription?.status
                     ? subStatusLabel(subscription.status)
-                    : freePlan
-                      ? "Included"
+                    : stoppedSub?.status
+                      ? // Its real status -- Paused, Cancelled, Inactive
+                        // -- not "No plan". They have one; it is stopped.
+                        subStatusLabel(stoppedSub.status)
+                      : freePlan
+                        ? "Included"
                       : subError
                         ? "Couldn't load"
                       : // ── AND "STILL ARRIVING" IS NOT "NO PLAN" EITHER ──
@@ -6252,9 +6296,19 @@ export default function AdvertiserApp() {
                         // name already says Included; the only other
                         // fact worth a line is that the plan is running.
                         "Active"
-                      : noPlan
-                        ? "No plan yet"
-                        : "Subscription"}
+                      : stoppedSub
+                        ? // ── STOPPED IS NOT "NEVER HAD ONE" ─────────
+                          // PSM0011, 28-09: an inactive EUR 150
+                          // subscription and an unpaid EUR 150 invoice
+                          // eight days late, and this card said "No plan
+                          // yet -- ask us which one fits" directly above
+                          // "an invoice of EUR 150.00 is still open".
+                          // The admin card next door said "PLAN EUR 150
+                          // / mo - Not billing" and was right.
+                          `${planMoneyNeat(stoppedSub.amount)} / month`
+                        : noPlan
+                          ? "No plan yet"
+                          : "Subscription"}
                 </div>
                 {/* A free plan renews nothing, so the line under the
                     headline was a bare em dash. Gone rather than empty. */}
@@ -6315,6 +6369,8 @@ export default function AdvertiserApp() {
                       makes them keep the wrong amount in the wallet. */}
                   {noPlan
                     ? "Ad accounts come with a plan. Ask us which one fits and we'll start it for you."
+                    : stoppedSub
+                      ? "This plan is not running at the moment, so nothing new is being charged. Anything still open is below. Ask us to start it again whenever you want."
                     : freePlan
                       ? // Nothing. See the note on the headline above --
                         // a plan we do not invoice needs no paragraph

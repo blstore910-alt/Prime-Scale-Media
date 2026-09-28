@@ -247,7 +247,7 @@ export const ADV_CSS = `
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column}
   .stat .k{display:flex;align-items:center;gap:8px;font-size:.74rem;font-weight:600;color:var(--faint)}
   .stat .ci{width:26px;height:26px;border-radius:8px;display:inline-grid;place-items:center}.stat .ci svg{width:15px;height:15px}
-  .ci.b{background:var(--primary-tint);color:var(--primary-600)}.ci.t{background:#d7f4f8;color:var(--teal)}.ci.g{background:var(--gold-soft);color:#a9740b}.ci.p{background:#f3e8ff;color:var(--purple)}
+  .ci.b{background:var(--primary-tint);color:var(--primary-600)}.ci.t{background:#d7f4f8;color:var(--teal)}.ci.g{background:var(--gold-soft);color:#a9740b}.ci.p{background:#f3e8ff;color:var(--purple)}.ci.r{background:var(--warn-soft);color:var(--warn)}
   .stat .v{font-family:var(--hd);font-weight:800;font-size:1.4rem;letter-spacing:-.02em;margin-top:auto;padding-top:10px}
   .stat .k{min-height:2.4em}
 

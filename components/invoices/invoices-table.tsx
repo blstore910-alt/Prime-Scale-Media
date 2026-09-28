@@ -102,7 +102,7 @@ const stateRow = (
 // download and the CreateInvoiceDialog — presentation only, every column,
 // search and action preserved.
 export default function InvoicesTable() {
-  const [status, setStatus] = useState("all");
+
 // ── A LINK CAN ARRIVE WITH A CUSTOMER ALREADY IN MIND ───────────────
 //
 // The subscriptions list, the requests queue and the accounts table all
@@ -114,7 +114,16 @@ export default function InvoicesTable() {
 // Read ONCE, as the initial state: after that the box belongs to
 // whoever is typing in it, and re-syncing on every render would fight
 // them.
-  const initialQuery = useSearchParams().get("q") ?? "";
+  const params = useSearchParams();
+  const initialQuery = params.get("q") ?? "";
+  // The home screen's "Invoices past their due date" tile links here
+  // with ?status=overdue. Without this the tile landed on an unfiltered
+  // list and the admin had to find the filter themselves -- which is
+  // the work the tile exists to save. Same one-shot rule as the search
+  // box: after the first render the picker belongs to whoever is using
+  // it.
+  const initialStatus = params.get("status") ?? "all";
+  const [status, setStatus] = useState(initialStatus);
   const [search, setSearch] = useState(initialQuery);
   const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
   const [page, setPage] = useState(1);
@@ -263,7 +272,9 @@ export default function InvoicesTable() {
     );
   };
 
-  const colCount = isAdmin ? 8 : 6;
+  // +1 for the Due column added 28-09. A colspan that is short leaves
+  // the empty/loading/error row narrower than the table it sits in.
+  const colCount = isAdmin ? 9 : 7;
 
   return (
     <div
@@ -374,6 +385,7 @@ export default function InvoicesTable() {
                 <th>Type</th>
                 <th className="r">Amount</th>
                 <th>Status</th>
+                <th className="r nw">Due</th>
                 <th className="r nw">Created On</th>
                 <th className="r">Actions</th>
               </tr>
@@ -496,6 +508,25 @@ export default function InvoicesTable() {
                                   {dayjs(invoice.paid_at).format(DATE_FORMAT)}
                                 </div>
                               )}
+                            </td>
+                            {/* ── AND WHEN IT WAS DUE ────────────────
+                                The owner, 28-09, on an Overdue card:
+                                "er staat geen due datum bij admin tiles
+                                grids." The card showed "Overdue" and
+                                "CREATED ON 23-09-2026" and nothing else
+                                -- so the one fact that decides whether
+                                you chase somebody today, and how hard,
+                                was the one fact missing. On a screen
+                                whose whole purpose is deciding who owes
+                                what. */}
+                            <td className="r muted nw" data-label="Due">
+                              {(invoice as { due_date?: string | null })
+                                .due_date
+                                ? dayjs(
+                                    (invoice as { due_date?: string | null })
+                                      .due_date as string,
+                                  ).format(DATE_FORMAT)
+                                : "—"}
                             </td>
                             <td className="r muted" data-label="Created On">
                               {dayjs(invoice.created_at).format(DATE_FORMAT)}

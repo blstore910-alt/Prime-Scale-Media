@@ -300,7 +300,7 @@ export const PSM_APP_CSS = `
 .psmapp [data-nav]{cursor:pointer}
 .psmapp .stat .k{display:flex;align-items:center;gap:8px;font-size:.74rem;font-weight:600;color:var(--faint);min-height:2.4em}
 .psmapp .stat .ci{width:26px;height:26px;border-radius:8px;display:inline-grid;place-items:center}.psmapp .stat .ci svg{width:15px;height:15px}
-.psmapp .ci.b{background:var(--primary-tint);color:var(--primary-600)}.psmapp .ci.t{background:#d7f4f8;color:var(--teal)}.psmapp .ci.g{background:var(--gold-soft);color:#a9740b}.psmapp .ci.p{background:#f3e8ff;color:var(--purple)}
+.psmapp .ci.b{background:var(--primary-tint);color:var(--primary-600)}.psmapp .ci.t{background:#d7f4f8;color:var(--teal)}.psmapp .ci.g{background:var(--gold-soft);color:#a9740b}.psmapp .ci.p{background:#f3e8ff;color:var(--purple)}.psmapp .ci.r{background:var(--warn-soft);color:var(--warn)}
 .psmapp .stat .v{font-family:var(--hd);font-weight:800;font-size:1.4rem;letter-spacing:-.02em;margin-top:auto;padding-top:10px}
 
 .psmapp .wallet{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;box-shadow:0 22px 46px -24px rgba(58,111,255,.7);transition:transform .16s}
