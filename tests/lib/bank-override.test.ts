@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { bankOverrideFor, type FlatBankRow } from "../../lib/pure-bank-override";
+import { bankForTypeSlug } from "../../lib/bank-routing";
 
 const turlitEur: FlatBankRow = {
   slug: "eu-meta-psm",
@@ -104,4 +105,46 @@ test("a difference in a NON-money field is not a conflict", () => {
   // Notes and the address do not decide where the money lands.
   const other = { ...turlitEur, slug: "google", notes: "ask for a reference" };
   assert.equal(bankOverrideFor([turlitEur, other], "turlit", "EUR").reason, null);
+});
+
+test("a slug spelled the other way round still overrides", () => {
+  // The seed writes `hk-meta-premium`; a type created through
+  // /settings/ad-account-types is slugified from its label into
+  // `meta-hk-premium`. bank-routing.ts matches on the set of words for
+  // exactly that reason, and this resolver used a raw map lookup -- so
+  // routing sent the customer to TURLIT while the override quietly
+  // failed and the BUILT-IN details were shown. The owner is told in
+  // bold on /settings/banks that what they save replaces those details.
+  const r = bankOverrideFor(
+    [{ ...turlitEur, slug: "meta-hk-premium" }],
+    "turlit",
+    "EUR",
+  );
+  assert.equal(r.reason, null);
+  assert.equal(r.override!.account_no, "BE86967511906550");
+});
+
+test("routing and the override agree on every mapped slug", () => {
+  // The two must never drift again: if bankForTypeSlug routes a slug to
+  // a group, an active row on that slug must be able to override it.
+  for (const slug of [
+    "eu-meta-psm",
+    "hk-meta-premium",
+    "hk-meta-business",
+    "eu-meta-psm-gh",
+    "google",
+    "tiktok",
+    // …and the same names written the other way round.
+    "meta-hk-premium",
+    "meta-eu-psm-gh",
+  ]) {
+    const group = bankForTypeSlug(slug);
+    assert.ok(group, `${slug} routes nowhere`);
+    const r = bankOverrideFor([{ ...turlitEur, slug }], group!, "EUR");
+    assert.equal(
+      r.reason,
+      null,
+      `${slug} routes to ${group} but could not be overridden`,
+    );
+  }
 });

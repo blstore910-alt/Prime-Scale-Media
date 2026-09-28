@@ -61,10 +61,33 @@ export async function getSignedPaymentSlipUrl(
     return { ok: true, data: { url: storedValue } };
   }
 
+  // ── AND A PATH IS NOT A PERMISSION ───────────────────────────────
+  //
+  // The guard above answers "may this person open slips at all". It
+  // does not answer "may they open THIS one", and this action signed
+  // whatever string it was handed -- so any authenticated caller could
+  // invoke it directly with another customer's path. The comment above
+  // says the storage policy gates it, and it does today; but the
+  // create RPC stores `p_payment_slip` verbatim with no format check,
+  // so a customer can also file a claim whose slip points at somebody
+  // else's receipt, and the admin then reads the wrong document as the
+  // evidence for a credit.
+  //
+  // Both cost one shape test. Every slip this app writes goes to
+  // `wallet-topups/<wallet id>/…` (see the upload in
+  // wallet-topup-dialog.tsx), so anything else is not ours to sign.
+  const clean = storedValue.trim();
+  if (clean.includes("..") || !/^wallet-topups\/[0-9a-fA-F-]{36}\//.test(clean)) {
+    return {
+      ok: false,
+      error: "That does not look like a payment slip we stored.",
+    };
+  }
+
   const supabase = auth.ctx.supabase;
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(storedValue, SIGNED_TTL_SECONDS);
+    .createSignedUrl(clean, SIGNED_TTL_SECONDS);
 
   if (error || !data?.signedUrl) {
     return {

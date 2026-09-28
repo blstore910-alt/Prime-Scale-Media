@@ -1,4 +1,4 @@
-import { BANK_BY_TYPE_SLUG, type BankGroup } from "@/lib/bank-routing";
+import { bankForTypeSlug, type BankGroup } from "@/lib/bank-routing";
 
 /**
  * Whether the bank_accounts table has something to say about where a
@@ -84,7 +84,26 @@ export function bankOverrideFor(
     if (String(r.currency ?? "").toUpperCase() !== want) return false;
     const slug = String(r.slug ?? "").trim();
     if (!slug) return false;
-    return BANK_BY_TYPE_SLUG[slug] === group;
+    // ── THE SAME MATCH THE ROUTING USES, NOT A SECOND ONE ─────────
+    //
+    // This was a raw `BANK_BY_TYPE_SLUG[slug]` lookup while
+    // bank-routing.ts had already been fixed to match on the slug's
+    // SET OF WORDS -- because the seed writes `hk-meta-premium` and a
+    // type created through /settings/ad-account-types is slugified
+    // from its label into `meta-hk-premium`. Same type, two spellings.
+    //
+    // With two different matchers the routing and the override
+    // disagree: the dialog sends the customer to TURLIT (routing
+    // matched) and then shows the BUILT-IN account details, because
+    // the override did not. The owner corrects an IBAN on
+    // /settings/banks, is told in bold that it "replaces the built-in
+    // beneficiary on the customer's transfer screen", and the customer
+    // keeps seeing the old one.
+    //
+    // Every slug on this tenant happens to match both ways today. The
+    // first type added through the Banks screen -- which is the screen
+    // this whole feature exists for -- would not.
+    return bankForTypeSlug(slug) === group;
   });
 
   if (mine.length === 0) return { override: null, reason: "none" };

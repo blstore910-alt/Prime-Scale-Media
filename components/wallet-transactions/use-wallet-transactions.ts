@@ -40,7 +40,7 @@ export default function useWalletTransactions(
   );
 
   const { data, isPending, isError, error, refetch } = useQuery<
-    { items: WalletTopupWithAdvertiser[]; total: number } | undefined
+    { items: WalletTopupWithAdvertiser[]; total: number | null } | undefined
   >({
     queryKey,
     enabled: profile?.role === "admin" && !!profile?.tenant_id,
@@ -106,14 +106,28 @@ export default function useWalletTransactions(
 
       return {
         items: (rows ?? []) as WalletTopupWithAdvertiser[],
-        total: count ?? (rows ?? []).length,
+        // ── A COUNT WE DID NOT GET IS NOT A TOTAL ────────────────
+        //
+        // `count ?? rows.length` reads a null header as "this page is
+        // all there is". On page 1 with 12 rows that makes total 12,
+        // the pager is gated on `total > perPage` and hides itself, and
+        // pages 2+ become unreachable. On page 2 it is worse: null
+        // count plus no rows gives total 0, the walk-back clamp bails
+        // on `total <= 0`, and the admin is left on an empty card with
+        // no control to get off it -- the exact dead end the pager's
+        // own comment says was fixed.
+        //
+        // null travels instead, and the callers already handle it.
+        total: count === null || count === undefined ? null : count,
       };
     },
   });
 
   return {
     transactions: data?.items ?? [],
-    total: data?.total ?? 0,
+    /** null = the count header never arrived. NOT zero, and not
+     *  "this page is all there is" -- see the note in the query. */
+    total: data?.total ?? null,
     // ── isPending, NOT isLoading ──────────────────────────────────
     //
     // react-query v5: isLoading = isPending && isFetching. A DISABLED

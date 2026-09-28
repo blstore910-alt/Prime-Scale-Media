@@ -409,7 +409,15 @@ export default function AdvertiserApp() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("wallets")
-        .select("*")
+        // Named columns, not "*". Nothing supplier-side lives on
+        // `wallets` today, so this is the latent half of the rule
+        // rather than a live leak — but this same file argues against
+        // the pattern two hundred lines down, and a column added later
+        // would ship to the customer's browser without anybody
+        // choosing it.
+        .select(
+          "id, advertiser_id, tenant_id, eur_balance, usd_balance, reference_no, created_at, updated_at",
+        )
         .eq("advertiser_id", advertiserId)
         .maybeSingle();
       if (error) throw error;
@@ -2013,7 +2021,23 @@ export default function AdvertiserApp() {
         .eq("wallet_id", wallet!.id)
         .eq("status", "completed");
       if (error) throw error;
-      return count ?? 0;
+      // ── A COUNT WE DID NOT GET IS NOT A COUNT OF ZERO ────────────
+      //
+      // `count` is a PostgREST HEADER, not a column: it can come back
+      // null with no error at all. `count ?? 0` turned that into a
+      // confident zero, toppedUpError stayed false, and the onboarding
+      // checklist then told a customer who HAS topped up to go and top
+      // up — which is the exact fault the comment above says this
+      // query was rewritten to prevent. use-pending-counts.ts gets it
+      // right and calls `count ?? 0` "the worst kind" of swallowed
+      // error; the two disagreed.
+      //
+      // null travels, and the checklist already has an `unavailable`
+      // state wired to this query's error flag.
+      if (count === null || count === undefined) {
+        throw new Error("wallet_topups count came back empty");
+      }
+      return count;
     },
   });
 

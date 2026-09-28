@@ -248,8 +248,11 @@ export default function WalletTransactionsTable({
       )}
 
       <div className="p-4">
+        {/* total is null when the count header never came. Claim one
+            page beyond this one so Next stays reachable, rather than
+            collapsing to 0 and hiding the way forward. */}
         <TablePagination
-          total={total}
+          total={total ?? page * perPage + 1}
           page={page}
           perPage={perPage}
           onPageChange={(p) => setPage(p)}

@@ -387,6 +387,20 @@ export default function PsmVerifyTopups({
     if (isLoading) return;
     if (page <= 1) return;
     if (shownCount > 0) return;
+    // ── A COUNT WE DID NOT GET IS NOT A COUNT OF ZERO ──────────────
+    //
+    // `total` is null when the PostgREST count header never arrived.
+    // It used to be `rows.length`, which on an empty page 2 was 0, and
+    // this clamp then bailed on `total <= 0` and left the admin on an
+    // empty card with the pager hidden -- the very dead end the note
+    // by the pager says was fixed.
+    //
+    // Unknown means walk back to page 1: there is nothing on this page
+    // and no way to work out which page has something.
+    if (total === null) {
+      setPage(1);
+      return;
+    }
     if (total <= 0) return;
     setPage(Math.max(1, Math.ceil(total / perPage)));
   }, [isLoading, page, total, shownCount]);
@@ -901,11 +915,17 @@ export default function PsmVerifyTopups({
           a reload escaped. The gate is `total`, which is the whole
           queue, not the slice. The clamp above walks the page back so
           this cannot be reached in the first place. */}
-      {!isLoading && total > perPage ? (
+      {/* An unknown total shows the pager whenever this page is full:
+          there may well be more, and hiding the control is how the
+          queue strands somebody. A known total gates as before. */}
+      {!isLoading &&
+      (total === null ? shownCount >= perPage : total > perPage) ? (
         <div className="my-4 px-4">
           <TablePagination
             page={page}
-            total={total}
+            // Unknown: claim one more page than we are on, so Next
+            // stays reachable and Previous still works.
+            total={total ?? page * perPage + 1}
             perPage={perPage}
             onPageChange={(p) => setPage(p)}
           />

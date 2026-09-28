@@ -323,18 +323,49 @@ export default function WalletTopupDialog({
   //   - show HALF. The resolver requires an account number before a row
   //     counts as a destination at all.
   const { data: bankRows } = useQuery({
-    queryKey: ["topup-bank-accounts", profile?.tenant_id ?? null],
+    // The slugs are in the key: the query now filters on them, so two
+    // customers with different account types must not share a cache
+    // entry and read each other's destination.
+    queryKey: [
+      "topup-bank-accounts",
+      profile?.tenant_id ?? null,
+      [...accountTypeSlugs].sort().join(","),
+    ],
     enabled: !!profile?.tenant_id,
     staleTime: 60_000,
     queryFn: async () => {
       const supabase = createClient();
+      // ── NOT THE WHOLE ROUTING MAP ────────────────────────────────
+      //
+      // The header of this file records that the beneficiary PICKER was
+      // removed because its option list "is our routing map printed on
+      // a customer screen: which platforms we run, how they are split
+      // across two legal entities". This query then sent the customer
+      // exactly that, over the wire: every active bank row for the
+      // tenant, every currency, joined to the ad-account-type slug --
+      // the slug-to-IBAN map itself.
+      //
+      // The dialog only ever renders ONE destination, and it already
+      // knows which type slugs this customer holds. So ask for those,
+      // and nothing else. A customer with no ad accounts asks for
+      // nothing at all and gets the built-in, which is what that case
+      // was always going to show.
+      const mySlugs = Array.from(
+        new Set(accountTypeSlugs.filter(Boolean)),
+      );
+      if (mySlugs.length === 0) return [];
       const { data, error } = await supabase
         .from("bank_accounts")
         .select(
-          "currency, is_active, label, beneficiary, account_no, swift_bic, bank_name, bank_address, routing_no, notes, ad_account_types(slug)",
+          // `notes` is gone: it is an internal field (empty on every
+          // one of the 19 live rows) that was rendered to the customer
+          // as "Note", so it was a leak waiting for somebody to type
+          // in it.
+          "currency, is_active, label, beneficiary, account_no, swift_bic, bank_name, bank_address, routing_no, ad_account_types!inner(slug)",
         )
         .eq("tenant_id", profile!.tenant_id!)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .in("ad_account_types.slug", mySlugs);
       // A failure is the built-in, not an empty sheet. Logged, not shown:
       // there is nothing the customer could do about it and the details
       // they are about to read are still correct.
@@ -360,7 +391,9 @@ export default function WalletTopupDialog({
           bank_name: (row.bank_name as string) ?? null,
           bank_address: (row.bank_address as string) ?? null,
           routing_no: (row.routing_no as string) ?? null,
-          notes: (row.notes as string) ?? null,
+          // Not selected any more -- an internal field that was being
+          // rendered to the customer as "Note".
+          notes: null,
         };
       });
     },
@@ -942,9 +975,36 @@ export default function WalletTopupDialog({
               <div className="space-y-6">
                 <div className="space-y-3">
                   <Label>Wallet to fund</Label>
+                  {/* ── A SLIP BELONGS TO THE CLAIM IT WAS UPLOADED FOR ──
+                      Both guards against "a EUR slip filed against a
+                      USD claim" are keyed to the dialog OPENING and
+                      CLOSING, and their comments name that incident
+                      three times. The path back from step 3 -- the
+                      "Change" link -- is inside the dialog, so it
+                      passed both: upload a EUR slip, press Change,
+                      switch the wallet to USD, continue, submit. The
+                      RPC gets p_currency USD with the euro slip still
+                      attached, and the only thing that changed on
+                      screen was the symbol in front of the box.
+
+                      Switching the wallet makes the old slip the wrong
+                      document, so it goes -- and is said out loud,
+                      because a silently emptied upload is how somebody
+                      submits without one. */}
                   <Select
                     value={currency}
-                    onValueChange={(val: CurrencyCode) => setCurrency(val)}
+                    onValueChange={(val: CurrencyCode) => {
+                      if (val === currency) return;
+                      setCurrency(val);
+                      if (paymentSlipUrl || slipName) {
+                        setPaymentSlipUrl(null);
+                        setSlipName(null);
+                        setPaymentSlipError(null);
+                        toast.info("Add the payment slip again", {
+                          description: `You switched to the ${val} wallet, so the slip you uploaded no longer matches this claim.`,
+                        });
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select currency" />
@@ -968,11 +1028,29 @@ export default function WalletTopupDialog({
                     others. The destination follows from the accounts they
                     hold, so it is worked out rather than asked. */}
                 {/* Said once, wherever the destination came from. */}
+                {/* ── WHICH OF THE THREE, AND accountsUnknown FIRST ──
+                    This branched on `accountTypeSlugs.length === 0`,
+                    and that list is [] in THREE different situations:
+                    a genuinely new customer, a read still in flight,
+                    and a read that failed. Two hundred lines up this
+                    file keeps those apart on purpose ("`accounts ?? []`
+                    is [] while the query is in flight AND when it has
+                    failed") and the one sentence the customer actually
+                    reads collapsed them.
+
+                    So an established Meta-EU-PSM-GH customer on a
+                    flaky connection was shown TURLIT's IBAN under the
+                    words "You don't have an ad account with us yet" —
+                    the sentence meant to make them hesitate instead
+                    confirmed the wrong bank, and nothing server-side
+                    looks at where they sent it. */}
                 {routingUnknown && (
                   <p className="text-xs text-muted-foreground">
-                    {accountTypeSlugs.length === 0
-                      ? "You don't have an ad account with us yet, so we've put our usual account below. If we gave you a different one, use that — and ask us if you're not sure."
-                      : "We couldn't work the destination out from your ad accounts, so we've put our usual one below. If we gave you a different one, use that — and ask us if you're not sure."}
+                    {accountsUnknown
+                      ? "We couldn't check which of our accounts is yours just now. Don't transfer on this screen — reopen it in a moment, or ask us and we'll tell you."
+                      : accountTypeSlugs.length === 0
+                        ? "You don't have an ad account with us yet, so we've put our usual account below. If we gave you a different one, use that — and ask us if you're not sure."
+                        : "We couldn't work the destination out from your ad accounts, so we've put our usual one below. If we gave you a different one, use that — and ask us if you're not sure."}
                   </p>
                 )}
 
@@ -1076,6 +1154,28 @@ export default function WalletTopupDialog({
                           {cur} {shown.toLocaleString("en-US")}
                         </strong>
                         . A smaller amount cannot be filed as a top-up.
+                        {/* ── AND WHAT THAT IS IN THE WALLET ─────────
+                            The box on step 3 asks for the WALLET
+                            figure, and this line quotes the TRANSFER
+                            one. A EUR-wallet customer paying in HKD
+                            was told "Transfer at least HKD 2,540"
+                            twice and then handed a box asking what to
+                            credit to their EUR wallet — typing the
+                            number they had just been shown files a
+                            claim about eight times the transfer.
+                            Naming both figures costs one clause and
+                            removes the whole trap. */}
+                        {cur !== currency && (
+                          <>
+                            {" "}
+                            That is{" "}
+                            <strong>
+                              {currency}{" "}
+                              {minTopupAmount.toLocaleString("en-US")}
+                            </strong>{" "}
+                            credited — the figure we ask for at the end.
+                          </>
+                        )}
                       </p>
                     );
                   })()}

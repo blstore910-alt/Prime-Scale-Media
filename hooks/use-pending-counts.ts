@@ -61,7 +61,15 @@ export function usePendingCounts(): PendingCounts {
   const { profile } = useAppContext();
   const tenantId = profile?.tenant_id ?? null;
 
-  const { data, isError, isLoading } = useQuery<{
+  // isPending, NOT isLoading. `isLoading` is `isPending && isFetching`,
+  // so it is FALSE while this query is DISABLED -- and it is disabled
+  // until the profile resolves to an admin with a tenant. Every count
+  // is null at that moment, so the `isError` line below fired on the
+  // very first paint and the money-in card read "Couldn't load the
+  // queues" before settling into a number. The comment on that line
+  // says `!isLoading` was added to prevent exactly that; it was the
+  // wrong flag, so the alarm went on crying wolf on every page load.
+  const { data, isError, isPending } = useQuery<{
     walletTopups: number | null;
     bankDeposits: number | null;
     outstandingPrecharges: number | null;
@@ -234,13 +242,13 @@ export function usePendingCounts(): PendingCounts {
     // load the queues" on every single page load — an alarm that cried wolf
     // so reliably it would have trained people to ignore the real one.
     isError:
-      !isLoading &&
+      !isPending &&
       (isError ||
         counts.moneyIn === null ||
         counts.walletTopups === null ||
         counts.topUps === null ||
         counts.adAccountRequests === null ||
         counts.withdrawals === null),
-    isLoading,
+    isLoading: isPending,
   };
 }

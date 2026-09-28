@@ -289,11 +289,24 @@ const AUTH_CSS = `
 /* ── "Check your inbox" ──────────────────────────────────────────────
    An envelope that floats and a green dot that pings: something is on
    its way. Frozen under reduced motion by the rule at the end. */
-.psmauth .inbox{position:relative;width:74px;height:74px;margin:2px auto 16px;border-radius:22px;
+/* ── IT WAS CLIPPING AT THE TOP ───────────────────────────
+   The owner, 27-09: "dit icon moet smaller anders gaat die boven kapt
+   die af."
+
+   Three things stacked up and only 2px was left for them: the badge
+   floats (psmfloat lifts it 6px at the midpoint) and the green dot sits
+   at top:-4px, so it needs about 10px of headroom above the box. It had
+   two, and the dot was cut off by the card edge at the top of every
+   float cycle.
+
+   Smaller, as asked — 60px rather than 74 — and the headroom it
+   actually needs. The dot comes down with it so the proportion holds.
+   Both numbers matter: shrinking alone would still clip. */
+.psmauth .inbox{position:relative;width:60px;height:60px;margin:12px auto 16px;border-radius:18px;
   display:grid;place-items:center;background:var(--brand);
-  box-shadow:0 18px 40px -16px rgba(124,92,255,.8),inset 0 1px 0 rgba(255,255,255,.3);
+  box-shadow:0 14px 32px -14px rgba(124,92,255,.8),inset 0 1px 0 rgba(255,255,255,.3);
   animation:psmfloat 3.2s ease-in-out infinite}
-.psmauth .inbox svg{width:34px;height:34px;stroke:#fff}
+.psmauth .inbox svg{width:28px;height:28px;stroke:#fff}
 .psmauth .inbox.warn{background:linear-gradient(135deg,#ffb020,#e5484d);box-shadow:0 18px 40px -16px rgba(229,72,77,.7),inset 0 1px 0 rgba(255,255,255,.3)}
 .psmauth .inbox.ok{background:linear-gradient(135deg,#34d399,#10b981);box-shadow:0 18px 40px -16px rgba(16,185,129,.7),inset 0 1px 0 rgba(255,255,255,.3)}
 .psmauth .status-card .btn+.btn{margin-top:9px}
@@ -311,8 +324,9 @@ const AUTH_CSS = `
 .psmauth .orgbtn .nm b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .psmauth .orgbtn .nm small{display:block;font-size:.74rem;color:var(--faint)}
 .psmauth .orgbtn .go{font-size:.8rem;font-weight:800;color:var(--primary-600);flex:0 0 auto}
-.psmauth .inbox .ping{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;
-  background:var(--win);border:3px solid #fff;animation:psmping 1.8s ease-out infinite}
+/* Scaled with the badge: 18px on a 60px square read as a bauble. */
+.psmauth .inbox .ping{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;
+  background:var(--win);border:2.5px solid #fff;animation:psmping 1.8s ease-out infinite}
 @keyframes psmfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes psmping{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55)}100%{box-shadow:0 0 0 14px rgba(16,185,129,0)}}
 .psmauth .steps3{list-style:none;margin:4px 0 16px;padding:0;display:grid;gap:9px;text-align:left}

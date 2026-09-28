@@ -36,7 +36,11 @@ export function useOutstandingPrecharges(topupIds: string[]) {
   // because the caller built a new array.
   const key = [...topupIds].sort().join(",");
 
-  const { data, isLoading, isError } = useQuery({
+  // isPending, not isLoading: this query is `enabled` on there being
+  // any topup ids, and `isLoading` is false for a disabled query. Three
+  // money screens read this as "no advance on this top-up" and a false
+  // no-advance is the double credit the hook exists to prevent.
+  const { data, isPending, isError } = useQuery({
     queryKey: ["outstanding-precharges", key],
     enabled: topupIds.length > 0,
     queryFn: async () => {
@@ -106,7 +110,7 @@ export function useOutstandingPrecharges(topupIds: string[]) {
   return {
     /** topup id -> the advance still outstanding against it. */
     precharges: data ?? {},
-    isLoading,
+    isLoading: isPending,
     // An unreadable answer is NOT "no advance". The whole point of this
     // hook is to stop an admin crediting on a wrong assumption, so the
     // screen has to be able to say it could not check.
