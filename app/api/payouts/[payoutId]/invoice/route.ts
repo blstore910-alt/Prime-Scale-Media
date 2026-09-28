@@ -7,11 +7,7 @@ import {
   payoutInvoiceLines,
   payoutInvoiceTotals,
 } from "@/lib/pure-payout-invoice";
-import {
-  buildSelfBilledInvoiceHtml,
-  DEFAULT_INVOICE_LOGO_PATH,
-  loadPublicImageDataUri,
-} from "@/lib/invoice-pdf";
+import { buildSelfBilledInvoiceHtml } from "@/lib/invoice-pdf";
 import {
   payoutGroupKey,
   payoutRef,
@@ -322,13 +318,14 @@ export async function GET(
     }));
     const totals = payoutInvoiceTotals(rows);
 
-    // The same document we send customers — same stylesheet, same A4
-    // frame, same logo, same table and summary. The owner, 28-09:
+    // The same document we send customers -- same stylesheet, same
+    // frame, same table and summary. No logo: on a self-billed invoice
+    // the supplier is the affiliate, and our mark at the top made it
+    // read as our paper. The owner, 28-09:
     // "invoice moet mooier stijl net als wat wij naar klanten geven dit
     // is lelijk geen echte invoice". Only the heading and the direction
     // of the parties differ, because on a self-billed invoice the
     // affiliate supplies and we buy.
-    const logoDataUri = await loadPublicImageDataUri(DEFAULT_INVOICE_LOGO_PATH);
     const html = buildSelfBilledInvoiceHtml(
       {
         reference: ref ?? (head.payout_no ? `#${head.payout_no}` : head.id.slice(0, 8)),
@@ -343,7 +340,6 @@ export async function GET(
           amount: money(amt, cur),
         })),
       },
-      logoDataUri,
     );
 
     return new NextResponse(html, {

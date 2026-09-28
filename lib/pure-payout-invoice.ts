@@ -90,9 +90,16 @@ export function payoutInvoiceLines(
     out.push({
       // Line one is the GROSS whenever something was held back, so that
       // line one and the deduction below it land exactly on the total.
-      text: `Referral commission — ${count} ${
-        count === 1 ? "commission" : "commissions"
-      } in ${src}`,
+      //
+      // "— 1 commission in EUR" said two things the reader can already
+      // see: the amount column carries the € and one line does not need
+      // counting. The owner, on the whole document: "veel tekst is niet
+      // mooi auto generated bla bla". The count stays when there IS one
+      // to give, because then it is the only place it appears.
+      text:
+        count > 1
+          ? `Referral commission — ${count} commissions`
+          : "Referral commission",
       amount: claw > 0 ? cents(net + claw) : cents(net),
       currency: src,
     });

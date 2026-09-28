@@ -983,14 +983,9 @@ export type SelfBilledInvoiceInput = {
 
 export function buildSelfBilledInvoiceHtml(
   input: SelfBilledInvoiceInput,
-  logoDataUri: string | null,
 ): string {
   const renderLines = (lines: string[]) =>
     lines.map((line) => `<div class="line">${escapeHtml(line)}</div>`).join("");
-
-  const logoHtml = logoDataUri
-    ? `<img class="logo" src="${logoDataUri}" alt="Company logo" />`
-    : `<div class="logo-placeholder"></div>`;
 
   const rowsHtml = input.lines
     .map(
@@ -1025,18 +1020,30 @@ export function buildSelfBilledInvoiceHtml(
          document itself is untouched: everything here either shows the
          A4 page on a phone or disappears when printing. */
       body { background:#eef1f8; }
-      .invoice { margin:0 auto; box-shadow:0 20px 50px -30px rgba(20,30,80,.5); }
-      .savebar {
-        position:fixed; right:16px; top:16px;
+      /* AS TALL AS THE INVOICE, NOT AS TALL AS A4. The shared sheet is
+         297mm high because the customer's document is printed; here it
+         meant a short invoice sat at the top of a page and a half of
+         empty white with a scrollbar beside it — the owner: "de pagina
+         is lange scroll". @page still says A4, so printing is
+         unchanged. */
+      html, body { height:auto; min-height:0; }
+      .invoice {
+        margin:0 auto; min-height:0; padding:14mm 12mm;
+        box-shadow:0 20px 50px -30px rgba(20,30,80,.5);
+      }
+      .bar { position:fixed; right:16px; top:16px; display:flex; gap:8px; }
+      .bar button {
         display:inline-flex; align-items:center; gap:8px;
         padding:10px 16px; border:0; border-radius:10px;
-        background:#3a6fff; color:#fff; font:700 14px/1 Arial, Helvetica, sans-serif;
-        cursor:pointer; box-shadow:0 10px 24px -12px rgba(58,111,255,.8);
+        font:700 14px/1 Arial, Helvetica, sans-serif; cursor:pointer;
       }
+      .bar .save { background:#3a6fff; color:#fff;
+        box-shadow:0 10px 24px -12px rgba(58,111,255,.8); }
+      .bar .back { background:#fff; color:#12162a; border:1px solid #d7dcec; }
       @media print {
         body { background:#fff; }
-        .invoice { box-shadow:none; }
-        .savebar { display:none; }
+        .invoice { box-shadow:none; padding:12mm; }
+        .bar { display:none; }
       }
       @media (max-width: 230mm) {
         /* A4 is wider than a phone. Scaling the whole sheet keeps the
@@ -1045,19 +1052,32 @@ export function buildSelfBilledInvoiceHtml(
         html, body { width:auto; }
         body { padding:10px; }
         .invoice { transform-origin: top left; }
-        .savebar { position:static; display:block; width:100%; margin:0 0 10px; }
+        .bar { position:static; margin:0 0 10px; }
+        .bar button { flex:1 1 0; justify-content:center; }
       }
     </style>
   </head>
   <body>
-    <button class="savebar" onclick="window.print()">Save as PDF</button>
+    <div class="bar">
+      <!-- There was no way back at all: this opens in its own tab from
+           the payout dialog, so a phone has no visible browser chrome
+           and the only exit was the tab strip. -->
+      <button class="back" onclick="if(history.length>1){history.back()}else{window.close()}">Back</button>
+      <button class="save" onclick="window.print()">Save as PDF</button>
+    </div>
     <main class="invoice">
       <section class="top">
-        <div>${logoHtml}</div>
+        <!-- NO LOGO. The owner: "je ziet ons logo die moet sws weg want
+             invoice komt van klant". Right — on a self-billed invoice
+             the SUPPLIER is the affiliate; we only write it on their
+             behalf. Our mark at the top made it look like our document
+             and theirs like a line item in it. The party blocks below
+             say who is who, which is what a self-billed invoice is
+             supposed to make unmistakable. -->
+        <div></div>
         <div class="invoice-meta">
           <h1 class="invoice-title">SELF-BILLED INVOICE</h1>
           <div class="invoice-number"># ${escapeHtml(input.reference)}</div>
-          <div class="invoice-type">Referral commission</div>
           ${
             input.bankReference
               ? `<div class="invoice-reference">Reference: ${escapeHtml(input.bankReference)}</div>`
@@ -1102,11 +1122,14 @@ export function buildSelfBilledInvoiceHtml(
         ${totalsHtml}
       </section>
 
+      <!-- ONE LINE. The owner: "veel tekst is niet mooi auto generated
+           bla bla". It ran to four lines that explained self-billing to
+           somebody who is holding a self-billed invoice. What has to be
+           on the paper is that we raised it on their behalf and that
+           VAT is theirs — and that fits in a sentence. -->
       <section class="signature">
-        This invoice is raised by ${escapeHtml(input.customer.name)} on behalf of the
-        supplier (self-billing) for referral commission earned through the
-        Prime Scale Media partner programme. Amounts are as transferred; VAT is
-        handled according to the supplier&#39;s own registration.
+        Raised by ${escapeHtml(input.customer.name)} on the supplier&#39;s behalf.
+        VAT per the supplier&#39;s own registration.
       </section>
     </main>
     <script>

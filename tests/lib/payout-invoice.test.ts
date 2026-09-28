@@ -25,15 +25,15 @@ test("a plain payout: one line, and it is the total", () => {
   assert.equal(payoutInvoiceAddsUp(rows), true);
 });
 
-test("one commission is singular, two are plural", () => {
+test("one line needs no count; several say how many", () => {
   const one = payoutInvoiceLines([
     { currency: "EUR", amount: 75, commission_count: 1 },
   ]);
   const two = payoutInvoiceLines([
     { currency: "EUR", amount: 75, commission_count: 2 },
   ]);
-  assert.match(one[0].text, /1 commission in EUR/);
-  assert.match(two[0].text, /2 commissions in EUR/);
+  assert.equal(one[0].text, "Referral commission");
+  assert.equal(two[0].text, "Referral commission — 2 commissions");
 });
 
 test("with a clawback, line one is the GROSS and the two lines reach the total", () => {
@@ -161,11 +161,14 @@ test("a figure that will not parse is not silently a zero-sum document", () => {
   assert.equal(lines[0].amount, 0);
 });
 
-test("a blank currency does not print an empty word", () => {
+test("a blank currency falls back to EUR rather than vanishing", () => {
+  // The line no longer names the currency (the amount column carries
+  // the symbol), so the fallback is checked where it still decides
+  // something: which total the line lands in.
   const lines = payoutInvoiceLines([
     { currency: "", amount: 10, commission_count: 1 },
   ]);
-  assert.match(lines[0].text, /in EUR/);
+  assert.equal(lines[0].currency, "EUR");
   assert.deepEqual(payoutInvoiceTotals([{ currency: "", amount: 10 }]), {
     EUR: 10,
   });
