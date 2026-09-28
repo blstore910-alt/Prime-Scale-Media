@@ -1,6 +1,11 @@
 import { describe, it, test } from "node:test";
 import assert from "node:assert/strict";
-import { banksForAccountTypes, bankForTypeSlug } from "../../lib/bank-routing.ts";
+import {
+  bankDestination,
+  bankForTypeSlug,
+  bankGroupFromStored,
+  banksForAccountTypes,
+} from "../../lib/bank-routing.ts";
 
 describe("banksForAccountTypes", () => {
   it("routes an EU-PSM advertiser to one bank, so nothing is asked", () => {
@@ -94,4 +99,101 @@ test("both spellings reach the same beneficiary through the list helper", () => 
   );
   // Unknown narrows nothing.
   assert.deepEqual(banksForAccountTypes(["meta-eu-premium"]), []);
+});
+
+// ── THE BANK A CUSTOMER GETS BEFORE THEY HOLD ANYTHING ──────────────
+//
+// The owner, 28-09: "bij aanmelding iedereen wallet topup naar turlit
+// behalve GH mensen naar zanel". The rules above derive the bank from
+// the accounts somebody HOLDS; these cover the customer who holds none
+// yet, which is the transfer they have least basis to doubt.
+
+test("a brand-new customer with nothing assigned goes to TURLIT, and we say so", () => {
+  const d = bankDestination({ accountTypeSlugs: [], accountsUnknown: false });
+  assert.equal(d.group, "turlit");
+  assert.equal(d.from, "default");
+  assert.deepEqual(d.fork, []);
+});
+
+test("a GH customer assigned at the invite goes to ZANEL from day one", () => {
+  const d = bankDestination({
+    accountTypeSlugs: [],
+    accountsUnknown: false,
+    assigned: "zanel",
+  });
+  assert.equal(d.group, "zanel");
+  assert.equal(d.from, "assigned");
+});
+
+test("their own accounts beat what was assigned", () => {
+  // Once they hold something, the money already goes somewhere and that
+  // is the stronger fact. In practice the two agree; when they do not,
+  // the account wins.
+  const d = bankDestination({
+    accountTypeSlugs: ["eu-meta-psm"],
+    accountsUnknown: false,
+    assigned: "zanel",
+  });
+  assert.equal(d.group, "turlit");
+  assert.equal(d.from, "accounts");
+});
+
+test("a GH account routes to ZANEL whether or not anything was assigned", () => {
+  for (const assigned of [undefined, "turlit", "zanel"]) {
+    const d = bankDestination({
+      accountTypeSlugs: ["eu-meta-psm-gh"],
+      accountsUnknown: false,
+      assigned,
+    });
+    assert.equal(d.group, "zanel");
+    assert.equal(d.from, "accounts");
+  }
+});
+
+test("both families at once is a fork, and assigning does not settle it", () => {
+  const d = bankDestination({
+    accountTypeSlugs: ["eu-meta-psm", "eu-meta-psm-gh"],
+    accountsUnknown: false,
+    assigned: "turlit",
+  });
+  assert.deepEqual(d.fork, ["turlit", "zanel"]);
+  assert.equal(d.from, "accounts");
+});
+
+test("a FAILED read of the accounts is not an empty list", () => {
+  // "could not read" must not become "holds nothing", or somebody whose
+  // accounts route to ZANEL is quietly shown TURLIT.
+  const d = bankDestination({
+    accountTypeSlugs: ["eu-meta-psm-gh"],
+    accountsUnknown: true,
+    assigned: "zanel",
+  });
+  assert.equal(d.group, "zanel");
+  assert.equal(d.from, "assigned", "the unread accounts were not used");
+});
+
+test("an unreadable account list with nothing assigned still names its default", () => {
+  const d = bankDestination({ accountTypeSlugs: [], accountsUnknown: true });
+  assert.equal(d.group, "turlit");
+  assert.equal(d.from, "default");
+});
+
+test("a stored value nobody recognises is null, never a guess", () => {
+  assert.equal(bankGroupFromStored("muxue"), null, "muxue is retired");
+  assert.equal(bankGroupFromStored("ZANEL"), "zanel");
+  assert.equal(bankGroupFromStored("  turlit "), "turlit");
+  assert.equal(bankGroupFromStored("barclays"), null);
+  assert.equal(bankGroupFromStored(""), null);
+  assert.equal(bankGroupFromStored(null), null);
+  assert.equal(bankGroupFromStored(undefined), null);
+});
+
+test("an unrecognised assignment falls to the default, not to nothing", () => {
+  const d = bankDestination({
+    accountTypeSlugs: [],
+    accountsUnknown: false,
+    assigned: "muxue",
+  });
+  assert.equal(d.group, "turlit");
+  assert.equal(d.from, "default");
 });

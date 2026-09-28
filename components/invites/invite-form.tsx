@@ -77,6 +77,8 @@ const inviteBaseSchema = z.object({
   monthly_fee: z.coerce.number().min(0).optional(),
   included_ad_accounts: z.coerce.number().min(0).optional(),
   topup_fee_pct: z.coerce.number().min(0).max(100).optional(),
+  // Which company this customer transfers to. "" = as usual (TURLIT).
+  bank_group: z.enum(["", "turlit", "zanel"]).optional(),
   send_email: z.boolean().default(true),
 });
 
@@ -224,6 +226,7 @@ export default function InviteForm() {
       monthly_fee: undefined,
       included_ad_accounts: undefined,
       topup_fee_pct: undefined,
+      bank_group: "",
       send_email: true,
     },
   });
@@ -413,6 +416,16 @@ export default function InviteForm() {
             ? values.topup_fee_pct ?? planFallback?.topup_fee_pct ?? null
             : null,
           plan_currency: isAdvertiser ? planCurrency : null,
+          // ── WHICH COMPANY THEY TRANSFER TO ────────────────────
+          //
+          // The owner, 28-09: "bij aanmelding iedereen wallet topup
+          // naar turlit behalve GH mensen naar zanel". The top-up
+          // dialog works this out from the ad accounts somebody
+          // HOLDS, and on their first transfer they hold none -- so a
+          // GH customer was sent to the wrong legal entity on the one
+          // payment they had least basis to doubt. We know who they
+          // are here, at the invite, so it is said here.
+          bank_group: isAdvertiser ? values.bank_group || null : null,
         }),
         method: "POST",
       });
@@ -1083,6 +1096,37 @@ export default function InviteForm() {
                     A subscription is auto-created on signup (0 = free, no
                     sub).
                   </p>
+
+                  {/* ── WHICH COMPANY THEY TRANSFER TO ──────────────
+                      The owner, 28-09: "bij aanmelding iedereen wallet
+                      topup naar turlit behalve GH mensen naar zanel".
+
+                      The top-up dialog works the beneficiary out from
+                      the ad accounts somebody holds — and on their
+                      first transfer they hold none, so a GH customer
+                      was told to pay TURLIT. This is the only moment
+                      we know which they are before they have an
+                      account, so it is asked here.
+
+                      Blank is not a gap: it is "as usual", which is
+                      TURLIT, which is what happens today. */}
+                  <div className="mt-3 border-t pt-3">
+                    <Label htmlFor="invite-bank-group" className="text-xs">
+                      Which company do they transfer to?
+                    </Label>
+                    <select
+                      id="invite-bank-group"
+                      className="mt-1 h-9 w-full rounded-md border bg-transparent px-2 text-sm"
+                      {...form.register("bank_group")}
+                    >
+                      <option value="">TURLIT — as usual</option>
+                      <option value="zanel">ZANEL — they do GH</option>
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Only decides their FIRST top-ups. Once they hold an
+                      ad account, the account decides.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Referrer — super-admin only */}

@@ -24,6 +24,8 @@ type SendInviteBody = {
   plan_id?: string | null;
   monthly_fee?: number | null;
   included_ad_accounts?: number | null;
+  /** "turlit" | "zanel" -- which company this customer transfers to. */
+  bank_group?: string | null;
   topup_fee_pct?: number | null;
   plan_currency?: string | null;
 };
@@ -341,6 +343,25 @@ export async function POST(request: NextRequest) {
           ? "USD"
           : "EUR"
         : null,
+      // ── WHICH COMPANY THEIR TRANSFERS GO TO ────────────────────
+      //
+      // The owner, 28-09: "bij aanmelding iedereen wallet topup naar
+      // turlit behalve GH mensen naar zanel". The top-up dialog works
+      // the destination out from the ad accounts somebody HOLDS, and a
+      // customer who has just signed up holds none -- so a GH customer
+      // was sent to TURLIT on their first transfer, to the wrong legal
+      // entity, with nothing downstream to catch it.
+      //
+      // We know which they are at the moment we invite them, so it is
+      // stated here and carried onto their advertiser row on accept.
+      // Null is not a gap: it means "as usual", which is TURLIT.
+      bank_group: isAdvertiser
+        ? body.bank_group === "zanel"
+          ? "zanel"
+          : body.bank_group === "turlit"
+            ? "turlit"
+            : null
+        : null,
     };
 
     // ── THE WRITE GOES THROUGH THE ADMIN CLIENT ──────────────────────
@@ -364,7 +385,27 @@ export async function POST(request: NextRequest) {
     // and the validated body above; nothing from the caller is spread
     // in.
     const adminDb = await createAdminClient();
-    const { error } = await adminDb.from("invitations").insert(payload);
+    let { error } = await adminDb.from("invitations").insert(payload);
+
+    // ── AND IT HOLDS BEFORE THE PLAK LANDS ───────────────────────
+    //
+    // `bank_group` arrives with plak 128, and plaks are pasted by hand
+    // whenever somebody gets to it while code reaches production in
+    // minutes. An INSERT naming a column that does not exist yet does
+    // not degrade -- it throws, and inviting anybody at all would stop
+    // working until the plak landed.
+    //
+    // So: ask for it, and on that one error send the same invite
+    // without it. The customer is then routed the way they were
+    // yesterday (TURLIT) instead of not being invited at all.
+    if (error && /42703|column|schema cache/i.test(String(error.message ?? ""))) {
+      const { bank_group: _dropped, ...withoutBankGroup } = payload as Record<
+        string,
+        unknown
+      >;
+      void _dropped;
+      ({ error } = await adminDb.from("invitations").insert(withoutBankGroup));
+    }
 
     if (error) {
       return NextResponse.json(

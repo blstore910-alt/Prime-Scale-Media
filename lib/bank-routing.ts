@@ -107,3 +107,88 @@ export function bankForTypeSlug(
   if (!raw) return null;
   return BANK_BY_TYPE_SLUG[raw] ?? BANK_BY_TOKEN_KEY[tokenKey(raw)] ?? null;
 }
+
+/**
+ * The bank the owner PUT on this customer, before they hold anything we
+ * could work it out from.
+ *
+ * The owner, 28-09: "als een klant zich aanmeldt bij ons en hij doet GH
+ * dan moet zijn wallet topup al naar een andere bank, naar Zanel. Dus
+ * bij aanmelding iedereen wallet topup naar turlit behalve GH mensen
+ * naar zanel."
+ *
+ * Everything above this line derives the destination from the ad
+ * accounts somebody HOLDS, which is exactly what a brand-new customer
+ * does not have. Their first transfer — the one they have least basis
+ * to doubt — therefore fell to the default, TURLIT, including for the
+ * GH customers who belong at ZANEL.
+ *
+ * We know which they are, because we invite them. So it is written down
+ * at the invite and carried onto their advertiser row, and this reads
+ * it back. Anything unrecognised is null, not a guess: the whole file
+ * refuses to pick where it does not know, and a wrong answer here is a
+ * real transfer to the wrong legal entity.
+ */
+export function bankGroupFromStored(
+  value: string | null | undefined,
+): BankGroup | null {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  return (BANK_GROUP_ORDER as string[]).includes(raw)
+    ? (raw as BankGroup)
+    : null;
+}
+
+/** What the top-up dialog needs to know, in one answer. */
+export type BankDestination = {
+  /** Where the money goes. */
+  group: BankGroup;
+  /**
+   * How we got there:
+   *   "accounts" — worked out from the ad accounts they hold;
+   *   "assigned" — the owner put it on them at the invite;
+   *   "default"  — we could not tell, so TURLIT, and we say so.
+   */
+  from: "accounts" | "assigned" | "default";
+  /** Two families at once: a real fork, so the customer picks. */
+  fork: BankGroup[];
+};
+
+/**
+ * The whole decision in one place, so the screen and the tests reason
+ * about the same rules.
+ *
+ * Order, strongest first:
+ *   1. their accounts, when those agree on one family — the money
+ *      already goes there, so nothing can be more authoritative;
+ *   2. their accounts, when they hold BOTH families — a genuine fork,
+ *      which is the one case a customer is asked;
+ *   3. what the owner assigned at the invite;
+ *   4. TURLIT, named as a default so somebody who was given another one
+ *      knows to use it.
+ *
+ * A failed READ of the accounts is NOT an empty list. The caller passes
+ * `accountsUnknown` and we fall past the accounts entirely rather than
+ * treating "could not read" as "holds nothing".
+ */
+export function bankDestination(args: {
+  accountTypeSlugs: Array<string | null | undefined>;
+  accountsUnknown: boolean;
+  assigned?: string | null;
+}): BankDestination {
+  const assigned = bankGroupFromStored(args.assigned);
+  const routed = args.accountsUnknown
+    ? []
+    : banksForAccountTypes(args.accountTypeSlugs);
+
+  if (routed.length > 1) {
+    return { group: routed[0], from: "accounts", fork: routed };
+  }
+  if (routed.length === 1) {
+    return { group: routed[0], from: "accounts", fork: [] };
+  }
+  if (assigned) {
+    return { group: assigned, from: "assigned", fork: [] };
+  }
+  return { group: "turlit", from: "default", fork: [] };
+}

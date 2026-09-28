@@ -9,7 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { banksForAccountTypes } from "@/lib/bank-routing";
+import {
+  bankDestination,
+  bankGroupFromStored,
+  banksForAccountTypes,
+} from "@/lib/bank-routing";
 import { bankOverrideFor } from "@/lib/pure-bank-override";
 import { copyText } from "@/lib/copy-text";
 import { DEFAULT_MIN_TOPUP } from "@/lib/min-topup";
@@ -132,8 +136,9 @@ function convertWalletToTransfer(
 // competitor would have to ask for. It is gone, and so is the choice —
 // the customer is told where to send their money, never asked to work it
 // out. `bankBeneficiary()` names the resolved one.
-/** Where a transfer goes when their accounts cannot tell us. */
-const DEFAULT_BANK_GROUP: BankGroup = "turlit";
+// Where a transfer goes when their accounts cannot tell us now lives in
+// lib/bank-routing.ts, inside bankDestination, so the rule, the reason
+// the owner gave for it and the tests all sit in one place.
 
 
 export default function WalletTopupDialog({
@@ -145,6 +150,7 @@ export default function WalletTopupDialog({
   accountTypeSlugs = [],
   initialCurrency = null,
   accountsUnknown = false,
+  assignedBankGroup = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -161,6 +167,10 @@ export default function WalletTopupDialog({
    * difference decides which company's IBAN we print.
    */
   accountsUnknown?: boolean;
+  /** `advertisers.bank_group` -- what the owner put on them at the
+   *  invite, for the stretch before they hold any ad account. Null
+   *  until plak 128 lands, and null reads as "not said" = TURLIT. */
+  assignedBankGroup?: string | null;
 }) {
   const [step, setStep] = useState(STEPS.SELECTION);
   // ── OPEN ON THE WALLET THEY PRESSED ────────────────────────────────
@@ -239,7 +249,11 @@ export default function WalletTopupDialog({
   // offered is when they genuinely hold accounts in BOTH families, which
   // is a real fork and not a guess.
   const routingUnknown =
-    accountsUnknown || routed.length === 0;
+    (accountsUnknown || routed.length === 0) &&
+    // An assigned bank is not an unknown one: the notice below says we
+    // could not work it out, and that stops being true the moment the
+    // owner wrote it down at the invite.
+    !bankGroupFromStored(assignedBankGroup);
   // ── ONE DESTINATION, WORKED OUT, NEVER ASKED ─────────────────────
   //
   // The customer is never shown a choice of beneficiary. They have no
@@ -247,9 +261,23 @@ export default function WalletTopupDialog({
   // list of options was also our routing map. Their accounts decide it;
   // when their accounts cannot, the default does, and the line above
   // says so, so anybody who was given a different one knows to use it.
-  const resolvedBank: BankGroup = routingUnknown
-    ? DEFAULT_BANK_GROUP
-    : (routed[0] ?? DEFAULT_BANK_GROUP);
+  // ── AND WHAT THE OWNER PUT ON THEM AT THE INVITE ─────────────────
+  //
+  // "bij aanmelding iedereen wallet topup naar turlit behalve GH mensen
+  // naar zanel" (28-09). Everything above derives the bank from the
+  // accounts somebody HOLDS, which a brand-new customer does not have —
+  // so a GH customer was sent to TURLIT on the one transfer they had
+  // least basis to doubt. We know who they are, because we invite them,
+  // so it is written on their row and read back here.
+  //
+  // It only speaks when the accounts cannot: an account they hold is the
+  // stronger fact, and in practice the two agree.
+  const destination = bankDestination({
+    accountTypeSlugs,
+    accountsUnknown,
+    assigned: assignedBankGroup,
+  });
+  const resolvedBank: BankGroup = destination.group;
   // ── AND THE FORK THE COMMENT ABOVE PROMISES ──────────────────────
   //
   // "The only time a choice is still offered is when they genuinely

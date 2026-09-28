@@ -1,4 +1,5 @@
 import { isMaintenanceMode } from "@/actions/_shared";
+import { carryBankGroupToAdvertiser } from "@/lib/auth/carry-bank-group";
 import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -332,6 +333,14 @@ export async function POST(request: NextRequest) {
       safeErrorMessage(subError),
     );
   }
+
+  // Which company this customer transfers to, from the invitation onto
+  // their own row — so their FIRST top-up already names the right
+  // beneficiary instead of falling to the default.
+  await carryBankGroupToAdvertiser(admin, {
+    bankGroup: (invitation as { bank_group?: unknown }).bank_group,
+    profileId: profileData?.id ?? null,
+  });
 
   const res = NextResponse.json(
     {

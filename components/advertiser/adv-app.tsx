@@ -25,6 +25,7 @@ import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import { csvSafe } from "@/lib/csv-safe";
 import { downloadCsv } from "@/lib/download-blob";
 import { Parser } from "json2csv";
+import useAssignedBank from "@/hooks/use-assigned-bank";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
   unpaidSubscriptionInvoices,
@@ -326,6 +327,10 @@ export default function AdvertiserApp() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
+  // Read on its own, not in the profile select: the column arrives
+  // with plak 128 and a select naming a column that does not exist yet
+  // throws the whole read. See hooks/use-assigned-bank.ts.
+  const assignedBank = useAssignedBank(advertiserId);
   const tenantId = profile?.tenant_id ?? null;
 
   // A refusal card is news for a day and clutter for a month. Pushing one
@@ -7864,6 +7869,9 @@ export default function AdvertiserApp() {
         /* A failed or in-flight accounts read is not "no accounts". It
            decides which company's IBAN the customer is told to pay. */
         accountsUnknown={accountsError || accountsBusy}
+        /* And for the stretch before they hold ANY account: what the
+           owner put on them at the invite. Null until plak 128. */
+        assignedBankGroup={assignedBank.data ?? null}
       />
       <WalletExchangeDialog
         initialFrom={exchangeFrom}
