@@ -1040,6 +1040,39 @@ heeft aangewezen, de back-up is gemaakt vóór de eerste verwijdering, en
 - Elke bevinding is **gefixt en live**, niet genoteerd.
 - Wat niet te verifiëren was, staat hieronder met de reden.
 
+## Geen fout: de EERSTE funding van een klant geeft 0% commissie
+
+28-09 leek er iets stuk: PSM0016's referral-link werd goedgekeurd, de
+dialoog belooft "everything the customer already did since they signed
+up is booked straight away", en er kwam GEEN commissie op zijn EUR 200
+funding -- terwijl bij PSM0011 de abonnementscommissie van EUR 75 wel
+meteen verscheen.
+
+Ik heb er drie verklaringen voor bedacht en alle drie gemeten en
+verworpen:
+
+1. *Twee bronnen voor het leverancierspercentage?* Nee.
+   `_supplier_fee_pct_for` leest `ad_account_type_suppliers` -- dezelfde
+   tabel als het verifieerscherm. (`ad_account_costs` is leeg voor elk
+   account op deze tenant, maar die tabel wordt hier niet gebruikt.)
+2. *Een `(elk)`-regel met NULL-pct die de type-regel overschrijft?* Nee.
+   `_commission_rule_at` probeert own-type, own-all, default-type,
+   default-all in die volgorde en slaat een niveau over waarvan zowel
+   pct als amount leeg is.
+3. *Op hold gezet?* Nee. Een hold SCHRIJFT een rij met bedrag 0 en een
+   notitie plus een melding aan de eigenaar; er is geen rij.
+
+Wat het WEL is: `_topup_commission_calc` berekent `is_first` -- de
+eerste voltooide funding van deze klant -- en daarop geldt met opzet
+0% ("de eerste fee is van ons"). PSM0016's EUR 200 was zijn eerste en
+enige. Dus 0, en de functie keert stil terug.
+
+**Gevolg voor blok 8:** er is op PSM0016 geen top-upcommissie om terug
+te vorderen. Voor de clawback is een TWEEDE funding nodig. Met EUR 100
+wordt het: fee 5% = EUR 5,00, erop EUR 95,00, leverancier 2% van 95 =
+EUR 1,90, winst EUR 3,10, commissie 20% = **EUR 0,62**. Dan opnemen en
+kijken of die 0,62 terugkomt.
+
 ## Geen fout: TURLIT LLC heeft geen btw- of KvK-nummer
 
 Ik meldde 28-09 dat de afzenderrij een leeg `vat_no` en een leeg
