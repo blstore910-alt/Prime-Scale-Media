@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   requestAgain,
+  requestAgainBlocks,
   requestAgainMessage,
 } from "@/lib/pure-request-again";
 import {
@@ -872,6 +873,10 @@ export default function AdAccountRequestForm({
     currency: confirming?.currency ?? selectedCurrency,
   });
   const againMessage = requestAgainMessage(again);
+  // Only ever true inside the database's own 90-second twin window. The
+  // insert cannot succeed there, so offering to send it is an invitation
+  // to a 409 -- which is exactly what happened on production.
+  const againBlocks = requestAgainBlocks(again);
   // A ref, because state read out of a closure is the latch that does
   // not latch. See the note on the confirm handler below.
   const submitLatch = useRef(false);
@@ -971,10 +976,30 @@ export default function AdAccountRequestForm({
 
   return (
     <>
-      <form id="ad-account-request-form" onSubmit={handleSubmit(onSubmit)}>
+      {/* ── THE SEND BUTTON WAS CUT OFF, NOT BELOW THE FOLD ────────
+          The owner, 28-09: "ik kan niet scrollen naar de blauwe knop
+          onderaan."
+
+          DialogContent is `flex max-h-[90dvh] flex-col
+          overflow-hidden`. This form was a plain block with a
+          FIXED-height scrollport inside it (max-h-[70dvh]), so on a
+          390x812 phone the sum -- header 90 + fee card 70 + 70dvh of
+          form + footer 50 -- came out over 90dvh. The parent is
+          overflow-hidden, so the excess is CLIPPED rather than
+          scrollable, and what hangs off the bottom is the footer with
+          the only submit button in it. No gesture could reach it.
+
+          Exactly the fault the review dialog already carries a note
+          about. Flex column, the scrollport takes what is left
+          (flex-1 min-h-0), the footer never shrinks. */}
+      <form
+        id="ad-account-request-form"
+        className="flex min-h-0 flex-1 flex-col"
+        onSubmit={handleSubmit(onSubmit)}
+      >
         {/* Wallet impact — included-free vs the €50 (or USD-equiv) fee. */}
         <div
-          className={`mb-4 rounded-md border p-3 text-sm ${
+          className={`mb-4 shrink-0 rounded-md border p-3 text-sm ${
             isFree
               ? "border-emerald-500/40 bg-emerald-500/5"
               : feeEnough
@@ -1078,7 +1103,7 @@ export default function AdAccountRequestForm({
             they can start, and it sat between the fee notice and
             the first field. use-form-draft still keeps the typing
             safe across a reload; it simply no longer interrupts. */}
-        <div className="space-y-6 max-h-[70dvh] overflow-y-auto px-1 py-2">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-2">
           {/* Platform Radio Group */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Select Platform</Label>
@@ -1251,7 +1276,7 @@ export default function AdAccountRequestForm({
           />
         </div>
       </form>
-      <DialogFooter className="mt-4">
+      <DialogFooter className="mt-4 shrink-0">
         <Button
           type="submit"
           form="ad-account-request-form"
@@ -1295,10 +1320,15 @@ export default function AdAccountRequestForm({
             .filter(Boolean)
             .join(" ")
         }
-        cta="Yes, send it"
+        cta={againBlocks ? "Wait a moment" : "Yes, send it"}
         busy={isPending}
         busyLabel="Sending…"
-        disabled={!feeEnough || feeBlocksSubmit}
+        disabled={!feeEnough || feeBlocksSubmit || againBlocks}
+        disabledHint={
+          againBlocks
+            ? "We won't take a second identical request this quickly. Close this, wait a moment, and send it again if you really want another account."
+            : undefined
+        }
         /* ── SHUT THE DOOR BEFORE THE VALIDATION, NOT AFTER ──────────
            This is the only money confirmation in the app that does not
            call its mutation directly. handleSubmit is react-hook-form's

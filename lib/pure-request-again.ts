@@ -28,6 +28,22 @@
 /** Inside this window, the same platform and currency is almost certainly a repeat. */
 export const SAME_REQUEST_MINUTES = 30;
 
+/**
+ * The database's OWN twin guard, in seconds.
+ *
+ * `_no_twin_ad_account_request` refuses an insert outright when the
+ * same advertiser already has a pending request with the same platform
+ * and currency created in the last 90 seconds, with errcode 23505 --
+ * which PostgREST returns as a 409.
+ *
+ * Walked on production, 28-09: the dialog said "Only carry on if you
+ * really want a second account", the customer carried on, and the
+ * server refused. The screen invited an action the database had
+ * already decided against. Whatever the client says has to agree with
+ * that, so the two numbers live next to each other.
+ */
+export const SERVER_TWIN_SECONDS = 90;
+
 export type OpenRequest = {
   createdAt: string | null | undefined;
   platform: string | null | undefined;
@@ -36,6 +52,8 @@ export type OpenRequest = {
 
 export type RequestAgain =
   | { kind: "fine" }
+  /** The database will refuse this one. Say so instead of offering to send it. */
+  | { kind: "too-soon"; secondsAgo: number; open: number }
   /** Same platform + currency, filed minutes ago. Almost certainly a repeat. */
   | { kind: "probably-the-same"; minutesAgo: number; open: number }
   /** Other requests are open, but not the same shape. Worth saying, no more. */
@@ -65,20 +83,26 @@ export function requestAgain(input: {
   const wantP = norm(input.platform);
   const wantC = norm(input.currency);
 
-  let best: number | null = null;
+  let bestSeconds: number | null = null;
   for (const r of open) {
     if (norm(r.platform) !== wantP || norm(r.currency) !== wantC) continue;
     const t = r.createdAt ? new Date(r.createdAt).getTime() : NaN;
     if (!Number.isFinite(t)) continue;
     // A clock skewed into the future is not a negative age.
-    const mins = Math.max(0, Math.floor((now - t) / 60_000));
-    if (mins < SAME_REQUEST_MINUTES && (best === null || mins < best)) {
-      best = mins;
-    }
+    const secs = Math.max(0, Math.floor((now - t) / 1000));
+    if (bestSeconds === null || secs < bestSeconds) bestSeconds = secs;
   }
 
-  if (best !== null) {
-    return { kind: "probably-the-same", minutesAgo: best, open: open.length };
+  if (bestSeconds !== null) {
+    // The database's window first: inside it there is nothing to decide,
+    // because the insert cannot succeed.
+    if (bestSeconds < SERVER_TWIN_SECONDS) {
+      return { kind: "too-soon", secondsAgo: bestSeconds, open: open.length };
+    }
+    const mins = Math.floor(bestSeconds / 60);
+    if (mins < SAME_REQUEST_MINUTES) {
+      return { kind: "probably-the-same", minutesAgo: mins, open: open.length };
+    }
   }
   return { kind: "several-open", open: open.length };
 }
@@ -88,6 +112,12 @@ export function requestAgainMessage(a: RequestAgain): string | null {
   switch (a.kind) {
     case "fine":
       return null;
+    case "too-soon": {
+      const wait = Math.max(1, SERVER_TWIN_SECONDS - a.secondsAgo);
+      return `You sent a request exactly like this one seconds ago, and we won't take a second one this quickly — it is almost always the same click twice. Wait about ${wait} second${
+        wait === 1 ? "" : "s"
+      } if you really do want another account.`;
+    }
     case "probably-the-same": {
       const when =
         a.minutesAgo < 1
@@ -102,12 +132,15 @@ export function requestAgainMessage(a: RequestAgain): string | null {
   }
 }
 
-// There is deliberately no requestAgainBlocks() to match
-// topupAgainBlocks(). Nothing on this journey refuses, and a function
-// that can only ever answer false would invite a caller to believe a
-// ceiling exists here when it does not.
+/**
+ * The one case that really is a refusal -- because the database has
+ * already made it one. Everything else warns and lets them through.
+ */
+export function requestAgainBlocks(a: RequestAgain): boolean {
+  return a.kind === "too-soon";
+}
 
-/** Both cases need a deliberate second press, not a refusal. */
+/** The warning cases need a deliberate second press. "too-soon" is not one. */
 export function requestAgainNeedsConfirm(a: RequestAgain): boolean {
-  return a.kind !== "fine";
+  return a.kind === "probably-the-same" || a.kind === "several-open";
 }

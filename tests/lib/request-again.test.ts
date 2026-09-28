@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 
 import {
   requestAgain,
+  requestAgainBlocks,
   requestAgainMessage,
   requestAgainNeedsConfirm,
   SAME_REQUEST_MINUTES,
+  SERVER_TWIN_SECONDS,
 } from "../../lib/pure-request-again";
 
 const NOW = new Date("2026-09-28T12:00:00.000Z");
@@ -67,16 +69,17 @@ test("it never refuses — the wallet and the plan are the real ceiling", () => 
   // Twelve open requests is a lot, and still not a refusal: somebody
   // scaling up files several, and both the wallet balance and the plan
   // allowance already stop them for real.
+  // All older than the database's 90-second window, so none of them is
+  // the "same click twice" case -- just somebody scaling up.
   const many = Array.from({ length: 12 }, (_, i) => ({
-    createdAt: minsAgo(i),
+    createdAt: minsAgo(i + 2),
     platform: "meta-ads",
     currency: "EUR",
   }));
   const a = ask(many);
   assert.equal(a.kind, "probably-the-same");
   assert.equal(requestAgainNeedsConfirm(a), true);
-  // No blocking kind exists in the union at all.
-  assert.ok(["fine", "probably-the-same", "several-open"].includes(a.kind));
+  assert.equal(requestAgainBlocks(a), false);
 });
 
 test("the newest matching one decides the window, not the oldest", () => {
@@ -88,6 +91,40 @@ test("the newest matching one decides the window, not the oldest", () => {
   if (a.kind === "probably-the-same") assert.equal(a.minutesAgo, 3);
 });
 
+test("inside the database's own 90 seconds it is a refusal, not a warning", () => {
+  // Walked on production: the dialog said "carry on if you really want
+  // a second account", the customer did, and the server answered 409.
+  const a = ask([
+    { createdAt: new Date(NOW.getTime() - 20_000).toISOString(), platform: "meta-ads", currency: "EUR" },
+  ]);
+  assert.equal(a.kind, "too-soon");
+  assert.equal(requestAgainBlocks(a), true);
+  assert.equal(requestAgainNeedsConfirm(a), false);
+  assert.match(requestAgainMessage(a)!, /seconds ago/);
+  assert.match(requestAgainMessage(a)!, /Wait about 70 seconds/);
+});
+
+test("past the 90 seconds it is a warning again, and lets them through", () => {
+  const a = ask([
+    {
+      createdAt: new Date(NOW.getTime() - (SERVER_TWIN_SECONDS + 5) * 1000).toISOString(),
+      platform: "meta-ads",
+      currency: "EUR",
+    },
+  ]);
+  assert.equal(a.kind, "probably-the-same");
+  assert.equal(requestAgainBlocks(a), false);
+  assert.equal(requestAgainNeedsConfirm(a), true);
+});
+
+test("a different platform is never blocked, however fast", () => {
+  const a = ask([
+    { createdAt: new Date(NOW.getTime() - 1000).toISOString(), platform: "tiktok-ads", currency: "EUR" },
+  ]);
+  assert.equal(a.kind, "several-open");
+  assert.equal(requestAgainBlocks(a), false);
+});
+
 test("a clock skewed into the future is not a negative age", () => {
   const a = ask([
     {
@@ -96,9 +133,9 @@ test("a clock skewed into the future is not a negative age", () => {
       currency: "EUR",
     },
   ]);
-  assert.equal(a.kind, "probably-the-same");
-  if (a.kind === "probably-the-same") assert.equal(a.minutesAgo, 0);
-  assert.match(requestAgainMessage(a)!, /a moment ago/);
+  // Zero seconds old, so the database's window catches it first.
+  assert.equal(a.kind, "too-soon");
+  if (a.kind === "too-soon") assert.equal(a.secondsAgo, 0);
 });
 
 test("an unreadable timestamp does not become a repeat", () => {
@@ -111,8 +148,9 @@ test("an unreadable timestamp does not become a repeat", () => {
 });
 
 test("one minute is singular", () => {
+  // Two minutes: one is still inside the database's 90-second refusal.
   const a = ask([
-    { createdAt: minsAgo(1), platform: "meta-ads", currency: "EUR" },
+    { createdAt: minsAgo(2), platform: "meta-ads", currency: "EUR" },
   ]);
-  assert.match(requestAgainMessage(a)!, /1 minute ago/);
+  assert.match(requestAgainMessage(a)!, /2 minutes ago/);
 });
