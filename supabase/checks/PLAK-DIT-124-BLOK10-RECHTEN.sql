@@ -59,6 +59,15 @@
 --    `trigger` terug, dus PostgREST publiceert ze niet en Postgres
 --    weigert een directe aanroep -- niet uit te buiten, wel de regel.
 --
+-- LET OP: BLOK 1 HIERONDER WAS STUK -- ZIE PLAK 127.
+--
+-- Er stonden per ongeluk TWEE execute regexp_replace() achter elkaar:
+-- een eerste die naar een niet-bestaande variabele v_adv_keep verwijst,
+-- en daaronder de verbeterde versie. De eerste liep en de tweede vond
+-- zijn patroon daarna niet meer, dus de Join-knop viel om op productie.
+-- PLAK-DIT-127-HERSTEL-JOIN-KNOP.sql zet het recht. De andere drie
+-- blokken van deze plak zijn wel goed gegaan (nagemeten).
+--
 -- Tekstchirurgie op [[:space:]] en op oid, zodat eerdere plakken blijven
 -- staan. Plak dit hele bestand in de SQL editor. Onderaan staat EEN
 -- rapporttabel.
