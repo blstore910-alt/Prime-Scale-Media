@@ -1,3 +1,5 @@
+import { applyInvoiceStatusFilter } from "@/lib/invoice-status";
+import { createAdminClient } from "@/lib/supabase/server";
 import JSZip from "jszip";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -45,7 +47,22 @@ export const dynamic = "force-dynamic";
 // Rendering is a headless browser per invoice. A customer asking for
 // "everything" on a busy account should get a clear refusal rather than
 // a request that dies at the gateway with no explanation.
-const MAX_INVOICES = 60;
+// ── SIXTY WAS A NUMBER, NOT A MEASUREMENT ─────────────────────────
+//
+// buildInvoicePdf launches and closes a WHOLE headless Chromium per
+// invoice. Sixty of those in one request does not finish inside any
+// serverless budget, and when it is cut off the client cannot parse the
+// response and shows its generic "We couldn't build that download." --
+// while the only sizing advice in the file ("narrow the dates to 60 or
+// fewer") is behind a check that fires above sixty, so it never reaches
+// the person who needs it.
+//
+// Twenty, and maxDuration raised to the platform ceiling, so the refusal
+// arrives as a sentence with a number in it rather than as a timeout.
+const MAX_INVOICES = 20;
+
+/** Seconds. The Vercel maximum on the current plan; the default is far lower. */
+export const maxDuration = 300;
 
 /** The statuses the picker offers. "all" is the absence of a filter. */
 const STATUSES = new Set(["paid", "unpaid", "overdue", "void", "cancelled"]);
@@ -120,7 +137,13 @@ export async function GET(request: NextRequest) {
 
     if (from) q = q.gte("created_at", from);
     if (to) q = q.lte("created_at", to);
-    if (status) q = q.eq("status", status);
+    // NOT .eq("status", status). "overdue" and "cancelled" are words on
+    // the picker, not values in the column -- measured 28-09: every live
+    // row is paid, unpaid or void. So picking Overdue here refused with
+    // "No invoices in that period.", stated as a fact about the
+    // customer's own account, while six past-due invoices sat in the
+    // database. Same derivation as the admin list, from one function.
+    if (status) q = applyInvoiceStatusFilter(q, status);
 
     if (me.role !== "admin") {
       const { data: mine, error: advError } = await supabase
@@ -145,19 +168,87 @@ export async function GET(request: NextRequest) {
     }
     if (invoices.length > MAX_INVOICES) {
       return bad(
-        `That is ${invoices.length} invoices. Narrow the dates to ${MAX_INVOICES} or fewer.`,
+        `That is ${invoices.length} invoices, and each one is rendered separately. Narrow the dates to ${MAX_INVOICES} or fewer and download them in batches.`,
         413,
       );
+    }
+
+    // ── THE SAME DOCUMENT AS THE BUTTON NEXT TO IT ──────────────────
+    //
+    // Two things were missing here that the single-invoice route does,
+    // so the zip and the Download button on the same screen produced
+    // DIFFERENT invoices for the same row, with nothing saying which
+    // one was the real document:
+    //
+    //   * the issuer was never set at all, so every PDF in the archive
+    //     -- the admin's too -- printed lib/invoice-pdf.ts's hardcoded
+    //     fallback instead of the tenant's own name, registration and
+    //     VAT number;
+    //   * an invoice with no company_id got "N/A" as the bill-to,
+    //     where the single route falls back to the advertiser's own
+    //     company.
+    //
+    // Read once for the whole archive: it is one row, the same for
+    // every invoice in it. Service client, for the reason written out
+    // in the single-invoice route -- RLS hides this row from the
+    // advertiser asking for their own invoices.
+    const issuerDb = await createAdminClient();
+    const { data: issuerCompany, error: issuerError } = await issuerDb
+      .from("companies")
+      .select(
+        "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
+      )
+      .eq("tenant_id", me.tenant_id)
+      .is("advertiser_id", null)
+      .maybeSingle();
+    if (issuerError) throw issuerError;
+
+    // The advertisers whose invoice does not name a company. One read
+    // for the lot rather than one per invoice.
+    const missingCompanyAdvIds = Array.from(
+      new Set(
+        invoices
+          .filter(
+            (inv) =>
+              !(inv as { company_id?: string | null }).company_id &&
+              !!(inv as { advertiser_id?: string | null }).advertiser_id,
+          )
+          .map((inv) => (inv as { advertiser_id: string }).advertiser_id),
+      ),
+    );
+    const fallbackCompanies = new Map<string, CompanyRecord>();
+    if (missingCompanyAdvIds.length > 0) {
+      const { data: ownCompanies, error: ownError } = await supabase
+        .from("companies")
+        .select("*")
+        .in("advertiser_id", missingCompanyAdvIds);
+      if (ownError) throw ownError;
+      for (const c of (ownCompanies ?? []) as CompanyRecord[]) {
+        const key = (c as { advertiser_id?: string | null }).advertiser_id;
+        if (key) fallbackCompanies.set(key, c);
+      }
     }
 
     const zip = new JSZip();
     const used = new Set<string>();
 
     for (const invoice of invoices) {
+      (invoice as InvoiceRecord).issuer =
+        (issuerCompany as CompanyRecord | null) ?? null;
+
       // The bill-to party, exactly as the single-invoice route resolves
       // it: the advertiser's own company, falling back to the tenant's.
-      const company = (invoice as { company?: unknown })
+      let company = (invoice as { company?: unknown })
         .company as CompanyRecord | null;
+      if (!company) {
+        const advId = (invoice as { advertiser_id?: string | null })
+          .advertiser_id;
+        const own = advId ? fallbackCompanies.get(advId) : undefined;
+        if (own) {
+          company = own;
+          (invoice as InvoiceRecord).company = own;
+        }
+      }
       const billing = (company ?? null) as BillingRecord | null;
 
       const pdf = await buildInvoicePdf(invoice, billing);

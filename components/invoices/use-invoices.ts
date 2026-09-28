@@ -1,3 +1,4 @@
+import { applyInvoiceStatusFilter } from "@/lib/invoice-status";
 import { useAppContext } from "@/context/app-provider";
 import { createClient } from "@/lib/supabase/client";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
@@ -39,11 +40,12 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
     ],
   );
 
+  const readWillRun = !!profile?.tenant_id && (!isAdvertiser || !!advertiserId);
   const { data, isPending, isError, error } = useQuery<
-    { items: InvoiceWithRelations[]; total: number } | undefined
+    { items: InvoiceWithRelations[]; total: number | null } | undefined
   >({
     queryKey,
-    enabled: !!profile?.tenant_id && (!isAdvertiser || !!advertiserId),
+    enabled: readWillRun,
     queryFn: async () => {
       const { search, status, page = 1, perPage = 10 } = params;
       const supabase = createClient();
@@ -79,14 +81,10 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
       // past. So selecting Overdue always returned "No invoices", which
       // reads as "nobody is late" while past-due invoices sit under
       // Unpaid — on the screen an operator uses to find exactly those.
-      if (status === "overdue") {
-        query = query
-          .eq("status", "unpaid")
-          .not("due_date", "is", null)
-          .lt("due_date", new Date().toISOString());
-      } else if (status && status !== "all") {
-        query = query.eq("status", status);
-      }
+      // Moved into lib/invoice-status.ts so the export route can use
+      // exactly this, instead of its own .eq("status","overdue") that
+      // could only ever match nothing.
+      query = applyInvoiceStatusFilter(query, status);
 
       if (search && search.trim() !== "") {
         const rawTerm = search.trim();
@@ -155,14 +153,26 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
 
       return {
         items: (rows ?? []) as InvoiceWithRelations[],
-        total: count ?? (rows ?? []).length,
+        // ── A MISSING COUNT IS NOT "ONE PAGE" ────────────────────
+        //
+        // `count` comes back in the Content-Range HEADER and can be
+        // null with no error at all. Falling back to the length of
+        // THIS page made total <= perPage, which makes totalPages 1,
+        // and table-pagination renders nothing when totalPages <= 1.
+        // The admin then sees ten invoices, no pager, and a ledger
+        // that looks complete.
+        //
+        // null means unknown. The caller decides what to say about
+        // that; it must not be told "ten".
+        total: typeof count === "number" ? count : null,
       };
     },
   });
 
   return {
     invoices: data?.items ?? [],
-    total: data?.total ?? 0,
+    /** null when the database did not send a count -- never a guess. */
+    total: data?.total ?? null,
     // ── isPending, NOT isLoading ──────────────────────────────────
     //
     // react-query v5 reports isLoading as `isPending && isFetching`, so
@@ -172,7 +182,11 @@ export default function useInvoices(params: InvoicesQueryParams = {}) {
     // read nobody made. Its siblings (use-topups, use-wallet-transactions,
     // use-ad-account-requests) were all fixed for exactly this; these
     // were missed.
-    isLoading: isPending,
+    // ...but isPending stays TRUE for ever on a query that never runs,
+    // which is a skeleton with no end: invoices-table branches on this
+    // first, so it would never reach the error or empty state at all.
+    // Pending, OR not yet able to start.
+    isLoading: isPending || !readWillRun,
     isError,
     error,
   };

@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useSearchParams } from "next/navigation";
 
@@ -56,7 +57,16 @@ const loadingRow = (colSpan: number) => (
   </tr>
 );
 
-const stateRow = (colSpan: number, msg: string, danger = false) => (
+const stateRow = (
+  colSpan: number,
+  msg: string,
+  danger = false,
+  // A red sentence is not a way out. The failed-load row said what went
+  // wrong and stopped there, so the admin had to know to reload the
+  // browser; the customer's equivalent screen has offered a retry for
+  // weeks.
+  onRetry?: () => void,
+) => (
   <tr>
     <td
       colSpan={colSpan}
@@ -67,6 +77,22 @@ const stateRow = (colSpan: number, msg: string, danger = false) => (
       }}
     >
       {msg}
+      {onRetry ? (
+        <>
+          {" "}
+          <button
+            type="button"
+            onClick={onRetry}
+            style={{
+              textDecoration: "underline",
+              textUnderlineOffset: 2,
+              fontWeight: 500,
+            }}
+          >
+            Try again
+          </button>
+        </>
+      ) : null}
     </td>
   </tr>
 );
@@ -98,7 +124,7 @@ export default function InvoicesTable() {
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const perPage = 10;
   const queryClient = useQueryClient();
-  const { profile } = useAppContext();
+  const { profile, isSuperAdmin } = useAppContext();
 
   const isAdmin = profile?.role === "admin";
 
@@ -254,14 +280,40 @@ export default function InvoicesTable() {
           <h1>Invoices</h1>
           <p>{isAdmin ? "Issued, paid and overdue." : "View and download your invoices."}</p>
         </div>
+        {/* ── ONLY THE OWNER CAN ACTUALLY RAISE ONE ────────────────
+            The database says so, and has since plak 56: the BEFORE
+            INSERT trigger a0_guard_invoices_session_write refuses any
+            insert through the session client unless
+            _is_tenant_owner(tenant_id). Measured 28-09: two of the four
+            admins on this tenant are not the owner.
+
+            So an employee admin pressed Create Invoice, picked the
+            advertiser, typed the amount and the description, pressed
+            Create — and got a red toast reading "invoices: an invoice
+            is raised by the billing engine or the owner", with their
+            typing still in the dialog and nothing saying what to do
+            next. The restriction is deliberate; the screen simply never
+            said it.
+
+            The button stays, because a hidden control teaches nobody
+            anything -- it says whose it is instead. */}
         {isAdmin && (
           <div className="pacts">
-            <button
-              className="btn"
-              onClick={() => setIsCreateInvoiceOpen(true)}
-            >
-              <Plus /> <span className="blab">Create Invoice</span>
-            </button>
+            {isSuperAdmin ? (
+              <button
+                className="btn"
+                onClick={() => setIsCreateInvoiceOpen(true)}
+              >
+                <Plus /> <span className="blab">Create Invoice</span>
+              </button>
+            ) : (
+              <span
+                className="text-muted-foreground text-xs"
+                title="The database refuses an invoice raised by anyone else."
+              >
+                Invoices are raised by the billing engine or the owner.
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -334,6 +386,11 @@ export default function InvoicesTable() {
                       colCount,
                       (error as Error)?.message ?? "Failed to load invoices.",
                       true,
+                      () => {
+                        void queryClient.invalidateQueries({
+                          queryKey: ["invoices", profile?.tenant_id],
+                        });
+                      },
                     )
                   : invoices.length
                     ? invoices.map((invoice) => {
@@ -533,12 +590,46 @@ export default function InvoicesTable() {
           </table>
         </div>
         <div style={{ padding: 12 }}>
-          <TablePagination
-            total={total}
-            page={page}
-            perPage={perPage}
-            onPageChange={(p) => setPage(p)}
-          />
+          {total === null ? (
+            /* ── WE DO NOT KNOW HOW MANY THERE ARE ────────────────
+               `count` arrives in a response HEADER and can be absent
+               with no error. use-invoices used to fall back to the
+               length of THIS page, which makes totalPages 1, which
+               makes TablePagination render nothing -- ten rows, no
+               pager, and a ledger that looks complete. Say it
+               instead, and keep a way to the next page. */
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">
+                We couldn&apos;t read how many invoices there are — this
+                page may not be all of them.
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={invoices.length < perPage}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <TablePagination
+              total={total}
+              page={page}
+              perPage={perPage}
+              onPageChange={(p) => setPage(p)}
+            />
+          )}
         </div>
       </div>
 
@@ -600,6 +691,11 @@ export default function InvoicesTable() {
         busy={!!updatingInvoiceId}
         busyLabel="Cancelling…"
         disabled={voidReason.trim().length < 3}
+        // Without this the confirm is greyed out and the dialog says
+        // nothing: the admin reads the lead, presses "Yes, cancel it"
+        // and nothing happens. ConfirmModal has the slot for exactly
+        // this case.
+        disabledHint="Write a reason first, at least a few words. The customer sees it."
         onConfirm={() => {
           if (!confirmVoid || voidReason.trim().length < 3) return;
           setUpdatingInvoiceId(confirmVoid.id);

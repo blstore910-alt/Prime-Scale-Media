@@ -290,6 +290,17 @@ const BmIdFields = ({
       >
         Facebook Business Manager ID{rows.length > 1 ? "s" : ""}
       </label>
+      {/* ── ONE REQUEST IS ONE ACCOUNT ───────────────────────────────
+          Up to five ids can go in here, and nothing said what five
+          gets you. An admin turning this into an account makes ONE --
+          createAdAccountFromRequest marks the request completed the
+          moment it saves -- and the fee is charged once. Somebody who
+          read the five boxes as five accounts pays EUR 50, waits, and
+          gets a single account. Say it here, where the boxes are. */}
+      <p className="text-muted-foreground text-xs">
+        This is one ad account. List every Business Manager it should be
+        shared with — for a second account, send a second request.
+      </p>
       {bmError && (
         <p className="text-sm text-destructive" role="alert">
           {bmError}

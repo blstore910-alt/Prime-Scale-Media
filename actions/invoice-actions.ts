@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { maintenanceGuard, type ActionResult, wroteSomething } from "./_shared";
+import {
+  checkVersion,
+  maintenanceGuard,
+  type ActionResult,
+  wroteSomething,
+} from "./_shared";
 import { safeErrorMessage } from "@/lib/pure-error";
 
 async function requireAdminCtx() {
@@ -105,6 +110,48 @@ export async function createInvoiceAsAdmin(
     }
   }
 
+  // ── THE ALLOWLIST NAMES THE COLUMNS, NOT THE VALUES ───────────────
+  //
+  // `currency` and `total` were copied straight through. Nothing in the
+  // app can send anything else today -- the dialog offers EUR and USD
+  // and a step="0.01" number box -- but this is a server action, and
+  // the two columns it never checked are the two the customer's screen
+  // cannot handle:
+  //
+  //   * lib/pure-invoice-due.ts collapses any code that is not "USD" to
+  //     "EUR", so a GBP 500 invoice renders as "EUR 500.00 Due" with a
+  //     live Pay now, and invoice_pay_from_wallet then raises
+  //     "Unsupported invoice currency GBP" -- after the customer has
+  //     agreed to pay it.
+  //   * a negative total renders as "-EUR 50.00 Due" with a Pay button
+  //     that can only ever fail.
+  //
+  // Both are cheap to refuse here and impossible to correct later: a
+  // paid invoice cannot be voided and paid -> unpaid is refused.
+  if (input.currency !== undefined) {
+    const cur = String(input.currency ?? "").toUpperCase();
+    if (cur !== "EUR" && cur !== "USD") {
+      return {
+        ok: false,
+        error: `We only invoice in EUR or USD. "${String(input.currency)}" is neither, and the wallet has no balance to pay it from.`,
+      };
+    }
+    input = { ...input, currency: cur };
+  }
+  if (input.total !== undefined) {
+    const total = Number(input.total);
+    if (!Number.isFinite(total) || total <= 0) {
+      return {
+        ok: false,
+        error: "An invoice needs an amount above zero.",
+      };
+    }
+    // numeric(14,2) rounds on the way in; the `items` rate does not, so
+    // an unrounded amount printed a subtotal that did not match its own
+    // total. Round once, here, and both come from the same number.
+    input = { ...input, total: Math.round(total * 100) / 100 };
+  }
+
   const cleaned: Record<string, unknown> = {};
   for (const col of INVOICE_INSERT_ALLOWED) {
     if (col in input) cleaned[col] = input[col];
@@ -117,7 +164,10 @@ export async function createInvoiceAsAdmin(
     .insert(cleaned)
     .select("id")
     .single();
-  if (insertError) return { ok: false, error: insertError.message };
+  // safeErrorMessage: a raw Supabase message hands the screen internal
+  // trigger names -- here, literally "invoices: an invoice is raised by
+  // the billing engine or the owner" from a0_guard_invoices_session_write.
+  if (insertError) return { ok: false, error: safeErrorMessage(insertError) };
 
   return { ok: true, data: { id: inserted.id } };
 }
@@ -141,17 +191,43 @@ export async function setInvoicePaidStatus(
   if (!ctx.ok) return { ok: false, error: ctx.error, code: "forbidden" };
   const { supabase, profile } = ctx;
 
-  // NOTE: public.invoices has no updated_at column, so there's no
-  // optimistic-concurrency version to check here — the ifUpdatedAt param
-  // is accepted for call-site compatibility but not used. Selecting it
-  // (or version-guarding on it) previously 400'd and made this action
-  // always report "Invoice not found".
-  void ifUpdatedAt;
-  const { data: invoice } = await supabase
+  // ── THE COLUMN EXISTS, AND THE GUARD WAS OFF BECAUSE OF THIS NOTE ──
+  //
+  // The note that stood here said "public.invoices has no updated_at
+  // column". Measured on the live database, 28-09: `updated_at
+  // timestamp with time zone`, 31 rows out of 31 populated, with
+  // trigger `trg_touch_invoices` bumping it on every update. The UI has
+  // been sending the token all along (invoices-table.tsx passes
+  // `ifUpdatedAt: invoice.updated_at`), so both ends believed a
+  // concurrency guard was running and neither one was.
+  //
+  // What that costs: two admins with /invoices open, one cancels
+  // invoice 138 with a reason, the other presses Mark paid on the row
+  // they loaded before that. void -> paid is not refused by the status
+  // test below, so the cancelled invoice becomes Paid -- and there is
+  // no way back, because paid -> unpaid is refused unconditionally and
+  // a paid invoice cannot be voided.
+  //
+  // checkVersion is deliberately tolerant: a null token, or a row whose
+  // updated_at cannot be read, both pass. It refuses only a real,
+  // measured difference.
+  const { data: invoice, error: invoiceReadError } = await supabase
     .from("invoices")
     .select("id, tenant_id, status, type, subscription_id")
     .eq("id", invoiceId)
     .maybeSingle();
+  // A read we could not make is not a missing invoice. RLS returns no
+  // rows and no error, and so does a dropped connection with an error
+  // this used to throw away -- either way the admin was told the
+  // invoice did not exist while looking at it.
+  if (invoiceReadError) {
+    return {
+      ok: false,
+      error:
+        "We couldn't read this invoice just now — nothing has changed. Try again in a moment.",
+      code: "not_found",
+    };
+  }
   if (!invoice) return { ok: false, error: "Invoice not found", code: "not_found" };
   if (invoice.tenant_id !== profile.tenant_id) {
     return { ok: false, error: "Forbidden", code: "forbidden" };
@@ -206,20 +282,49 @@ export async function setInvoicePaidStatus(
     return { ok: true, data: null };
   }
 
+  // After the cheap refusals, before the write: no point reading the
+  // version for a transition that is refused anyway.
+  if (!(await checkVersion(supabase, "invoices", invoiceId, ifUpdatedAt))) {
+    return {
+      ok: false,
+      error: "This invoice was changed by someone else. Reload and retry.",
+      code: "conflict",
+    };
+  }
+
   // Count the rows. An UPDATE that matches nothing returns no error and no
   // rows in PostgREST, so marking an invoice paid could report success while
   // the invoice stayed open — and an invoice that looks settled but is not
   // is the difference between chasing a customer and not chasing them.
+  // ── AND SAY WHERE THE MONEY CAME FROM ───────────────────────────
+  //
+  // This wrote status and paid_at and nothing else, so `paid_from`
+  // stayed NULL -- and the customer's statement reads NULL as a wallet
+  // debit (adv-app.tsx: `paidFrom === "wallet" || paidFrom === ""`).
+  // That assumption is right for every invoice raised before the column
+  // existed, and it is wrong for every one an admin marks paid TODAY:
+  // nothing is debited here, so the statement drew a minus sign and
+  // "Taken from your wallet" over a balance that never moved. PSM0007's
+  // statement already showed exactly that once.
+  //
+  // An admin ticking Mark paid means it was settled some other way --
+  // a bank transfer, a write-off, a correction. 'other' is what the
+  // wallet-topup path already writes for the same situation. Measured
+  // 28-09: `invoices.paid_from` is a live text column.
   const { data: updated, error: updateError } = await supabase
     .from("invoices")
     .update({
       status,
       paid_at: status === "paid" ? new Date().toISOString() : null,
+      paid_from: status === "paid" ? "other" : null,
     })
     .eq("id", invoiceId)
     .eq("tenant_id", profile.tenant_id)
     .select("id");
-  if (updateError) return { ok: false, error: updateError.message };
+  // safeErrorMessage, like voidInvoiceAsAdmin two functions down.
+  // A raw Supabase message hands the customer-adjacent screen internal
+  // trigger names, and the sibling in this same file already knew that.
+  if (updateError) return { ok: false, error: safeErrorMessage(updateError) };
   const wrote = wroteSomething(updated);
   if (!wrote.ok) return wrote;
 

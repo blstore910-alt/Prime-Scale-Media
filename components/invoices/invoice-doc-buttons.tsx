@@ -71,11 +71,22 @@ export default function InvoiceDocButtons({
         className={cls}
         onClick={(e) => {
           e.stopPropagation();
-          window.open(
+          // ── A CLICK THAT DOES NOTHING AND SAYS NOTHING ──────────
+          //
+          // The return value was discarded. In an in-app webview, or
+          // behind a popup policy, window.open returns null and the
+          // button is simply inert -- the Download sibling three lines
+          // down has caught and toasted since it was written.
+          const w = window.open(
             `/api/invoices/${invoiceId}/pdf?inline=1`,
             "_blank",
             "noopener,noreferrer",
           );
+          if (!w) {
+            toast.error("Your browser blocked the new tab.", {
+              description: "Use Download instead, or allow pop-ups for this site.",
+            });
+          }
         }}
         title="Open the invoice in a new tab"
       >

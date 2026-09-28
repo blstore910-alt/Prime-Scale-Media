@@ -1038,7 +1038,11 @@ export default function AdvertiserApp() {
     },
   });
 
-  const { data: invoices, isError: invError, isLoading: invLoading } = useQuery<
+  const {
+    data: invoices,
+    isError: invError,
+    isPending: invPending,
+  } = useQuery<
     (InvoiceWithRelations & { due_date?: string | null })[]
   >({
     queryKey: ["adv-invoices", advertiserId, tenantId],
@@ -2661,6 +2665,19 @@ export default function AdvertiserApp() {
   // Three states, not two: nothing raised yet, something due, or
   // settled.
   const advReadsWillRun = !!advertiserId && !!tenantId;
+  // ── isPending, WITH THE DISABLED WINDOW HANDLED ────────────────────
+  //
+  // This was `isLoading`, which in react-query v5 is `isPending &&
+  // isFetching` -- FALSE while the query is DISABLED. So between mount
+  // and advertiserId arriving, the invoice table fell past both its
+  // guarded branches and printed "No invoices yet. The first one
+  // arrives with your plan." to somebody who has invoices.
+  //
+  // `isPending` alone is the opposite trap: it stays true for ever on a
+  // query that never runs, which is a skeleton with no end. So: pending,
+  // OR the reads have not been able to start yet. Same shape as the
+  // other wrappers in this file.
+  const invLoading = invPending || !advReadsWillRun;
   // ── A PLAN THAT IS NOT RUNNING IS NOT THE CUSTOMER'S PLAN ────────────
   //
   // planName comes from advertiser_plans -- the plan we ASSIGNED, e.g. on
@@ -3085,6 +3102,9 @@ export default function AdvertiserApp() {
   const payInvoice = async (id: string): Promise<boolean> => {
     if (payingId) return false;
     setPayingId(id);
+    // The moment they pressed. Anything settled BEFORE this was not
+    // settled by this press -- see the note on alreadyPaid below.
+    const pressedAt = Date.now();
     try {
       const supabase = createClient();
       const { data, error } = await supabase.rpc("invoice_pay_from_wallet", {
@@ -3103,9 +3123,23 @@ export default function AdvertiserApp() {
         | { status?: string | null; paid_at?: string | null }
         | null
         | undefined;
+      // ── AND "ALREADY" MEANS BEFORE THEY PRESSED ────────────────
+      //
+      // This was "paid_at more than a minute ago", which is a guess
+      // about how long the round trip takes rather than a fact about
+      // this press. Inside that minute it said the opposite of the
+      // truth: the nightly run collects a EUR 200 invoice at 03:00:12,
+      // the customer presses Pay at 03:00:40, and they are told their
+      // wallet was just debited. Two tabs pressing a second apart both
+      // get the same sentence for one debit.
+      //
+      // Compare against the moment they pressed instead. The five
+      // seconds of slack is for clock skew between this browser and the
+      // database -- the only reason the minute was there at all.
+      const CLOCK_SKEW_MS = 5_000;
       const alreadyPaid =
         !!row?.paid_at &&
-        Date.now() - new Date(row.paid_at).getTime() > 60_000;
+        new Date(row.paid_at).getTime() < pressedAt - CLOCK_SKEW_MS;
       if (alreadyPaid) {
         toast.info("That invoice was already settled", {
           description:
@@ -4238,7 +4272,20 @@ export default function AdvertiserApp() {
                   {dueUnknown
                     ? "checking…"
                     : dueSubInvoice
-                      ? `${dueBillAmount} outstanding`
+                      ? /* ── THE SAME NUMBER AS THE ROW EIGHT LINES UP ──
+                           This printed dueBillAmount, which is the OLDEST
+                           open invoice, while the notice row directly
+                           above it printed the SUM. On a customer with
+                           two EUR 500 invoices open, one line read
+                           "Outstanding (2 invoices) EUR 1,000.00" and the
+                           next read "EUR 500.00 outstanding" -- two
+                           statements about the same debt, on one screen,
+                           EUR 500 apart. The billing card was fixed for
+                           exactly this; the tile was missed a second
+                           time. */
+                        unpaidSubCount > 1
+                        ? `${unpaidSubText} outstanding (${unpaidSubCount} invoices)`
+                        : `${dueBillAmount} outstanding`
                       : subscription?.next_payment_date
                         ? `${
                             shownPlanName && subscription?.status

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -173,23 +173,42 @@ export async function GET(
     // the invoice does not name one, read theirs. Nothing is invented:
     // if they have no company row either, it stays N/A as before.
     if (!(invoice as InvoiceRecord).company_id && (invoice as InvoiceRecord).advertiser_id) {
-      const { data: ownCompany } = await supabase
+      const { data: ownCompany, error: ownCompanyError } = await supabase
         .from("companies")
         .select("*")
         .eq("advertiser_id", (invoice as InvoiceRecord).advertiser_id as string)
         .maybeSingle();
+      // A failed read is not "they have no company". Printing "N/A" as
+      // the bill-to on a tax document because a connection dropped is
+      // not a degradation, it is a wrong invoice.
+      if (ownCompanyError) throw ownCompanyError;
       if (ownCompany) {
         (invoice as InvoiceRecord).company = ownCompany as CompanyRecord;
       }
     }
 
-    // Attach the tenant-level company row as the issuer party on the
-    // PDF. Separate query because the invoice's own `company` FK
-    // points at the advertiser's bill-to company, not the tenant's
-    // own. maybeSingle() so a tenant that has not filled its company
-    // in yet still returns a rendered PDF (issuer falls back to
-    // TURLIT hardcode).
-    const { data: issuerCompany } = await supabase
+    // ── WHO SENT THE INVOICE, ON THE CUSTOMER'S COPY TOO ────────────
+    //
+    // This read ran as the CALLER. Measured 28-09, the only non-admin
+    // policy on `companies` is `Allow advertisers to read their
+    // companies`, whose USING clause ends `a.id = companies.advertiser_id`
+    // -- and the issuer is precisely the row where advertiser_id IS
+    // NULL. RLS refuses by returning NO ROWS AND NO ERROR, so for every
+    // advertiser this landed on `null`, silently, and lib/invoice-pdf.ts
+    // printed its hardcoded fallback issuer with no registration or VAT
+    // line at all.
+    //
+    // So the admin pressing View and the customer pressing View on the
+    // SAME invoice got two different documents, and the day the owner
+    // fills in a VAT number only one of them carries it. On a tax
+    // document.
+    //
+    // The issuer is our own name and address, printed on the PDF -- it
+    // is the least secret field on the page. Read it with the service
+    // client so the customer's copy is the same document as ours, and
+    // say so when it cannot be read rather than quietly inventing one.
+    const issuerDb = await createAdminClient();
+    const { data: issuerCompany, error: issuerError } = await issuerDb
       .from("companies")
       .select(
         "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
@@ -197,6 +216,11 @@ export async function GET(
       .eq("tenant_id", activeProfile.tenant_id)
       .is("advertiser_id", null)
       .maybeSingle();
+    if (issuerError) {
+      // Not a fallback. A tax document that names the wrong issuer is
+      // worse than one that does not arrive.
+      throw issuerError;
+    }
     (invoice as InvoiceRecord).issuer =
       (issuerCompany as CompanyRecord | null) ?? null;
 

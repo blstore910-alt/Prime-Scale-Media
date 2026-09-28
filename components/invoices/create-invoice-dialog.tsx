@@ -1,4 +1,5 @@
 "use client";
+import { defaultDueDate } from "./use-create-invoice";
 
 import SelectField from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,10 @@ const invoiceFormSchema = z.object({
     .trim()
     .min(1, "Description is required")
     .max(200, "Keep it under 200 characters"),
+  // yyyy-mm-dd, from a date input. Required, because an invoice with no
+  // due date never appears under Overdue and is never chased -- see the
+  // note in use-create-invoice.ts.
+  due_date: z.string().min(1, "A due date is required"),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
@@ -61,7 +66,14 @@ function getDefaultValues(): InvoiceFormValues {
     currency: "EUR",
     amount: 0,
     description: "",
+    due_date: isoDay(new Date(defaultDueDate())),
   };
+}
+
+/** yyyy-mm-dd, which is what <input type="date"> wants. */
+function isoDay(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 export default function CreateInvoiceDialog({
@@ -99,14 +111,16 @@ export default function CreateInvoiceDialog({
     reset(newDefaultValues);
   }, [defaultAdvertiserId, reset]);
 
+  const advertiserReadWillRun =
+    profile?.role === "admin" && !!profile?.tenant_id;
   const {
     data: advertisers = [],
-    isLoading: isAdvertisersLoading,
+    isPending: isAdvertisersPending,
     isError: isAdvertisersError,
     error: advertisersError,
   } = useQuery<AdvertiserQueryRow[]>({
     queryKey: ["advertisers", profile?.tenant_id, "invoices"],
-    enabled: profile?.role === "admin" && !!profile?.tenant_id,
+    enabled: advertiserReadWillRun,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -122,6 +136,16 @@ export default function CreateInvoiceDialog({
       return (data ?? []) as AdvertiserQueryRow[];
     },
   });
+
+  // ── isPending, WITH THE DISABLED WINDOW HANDLED ────────────────────
+  //
+  // This was `isLoading`, which is FALSE for a disabled query in
+  // react-query v5. Between mount and the profile arriving, the picker
+  // said "Select" over an empty list with the trigger ENABLED -- an
+  // admin opens Create Invoice, finds no advertisers, and reads it as
+  // "this tenant has none". `isPending` alone would hang for ever if
+  // the query never runs, so it is pending OR not-yet-runnable.
+  const isAdvertisersLoading = isAdvertisersPending || !advertiserReadWillRun;
 
   const currencyOptions = CURRENCIES.filter((currency) =>
     ["EUR", "USD"].includes(currency.value),
@@ -281,6 +305,37 @@ export default function CreateInvoiceDialog({
             {errors.description && (
               <FieldError errors={[errors.description]} />
             )}
+          </Field>
+
+          {/* ── WHEN IS IT DUE ──────────────────────────────────────
+              There was no field here at all, so every hand-raised
+              invoice went in with due_date null -- invisible to the
+              Overdue filter for ever, and never collected, because the
+              auto-debit only takes invoices carrying a subscription_id
+              and this dialog cannot set one. Defaulted to fourteen
+              days, the same as the subscription engine's first
+              invoice. */}
+          <Field data-invalid={Boolean(errors.due_date)}>
+            <FieldLabel htmlFor="invoice-due-date">Due date</FieldLabel>
+            <Controller
+              name="due_date"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id="invoice-due-date"
+                  type="date"
+                  aria-invalid={Boolean(errors.due_date)}
+                />
+              )}
+            />
+            <p className="text-muted-foreground text-xs">
+              After this date it counts as overdue and shows up in the
+              Overdue filter. Nothing is collected automatically from a
+              hand-raised invoice — the customer pays it from their
+              wallet.
+            </p>
+            {errors.due_date && <FieldError errors={[errors.due_date]} />}
           </Field>
         </form>
 

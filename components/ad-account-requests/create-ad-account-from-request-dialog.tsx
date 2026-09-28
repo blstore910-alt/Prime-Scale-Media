@@ -364,9 +364,24 @@ export default function CreateAdAccountFromRequestDialog({
                     </div>
                   )}
                   {bmIds.length > 1 && (
+                    /* ── AND THIS SENTENCE HAS TO BE TRUE ───────────
+                       It read "the request stays open for the rest",
+                       and the request does NOT stay open:
+                       createAdAccountFromRequest marks it `completed`
+                       unconditionally the moment the account is made,
+                       and the status predicate on that update is the
+                       guard that stops two admins making two accounts
+                       for one request. So the admin was told to come
+                       back to a row that would be gone.
+                       What DOES happen: the account carries the whole
+                       metadata object, so all {bmIds.length} ids are
+                       recorded on it -- the pick decides bm_id, not
+                       what is kept. */
                     <p className="text-xs text-muted-foreground">
-                      They asked for {bmIds.length}. This makes one account;
-                      the request stays open for the rest.
+                      They named {bmIds.length} BM ids. All of them are
+                      kept on the account; this one becomes its BM. The
+                      request closes when you save, so a second account
+                      needs a new request.
                       {watchedBm ? "" : " Pick one before saving."}
                     </p>
                   )}
