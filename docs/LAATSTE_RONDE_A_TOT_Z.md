@@ -605,6 +605,24 @@ cent, op het scherm en in de database, en de EUR 50 is zichtbaar
 afgeboekt én teruggeboekt op het afschrift **en** in het Financial
 report.
 
+### Stand 28-09, vóór de wandeling
+
+- **De server weigert PSM0016 nog.** `ad_account_request_create_paid`
+  eist een actief abonnement, en een gratis plan krijgt er met opzet
+  geen. Gemeten: `plak117_applied = false`. **Plak 117 moet eerst
+  gedraaid.** Zonder dat komt er geen aanvraag doorheen en is er niets
+  te lopen.
+- **De rekensom klopt op elke rij die vandaag bestaat.** Acht
+  ad-account-fundingen op de live database, en op alle acht is
+  `amount_received − fee_amount = topup_amount` tot op de cent, met
+  geen enkele rij die een fee-percentage heeft zonder fee-bedrag. Wel:
+  alle acht zijn EUR→EUR, dus de kruisvalutafout die ik vandaag in
+  `eur_topup` heb rechtgezet is nog nooit door een echte rij gelopen.
+- **PSM0016 staat klaar**: NSA-plan, EUR 0 per maand, 2 inbegrepen
+  accounts, 5% top-upfee, EUR 500 in de wallet, 0 accounts, 0
+  aanvragen, 0 abonnementen. Dus de eerste twee aanvragen horen GRATIS
+  te zijn en de derde EUR 50 te kosten — allebei moeten gelopen.
+
 ---
 
 # BLOK 7 — FACTUUR EN PAY NOW
@@ -621,6 +639,29 @@ report.
 
 **Klaar als:** de PDF draagt het bedrijf uit blok 4, het saldo klopt, en
 de affiliate ziet de abonnementscommissie.
+
+### PAS OP — dit blok kan NIET met PSM0016 zoals hij nu staat
+
+Gemeten 28-09: PSM0016 heeft precies één factuur, en dat is de
+`wallet_topup`-factuur van de EUR 500 uit blok 5 (nummer 140, betaald).
+Een **abonnementsfactuur is er niet en komt er ook niet**, want het
+NSA-plan is EUR 0 en een plan van nul maakt met opzet geen abonnement.
+Dat is geen fout — het is precies de regel die de eigenaar op 28-09
+gaf. Maar het betekent dat er niets te betalen valt.
+
+Twee wegen, en de tweede is goedkoper:
+
+1. **PSM0011** (`micos96108@pumpoly.com`) heeft EUR 260 in de wallet en
+   één onbetaalde abonnementsfactuur van EUR 150. 260 − 150 = 110: een
+   complete Pay-now-wandeling, mits de eigenaar dat wachtwoord heeft.
+2. **PSM0016 een betaald plan geven ná blok 6.** Blok 6 heeft het
+   nul-euro-plan juist nodig; blok 7 heeft het tegen. Dezelfde login,
+   geen nieuw account, en het abonnement dat dan ontstaat maakt de
+   maandfactuur die dit blok vraagt.
+
+De andere onbetaalde abonnementsfacturen (PSM0006, PSM0012, PSM0013 —
+EUR 200 elk) staan tegenover een wallet van EUR 0, dus daar kan Pay now
+alleen de weigering laten zien, niet de betaling.
 
 ---
 
