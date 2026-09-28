@@ -260,9 +260,20 @@ const BmIdFields = ({
 
   return (
     <div className="space-y-2">
-      <span className="text-sm font-medium">
+      {/* ── A LABEL IS A LABEL, NOT A COLUMN ─────────────────────────
+          The owner, 28-09: "dit is lelijk, de button staat op een
+          lelijke plek, misschien eronder."
+
+          This was a <span>, which is INLINE -- so the add button
+          flowed up onto the same line as the heading and sat there
+          like a second title. A block label puts the button back
+          where it belongs: under the rows it adds to. */}
+      <label
+        htmlFor="fb-bm-id"
+        className="block text-sm font-medium"
+      >
         Facebook Business Manager ID{rows.length > 1 ? "s" : ""}
-      </span>
+      </label>
       {bmError && (
         <p className="text-sm text-destructive" role="alert">
           {bmError}
@@ -299,14 +310,27 @@ const BmIdFields = ({
         </div>
       ))}
       {rows.length < BM_ID_MAX ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => write([...rows, ""])}
-        >
-          + Add another BM ID
-        </Button>
+        <div className="pt-1">
+          {/* ── "ANOTHER" BEFORE THERE IS A FIRST ────────────────────
+              The owner: "eerst moet er staan Add BM want is eerste in
+              plaats van add another."
+
+              There is always one empty row on screen, so the button
+              always technically adds a second -- but to somebody who
+              has not typed anything yet, "another" is a word about a
+              thing that does not exist. It says "another" once one is
+              actually filled in. */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => write([...rows, ""])}
+          >
+            {rows.some((r) => String(r ?? "").trim())
+              ? "+ Add another BM ID"
+              : "+ Add a BM ID"}
+          </Button>
+        </div>
       ) : (
         <p className="text-xs text-muted-foreground">
           That is the maximum of {BM_ID_MAX}. Ask us if you need more.
