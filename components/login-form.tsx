@@ -328,31 +328,6 @@ export function LoginForm() {
           {isPending ? "Signing in…" : "Sign in"}
         </button>
 
-        {/* ── THE DOOR THAT WAS NOT HERE ────────────────────────────
-            This form had no way to sign up at all — I grepped it and
-            the auth shell for `auth/sign-up` and got nothing. That made
-            /auth/sign-up's own bounce-to-login a complete dead end for
-            a prospect whose referral link had lost its tenant
-            parameter: a sign-in form for an account that does not
-            exist, and no door to make one.
-
-            The tenant cookie is what makes this work: /auth/sign-up
-            reads `tenant` from it when the URL has none, so anybody who
-            reached us through a real link once can get back to the
-            form. Somebody who never had one lands on the "incomplete
-            link" card, which tells them what to ask for. Either way
-            they are not stuck. */}
-        {/* `.meta` — centred, muted, and it has a dark-mode colour of
-            its own. I first wrote `.lsub`, which is defined NOWHERE in
-            the auth shell, so "New here?" inherited the default text
-            colour and vanished into the dark background: the owner saw
-            a lone blue link with nothing in front of it. */}
-        <p className="meta" style={{ marginTop: 12 }}>
-          New here?{" "}
-          <Link className="lnk" href="/auth/sign-up">
-            Create an account
-          </Link>
-        </p>
       </form>
     </section>
   );

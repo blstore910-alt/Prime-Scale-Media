@@ -3,7 +3,6 @@ import InviteExpired from "@/components/invites/invite-expired";
 import { SignUpForm } from "@/components/sign-up-form";
 import { createClient } from "@/lib/supabase/server";
 import { UserInvitation } from "@/lib/types/invite";
-import { cookies } from "next/headers";
 import { Suspense } from "react";
 
 type PageProps = {
@@ -12,17 +11,31 @@ type PageProps = {
 export default async function Page({ searchParams }: PageProps) {
   const { token, t, ref } = await searchParams;
   const supabase = await createClient();
-  const cookieStore = await cookies();
-  // The referral link is /auth/sign-up?t=<slug>&ref=<code>. Middleware writes
-  // those into cookies, but on the FIRST click that cookie is set on the
-  // response and isn't yet readable on this same request — which used to
-  // bounce a brand-new prospect to /auth/login and drop the referral. Fall
-  // back to the query params so the first click works.
-  // The link in the address bar wins over a cookie from an OLDER link:
-  // somebody who clicked affiliate A's link last month and B's today
-  // signed up as A's -- the cookie was never replaced.
-  const referralCode = ref?.toUpperCase() ?? cookieStore.get("ref")?.value;
-  const tenantSlug = t ?? cookieStore.get("tenant")?.value;
+  // The referral link is /auth/sign-up?t=<slug>&ref=<code>. The comment
+  // that stood here said middleware writes those into cookies; it does
+  // not, and nothing else does either.
+  // ── THE COOKIE FALLBACK IS GONE ────────────────────────────────
+  //
+  // The owner, 28-09: "create an acc mag toch niet zichtbaar zijn,
+  // alles is toch op invite? via homepage kan ik create acc doen en
+  // staat er ineens PSM0015."
+  //
+  // Two separate things, and he is right about both. The public door
+  // is removed from the login form. This is the other half: the page
+  // fell back to a `ref` cookie when the URL carried none, so a
+  // signup that did NOT come through an affiliate's link could still
+  // be attributed to one.
+  //
+  // And it was never reachable as designed: NOTHING in this app ever
+  // sets `ref` or `tenant` as a cookie -- I grepped for it. They are
+  // read and never written. So the fallback could only ever fire on
+  // something set from outside the app, which is the one case where
+  // trusting it is least defensible. A stale affiliate on a real
+  // customer is money going to the wrong person, quietly.
+  //
+  // The link in the address bar is now the only thing that decides.
+  const referralCode = ref?.toUpperCase() ?? null;
+  const tenantSlug = t ?? null;
 
   if (!token) {
     // The tenant is the only thing we cannot do without -- it is where the
