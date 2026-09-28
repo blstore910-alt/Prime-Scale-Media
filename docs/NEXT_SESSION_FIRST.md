@@ -1,3 +1,31 @@
+# WHAT IS LEFT — 28-09
+
+## GEVRAAGD 28-09, NOG NIET GEBOUWD
+
+**Een minimum per plan.** De eigenaar: "first topup moet ook per
+community standaard instelbaar zijn zodat al die accounts direct vanaf
+begin bijv 250 eur minimum hebben op ad accounts en wallet, maar wel
+aanpasbaar door ons -- evt ja later."
+
+Vandaag staat het minimum per WALLET (`wallets.min_topup`, gezet met
+`wallet_admin_set_min_topup`) en er is geen standaard per plan. Een
+nieuwe klant op NSA begint dus op de ingebouwde 250/300 uit
+lib/min-topup.ts in plaats van op wat bij hun community hoort.
+
+Wat het nodig heeft: een kolom `min_topup` op `plans`, meegeschreven in
+de momentopname (`advertiser_plans`) net als `included_ad_accounts` en
+`topup_fee_pct`, en `effectiveMinTopup` die hem leest vóór de ingebouwde
+waarde. De per-wallet override blijft er bovenop staan, want die is al
+het handmatige antwoord. Klein werk: een kolom, twee schrijvers, een
+leesregel.
+
+**Per community zeggen wie factureert.** Bij het NSA-werk van 28-09
+bleek dat we drie afspraken in een rijvorm hebben -- wij factureren,
+de community factureert, of niemand -- en niets legt vast welke. Het
+scherm zegt daarom nu alleen "we invoice you nothing for this plan".
+Wil hij "je betaalt X rechtstreeks", dan is dat een nullable tekstkolom
+op `plans` die het factuurscherm afdrukt. Vastgelegd, niet afgeleid.
+
 # WHAT IS LEFT — 27-09, avond
 
 ## GEDAAN OP 27-09 (avond) — tarieven, BM's en opnames
