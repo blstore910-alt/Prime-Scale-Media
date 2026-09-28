@@ -174,6 +174,13 @@ export default function PsmRequests() {
     if (isLoading) return;
     if (page <= 1) return;
     if (rows.length > 0) return;
+    // A count we did not get is not a count of zero: with an unknown
+    // total and no rows there is no page to work back to, so go to the
+    // first one rather than sitting on an empty card.
+    if (total === null) {
+      setPage(1);
+      return;
+    }
     if (total <= 0) return;
     setPage(Math.max(1, Math.ceil(total / perPage)));
   }, [isLoading, page, total, rows.length]);
@@ -762,11 +769,15 @@ export default function PsmRequests() {
           a reload escaped. The gate is `total`, which is the whole
           queue, not the slice. The clamp above walks the page back so
           this cannot be reached in the first place. */}
-      {!isLoading && total > perPage ? (
+      {/* Unknown total: show the pager whenever this page is full —
+          there may well be more, and hiding the control is how the
+          queue strands somebody. */}
+      {!isLoading &&
+      (total === null ? rows.length >= perPage : total > perPage) ? (
         <div className="my-4 px-4">
           <TablePagination
             page={page}
-            total={total}
+            total={total ?? page * perPage + 1}
             perPage={perPage}
             onPageChange={(p) => setPage(p)}
           />

@@ -308,11 +308,15 @@ export default function AdAccountRequestsTable() {
         </div>
       )}
 
-      {!isLoading && !isError && total > perPage ? (
+      {/* Same as the PSM queue: an unknown total must not hide the way
+          to the next page. */}
+      {!isLoading &&
+      !isError &&
+      (total === null ? requests.length >= perPage : total > perPage) ? (
         <div className="my-4 px-4">
           <TablePagination
             page={page}
-            total={total}
+            total={total ?? page * perPage + 1}
             perPage={perPage}
             onPageChange={(p) => setPage(p)}
           />

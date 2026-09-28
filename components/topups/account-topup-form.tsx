@@ -85,7 +85,14 @@ export default function AccountTopupForm({
 
   const {
     data: accounts = [],
-    isLoading: accountsLoading,
+    // ── isPending, NOT isLoading ─────────────────────────────────
+    // `isLoading` is `isPending && isFetching`, so it is FALSE for a
+    // DISABLED query -- and this one waits on the tenant id. While it
+    // waits, `accounts` falls to its `= []` default and the picker
+    // renders empty with placeholder "Select": no spinner, no error,
+    // no message. Thirty lines down this same file uses `isPending`
+    // from use-usd-to-eur and writes out exactly why.
+    isPending: accountsLoading,
     isError: accountsError,
     error: accountsErrorMessage,
   } = useQuery<AccountRecord[]>({
@@ -157,7 +164,8 @@ export default function AccountTopupForm({
 
   const {
     data: wallet,
-    isLoading: walletLoading,
+    // Same reason: `enabled: !!advertiserId`.
+    isPending: walletLoading,
     isError: walletError,
     error: walletErrorMessage,
   } = useQuery<Wallet | null>({
@@ -319,7 +327,11 @@ export default function AccountTopupForm({
   // the column the server treats as NOT SET and overrides with the plan
   // rate. Three lines below its own comment saying never to open the
   // confirmation on a fee we have not resolved.
-  const feeUnresolved = !!accountId && (feeQuote.isLoading || feeQuote.isError);
+  // isPending here too. The `!!accountId` prefix happens to cover the
+  // disabled case today, so this was safe by accident rather than by
+  // design -- and the next person to change that condition would not
+  // know they were also changing whether a fee can be unresolved.
+  const feeUnresolved = !!accountId && (feeQuote.isPending || feeQuote.isError);
 
   // ── THE RATE, WHICH THIS SCREEN NEVER ASKED FOR ────────────────────
   //

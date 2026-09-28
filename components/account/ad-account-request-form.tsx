@@ -629,6 +629,17 @@ export default function AdAccountRequestForm({
         "platform",
         "currency",
         "timezone",
+        // ── THE OTHER TWO PLATFORMS WERE LEFT OUT ────────────────
+        // This list had only Meta's fields. A TikTok requester
+        // reloaded and got `platform: tiktok-ads` back with all
+        // three of its required boxes EMPTY -- and the restore is
+        // silent, so nothing said their typing had been dropped.
+        // Google's email the same. Same form, same rule, three
+        // fields nobody added.
+        "google_email",
+        "tiktok_business_center_id",
+        "tiktok_email",
+        "tiktok_countries",
         "personal_facebook_profile_link",
         "website_url",
         "notes",

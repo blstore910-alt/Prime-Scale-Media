@@ -74,7 +74,7 @@ export default function useAdAccountRequests(
   const effectiveTenantId = params.tenantId ?? profile?.tenant_id ?? undefined;
 
   const { data, isPending, isError, error, refetch } = useQuery<
-    { items: AdAccountRequest[]; total: number } | undefined
+    { items: AdAccountRequest[]; total: number | null } | undefined
   >({
     queryKey,
     enabled: params.enabled ?? true,
@@ -210,13 +210,29 @@ export default function useAdAccountRequests(
       if (qError) throw qError;
 
       const results = (rows ?? []) as AdAccountRequest[];
-      return { items: results, total: count ?? results.length };
+      // ── A COUNT WE DID NOT GET IS NOT A TOTAL ──────────────────
+      //
+      // `count ?? results.length` reads a missing content-range header
+      // as "this page is all there is". On page 1 that makes total at
+      // most perPage, both admin queues gate their pager on
+      // `total > perPage`, and pages 2+ become unreachable. On page 2
+      // it is worse: total 0 with zero rows, so the walk-back clamp
+      // (which only runs when total > 0) does nothing and the admin is
+      // left on an empty card with no control to get off it.
+      //
+      // Same fault and the same fix as the wallet-topup queue.
+      return {
+        items: results,
+        total: count === null || count === undefined ? null : count,
+      };
     },
   });
 
   return {
     requests: data?.items ?? [],
-    total: data?.total ?? 0,
+    /** null = the count header never arrived. NOT zero, and not "this
+     *  page is all there is" — see the note in the query. */
+    total: data?.total ?? null,
     // ── isPending, NOT isLoading ──────────────────────────────────
     //
     // react-query v5: isLoading = isPending && isFetching. A DISABLED
