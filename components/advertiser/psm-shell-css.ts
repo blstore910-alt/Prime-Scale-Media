@@ -185,7 +185,17 @@ export const PSM_APP_CSS = `
 /* A page header whose actions share the title row rather than stacking
    under it. Measured: stacked, /accounts cost 99px of header against 48px
    on every other admin page. */
-.psmapp .phead-actions{align-items:center;flex-wrap:nowrap;gap:10px}
+/* nowrap between the TITLE and the ACTIONS -- that is what keeps the
+   header on one row and was measured at 48px against 99px stacked.
+   A .subcounts child is the exception: it asks for a whole row, and
+   wrap is what lets it have one. Without this it shared the title's
+   column, the action group refused to shrink, and "2 inactive" came
+   out as "2 ir". */
+.psmapp .phead-actions{align-items:center;flex-wrap:wrap;gap:10px}
+.psmapp .phead-actions>.ptxt,
+.psmapp .phead-actions>.pacts{flex-shrink:0}
+.psmapp .phead-actions>.ptxt{flex:1 1 auto;min-width:0}
+.psmapp .phead-actions>.subcounts{flex:1 0 100%;order:9;margin-top:0}
 .psmapp .phead-actions .ptxt{flex:1 1 auto;min-width:0}
 /* A page with two header actions can run out of room before the title does.
    Letting the action group shrink — and its buttons ellipsize — keeps the

@@ -253,37 +253,6 @@ export default function PsmSubscriptions() {
         <div className="ptxt">
           <h1>Subscriptions</h1>
           <p>Recurring monthly plans.</p>
-          {/* A dash, never a zero: a count we could not read must not read
-              as "nobody is being billed". */}
-          {statusCounts ? (
-            <p className="subcounts">
-              <span className="on">
-                {statusCounts.active === null ? "—" : statusCounts.active}{" "}
-                active
-              </span>
-              {/* NULL IS NOT ZERO, AND `? :` CANNOT TELL THEM APART.
-                  `active` got this right two lines up; these three used
-                  truthiness, so a count we could not read rendered as
-                  nothing at all -- and "who owes us money" reading as
-                  "nobody does" is the one of the four that gets acted
-                  on. A dash when unknown, hidden only at a real zero. */}
-              {statusCounts.pastDue === null ? (
-                <span className="due">— past due</span>
-              ) : statusCounts.pastDue > 0 ? (
-                <span className="due">{statusCounts.pastDue} past due</span>
-              ) : null}
-              {statusCounts.paused === null ? (
-                <span>— paused</span>
-              ) : statusCounts.paused > 0 ? (
-                <span>{statusCounts.paused} paused</span>
-              ) : null}
-              {statusCounts.inactive === null ? (
-                <span>— inactive</span>
-              ) : statusCounts.inactive > 0 ? (
-                <span>{statusCounts.inactive} inactive</span>
-              ) : null}
-            </p>
-          ) : null}
         </div>
         <div className="pacts">
           {/* ── A BUTTON THAT ALWAYS FAILS IS NOT A BUTTON ───────────
@@ -320,6 +289,47 @@ export default function PsmSubscriptions() {
             </span>
           )}
         </div>
+        {/* ── THE COUNTS GET THEIR OWN ROW ────────────────────────
+            They were inside .ptxt, sharing a column with the title --
+            and .pacts may not shrink, so at 400px the button took its
+            width and "2 inactive" was clipped to "2 ir". They already
+            sat on their own visual line under the subtitle; what they
+            did not have was the WIDTH of one.
+
+            A sibling with flex-basis 100% on a wrapping header: the
+            title and the button keep row one, the counts get row two
+            end to end. No extra height -- that line existed already. */}
+        {/* A dash, never a zero: a count we could not read must not read
+            as "nobody is being billed". */}
+        {statusCounts ? (
+          <p className="subcounts">
+            <span className="on">
+              {statusCounts.active === null ? "—" : statusCounts.active}{" "}
+              active
+            </span>
+            {/* NULL IS NOT ZERO, AND `? :` CANNOT TELL THEM APART.
+                `active` got this right two lines up; these three used
+                truthiness, so a count we could not read rendered as
+                nothing at all -- and "who owes us money" reading as
+                "nobody does" is the one of the four that gets acted
+                on. A dash when unknown, hidden only at a real zero. */}
+            {statusCounts.pastDue === null ? (
+              <span className="due">— past due</span>
+            ) : statusCounts.pastDue > 0 ? (
+              <span className="due">{statusCounts.pastDue} past due</span>
+            ) : null}
+            {statusCounts.paused === null ? (
+              <span>— paused</span>
+            ) : statusCounts.paused > 0 ? (
+              <span>{statusCounts.paused} paused</span>
+            ) : null}
+            {statusCounts.inactive === null ? (
+              <span>— inactive</span>
+            ) : statusCounts.inactive > 0 ? (
+              <span>{statusCounts.inactive} inactive</span>
+            ) : null}
+          </p>
+        ) : null}
       </div>
 
       <div className="fbar">
