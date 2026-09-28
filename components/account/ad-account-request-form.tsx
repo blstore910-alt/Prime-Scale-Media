@@ -353,9 +353,18 @@ const BmIdFields = ({
             size="sm"
             onClick={() => write([...rows, ""])}
           >
-            {rows.some((r) => String(r ?? "").trim())
-              ? "+ Add another BM ID"
-              : "+ Add a BM ID"}
+            {/* ── "EXTRA", BECAUSE THERE IS ALREADY A BOX ──────────
+                The owner, 28-09, looking at it: "hier moet add a extra
+                bm id."
+
+                There is always one field on screen, so this button
+                never adds the FIRST one -- it adds one more. "Add a BM
+                ID" read as the way to start, next to a box that was
+                already waiting for exactly that, so the two competed
+                for the same click. Same word whether or not the first
+                box has been typed in: what the button does does not
+                change. */}
+            + Add an extra BM ID
           </Button>
         </div>
       ) : (
