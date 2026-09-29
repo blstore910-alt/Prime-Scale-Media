@@ -65,6 +65,11 @@ export type CheckItem = {
   reference: string | null;
   /** Whether a machine could have settled this and did not. */
   autoPossible: boolean;
+  /** The most we know about who this belongs to, when there is no
+   *  customer record to point at. For a deposit carrying an
+   *  old-system code, that code — which is the fact the reviewer
+   *  actually wants. */
+  knownAs?: string;
   /** Exactly what to look at, in order. */
   checklist: string[];
 };
@@ -243,6 +248,12 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
             created_at: String(d.created_at),
             reference: ref ?? (d.sender_name as string | null) ?? null,
             autoPossible: match.kind === "customer",
+            knownAs:
+              match.kind === "legacy"
+                ? `${match.code} — old system, not moved over yet`
+                : match.kind === "customer"
+                  ? match.code
+                  : undefined,
             checklist:
               match.kind === "legacy"
                 ? [

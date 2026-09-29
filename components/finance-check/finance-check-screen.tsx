@@ -48,10 +48,25 @@ export default function FinanceCheckScreen() {
     ...(ceilings.data?.unreadable ?? []),
   ];
 
-  const total = items.reduce(
-    (t, i) => Math.round((t + i.amount) * 100) / 100,
-    0,
-  );
+  // ── NEVER ONE TOTAL OVER TWO CURRENCIES ─────────────────────────
+  //
+  // This was one reduce over every item, printed with the currency of
+  // the FIRST one. Walked on production 29-09: it read
+  // "$85,940.06" — dollars and euros added together and labelled as
+  // dollars. On the screen whose job is to notice money that is not
+  // where it should be.
+  //
+  // Adding them needs a rate, and a rate picked today moves last
+  // month's figure. So they stay apart, the way /ledger and
+  // /reconciliation already keep them apart.
+  const totals = new Map<string, number>();
+  for (const i of items) {
+    totals.set(
+      i.currency,
+      Math.round(((totals.get(i.currency) ?? 0) + i.amount) * 100) / 100,
+    );
+  }
+  const byCurrency = [...totals.entries()].sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="psmview fc">
@@ -120,7 +135,13 @@ export default function FinanceCheckScreen() {
               </span>
               <span>
                 <i>Money involved</i>
-                <b>{formatCurrency(total, items[0]?.currency ?? "EUR")}</b>
+                <b>
+                  {byCurrency.length
+                    ? byCurrency
+                        .map(([cur, amt]) => formatCurrency(amt, cur))
+                        .join("  ·  ")
+                    : formatCurrency(0, "EUR")}
+                </b>
               </span>
               <span>
                 <i>A machine could have closed</i>
@@ -176,7 +197,14 @@ function Item({
           ) : null}
         </span>
         <span className="who">
-          <b>{who ?? "No customer on this"}</b>
+          {/* ── SAY THE MOST WE KNOW, NOT THE LEAST ──────────────
+              Every deposit row read "No customer on this" in bold —
+              ninety-two times, under a title that already said so.
+              For most of them we DO know something: the old-system
+              client code, which is the one fact that tells the
+              reviewer who it will belong to once that customer is
+              moved over. */}
+          <b>{who ?? item.knownAs ?? "No customer on this"}</b>
           <i>
             {dayjs(item.created_at).format("D MMM, HH:mm")}
             {days >= 1 ? ` · ${days} day${days === 1 ? "" : "s"} waiting` : ""}
