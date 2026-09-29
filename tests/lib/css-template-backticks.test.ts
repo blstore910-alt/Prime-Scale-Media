@@ -53,3 +53,57 @@ for (const file of FILES) {
     }
   });
 }
+
+/**
+ * THE SAME MISTAKE, IN A FILE THE RULE ABOVE CANNOT WATCH.
+ *
+ * 29-09: lib/shell-dark-css.ts got a CSS comment containing
+ * ```.btn.ghost``` — prose with the selector quoted, exactly as the
+ * comments elsewhere in this codebase are written. Inside a template
+ * literal that ends the string, and the file stopped parsing.
+ *
+ * That file cannot be added to FILES above: it builds its CSS from
+ * nested template literals on purpose, so "exactly one backtick after
+ * the opening" is legitimately false there.
+ *
+ * But the MISTAKE is narrower than the rule, and the narrower version
+ * works everywhere: a backtick inside a CSS comment is never anything
+ * but this bug. Nobody needs a code quote in a stylesheet comment —
+ * write the selector bare, the way the fix did.
+ */
+const COMMENT_FILES = [
+  ...FILES,
+  "lib/shell-dark-css.ts",
+  "components/admin/dashboard.tsx",
+  "components/admin/supplier-credit.tsx",
+  "components/topups/supplier-pill.tsx",
+];
+
+for (const file of COMMENT_FILES) {
+  test(`${file}: no backtick inside a CSS comment`, () => {
+    const src = fs.readFileSync(file, "utf8");
+    // Only from where the CSS starts. A JSDoc block ABOVE the function
+    // is ordinary JavaScript and quoting a selector there is both
+    // harmless and idiomatic -- the first version of this test failed
+    // on exactly that, which is the useful kind of false positive: it
+    // showed the rule was broader than the bug.
+    const open = src.search(/(?:[=(]|return)\s*`/);
+    const body = open === -1 ? "" : src.slice(open);
+    const offenders: string[] = [];
+    for (const m of body.matchAll(/\/\*[\s\S]*?\*\//g)) {
+      if (!m[0].includes("`")) continue;
+      // Only comments that sit inside a template literal can do harm,
+      // but telling those apart needs a parser. Every comment in these
+      // files is either CSS or describes it, so the flat rule is the
+      // honest one — and a backtick in any of them is still wrong.
+      offenders.push(m[0].replace(/\s+/g, " ").slice(0, 120));
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `${file}: a backtick inside a comment ends the CSS template ` +
+        `literal and the file stops parsing. Write the selector or the ` +
+        `property without quotes:\n  ` + offenders.join("\n  "),
+    );
+  });
+}

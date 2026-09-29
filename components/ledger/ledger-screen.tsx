@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import dayjs from "dayjs";
 
 import { useAppContext } from "@/context/app-provider";
 import {
   useLedgerCheck,
   useLedgerLines,
+  useLedgerSourceCounts,
   useLedgerPriorMoves,
 } from "@/hooks/use-ledger";
 import { formatCurrency } from "@/lib/utils";
@@ -66,8 +67,14 @@ export default function LedgerScreen() {
   // "All".
   //
   // An unfiltered read of its own. The chips stay put while the list
-  // reloads, and the counts are the real ones.
-  const all = useLedgerLines(tenantId, { source: "" });
+  // reloads.
+  //
+  // 29-09: en de TELLINGEN kwamen nog steeds uit een gekapte pagina.
+  // `useLedgerLines` heeft een .limit(200), dus elk getal op een chip
+  // was het aantal binnen de nieuwste tweehonderd -- terwijl de regel
+  // hierboven letterlijk beloofde dat het de echte waren. Nu een eigen
+  // telling over alle rijen, die alleen de kolom `source` leest.
+  const counts = useLedgerSourceCounts(tenantId);
   const prior = useLedgerPriorMoves(tenantId);
   const [showPrior, setShowPrior] = useState(false);
   const names = useLedgerNames(tenantId);
@@ -77,13 +84,7 @@ export default function LedgerScreen() {
   const [open, setOpen] = useState<LedgerLine | null>(null);
   const [tab, setTab] = useState<"moves" | "in" | "margin">("moves");
 
-  const sources = useMemo(() => {
-    const seen = new Map<string, number>();
-    for (const l of all.data?.rows ?? []) {
-      seen.set(l.source, (seen.get(l.source) ?? 0) + 1);
-    }
-    return [...seen.entries()].sort((a, b) => b[1] - a[1]);
-  }, [all.data]);
+  const sources: [string, number][] = counts.data?.counts ?? [];
 
   if (check.data?.notSwitchedOn || lines.data?.notSwitchedOn) {
     return (
@@ -287,7 +288,13 @@ export default function LedgerScreen() {
               }`}
               onClick={() => setSource(s)}
             >
-              {s} <span className="n">{n}</span>
+              {s}{" "}
+              <span className="n" title={counts.data?.truncated
+                ? "Er zijn meer bewegingen dan we in een keer konden tellen — dit is een ondergrens."
+                : undefined}>
+                {n}
+                {counts.data?.truncated ? "+" : ""}
+              </span>
             </button>
           ))}
         </div>

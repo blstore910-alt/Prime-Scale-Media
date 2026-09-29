@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 /**
  * THE LEDGER, AND THE ONE QUESTION IT EXISTS TO ANSWER.
@@ -158,6 +159,59 @@ export function useLedgerCheck(tenantId: string | null | undefined) {
       }
 
       return { off, notSwitchedOn: false, wallets: (wallets ?? []).length };
+    },
+  });
+}
+
+/**
+ * Hoeveel bewegingen per bron — over ALLE rijen, niet over een pagina.
+ *
+ * De chips werden geteld uit `useLedgerLines`, en die heeft een
+ * `.limit(200)`. Het getal op elke chip was dus het aantal binnen de
+ * nieuwste tweehonderd, gepresenteerd als het totaal — en het
+ * commentaar erboven beweerde letterlijk "the counts are the real
+ * ones". Dat was waar op de dag dat het geschreven werd en niet meer
+ * zodra er 201 bewegingen zijn.
+ *
+ * Alleen de kolom `source`, dus de lees blijft goedkoop ook als het
+ * grootboek groot wordt. `truncated` gaat mee naar buiten: een chip
+ * met een te laag getal is nog steeds een getal, en de gebruiker hoort
+ * te weten wanneer het een ondergrens is.
+ */
+export function useLedgerSourceCounts(tenantId: string | null | undefined) {
+  return useQuery<{
+    counts: [string, number][];
+    truncated: boolean;
+    notSwitchedOn: boolean;
+  }>({
+    queryKey: ["ledger-source-counts", tenantId ?? ""],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const res = await pageAllRows<{ source: string | null }>((from, to) =>
+        supabase
+          .from("wallet_ledger")
+          .select("source")
+          .eq("tenant_id", tenantId!)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (res.error) {
+        if (MISSING.test(res.error)) {
+          return { counts: [], truncated: false, notSwitchedOn: true };
+        }
+        throw new Error(res.error);
+      }
+      const seen = new Map<string, number>();
+      for (const r of res.rows) {
+        const k = String(r.source ?? "unknown");
+        seen.set(k, (seen.get(k) ?? 0) + 1);
+      }
+      return {
+        counts: [...seen.entries()].sort((a, b) => b[1] - a[1]),
+        truncated: res.truncated,
+        notSwitchedOn: false,
+      };
     },
   });
 }

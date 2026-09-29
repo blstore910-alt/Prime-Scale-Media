@@ -138,5 +138,37 @@ export function shellDarkCss(root: string, o: DarkTokenOverrides = {}): string {
 .dark ${root} .field select:hover,
 .dark ${root} .field textarea:focus,
 .dark ${root} .umenu-av{background:var(--panel-2)}
+
+/* ── DE WITTE GLANS OP DE GRIJZE KNOPPEN ──────────────────────────
+   De eigenaar, 29-09, met een screenshot van een lichtgrijze knop in
+   een donkere kaart: "nog steeds her en der lichtgrijze buttons."
+
+   refine-css.ts geeft .fbtn en .seg2 een background-IMAGE:
+   linear-gradient(180deg,#fff,var(--panel-2)). Op wit is dat de
+   glans bovenop een knop; op donker is het een witte knop die naar
+   beneden toe donker wordt -- precies wat hij zag bij Sort & filter.
+
+   De regel .btn.ghost heeft dezelfde gradient en was al gedekt,
+   omdat die override de shorthand-eigenschap background gebruikt en
+   die wist de image.
+   Deze twee waren nergens overschreven. Zelfde truc, zelfde reden. */
+.dark ${root} .fbtn,
+.dark ${root} .seg2{background:var(--panel-2);border-color:var(--line-2)}
+.dark ${root} .fbtn:hover{background:var(--line);border-color:var(--primary)}
+
+/* ── DE NAAD BOVEN DE ONDERBALK ───────────────────────────────────
+   "deze line boven de down bar lelijk."
+
+   De balk is var(--panel) op een ondergrond van var(--ground): in
+   donkere modus is de balk dus LICHTER dan de pagina, met daar
+   bovenop nog een rand van var(--line). Twee lichte banden op elkaar,
+   en dat leest als een naad in plaats van als een balk.
+
+   Op wit is die volgorde juist goed -- een verhoogd vlak vangt licht.
+   Op donker hoort het omgekeerd: de balk zakt naar de grond en de
+   scheiding is een haarlijn van licht, niet een tweede vlak. */
+.dark ${root} .bottombar{
+  background:color-mix(in srgb,var(--ground) 94%,transparent);
+  border-top-color:rgba(255,255,255,.06)}
 `;
 }

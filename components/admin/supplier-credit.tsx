@@ -55,9 +55,11 @@ const CSS = `
 .sc-top[disabled]:hover{background:none}
 .sc-name{font-weight:800;font-family:var(--hd);font-size:.94rem;flex:0 0 auto}
 .sc-tag{font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;flex:0 0 auto}
-.sc-tag.demo{background:#fff3d6;color:#8a5a00;border:1px solid #f0d79a}
+/* Tokens, niet drie lichte letterlijke kleuren: dit label zat vanmorgen
+   zelf in de lijst van vlakken die in donkere modus licht bleven. */
+.sc-tag.demo{background:var(--warn-soft);color:var(--warn);border:1px solid var(--line-2)}
 .sc-tag.off{background:var(--panel-2);color:var(--faint);border:1px solid var(--line)}
-.sc-tag.bad{background:#fdecec;color:#a32020;border:1px solid #f3c9c9}
+.sc-tag.bad{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line-2)}
 .sc-figs{margin-left:auto;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;justify-content:flex-end}
 .sc-fig{font-variant-numeric:tabular-nums;font-weight:800;font-size:.95rem;white-space:nowrap}
 .sc-fig .cur{font-size:.72rem;font-weight:700;color:var(--faint);margin-right:5px}
@@ -73,8 +75,8 @@ const CSS = `
 .sc-cap{font-size:.74rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
 .sc-note{font-size:.82rem;color:var(--txt-2);background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:flex-start}
 .sc-note svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
-.sc-note.warn{background:#fff8e8;border-color:#f0d79a;color:#7a5200}
-.sc-note.bad{background:#fdf0f0;border-color:#f3c9c9;color:#8f2020}
+.sc-note.warn{background:var(--warn-soft);border-color:var(--line-2);color:var(--warn)}
+.sc-note.bad{background:var(--danger-soft);border-color:var(--line-2);color:var(--danger)}
 
 .sc-foot{display:flex;align-items:center;gap:12px;padding:11px 15px;background:var(--panel-2);border-top:1px solid var(--line);flex-wrap:wrap}
 .sc-foot .lbl{font-weight:800;font-family:var(--hd);font-size:.9rem}
