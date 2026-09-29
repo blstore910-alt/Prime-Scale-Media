@@ -3278,42 +3278,39 @@ terug te verwijzen. En controleer na "plak done" met `npm run check` of
 hij echt is geland: twee keer nu meldde een plak succes terwijl zijn
 eigen marker ontbrak.
 
-## Blok 11 — de kleinere doodlopers die niet mee zijn gegaan
+## Blok 11 — de kleinere doodlopers ✅ AFGEWERKT 29-09
 
-Uit de vier agentveegjes van 29-09. Alles hieronder is GEMETEN, met
-bestand en regel, en bewust niet meegenomen omdat het geen geld of
-geen besluit raakt.
+Uit de vier agentveegjes van 29-09, en inmiddels allemaal gedaan.
+Hieronder wat het was en wat eruit is gekomen, want de reden is het
+bewaren waard ook als het werk klaar is.
 
-- **`use-topups` pagerlimieten zonder pager.** /withdrawals leest alle
-  drie de secties zonder `.limit()` en zonder pager
-  (`psm-withdrawals.tsx:536`, `:994`, `:1863`; gemeten 7 / 2 / 2 rijen).
-  `precharge-panel.tsx:79` idem. `wise-review-panel.tsx:527` heeft
-  `.limit(500)` terwijl er 356 deposits zijn en de badge server-side
-  telt -- boven 500 gaat het badge-getal boven wat het paneel kan
-  tonen.
-- **`disabledHint` ontbreekt op vier dialogen**: `verify-topup-dialog
-  :661` (alleen een `title`, onzichtbaar op een telefoon en onbetrouwbaar
-  op een disabled knop -- het voorschrift staat letterlijk in
-  `psm-verify-topups.tsx:740`), `reject-topup-dialog:146`,
-  `wallet-transaction-reject-dialog:92`,
-  `ad-account-request-reject-dialog:142`. Plus "Request refund" en
-  "Request adjustment" (`psm-withdrawals.tsx:1820`, `:2449`), waar
-  `valid` drie eisen stelt die nergens op het formulier staan.
-- **De tekst bij refund/adjustment-afwijzingen is verkeerd.** Ze
-  gebruiken `reasonFor: "withdrawal"` en zeggen "The customer reads
-  it" -- maar een refund/adjustment wordt door een ADMIN aangevraagd,
-  de klant ziet die rij nergens, en er gaat geen melding heen. De
-  reden komt correct in `decision_reason`; alleen de belofte klopt niet.
-- **De dialoog sluit vóór de schrijf** op /withdrawals
-  (`psm-withdrawals.tsx:248`): `onConfirm` doet `close()` en dan
-  `run()`, dus `busy`/`busyLabel` kunnen nooit renderen en de getypte
-  reden is weg bij een mislukking. Vergt een busy-vlag PER RIJ; de
-  huidige is "een willekeurige rij is bezig".
-- **Een knop die niet bestaat**: `verify-topup-dialog:595` rendert
-  "Push to supplier" achter `step.key === "api"`, maar `steps` bevat
-  alleen `funded` en `tell`. Die tak draait nooit, en het is de ENIGE
-  UI-aanroeper van `pushAdTopupToSupplier` -- die action is dus
-  onbereikbaar vanuit de app.
+**Gedaan** (`3702486`, `0c90644`, `918a7e1`, `4be4d45`):
+
+- De drie queues op /withdrawals hadden **geen limiet**. Nu 2000, ruim
+  boven de 7 / 2 / 2 die er staan, plus een regel die verschijnt zodra
+  de cap wordt geraakt. De bankstortingen kappen op 500 terwijl de
+  badge server-side telt: diezelfde regel, zelfde reden.
+- **`disabledHint` op vier dialogen.** De verify-dialoog droeg de reden
+  in een `title`, en die verschijnt nooit op een aanraakscherm — en op
+  een desktop vuurt de browser geen hover op een uitgeschakeld element.
+  Vier keer een regel tekst nu. En **twee gingen aan bij ÉÉN teken**
+  terwijl de server er drie wil.
+- **De tekst bij refund/adjustment-afwijzingen.** Die beloofden "The
+  customer reads it" over een reden die de klant nooit ziet — het zijn
+  ADMIN-aanvragen. Vijfde context `internal`, zes teksten geschreven
+  voor de volgende admin, en de bestaande test gesplitst in plaats van
+  verzwakt.
+- **De dialoog sloot vóór de schrijf**, dus een getypte reden was weg
+  bij een mislukking. De dialoog heeft nu zijn eigen bezig-vlag, wat
+  ook de dubbele klik oplost waarvoor het sluiten ooit bedoeld was.
+- **Een knop die niet bestond.** De `step.key === "api"`-tak met "Push
+  to supplier" kon niet draaien; die stap was eerder al met reden
+  verwijderd. 56 regels weg, en `pushAdTopupToSupplier` staat nu in
+  `docs/UNREACHABLE.md` met waarom en waar te beginnen als hij ooit
+  echt gebouwd wordt.
+
+**Wat er van dit blok nog OPEN staat:**
+
 - **Geen weg terug op /top-ups.** /wallet-topups heeft Undo (RPC
   bestaat); voor ad-account-topups bestaat er geen equivalent op live.
   Een per ongeluk geverifieerde is alleen met de hand terug te draaien.
