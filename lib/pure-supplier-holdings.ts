@@ -258,3 +258,80 @@ export function visibleLines(lines: HoldingLine[]): HoldingLine[] {
   const real = lines.filter((l) => Math.abs(l.total) > 0.004);
   return real.length ? real : lines;
 }
+
+export type GrandTotal = {
+  /** Alles bij elkaar per valuta, over leveranciers EN de bank heen. */
+  eur: number;
+  usd: number;
+  /** Allebei omgerekend naar euro. Null als er geen koers is. */
+  combinedEur: number | null;
+  /** De koers die gebruikt is: euro per dollar. */
+  rate: number | null;
+  /** Wie er NIET in zit, en waarom. Leeg is het antwoord compleet. */
+  excluded: { supplier: string; why: string }[];
+  /** Valuta's die we niet kunnen omrekenen en dus buiten combinedEur
+   *  vallen -- genoemd in plaats van stil weggelaten. */
+  notConverted: string[];
+};
+
+/**
+ * ALLES BIJ ELKAAR, IN EEN GETAL.
+ *
+ * De eigenaar, 29-09: "hieronder ook totaal eur + usd en samen
+ * converted tot EUR."
+ *
+ * Dit is een ANDER totaal dan het per-leveranciers-totaal dat eruit
+ * ging. Dat vroeg "hoeveel krediet heb ik", en daar is geen antwoord
+ * op omdat krediet bij de een niets koopt bij de ander. Dit vraagt
+ * "hoeveel geld is er", en dat is een echte vraag met een echt
+ * antwoord.
+ *
+ * WAT ER NIET IN MAG. Een leverancier op `demo` levert de verzonnen
+ * cijfers van de mock (USD 5.000 / EUR 2.000), en een op `error`
+ * levert niets. Allebei blijven ze eruit, en allebei worden ze bij
+ * naam genoemd -- want een totaal waar stilletjes een leverancier
+ * uit weggelaten is, is precies het soort zelfverzekerd cijfer waar
+ * dit project een test voor heeft.
+ */
+export function grandTotal(
+  suppliers: SupplierHolding[] | null | undefined,
+  usdToEur: number | null | undefined,
+): GrandTotal {
+  const rate =
+    typeof usdToEur === "number" && Number.isFinite(usdToEur) && usdToEur > 0
+      ? usdToEur
+      : null;
+  const excluded: { supplier: string; why: string }[] = [];
+  const other = new Set<string>();
+  let eur = 0;
+  let usd = 0;
+
+  for (const s of suppliers ?? []) {
+    if (s.status === "demo") {
+      excluded.push({ supplier: s.supplier, why: "test data" });
+      continue;
+    }
+    if (s.status === "error") {
+      excluded.push({ supplier: s.supplier, why: "could not be read" });
+      continue;
+    }
+    // `off` levert geen regels en hoeft niet genoemd: er staat niets,
+    // en dat is geen onbekende maar een nul.
+    for (const l of s.lines) {
+      if (l.currency === "EUR") eur += l.total;
+      else if (l.currency === "USD") usd += l.total;
+      else if (Math.abs(l.total) > 0.004) other.add(l.currency);
+    }
+  }
+
+  eur = cents(eur);
+  usd = cents(usd);
+  return {
+    eur,
+    usd,
+    combinedEur: rate === null ? null : cents(eur + usd * rate),
+    rate,
+    excluded,
+    notConverted: [...other].sort(),
+  };
+}

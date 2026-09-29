@@ -721,6 +721,45 @@ const realSupplier1Adapter: Supplier1Adapter = {
   },
 };
 
+/**
+ * HET ECHTE SALDO, OOK ALS DE MODE OP MOCK STAAT.
+ *
+ * De eigenaar, 29-09: "en van seamx kun je toch ook de echte balans
+ * pakken?" Ja, en het onderscheid is de moeite waard om op te
+ * schrijven.
+ *
+ * `SUPPLIER1_MODE` bestaat om te voorkomen dat er echt geld naar
+ * SeamX wordt GEDUWD voordat iemand dat bewust aanzet -- zie
+ * autopush.ts, waar een spatie achter "live " ooit de geldpoort
+ * opende terwijl de mock het werk deed. Dat is een schrijfbeveiliging.
+ *
+ * Een saldo LEZEN is daar geen onderdeel van. Het verplaatst niets,
+ * het kan niets stukmaken, en het is precies het cijfer dat je wilt
+ * zien om te beoordelen of de mode aan mag. De mock teruggeven op die
+ * vraag is een verzonnen antwoord op een veilige vraag.
+ *
+ * Dus: staan de sleutels er, dan leest dit het echte saldo, wat de
+ * mode ook zegt. Staan ze er niet, dan is er niets te lezen en zegt
+ * de aanroeper dat -- geen mockcijfers op een scherm waar iemand op
+ * beslist.
+ *
+ * `getSupplier1Adapter()` blijft onaangeraakt: dat is de weg waar
+ * geld langs gaat en die hangt terecht aan de vlag.
+ */
+export async function readLiveSupplier1Balance(): Promise<
+  IntegrationResult<{
+    usd_balance: number;
+    eur_balance: number;
+    available_usd: number;
+    available_eur: number;
+  }>
+> {
+  if (!process.env.SUPPLIER1_BASE_URL || !process.env.SUPPLIER1_AUTH_TOKEN) {
+    return { ok: false, error: NOT_CONFIGURED, retryable: false };
+  }
+  return realSupplier1Adapter.getWalletBalance();
+}
+
 export function getSupplier1Adapter(): Supplier1Adapter {
   // One shared reading of the env var — see supplier1Mode() for why a local
   // copy of this parsing is a money bug and not a style nit.

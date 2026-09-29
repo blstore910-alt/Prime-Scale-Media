@@ -6,6 +6,7 @@ import {
   seamxHoldings,
   totalHoldings,
   visibleLines,
+  grandTotal,
   type SupplierHolding,
 } from "../../lib/pure-supplier-holdings.ts";
 
@@ -248,4 +249,84 @@ test("a negative balance is not hidden", () => {
     visibleLines([line("EUR", -40), line("USD", 0)]).map((l) => l.currency),
     ["EUR"],
   );
+});
+
+// ── ALLES BIJ ELKAAR, EN WAT ER NIET IN MAG ────────────────────────
+
+const RATE = 0.87803741;
+
+test("euro plus dollar, en allebei omgerekend naar euro", () => {
+  const g = grandTotal(
+    [
+      ok("RockAds", [line("EUR", 5_582.08), line("USD", 5_372.43)]),
+      { supplier: "Wise", kind: "bank", status: "ok", error: null,
+        lines: [line("EUR", 10_293.19), line("USD", 4_857.15)] },
+    ],
+    RATE,
+  );
+  assert.equal(g.eur, 15_875.27);
+  assert.equal(g.usd, 10_229.58);
+  assert.equal(g.combinedEur, Math.round((15_875.27 + 10_229.58 * RATE) * 100) / 100);
+  assert.deepEqual(g.excluded, []);
+});
+
+test("de mock telt NIET mee, en wordt bij naam genoemd", () => {
+  const g = grandTotal(
+    [
+      ok("RockAds", [line("EUR", 100)]),
+      { supplier: "SeamX", status: "demo", error: null,
+        lines: [line("EUR", 2_000), line("USD", 5_000)] },
+    ],
+    RATE,
+  );
+  assert.equal(g.eur, 100);
+  assert.equal(g.usd, 0);
+  assert.deepEqual(g.excluded, [{ supplier: "SeamX", why: "test data" }]);
+});
+
+test("een leverancier die niet antwoordde telt niet mee en wordt genoemd", () => {
+  const g = grandTotal(
+    [ok("RockAds", [line("EUR", 100)]),
+     { supplier: "SeamX", status: "error", error: "timeout", lines: [] }],
+    RATE,
+  );
+  assert.deepEqual(g.excluded, [{ supplier: "SeamX", why: "could not be read" }]);
+});
+
+test("uitgeschakeld hoeft niet genoemd: dat is een nul, geen onbekende", () => {
+  const g = grandTotal(
+    [ok("RockAds", [line("EUR", 100)]),
+     { supplier: "SeamX", status: "off", error: null, lines: [] }],
+    RATE,
+  );
+  assert.deepEqual(g.excluded, []);
+});
+
+test("zonder koers geen omgerekend getal -- en geen verzonnen koers", () => {
+  const g = grandTotal([ok("RockAds", [line("EUR", 10), line("USD", 10)])], null);
+  assert.equal(g.eur, 10);
+  assert.equal(g.usd, 10);
+  assert.equal(g.combinedEur, null);
+  assert.equal(g.rate, null);
+});
+
+test("een koers van nul of negatief telt niet als koers", () => {
+  assert.equal(grandTotal([ok("X", [line("EUR", 1)])], 0).combinedEur, null);
+  assert.equal(grandTotal([ok("X", [line("EUR", 1)])], -1).combinedEur, null);
+});
+
+test("een derde valuta valt buiten de omrekening en wordt genoemd", () => {
+  const g = grandTotal(
+    [ok("Wise", [line("EUR", 10), line("GBP", 500)])],
+    RATE,
+  );
+  assert.equal(g.eur, 10);
+  assert.deepEqual(g.notConverted, ["GBP"]);
+  // en hij is NIET stilletjes bij de euro's opgeteld
+  assert.equal(g.combinedEur, 10);
+});
+
+test("een derde valuta op nul is geen vermelding waard", () => {
+  const g = grandTotal([ok("Wise", [line("EUR", 10), line("GBP", 0)])], RATE);
+  assert.deepEqual(g.notConverted, []);
 });

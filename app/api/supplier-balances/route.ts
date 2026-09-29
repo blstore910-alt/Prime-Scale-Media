@@ -24,15 +24,19 @@ import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { NextResponse } from "next/server";
 import { fetchRockadsWallets } from "@/lib/integrations/rockads-api";
 import { fetchWiseBalances } from "@/lib/integrations/wise-api";
-import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
-import { isSupplier1Live } from "@/lib/integrations/autopush";
+import {
+  getSupplier1Adapter,
+  readLiveSupplier1Balance,
+} from "@/lib/integrations/supplier1";
 import { safeErrorMessage } from "@/lib/pure-error";
 import {
+  grandTotal,
   rockadsHoldings,
   seamxHoldings,
   totalHoldings,
   type SupplierHolding,
 } from "@/lib/pure-supplier-holdings";
+import { createClient } from "@/lib/supabase/server";
 
 // Live figures. A cached supplier balance is worse than none: it is the
 // number somebody funds against, and it would be stale by exactly as
@@ -86,26 +90,66 @@ async function rockads(): Promise<SupplierHolding> {
 // total.
 async function seamx(): Promise<SupplierHolding> {
   const base = { supplier: "SeamX" } as const;
-  const live = isSupplier1Live();
-  if (live && !seamxOn()) {
-    return { ...base, status: "off", error: null, readAt: null, lines: [] };
-  }
   try {
-    const res = await getSupplier1Adapter().getWalletBalance();
-    if (!res.ok) {
-      return { ...base, status: "error", error: res.error, readAt: new Date().toISOString(), lines: [] };
+    // ── HET ECHTE SALDO EERST ──────────────────────────────────
+    //
+    // SUPPLIER1_MODE is een schrijfbeveiliging: hij houdt tegen dat
+    // er geld naar SeamX wordt geduwd. Een saldo lezen valt daar
+    // niet onder, en de mock teruggeven op die vraag is een verzonnen
+    // antwoord (USD 5.000 / EUR 2.000) op precies het cijfer waar
+    // iemand op beslist of de mode aan mag.
+    const live = await readLiveSupplier1Balance();
+    if (live.ok) {
+      return {
+        ...base,
+        status: "ok",
+        error: null,
+        readAt: new Date().toISOString(),
+        lines: seamxHoldings(live.data),
+      };
     }
+
+    // Sleutels staan er niet: dan valt er niets te lezen. De mock
+    // wordt WEL getoond, want weten dat de mock aanstaat is meer
+    // waard dan een leeg vak -- maar gelabeld en buiten elk totaal.
+    if (!seamxOn()) {
+      const mock = await getSupplier1Adapter().getWalletBalance();
+      if (!mock.ok) {
+        return {
+          ...base,
+          status: "off",
+          error: null,
+          readAt: null,
+          lines: [],
+        };
+      }
+      return {
+        ...base,
+        status: "demo",
+        error:
+          "No SeamX credentials are set, so these are the mock adapter's figures — not money.",
+        readAt: new Date().toISOString(),
+        lines: seamxHoldings(mock.data),
+      };
+    }
+
+    // Sleutels staan er wel en SeamX antwoordde niet. Dat is een
+    // storing en moet als storing lezen, niet als mockcijfers.
     return {
       ...base,
-      status: live ? "ok" : "demo",
+      status: "error",
+      error: live.error,
       readAt: new Date().toISOString(),
-      error: live
-        ? null
-        : "SUPPLIER1_MODE is not 'live', so these are the mock adapter's figures, not SeamX's.",
-      lines: seamxHoldings(res.data),
+      lines: [],
     };
   } catch (err) {
-    return { ...base, status: "error", error: safeErrorMessage(err), readAt: new Date().toISOString(), lines: [] };
+    return {
+      ...base,
+      status: "error",
+      error: safeErrorMessage(err),
+      readAt: new Date().toISOString(),
+      lines: [],
+    };
   }
 }
 
@@ -162,8 +206,34 @@ async function wise(): Promise<SupplierHolding> {
 }
 
 export async function GET() {
-  const { error } = await apiRequireAdmin();
+  const { error, profile } = await apiRequireAdmin();
   if (error) return error;
+
+  // ── DE KOERS, VOOR HET SAMENGETELDE BEDRAG ────────────────────
+  //
+  // `.limit(1)` en niet maybeSingle(): er staan vandaag TWEE actieve
+  // USD-rijen op deze tenant (gemeten), en maybeSingle() geeft dan
+  // geen eerste rij terug maar een fout -- waarna het omgerekende
+  // bedrag stilletjes zou verdwijnen. Nieuwste wint.
+  //
+  // Geen koers is geen koers: dan blijft het omgerekende getal leeg
+  // in plaats van dat er een uit de lucht wordt gegrepen.
+  let usdToEur: number | null = null;
+  try {
+    const supabase = await createClient();
+    const { data: rates } = await supabase
+      .from("exchange_rates")
+      .select("eur, updated_at")
+      .eq("tenant_id", profile!.tenant_id)
+      .eq("is_active", true)
+      .eq("currency", "USD")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    const r = Number((rates ?? [])[0]?.eur);
+    if (Number.isFinite(r) && r > 0) usdToEur = r;
+  } catch {
+    /* geen koers is geen ramp -- het samengetelde bedrag blijft leeg */
+  }
 
   // Neither of these rejects — both resolve to a status — but allSettled
   // guarantees that even a throw inside the guard clauses cannot turn
@@ -189,6 +259,7 @@ export async function GET() {
   const total = totalHoldings(suppliers.filter((s) => s.kind !== "bank"));
   return NextResponse.json({
     suppliers,
+    grand: grandTotal(suppliers, usdToEur),
     total: total.lines,
     // False means one supplier did not answer, so the sum below is not
     // everything we hold. The panel prints "at least" rather than a
