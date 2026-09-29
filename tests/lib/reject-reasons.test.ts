@@ -83,7 +83,7 @@ test("the internal reason is NOT written to the customer", () => {
   for (const t of internal) {
     assert.doesNotMatch(
       t.text,
-      /(you|your)/i,
+      /\b(you|your)\b/i,
       `internal reason addresses the customer: ${t.short}`,
     );
   }

@@ -4,6 +4,7 @@ import { UserProfile } from "@/lib/types/user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAppContext } from "@/context/app-provider";
+import { tenantIssuerCompany } from "@/lib/tenant-issuer";
 
 export function useProfileData() {
   // ── THE PROFILE THE REST OF THE APP IS USING ──────────────────────
@@ -77,14 +78,14 @@ export function useProfileData() {
       } else if (profile.role === "admin" && profile.tenant_id) {
         // Admin: the tenant-level company row (advertiser_id NULL).
         // Shown on issued invoices and referral commission emails.
-        const { data: companyData, error: companyError } = await supabase
-          .from("companies")
-          .select("*")
-          .eq("tenant_id", profile.tenant_id)
-          .is("advertiser_id", null)
-          .maybeSingle();
-        if (companyError) throw companyError;
-        company = companyData;
+        // See lib/tenant-issuer.ts: more than one row here used to
+        // throw, and deleting a test advertiser was enough to cause it.
+        const issuerRead = await tenantIssuerCompany(
+          supabase,
+          profile.tenant_id,
+        );
+        if (!issuerRead.ok) throw new Error(issuerRead.error ?? "read failed");
+        company = issuerRead.issuer as unknown as Company | null;
       }
 
       return { profile: profile as UserProfile, advertiser, company };

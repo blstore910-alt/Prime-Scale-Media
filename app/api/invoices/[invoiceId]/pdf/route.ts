@@ -14,6 +14,7 @@ import {
   type InvoiceRecord,
 } from "@/lib/invoice-pdf";
 import { invoiceNumber } from "@/lib/payment-reference";
+import { tenantIssuerCompany } from "@/lib/tenant-issuer";
 
 export const runtime = "nodejs";
 
@@ -208,14 +209,17 @@ export async function GET(
     // client so the customer's copy is the same document as ours, and
     // say so when it cannot be read rather than quietly inventing one.
     const issuerDb = await createAdminClient();
-    const { data: issuerCompany, error: issuerError } = await issuerDb
-      .from("companies")
-      .select(
-        "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
-      )
-      .eq("tenant_id", activeProfile.tenant_id)
-      .is("advertiser_id", null)
-      .maybeSingle();
+    // One issuer per tenant -- but `companies.advertiser_id` is ON
+    // DELETE SET NULL, so deleting an advertiser turns their company
+    // into a second one. `maybeSingle()` ERRORS on two rows, so this
+    // used to take invoicing down tenant-wide. See lib/tenant-issuer.ts.
+    const issuerRead = await tenantIssuerCompany(
+      issuerDb,
+      activeProfile.tenant_id,
+      "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
+    );
+    const issuerCompany = issuerRead.issuer;
+    const issuerError = issuerRead.ok ? null : new Error(issuerRead.error ?? "");
     if (issuerError) {
       // Not a fallback. A tax document that names the wrong issuer is
       // worse than one that does not arrive.

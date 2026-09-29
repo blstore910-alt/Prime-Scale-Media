@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createClient } from "@/lib/supabase/server";
+import { tenantIssuerCompany } from "@/lib/tenant-issuer";
 import {
   ActionResult,
   checkVersion,
@@ -326,12 +327,36 @@ export async function updateOwnProfileAndCompany(input: {
       // Admin manages the tenant-level company row (advertiser_id NULL,
       // one per tenant). This is what shows up on issued invoices.
       cleaned.advertiser_id = null;
-      const { data: existing } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("tenant_id", profileRow.tenant_id)
-        .is("advertiser_id", null)
-        .maybeSingle();
+      // ── A FAILED READ MUST NOT BECOME A SECOND ISSUER ────────
+      //
+      // This was a `maybeSingle()` with the error DISCARDED. On more
+      // than one issuer row that returns PGRST116 and no data, so
+      // `existing` was undefined, so it fell to the else and INSERTED
+      // ANOTHER ONE — and the next save found three, and so on. A bug
+      // that makes itself worse every time somebody tries to use the
+      // screen.
+      //
+      // It is reachable: `companies.advertiser_id` is ON DELETE SET
+      // NULL, so deleting an advertiser turns their company into an
+      // issuer. Measured 29-09: the real tenant has 1 issuer and 11
+      // customer companies, all eleven on the test accounts we are
+      // about to clear out.
+      //
+      // Now: one deterministic read, and a failed read STOPS rather
+      // than inserting. See lib/tenant-issuer.ts.
+      const issuerRead = await tenantIssuerCompany(
+        supabase,
+        profileRow.tenant_id,
+        "id",
+      );
+      if (!issuerRead.ok) {
+        return {
+          ok: false,
+          error:
+            "We could not read your company details just now, so nothing was saved. Try again — saving over a read that failed is how a second set of details gets created.",
+        };
+      }
+      const existing = issuerRead.issuer as { id?: string } | null;
       if (existing?.id) {
         if (!(await checkVersion(supabase, "companies", existing.id, input.ifUpdatedAt))) {
           return {

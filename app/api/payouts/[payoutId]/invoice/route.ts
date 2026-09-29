@@ -15,6 +15,7 @@ import {
   payoutSequence,
   type PayoutRefRow,
 } from "@/lib/pure-payout-ref";
+import { tenantIssuerCompany } from "@/lib/tenant-issuer";
 
 export const runtime = "nodejs";
 
@@ -185,12 +186,25 @@ export async function GET(
 
     // Our own company: the tenant-level row an admin filled in, or the
     // env fallback the invoice PDF uses.
-    const { data: issuer } = await admin
-      .from("companies")
-      .select("name, address, state, country, zipcode, vat_no, registration_no, official_email")
-      .eq("tenant_id", head.tenant_id)
-      .is("advertiser_id", null)
-      .maybeSingle();
+    // See lib/tenant-issuer.ts. Here the error was already swallowed,
+    // so two issuers meant the payout invoice quietly printed the env
+    // fallback with no VAT and no registration number on it.
+    const issuer = (
+      await tenantIssuerCompany(
+        admin,
+        head.tenant_id,
+        "name, address, state, country, zipcode, vat_no, registration_no, official_email",
+      )
+    ).issuer as {
+      name?: string;
+      address?: string;
+      state?: string;
+      country?: string;
+      zipcode?: string;
+      vat_no?: string;
+      registration_no?: string;
+      official_email?: string;
+    } | null;
 
     const issuerName = issuer?.name || process.env.INVOICE_ISSUER_NAME || "Prime Scale Media";
     const issuerLines = [

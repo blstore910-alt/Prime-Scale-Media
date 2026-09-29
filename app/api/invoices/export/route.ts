@@ -14,6 +14,7 @@ import {
   type CompanyRecord,
   type InvoiceRecord,
 } from "@/lib/invoice-pdf";
+import { tenantIssuerCompany } from "@/lib/tenant-issuer";
 
 // ── EVERY INVOICE IN A PERIOD, AS ONE DOWNLOAD ──────────────────────
 //
@@ -193,15 +194,17 @@ export async function GET(request: NextRequest) {
     // in the single-invoice route -- RLS hides this row from the
     // advertiser asking for their own invoices.
     const issuerDb = await createAdminClient();
-    const { data: issuerCompany, error: issuerError } = await issuerDb
-      .from("companies")
-      .select(
-        "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
-      )
-      .eq("tenant_id", me.tenant_id)
-      .is("advertiser_id", null)
-      .maybeSingle();
-    if (issuerError) throw issuerError;
+    // One issuer per tenant -- but `companies.advertiser_id` is ON
+    // DELETE SET NULL, so deleting an advertiser turns their company
+    // into a second one. `maybeSingle()` ERRORS on two rows, so this
+    // used to take invoicing down tenant-wide. See lib/tenant-issuer.ts.
+    const issuerRead = await tenantIssuerCompany(
+      issuerDb,
+      me.tenant_id,
+      "name, official_email, phone, website_url, registration_no, vat_no, is_not_vat, address, state, country, zipcode",
+    );
+    if (!issuerRead.ok) throw new Error(issuerRead.error ?? "issuer read failed");
+    const issuerCompany = issuerRead.issuer;
 
     // The advertisers whose invoice does not name a company. One read
     // for the lot rather than one per invoice.
