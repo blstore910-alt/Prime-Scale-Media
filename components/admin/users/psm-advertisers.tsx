@@ -516,9 +516,27 @@ export default function PsmAdvertisers() {
         <div className="ptxt">
           <h1>{isAffiliateTab ? "Affiliates" : "Advertisers"}</h1>
           <p>
-            {isAffiliateTab
-              ? "Who refers, what they have earned."
-              : "Plans, money and status."}
+            {/* ── THIS TAB IS A ROLE, NOT THE AFFILIATE BOOK ─────
+                It said "Who refers, what they have earned", which is
+                what /affiliates does. This list filters on
+                `user_profiles.role = 'affiliate'`, so it leaves out
+                an ADVERTISER whose affiliate application was approved
+                — a shape this app supports on purpose.
+                Measured 29-09: this tab showed 4 while the book at
+                /affiliates showed 7, and the missing PSM0005 has
+                earned EUR 24,96. Nothing was wrong with the query;
+                the sentence over it promised the other screen's job.
+            */}
+            {isAffiliateTab ? (
+              <>
+                People whose role is affiliate. An advertiser who was
+                also approved as one is under Advertisers — the full
+                book, with earnings and what is owed, is on{" "}
+                <a href="/affiliates">Affiliates</a>.
+              </>
+            ) : (
+              "Plans, money and status."
+            )}
           </p>
           {kindCounts ? (
             <p className="subcounts">
