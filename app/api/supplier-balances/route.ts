@@ -133,7 +133,17 @@ async function wise(): Promise<SupplierHolding> {
       status: "ok",
       error: null,
       readAt: new Date().toISOString(),
-      lines: balances
+      // LEGE VALUTA ERUIT. Wise geeft elke rekening die bestaat terug,
+      // ook de GBP- en HKD-rekening waar niets op staat. Op een paneel
+      // dat de vraag "wat kunnen we vandaag uitgeven" beantwoordt zijn
+      // dat twee regels die niets zeggen.
+      //
+      // Maar alleen als er iets ANDERS is: staat alles op nul, dan is
+      // nul het antwoord en hoort het er te staan. Anders zou een lege
+      // bank lezen als een bank die niet antwoordde.
+      lines: (balances.some((b) => Math.abs(b.amount) > 0.004)
+        ? balances.filter((b) => Math.abs(b.amount) > 0.004)
+        : balances)
         .map((b) => ({
           currency: b.currency,
           total: b.amount,
