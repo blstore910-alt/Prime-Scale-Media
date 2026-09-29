@@ -1115,6 +1115,69 @@ opnieuw als bevinding opschrijven.**
 | T7 | **De afwijzing van een aanvraag die per FACTUUR betaald was.** Het geld hoort terug te komen als goedgekeurde wallet-correctie. | 6 | vergt een aanvraag via "Create Invoice" in plaats van de wallet; geen enkele bestaande rij loopt zo |
 | T8 ✅ | **GELOPEN 27-09.** "Profile updated successfully", database op United States. Meteen een tikfout gecorrigeerd die op elke factuur stond. Oorspronkelijk: Werkt pas sinds plak 102; daarvoor kon niemand het bedrijf van de organisatie bewaren. | 1 | plak 102 is net gedraaid |
 
+## DE LOOP VAN 29-09, 17:30 — als de TWEEDE eigenaar
+
+Gelopen in Chrome, ingelogd als `contact@primescalemedia.com` (Lasse).
+Dit is de stap die in blok 11, 13 en 14 openstond als "structureel
+geverifieerd, niet waargenomen". Nu waargenomen.
+
+**Wat bewezen is**
+
+- **De tweede eigenaar kan echt handelen.** Het dashboard laadt
+  volledig, inclusief *Profit & activity* en *System* — allebei
+  eigenaar-alleen. Dat is `/api/stats`, dat hem tot een uur eerder nog
+  403 gaf.
+- **Een bevoegdheid toekennen werkt**, en het auditlog ziet het. Ik
+  heb "Ask customers a question" bij Admin 1 aangezet en meteen weer
+  uit; `admin_capabilities` staat weer op 0 rijen, en in
+  `audit_events` staan **twee regels — INSERT 17:33:55 en DELETE
+  17:34:08, allebei op naam van contact@primescalemedia.com**. Dat is
+  meteen het bewijs voor de actor-fix van plak 132, die tot vandaag
+  alleen machineregels had gezien.
+- **/ledger** leest zoals gevraagd: elke regel met de klant erbij
+  (F2 Walkthrough BV, Padoel Media BV, Blok4 Test BV), "Opening
+  balance" in woorden, en 41 bewegingen van vóór het grootboek. *Came
+  in* houdt EUR en USD apart (EUR 44.645 aangekomen / 5,00 gematcht /
+  44.640 wachtend / 1.165 gecrediteerd). *We keep* komt uit op
+  **EUR 122,34**, exact het cijfer dat `lib/pure-margin.ts` vastpint,
+  met de doorstroomregels grijs en doorgestreept.
+- **/finance-check** classificeert de 92 stortingen zoals bedoeld,
+  inclusief codes die in tekst verstopt zitten: `PSM1737 Tribe`,
+  `PSM2129 (topup)`, `Top-up Patrick Benschop - PSM2149/PSM2149`,
+  `Top up : psm 2073`.
+- **/admins → Permissions** staat er compleet: zeventien schakelaars
+  in vier groepen, read-only bovenaan met de uitleg dat hij andersom
+  werkt, "PAGE ONLY" op de finance-check, en "Owners only" op de twee
+  die niet gegeven kunnen worden.
+
+**Wat de loop VOND, en wat lopen dus oplevert**
+
+Drie fouten, alle drie van vandaag, alle drie binnen vier minuten
+gevonden door de pagina te openen — en geen van drieën door een test
+of een agent:
+
+1. **`/commissions` zei "No commissions yet" boven zes echte rijen.**
+   Ik verving `select("*")` door een kolomlijst om de inkoopprijs
+   tegen te houden, en zette er `idx` in omdat het type dat noemt. Die
+   kolom bestaat niet op de view en heeft nooit bestaan — `*` vroeg er
+   nooit om, dus het type loog al die tijd in stilte. Een kolomlijst
+   maakt van die leugen een 400, en het scherm viel terug op zijn lege
+   staat (`4ee3145`).
+2. **/finance-check telde euro's en dollars bij elkaar op**:
+   "Money involved $85,940.06", een reduce over alles met de valuta van
+   de eerste regel (`f3ae61e`).
+3. **Het grootboek gaf een oordeel boven een lees die nog liep**: de
+   kop zei "Checking the books…" en de regel eronder tegelijk "Every
+   wallet balance equals the sum of its own movements (0 wallets)"
+   (`7931541`).
+
+Alle drie zijn de fout waar dit project al een test voor heeft — een
+zelfverzekerd cijfer boven iets wat niet klopt — en alle drie had ik ze
+zelf die ochtend gemaakt. Het verschil is dat ze nu binnen een minuut
+gevonden werden, omdat iemand de pagina opende.
+
+---
+
 ## Logboek
 
 | blok | gelopen | gefixt | open |
