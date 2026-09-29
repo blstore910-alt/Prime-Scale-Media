@@ -46,165 +46,129 @@ type Payload = {
 };
 
 const CSS = `
-/* ── EEN KAART DIE JE ELKE DAG WILT OPENEN ─────────────────────────
-   De eigenaar, 29-09: "nog steeds geen wow effect, ik moet dit elke
-   dag bekijken."
+/* ── EEN MATRIX, GEEN STAPEL KAARTEN ───────────────────────────────
+   De eigenaar, 29-09: "dit moet 10x mooier en kleiner zodat we bijna
+   alle data op 1 mobile scherm kunnen zien."
 
-   Wat er stond waren twee regels tekst per leverancier. Wat je elke
-   dag wilt zien is HET BEDRAG, en dat stond in dezelfde grootte als
-   alles eromheen. Nu is elk bedrag een eigen tegel: valutacode klein
-   erboven, het getal groot eronder, in een vak met een eigen rand.
-   Vier tegels op een scherm lezen als vier potten geld in plaats van
-   als een zin met cijfers erin.
+   Het probleem was de VORM, niet de maat. Elke leverancier had een
+   kop plus twee tegels, dus drie leveranciers zijn altijd drie
+   schermen -- hoe klein je de letters ook maakt.
 
-   En: alles deelt EEN marge (--sc-pad), en de synctijd staat in een
-   vaste kolom rechts, zodat de drie onder elkaar uitlijnen ook als er
-   maar bij een een chevron staat. Dat was de tweede klacht en het was
-   letterlijk de chevron die hem verschoof. */
-.sc{--sc-pad:16px;border:1px solid var(--line);border-radius:16px;
+   Nu een matrix: leveranciers als rijen, valuta als kolommen. Alles
+   past op een half scherm, en je kunt bovendien EUR over de
+   leveranciers heen vergelijken, wat met tegels onder elkaar niet
+   ging. Kleiner en beter tegelijk, en dat is de enige soort
+   verkleining die de moeite waard is. */
+.sc{--sc-pad:13px;border:1px solid var(--line);border-radius:14px;
   background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
 
-.sc-head{display:flex;align-items:center;gap:10px;
-  padding:11px var(--sc-pad);
+.sc-head{display:flex;align-items:center;gap:9px;padding:10px var(--sc-pad);
   background:linear-gradient(180deg,var(--primary-tint),transparent)}
-.sc-ic{width:28px;height:28px;border-radius:9px;background:var(--panel);
+.sc-ic{width:26px;height:26px;border-radius:8px;background:var(--panel);
   color:var(--primary-600);display:grid;place-items:center;flex:0 0 auto;
   box-shadow:var(--shadow-sm)}
-.sc-ic svg{width:15px;height:15px}
+.sc-ic svg{width:14px;height:14px}
 .sc-htxt{flex:1 1 auto;min-width:0}
-.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:.97rem;
+.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:.94rem;
   letter-spacing:-.01em;color:var(--ink);line-height:1.2}
-.sc-sub{margin:1px 0 0;color:var(--faint);font-size:.73rem;line-height:1.3;
+.sc-sub{margin:0;color:var(--faint);font-size:.7rem;line-height:1.3;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sc-re{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
-  border:1px solid var(--line);background:var(--panel);border-radius:9px;
-  padding:5px 10px;font-size:.75rem;font-weight:700;color:var(--txt-2);
-  line-height:1.35;cursor:pointer}
+.sc-re{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--line);background:var(--panel);border-radius:8px;
+  padding:5px 9px;font-size:.73rem;font-weight:700;color:var(--txt-2);
+  line-height:1.3;cursor:pointer}
 .sc-re:hover{background:var(--panel-2);border-color:var(--primary)}
 .sc-re svg{width:13px;height:13px}
 .sc-re[disabled]{opacity:.55;cursor:default}
 
-.sc-body{display:flex;flex-direction:column}
-.sc-row{border-top:1px solid var(--line)}
-.sc-row.bank{background:var(--panel-2)}
-.sc-top{display:block;width:100%;padding:9px var(--sc-pad) 11px;
-  background:none;border:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
-.sc-top:hover{background:var(--panel-2)}
-.sc-row.bank .sc-top:hover{background:var(--line)}
-.sc-top[disabled],.sc-top[disabled]:hover{cursor:default;background:none}
-.sc-row.bank .sc-top[disabled]:hover{background:none}
+/* DE MATRIX. Eerste kolom groeit, valutakolommen zijn even breed en
+   rechts uitgelijnd zodat de cijfers onder elkaar staan. */
+.sc-grid{width:100%;border-collapse:collapse;font-size:.83rem}
+.sc-grid th,.sc-grid td{padding:7px var(--sc-pad);text-align:right;
+  border-top:1px solid var(--line);vertical-align:middle}
+.sc-grid th:first-child,.sc-grid td:first-child{text-align:left;width:99%}
+.sc-grid thead th{padding-top:6px;padding-bottom:6px;font-size:.62rem;
+  font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--faint);white-space:nowrap}
+.sc-grid tbody tr.bank{background:var(--panel-2)}
+.sc-grid tbody tr.click{cursor:pointer}
+.sc-grid tbody tr.click:hover{background:var(--panel-2)}
+.sc-grid tbody tr.open{background:var(--primary-tint)}
 
-.sc-l1{display:flex;align-items:center;gap:8px}
-.sc-dot{width:7px;height:7px;border-radius:99px;flex:0 0 auto;background:var(--win)}
+.sc-who{display:flex;align-items:center;gap:7px}
+.sc-dot{width:6px;height:6px;border-radius:99px;flex:0 0 auto;background:var(--win)}
 .sc-dot.warn{background:var(--warn)}
 .sc-dot.bad{background:var(--danger)}
 .sc-dot.idle{background:var(--line-2)}
-.sc-name{font-weight:800;font-family:var(--hd);font-size:.95rem;
+.sc-name{font-weight:800;font-family:var(--hd);font-size:.87rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc-bank{font-family:var(--bd);font-weight:700;font-size:.62rem;
+.sc-bank{font-family:var(--bd);font-weight:700;font-size:.58rem;
   letter-spacing:.06em;text-transform:uppercase;color:var(--faint);flex:0 0 auto}
-.sc-when{margin-left:auto;color:var(--faint);font-size:.67rem;white-space:nowrap;
-  flex:0 0 auto}
-/* ALTIJD dezelfde breedte, ook zonder chevron. Anders schuift de
-   synctijd per rij op en lijnen de drie niet uit -- wat precies de
-   klacht was. */
-.sc-chev{width:15px;height:15px;color:var(--faint);flex:0 0 auto;
+.sc-chev{width:13px;height:13px;color:var(--faint);flex:0 0 auto;
   transition:transform .15s}
 .sc-chev.ghost{visibility:hidden}
-.sc-row.open .sc-chev{transform:rotate(180deg)}
+.sc-grid tbody tr.open .sc-chev{transform:rotate(180deg)}
+.sc-when{display:block;color:var(--faint);font-size:.63rem;
+  margin:1px 0 0 13px;white-space:nowrap}
+.sc-amt{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.sc-amt.zero{color:var(--faint);font-weight:500}
+.sc-amt.none{color:var(--faint);font-weight:500}
 
-.sc-tiles{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
-.sc-tile{flex:1 1 118px;min-width:0;border:1px solid var(--line);
-  border-radius:10px;padding:6px 9px 7px;background:var(--panel)}
-.sc-row.bank .sc-tile{background:var(--panel)}
-.sc-tile .cur{display:block;font-size:.63rem;font-weight:800;letter-spacing:.07em;
-  color:var(--faint);margin-bottom:2px}
-.sc-tile .amt{display:block;font-family:var(--hd);font-weight:800;
-  font-size:1.02rem;letter-spacing:-.015em;font-variant-numeric:tabular-nums;
-  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc-none{color:var(--faint);font-size:.83rem;font-weight:600;
-  margin-top:8px;display:block}
+.sc-grid tfoot td{border-top:2px solid var(--line-2);background:var(--panel-2);
+  font-weight:800;padding-top:8px;padding-bottom:8px}
+.sc-grid tfoot .lab{font-size:.62rem;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--faint);font-weight:800}
+.sc-grid tfoot tr.eur td{border-top:1px solid var(--line);
+  background:var(--primary-tint)}
+.sc-grid tfoot tr.eur .lab{color:var(--primary-600)}
+.sc-grid tfoot tr.eur .sc-amt{color:var(--primary-600);font-size:.95rem}
 
-.sc-tag{font-size:.62rem;font-weight:800;letter-spacing:.05em;
-  text-transform:uppercase;border-radius:999px;padding:2px 7px;flex:0 0 auto}
+.sc-tag{font-size:.57rem;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;border-radius:999px;padding:1px 6px;flex:0 0 auto}
 .sc-tag.demo{background:var(--warn-soft);color:var(--warn);border:1px solid var(--line-2)}
 .sc-tag.off{background:var(--panel-2);color:var(--faint);border:1px solid var(--line)}
 .sc-tag.bad{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line-2)}
 
-/* ── DE VOET: alles bij elkaar ─────────────────────────────────── */
-.sc-foot{border-top:2px solid var(--line-2);padding:10px var(--sc-pad) 12px;
-  background:var(--panel-2)}
-.sc-flab{font-size:.63rem;font-weight:800;letter-spacing:.07em;
-  text-transform:uppercase;color:var(--faint)}
-.sc-ftiles{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.sc-ftile{flex:1 1 108px;min-width:0;border:1px solid var(--line);
-  border-radius:10px;padding:6px 9px 7px;background:var(--panel)}
-.sc-ftile.big{border-color:var(--primary);background:var(--primary-tint)}
-.sc-ftile .cur{display:block;font-size:.63rem;font-weight:800;letter-spacing:.07em;
-  color:var(--faint);margin-bottom:2px}
-.sc-ftile.big .cur{color:var(--primary-600)}
-.sc-ftile .amt{display:block;font-family:var(--hd);font-weight:800;
-  font-size:1.02rem;letter-spacing:-.015em;font-variant-numeric:tabular-nums;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc-fnote{margin:9px 0 0;font-size:.72rem;color:var(--faint);line-height:1.45}
+.sc-fnote{margin:0;padding:7px var(--sc-pad) 10px;font-size:.68rem;
+  color:var(--faint);line-height:1.45;background:var(--panel-2)}
 
-.sc-det{padding:0 var(--sc-pad) 14px;display:flex;flex-direction:column;gap:9px}
-.sc-part{display:flex;align-items:baseline;gap:10px;font-size:.84rem}
+.sc-det{padding:0 var(--sc-pad) 12px;display:flex;flex-direction:column;gap:8px;
+  background:var(--panel-2)}
+.sc-part{display:flex;align-items:baseline;gap:10px;font-size:.8rem}
 .sc-part .lbl{color:var(--txt-2)}
 .sc-part .amt{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700}
-.sc-sublist{border-top:1px dashed var(--line);padding-top:9px}
-.sc-cap{font-size:.67rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--faint);margin-bottom:5px}
-.sc-note{font-size:.8rem;color:var(--txt-2);background:var(--panel-2);
-  border:1px solid var(--line);border-radius:10px;padding:8px 10px;
-  display:flex;gap:8px;align-items:flex-start}
-.sc-note svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
+.sc-sublist{border-top:1px dashed var(--line);padding-top:8px}
+.sc-cap{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:4px}
+.sc-note{font-size:.76rem;color:var(--txt-2);background:var(--panel);
+  border:1px solid var(--line);border-radius:9px;padding:7px 9px;
+  display:flex;gap:7px;align-items:flex-start}
+.sc-note svg{width:14px;height:14px;flex:0 0 auto;margin-top:1px}
 .sc-note.warn{background:var(--warn-soft);border-color:var(--line-2);color:var(--warn)}
 .sc-note.bad{background:var(--danger-soft);border-color:var(--line-2);color:var(--danger)}
-.sc-skel{height:13px;border-radius:6px;background:var(--panel-2);width:110px;
-  display:inline-block}
+.sc-skel{height:12px;border-radius:5px;background:var(--panel-2);width:100px;
+  display:inline-block;margin:10px var(--sc-pad)}
 
-@media(max-width:430px){
-  /* Compacter, want dit is het eerste blok op het beginscherm en er
-     moet meer onder passen: "het moet allemaal kleiner zodat meer
-     past op 1 scherm mobile." De knop wordt alleen zijn icoon --
-     hij heeft al een aria-label en een title. */
-  .sc{--sc-pad:12px}
-  .sc-tile,.sc-ftile{flex:1 1 calc(50% - 4px)}
-  .sc-tile .amt,.sc-ftile .amt{font-size:.97rem}
+@media(max-width:400px){
+  .sc{--sc-pad:11px}
+  .sc-grid{font-size:.79rem}
   .sc-relab{display:none}
   .sc-re{padding:6px 8px}
-  .sc-sub{font-size:.7rem}
 }
 `;
 
 
 /** EUR 1.234,56 with the code in front, so two currencies in a row can
  *  never be mistaken for one another at a glance. */
-/** Een bedrag als tegel: code klein erboven, getal groot eronder.
- *  De valutacode staat boven het getal en niet ervoor, zodat twee
- *  bedragen naast elkaar nooit als een lange regel lezen. */
-function Tile({
-  amount,
-  currency,
-  cls = "sc-tile",
-}: {
-  amount: number;
-  currency: string;
-  cls?: string;
-}) {
-  return (
-    <div className={cls}>
-      <span className="cur">{currency}</span>
-      <span className="amt">
-        {formatCurrency(amount, currency).replace(/^[^\d-]+/, "")}
-      </span>
-    </div>
-  );
+/** Het getal zonder valutateken -- de code staat al in de kolomkop.
+ *  Twee keer "EUR" op een regel is ruis, en de kolom is wat het
+ *  bedrag zijn betekenis geeft. */
+function fmt(amount: number, currency: string): string {
+  return formatCurrency(amount, currency).replace(/^[^\d-]+/, "");
 }
 
-/** "just now" / "14:52" / "28 Sep 14:52" — short, and never a lie
- *  about precision it does not have. */
+/** "synced just now" / "synced at 14:52" / "synced 28 Sep 14:52" --
+ *  kort, en nooit preciezer dan het is. */
 function whenShort(iso: string): string {
   const t = new Date(iso);
   if (Number.isNaN(t.getTime())) return "";
@@ -228,96 +192,88 @@ function StatusTag({ status }: { status: SupplierHolding["status"] }) {
   return null;
 }
 
-function SupplierRow({ s }: { s: SupplierHolding }) {
-  const [open, setOpen] = useState(false);
-  // Only a supplier with something behind the figure can be opened: a
-  // chevron on a row that expands to nothing is the click that teaches
-  // people to stop clicking.
-  //
-  // AND A BREAKDOWN THAT REPEATS THE HEADER IS EXPANDING TO NOTHING.
-  // Walked on production, 29-09: RockAds holds one euro wallet and one
-  // dollar wallet, and it has NAMED them "EUR" and "USD". So the
-  // click-through read "EUR — 1 wallet / EUR / EUR 5,582.08" — the same
-  // figure, three times, under a chevron that promised detail. A list
-  // of parts is worth a click when there is more than one of them, or
-  // when the one there is says something the currency heading does not.
+/** Een leverancier als TWEE tabelrijen: de regel zelf, en -- als hij
+ *  open staat -- een regel eronder met wat erachter zit. */
+function SupplierRows({
+  s,
+  currencies,
+  open,
+  onToggle,
+}: {
+  s: SupplierHolding;
+  currencies: string[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  // Een doorklik die niets toont is een klik die mensen afleert. Een
+  // wallet-lijst telt alleen als hij iets zegt wat de valutakop niet
+  // al zegt -- RockAds noemt zijn euro-wallet "EUR".
   const informative = (l: SupplierHolding["lines"][number]) =>
     l.parts.length > 1 ||
     (l.parts.length === 1 &&
       l.parts[0].label.trim().toUpperCase() !== l.currency);
   const hasDetail =
     !!s.error || s.lines.some((l) => informative(l) || l.heldBack !== null);
-  // Nul verbergen zolang er iets anders staat -- zie visibleLines.
-  const shown = visibleLines(s.lines);
+
+  const byCur = new Map(s.lines.map((l) => [l.currency, l.total]));
+  const nothing =
+    s.status === "off"
+      ? "not connected"
+      : s.status === "error"
+        ? "unreadable"
+        : "—";
 
   return (
-    <div className={`sc-row${open ? " open" : ""}${s.kind === "bank" ? " bank" : ""}`}>
-      <button
-        type="button"
-        className="sc-top"
-        disabled={!hasDetail}
-        aria-expanded={hasDetail ? open : undefined}
-        onClick={() => hasDetail && setOpen((v) => !v)}
+    <>
+      <tr
+        className={`${s.kind === "bank" ? "bank " : ""}${hasDetail ? "click " : ""}${open ? "open" : ""}`}
+        onClick={hasDetail ? onToggle : undefined}
       >
-        {/* REGEL EEN: wie, in welke staat, en hoe vers. De synctijd
-            staat rechts OP deze regel in plaats van op een eigen
-            regel eronder -- dat scheelt een regel per leverancier en
-            zet hem waar je hem pas zoekt als je je afvraagt of dit
-            van nu is. */}
-        <span className="sc-l1">
-          {/* Een stip, geen woord. Vier rijen scannen op kleur gaat
-              sneller dan vier keer een status lezen -- en de status
-              staat er nog steeds als hij iets te melden heeft. */}
-          <span
-            className={`sc-dot${
-              s.status === "error"
-                ? " bad"
-                : s.status === "demo"
-                  ? " warn"
-                  : s.status === "off"
-                    ? " idle"
-                    : ""
-            }`}
-            aria-hidden="true"
-          />
-          <span className="sc-name">{s.supplier}</span>
-          {s.kind === "bank" ? (
-            <span className="sc-bank">our bank</span>
-          ) : null}
-          <StatusTag status={s.status} />
+        <td>
+          <span className="sc-who">
+            {/* Een stip, geen woord: vier rijen scannen op kleur gaat
+                sneller dan vier keer een status lezen. */}
+            <span
+              className={`sc-dot${
+                s.status === "error"
+                  ? " bad"
+                  : s.status === "demo"
+                    ? " warn"
+                    : s.status === "off"
+                      ? " idle"
+                      : ""
+              }`}
+              aria-hidden="true"
+            />
+            <span className="sc-name">{s.supplier}</span>
+            {s.kind === "bank" ? <span className="sc-bank">our bank</span> : null}
+            <StatusTag status={s.status} />
+            <ChevronDown className={`sc-chev${hasDetail ? "" : " ghost"}`} />
+          </span>
           {s.readAt ? (
             <span className="sc-when">{whenShort(s.readAt)}</span>
           ) : null}
-          {/* ALTIJD gerenderd, onzichtbaar als er niets te openen is:
-              anders schuift de synctijd per rij op en lijnen de drie
-              niet uit. Dat was de klacht, en het was letterlijk deze
-              chevron die hem verschoof. */}
-          <ChevronDown className={`sc-chev${hasDetail ? "" : " ghost"}`} />
-        </span>
-
-        {/* REGEL TWEE: de bedragen, en niets anders. */}
-        {shown.length ? (
-          <span className="sc-tiles">
-            {shown.map((l) => (
-              <Tile key={l.currency} amount={l.total} currency={l.currency} />
-            ))}
-          </span>
-        ) : (
-          <span className="sc-none">
-            {/* Three different sentences, deliberately. "—" for all of
-                them would put a supplier that is down and a supplier
-                that holds nothing in the same visual place. */}
-            {s.status === "off"
-              ? "No credentials set"
-              : s.status === "error"
-                ? "Could not read"
-                : "Nothing reported"}
-          </span>
-        )}
-      </button>
-
+        </td>
+        {currencies.map((c) => {
+          const v = byCur.get(c);
+          return (
+            <td key={c}>
+              {v === undefined ? (
+                <span className="sc-amt none">{nothing === "—" ? "—" : nothing}</span>
+              ) : (
+                <span className={`sc-amt${Math.abs(v) < 0.005 ? " zero" : ""}`}>
+                  {fmt(v, c)}
+                </span>
+              )}
+            </td>
+          );
+        })}
+      </tr>
       {open ? (
-        <div className="sc-det">
+        <tr>
+          <td colSpan={currencies.length + 1} style={{ padding: 0 }}>
+            <div className="sc-det">
+
           {s.status === "demo" ? (
             <div className="sc-note warn">
               <FlaskConical />
@@ -396,9 +352,11 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
               ) : null}
             </div>
           ))}
-        </div>
+                    </div>
+          </td>
+        </tr>
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -423,6 +381,20 @@ export default function SupplierCredit() {
   });
 
   const suppliers = q.data?.suppliers ?? [];
+  const [openRows, setOpenRows] = useState<Set<string>>(new Set());
+
+  // De kolommen: elke valuta die ERGENS voorkomt, EUR en USD eerst.
+  // Een leverancier die een valuta niet heeft krijgt een streepje in
+  // die kolom -- dat is iets anders dan nul, en in een matrix moet
+  // dat verschil zichtbaar blijven.
+  const currencies = (() => {
+    const seen = new Set<string>();
+    for (const s of suppliers) {
+      for (const l of visibleLines(s.lines)) seen.add(l.currency);
+    }
+    const rank = (c: string) => (c === "EUR" ? 0 : c === "USD" ? 1 : 2);
+    return [...seen].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  })();
 
   return (
     <div className="sc">
@@ -463,83 +435,99 @@ export default function SupplierCredit() {
         </button>
       </div>
 
-      <div className="sc-body">
-        {/* isPending, not isLoading — this query is not gated, but the
-            house rule holds and it costs nothing to be right. */}
-        {q.isPending ? (
-          <div className="sc-row">
-            <div className="sc-top">
-              <span className="sc-skel" />
-              <span className="sc-figs">
-                <span className="sc-skel" />
-              </span>
-            </div>
+      {q.isPending ? (
+        <span className="sc-skel" />
+      ) : q.isError ? (
+        <div className="sc-det" style={{ padding: "12px 13px" }}>
+          <div className="sc-note bad">
+            <AlertTriangle />
+            <span>
+              {(q.error as Error)?.message ??
+                "The supplier balances could not be read."}
+            </span>
           </div>
-        ) : q.isError ? (
-          <div className="sc-det" style={{ paddingTop: 12 }}>
-            <div className="sc-note bad">
-              <AlertTriangle />
-              <span>
-                {(q.error as Error)?.message ??
-                  "The supplier balances could not be read."}
-              </span>
-            </div>
-          </div>
-        ) : (
-          suppliers.map((s) => <SupplierRow key={s.supplier} s={s} />)
-        )}
-      </div>
-
-      {/* ── ALLES BIJ ELKAAR ────────────────────────────────────
-          De eigenaar, 29-09: "hieronder ook totaal eur + usd en samen
-          converted tot EUR."
-
-          Dit is een ANDER totaal dan het per-leveranciers-totaal dat
-          er eerder stond en op zijn verzoek wegging. Dat vroeg
-          "hoeveel krediet heb ik", en daar is geen antwoord op omdat
-          krediet bij de een niets koopt bij de ander. Dit vraagt
-          "hoeveel geld is er", en dat is een echte vraag.
-
-          Wat er NIET in zit wordt bij naam genoemd: een leverancier
-          op mockcijfers of een die niet antwoordde. Een totaal waar
-          stilletjes iemand uit is weggelaten is precies het soort
-          zelfverzekerd cijfer waar dit project een test voor heeft. */}
-      {!q.isPending && !q.isError && q.data?.grand ? (
-        <div className="sc-foot">
-          <div className="sc-flab">Everything together</div>
-          <div className="sc-ftiles">
-            <Tile amount={q.data.grand.eur} currency="EUR" cls="sc-ftile" />
-            <Tile amount={q.data.grand.usd} currency="USD" cls="sc-ftile" />
-            {q.data.grand.combinedEur !== null ? (
-              <Tile
-                amount={q.data.grand.combinedEur}
-                currency="TOTAL IN EUR"
-                cls="sc-ftile big"
+        </div>
+      ) : (
+        <table className="sc-grid">
+          <thead>
+            <tr>
+              <th />
+              {currencies.map((c) => (
+                <th key={c}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {suppliers.map((s) => (
+              <SupplierRows
+                key={s.supplier}
+                s={s}
+                currencies={currencies}
+                open={openRows.has(s.supplier)}
+                onToggle={() =>
+                  setOpenRows((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(s.supplier)) next.delete(s.supplier);
+                    else next.add(s.supplier);
+                    return next;
+                  })
+                }
               />
-            ) : null}
-          </div>
-          {(() => {
+            ))}
+          </tbody>
+          {/* ── ALLES BIJ ELKAAR ────────────────────────────────
+              De eigenaar: "hieronder ook totaal eur + usd en samen
+              converted tot EUR." Als voet van dezelfde tabel, zodat
+              de totalen recht onder hun eigen kolom staan -- dat is
+              het hele voordeel van een matrix boven losse tegels. */}
+          {q.data?.grand ? (
+            <tfoot>
+              <tr>
+                <td className="lab">Together</td>
+                {currencies.map((c) => (
+                  <td key={c}>
+                    <span className="sc-amt">
+                      {c === "EUR"
+                        ? fmt(q.data!.grand!.eur, "EUR")
+                        : c === "USD"
+                          ? fmt(q.data!.grand!.usd, "USD")
+                          : "—"}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+              {q.data.grand.combinedEur !== null ? (
+                <tr className="eur">
+                  <td className="lab">All of it, in euro</td>
+                  <td colSpan={currencies.length}>
+                    <span className="sc-amt">
+                      EUR {fmt(q.data.grand.combinedEur, "EUR")}
+                    </span>
+                  </td>
+                </tr>
+              ) : null}
+            </tfoot>
+          ) : null}
+        </table>
+      )}
+
+      {!q.isPending && !q.isError && q.data?.grand
+        ? (() => {
             const g = q.data.grand;
             const bits: string[] = [];
-            if (g.rate !== null) {
-              bits.push(`USD converted at ${g.rate.toFixed(4)}`);
-            } else {
-              bits.push("No exchange rate, so the two are not added up");
-            }
+            if (g.rate !== null) bits.push(`USD at ${g.rate.toFixed(4)}`);
+            else bits.push("No rate, so the two are not added up");
             if (g.excluded.length) {
               bits.push(
-                `${g.excluded
-                  .map((e) => `${e.supplier} (${e.why})`)
-                  .join(", ")} not counted`,
+                `${g.excluded.map((e) => `${e.supplier} (${e.why})`).join(", ")} not counted`,
               );
             }
             if (g.notConverted.length) {
               bits.push(`${g.notConverted.join(", ")} left out`);
             }
             return <p className="sc-fnote">{bits.join(" · ")}.</p>;
-          })()}
-        </div>
-      ) : null}
+          })()
+        : null}
     </div>
   );
 }
