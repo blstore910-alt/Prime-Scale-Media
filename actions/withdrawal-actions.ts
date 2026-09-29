@@ -529,7 +529,11 @@ export async function requestAdAccountWithdrawalAsAdmin(input: {
 // ─────────────────────────────────────────
 export async function approveAdAccountWithdrawal(
   withdrawalId: string,
-): Promise<ActionResult> {
+  // `credited` says which of the two roads was taken. The supplier
+  // road does NOT touch the wallet — it marks the row `at_supplier`
+  // and the money arrives when the supplier settles — but the screen
+  // toasted "wallet credited" either way. The caller needs to know.
+): Promise<ActionResult<{ credited: boolean }>> {
   // resolveAdminContext, not maintenanceGuard alone. These actions used to
   // go straight to the RPC and lean on its own `role = 'admin'` check — and
   // NO money RPC in the schema tests is_active or status alongside the role.
@@ -679,7 +683,7 @@ export async function approveAdAccountWithdrawal(
 
     return {
       ok: true,
-      data: null,
+      data: { credited: false },
       warning: pushed.enqueued
         ? undefined
         : // The row is now at `at_supplier` with nothing sent. The
@@ -741,7 +745,7 @@ export async function approveAdAccountWithdrawal(
   // and do it, and that is not obvious from a green toast.
   return {
     ok: true,
-    data: null,
+    data: { credited: true },
     warning: notifyWarning || undefined,
   };
 }

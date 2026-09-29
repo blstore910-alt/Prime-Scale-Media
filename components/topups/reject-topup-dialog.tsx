@@ -27,7 +27,23 @@ export default function RejectTopupDialog({
   onOpenChange: (open: boolean) => void;
   topupId: string | null;
   /** The row, so the dialog can state the money that goes back. */
-  topup?: { amount_received?: number | string | null; currency?: string | null } | null;
+  topup?: {
+    amount_received?: number | string | null;
+    currency?: string | null;
+    /**
+     * Was the wallet actually debited for this top-up?
+     *
+     * The refund trigger `refund_wallet_on_topup_rejected` only pays
+     * back `IF NEW.wallet_debited = true`, and the column defaults to
+     * false and is NOT in TOPUP_INSERT_ALLOWED -- so every
+     * ADMIN-created ad-account top-up has it false. Rejecting one of
+     * those moves nothing, while this dialog named an amount and said
+     * it "goes straight back". `top_up_admin_reject` knows the
+     * difference (it reports `refunded` from this very column); the
+     * dialog did not read it.
+     */
+    wallet_debited?: boolean | null;
+  } | null;
 }) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
@@ -111,14 +127,29 @@ export default function RejectTopupDialog({
                 admin refused a EUR 1,200 funding without the screen
                 stating either. The wallet-top-up sibling has said it
                 for months. */}
-            {topup
-              ? `${formatCurrency(
-                  Number(topup.amount_received ?? 0),
-                  String(topup.currency ?? "EUR"),
-                )} goes straight back to their ${String(
-                  topup.currency ?? "EUR",
-                ).toUpperCase()} wallet. There is no way back \u2014 the customer has to file a new one, and your reason is shown to them.`
-              : "The money goes straight back to their wallet and the customer has to file a new one. Your reason is shown to them."}
+            {/* Only promise the refund when the wallet was actually
+                charged. An admin-created top-up has wallet_debited
+                false, the trigger pays nothing back, and naming an
+                amount here told the admin money would move that never
+                does. */}
+            {/* A FIGURE ONLY WHEN WE KNOW IT MOVES.
+                The refund trigger pays back only `IF wallet_debited =
+                true`, and `top_ups_view` does not expose that column
+                yet \u2014 so the honest default is the sentence that does
+                not name an amount. `false` says so outright; `true`
+                (once the view carries it) names the money. Naming it
+                unconditionally told the admin that an admin-created
+                top-up would refund, and it never does. */}
+            {topup?.wallet_debited === false
+              ? "Nothing was taken from their wallet for this one, so nothing comes back. There is no way back \u2014 the customer has to file a new one, and your reason is shown to them."
+              : topup && topup.wallet_debited === true
+                ? `${formatCurrency(
+                    Number(topup.amount_received ?? 0),
+                    String(topup.currency ?? "EUR"),
+                  )} goes straight back to their ${String(
+                    topup.currency ?? "EUR",
+                  ).toUpperCase()} wallet. There is no way back \u2014 the customer has to file a new one, and your reason is shown to them.`
+                : "Anything that was taken from their wallet for this top-up goes back. There is no way back \u2014 the customer has to file a new one, and your reason is shown to them."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

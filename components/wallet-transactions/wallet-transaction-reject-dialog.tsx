@@ -25,13 +25,20 @@ export default function WalletTransactionRejectDialog({
 }) {
   const [reason, setReason] = useState("");
   const trimmedReason = useMemo(() => reason.trim(), [reason]);
+  /** The shortest reason the server accepts. */
+  const REASON_MIN = 3;
 
   useEffect(() => {
     if (!open) setReason("");
   }, [open]);
 
   const handleSubmit = () => {
-    if (!trimmedReason) return;
+    // The SERVER refuses under three characters
+    // (wallet-topup-decide-actions.ts), so "no" lit this button up and
+    // came back as a red toast over a box the admin had just written
+    // in. psm-withdrawals.tsx carries the same constant for the same
+    // reason.
+    if (trimmedReason.length < REASON_MIN) return;
     onSubmit(trimmedReason);
   };
 
@@ -89,7 +96,7 @@ export default function WalletTransactionRejectDialog({
           <Button
             variant="destructive"
             onClick={handleSubmit}
-            disabled={!trimmedReason || isSubmitting}
+            disabled={trimmedReason.length < REASON_MIN || isSubmitting}
           >
             {isSubmitting ? "Rejecting…" : "Yes, reject it"}
           </Button>

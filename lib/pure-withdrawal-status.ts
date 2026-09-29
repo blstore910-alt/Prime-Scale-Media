@@ -123,3 +123,20 @@ export const WITHDRAWAL_STATUS_CHOICES: Array<{
 export function isOnOurDesk(status: string | null | undefined): boolean {
   return String(status ?? "").trim().toLowerCase() === "pending";
 }
+
+/**
+ * The same list WITHOUT `at_supplier`, for the refunds and adjustments
+ * tabs.
+ *
+ * Those two tables cannot hold that status. Measured 28-09:
+ * `wallet_refunds_status_check` and `wallet_adjustments_status_check`
+ * allow exactly pending / approved / rejected — `at_supplier` is not
+ * in either. So picking "With the provider" on those tabs always
+ * answered "Nothing matches that filter", on every tenant, for ever.
+ *
+ * It is the same fault this file already removed once for `cancelled`
+ * (see the note above), and it came back because one list is shared
+ * across three tables that do not have the same statuses.
+ */
+export const WITHDRAWAL_STATUS_CHOICES_NO_SUPPLIER =
+  WITHDRAWAL_STATUS_CHOICES.filter((c) => c.value !== "at_supplier");

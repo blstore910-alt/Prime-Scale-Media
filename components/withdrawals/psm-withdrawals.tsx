@@ -3,6 +3,7 @@
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import {
   WITHDRAWAL_STATUS_CHOICES,
+  WITHDRAWAL_STATUS_CHOICES_NO_SUPPLIER,
   withdrawalStatusLook,
 } from "@/lib/pure-withdrawal-status";
 import { RejectReasonField } from "@/components/ui/reject-reason-field";
@@ -549,10 +550,19 @@ function WithdrawalsSection() {
       setActingId(id);
       const res = await approveAdAccountWithdrawal(id);
       if (!res.ok) throw new Error(res.error);
-      return res.warning ?? null;
+      return { warning: res.warning ?? null, credited: res.data.credited };
     },
-    onSuccess: (warning) => {
-      toast.success("Withdrawal approved — wallet credited");
+    onSuccess: ({ warning, credited }) => {
+      // "wallet credited" was said on BOTH roads, and the supplier one
+      // credits nothing: it marks the row `at_supplier` and the money
+      // arrives when the supplier settles. A green toast claiming the
+      // customer has been paid, over a row that then shows no buttons
+      // at all, is the worst pairing on this screen.
+      toast.success(
+        credited
+          ? "Withdrawal approved — wallet credited"
+          : "Sent to the provider — the wallet is credited when they settle",
+      );
       // The supplier side can refuse for reasons that are nobody's
       // fault — a manual account, a currency we will not convert, the
       // push gate closed. The wallet is credited either way, so this
@@ -573,8 +583,19 @@ function WithdrawalsSection() {
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
-    onError: (e: Error) =>
-      toast.error("Approve failed", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Approve failed", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
     onSettled: () => setActingId(null),
   });
 
@@ -603,8 +624,19 @@ function WithdrawalsSection() {
       // screen, disagreeing.
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
     },
-    onError: (e: Error) =>
-      toast.error("Reject failed", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Reject failed", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
     onSettled: () => setActingId(null),
   });
 
@@ -1043,8 +1075,19 @@ function RefundsSection() {
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
-    onError: (e: Error) =>
-      toast.error("Approve failed", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Approve failed", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
     onSettled: () => setActingId(null),
   });
 
@@ -1064,8 +1107,19 @@ function RefundsSection() {
       // screen, disagreeing.
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
     },
-    onError: (e: Error) =>
-      toast.error("Reject failed", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Reject failed", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
     onSettled: () => setActingId(null),
   });
 
@@ -1136,7 +1190,7 @@ function RefundsSection() {
                 // Every status the column can hold, including the new
                 // at_supplier — a filter that cannot select a state is
                 // a row nobody can find.
-                ...WITHDRAWAL_STATUS_CHOICES,
+                ...WITHDRAWAL_STATUS_CHOICES_NO_SUPPLIER,
               ],
             },
           ]}
@@ -1612,8 +1666,19 @@ function RefundRequestDialog({
       setAddress("");
       onOpenChange(false);
     },
-    onError: (e: Error) =>
-      toast.error("Couldn't request refund", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Couldn't request refund", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
   });
 
   const numeric = Number(amount);
@@ -1909,8 +1974,19 @@ function AdjustmentsSection() {
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
-    onError: (e: Error) =>
-      toast.error("Approve failed", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Approve failed", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
     onSettled: () => setActingId(null),
   });
 
@@ -1930,8 +2006,19 @@ function AdjustmentsSection() {
       // screen, disagreeing.
       queryClient.invalidateQueries({ queryKey: ["pending-counts"] });
     },
-    onError: (e: Error) =>
-      toast.error("Reject failed", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Reject failed", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
     onSettled: () => setActingId(null),
   });
 
@@ -2002,7 +2089,7 @@ function AdjustmentsSection() {
                 // Every status the column can hold, including the new
                 // at_supplier — a filter that cannot select a state is
                 // a row nobody can find.
-                ...WITHDRAWAL_STATUS_CHOICES,
+                ...WITHDRAWAL_STATUS_CHOICES_NO_SUPPLIER,
               ],
             },
           ]}
@@ -2302,8 +2389,19 @@ function AdjustmentRequestDialog({
       setReason("");
       onOpenChange(false);
     },
-    onError: (e: Error) =>
-      toast.error("Couldn't request adjustment", { description: e.message }),
+    onError: (e: Error) => {
+      toast.error("Couldn't request adjustment", { description: e.message });
+      // AND READ THE LIST AGAIN. The refusal that matters here is
+      // "is not pending": somebody else already handled this row. The
+      // card then stayed Pending with live buttons, the query has a
+      // 30s staleTime and no refetch-on-focus, and the Retry button
+      // lives inside the isError branch -- which is not on screen when
+      // the list loaded fine. So every next click failed identically,
+      // for ever, until the browser was refreshed.
+      queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-refunds"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["wallet-adjustments"], exact: false });
+    },
   });
 
   const numeric = Number(amount);
