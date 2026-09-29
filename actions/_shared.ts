@@ -236,6 +236,49 @@ export async function resolveOwnerContext(): Promise<
   if (!base.ok) return base;
   const { supabase, profile } = base.ctx;
 
+  // ── OWNERSHIP IS A SET, NOT A COLUMN ────────────────────
+  //
+  // The owner, 26-09: "we zijn 2 compagnons dus moeten beide erop
+  // kunnen inloggen."
+  //
+  // Two people CAN already share one login. The problem is not that it
+  // is impossible, it is that they are then indistinguishable: every
+  // approval, every rate change and every release sits under one name,
+  // and `audit_events` — the only thing that says what happened after
+  // a money fault — stops being worth reading. Exactly when "who did
+  // this" becomes the first question.
+  //
+  // So `tenant_owners` holds a row per owner (plak 143), and this one
+  // helper is the only place that had to change: every owner-only
+  // action in the app goes through it. That is the entire return on
+  // having put it in one place.
+  //
+  // `tenants.owner_id` stays and stays filled. Plenty still reads it,
+  // and removing a column that code leans on is how an app falls over.
+  if (!profile.user_id) {
+    return { ok: false, error: "Only the account owner can change this." };
+  }
+
+  const { data: owners, error: ownersError } = await supabase
+    .from("tenant_owners")
+    .select("user_id")
+    .eq("tenant_id", profile.tenant_id)
+    .eq("user_id", profile.user_id)
+    .limit(1);
+
+  // ── THE TABLE ARRIVES WITH A PLAK, THE CODE ARRIVES IN MINUTES ──
+  //
+  // Until 143 is pasted there is no `tenant_owners`, and a select on a
+  // missing relation THROWS — it does not come back empty. Falling
+  // through to the old column keeps every owner action working in the
+  // gap, and the moment the table exists it takes over.
+  //
+  // Note the direction of the mistake: if the read fails we are
+  // STRICTER, not looser. The old check still has to pass.
+  if (!ownersError && (owners ?? []).length > 0) {
+    return base;
+  }
+
   const { data: tenant } = await supabase
     .from("tenants")
     .select("owner_id")
@@ -248,6 +291,63 @@ export async function resolveOwnerContext(): Promise<
       error: "Only the account owner can change this.",
     };
   }
+  return base;
+}
+
+/**
+ * CAN THIS PERSON DO THIS ONE THING?
+ *
+ * The owner, 26-09: "mooiste zou zijn als ik per admin wat
+ * bevoegdheden kan instellen."
+ *
+ * An owner can do everything. An admin can do what has been granted to
+ * them by name, one row per grant in `admin_capabilities` — rows and
+ * not a jsonb column, so who gave what and when lands in the audit log
+ * without anybody having to remember to write it down.
+ *
+ * ── DEFAULT NO ─────────────────────────────────────
+ *
+ * A capability nobody has been granted, nobody has. That matters most
+ * for the capability somebody adds next year and forgets to check
+ * anywhere: it has to be shut by default, not open.
+ *
+ * And granting is never a capability. An admin who can grant himself
+ * rights has all rights, so `set_admin_capability` checks ownership in
+ * the database, not here.
+ */
+export async function resolveCapability(
+  capability: string,
+): Promise<{ ok: true; ctx: AdminContext } | { ok: false; error: string }> {
+  const base = await resolveAdminContext();
+  if (!base.ok) return base;
+  const { supabase, profile } = base.ctx;
+
+  // An owner needs no grant.
+  const asOwner = await resolveOwnerContext();
+  if (asOwner.ok) return asOwner;
+
+  if (!profile.user_id) {
+    return { ok: false, error: "You do not have permission to do this." };
+  }
+
+  const { data, error } = await supabase
+    .from("admin_capabilities")
+    .select("capability")
+    .eq("tenant_id", profile.tenant_id)
+    .eq("user_id", profile.user_id)
+    .eq("capability", capability)
+    .limit(1);
+
+  // A failed read is not a grant. Before plak 143 the table does not
+  // exist and this throws, which lands here — and the answer is no,
+  // which is the same answer the app gave yesterday.
+  if (error || (data ?? []).length === 0) {
+    return {
+      ok: false,
+      error: "You do not have permission to do this. Ask an owner.",
+    };
+  }
+
   return base;
 }
 

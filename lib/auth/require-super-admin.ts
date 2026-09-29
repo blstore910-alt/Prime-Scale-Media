@@ -99,8 +99,39 @@ export async function requireSuperAdmin(redirectTo = "/dashboard") {
   const authUserId = userData.user.id;
   const profileUserId = profile.user_id;
 
-  const isSuperAdmin =
+  let isSuperAdmin =
     !!ownerId && (ownerId === authUserId || ownerId === profileUserId);
+
+  // ── THERE CAN BE MORE THAN ONE OWNER ───────────────────
+  //
+  // `tenants.owner_id` holds exactly one uuid, and the owner has a
+  // business partner. Sharing one login would work and would also
+  // make the audit log useless: every approval and every rate change
+  // under one name, on the day "who did this" becomes the first
+  // question. So ownership moved into `tenant_owners` (plak 143), one
+  // row per owner, and this guard reads both.
+  //
+  // The column still wins on its own — it is checked first and stays
+  // filled — so nothing that already worked stops working. The table
+  // only ever ADDS people.
+  //
+  // Before plak 143 the table does not exist and the select throws;
+  // `error` is then set, `isSuperAdmin` keeps the value the column
+  // gave it, and the page behaves exactly as it did yesterday. A
+  // missing table must not let anybody in, and must not lock the
+  // owner out either.
+  if (!isSuperAdmin) {
+    const { data: owners, error: ownersError } = await supabase
+      .from("tenant_owners")
+      .select("user_id")
+      .eq("tenant_id", profile.tenant_id)
+      .in(
+        "user_id",
+        [authUserId, profileUserId].filter(Boolean) as string[],
+      )
+      .limit(1);
+    if (!ownersError && (owners ?? []).length > 0) isSuperAdmin = true;
+  }
 
   if (!isSuperAdmin) {
     // Only decorate the default landing. A caller that named its own

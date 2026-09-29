@@ -17,13 +17,18 @@ export default function AffiliateLayout({
   children,
   user,
   profile,
+  ownerIds,
 }: {
   user: User;
   children: React.ReactNode;
   profile: UserProfile;
+  /** Every owner of this tenant. See the note in app-provider. Only an
+   *  admin layout ever has one; threaded through here so the three
+   *  role layouts keep the same prop shape. */
+  ownerIds?: string[];
 }) {
   return (
-    <AppProvider user={user} profile={profile}>
+    <AppProvider user={user} profile={profile} ownerIds={ownerIds}>
       <QueryClientProvider client={queryClient}>
         {/* Affiliates were the one role with no push manager mounted, so an
             affiliate could never turn push on — while the preferences dialog

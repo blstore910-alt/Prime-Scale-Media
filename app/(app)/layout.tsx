@@ -157,8 +157,31 @@ export default async function AppLayout({
   const Layout = ROLE_LAYOUTS[profile.role as UserRole];
   if (!Layout) redirect("/onboard");
 
+  // ── WHO OWNS THIS TENANT ────────────────────────────
+  //
+  // There can be more than one (plak 143: the owner has a business
+  // partner, and sharing one login would make the audit log useless).
+  // Read here rather than in the provider so it costs one server
+  // round trip instead of one per client, and only for an admin — an
+  // advertiser never asks the question.
+  //
+  // Before plak 143 the table is not there and the select throws;
+  // `ownerIds` stays undefined and the provider falls back to
+  // `tenants.owner_id`, exactly as before.
+  let ownerIds: string[] | undefined;
+  if (profile.role === "admin" && profile.tenant_id) {
+    const supabase = await createClient();
+    const { data: owners, error } = await supabase
+      .from("tenant_owners")
+      .select("user_id")
+      .eq("tenant_id", profile.tenant_id);
+    if (!error) {
+      ownerIds = (owners ?? []).map((o) => (o as { user_id: string }).user_id);
+    }
+  }
+
   return (
-    <Layout user={data.user} profile={profile}>
+    <Layout user={data.user} profile={profile} ownerIds={ownerIds}>
       <MaintenanceBanner />
       <ErrorBoundary>{children}</ErrorBoundary>
       {/* The floor under the banner: if the bundle this tab is

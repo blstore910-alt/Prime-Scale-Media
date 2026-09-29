@@ -16,13 +16,16 @@ export default function AdminLayout({
   children,
   profile,
   user,
+  ownerIds,
 }: {
   children: React.ReactNode;
   profile: UserProfile;
   user: User;
+  /** Every owner of this tenant. See the note in app-provider. */
+  ownerIds?: string[];
 }) {
   return (
-    <AppProvider user={user} profile={profile}>
+    <AppProvider user={user} profile={profile} ownerIds={ownerIds}>
       <QueryClientProvider client={queryClient}>
         <AdminShell>
             {children}

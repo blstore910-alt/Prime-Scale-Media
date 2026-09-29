@@ -54,17 +54,35 @@ const reducer = (state: typeof initialState, action: Action) => {
 export function AppProvider({
   profile,
   user,
+  ownerIds,
   children,
 }: {
   user: User;
   profile: UserProfile;
+  /**
+   * Every owner of this tenant, read server-side in the layout.
+   *
+   * There used to be one, compared straight against
+   * `tenants.owner_id`, and the owner has a business partner who needs
+   * their own login (plak 143). Passed down rather than read here
+   * because the layout has already made the round trip and a client
+   * read would add one to every page.
+   *
+   * Undefined means the layout could not read it — before plak 143
+   * the table does not exist — and then the old column decides, which
+   * is what happened yesterday.
+   */
+  ownerIds?: string[];
   children: React.ReactNode;
 }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const tenant = Array.isArray(profile?.tenant)
     ? profile?.tenant?.[0]
     : profile?.tenant;
-  const isSuperAdmin = tenant?.owner_id === user?.id;
+  const isSuperAdmin =
+    tenant?.owner_id === user?.id ||
+    (!!user?.id && (ownerIds ?? []).includes(user.id)) ||
+    (!!profile?.user_id && (ownerIds ?? []).includes(profile.user_id));
   const tenantId = tenant?.id ?? null;
   useEffect(() => {
     if (profile.role !== "admin" || !tenantId) return;
