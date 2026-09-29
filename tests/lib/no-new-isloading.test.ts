@@ -103,9 +103,26 @@ test("no NEW file reads isLoading off a query that can be switched off", () => {
       const text = readFileSync(file, "utf8");
       // Only files that actually have a switchable query.
       if (!text.includes("enabled:")) continue;
+
+      // ── A COMMENT ABOUT THE BUG IS NOT THE BUG ──────────────────
+      //
+      // This scanned the whole file, comments included, and the house
+      // style is to write down what went wrong where it went wrong.
+      // So `use-pending-counts.ts` failed for a doc comment that
+      // explains why its field is called isPending and not isLoading
+      // — a test that punishes the explanation teaches people to
+      // delete the explanation, which is the opposite of the point.
+      const code = text
+        .split("\n")
+        .filter((l) => {
+          const t = l.trim();
+          return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*");
+        })
+        .join("\n");
+
       // `isLoading: isPending` is the correct rename and is not this.
-      if (text.includes("isLoading: isPending")) continue;
-      if (/^\s*isLoading,|isLoading:\s*[a-zA-Z]|\.isLoading/m.test(text)) {
+      if (code.includes("isLoading: isPending")) continue;
+      if (/^\s*isLoading,|isLoading:\s*[a-zA-Z]|\.isLoading/m.test(code)) {
         offenders.push(rel);
       }
     }

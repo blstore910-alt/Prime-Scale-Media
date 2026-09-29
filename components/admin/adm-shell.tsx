@@ -39,6 +39,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import ThemeToggle from "@/components/ui/theme-toggle";
+import { listCapabilities } from "@/actions/capability-actions";
+import { useQuery } from "@tanstack/react-query";
 
 type Item = {
   title: string;
@@ -123,6 +125,27 @@ export default function AdminShell({
     router.push("/notifications");
   };
   const pending = usePendingCounts();
+
+  // ── WHAT THIS ADMIN HAS BEEN GIVEN ──────────────────────────────
+  //
+  // Only to decide which links to show. The pages guard themselves
+  // server-side; this is so somebody who has been given a permission
+  // can find the page without being told its URL.
+  //
+  // An owner needs none of this — they see everything — so the read
+  // is skipped for them, and it is skipped entirely before plak 143
+  // exists, where it would throw.
+  const caps = useQuery({
+    queryKey: ["my-capabilities", profile?.id ?? ""],
+    enabled: !!profile?.id && !isSuperAdmin,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const res = await listCapabilities();
+      if (!res.ok) return [] as string[];
+      return res.data.byProfile[profile!.id] ?? [];
+    },
+  });
+  const myCapabilities = caps.data ?? [];
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -202,9 +225,14 @@ export default function AdminShell({
   // `finance_reviewer` is simply absent from the profile until the
   // migration lands, which reads as false. That is the right way
   // round: no link, and the guard says no too.
+  // Either way in: the capability (the toggle on this very screen) or
+  // the older column. Same pair as lib/auth/require-finance-reviewer.ts
+  // — a link that appears without access, or access without a link,
+  // are both worse than either on its own.
   if (
     !isSuperAdmin &&
-    (profile as { finance_reviewer?: boolean } | null)?.finance_reviewer === true
+    ((profile as { finance_reviewer?: boolean } | null)?.finance_reviewer === true ||
+      myCapabilities.includes("finance.check"))
   ) {
     groups.push({
       title: "Finance",
@@ -388,7 +416,7 @@ export default function AdminShell({
                   {/* An unreadable count used to render as no badge at all,
                       which says "nothing is waiting" — the one thing it does
                       not know. It gets a muted dash instead. */}
-                  {pending.isLoading ? (
+                  {pending.isPending ? (
                     /* ── STILL COUNTING IS NOT UNREADABLE ────────────
                        usePendingCounts returns every count as null
                        until the first response lands, and this branch

@@ -608,7 +608,7 @@ export default function AdminDashboard() {
             The sort has to wait too -- ordering by counts we do not have
             would shuffle the cards under the reader's finger the moment
             they land. Declared order until then. */}
-        {(pending.isLoading
+        {(pending.isPending
           ? queues
           : [...queues].sort((a, b) => {
             // A soft card is a standing check, not somebody waiting, so
@@ -642,7 +642,7 @@ export default function AdminDashboard() {
                 <Icon />
               </span>
               <span className="ql">{q.label}</span>
-              {pending.isLoading ? (
+              {pending.isPending ? (
                 /* Still counting. A quiet block, the same size as the
                    badge, so nothing moves when the number lands. */
                 <span className="qbadge skel" aria-hidden="true" />

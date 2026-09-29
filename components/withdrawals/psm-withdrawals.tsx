@@ -457,13 +457,13 @@ export default function PsmWithdrawals() {
           <ArrowDownToLine /> Withdrawals{" "}
           <QueueCount
             n={pendingCounts.adAccountWithdrawals}
-            loading={pendingCounts.isLoading}
+            loading={pendingCounts.isPending}
           />
         </SegBtn>
         <SegBtn active={tab === "refunds"} onClick={() => setTab("refunds")}>
           <RotateCcw /> Refunds <QueueCount
             n={pendingCounts.walletRefunds}
-            loading={pendingCounts.isLoading}
+            loading={pendingCounts.isPending}
           />
         </SegBtn>
         <SegBtn
@@ -473,7 +473,7 @@ export default function PsmWithdrawals() {
           <SlidersHorizontal /> Adjustments{" "}
           <QueueCount
             n={pendingCounts.walletAdjustments}
-            loading={pendingCounts.isLoading}
+            loading={pendingCounts.isPending}
           />
         </SegBtn>
       </div>

@@ -55,17 +55,43 @@ export async function requireFinanceReviewer(redirectTo = "/dashboard") {
 
   if (isOwner) return { user, profile, isOwner: true as const };
 
-  // Not the owner. The one designated admin, then — if the column is
-  // there yet.
+  // Not the owner. A designated admin, then.
+  //
+  // ── TWO WAYS IN, AND THAT IS DELIBERATE ─────────────────────────
+  //
+  // This started as its own column, `user_profiles.finance_reviewer`
+  // (plak 142), before there was a general permission model. Then
+  // there was one (plak 143), and `finance.check` became one of the
+  // sixteen toggles on /admins — so an owner switching it on there
+  // would have changed nothing at all, because this guard was still
+  // reading the column. A switch that does nothing is worse than no
+  // switch: it looks like the job is done.
+  //
+  // So the capability is asked first, and the column stays as the
+  // way in for whoever was given it before the toggles existed. When
+  // the column is empty everywhere it can go; until then it costs one
+  // read and removes a trap.
   let reviewer = false;
-  const { data, error } = await supabase
-    .from("user_profiles")
-    .select("finance_reviewer")
-    .eq("id", p.id)
-    .maybeSingle();
 
-  if (!error) {
-    reviewer = (data as { finance_reviewer?: boolean } | null)?.finance_reviewer === true;
+  const { data: cap, error: capError } = await supabase
+    .from("admin_capabilities")
+    .select("capability")
+    .eq("tenant_id", p.tenant_id as string)
+    .eq("user_id", p.user_id as string)
+    .eq("capability", "finance.check")
+    .limit(1);
+  if (!capError && (cap ?? []).length > 0) reviewer = true;
+
+  if (!reviewer) {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("finance_reviewer")
+      .eq("id", p.id)
+      .maybeSingle();
+    if (!error) {
+      reviewer =
+        (data as { finance_reviewer?: boolean } | null)?.finance_reviewer === true;
+    }
   }
   // On error we leave `reviewer` false and fall through to the
   // redirect. A missing column must not open the page, and must not

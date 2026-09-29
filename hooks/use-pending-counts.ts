@@ -66,7 +66,19 @@ export type PendingCounts = {
   /** True when at least one count could not be read. Never true while the
    *  first request is still in flight — unknown-yet is not unknown. */
   isError: boolean;
-  isLoading: boolean;
+  /**
+   * NAMED isPending, BECAUSE THAT IS WHAT IT IS.
+   *
+   * It held `isPending` and was called `isLoading`, which is the exact
+   * confusion this codebase keeps paying for: react-query's
+   * `isLoading` is `isPending && isFetching`, so it is FALSE for a
+   * query that never ran — and this query is gated on the tenant and
+   * the admin role. Every reader of `pending.isLoading` was getting
+   * the right value under a name that promises the wrong one, and the
+   * next person to write `useQuery(...).isLoading` beside it would
+   * have had no warning at all.
+   */
+  isPending: boolean;
 };
 
 /**
@@ -303,6 +315,6 @@ export function usePendingCounts(): PendingCounts {
         counts.topUps === null ||
         counts.adAccountRequests === null ||
         counts.withdrawals === null),
-    isLoading: isPending,
+    isPending,
   };
 }
