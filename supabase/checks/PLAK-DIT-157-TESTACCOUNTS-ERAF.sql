@@ -108,6 +108,8 @@ declare
   v_user    uuid;
   v_naam    text;
   v_n       bigint;
+  v_eur     numeric;
+  v_usd     numeric;
   v_i       int := 0;
   v_missing text[] := array[]::text[];
 begin
@@ -161,11 +163,11 @@ begin
     -- Dit is de regel waar het om gaat. Sla hem over en het geld
     -- blijft liggen bij niemand.
     select count(*), coalesce(sum(eur_balance),0), coalesce(sum(usd_balance),0)
-      into v_n, v_adv_eur, v_adv_usd
+      into v_n, v_eur, v_usd
       from public.wallets where advertiser_id = v_adv;
     insert into _plak157_report values
       (v_i, r_code, v_naam, '2. wallets (EUR/USD erop)',
-       v_n::text || ' (' || v_adv_eur::text || ' / ' || v_adv_usd::text || ')');
+       v_n::text || ' (' || v_eur::text || ' / ' || v_usd::text || ')');
     if not v_dry_run then
       delete from public.wallet_exchanges we
        using public.wallets w

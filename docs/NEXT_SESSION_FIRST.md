@@ -1,3 +1,59 @@
+# 29-09, LATE — WAT ER NU KLAARSTAAT EN NIET GEPUSHT IS
+
+> De eigenaar, 29-09: "je mag alles klaarzetten maar nog niks live
+> pushen." Alles hieronder is gecommit op `feat/redesign-advertiser`
+> en staat NIET op productie. Laatste live sha: `7f3ca0b`.
+
+## Vier commits die op een push wachten
+
+| commit | wat |
+|---|---|
+| `2ea1077` | read-only werd omzeild op `updateUserProfile` — de enige werkende manier om een klant uit te zetten. Plus `decideAffiliatePayout` had helemaal geen adminpoort in de actie. Plus de test die dit had moeten vangen (en die de gezaaide fout eerst NIET ving, omdat hij op mijn eigen commentaar matchte). |
+| `3d95356` | zes zelfverzekerde cijfers boven een mislukte lees: /finance-check kapte op 100 met 92 wachtend, `count \|\| 0` op vier hero-tegels, een vals alles-in-orde op /reconciliation, een verdwijnende wachtrijkaart, en zeven keer `maybeSingle()` op `companies` (niet-unieke kolom → PGRST116 → klant kwam de bedrijfspoort niet door, factuur-PDF 500). |
+| `4c8327b` | het affiliate-boek gooide commissies weg die plak 152 juist had gered. Gaat pas aan als blok 15 draait, en daarom nu. |
+| dit bestand | de meting en de twee plakken. |
+
+## Twee plakken klaar, nog niet gedraaid
+
+- **158 — `affiliate_payouts` overleeft zijn affiliate.** Draai deze
+  VOOR blok 15. Vandaag staan er 3 uitbetalingen op 'paid' voor
+  EUR 95,92 en die CASCADEn weg met de affiliate. Plak 152 deed dit
+  voor commissies en niet voor uitbetalingen, dus na een verwijdering
+  staat de commissie er nog en de betaling niet — en dan staat open
+  wat al is overgemaakt.
+- **157 — de testaccounts eraf.** Doet standaard NIETS: lege codelijst,
+  droge stand. Vul de codes, draai droog, lees het rapport, zet dan pas
+  `v_dry_run` op false.
+
+## De val in blok 15, gemeten
+
+`advertisers -> wallets` is SET NULL, `wallets -> wallet_ledger` is
+RESTRICT. Een adverteerder weghalen blokkeert dus niet — het laat een
+wallet achter met geld erin en zonder eigenaar, en die wallet kan
+daarna niet meer weg. **EUR 1.118,50 en USD 1.668,37** over zeven
+wallets. En `auth.users -> user_profiles -> advertisers` is twee keer
+CASCADE: één rij weghalen in het Auth-scherm van Supabase neemt de
+halve historie mee en laat de andere helft stuurloos achter. Plak 157
+gaat daarom van de bladeren naar de wortel.
+
+`audit_events` heeft nul foreign keys en overleeft alles. Gemeten.
+
+## Nog open uit de agentronde (niet gefixt)
+
+- De onbegrensde leesacties achter /ledger (*What came in*, *What we
+  keep*) en de terugbetaalbovengrens op /finance-check. PostgREST kapt
+  op 1000 en zegt niets; de Wise-feed staat op **370** en groeit
+  dagelijks. `lib/page-all-rows.ts` bestaat al, deze drie gebruiken hem
+  nog niet.
+- De bronchips op /ledger tellen binnen de nieuwste 200 en presenteren
+  dat als het totaal — het commentaar erboven beweert expliciet dat de
+  tellingen echt zijn.
+- `revoke_advertiser_perk` accepteert een gedeactiveerde admin.
+- `hardDeleteUser` is een live server action zonder UI en zonder
+  saldocontrole.
+
+---
+
 # WAAR HET STAAT — 29-09, einde dag
 
 > Lees dit eerst. Daaronder staat de oudere lijst, die nog geldt.
