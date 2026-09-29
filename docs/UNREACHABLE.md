@@ -11,6 +11,33 @@ Each looked maintained. Each changed nothing for anyone.
 
 Regenerate the list with the script at the bottom.
 
+## 2026-09-29 — `pushAdTopupToSupplier` has no caller, ON PURPOSE
+
+`actions/topup-actions.ts` exports `pushAdTopupToSupplier`, and nothing
+in the app calls it. That is a decision, not an oversight, and it is
+written here so nobody "fixes" it by wiring a button back.
+
+It had one caller: a `step.key === "api"` branch inside
+`verify-topup-dialog.tsx` with a **Push to supplier** button. The step
+that would have produced that key was removed earlier — the button
+could not succeed:
+
+- it goes to a different supplier channel than the one in use
+- the gate is shut
+- EUR accounts are refused
+- and it wants the top-up to be `completed`, while that dialog only
+  ever opens for `pending`
+
+The owner's decision: we fund the account in the supplier's own portal
+and check it there. So the branch was unreachable and the reader had
+to compare two places to know it. Removed 29-09.
+
+**If the supplier push is ever built for real**, the action is the
+place to start from — it already handles the gate, the currency
+refusal and the enqueue. The UI is what is missing, and it belongs
+with the real supplier deposit (R4 in `docs/NEXT_SESSION_FIRST.md`),
+not back in the verify dialog as a side effect of ticking a box.
+
 ## Wire it back — this is a missing feature, not dead code
 
 | file | why |
