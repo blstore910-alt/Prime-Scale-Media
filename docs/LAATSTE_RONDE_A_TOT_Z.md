@@ -974,7 +974,17 @@ machine komen.
 
 ---
 
-# BLOK 15 — DE TESTACCOUNTS ERAF, EN DAN PAS LIVE
+# BLOK 15 — DE TESTACCOUNTS ERAF, NA TEST 3
+
+> **29-09, vastgelegd: dit blok draait NA test 3, niet ervoor.** De
+> eigenaar: "waarom is 1 blok verwijderen? dan kan toch na test 3?"
+> Precies. Test 3 loopt alle 39 schermen per rol langs en heeft die
+> accounts nodig -- PSM0016 met EUR 340 is de klant waarmee blok 4 t/m
+> 8 gelopen zijn, PSM0008 is de affiliate. Weg is weg.
+>
+> Dit blok telt dus niet mee als "open werk" in de tussenstand: het is
+> INGEPLAND, achter test 3, en plak 157 staat klaar. De blokken 0 t/m
+> 14 zijn wat "16 blokken af" betekent.
 
 **Als allerlaatste, na blok 13 en 14.** De eigenaar, 26-09: "we gaan toch
 straks alle accounts verwijderen en fresh beginnen."
