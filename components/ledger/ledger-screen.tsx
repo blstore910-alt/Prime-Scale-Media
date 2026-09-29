@@ -38,14 +38,28 @@ export default function LedgerScreen() {
 
   const check = useLedgerCheck(tenantId);
   const lines = useLedgerLines(tenantId, { source });
+  // ── THE CHIPS COME FROM THEIR OWN READ ────────────────────────────
+  //
+  // They were derived from `lines.data.rows`, which is the FILTERED,
+  // 200-capped page. Two things followed. The number on each chip was
+  // the count within those 200, printed as if it were the total. And
+  // clicking a chip changed the query key, so `lines.data` went
+  // undefined, so the list of chips went empty -- the whole bar
+  // unmounted mid-load and came back holding only "All" and the one
+  // you picked. Every other source vanished, with no way back except
+  // "All".
+  //
+  // An unfiltered read of its own. The chips stay put while the list
+  // reloads, and the counts are the real ones.
+  const all = useLedgerLines(tenantId, { source: "" });
 
   const sources = useMemo(() => {
     const seen = new Map<string, number>();
-    for (const l of lines.data?.rows ?? []) {
+    for (const l of all.data?.rows ?? []) {
       seen.set(l.source, (seen.get(l.source) ?? 0) + 1);
     }
     return [...seen.entries()].sort((a, b) => b[1] - a[1]);
-  }, [lines.data]);
+  }, [all.data]);
 
   if (check.data?.notSwitchedOn || lines.data?.notSwitchedOn) {
     return (
@@ -68,6 +82,27 @@ export default function LedgerScreen() {
   }
 
   const off = check.data?.off ?? [];
+  // ── NOTHING COMPARED IS NOT "IT ADDS UP" ──────────────────────────
+  //
+  // `off` is built by looping over the wallets that came back. Zero
+  // wallets means the loop never ran, so `off` is empty, so the panel
+  // went green with a green 0 and "The books add up" -- over a read
+  // that returned nothing. And RLS does not raise on a refusal, it
+  // returns zero rows with error null, so that is exactly what a
+  // refused read looks like here.
+  //
+  // Worse, the one thing that would have given it away was suppressed:
+  // `check.data?.wallets ? ...` treats 0 as falsy, so the sentence
+  // dropped its "(0 wallets)" in precisely the case where it mattered.
+  const walletsSeen = check.data?.wallets ?? 0;
+  const comparedNothing = !check.isPending && !check.isError && walletsSeen === 0;
+  // A wallet off in BOTH currencies is two rows here and one wallet.
+  // "2 wallets do not add up" over one wallet is a figure that does not
+  // survive being checked.
+  const offWallets = new Set(
+    off.filter((o) => !o.orphan).map((o) => o.advertiser_id ?? "?"),
+  ).size;
+  const orphans = off.filter((o) => o.orphan);
   // isPending, not isLoading: the query is gated on the tenant, so a
   // query that never ran reports isLoading false and this would say
   // "the books add up" over a read that did not happen.
@@ -91,11 +126,15 @@ export default function LedgerScreen() {
       {/* ── THE ONE QUESTION, IN ONE FIGURE ───────────────────── */}
       <div
         className={`lg-verdict ${
-          checkFailed ? "unknown" : checking ? "unknown" : off.length ? "bad" : "good"
+          checkFailed || checking || comparedNothing
+            ? "unknown"
+            : off.length
+              ? "bad"
+              : "good"
         }`}
       >
         <div className="v">
-          {checkFailed ? "—" : checking ? "…" : off.length}
+          {checkFailed || comparedNothing ? "—" : checking ? "…" : off.length}
         </div>
         <div className="t">
           <b>
@@ -103,20 +142,28 @@ export default function LedgerScreen() {
               ? "We could not check the books just now"
               : checking
                 ? "Checking the books…"
-                : off.length === 0
-                  ? "The books add up"
-                  : off.length === 1
-                    ? "One wallet does not add up"
-                    : `${off.length} wallets do not add up`}
+                : comparedNothing
+                  ? "We compared nothing"
+                  : off.length === 0
+                    ? "The books add up"
+                    : orphans.length && !offWallets
+                      ? orphans.length === 1
+                        ? "One set of movements has no wallet"
+                        : `${orphans.length} sets of movements have no wallet`
+                      : offWallets === 1
+                        ? "One wallet does not add up"
+                        : `${offWallets} wallets do not add up`}
           </b>
           <span>
             {checkFailed
               ? "Reload. This is not a zero — we did not get an answer."
-              : off.length === 0
-                ? `Every wallet balance equals the sum of its own movements${
-                    check.data?.wallets ? ` (${check.data.wallets} wallets)` : ""
-                  }.`
-                : "Each one below is money that moved without the ledger seeing it, or the other way round."}
+              : comparedNothing
+                ? "No wallets came back, so there was nothing to check. This is not a clean book — reload, and if it stays empty this account cannot see the wallets."
+                : off.length === 0
+                  ? `Every wallet balance equals the sum of its own movements (${walletsSeen} ${
+                      walletsSeen === 1 ? "wallet" : "wallets"
+                    }).`
+                  : "Each one below is money that moved without the ledger seeing it, or the other way round."}
           </span>
         </div>
       </div>
@@ -125,18 +172,27 @@ export default function LedgerScreen() {
         <div className="lg-card">
           {off.map((o, i) => (
             <div className="lg-off" key={i}>
-              <span className="mono">{o.advertiser_id ?? "—"}</span>
-              <span>
-                balance {formatCurrency(o.balance, o.currency)} · lines{" "}
-                {formatCurrency(o.fromLines, o.currency)} ·{" "}
-                <b>
-                  difference{" "}
-                  {formatCurrency(
-                    Math.round((o.balance - o.fromLines) * 100) / 100,
-                    o.currency,
-                  )}
-                </b>
+              <span className="mono">
+                {o.orphan ? "no wallet" : (o.advertiser_id ?? "—")}
               </span>
+              {o.orphan ? (
+                <span>
+                  {formatCurrency(o.fromLines, o.currency)} of movements whose
+                  wallet has been deleted. <b>Nothing holds this money.</b>
+                </span>
+              ) : (
+                <span>
+                  balance {formatCurrency(o.balance, o.currency)} · lines{" "}
+                  {formatCurrency(o.fromLines, o.currency)} ·{" "}
+                  <b>
+                    difference{" "}
+                    {formatCurrency(
+                      Math.round((o.balance - o.fromLines) * 100) / 100,
+                      o.currency,
+                    )}
+                  </b>
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -202,6 +258,14 @@ export default function LedgerScreen() {
           </div>
         )}
       </div>
+
+      {(lines.data?.rows ?? []).length >= 200 ? (
+        <p className="lg-foot">
+          Showing the newest <b>200</b> movements. There are older ones this
+          page does not reach — a count and a pager are still to come, and
+          until they are here this list is not the whole ledger.
+        </p>
+      ) : null}
 
       <p className="lg-foot">
         The ledger is authoritative from the moment it was switched on, and

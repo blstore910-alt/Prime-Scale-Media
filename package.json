@@ -10,7 +10,8 @@
     "check-env": "node scripts/check-env.mjs",
     "smoke": "node scripts/post-deploy-smoke.mjs",
     "release-notes": "node scripts/release-notes.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "ochtend": "node scripts/check.mjs -f supabase/checks/OCHTEND.sql"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

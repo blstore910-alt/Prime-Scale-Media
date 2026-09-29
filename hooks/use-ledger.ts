@@ -32,7 +32,22 @@ import { createClient } from "@/lib/supabase/client";
  * 28-09 onward and not one day earlier.
  */
 
-const MISSING = /42P01|does not exist|schema cache|PGRST20\d/i;
+// ── "DOES NOT EXIST" IS TWO DIFFERENT ANSWERS ─────────────────────
+//
+// This was `/42P01|does not exist|schema cache|PGRST20\d/i`, and the
+// bare "does not exist" catches the message for a missing COLUMN as
+// well: `column wallet_ledger.xyz does not exist`. That is the pending
+// -migration case CLAUDE.md warns about -- code ships in minutes,
+// migrations are pasted by hand -- and it made the whole page render
+// "Not switched on in the database yet, run plak 125" over a live
+// ledger full of lines. The owner runs 125, it says it was already
+// there, and nothing improves.
+//
+// So: only a missing RELATION counts. 42P01 is the relation code;
+// 42703 (undefined column) deliberately falls through and throws, so
+// the screen says it could not read rather than that there is nothing
+// to read.
+const MISSING = /42P01|relation .* does not exist|schema cache|PGRST20\d/i;
 
 export type LedgerLine = {
   id: string;
@@ -53,6 +68,9 @@ export type OffBooksRow = {
   currency: string;
   balance: number;
   fromLines: number;
+  /** Lines whose wallet no longer exists. There is no balance to
+   *  compare them against, so they are their own kind of wrong. */
+  orphan?: boolean;
 };
 
 const num = (v: unknown) => {
@@ -115,6 +133,29 @@ export function useLedgerCheck(tenantId: string | null | undefined) {
           }
         }
       }
+      // ── A LINE WHOSE WALLET IS GONE ─────────────────────────────
+      //
+      // The loop above walks WALLETS and looks their lines up. A line
+      // whose wallet was deleted is never visited, and there is no
+      // foreign key on wallet_ledger.wallet_id (measured 29-09: zero
+      // constraints). So deleting a funded wallet takes the balance
+      // away, leaves the lines orphaned, and this verdict goes green --
+      // the one action this page exists to catch erases its own alarm.
+      //
+      // Simulated on the live data: drop the wallet holding EUR 340.00
+      // of lines and the check returns nothing to report.
+      const known = new Set((wallets ?? []).map((w) => (w as { id: string }).id));
+      const orphanSums = new Map<string, number>();
+      for (const l of (lines ?? []) as { wallet_id: string; currency: string; delta: unknown }[]) {
+        if (known.has(l.wallet_id)) continue;
+        const cur = String(l.currency).toUpperCase();
+        orphanSums.set(cur, Math.round(((orphanSums.get(cur) ?? 0) + num(l.delta)) * 100) / 100);
+      }
+      for (const [currency, fromLines] of orphanSums) {
+        if (fromLines === 0) continue;
+        off.push({ advertiser_id: null, currency, balance: 0, fromLines, orphan: true });
+      }
+
       return { off, notSwitchedOn: false, wallets: (wallets ?? []).length };
     },
   });
