@@ -120,7 +120,12 @@ type ActionAsk = {
   // way a person signs off, which is why the tick is not optional even
   // when the figure comes back.
   coverCheck?: { accountId: string; amount: number; currency: string };
-  run: (reason?: string) => void;
+  /**
+   * May return a promise. When it does, the dialog stays open and
+   * busy until it settles, and stays open WITH THE TYPED REASON if it
+   * fails. When it does not, the old behaviour applies: close and go.
+   */
+  run: (reason?: string) => void | Promise<unknown>;
 };
 
 function ActionAskModal({
@@ -131,6 +136,23 @@ function ActionAskModal({
   close: () => void;
 }) {
   const [reason, setReason] = useState("");
+  // ── THIS DIALOG'S OWN "WORKING", NOT SOMEBODY ELSE'S ───────────
+  //
+  // `busy` on this modal used to come from the mutation, which is
+  // "any row in this section is settling" -- so opening Reject on row
+  // B while row A was in flight greyed out row B's buttons. That is
+  // why it was hard-wired to false and why onConfirm closed FIRST.
+  //
+  // Closing first cost something else: the typed reason went with it.
+  // Write four sentences, press the button, the write fails, and the
+  // dialog is gone along with what you wrote -- on a screen where the
+  // reason is the whole point of the decision.
+  //
+  // A flag that belongs to THIS dialog settles both. It is per-dialog
+  // so no other row can grey it out, it disables the button so the
+  // second press cannot re-fire, and on failure the dialog stays put
+  // with the text still in the box.
+  const [submitting, setSubmitting] = useState(false);
   const needsReason = !!ask?.reasonFor;
   const [checked, setChecked] = useState(false);
   const [cover, setCover] = useState<
@@ -142,6 +164,9 @@ function ActionAskModal({
   useEffect(() => {
     setChecked(false);
     setCover(null);
+    // A new dialog starts empty; a reopened one after a failure keeps
+    // what was typed, because `ask` did not change.
+    setSubmitting(false);
     const c = ask?.coverCheck;
     if (!c) return;
     let cancelled = false;
@@ -217,7 +242,7 @@ function ActionAskModal({
       // out Confirm: open Reject on row B while row A's approve is in
       // flight and you get row B's facts under a dead "Working…" button,
       // with Escape and the backdrop dead too, until A finishes.
-      busy={false}
+      busy={submitting}
       busyLabel="Working…"
       // Close FIRST, then act. Left open, the operator working a queue saw
       // the same dialog after every approval, blocking the page with its
@@ -236,6 +261,7 @@ function ActionAskModal({
       // dead end; ConfirmModal has the slot, and five other screens
       // use it.
       disabled={
+        submitting ||
         (needsReason && reason.trim().length < REASON_MIN) ||
         (!!ask?.coverCheck && !checked)
       }
@@ -256,8 +282,24 @@ function ActionAskModal({
       onConfirm={() => {
         const a = ask;
         const why = reason.trim();
+        const out = a?.run(why || undefined);
+        if (out && typeof (out as Promise<unknown>).then === "function") {
+          // It told us when it is done, so wait for it. Close on
+          // success; on failure stay open with the text intact, and
+          // let the mutation's own toast say what went wrong.
+          setSubmitting(true);
+          (out as Promise<unknown>)
+            .then(() => {
+              setSubmitting(false);
+              setReason("");
+              close();
+            })
+            .catch(() => setSubmitting(false));
+          return;
+        }
+        // The old path, for the confirmations that carry no reason.
+        setReason("");
         close();
-        a?.run(why || undefined);
       }}
     >
       {(ask?.facts ?? []).map(([k, v]) => (
@@ -869,7 +911,10 @@ function WithdrawalsSection() {
                                       ],
                                       reasonFor: "withdrawal",
                                       run: (why) =>
-                                        reject.mutate({ id: w.id, reason: why }),
+                                        // mutateAsync, so the dialog knows when it
+                                        // is done and can keep the typed reason if
+                                        // the write fails.
+                                        reject.mutateAsync({ id: w.id, reason: why }),
                                     })
                                   }
                                 >
@@ -1370,7 +1415,9 @@ function RefundsSection() {
                                     // lib/pure-reject-reasons.ts.
                                     reasonFor: "internal",
                                     run: (why) =>
-                                      reject.mutate({ id: r.id, reason: why }),
+                                      // mutateAsync, so the dialog knows when it is
+                                      // done and can keep the typed reason on failure.
+                                      reject.mutateAsync({ id: r.id, reason: why }),
                                   })
                                 }
                               >
@@ -2231,7 +2278,10 @@ function AdjustmentsSection() {
                                       // lib/pure-reject-reasons.ts.
                                       reasonFor: "internal",
                                       run: (why) =>
-                                        reject.mutate({ id: r.id, reason: why }),
+                                        // mutateAsync, so the dialog knows when it
+                                        // is done and can keep the typed reason if
+                                        // the write fails.
+                                        reject.mutateAsync({ id: r.id, reason: why }),
                                     })
                                   }
                                 >
