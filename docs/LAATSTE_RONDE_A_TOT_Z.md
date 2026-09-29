@@ -1203,6 +1203,50 @@ heb.
 
 ---
 
+## DE DONKERE RONDE VAN 29-09 — gemeten in plaats van gegrepd
+
+De eigenaar stuurde twee screenshots: een lichtgrijze knop in een
+donkere kaart, en een lelijke naad boven de onderbalk.
+
+**Hoe het gevonden is.** Niet door de stylesheets af te zoeken op
+lichte hexwaarden -- dat vond er wel dertig en de meeste waren tekst
+op een gekleurde knop, dus prima. In plaats daarvan de PAGINA laten
+opsommen welk element een lichte achtergrond heeft terwijl
+`documentElement` de klasse `dark` draagt. Dat geeft precies de
+vlakken die iemand ziet, en niets anders.
+
+Zo kwam eruit:
+
+- `button.fbtn` (Sort & filter) met
+  `linear-gradient(180deg,#fff,var(--panel-2))` uit refine-css.ts.
+  Dezelfde gradient zit op `.seg2`. `.btn.ghost` had hem ook en was al
+  gedekt, omdat die override de shorthand `background` gebruikt en die
+  wist de image -- deze twee waren nergens overschreven.
+- De onderbalk is `var(--panel)` op een ondergrond van `var(--ground)`:
+  in donkere modus dus LICHTER dan de pagina, met daarbovenop nog een
+  rand. Twee lichte banden op elkaar lezen als een naad.
+- De wachtrijkaart MET werk erin:
+  `linear-gradient(180deg,#fff,var(--primary-tint))` -- een witte
+  kaart met witte tekst, uitgerekend degene die het meest moet
+  opvallen.
+- `.ci.i` en `.ci.r`, de twee icoonvarianten van de vijf die nergens
+  een donkere versie hadden.
+- En mijn eigen "test data"-label van diezelfde ochtend.
+
+**Stand na afloop**, gemeten op /wallets en /dashboard in donkere
+modus: **nul lichte vlakken**, op een tekstgradient na
+(`background-clip:text`, dus dat IS de tekst).
+
+**En een test erbij.** Bij het repareren maakte ik precies de fout
+waar dit project al vier keer op is omgevallen: een backtick in een
+CSS-commentaar, die de template literal beeindigt. De bestaande test
+kijkt niet naar `shell-dark-css.ts` en kan dat niet, want dat bestand
+gebruikt met opzet geneste literals. De FOUT is smaller dan die regel
+en geldt wel overal: een backtick in een CSS-commentaar is nooit iets
+anders dan deze bug.
+
+---
+
 ## Logboek
 
 | blok | gelopen | gefixt | open |
