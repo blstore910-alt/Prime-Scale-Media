@@ -141,6 +141,12 @@ export const CAPABILITIES: Capability[] = [
     group: "Prices and rules",
   },
   {
+    key: "cost.view",
+    label: "See what we pay the supplier",
+    what: "Our buying price per ad-account type and per account — and therefore our margin. Off by default for a reason: the desk needs the fee we CHARGE to do its work, and never the one we pay.",
+    group: "Prices and rules",
+  },
+  {
     key: "adaccounttypes.edit",
     label: "Manage ad-account types",
     what: "Which kinds of ad account can be requested, and the fee each one carries.",

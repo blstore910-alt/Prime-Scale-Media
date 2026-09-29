@@ -140,10 +140,34 @@ export async function listAdAccountTypes(): Promise<
   // business. A table the migration has not created yet answers with an
   // error, and that must not take the settings screen down — the types
   // are the point of it; the supplier link is an extra.
-  const { data: suppliers, error: suppliersError } = await supabase
-    .from("ad_account_type_suppliers")
-    .select("ad_account_type_id, supplier_label, supplier_url, supplier_fee_pct")
-    .eq("tenant_id", profile.tenant_id);
+  //
+  // ── AND NOT FOR EVERY ADMIN EITHER ──────────────────────────────
+  //
+  // This action resolves an ADMIN context, and then handed back
+  // `supplier_fee_pct` — what we PAY. That is our margin, and the
+  // owner's rule is that cost never sits on a row a non-owner reads.
+  // The same leak was found this morning on /users, where
+  // `select("*")` on a view carrying `supplier_cost` put the buying
+  // price in front of the two staff admins.
+  //
+  // The route that shows this screen is owner-only, so nobody saw it
+  // — but a server action is callable by anybody whose bundle can
+  // reference it, and "the page is guarded" has never been the same
+  // thing as "the data is".
+  //
+  // So the supplier block is filled only for someone who may manage
+  // the types. Everybody else gets the types with the customer-facing
+  // fee and nothing else, which is all the rest of the app uses.
+  const maySeeCost = (await resolveCapability("cost.view")).ok;
+
+  const { data: suppliers, error: suppliersError } = maySeeCost
+    ? await supabase
+        .from("ad_account_type_suppliers")
+        .select(
+          "ad_account_type_id, supplier_label, supplier_url, supplier_fee_pct",
+        )
+        .eq("tenant_id", profile.tenant_id)
+    : { data: [], error: null };
 
   // ── A SWALLOWED READ HERE ERASES THE MARGIN ──────────────────────
   //
