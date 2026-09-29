@@ -468,6 +468,54 @@ export async function hardDeleteUser(
     };
   }
 
+  // ── HET SALDO EERST. ÉÉN REGEL, EN ONOMKEERBAAR ZONDER HEM ─────
+  //
+  // `auth.users -> user_profiles -> advertisers` is twee keer CASCADE
+  // (gemeten 29-09), dus de regel hieronder neemt abonnementen,
+  // DST-regels, de affiliate, commissieregels en referral-links in
+  // een keer mee. Wat NIET meegaat is de wallet: die hangt met SET
+  // NULL aan de adverteerder, dus hij blijft staan met het geld erin
+  // en zonder eigenaar -- en kan daarna niet meer weg, want zijn
+  // grootboekregels houden hem met RESTRICT tegen.
+  //
+  // Het uitzetscript doet deze controle al (plak 150). Deze functie
+  // is de scherpere weg naar hetzelfde eindpunt en deed hem niet,
+  // terwijl zijn eigen commentaar toegeeft dat de cascade nooit is
+  // nagelopen. Nu wel, en het cijfer staat in de weigering zodat er
+  // iets te doen valt in plaats van alleen iets te lezen.
+  const { data: advRows } = await supabase
+    .from("advertisers")
+    .select("id")
+    .eq("profile_id", target.id)
+    .limit(1);
+  const advertiserId = (advRows ?? [])[0]?.id as string | undefined;
+  if (advertiserId) {
+    const { data: wallets, error: wErr } = await supabase
+      .from("wallets")
+      .select("eur_balance, usd_balance")
+      .eq("advertiser_id", advertiserId);
+    // Een mislukte lees is GEEN saldo van nul. Weigeren kost een
+    // herhaling; doorgaan kost het geld.
+    if (wErr) {
+      return {
+        ok: false,
+        error:
+          "We could not read this customer's wallet, so nothing was removed. Try again.",
+      };
+    }
+    const eur = (wallets ?? []).reduce((n, w) => n + Number(w.eur_balance ?? 0), 0);
+    const usd = (wallets ?? []).reduce((n, w) => n + Number(w.usd_balance ?? 0), 0);
+    if (Math.abs(eur) > 0.004 || Math.abs(usd) > 0.004) {
+      return {
+        ok: false,
+        error:
+          `This customer still holds EUR ${eur.toFixed(2)} and USD ${usd.toFixed(2)}. ` +
+          "Pay it out or write it off first — removing the account leaves the " +
+          "money in a wallet with no owner, and that cannot be undone.",
+      };
+    }
+  }
+
   // Actual delete via the auth admin API.
   const admin = await createAdminClient();
   const { error: delError } = await admin.auth.admin.deleteUser(targetUserId);

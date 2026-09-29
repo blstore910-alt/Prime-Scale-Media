@@ -1,3 +1,33 @@
+# 29-09, LAAT — ÉÉN DING DAT IK BEWUST NIET HEB GEREPAREERD
+
+`_in_owner_set(tenant, user)` toetst **niet** of het profiel nog actief
+is. Vier eigenaar-alleen functies leunen erop:
+`set_admin_capability`, `set_tenant_owner`, `set_finance_reviewer` en
+`create_admin_for_tenant`. Een uitgezette eigenaar kan daarmee dus nog
+steeds bevoegdheden uitdelen en eigenaren aanwijzen.
+
+**Waarom ik het heb laten staan.** Diezelfde helper zit sinds plak 155
+en 156 in **veertien RLS-policies**. Er een profielcontrole in hangen
+raakt die allemaal, en als dat predicaat zich anders gedraagt dan ik
+denk is elke eigenaar buitengesloten van zijn eigen tenant — en dat is
+niet vanaf een scherm te herstellen. De winst is een scenario dat
+vandaag onmogelijk is: **0 uitgezette profielen** op de database.
+
+**Hoe het wel moet, als je het wilt.** Niet in `_in_owner_set` maar in
+de vier functies zelf, elk met één extra voorwaarde. Dat is
+tekstchirurgie op vier levende definities (vier `execute`, dus precies
+binnen de huisregel) en het vraagt dat ik hun volledige lichaam eerst
+uitlees zonder afkapping — `npm run check` kapt brede kolommen af, dus
+dat moet per regel. Een half uur werk, en het hoort niet aan het eind
+van een lange sessie.
+
+Ter vergelijking: **22 van de 27** SECURITY DEFINER-functies die een
+admin toetsen kijken wél naar `is_active`. Dit zijn de laatste vier
+(plus `process_recurring_subscriptions`, en die draait als cron zonder
+gebruiker, dus daar valt niets te toetsen).
+
+---
+
 # 29-09, LATE — WAT ER NU KLAARSTAAT EN NIET GEPUSHT IS
 
 > De eigenaar, 29-09: "je mag alles klaarzetten maar nog niks live
