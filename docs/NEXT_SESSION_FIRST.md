@@ -2,6 +2,44 @@
 
 > Lees dit eerst. Daaronder staat de oudere lijst, die nog geldt.
 
+## DST UIT DE LEVERANCIERS HALEN -- waarom het half kan (29-09)
+
+De eigenaar vroeg: "en je kan miss ook van rockads en seamx in de dst
+verwerken?" Gemeten, niet geraden:
+
+**Wat WEL kan, en sinds vandaag op /dst staat.** SeamX geeft naast het
+saldo ook een besteedbaar saldo, en het verschil is de belasting die ze
+van ons inhouden. Dat is het enige echte DST-cijfer dat een van beide
+leveranciers rapporteert, en het stond tot nu toe alleen op hun site.
+RockAds rapporteert geen enkel belastingcijfer.
+
+**Wat NIET kan.** Een DST-regel heeft BESTEDING nodig, per klant, per
+land, per week. SeamX heeft drie endpoints (topups, withdrawals,
+wallet-saldo), RockAds twee (wallets, ad-accounts). Geen van beide heeft
+statistics, insights of reporting. Er valt dus niets op te halen.
+
+**Wat het WEL zou kunnen, en waar het op vastloopt.** Besteding is af te
+leiden zonder hun hulp:
+
+    besteed = (topups die wij erin duwden)
+            - (saldo nu bij de leverancier)
+            - (withdrawals)
+    nog niet belast = besteed - (som van base_amount in dst_charges)
+
+Elke term is vandaag leesbaar, op een na: **het saldo per account bij de
+leverancier is niet aan ons account te koppelen.** Alle 12 actieve rijen
+in `ad_accounts` missen het account-id van de leverancier --
+`ad_accounts.metadata` bevat alleen Facebook-BM-velden, en er is geen
+kolom voor. Nul van de twaalf.
+
+Dat is dus geen codeprobleem maar een koppeling die eenmalig gelegd moet
+worden: twaalf accounts, hun RockAds-id erbij. Daarna is de
+"nog-niet-belast"-stand per account rekenkunde, zonder nieuwe tabel en
+zonder dagelijkse snapshot. **Vraag aan de eigenaar: wil hij dat?** Het
+scheelt het intypen van het bedrag, niet het kiezen van het land.
+
+---
+
 ## De drie dingen die op de EIGENAAR wachten
 
 1. **De zestien testaccounts.** Alles mag weg en alles is nep, maar
