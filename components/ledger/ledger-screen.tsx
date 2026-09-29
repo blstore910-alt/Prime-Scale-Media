@@ -179,7 +179,17 @@ export default function LedgerScreen() {
                         : `${offWallets} wallets do not add up`}
           </b>
           <span>
-            {checkFailed
+            {/* ── THE HEADLINE AND THE LINE UNDER IT MUST AGREE ────
+                `checking` was handled in the headline and forgotten
+                here, so while the read was still in flight the page
+                said "Checking the books…" in bold and, directly
+                underneath, "Every wallet balance equals the sum of
+                its own movements (0 wallets)" — a verdict, with the
+                giveaway zero in it, over a read that had not come
+                back. Seen on production 29-09 by opening the page. */}
+            {checking
+              ? "Holding every balance against its own movements."
+              : checkFailed
               ? "Reload. This is not a zero — we did not get an answer."
               : comparedNothing
                 ? "No wallets came back, so there was nothing to check. This is not a clean book — reload, and if it stays empty this account cannot see the wallets."
