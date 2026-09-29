@@ -117,15 +117,26 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
             .order("created_at", { ascending: true }),
           supabase
             .from("wallet_adjustments")
-            .select("id, advertiser_id, currency, amount, status, created_at")
+            // `delta`, not `amount` — this table is the only one of
+            // the seven that names it that way, and asking for
+            // `amount` throws 42703, which the guard below would then
+            // report as "we could not read wallet adjustments". A
+            // correct-looking page with one queue quietly missing is
+            // worse than an error.
+            .select("id, advertiser_id, currency, delta, status, created_at")
             .eq("tenant_id", tenantId!)
             .eq("status", "pending")
             .order("created_at", { ascending: true }),
           supabase
             .from("wallet_precharges")
-            .select("id, advertiser_id, currency, amount, status, created_at")
+            .select("id, advertiser_id, currency, amount, outstanding, status, created_at")
             .eq("tenant_id", tenantId!)
-            .eq("status", "outstanding")
+            // Anything not finished with. Matching only on
+            // status='outstanding' assumed a value; measured 29-09 the
+            // only status in the table is 'cancelled', so a status
+            // nobody thought of would have fallen straight through
+            // instead of landing on the queue.
+            .not("status", "in", "(settled,cancelled,completed)")
             .order("created_at", { ascending: true }),
         ]);
 
@@ -274,7 +285,9 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
             id: String(a.id),
             advertiser_id: (a.advertiser_id as string | null) ?? null,
             currency: String(a.currency ?? "EUR").toUpperCase(),
-            amount: num(a.amount),
+            // Signed: an adjustment can take money away as well as add
+            // it, and the sign is the most important thing on the row.
+            amount: num(a.delta),
             fee: null,
             status: String(a.status ?? ""),
             created_at: String(a.created_at),
@@ -297,7 +310,9 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
             id: String(p.id),
             advertiser_id: (p.advertiser_id as string | null) ?? null,
             currency: String(p.currency ?? "EUR").toUpperCase(),
-            amount: num(p.amount),
+            // What is still owed, not what was originally advanced —
+            // a precharge can be partly settled.
+            amount: p.outstanding == null ? num(p.amount) : num(p.outstanding),
             fee: null,
             status: String(p.status ?? ""),
             created_at: String(p.created_at),

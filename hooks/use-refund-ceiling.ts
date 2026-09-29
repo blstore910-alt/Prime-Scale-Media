@@ -73,9 +73,13 @@ export function useRefundCeilings(tenantId: string | null | undefined) {
             .in("status", ["approved", "paid", "completed"]),
           supabase
             .from("wallet_precharges")
-            .select("advertiser_id, currency, amount")
+            // `outstanding` is what is still owed; `amount` is what was
+            // advanced. A partly settled precharge must subtract only
+            // the part that is still out, or the ceiling is too low and
+            // a customer is refused money that is theirs.
+            .select("advertiser_id, currency, amount, outstanding")
             .eq("tenant_id", tenantId!)
-            .eq("status", "outstanding"),
+            .not("status", "in", "(settled,cancelled,completed)"),
           supabase
             .from("wallets")
             .select("advertiser_id, eur_balance, usd_balance")
@@ -155,7 +159,8 @@ export function useRefundCeilings(tenantId: string | null | undefined) {
       if (note(precharges, "advance credit")) {
         for (const p of (precharges.data ?? []) as Record<string, unknown>[]) {
           const b = at(p.advertiser_id as string, String(p.currency ?? "EUR"));
-          if (b) b.outstandingCredit = r2(b.outstandingCredit + num(p.amount));
+          const still = p.outstanding == null ? num(p.amount) : num(p.outstanding);
+          if (b) b.outstandingCredit = r2(b.outstandingCredit + still);
         }
       }
       if (note(wallets, "wallets")) {
