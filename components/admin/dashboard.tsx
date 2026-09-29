@@ -318,7 +318,17 @@ export default function AdminDashboard() {
     // Only shown to the owner, and only when somebody is actually
     // waiting: an employee admin cannot decide one, so a card they can
     // only look at is a card that teaches them to ignore cards.
-    ...(isSuperAdmin && (pending.feeChangeRequests ?? 0) > 0
+    // Three states, not two. `(x ?? 0) > 0` collapsed null onto zero,
+    // so a count that could not be READ made the card vanish rather
+    // than show the "—" badge every other queue here uses -- a price
+    // request waiting on the owner, invisible because a read failed.
+    //
+    // undefined is still hidden, and deliberately: that is "counting",
+    // and a card that appears and then disappears when the number
+    // lands at zero is worse than one that arrives late.
+    ...(isSuperAdmin &&
+    pending.feeChangeRequests !== undefined &&
+    pending.feeChangeRequests !== 0
       ? [
           {
             key: "fee-changes",

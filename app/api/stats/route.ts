@@ -32,6 +32,11 @@ type AdvertiserStatusRow = {
   profile?: { status?: string | null } | null;
 };
 
+/** null, not 0, when the content-range header gave us nothing. */
+function countOrNull(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -384,20 +389,31 @@ export async function GET() {
     revenue_profit: {
       total_profit: Number(totalProfit.toFixed(2)),
     },
+    // ── A COUNT THAT DID NOT ARRIVE IS NOT A ZERO ─────────────────
+    //
+    // `count` comes from the content-range HEADER, not the body. When
+    // the header is missing or unparseable it is null WITH NO ERROR --
+    // so `|| 0` turned "we could not count" into a confident zero on
+    // the owner's hero tiles: no ad accounts, no advertisers, no
+    // affiliates, no subscriptions billing. The tiles already know how
+    // to draw "—"; they were simply never given the chance.
+    //
+    // hooks/use-pending-counts.ts and use-affiliates-waiting.ts both
+    // guard this already. This route never got it.
     ad_accounts: {
-      total: adAccountsTotalResult.count || 0,
-      active: activeAdAccountsResult.count || 0,
+      total: countOrNull(adAccountsTotalResult.count),
+      active: countOrNull(activeAdAccountsResult.count),
     },
     subscriptions: {
-      billing: billingSubscriptionsResult.count || 0,
+      billing: countOrNull(billingSubscriptionsResult.count),
     },
     advertisers_affiliates: {
       advertisers: {
-        total: advertisersTotalResult.count || 0,
+        total: countOrNull(advertisersTotalResult.count),
         active: activeAdvertisersCount,
       },
       affiliates: {
-        total: affiliatesTotalResult.count || 0,
+        total: countOrNull(affiliatesTotalResult.count),
       },
     },
   });

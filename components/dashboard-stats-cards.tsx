@@ -36,27 +36,34 @@ import { DashboardPeriod } from "@/lib/dashboard-period";
 import { compactRangeLabel } from "@/lib/pure-date-range-label";
 
 interface StatsResponse {
+  // `number | null` throughout: null means the count could not be read,
+  // which is a different fact from zero and has to reach the screen as
+  // one. formatNumber turns it into the same em dash the error state
+  // already uses.
   ad_accounts: {
-    total: number;
-    active: number;
+    total: number | null;
+    active: number | null;
   };
   subscriptions: {
     /** active + past_due — the two the nightly run actually collects. */
-    billing: number;
+    billing: number | null;
   };
   advertisers_affiliates: {
     advertisers: {
-      total: number;
+      total: number | null;
       active: number;
     };
     affiliates: {
-      total: number;
+      total: number | null;
     };
   };
 }
 
 
-const formatNumber = (value: number) => {
+const formatNumber = (value: number | null | undefined) => {
+  // A count we could not read prints as the dash, never as 0. Four
+  // tiles on the owner's hero feed off this.
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("en-US").format(Math.floor(value));
 };
 

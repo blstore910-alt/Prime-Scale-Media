@@ -339,8 +339,17 @@ export default function ReconciliationView() {
           client references and exactly one has ever matched a top-up;
           adding EUR 404k to this side would turn a false gap into a
           false surplus. Somebody has to say which deposit is which. */}
+      {/* entriesQ, not just reconQ. This banner says the bank ledger
+          is EMPTY and therefore every gap below is not evidence of
+          missing money -- an all-clear. It was derived from
+          `?? 0` over a read whose error nobody looked at, so a refused
+          or broken listLedgerEntries produced exactly that all-clear.
+          The ledger block further down already refuses to make this
+          mistake. */}
       {!reconQ.isLoading &&
       !reconQ.isError &&
+      !entriesQ.isPending &&
+      !entriesQ.isError &&
       (entriesQ.data?.entries?.length ?? 0) === 0 &&
       mismatches.length > 0 ? (
         <div

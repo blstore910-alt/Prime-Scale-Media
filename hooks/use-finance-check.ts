@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
+import { pageAllRows } from "@/lib/page-all-rows";
 import {
   classifyDeposit,
   depositAdvice,
@@ -92,7 +93,7 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
 
       const [
         topups,
-        deposits,
+        depositsPaged,
         funding,
         withdrawals,
         refunds,
@@ -106,14 +107,26 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
             .eq("tenant_id", tenantId!)
             .eq("status", "pending")
             .order("created_at", { ascending: true }),
-          supabase
-            .from("wise_incoming_transfers")
-            .select("id, currency, amount_cents, status, created_at, reference, sender_name, matched_topup_id")
-            .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-            .is("archived_at", null)
-            .is("matched_topup_id", null)
-            .order("created_at", { ascending: false })
-            .limit(100),
+          // ── EVERY DEPOSIT, NOT THE NEWEST HUNDRED ──────────────
+          //
+          // This was `.limit(100)`, and it was eight rows from lying.
+          // Measured 29-09: 92 deposits are waiting on a person and
+          // the Wise feed is live with real money arriving daily (370
+          // transfers, up from 298 on the 17th). At 101 the queue
+          // count and "Money involved" would simply stop growing, and
+          // the `unreadable` banner would NOT fire -- nothing errors
+          // when a limit is reached. A short queue reads as a quiet
+          // day, which is the one thing this screen must never do.
+          pageAllRows<Record<string, unknown>>((from, to) =>
+            supabase
+              .from("wise_incoming_transfers")
+              .select("id, currency, amount_cents, status, created_at, reference, sender_name, matched_topup_id")
+              .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+              .is("archived_at", null)
+              .is("matched_topup_id", null)
+              .order("created_at", { ascending: false })
+              .range(from, to),
+          ),
           supabase
             .from("top_ups")
             .select("id, advertiser_id, currency, topup_amount, fee_amount, status, created_at, number")
@@ -202,6 +215,23 @@ export function useFinanceQueue(tenantId: string | null | undefined) {
             ],
           });
         }
+      }
+
+      // Back into the shape the guard below expects, so the paged read
+      // is handled exactly like the seven unpaged ones beside it.
+      const deposits = {
+        data: depositsPaged.rows,
+        error: depositsPaged.error ? { message: depositsPaged.error } : null,
+      };
+
+      // pageAllRows stops at its own ceiling rather than looping for
+      // ever. If it ever does, the figures below are a floor and the
+      // screen has to say so -- silently capping is the fault this
+      // replaced.
+      if (depositsPaged.truncated) {
+        unreadable.push(
+          "bank deposits (more than we could read in one go — the totals are a floor)",
+        );
       }
 
       if (guard(deposits, "bank deposits")) {
