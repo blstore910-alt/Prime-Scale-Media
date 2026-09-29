@@ -59,6 +59,7 @@ export type LedgerLine = {
   balance_before: number;
   balance_after: number;
   source: string;
+  source_id: string | null;
   reason: string | null;
   actor_user_id: string | null;
 };
@@ -175,7 +176,7 @@ export function useLedgerLines(
       let q = supabase
         .from("wallet_ledger")
         .select(
-          "id, occurred_at, advertiser_id, wallet_id, currency, delta, balance_before, balance_after, source, reason, actor_user_id",
+          "id, occurred_at, advertiser_id, wallet_id, currency, delta, balance_before, balance_after, source, source_id, reason, actor_user_id",
         )
         .eq("tenant_id", tenantId!)
         .order("occurred_at", { ascending: false })
@@ -199,9 +200,94 @@ export function useLedgerLines(
         balance_before: num(r.balance_before),
         balance_after: num(r.balance_after),
         source: String(r.source ?? "unknown"),
+        source_id: (r.source_id as string | null) ?? null,
         reason: (r.reason as string | null) ?? null,
         actor_user_id: (r.actor_user_id as string | null) ?? null,
       }));
+      return { rows, notSwitchedOn: false };
+    },
+  });
+}
+
+/**
+ * WHAT MOVED BEFORE THE LEDGER EXISTED.
+ *
+ * The ledger is authoritative from 28-09 and not one day earlier. But
+ * the money before that date is not gone — `audit_events` carries the
+ * `before_data` and `after_data` of every write to `wallets` since
+ * 30-08, and a balance change is visible in there. Measured 29-09: 66
+ * UPDATE rows, of which 45 moved EUR and 5 moved USD.
+ *
+ * ── WHY THIS IS NOT BACKFILLED INTO THE LEDGER ────────────────────
+ *
+ * It would break the one check that matters. Every wallet already
+ * carries one `opening` line equal to its CURRENT balance, so adding
+ * 50 reconstructed lines on top makes balance ≠ sum-of-lines for every
+ * wallet touched — the daily "do the books add up" would go red and
+ * stay red, and the only way to fix it would be to rewrite the opening
+ * lines, on an append-only table.
+ *
+ * So the reconstruction stays out of the ledger and is shown beside
+ * it, labelled for what it is. Nothing here is proof: the audit log
+ * records what a row looked like before and after, not why, and an
+ * actor is missing on the 11 rows written by the service role before
+ * plak 132 made it carry one.
+ */
+export type PriorMove = {
+  occurred_at: string;
+  currency: string;
+  delta: number;
+  balance_before: number;
+  balance_after: number;
+  actor_user_id: string | null;
+};
+
+export function useLedgerPriorMoves(tenantId: string | null | undefined) {
+  return useQuery<{ rows: PriorMove[]; notSwitchedOn: boolean }>({
+    queryKey: ["ledger-prior", tenantId ?? ""],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("audit_events")
+        .select("occurred_at, actor_user_id, before_data, after_data")
+        .eq("tenant_id", tenantId!)
+        .eq("table_name", "wallets")
+        .eq("action", "UPDATE")
+        .order("occurred_at", { ascending: false })
+        .limit(300);
+      if (error) {
+        if (MISSING.test(error.message)) return { rows: [], notSwitchedOn: true };
+        throw error;
+      }
+
+      const rows: PriorMove[] = [];
+      for (const e of (data ?? []) as {
+        occurred_at: string;
+        actor_user_id: string | null;
+        before_data: Record<string, unknown> | null;
+        after_data: Record<string, unknown> | null;
+      }[]) {
+        for (const [cur, key] of [
+          ["EUR", "eur_balance"],
+          ["USD", "usd_balance"],
+        ] as const) {
+          const before = num(e.before_data?.[key]);
+          const after = num(e.after_data?.[key]);
+          const delta = Math.round((after - before) * 100) / 100;
+          // Most of these rows are an `updated_at` touch and nothing
+          // else — 20 of the 66. A movement of zero is not a movement.
+          if (delta === 0) continue;
+          rows.push({
+            occurred_at: e.occurred_at,
+            currency: cur,
+            delta,
+            balance_before: Math.round(before * 100) / 100,
+            balance_after: Math.round(after * 100) / 100,
+            actor_user_id: e.actor_user_id,
+          });
+        }
+      }
       return { rows, notSwitchedOn: false };
     },
   });

@@ -4,8 +4,24 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 
 import { useAppContext } from "@/context/app-provider";
-import { useLedgerCheck, useLedgerLines } from "@/hooks/use-ledger";
+import {
+  useLedgerCheck,
+  useLedgerLines,
+  useLedgerPriorMoves,
+} from "@/hooks/use-ledger";
 import { formatCurrency } from "@/lib/utils";
+import { useLedgerNames } from "@/hooks/use-ledger-detail";
+import { describeSource } from "@/hooks/use-ledger-line";
+import {
+  LedgerLineDetail,
+  LEDGER_DETAIL_CSS,
+} from "@/components/ledger/ledger-line-detail";
+import {
+  MarginPanel,
+  MoneyInPanel,
+  LEDGER_TABS_CSS,
+} from "@/components/ledger/ledger-tabs";
+import type { LedgerLine } from "@/hooks/use-ledger";
 
 /**
  * THE LEDGER, ON A SCREEN.
@@ -52,6 +68,14 @@ export default function LedgerScreen() {
   // An unfiltered read of its own. The chips stay put while the list
   // reloads, and the counts are the real ones.
   const all = useLedgerLines(tenantId, { source: "" });
+  const prior = useLedgerPriorMoves(tenantId);
+  const [showPrior, setShowPrior] = useState(false);
+  const names = useLedgerNames(tenantId);
+  // The owner, 29-09: "click details click details". A movement is
+  // not a row in a list, it is a record -- so the list is the index
+  // and one click opens the entry.
+  const [open, setOpen] = useState<LedgerLine | null>(null);
+  const [tab, setTab] = useState<"moves" | "in" | "margin">("moves");
 
   const sources = useMemo(() => {
     const seen = new Map<string, number>();
@@ -111,7 +135,7 @@ export default function LedgerScreen() {
 
   return (
     <div className="psmview lg">
-      <style>{LEDGER_CSS}</style>
+      <style>{LEDGER_CSS + LEDGER_DETAIL_CSS + LEDGER_TABS_CSS}</style>
 
       <div className="phead">
         <div>
@@ -198,6 +222,41 @@ export default function LedgerScreen() {
         </div>
       ) : null}
 
+      {/* ── THREE QUESTIONS, THREE PANELS ──────────────────────
+          The owner, 29-09: "wat erg belangrijk is dus de binnenkomsten
+          op alle banken en dan de fees en profit die we overhouden,
+          dat moet ook kloppen anders hebben we ergens een lek."
+
+          Money can only go missing in three places, and each one needs
+          its own arithmetic: between the bank and the wallet, inside
+          the wallet, and between what we charged and what we kept. One
+          list could never answer all three. */}
+      <div className="lg-tabs">
+        <button
+          className={`lg-tab${tab === "moves" ? " on" : ""}`}
+          onClick={() => setTab("moves")}
+        >
+          Every movement
+        </button>
+        <button
+          className={`lg-tab${tab === "in" ? " on" : ""}`}
+          onClick={() => setTab("in")}
+        >
+          What came in
+        </button>
+        <button
+          className={`lg-tab${tab === "margin" ? " on" : ""}`}
+          onClick={() => setTab("margin")}
+        >
+          What we keep
+        </button>
+      </div>
+
+      {tab === "in" ? <MoneyInPanel tenantId={tenantId} /> : null}
+      {tab === "margin" ? <MarginPanel tenantId={tenantId} /> : null}
+
+      {tab === "moves" ? (
+        <>
       {/* ── WHERE THE MOVEMENTS CAME FROM ─────────────────────── */}
       {sources.length ? (
         <div className="lg-chips">
@@ -237,24 +296,47 @@ export default function LedgerScreen() {
           </p>
         ) : (
           <div className="lg-rows">
-            {(lines.data?.rows ?? []).map((l) => (
-              <div className="lg-row" key={l.id}>
-                <span className="when">
-                  {dayjs(l.occurred_at).format("D MMM, HH:mm")}
-                </span>
-                <span className={`delta ${l.delta < 0 ? "out" : "in"}`}>
-                  {l.delta > 0 ? "+" : "−"}
-                  {formatCurrency(Math.abs(l.delta), l.currency)}
-                </span>
-                <span className="bal mono">
-                  {formatCurrency(l.balance_before, l.currency)} →{" "}
-                  {formatCurrency(l.balance_after, l.currency)}
-                </span>
-                <span className={`src${l.source === "unknown" ? " todo" : ""}`}>
-                  {l.source}
-                </span>
-              </div>
-            ))}
+            {(lines.data?.rows ?? []).map((l) => {
+              const who = l.advertiser_id
+                ? names.data?.customer.get(l.advertiser_id)
+                : undefined;
+              const by = l.actor_user_id
+                ? names.data?.actor.get(l.actor_user_id)
+                : undefined;
+              return (
+                <button
+                  className={`lg-row${open?.id === l.id ? " on" : ""}`}
+                  key={l.id}
+                  onClick={() => setOpen(open?.id === l.id ? null : l)}
+                  title="Open this movement in full"
+                >
+                  <span className="when">
+                    {dayjs(l.occurred_at).format("D MMM, HH:mm")}
+                  </span>
+                  <span className={`delta ${l.delta < 0 ? "out" : "in"}`}>
+                    {l.delta > 0 ? "+" : "−"}
+                    {formatCurrency(Math.abs(l.delta), l.currency)}
+                  </span>
+                  {/* WHO. A movement without a name on it is a number,
+                      and six rows of numbers is what the owner was
+                      looking at when he said the page told him
+                      nothing. */}
+                  <span className="whom">
+                    <b>{who?.label ?? "No customer on this line"}</b>
+                    <i>
+                      {describeSource(l.source)}
+                      {by ? ` \u00b7 by ${by}` : ""}
+                      {l.reason ? ` \u00b7 ${l.reason}` : ""}
+                    </i>
+                  </span>
+                  <span className="bal mono">
+                    {formatCurrency(l.balance_before, l.currency)} →{" "}
+                    {formatCurrency(l.balance_after, l.currency)}
+                  </span>
+                  <span className="more">Details</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -265,6 +347,96 @@ export default function LedgerScreen() {
           page does not reach — a count and a pager are still to come, and
           until they are here this list is not the whole ledger.
         </p>
+      ) : null}
+
+      {open ? (
+        <LedgerLineDetail
+          line={open}
+          names={names.data}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
+
+      {/* ── BEFORE THE LEDGER EXISTED ──────────────────────────
+          The owner, 28-09: "daarin kan ik ook dus alle geld lekken enz
+          checken ofzo?" -- and for anything before 28-09 the answer
+          was no, because the ledger starts there.
+
+          It does not have to be. `audit_events` has carried the before
+          and after of every write to `wallets` since 30-08, so the
+          movements are reconstructable even though they were never
+          recorded as movements. Measured 29-09: 66 audit rows, 50 real
+          balance changes.
+
+          Deliberately NOT written into the ledger. Every wallet
+          already has an `opening` line equal to its CURRENT balance;
+          adding reconstructed lines on top would make balance differ
+          from sum-of-lines for every wallet touched, and the daily
+          check would go red and stay red. The one thing that makes
+          future money faults solvable is that check, so it is not
+          traded for history.
+
+          Folded shut by default, and labelled: this is not evidence,
+          it is a reconstruction. */}
+      <div className="lg-card">
+        <button
+          className="lg-chip"
+          onClick={() => setShowPrior((v) => !v)}
+          style={{ marginBottom: showPrior ? 12 : 0 }}
+        >
+          {showPrior ? "Hide" : "Show"} what moved before the ledger existed
+          {prior.data?.rows.length ? (
+            <span className="n"> {prior.data.rows.length}</span>
+          ) : null}
+        </button>
+        {showPrior ? (
+          prior.isPending ? (
+            <p className="cap" style={{ margin: 0 }}>
+              Reading the audit log…
+            </p>
+          ) : prior.isError || prior.data?.notSwitchedOn ? (
+            <p className="cap" style={{ margin: 0 }}>
+              We could not read the audit log. This is not &quot;nothing
+              happened&quot; — reload.
+            </p>
+          ) : (prior.data?.rows ?? []).length === 0 ? (
+            <p className="cap" style={{ margin: 0 }}>
+              The audit log holds no wallet movements before the ledger.
+            </p>
+          ) : (
+            <>
+              <p className="lg-warn">
+                <b>Reconstructed, not recorded.</b> These come from the audit
+                log, which keeps what a row looked like before and after a
+                write — not why it happened. Treat them as a trail to
+                follow, not as proof. The ledger proper starts below.
+              </p>
+              <div className="lg-rows">
+                {(prior.data?.rows ?? []).map((m, i) => (
+                  <div className="lg-row" key={i}>
+                    <span className="when">
+                      {dayjs(m.occurred_at).format("D MMM, HH:mm")}
+                    </span>
+                    <span className={`delta ${m.delta < 0 ? "out" : "in"}`}>
+                      {m.delta > 0 ? "+" : "−"}
+                      {formatCurrency(Math.abs(m.delta), m.currency)}
+                    </span>
+                    <span className="bal mono">
+                      {formatCurrency(m.balance_before, m.currency)} →{" "}
+                      {formatCurrency(m.balance_after, m.currency)}
+                    </span>
+                    <span className="src todo">
+                      {m.actor_user_id ? "audit" : "audit, no actor"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )
+        ) : null}
+      </div>
+
+        </>
       ) : null}
 
       <p className="lg-foot">
@@ -302,6 +474,14 @@ const LEDGER_CSS = `
     padding:9px 0;border-bottom:1px solid var(--line,#e3e8f4);font-size:.86rem}
   .lg-off:last-child{border-bottom:0}
 
+  .lg-tabs{display:flex;gap:6px;background:var(--panel-2,#f0f4fd);padding:4px;
+    border-radius:12px;overflow-x:auto}
+  .lg-tab{flex:1;min-width:max-content;padding:9px 16px;border:0;border-radius:9px;
+    cursor:pointer;font:inherit;font-size:.86rem;font-weight:700;
+    background:transparent;color:var(--txt-2,#535e78);white-space:nowrap}
+  .lg-tab.on{background:var(--panel,#fff);color:var(--ink,#12162a);
+    box-shadow:0 1px 3px rgba(20,30,80,.12)}
+
   .lg-chips{display:flex;flex-wrap:wrap;gap:7px}
   .lg-chip{padding:6px 12px;border-radius:99px;cursor:pointer;font:inherit;
     font-size:.8rem;font-weight:700;border:1px solid var(--line,#e3e8f4);
@@ -312,9 +492,21 @@ const LEDGER_CSS = `
   .lg-chip .n{opacity:.6;font-weight:600}
 
   .lg-rows{display:flex;flex-direction:column}
-  .lg-row{display:grid;grid-template-columns:110px 110px 1fr auto;gap:12px;
-    align-items:center;padding:9px 0;border-bottom:1px solid var(--line,#e3e8f4);
-    font-size:.84rem}
+  .lg-row{display:grid;grid-template-columns:104px 108px minmax(0,1fr) auto auto;
+    gap:12px;align-items:center;padding:10px 8px;text-align:left;width:100%;
+    border:0;border-bottom:1px solid var(--line,#e3e8f4);background:transparent;
+    font:inherit;font-size:.84rem;cursor:pointer;border-radius:8px;
+    transition:background .12s}
+  .lg-row:hover{background:var(--panel-2,#f0f4fd)}
+  .lg-row.on{background:var(--primary-tint,rgba(58,111,255,.08))}
+  .lg-row .whom{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .lg-row .whom b{font-weight:700;color:var(--ink,#12162a);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .lg-row .whom i{font-style:normal;font-size:.75rem;color:var(--faint,#818ead);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lg-row .more{font-size:.74rem;font-weight:700;color:var(--primary,#3a6fff);
+    opacity:0;transition:opacity .12s}
+  .lg-row:hover .more,.lg-row.on .more{opacity:1}
   .lg-row:last-child{border-bottom:0}
   .lg-row .when{color:var(--faint,#818ead)}
   .lg-row .delta{font-weight:800;font-variant-numeric:tabular-nums}
@@ -326,10 +518,15 @@ const LEDGER_CSS = `
   .lg-row .src.todo{border:1px dashed var(--line-2,#d3daec);background:transparent}
 
   .lg-foot{margin:0;font-size:.78rem;line-height:1.5;color:var(--faint,#818ead)}
+  .lg-warn{margin:0 0 12px;font-size:.8rem;line-height:1.5;padding:9px 12px;
+    border-radius:10px;background:#fff6e5;border:1px solid #f0d9ab;
+    color:#7a5510}
 
   @media (max-width:720px){
-    .lg-row{grid-template-columns:1fr auto;row-gap:4px}
+    .lg-row{grid-template-columns:1fr auto;row-gap:3px}
+    .lg-row .whom{grid-column:1 / -1;order:-1}
     .lg-row .bal{grid-column:1 / -1}
+    .lg-row .more{display:none}
     .lg-verdict{align-items:flex-start}
   }
 `;
