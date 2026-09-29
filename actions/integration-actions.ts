@@ -532,11 +532,23 @@ export async function wiseIngestStatus(): Promise<WiseIngestStatus> {
       .from("wise_incoming_transfers")
       .select("id", { count: "exact", head: true })
       .or(mine),
+    // ── AN EMPTY STRING IS NOT A REFERENCE ──────────────────────
+    //
+    // This was `.not("reference", "is", null)`, which counts a row
+    // whose reference is present and BLANK. Measured 29-09: 335 rows
+    // are non-null and 312 have something in them, so the tile read
+    // "335 with a reference" over 23 deposits with an empty field.
+    //
+    // It matters because of what the tile is FOR: the number beside
+    // it is the deposits nobody could place, and a reference is the
+    // one thing that would let somebody place them. Overstating it by
+    // 23 makes the pile look more tractable than it is.
     supabase
       .from("wise_incoming_transfers")
       .select("id", { count: "exact", head: true })
       .or(mine)
-      .not("reference", "is", null),
+      .not("reference", "is", null)
+      .neq("reference", ""),
     supabase
       .from("wise_incoming_transfers")
       .select("created_at")
