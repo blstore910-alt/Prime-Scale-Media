@@ -3,6 +3,7 @@
 import { DashboardStatsCards } from "@/components/dashboard-stats-cards";
 import RateLimitsView from "@/components/system-status/rate-limits-view";
 import SystemStatusPanel from "@/components/system-status/system-status-panel";
+import SupplierCredit from "@/components/admin/supplier-credit";
 import { useAppContext } from "@/context/app-provider";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 import { useAffiliatesWaiting } from "@/hooks/use-affiliates-waiting";
@@ -672,6 +673,22 @@ export default function AdminDashboard() {
           );
           })}
       </div>
+
+      {/* ── CAN THE WORK IN THOSE QUEUES ACTUALLY BE DONE? ──────────
+          The owner, 29-09: "kunnen we in ons dashboard ook easy on
+          balance zien wat we momenteel usd en eur hebben bij rockads en
+          bij seamx."
+
+          It sits HERE, between the queues and the figures, because that
+          is the order the question comes in: here is what is waiting,
+          here is whether there is credit behind it, here is how the
+          month is going. An admin verifying an ad-account top-up had to
+          open the supplier's own website to learn the third of those,
+          and usually did not.
+
+          Admin AND owner, unlike the profit tiles below. It is not
+          profit — it is whether a queue can be cleared today. */}
+      <SupplierCredit />
 
       {/* Real profit + activity metrics with the period toggle, grouped as one
           cohesive section. The wired DashboardStatsCards carries its own

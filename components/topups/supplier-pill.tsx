@@ -42,14 +42,23 @@ export default function SupplierPill({
   // is actually true about this ACCOUNT TYPE -- there is an API, so no
   // supplier dashboard to go and log into -- and says nothing about
   // whether anything has happened.
+  //
+  // AND IT SAYS WHAT TO DO, because the other two pills do.
+  // "Top up at Rockads" is an instruction. "No supplier link" points at
+  // the setting that fixes it. "API available" was a property of the
+  // account type -- true, and no use to the person reading it, who
+  // wants to know where they go next. They go nowhere: this one is
+  // funded from inside this app. So the pill says that, in the same
+  // shape as its neighbour, and the tooltip carries the warning that
+  // the label no longer has room for.
   if (link.apiEnabled) {
     return (
       <span
         className="suppill auto"
-        title="This type can be funded through the API — an admin still pushes it and checks it"
+        title="No supplier dashboard for this type — the top-up is pushed from this app. Nothing is sent on its own: an admin still pushes it and checks it landed."
       >
         <Zap />
-        API available
+        Fund in this app
       </span>
     );
   }

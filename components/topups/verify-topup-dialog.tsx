@@ -365,7 +365,7 @@ function VerifyTopupInvoice({
             the same height and shape, so they read as a pair. */}
         {/* The owner, on the second pass: the copy icon was huge and under
             the name (Copyable's styles live in the app shell, and a dialog
-            renders outside it), and "API available" belongs beside
+            renders outside it), and "Fund in this app" belongs beside
             "Pending", the same size. So: the number with both pills on the
             right, then the account name with a small copy button right
             after it. */}

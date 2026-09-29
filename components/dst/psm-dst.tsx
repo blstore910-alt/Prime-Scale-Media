@@ -30,6 +30,7 @@ import {
   invoiceDstCharges,
 } from "@/actions/dst-actions";
 import { Button } from "@/components/ui/button";
+import SupplierDstReserve from "@/components/dst/supplier-dst-reserve";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -271,6 +272,11 @@ export default function PsmDst() {
           <Plus /> Enter a week
         </Button>
       </div>
+
+      {/* What the suppliers hold back for tax -- the one DST figure
+          they report, and the answer to why the rest is still typed.
+          Renders nothing when there is nothing to say. */}
+      <SupplierDstReserve />
 
       {/* ── WHO NEEDS A WEEK TYPING ─────────────────────────────────
           The owner, 27-09: "we moeten zien bijv welke klanten al 7+
