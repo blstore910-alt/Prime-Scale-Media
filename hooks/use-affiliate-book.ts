@@ -52,8 +52,13 @@ export type BookLink = {
 export type BookCommission = {
   id: string;
   created_at: string;
-  referral_link_id: string;
+  /** NULL once the affiliate is gone: plak 152 made this SET NULL so
+   *  the commission itself survives the deletion. */
+  referral_link_id: string | null;
   type: string | null;
+  /** Carried on the row by plak 152, for exactly the null above. */
+  affiliate_code?: string | null;
+  affiliate_name?: string | null;
   /** Pinned to a payout request once one is raised. See COMMISSION_BASE. */
   payout_id?: string | null;
   amount: number;
@@ -120,6 +125,13 @@ export type AffiliateSummary = {
   owed: MoneyByCurrency;
   paid: MoneyByCurrency;
   hasOwnRules: boolean;
+  /**
+   * The affiliate row is gone, but their commissions are not. Plak 152
+   * carries the code and name on each commission for exactly this, so
+   * the money stays on the owner's book under the name it was earned
+   * by instead of vanishing out of "Still owed".
+   */
+  removed: boolean;
 };
 
 export type AffiliateBook = {
@@ -148,7 +160,11 @@ const COMMISSION_BASE =
   // affiliate_referral_stats excludes it. Without this the owner's book
   // counted it again, so the queue above the tile and the tile itself
   // showed the same money twice on one screen.
-  "id, created_at, referral_link_id, type, amount, currency, status, topup_id, payout_id";
+  // affiliate_code / affiliate_name: written by plak 152 onto every
+  // commission, precisely so the row stays attributable when its
+  // affiliate is gone. They were not being asked for, so the screen
+  // could not use what the database had already saved.
+  "id, created_at, referral_link_id, type, amount, currency, status, topup_id, payout_id, affiliate_code, affiliate_name";
 const COMMISSION_CALC =
   // subscription_invoice_id, NOT invoice_id: plak 35 reused the column
   // that was already there. Asking for a column that does not exist sent
@@ -208,6 +224,7 @@ export function groupAffiliateBook(
         owed: {},
         paid: {},
         hasOwnRules: false,
+        removed: false,
       };
       byAffiliate.set(id, a);
     }
@@ -261,24 +278,62 @@ export function groupAffiliateBook(
     { earned: MoneyByCurrency; owed: MoneyByCurrency; paid: MoneyByCurrency }
   >();
   for (const c of commissions) {
-    const affId = linkToAffiliate.get(c.referral_link_id);
-    if (!affId) continue;
+    const affId = c.referral_link_id
+      ? linkToAffiliate.get(c.referral_link_id)
+      : undefined;
+
+    // ── A COMMISSION WHOSE AFFILIATE IS GONE IS STILL MONEY ────────
+    //
+    // `continue` here dropped it. Plak 152 went to the trouble of
+    // making `referral_link_id` SET NULL, and of copying the code and
+    // name onto the row, specifically so a paid commission outlives
+    // its affiliate -- and then this loop threw those survivors away
+    // because the link map could not find them.
+    //
+    // What the owner saw: delete an affiliate and Earned, Still owed
+    // and Paid all drop by that affiliate's lifetime, silently. "Still
+    // owed" is the figure they pay FROM. The rows were still in the
+    // table; the screen simply could not reach them.
+    //
+    // They get their own entry, under the name the row carries, marked
+    // `removed` so the table can say what it is. No per-link netting:
+    // there is no link any more, so there are no clawbacks to net --
+    // and a clawback that outlived its link would have to find its own
+    // way here, which is a separate question nobody has asked yet.
+    if (!affId) {
+      const code = (c.affiliate_code ?? "").trim();
+      const a = ensure(`removed:${code || c.id}`, {
+        name: c.affiliate_name ?? null,
+        code: code || null,
+      });
+      a.removed = true;
+      a.commissions.push(c);
+      const gone = (c.status ?? "unpaid").toLowerCase();
+      if (gone === "on_hold" || gone === "reversed") continue;
+      add(a.earned, c.currency, c.amount);
+      if (gone === "paid") add(a.paid, c.currency, c.amount);
+      else if (!c.payout_id) add(a.owed, c.currency, c.amount);
+      continue;
+    }
+    // Past the orphan branch above, the link is present by
+    // construction -- affId came out of the map keyed on it.
+    const linkId = c.referral_link_id as string;
     // A rejected referral earns nothing: the affiliate's own screens
     // drop it, so the owner's must too.
-    if (linkStatus.get(c.referral_link_id) === "rejected") continue;
+    if (linkStatus.get(linkId) === "rejected") continue;
     const a = byAffiliate.get(affId)!;
     a.commissions.push(c);
     const st = (c.status ?? "unpaid").toLowerCase();
     // Not money: on hold (profit unknown) or reversed (the top-up was
     // undone). Counting either as owed would ask the owner to pay it.
     if (st === "on_hold" || st === "reversed") continue;
-    const b = perLink.get(c.referral_link_id) ?? { earned: {}, owed: {}, paid: {} };
+    const b = perLink.get(linkId) ?? { earned: {}, owed: {}, paid: {} };
     add(b.earned, c.currency, c.amount);
     if (st === "paid") add(b.paid, c.currency, c.amount);
     // Already pinned to a payout request: asked for, not yet paid, and
     // not still owed. The RPC that pays has stamped it.
     else if (!c.payout_id) add(b.owed, c.currency, c.amount);
-    perLink.set(c.referral_link_id, b);
+    perLink.set(linkId, b);
   }
 
   // The same figure the affiliate's own screen subtracts, carried on the
@@ -290,6 +345,8 @@ export function groupAffiliateBook(
   }
 
   for (const [linkId, b] of perLink) {
+    // Orphans never enter perLink -- they are totalled above, where
+    // their identity still exists on the row.
     const affId = linkToAffiliate.get(linkId);
     if (!affId) continue;
     const a = byAffiliate.get(affId)!;

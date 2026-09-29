@@ -808,8 +808,30 @@ function Overview({
                       <div style={{ fontWeight: 700 }}>
                         {a.name || DASH}{" "}
                         <span className="mono muted" style={{ fontSize: ".78rem" }}>
-                          {a.code}
-                        </span>
+                          {a.code || DASH}
+                        </span>{" "}
+                        {/* The affiliate is gone; the money they earned
+                            is not. Without this the row looks like a
+                            live affiliate with no referrals, and the
+                            owner could try to pay somebody who no
+                            longer has an account. */}
+                        {a.removed ? (
+                          <span
+                            className="muted"
+                            style={{
+                              fontSize: ".68rem",
+                              fontWeight: 800,
+                              letterSpacing: ".04em",
+                              textTransform: "uppercase",
+                              border: "1px solid var(--line-2)",
+                              borderRadius: 999,
+                              padding: "1px 7px",
+                            }}
+                            title="This affiliate's account was removed. Their commissions are still on the books and still count towards what is owed."
+                          >
+                            account removed
+                          </span>
+                        ) : null}
                       </div>
                       <div className="muted" style={{ fontSize: ".8rem" }}>
                         {a.email || DASH}
@@ -1440,7 +1462,12 @@ function AffiliateDetail({
                   </thead>
                   <tbody>
                     {commissions.map((c) => {
-                      const l = customerOf(c.referral_link_id);
+                      // Null once plak 152's SET NULL has fired: the
+                      // commission outlived its affiliate. No customer
+                      // to resolve, and customerOf must not be asked.
+                      const l = c.referral_link_id
+                        ? customerOf(c.referral_link_id)
+                        : null;
                       const st = (c.status ?? "unpaid").toLowerCase();
                       return (
                         <tr key={c.id}>
