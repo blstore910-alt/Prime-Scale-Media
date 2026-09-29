@@ -63,8 +63,16 @@ export default function AdAccountRequestRejectDialog({
     if (!open) setReason("");
   }, [open]);
 
+  // ── THE SAME THRESHOLD AS EVERY OTHER REJECTION ─────────
+  //
+  // This lit up on ONE character. Every other reject dialog in the
+  // app wants three, and so do withdrawal-actions, refund-actions and
+  // adjustment-actions. So "no" enabled the button here and a
+  // one-word reason is what the customer would have been sent.
+  const REASON_MIN = 3;
+
   const handleSubmit = () => {
-    if (!trimmedReason) return;
+    if (trimmedReason.length < REASON_MIN) return;
     onSubmit(trimmedReason);
   };
 
@@ -137,9 +145,18 @@ export default function AdAccountRequestRejectDialog({
           >
             Cancel
           </Button>
+          {/* A greyed button with no reason beside it is a dead end.
+              A `title` is invisible on a phone and browsers do not
+              fire hover on a disabled element, so: a line of text. */}
+          {trimmedReason.length < REASON_MIN && !isSubmitting ? (
+            <p className="mr-auto self-center text-[0.78rem] leading-snug text-muted-foreground">
+              Write a reason first, at least a few words. The customer reads
+              it.
+            </p>
+          ) : null}
           <Button
             onClick={handleSubmit}
-            disabled={!trimmedReason || isSubmitting}
+            disabled={trimmedReason.length < REASON_MIN || isSubmitting}
           >
             Reject request
           </Button>

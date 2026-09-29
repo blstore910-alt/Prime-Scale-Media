@@ -5,7 +5,6 @@ import {
   pageAllRows,
   pageAllRowsTolerant,
 } from "@/lib/page-all-rows";
-import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type CurrencyKey = "usd" | "eur";
 
@@ -78,15 +77,13 @@ export async function GET() {
   const supabase = await createClient();
 
   // All-time profit / revenue is a super-admin (tenant-owner) surface — the
-  // reduced employee-admin dashboard never calls this endpoint. Gate it to
-  // the owner so a plain admin can't read total_profit / fees / top-ups by
-  // hitting the route directly.
-  // The tenant read that used to sit here is now inside
-  // isTenantOwner, which also consults `tenant_owners`.
-  // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
-  if (!(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  // reduced employee-admin dashboard never calls this endpoint.
+  //
+  // The second check that used to sit here is gone: `apiRequireOwner`
+  // above already does it, and doing it twice meant fixing it twice.
+  // It was fixed in one of the two, which is worse than either — the
+  // route agreed the caller was an owner while the guard had already
+  // said no.
 
   const [
     topupsResult,

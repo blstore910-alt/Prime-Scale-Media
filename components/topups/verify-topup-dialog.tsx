@@ -656,12 +656,20 @@ function VerifyTopupInvoice({
         >
           Cancel
         </Button>
+        {/* ── A TITLE IS NOT A HINT ON A PHONE ──────────────
+            This carried the reason in a `title`, which never shows on
+            a touch screen — and browsers do not fire hover on a
+            disabled element on a desktop either, so it was close to
+            invisible everywhere. psm-verify-topups.tsx:740 writes the
+            rule down; this is the dialog it was written about. */}
+        {!allTicked && !isPending ? (
+          <p className="mr-auto self-center text-[0.78rem] leading-snug text-muted-foreground">
+            Tick every step above first.
+          </p>
+        ) : null}
         <Button
           type="submit"
           disabled={isPending || !allTicked}
-          title={
-            allTicked ? undefined : "Tick every step above first."
-          }
           className="w-full sm:w-auto"
         >
           {isPending ? (

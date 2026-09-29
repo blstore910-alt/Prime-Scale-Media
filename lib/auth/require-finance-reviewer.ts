@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -42,16 +43,19 @@ export async function requireFinanceReviewer(redirectTo = "/dashboard") {
 
   const supabase = await createClient();
 
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", p.tenant_id as string)
-    .maybeSingle();
-
-  const ownerId = (tenant as { owner_id?: string | null } | null)?.owner_id;
-  const isOwner =
-    !!ownerId &&
-    (ownerId === user.id || ownerId === p.user_id);
+  // I wrote this the same day I was fixing exactly this mistake
+  // elsewhere, and made it here too: `tenants.owner_id` holds one
+  // uuid, and the owner has a business partner (plak 143). The second
+  // owner would have been sent back from /finance-check by the guard
+  // that was supposed to let owners through.
+  //
+  // One function decides ownership. See lib/auth/is-tenant-owner.ts.
+  const isOwner = await isTenantOwner(
+    supabase,
+    p.tenant_id,
+    user.id,
+    p.user_id,
+  );
 
   if (isOwner) return { user, profile, isOwner: true as const };
 

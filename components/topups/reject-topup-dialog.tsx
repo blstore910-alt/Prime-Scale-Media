@@ -170,11 +170,21 @@ export default function RejectTopupDialog({
           </Button>
           {/* The reason is required and the customer is shown it. A live
               button over an empty box teaches the opposite, and the two
-              sibling reject dialogs both disable it. */}
+              sibling reject dialogs both disable it.
+
+              It also lit up on ONE character while the server wants
+              three, so "no" enabled it -- and a greyed button with
+              nothing beside it is its own dead end. */}
+          {reason.trim().length < 3 && !isPending ? (
+            <p className="mr-auto self-center text-[0.78rem] leading-snug text-muted-foreground">
+              Write a reason first, at least a few words. The customer reads
+              it.
+            </p>
+          ) : null}
           <Button
             variant="destructive"
             onClick={handleSubmit}
-            disabled={!reason.trim() || isPending}
+            disabled={reason.trim().length < 3 || isPending}
             className="text-white"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

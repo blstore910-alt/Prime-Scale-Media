@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type AdminProfile = {
   id: string;
@@ -100,17 +101,27 @@ export async function apiRequireOwner() {
   const base = await apiRequireAdmin();
   if (base.error) return base;
 
+  // ── THERE CAN BE MORE THAN ONE OWNER ──────────────────
+  //
+  // This compared against `tenants.owner_id` alone, which holds one
+  // uuid. The owner has a business partner (plak 143), and the second
+  // owner got a 403 here — from /api/stats, /api/stats/profit,
+  // /api/stats/fees, /api/stats/affiliate-commissions and
+  // /api/send-invite.
+  //
+  // That is how it showed up: the dashboard toast "Couldn't load some
+  // data (stats)", on every page load, for the partner only. Half an
+  // hour to find, because the message did not say which read had
+  // failed — it does now.
+  //
+  // One function decides this, for exactly this reason.
   const supabase = await createClient();
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", base.profile!.tenant_id)
-    .maybeSingle();
-
-  const ownerId = (tenant as { owner_id: string | null } | null)?.owner_id;
-  const isOwner =
-    !!ownerId &&
-    (ownerId === base.user!.id || ownerId === base.profile!.user_id);
+  const isOwner = await isTenantOwner(
+    supabase,
+    base.profile!.tenant_id,
+    base.user!.id,
+    base.profile!.user_id,
+  );
 
   if (!isOwner) {
     return {

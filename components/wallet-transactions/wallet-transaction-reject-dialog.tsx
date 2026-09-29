@@ -93,6 +93,18 @@ export default function WalletTransactionRejectDialog({
           >
             Cancel
           </Button>
+          {/* ── A GREYED BUTTON THAT SAYS NOTHING IS A DEAD END ───
+              The reason box is the only thing between this and the
+              button, and on a phone the box can be scrolled out of
+              sight while the button is not. A `title` does not show
+              on a touch screen, and browsers do not fire hover on a
+              disabled element anyway — so this is a line of text. */}
+          {trimmedReason.length < REASON_MIN && !isSubmitting ? (
+            <p className="mr-auto self-center text-[0.78rem] leading-snug text-muted-foreground">
+              Write a reason first, at least a few words. It stays on the
+              record for whoever looks at this next.
+            </p>
+          ) : null}
           <Button
             variant="destructive"
             onClick={handleSubmit}

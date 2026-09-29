@@ -39,8 +39,6 @@ const ALLOWED = new Set<string>([
   // fast path before consulting the table.
   "actions/_shared.ts",
   "lib/auth/require-super-admin.ts",
-  "lib/auth/api-require-admin.ts",
-  "lib/auth/require-finance-reviewer.ts",
   // A fee is a price: this reads the column, then the table.
   "actions/_fee-is-a-price.ts",
   // Creating a tenant SETS owner_id. That is not a permission check.
