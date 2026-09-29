@@ -181,8 +181,8 @@ gelijk geeft.
 
 | rol | scherm | gemeten | hoort | uitkomst |
 |---|---|---|---|---|
-| — | laag 1 vooraf | | | |
-| T3-A | uitnodiging -> signup -> onboarding | | | |
+| — | laag 1 vooraf | ochtend 12/12 op 0 (op factuur 131 na, historisch); rondje 18 regels, **niets op FOUT**, twee op KIJKEN (8 topups >7 dagen in de wachtrij, 1 klant achter met DST -- allebei werkvoorraad) | alles op 0 | **SCHOON — laag 2 mag beginnen** |
+| T3-A | uitnodiging verstuurd | `t3a-3009@robustq.com`, Advertiser, plan **Prime** (EUR200/mo · 2 accounts · 3%), geen referrer, TURLIT. Dialoog: alle vier de plannen en allebei de valuta geopend voor ik koos. Database 21:35 `pending`. | 1 pending invite | **VERSTUURD — wacht op signup** |
 | T3-A | dashboard | | | |
 | T3-A | wallet | | | |
 | T3-A | wallet opwaarderen (alle takken) | | | |
@@ -195,9 +195,9 @@ gelijk geeft.
 | T3-A | profile | | | |
 | T3-A | notifications | | | |
 | T3-A | help | | | |
-| T3-N | uitnodiging met NSA-community | | | |
+| T3-N | uitnodiging verstuurd | `t3n-3009@robustq.com`, Advertiser, community **NSA**: de samenvatting wisselt van 'Plan' naar 'Community' en zegt **Free — no subscription**, 2 accounts, **5%** fee. Database 21:39 `pending`. | 1 pending invite | **VERSTUURD — wacht op signup** |
 | T3-N | de tien schermen, met de fee als vraag | | | |
-| T3-F | uitnodiging -> signup als affiliate | | | |
+| T3-F | uitnodiging verstuurd | `t3f-3009@robustq.com`, Affiliate. Database 21:38 `pending`. | 1 pending invite | **VERSTUURD — wacht op signup** |
 | T3-F | dashboard | | | |
 | T3-F | referrals | | | |
 | T3-F | commissions | | | |
