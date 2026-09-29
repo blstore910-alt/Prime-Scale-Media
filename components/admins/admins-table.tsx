@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, UserPlus } from "lucide-react";
 import { useState } from "react";
+
+import AdminCapabilities from "@/components/admins/admin-capabilities";
 import { toast } from "sonner";
 import AdminCredentialsDialog from "./admin-credentials-dialog";
 import CreateAdminDialog from "./create-admin-dialog";
@@ -46,7 +48,9 @@ function formatLastSeen(iso: string | null): {
 // query + toggleAdminStatus mutation and the create / credentials
 // dialogs — presentation only.
 export default function AdminsTable() {
-  const { profile } = useAppContext();
+  // isSuperAdmin folds in tenant_owners, so the second owner can
+  // hand out permissions too. See context/app-provider.tsx.
+  const { profile, isSuperAdmin } = useAppContext();
   const queryClient = useQueryClient();
   const tenantId = profile?.tenant_id ?? null;
   const [createOpen, setCreateOpen] = useState(false);
@@ -55,6 +59,7 @@ export default function AdminsTable() {
     password: string;
   } | null>(null);
   const [pendingAdminId, setPendingAdminId] = useState<string | null>(null);
+  const [capsFor, setCapsFor] = useState<AdminProfile | null>(null);
   // Not window.confirm: it cannot name the person, and a browser that has
   // been told to suppress dialogs returns false silently, which reads as a
   // dead button on a screen where the action is removing somebody's access.
@@ -248,6 +253,23 @@ export default function AdminsTable() {
                         </span>
                       </td>
                       <td data-label="Action" className="r fullcell">
+                        {/* ── WHAT THIS PERSON MAY DO ─────────────
+                            The owner, 26-09: "mooiste zou zijn als ik
+                            per admin wat bevoegdheden kan instellen."
+                            Shown for everybody including yourself —
+                            reading your own is useful, and only an
+                            owner can change anything anyway. */}
+                        <button
+                          className="btn ghost sm"
+                          style={{ marginRight: 6 }}
+                          onClick={() =>
+                            setCapsFor(
+                              capsFor?.id === admin.id ? null : admin,
+                            )
+                          }
+                        >
+                          {capsFor?.id === admin.id ? "Hide" : "Permissions"}
+                        </button>
                         {isSelf ? (
                           <span className="muted" style={{ fontSize: ".82rem" }}>
                             You can&apos;t change your own access
@@ -282,6 +304,19 @@ export default function AdminsTable() {
           </p>
         </div>
       )}
+
+      {/* Under the table rather than inside a row: the list of
+          permissions is longer than a table cell and a person reads it
+          before deciding, not while squinting at it. */}
+      {capsFor ? (
+        <AdminCapabilities
+          profileId={capsFor.id}
+          name={capsFor.full_name ?? capsFor.email ?? "This admin"}
+          isOwner={false}
+          canEdit={isSuperAdmin}
+          onClose={() => setCapsFor(null)}
+        />
+      ) : null}
 
       <CreateAdminDialog
         open={createOpen}

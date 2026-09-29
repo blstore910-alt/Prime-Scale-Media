@@ -1,8 +1,7 @@
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 import { isMaintenanceMode } from "@/actions/_shared";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { rateAge, RATE_STALE_HOURS } from "@/lib/pure-rate-guard";
 import { refreshExchangeRates } from "@/lib/refresh-exchange-rates";
@@ -55,29 +54,41 @@ export async function POST() {
   // tenant reads this rate already (policy `exchange_rates_select`), and
   // what this does is make the figure they are about to be charged on
   // current. There is nothing here to gate on a role.
-  let userId: string | null = null;
+  // Still refuse an anonymous caller. The id itself is no longer kept
+  // here: createAdminClient reads the session and carries the name
+  // into the audit row for us.
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       return NextResponse.json({ error: "Sign in first" }, { status: 401 });
     }
-    userId = data.user.id;
   } catch (e) {
     return NextResponse.json(
       { error: safeErrorMessage(e) },
       { status: 500 },
     );
   }
-  void userId;
-
   if (isMaintenanceMode()) {
     return NextResponse.json({ ok: true, skipped: "maintenance" });
   }
 
-  const admin = createServiceClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  // ── THE CALLER IS KNOWN. WRITE IT DOWN. ─────────────────
+  //
+  // This route authenticated the caller at the top, captured their id,
+  // and then threw it away with `void userId` before building a raw
+  // service client. So a signed-in person changed the FX rate that
+  // every customer is charged on, and the audit row landed with no
+  // name — indistinguishable from the hourly cron.
+  //
+  // It matters more now than it did: with two owners (plak 143), "who
+  // moved the rate" is a question that can actually be asked of two
+  // different people.
+  //
+  // `createAdminClient()` reads the session itself and attaches the
+  // `x-psm-actor` header that `_audit_row_change` reads (plak 132), so
+  // this is the same service-role client with a name on it.
+  const admin = await createAdminClient();
 
   // ---- IS IT ACTUALLY STALE? --------------------------------------
   //
