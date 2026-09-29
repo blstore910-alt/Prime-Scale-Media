@@ -226,10 +226,15 @@ export default function PsmVerifyAdTopups() {
             const landed = landedOnAccount(t);
             return (
               <div key={t.id} className="card" style={{ padding: 16 }}>
+                {/* flex-start, not center: the identity block is three
+                    or four lines tall and the status badge was being
+                    centred against it, so it landed beside the
+                    customer's NAME with nothing to line up with. It
+                    belongs level with the client code at the top. */}
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     gap: 10,
                     marginBottom: 8,
                   }}
@@ -338,34 +343,38 @@ export default function PsmVerifyAdTopups() {
                     {money(t.fee_amount, landed.currency)}
                   </span>
                 </div>
-                {/* The supplier line sits ABOVE the buttons, on its own
-                    row: it is context for the decision, not one of the
-                    choices, and mixing it in made a four-item row that
-                    wrapped differently on every card. */}
-                {/* ── ON EVERY ROW, NOT ONLY A PENDING ONE ──────────
-                    The owner, 27-09, looking at a COMPLETED card: "hier
-                    moeten we ook weer easy kunnen zien supplier
-                    dashboard link of pill."
-                    It was gated on `pend`, so the moment a top-up was
-                    verified the route to the supplier's own dashboard
-                    disappeared -- which is exactly when somebody goes
-                    looking for it: the money has gone out and they want
-                    to see it land. The pill returns null on its own
-                    when there is no link, so this needs no other
-                    guard. */}
-                <div style={{ marginTop: 12 }}>
-                  <SupplierPill link={supplierFor(t.account_id)} />
-                </div>
-                {/* All the buttons on ONE row, and they stay on it. */}
+                {/* ── ONE FOOTER ROW, NOT TWO ──────────────────
+                    The owner, 29-09, looking at a completed card:
+                    "deze card niet mooi ingedeeld, 2 pills random en
+                    ook 1 button kan meer op 1 rij."
+                    He is right. The supplier pill had a row of its
+                    own and the buttons had another, so a finished
+                    top-up spent two lines on one pill and one
+                    Details button, with the status badge floating
+                    off on a third level entirely.
+                    Now: pill on the left, buttons on the right, one
+                    row. It wraps rather than being held on one line,
+                    because a PENDING card carries three buttons and
+                    a pill, and forcing those onto a phone width is
+                    how the send button got clipped in block 6.
+                    The pill still shows on every status, not only on
+                    pending — 27-09: "hier moeten we ook weer easy
+                    kunnen zien supplier dashboard link of pill." The
+                    moment a top-up is verified is exactly when
+                    somebody goes looking for it. It returns null by
+                    itself when there is no link. */}
                 <div
                   style={{
                     display: "flex",
                     gap: 8,
-                    marginTop: 10,
-                    flexWrap: "nowrap",
+                    marginTop: 12,
+                    flexWrap: "wrap",
                     alignItems: "center",
+                    rowGap: 8,
                   }}
                 >
+                  <SupplierPill link={supplierFor(t.account_id)} />
+                  <span style={{ marginLeft: "auto" }} />
                   {pend && (
                     <>
                       <button
