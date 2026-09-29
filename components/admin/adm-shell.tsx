@@ -70,6 +70,7 @@ const TITLES: Record<string, string> = {
   "/manual": "Manual",
   "/reconciliation": "Reconciliation",
   "/affiliates": "Affiliates",
+  "/ledger": "Ledger",
   "/polls": "Polls",
   "/commissions": "Referral Commissions",
   "/settings/finance": "Settings",
@@ -202,6 +203,9 @@ export default function AdminShell({
       title: "Owner",
       items: [
         { title: "Reconciliation", href: "/reconciliation", icon: Scale },
+        // Every movement behind every wallet balance, and one figure
+        // at the top saying whether they add up.
+        { title: "Ledger", href: "/ledger", icon: BookOpen },
         // The page is the affiliate book -- one row per affiliate, their
         // referrals and rules -- so the menu says "Affiliates".
         { title: "Affiliates", href: "/affiliates", icon: Handshake },
