@@ -146,7 +146,29 @@ export default function UserAffiliates({
       const supabase = createClient();
       const { data, error } = await supabase
         .from("referral_commissions_with_details")
-        .select("*")
+        // ── NAMED COLUMNS, NOT `*` ────────────────────────────
+        //
+        // That view carries `supplier_cost` and `supplier_fee_pct` --
+        // what the supplier charges US, and therefore our margin. The
+        // `Commission` type never listed them, so they were invisible
+        // in the code and in the UI, but `select("*")` put them in
+        // the payload all the same.
+        //
+        // This screen is /users, which is `requireAdmin`, and the RLS
+        // on referral_commissions lets ANY active admin read -- not
+        // just the owner. So the two employee admins on this tenant
+        // were being handed our cost price whenever they opened a
+        // customer with a referral link. CLAUDE.md and the standing
+        // rule are explicit: supplier cost and margin never sit on a
+        // row somebody other than the owner may read, and this is how
+        // they got there.
+        //
+        // The list below is exactly the `Commission` type. Adding a
+        // field to that type means adding it here too, which is the
+        // point: a new column cannot arrive by accident.
+        .select(
+          "idx, id, created_at, referral_link_id, tenant_id, type, amount, currency, status, topup_id, subscription_id, subscription_invoice_id, affiliate_advertiser_tenant_client_code, affiliate_advertiser_email, affiliate_advertiser_name, referred_advertiser_tenant_client_code, referred_advertiser_email, referred_advertiser_name",
+        )
         .eq("referral_link_id", referralLink!.id)
         .order("created_at", { ascending: false });
 

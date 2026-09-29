@@ -925,7 +925,7 @@ export default function PsmVerifyTopups({
             page={page}
             // Unknown: claim one more page than we are on, so Next
             // stays reachable and Previous still works.
-            total={total ?? page * perPage + 1}
+            total={total}
             perPage={perPage}
             onPageChange={(p) => setPage(p)}
           />

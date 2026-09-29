@@ -459,13 +459,44 @@ export default function InvoicesTable() {
                                 {/* One line, capped, with the whole name
                                     in the title. "Test Advertiser BV" was
                                     drawn on three lines here. */}
+                                {/* ── A DASH IS NOT A BILLING PARTY ───────
+                                    Measured 29-09: invoice 131 is PAID,
+                                    EUR 10.00, and has no company_id at
+                                    all -- the billing engine's
+                                    `select id into v_company ... limit 1`
+                                    yields NULL for an advertiser who has
+                                    not filled in a company, and the
+                                    insert goes ahead regardless. That
+                                    advertiser (PSM0010) still has an
+                                    active subscription, so it recurs.
+
+                                    An invoice with no billing party
+                                    cannot be booked and should not have
+                                    gone out. Rendered as "—" it was
+                                    indistinguishable from a column that
+                                    happened to be narrow. It now says
+                                    what it is, so somebody chases the
+                                    company details instead of filing
+                                    it. */}
                                 <td className="clip" data-label="Company">
-                                  <span
-                                    style={{ fontWeight: 600 }}
-                                    title={invoice.company?.name ?? undefined}
-                                  >
-                                    {invoice.company?.name ?? "—"}
-                                  </span>
+                                  {invoice.company?.name ? (
+                                    <span
+                                      style={{ fontWeight: 600 }}
+                                      title={invoice.company.name}
+                                    >
+                                      {invoice.company.name}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      style={{
+                                        fontWeight: 600,
+                                        color: "var(--warn)",
+                                      }}
+                                      title="This invoice has no company on it. It cannot be booked as issued — the customer has not filled in their company details."
+                                    >
+                                      No company
+                                    </span>
+                                  )}
                                 </td>
                               </>
                             )}

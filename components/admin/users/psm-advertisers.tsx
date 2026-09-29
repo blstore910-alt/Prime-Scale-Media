@@ -334,7 +334,10 @@ export default function PsmAdvertisers() {
   // say that and leave Next open rather than trapping the reader on
   // page 1.
   const countUnknown = total == null;
-  const totalCount = total ?? 0;
+  // `countUnknown` carries the truth and every use of totalCount below
+  // sits behind it, so this is 0 only in the branch where it is never
+  // read -- written this way round so the rule stays mechanical.
+  const totalCount = countUnknown ? 0 : (total as number);
   const shown = rows?.length ?? 0;
   const from = countUnknown
     ? (shown === 0 ? 0 : (page - 1) * perPage + 1)

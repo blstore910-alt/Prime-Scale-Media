@@ -128,6 +128,27 @@ export default function PsmDst() {
     },
   });
 
+  // ── THE RESERVED TOTAL HAS ITS OWN READ ─────────────────────────
+  //
+  // It used to be worked out from `rows`, which is the FILTERED list.
+  // Press the "Invoiced" chip and the card read EUR 0.00 while EUR
+  // 20.00 sat reserved — a money figure that changes because of a view
+  // switch, and a confident zero at that. What is reserved does not
+  // depend on what you are looking at, so it is read separately.
+  const reserved = useQuery({
+    queryKey: ["dst-reserved", tenantId],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dst_charges")
+        .select("currency, dst_amount")
+        .eq("tenant_id", tenantId as string)
+        .eq("status", "reserved");
+      if (error) throw error;
+      return (data ?? []) as { currency: string | null; dst_amount: unknown }[];
+    },
+  });
+
   const charges = useQuery({
     queryKey: ["dst-charges", tenantId, statusFilter],
     enabled: !!tenantId,
@@ -206,13 +227,16 @@ export default function PsmDst() {
     );
   const chosenTotal = chosen.reduce((t, r) => t + n(r.dst_amount), 0);
 
-  const reservedTotals = rows
-    .filter((r) => r.status === "reserved")
-    .reduce<Record<string, number>>((acc, r) => {
-      const c = String(r.currency ?? "EUR").toUpperCase();
-      acc[c] = Math.round((n(acc[c]) + n(r.dst_amount)) * 100) / 100;
-      return acc;
-    }, {});
+  // null means WE DO NOT KNOW, and the card says so rather than
+  // printing a confident zero over a read that did not land.
+  const reservedTotals: Record<string, number> | null =
+    reserved.isPending || reserved.isError
+      ? null
+      : (reserved.data ?? []).reduce<Record<string, number>>((acc, r) => {
+          const c = String(r.currency ?? "EUR").toUpperCase();
+          acc[c] = Math.round((n(acc[c]) + n(r.dst_amount)) * 100) / 100;
+          return acc;
+        }, {});
 
   const { mutate: makeInvoice, isPending: invoicing } = useMutation({
     mutationFn: async () => {
@@ -261,7 +285,23 @@ export default function PsmDst() {
 
           Only when there IS somebody. An empty reminder card every day
           teaches people to skip the top of the screen. */}
-      {behind.length > 0 ? (
+      {behindRows.isError ? (
+        // A FAILED READ IS NOT "NOBODY IS BEHIND".
+        // `dstBehind` is fed from behindRows.data ?? [], so a refused or
+        // broken read produced an empty list and the whole chase banner
+        // simply was not rendered -- the screen looked like a clean desk.
+        // RLS does not raise, it returns nothing, so this is the likely
+        // shape of the failure, not an exotic one.
+        <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/5">
+          <p className="m-0 text-sm font-semibold">
+            We could not check who is behind on DST
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Reload the page. This is not an all-clear — we did not get an
+            answer, so somebody may still be owed a week.
+          </p>
+        </div>
+      ) : behind.length > 0 ? (
         <div className="mb-4 rounded-xl border border-amber-300/60 bg-amber-50/60 p-3 dark:border-amber-500/25 dark:bg-amber-500/5">
           <p className="m-0 text-sm font-semibold">
             {behind.length === 1
@@ -319,8 +359,10 @@ export default function PsmDst() {
             Reserved, not yet invoiced
           </p>
           <p className="mt-1 font-semibold tabular-nums">
-            {charges.isError
-              ? "—"
+            {reservedTotals === null
+              ? reserved.isPending
+                ? "…"
+                : "—"
               : Object.keys(reservedTotals).length
                 ? Object.entries(reservedTotals)
                     .map(([c, v]) => formatCurrency(v, c))

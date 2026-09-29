@@ -342,7 +342,7 @@ export default function UserTable() {
       )}
       <div className="p-4">
         <TablePagination
-          total={total ?? 0}
+          total={total}
           page={page}
           perPage={perPage}
           onPageChange={(p) => setPage(p)}

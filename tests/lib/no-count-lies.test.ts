@@ -87,6 +87,25 @@ test("no Supabase count is defaulted to a number", () => {
         // `count ?? null` is the correct shape and stays.
         const m = /\bcount\s*\?\?\s*(?!null\b)(\S)/.exec(line);
         if (m) offenders.push(`${rel}:${i + 1}  ${bare.slice(0, 90)}`);
+
+        // ── AND THE RENAMED ONES ─────────────────────────────────
+        //
+        // The line above only sees the literal word `count`. A hook
+        // that works the unknown case out correctly and then throws
+        // it away again on the way out — `total: data?.total ?? 0` —
+        // slipped straight past, and that is exactly what
+        // use-commissions did: the queryFn returned null and the
+        // return statement turned it back into a zero, hiding the
+        // pager and clamping a bookmarked ?page=3 to page 1.
+        //
+        // So: a `total` may not fall back to a number either. Same
+        // rule, same reason — unknown is not zero.
+        // Only the BARE variable: `inv.total ?? 0` is an invoice
+        // amount and `summary.referrals.total ?? 0` a computed figure,
+        // neither of which is a row count. A dot in front means it is
+        // a field of something else.
+        const t = /(?<![.\w])total\s*\?\?\s*(?!null\b)(\S)/.exec(line);
+        if (t) offenders.push(`${rel}:${i + 1}  ${bare.slice(0, 90)}`);
       });
     }
   }

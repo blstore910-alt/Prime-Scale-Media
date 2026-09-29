@@ -269,7 +269,13 @@ export default function CommissionsTable() {
   // read that simply landed past its last row.
   useEffect(() => {
     if (isLoading || isError) return;
-    const last = Math.max(1, Math.ceil((total ?? 0) / perPage));
+    // Unknown is not zero. `total ?? 0` made `last` 1 and clamped a
+    // bookmarked ?page=3 silently back to page 1 whenever the
+    // content-range header was missing. With no count we cannot work
+    // out the last page, so leave the page where it is -- the pager
+    // keeps its arrows for exactly this case.
+    if (total === null || total === undefined) return;
+    const last = Math.max(1, Math.ceil(total / perPage));
     if (page > last) setPage(last);
   }, [page, perPage, total, isLoading, isError]);
 

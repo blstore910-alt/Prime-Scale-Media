@@ -131,7 +131,11 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
 
   return {
     commissions: data?.items ?? [],
-    total: data?.total ?? 0,
+    // null, not 0. The queryFn three lines up works the unknown case
+    // out correctly and this threw it away again -- so a missing
+    // content-range header hid the pager and clamped a bookmarked
+    // ?page=3 silently back to 1.
+    total: data?.total ?? null,
     isLoading,
     isError,
     error,

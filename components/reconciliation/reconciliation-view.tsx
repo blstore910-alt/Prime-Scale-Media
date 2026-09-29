@@ -14,7 +14,14 @@ import {
   type WalletCurrency,
 } from "@/lib/types/bank-ledger";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Loader2, Plus } from "lucide-react";
+import { usePendingCounts } from "@/hooks/use-pending-counts";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  MinusCircle,
+  Plus,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -71,6 +78,11 @@ const RECON_CSS = `
 .psm-recon .check .cki{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
 .psm-recon .check.ok .cki{background:var(--win-soft);color:var(--win)}
 .psm-recon .check.warn .cki{background:var(--danger-soft);color:var(--danger)}
+/* Nothing on either side: neither green nor amber. It has not been
+   checked, and the row should not look like a verdict. */
+.psm-recon .check.idle{border-style:dashed}
+.psm-recon .check.idle .cki{background:var(--panel-2);color:var(--faint)}
+.psm-recon .check.idle .ct{color:var(--txt-2)}
 .psm-recon .check .cx{min-width:0}
 .psm-recon .check .ct{font-weight:700}
 .psm-recon .check .cd{color:var(--faint);font-size:.84rem;display:flex;flex-direction:column;gap:1px}
@@ -103,6 +115,11 @@ export default function ReconciliationView() {
       return res.data;
     },
   });
+
+  // The bank feed's own backlog, so the notice below can say how many
+  // deposits are sitting there unread rather than just that the ledger
+  // is empty.
+  const { bankDeposits } = usePendingCounts();
 
   const entriesQ = useQuery({
     queryKey: ["bank-ledger-entries"],
@@ -287,7 +304,9 @@ export default function ReconciliationView() {
               does makes a blind spot look like a clean bill. */}
           <p>
             What we credited to wallets, against what the bank actually
-            received. It does not check the wallet balances themselves.
+            received. It does not check the wallet balances themselves —
+            that is the <a href="/ledger">ledger</a>, which proves every
+            wallet balance against its own movements.
           </p>
         </div>
       </div>
@@ -301,6 +320,59 @@ export default function ReconciliationView() {
           per currency.
         </div>
       </div>
+
+      {/* ── THE BANK SIDE HAS NEVER BEEN FILLED IN ─────────────────
+          Measured 29-09: `bank_ledger_entries` holds ZERO rows, for
+          every tenant, while 357 real deposits sit in the Wise feed.
+          So `received` is 0 by construction, every gap below equals the
+          whole amount credited, and the screen has been reporting a
+          EUR 1,165.00 hole that is not a hole -- it is a book nobody
+          has opened.
+
+          That is worse than useless: an alarm that is always on is an
+          alarm nobody reads, and this is the screen an owner would use
+          to decide whether an admin is stealing. It says so plainly
+          rather than dressing emptiness up as a finding.
+
+          The Wise feed is deliberately NOT summed into `received`. Per
+          docs/WISE_SETUP.md those 357 deposits carry the OLD system's
+          client references and exactly one has ever matched a top-up;
+          adding EUR 404k to this side would turn a false gap into a
+          false surplus. Somebody has to say which deposit is which. */}
+      {!reconQ.isLoading &&
+      !reconQ.isError &&
+      (entriesQ.data?.entries?.length ?? 0) === 0 &&
+      mismatches.length > 0 ? (
+        <div
+          className="card"
+          style={{
+            borderColor: "var(--warn)",
+            background: "var(--warn-soft, rgba(224,138,0,.07))",
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 700 }}>
+            Nothing has ever been entered on the bank side
+          </p>
+          <p className="muted" style={{ margin: "4px 0 0" }}>
+            This screen compares what we credited to wallets against a bank
+            ledger that has <b>no entries at all</b>. Every gap below is
+            therefore the full amount credited, and is{" "}
+            <b>not evidence that money is missing</b> — it means the bank
+            statement has not been recorded here yet.
+            {typeof bankDeposits === "number" && bankDeposits > 0 ? (
+              <>
+                {" "}
+                There {bankDeposits === 1 ? "is" : "are"} <b>{bankDeposits}</b>{" "}
+                unmatched deposit{bankDeposits === 1 ? "" : "s"} waiting in the
+                bank feed on{" "}
+                <a href="/wallet-topups">Top-ups &amp; deposits</a>; those are
+                not counted here until somebody says which top-up each one
+                paid for.
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
 
       {/* Per-currency checks */}
       {reconQ.isLoading ? (
@@ -321,10 +393,24 @@ export default function ReconciliationView() {
           <div className="checks">
             {rows.map((r) => {
               const ok = Math.abs(r.gap) < 0.01;
+              // ── A ROW WITH NOTHING ON EITHER SIDE IS NOT BALANCED ──
+              //
+              // `anyMovement` guards the HERO, per screen. It does not
+              // guard a ROW. On the live tenant EUR has movement, so the
+              // hero is honest -- and USD, with nothing credited and
+              // nothing received, still got a green tick and the word
+              // "Balanced", while that tenant's wallets hold USD 168.37.
+              //
+              // Zero against zero is not a comparison that passed; it is
+              // a comparison that never happened. The screen reads it as
+              // the strongest possible all-clear, in the one place an
+              // owner looks to decide whether somebody is taking money.
+              const empty =
+                Math.abs(r.credited) < 0.01 && Math.abs(r.received) < 0.01;
               return (
                 <div
                   key={r.currency}
-                  className={`check ${ok ? "ok" : "warn"}${ok ? "" : " actionable"}`}
+                  className={`check ${empty ? "idle" : ok ? "ok" : "warn"}${ok ? "" : " actionable"}`}
                   role={ok ? undefined : "button"}
                   tabIndex={ok ? undefined : 0}
                   title={
@@ -346,7 +432,9 @@ export default function ReconciliationView() {
                   }
                 >
                   <span className="cki">
-                    {ok ? (
+                    {empty ? (
+                      <MinusCircle size={18} />
+                    ) : ok ? (
                       <CheckCircle2 size={18} />
                     ) : (
                       <AlertTriangle size={18} />
@@ -374,7 +462,13 @@ export default function ReconciliationView() {
                     {/* The number alone does not say what to do about it.
                         This row is the only place the difference is
                         visible, so it is the place to say what it means. */}
-                    {ok ? null : (
+                    {empty ? (
+                      <div className="cw">
+                        Nothing credited and nothing recorded from the bank in
+                        this currency. That is not a clean book — it is an
+                        unchecked one.
+                      </div>
+                    ) : ok ? null : (
                       <div className="cw">
                         {r.received === 0
                           ? "Nothing has been entered from the bank statement for this currency yet — press to record it."
@@ -392,8 +486,8 @@ export default function ReconciliationView() {
                     >
                       {fmt(r.gap, r.currency)}
                     </span>
-                    <span className={`badge ${ok ? "ok" : "due"}`}>
-                      {ok ? "Balanced" : "Check"}
+                    <span className={`badge ${empty ? "" : ok ? "ok" : "due"}`}>
+                      {empty ? "Nothing to compare" : ok ? "Balanced" : "Check"}
                     </span>
                   </div>
                 </div>

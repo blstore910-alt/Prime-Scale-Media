@@ -777,7 +777,7 @@ export default function PsmRequests() {
         <div className="my-4 px-4">
           <TablePagination
             page={page}
-            total={total ?? page * perPage + 1}
+            total={total}
             perPage={perPage}
             onPageChange={(p) => setPage(p)}
           />
