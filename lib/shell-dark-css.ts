@@ -112,6 +112,11 @@ export function shellDarkCss(root: string, o: DarkTokenOverrides = {}): string {
 /* Pale chips that are tints of white in light mode. Each is a real
    background in these files, not a token. */
 .dark ${root} .ci.t{background:#0e3b42;color:#7fe0ef}
+/* .ci.i zit in dashboard-stats-cards.tsx en was als enige van de vijf
+   varianten nergens overschreven -- gevonden door de pagina zelf te
+   laten opsommen welk vlak licht is terwijl de modus donker staat. */
+.dark ${root} .ci.i{background:var(--primary-tint);color:var(--primary-600)}
+.dark ${root} .ci.r{background:var(--warn-soft);color:var(--warn)}
 .dark ${root} .ci.p{background:#2c1f4a;color:#c9aeff}
 .dark ${root} .alert .ai{background:var(--panel-2)}
 .dark ${root} .pfi.tiktok{background:#2b2140;color:#c9a8ff}
