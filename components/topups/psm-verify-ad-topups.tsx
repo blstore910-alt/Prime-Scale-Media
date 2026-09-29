@@ -239,7 +239,28 @@ export default function PsmVerifyAdTopups() {
                     marginBottom: 8,
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
+                  {/* ── DRIE MATEN, NIET ZEVEN ────────────────────
+                      De eigenaar, 29-09: "zoveel verschillende fonts
+                      hier en sizes en dots bla bla, maak beter leesbaar,
+                      duidelijker, mooiere card, kleuren ook gemixt nu."
+
+                      Hij telde goed. Deze kop had 1.05 / .85 / .9 / .78
+                      / .76 rem onder elkaar -- vijf maten in vijf
+                      regels, waarvan .85 en .9 zo dicht bij elkaar
+                      liggen dat het niet leest als een rangorde maar
+                      als slordigheid.
+
+                      Nu drie niveaus en niet meer:
+                        1.05  wie het is        (de klantcode)
+                         .85  wat het is        (naam en ad-account)
+                         .76  waar het staat    (#nummer, BM)
+                      Het bedrag eronder houdt zijn 1.35: dat is het
+                      ene cijfer waar de kaart om draait.
+
+                      En #nummer en BM stonden op twee eigen regels.
+                      Samen op een is een regel minder en dezelfde
+                      informatie. */}
+                  <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
                     {advCode(t) ? (
                       <div
                         style={{
@@ -269,9 +290,8 @@ export default function PsmVerifyAdTopups() {
                     <div
                       style={{
                         color: "var(--txt-2)",
-                        fontSize: ".9rem",
+                        fontSize: ".85rem",
                         fontWeight: 600,
-                        marginTop: 2,
                       }}
                     >
                       {/* top_ups_view returns a FLAT account_name column,
@@ -281,15 +301,28 @@ export default function PsmVerifyAdTopups() {
                           an admin picks WHICH account to fund. */}
                       <CopyText value={accountName(t)} what="account name" />
                     </div>
-                    <div style={{ color: "var(--faint)", fontSize: ".78rem" }}>
-                      #{t.number}
+                    <div
+                      style={{
+                        color: "var(--faint)",
+                        fontSize: ".76rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        flexWrap: "wrap",
+                        marginTop: 1,
+                      }}
+                    >
+                      <span>#{t.number}</span>
+                      {accountBmId(t) ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>
+                            BM{" "}
+                            <CopyText value={accountBmId(t)} what="BM ID" mono />
+                          </span>
+                        </>
+                      ) : null}
                     </div>
-                    {accountBmId(t) ? (
-                      <div style={{ color: "var(--faint)", fontSize: ".76rem" }}>
-                        BM{" "}
-                        <CopyText value={accountBmId(t)} what="BM ID" mono />
-                      </div>
-                    ) : null}
                   </div>
                   <span
                     className={`badge ${

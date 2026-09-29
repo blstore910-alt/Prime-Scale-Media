@@ -113,8 +113,20 @@ export const SUPPLIER_PILL_CSS = `
 .suppill:hover{border-color:var(--primary);background:var(--primary-tint);
   color:var(--primary-600)}
 .suppill svg{width:13px;height:13px;flex:0 0 auto}
-.suppill.auto{border-color:#cfe6d6;background:#eefaf1;color:#1f7a45;cursor:default}
-.suppill.auto:hover{border-color:#cfe6d6;background:#eefaf1;color:#1f7a45}
+/* ── EEN GROEN OP EEN KAART, NIET TWEE ────────────────────────────
+   De eigenaar, 29-09: "kleuren ook gemixt nu." Deze pil was groen en
+   de statusbadge ernaast ook. Twee keer groen naast elkaar die twee
+   verschillende dingen betekenen -- "afgerond" en "er is een API" --
+   en dan betekent groen niets meer.
+
+   Groen is nu van de STATUS. Deze pil is neutraal: hij zegt waar je
+   heen moet, niet hoe het ervoor staat. En hij gebruikt tokens in
+   plaats van drie lichte letterlijke kleuren, dus hij klopt meteen
+   ook in donkere modus. */
+.suppill.auto{background:var(--panel-2);color:var(--txt-2);cursor:default}
+.suppill.auto:hover{border-color:var(--line-2);background:var(--panel-2);
+  color:var(--txt-2)}
+.suppill.auto svg{color:var(--faint)}
 .suppill.none{border-style:dashed;color:var(--faint);cursor:help}
 .suppill.none:hover{border-color:var(--line-2);background:var(--panel-2);
   color:var(--faint)}

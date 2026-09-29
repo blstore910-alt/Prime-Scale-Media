@@ -115,5 +115,28 @@ export function shellDarkCss(root: string, o: DarkTokenOverrides = {}): string {
 .dark ${root} .ci.p{background:#2c1f4a;color:#c9aeff}
 .dark ${root} .alert .ai{background:var(--panel-2)}
 .dark ${root} .pfi.tiktok{background:#2b2140;color:#c9a8ff}
+/* The other two platform chips. tiktok was done and these were not,
+   so Meta and Google sat as pale blue and pale green cards in a dark
+   list while TikTok was dark -- three chips, two palettes. */
+.dark ${root} .pfi.meta{background:#16244a;color:#9db8ff}
+.dark ${root} .pfi.google{background:#0f3329;color:#7fd4a8}
+
+/* ── THE PALE BORDERS ──────────────────────────────────────────────
+   29-09. The backgrounds above were caught; their BORDERS were not.
+   #cfe0ff around a dark blue tint and #f2d9a3 around a dark amber wash
+   are the light-mode rims still drawn on the dark surface, which reads
+   as a chip that did not finish loading. */
+.dark ${root} .tool.wal,
+.dark ${root} .fbtn.on{border-color:var(--primary-tint)}
+.dark ${root} .alert{border-color:var(--line-2)}
+.dark ${root} .rjchip{background:var(--panel-2);border-color:var(--line-2);color:var(--txt-2)}
+.dark ${root} .rjchip.on{background:var(--primary-tint);border-color:var(--primary);color:var(--primary-600)}
+
+/* Two form states that paint themselves white to say "you are here".
+   On a dark ground that is a flashbulb, and the field stays white
+   after the blur on a select. */
+.dark ${root} .field select:hover,
+.dark ${root} .field textarea:focus,
+.dark ${root} .umenu-av{background:var(--panel-2)}
 `;
 }

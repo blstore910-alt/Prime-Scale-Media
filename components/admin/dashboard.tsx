@@ -195,6 +195,29 @@ const DASH_CSS = `
 .psm-dash .sysbox .sys-chev{margin-left:auto;color:var(--faint);width:18px;height:18px;transition:transform .18s}
 .psm-dash .sysbox[open] .sys-chev{transform:rotate(180deg)}
 .psm-dash .sysgrid{display:flex;flex-direction:column;gap:12px;padding:0 15px 15px}
+
+/* ── DARK: de kleuren die GEEN token volgen ────────────────────────
+   De eigenaar, 29-09, met een screenshot van het dashboard in donkere
+   modus: "je zou toch alle black grijs gradient fixen in dark mode?"
+
+   lib/shell-dark-css.ts zet de TOKENS om, en alles wat var(--panel) of
+   var(--ink) leest gaat vanzelf mee. Deze zes regels lazen geen token
+   maar een letterlijke lichte kleur, dus ze bleven licht op een donkere
+   ondergrond. De ergste was de wachtrijkaart met werk erin: een
+   gradient van #fff naar de blauwe tint, met witte tekst erop -- de
+   ene kaart die het meest opvalt was de enige die je niet kon lezen.
+
+   Geen nieuwe kleuren hier: alles wijst naar een token dat al bestaat,
+   zodat dit niet nog een palet wordt dat apart kan gaan afwijken. */
+.dark .psm-dash{--purple-tint:#2a1f4d}
+.dark .psm-dash .attn{border-color:var(--line-2)}
+.dark .psm-dash .attn .ai{background:var(--panel)}
+.dark .psm-dash .attn.ok{background:linear-gradient(135deg,var(--win-soft),var(--panel-2));border-color:var(--line-2)}
+/* DE KAART UIT DE SCREENSHOT. Donker blijft donker; de tint en het
+   streepje links doen het werk dat de witte gradient deed. */
+.dark .psm-dash .qcard:has(.qbadge:not(.zero):not(.skel)){border-color:var(--primary-tint);background:linear-gradient(180deg,var(--panel),var(--primary-tint))}
+.dark .psm-dash .ci.t{background:#123038}
+.dark .psm-dash .ci.g{color:var(--gold)}
 `;
 
 export default function AdminDashboard() {

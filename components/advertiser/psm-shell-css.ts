@@ -105,8 +105,24 @@ export const PSM_APP_CSS = `
 .copytext,.psmapp .copytext{display:inline-flex;align-items:baseline;gap:6px;max-width:100%;
   padding:0;border:0;background:none;font:inherit;color:inherit;text-align:left;
   cursor:pointer;border-radius:5px}
+/* ── DE STREEPJES PAS ALS JE ERNAARTOE GAAT ───────────────────────
+   De eigenaar, 29-09, met een kaart voor zich: "zoveel verschillende
+   fonts hier en sizes en dots bla bla."
+
+   Elke kopieerbare waarde droeg altijd een stippellijn. Op een kaart
+   met vier van die waarden onder elkaar zijn dat vier streepjes die
+   er in rust niets aan toevoegen -- ze zeggen alleen iets op het
+   moment dat je erheen gaat. Dus: transparant in rust, zichtbaar bij
+   hover en focus. De ruimte blijft gereserveerd, dus er verspringt
+   niets.
+
+   Toetsenbordgebruikers verliezen niets: :focus-visible zet hem ook
+   aan, en de outline eronder stond er al. */
 .copytext .ct-v,.psmapp .copytext .ct-v{min-width:0;overflow-wrap:anywhere;
-  border-bottom:1px dashed var(--line-2);transition:border-color .12s,color .12s}
+  border-bottom:1px dashed transparent;transition:border-color .12s,color .12s}
+.copytext:hover .ct-v,.psmapp .copytext:hover .ct-v,
+.copytext:focus-visible .ct-v,.psmapp .copytext:focus-visible .ct-v{
+  border-bottom-color:var(--line-2)}
 .copytext.mono .ct-v,.psmapp .copytext.mono .ct-v{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);
   letter-spacing:.01em}
 .copytext:hover .ct-v,.psmapp .copytext:hover .ct-v{border-bottom-color:var(--primary);color:var(--primary-600)}
