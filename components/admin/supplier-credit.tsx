@@ -113,6 +113,11 @@ const CSS = `
 .sc-amt{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
 .sc-amt.zero{color:var(--faint);font-weight:500}
 .sc-amt.none{color:var(--faint);font-weight:500}
+/* Telt niet mee in de voet: doorgestreept en grijs, met de reden in
+   de tooltip. Zo hoef je geen regel onder de tabel te lezen om te
+   weten dat deze rij niet meedoet. */
+.sc-amt.out{color:var(--faint);font-weight:500;text-decoration:line-through;
+  text-decoration-thickness:1px;opacity:.75}
 
 .sc-grid tfoot td{border-top:2px solid var(--line-2);background:var(--panel-2);
   font-weight:800;padding-top:8px;padding-bottom:8px}
@@ -216,6 +221,9 @@ function SupplierRows({
     !!s.error || s.lines.some((l) => informative(l) || l.heldBack !== null);
 
   const byCur = new Map(s.lines.map((l) => [l.currency, l.total]));
+  // Telt deze rij mee in de totalen eronder? Zo niet, dan hoort dat
+  // aan de rij te zien te zijn en niet in een zin onder de tabel.
+  const counts = s.status === "ok" || s.status === "off";
   const nothing =
     s.status === "off"
       ? "not connected"
@@ -261,7 +269,18 @@ function SupplierRows({
               {v === undefined ? (
                 <span className="sc-amt none">{nothing === "—" ? "—" : nothing}</span>
               ) : (
-                <span className={`sc-amt${Math.abs(v) < 0.005 ? " zero" : ""}`}>
+                <span
+                  className={`sc-amt${Math.abs(v) < 0.005 ? " zero" : ""}${
+                    counts ? "" : " out"
+                  }`}
+                  title={
+                    counts
+                      ? undefined
+                      : s.status === "demo"
+                        ? "Mock figures — not counted in the total"
+                        : "Not counted in the total"
+                  }
+                >
                   {fmt(v, c)}
                 </span>
               )}
@@ -500,7 +519,14 @@ export default function SupplierCredit() {
                 <tr className="eur">
                   <td className="lab">All of it, in euro</td>
                   <td colSpan={currencies.length}>
-                    <span className="sc-amt">
+                    <span
+                      className="sc-amt"
+                      title={
+                        q.data.grand.rate
+                          ? `USD converted at ${q.data.grand.rate.toFixed(4)}`
+                          : undefined
+                      }
+                    >
                       EUR {fmt(q.data.grand.combinedEur, "EUR")}
                     </span>
                   </td>
@@ -511,23 +537,24 @@ export default function SupplierCredit() {
         </table>
       )}
 
-      {!q.isPending && !q.isError && q.data?.grand
-        ? (() => {
-            const g = q.data.grand;
-            const bits: string[] = [];
-            if (g.rate !== null) bits.push(`USD at ${g.rate.toFixed(4)}`);
-            else bits.push("No rate, so the two are not added up");
-            if (g.excluded.length) {
-              bits.push(
-                `${g.excluded.map((e) => `${e.supplier} (${e.why})`).join(", ")} not counted`,
-              );
-            }
-            if (g.notConverted.length) {
-              bits.push(`${g.notConverted.join(", ")} left out`);
-            }
-            return <p className="sc-fnote">{bits.join(" · ")}.</p>;
-          })()
-        : null}
+      {/* ── GEEN VOETNOOT MEER ────────────────────────────────
+          De eigenaar, 29-09: "USD at 0.8780 · SeamX (test data) not
+          counted -- deze tekst onnodig."
+
+          Weg, maar niet de INFORMATIE. Die stond in een zin onder de
+          tabel en hoort naast het cijfer waar hij over gaat:
+
+          - dat SeamX niet meetelt is nu te zien AAN de rij zelf --
+            zijn bedragen staan doorgestreept en grijs, met de reden
+            in de tooltip. Een regel tekst onderaan lezen om te weten
+            dat de rij erboven niet meedoet is een omweg.
+          - de koers zit in de tooltip van het omgerekende bedrag,
+            want dat is het enige cijfer waar hij iets over zegt.
+
+          Wat er WEL een zin waard blijft is een leverancier die niet
+          ANTWOORDDE: dan ontbreekt er geld dat we niet kunnen zien,
+          en dat is geen detail van een rij maar een gat in het
+          totaal. */}
     </div>
   );
 }
