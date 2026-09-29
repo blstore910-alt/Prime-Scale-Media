@@ -71,9 +71,35 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
         perPage = 10,
       } = params;
 
+      // ── NOT `*`. THAT VIEW CARRIES OUR BUYING PRICE. ─────────────
+      //
+      // `referral_commissions_with_details` has `supplier_cost` and
+      // `supplier_fee_pct` on it — what WE pay, and therefore our
+      // margin. `select("*")` hands both to whoever opens
+      // /commissions, and the screen renders eleven fields of which
+      // neither is one.
+      //
+      // The identical bug was found this morning in
+      // components/admin/users/user-affiliates.tsx, on the same view,
+      // and fixed there. This was the second caller and it was
+      // missed. So: the column list is the one in
+      // lib/types/commission.ts, and nothing beyond it.
+      //
+      // A `*` is not shorter to read, it is only shorter to type, and
+      // it silently picks up every column somebody adds to the view
+      // later.
       let query = supabase
         .from("referral_commissions_with_details")
-        .select("*", { count: "exact" });
+        .select(
+          "idx, id, created_at, referral_link_id, tenant_id, type, amount, " +
+            "currency, status, topup_id, subscription_id, " +
+            "subscription_invoice_id, " +
+            "affiliate_advertiser_tenant_client_code, " +
+            "affiliate_advertiser_email, affiliate_advertiser_name, " +
+            "referred_advertiser_tenant_client_code, " +
+            "referred_advertiser_email, referred_advertiser_name",
+          { count: "exact" },
+        );
 
       if (currency && currency !== "all") {
         query = query.eq("currency", currency);
@@ -117,7 +143,7 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
       if (qError) throw qError;
 
       return {
-        items: (rows ?? []) as Commission[],
+        items: (rows ?? []) as unknown as Commission[],
         // A missing count header is not "one page". Falling back to the
         // length of THIS page makes totalPages 1, and TablePagination
         // renders nothing at all below that -- ten rows, no pager, and a
