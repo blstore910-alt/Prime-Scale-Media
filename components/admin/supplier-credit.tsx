@@ -64,21 +64,22 @@ const CSS = `
 .sc{--sc-pad:16px;border:1px solid var(--line);border-radius:16px;
   background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
 
-.sc-head{display:flex;align-items:center;gap:11px;
-  padding:var(--sc-pad);padding-bottom:12px;
+.sc-head{display:flex;align-items:center;gap:10px;
+  padding:11px var(--sc-pad);
   background:linear-gradient(180deg,var(--primary-tint),transparent)}
-.sc-ic{width:32px;height:32px;border-radius:10px;background:var(--panel);
+.sc-ic{width:28px;height:28px;border-radius:9px;background:var(--panel);
   color:var(--primary-600);display:grid;place-items:center;flex:0 0 auto;
   box-shadow:var(--shadow-sm)}
-.sc-ic svg{width:17px;height:17px}
+.sc-ic svg{width:15px;height:15px}
 .sc-htxt{flex:1 1 auto;min-width:0}
-.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:1.05rem;
-  letter-spacing:-.01em;color:var(--ink)}
-.sc-sub{margin:1px 0 0;color:var(--txt-2);font-size:.78rem}
+.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:.97rem;
+  letter-spacing:-.01em;color:var(--ink);line-height:1.2}
+.sc-sub{margin:1px 0 0;color:var(--faint);font-size:.73rem;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc-re{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
-  border:1px solid var(--line);background:var(--panel);border-radius:10px;
-  padding:7px 12px;font-size:.78rem;font-weight:700;color:var(--txt-2);
-  cursor:pointer}
+  border:1px solid var(--line);background:var(--panel);border-radius:9px;
+  padding:5px 10px;font-size:.75rem;font-weight:700;color:var(--txt-2);
+  line-height:1.35;cursor:pointer}
 .sc-re:hover{background:var(--panel-2);border-color:var(--primary)}
 .sc-re svg{width:13px;height:13px}
 .sc-re[disabled]{opacity:.55;cursor:default}
@@ -86,7 +87,7 @@ const CSS = `
 .sc-body{display:flex;flex-direction:column}
 .sc-row{border-top:1px solid var(--line)}
 .sc-row.bank{background:var(--panel-2)}
-.sc-top{display:block;width:100%;padding:12px var(--sc-pad) 14px;
+.sc-top{display:block;width:100%;padding:9px var(--sc-pad) 11px;
   background:none;border:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
 .sc-top:hover{background:var(--panel-2)}
 .sc-row.bank .sc-top:hover{background:var(--line)}
@@ -112,14 +113,14 @@ const CSS = `
 .sc-chev.ghost{visibility:hidden}
 .sc-row.open .sc-chev{transform:rotate(180deg)}
 
-.sc-tiles{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.sc-tile{flex:1 1 130px;min-width:0;border:1px solid var(--line);
-  border-radius:11px;padding:8px 11px 9px;background:var(--panel)}
+.sc-tiles{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+.sc-tile{flex:1 1 118px;min-width:0;border:1px solid var(--line);
+  border-radius:10px;padding:6px 9px 7px;background:var(--panel)}
 .sc-row.bank .sc-tile{background:var(--panel)}
 .sc-tile .cur{display:block;font-size:.63rem;font-weight:800;letter-spacing:.07em;
   color:var(--faint);margin-bottom:2px}
 .sc-tile .amt{display:block;font-family:var(--hd);font-weight:800;
-  font-size:1.18rem;letter-spacing:-.015em;font-variant-numeric:tabular-nums;
+  font-size:1.02rem;letter-spacing:-.015em;font-variant-numeric:tabular-nums;
   color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-none{color:var(--faint);font-size:.83rem;font-weight:600;
   margin-top:8px;display:block}
@@ -131,19 +132,19 @@ const CSS = `
 .sc-tag.bad{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line-2)}
 
 /* ── DE VOET: alles bij elkaar ─────────────────────────────────── */
-.sc-foot{border-top:2px solid var(--line-2);padding:13px var(--sc-pad) var(--sc-pad);
+.sc-foot{border-top:2px solid var(--line-2);padding:10px var(--sc-pad) 12px;
   background:var(--panel-2)}
 .sc-flab{font-size:.63rem;font-weight:800;letter-spacing:.07em;
   text-transform:uppercase;color:var(--faint)}
 .sc-ftiles{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.sc-ftile{flex:1 1 120px;min-width:0;border:1px solid var(--line);
-  border-radius:11px;padding:8px 11px 9px;background:var(--panel)}
+.sc-ftile{flex:1 1 108px;min-width:0;border:1px solid var(--line);
+  border-radius:10px;padding:6px 9px 7px;background:var(--panel)}
 .sc-ftile.big{border-color:var(--primary);background:var(--primary-tint)}
 .sc-ftile .cur{display:block;font-size:.63rem;font-weight:800;letter-spacing:.07em;
   color:var(--faint);margin-bottom:2px}
 .sc-ftile.big .cur{color:var(--primary-600)}
 .sc-ftile .amt{display:block;font-family:var(--hd);font-weight:800;
-  font-size:1.18rem;letter-spacing:-.015em;font-variant-numeric:tabular-nums;
+  font-size:1.02rem;letter-spacing:-.015em;font-variant-numeric:tabular-nums;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-fnote{margin:9px 0 0;font-size:.72rem;color:var(--faint);line-height:1.45}
 
@@ -164,9 +165,16 @@ const CSS = `
   display:inline-block}
 
 @media(max-width:430px){
-  .sc{--sc-pad:13px}
+  /* Compacter, want dit is het eerste blok op het beginscherm en er
+     moet meer onder passen: "het moet allemaal kleiner zodat meer
+     past op 1 scherm mobile." De knop wordt alleen zijn icoon --
+     hij heeft al een aria-label en een title. */
+  .sc{--sc-pad:12px}
   .sc-tile,.sc-ftile{flex:1 1 calc(50% - 4px)}
-  .sc-tile .amt,.sc-ftile .amt{font-size:1.1rem}
+  .sc-tile .amt,.sc-ftile .amt{font-size:.97rem}
+  .sc-relab{display:none}
+  .sc-re{padding:6px 8px}
+  .sc-sub{font-size:.7rem}
 }
 `;
 
@@ -428,22 +436,32 @@ export default function SupplierCredit() {
           En de titel heet niet meer naar de leveranciers alleen: Wise
           staat er sinds vandaag bij, en dat is ONS geld, geen krediet
           bij iemand anders. */}
+      {/* Titel EN ondertitel in dezelfde kolom, naast het icoon. De
+          ondertitel stond hiervoor als broer van de hele kop en dus
+          tegen de linkerrand van de kaart -- dat was de scheve
+          uitlijning. */}
       <div className="sc-head">
         <span className="sc-ic">
           <Landmark />
         </span>
-        <h3>What we hold</h3>
+        <div className="sc-htxt">
+          <h3>What we hold</h3>
+          <p className="sc-sub">What a top-up can be funded from today.</p>
+        </div>
         <button
           type="button"
           className="sc-re"
           onClick={() => q.refetch()}
           disabled={q.isFetching}
+          aria-label="Refresh"
+          title="Refresh"
         >
           <RefreshCw />
-          {q.isFetching ? "Reading…" : "Refresh"}
+          <span className="sc-relab">
+            {q.isFetching ? "Reading…" : "Refresh"}
+          </span>
         </button>
       </div>
-      <p className="sc-sub">What a top-up can be funded from today.</p>
 
       <div className="sc-body">
         {/* isPending, not isLoading — this query is not gated, but the
