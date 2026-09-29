@@ -48,14 +48,60 @@ test("short labels are unique inside a context, so two chips cannot look alike",
   }
 });
 
-test("templates are written to the customer, not about them", () => {
-  for (const t of allRejectTemplates()) {
-    const hay = t.text.toLowerCase();
-    assert.ok(
-      hay.includes("you") || hay.includes("your"),
-      `not addressed to the customer: ${t.short}`,
+const CUSTOMER_FACING = [
+  "wallet_topup",
+  "account_topup",
+  "account_request",
+  "withdrawal",
+] as const;
+
+test("templates the customer reads are written TO them, not about them", () => {
+  for (const ctx of CUSTOMER_FACING) {
+    for (const t of rejectTemplates(ctx)) {
+      const hay = t.text.toLowerCase();
+      assert.ok(
+        hay.includes("you") || hay.includes("your"),
+        `${ctx}: not addressed to the customer: ${t.short}`,
+      );
+    }
+  }
+});
+
+test("the internal reason is NOT written to the customer", () => {
+  // A wallet refund and a wallet adjustment are raised by an admin.
+  // The customer has no row for them on any screen and gets no
+  // notification. These used to borrow the withdrawal templates, so
+  // they offered "we could not find a payment matching this" to a
+  // reader who is a colleague, and promised under the button that
+  // "the customer reads it" — which nobody does.
+  //
+  // The reader here is the next admin, or you in three months looking
+  // at why money did or did not move. Second person would be
+  // addressing the wrong person, so this rule runs the other way.
+  const internal = rejectTemplates("internal");
+  assert.ok(internal.length >= 4, "the internal context needs templates");
+  for (const t of internal) {
+    assert.doesNotMatch(
+      t.text,
+      /(you|your)/i,
+      `internal reason addresses the customer: ${t.short}`,
     );
   }
+});
+
+test("every context is covered by one of the two rules", () => {
+  // So a fifth context added next year cannot slip past both. Without
+  // this, adding one and forgetting to classify it means neither rule
+  // applies and anything goes.
+  const all = allRejectTemplates().length;
+  const counted =
+    CUSTOMER_FACING.reduce((n, c) => n + rejectTemplates(c).length, 0) +
+    rejectTemplates("internal").length;
+  assert.equal(
+    counted,
+    all,
+    "a reject context exists that neither rule checks — add it above",
+  );
 });
 
 test("an unknown context is empty, never undefined", () => {

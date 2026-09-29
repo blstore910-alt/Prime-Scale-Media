@@ -20,7 +20,24 @@ export type RejectContext =
   | "wallet_topup"
   | "account_topup"
   | "account_request"
-  | "withdrawal";
+  | "withdrawal"
+  /**
+   * NOBODY OUTSIDE READS THIS ONE.
+   *
+   * A wallet refund and a wallet adjustment are raised by an ADMIN,
+   * not by the customer. The customer has no row for it on any screen
+   * and gets no notification about it. Both dialogs used
+   * `withdrawal`, so they offered templates written to the customer
+   * in the second person and promised "The customer reads it" under
+   * the button.
+   *
+   * The reason is still stored, in `decision_reason`, and it is still
+   * worth writing well — the person reading it is the next admin,
+   * or you in three months looking at why money did or did not move.
+   * So: its own templates, written for that reader, and a hint that
+   * says who that is.
+   */
+  | "internal";
 
 export interface RejectTemplate {
   /** The chip's word. Short enough for a row of five on a phone. */
@@ -141,11 +158,45 @@ const WITHDRAWAL: RejectTemplate[] = [
   },
 ];
 
+/**
+ * For a decision nobody outside sees. Written to the next admin, in
+ * the first person plural, and about the DECISION rather than about
+ * the customer — because the reader already knows who the customer
+ * is and wants to know why this was turned down.
+ */
+const INTERNAL: RejectTemplate[] = [
+  {
+    short: "Not owed",
+    text: "Checked against the wallet and the movements behind it: this amount is not owed. Nothing to pay out.",
+  },
+  {
+    short: "Already settled",
+    text: "This was already settled through another route. Paying it here would be the second time.",
+  },
+  {
+    short: "Wrong amount",
+    text: "The amount here does not match what the movements support. Raise a new one for the amount that does.",
+  },
+  {
+    short: "Needs evidence",
+    text: "Turned down for now: there is nothing on file showing why this should move. Raise it again with the evidence attached.",
+  },
+  {
+    short: "Raised in error",
+    text: "Raised in error and withdrawn. No money moved.",
+  },
+  {
+    short: "Ask the owner",
+    text: "This one is above the desk: it needs the owner to decide before anything moves.",
+  },
+];
+
 const BY_CONTEXT: Record<RejectContext, RejectTemplate[]> = {
   wallet_topup: WALLET_TOPUP,
   account_topup: ACCOUNT_TOPUP,
   account_request: ACCOUNT_REQUEST,
   withdrawal: WITHDRAWAL,
+  internal: INTERNAL,
 };
 
 export function rejectTemplates(ctx: RejectContext): RejectTemplate[] {

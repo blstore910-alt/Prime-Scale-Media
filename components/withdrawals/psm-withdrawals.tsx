@@ -241,7 +241,14 @@ function ActionAskModal({
       }
       disabledHint={
         needsReason && reason.trim().length < REASON_MIN
-          ? "Write a reason first, at least a few words. The customer reads it."
+          ? // Who reads it depends on what this is. A withdrawal is the
+            // customer's own request and they get the reason back; a
+            // refund or an adjustment is raised by an admin and the
+            // customer never sees the row. Promising "the customer
+            // reads it" on the second one is a promise nobody keeps.
+            ask?.reasonFor === "internal"
+            ? "Write a reason first, at least a few words. It stays on the record for whoever looks at this next."
+            : "Write a reason first, at least a few words. The customer reads it."
           : !!ask?.coverCheck && !checked
             ? "Tick the box above to confirm you checked the balance yourself."
             : undefined
@@ -1357,7 +1364,11 @@ function RefundsSection() {
                                       ["Customer", r.advertiser?.tenant_client_code ?? "—"],
                                       ["Amount", formatCurrency(Number(r.amount), r.currency)],
                                     ],
-                                    reasonFor: "withdrawal",
+                                    // Raised by an ADMIN, so the customer never sees
+                                    // this row and gets no notification. Its own
+                                    // templates, written to the next admin -- see
+                                    // lib/pure-reject-reasons.ts.
+                                    reasonFor: "internal",
                                     run: (why) =>
                                       reject.mutate({ id: r.id, reason: why }),
                                   })
@@ -2214,7 +2225,11 @@ function AdjustmentsSection() {
                                           `${Number(r.delta) > 0 ? "+" : ""}${formatCurrency(Number(r.delta), r.currency)}`,
                                         ],
                                       ],
-                                      reasonFor: "withdrawal",
+                                      // Raised by an ADMIN, so the customer never sees
+                                      // this row and gets no notification. Its own
+                                      // templates, written to the next admin -- see
+                                      // lib/pure-reject-reasons.ts.
+                                      reasonFor: "internal",
                                       run: (why) =>
                                         reject.mutate({ id: r.id, reason: why }),
                                     })
