@@ -42,6 +42,22 @@ export type Capability = {
   /** True when it can never be handed over, whatever the owner wants. */
   ownerOnly?: boolean;
   /**
+   * Shows a page, but does not lock the data behind it.
+   *
+   * `finance.check` is the honest case: that screen reads
+   * `wallet_topups`, `top_ups`, `ad_account_withdrawals`,
+   * `wallet_refunds`, `wallet_adjustments` and `wallet_precharges` —
+   * exactly the tables every admin needs for their own queue. Locking
+   * those down to protect the review screen would break the ordinary
+   * working day, so the capability decides who is SHOWN the overview
+   * and the refund ceilings, and stops nobody who assembles the same
+   * rows themselves.
+   *
+   * Marked so the screen can say so. A lock that does not lock should
+   * not be drawn as a lock.
+   */
+  pageOnly?: boolean;
+  /**
    * The one toggle that TAKES something away instead of giving it.
    *
    * Everything else here is off by default and grants when switched
@@ -80,8 +96,9 @@ export const CAPABILITIES: Capability[] = [
   {
     key: "finance.check",
     label: "See the finance check",
-    what: "Review every money decision a machine did not settle, and see each customer's refund ceiling. Read-only by design: whoever checks cannot approve.",
+    what: "Review every money decision a machine did not settle, and see each customer's refund ceiling. Read-only by design: whoever checks cannot approve. Note this one shows a page rather than unlocking data — it reads the same queues every admin already works from, so it does not keep anything from an admin who looks it up another way.",
     group: "Money",
+    pageOnly: true,
   },
 
   {

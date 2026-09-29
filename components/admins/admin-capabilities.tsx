@@ -195,7 +195,10 @@ export default function AdminCapabilities({
                     key={c.key}
                   >
                     <div className="t">
-                      <b>{c.label}</b>
+                      <b>
+                        {c.label}
+                        {c.pageOnly ? <i className="cap-tag">page only</i> : null}
+                      </b>
                       <span>{c.what}</span>
                     </div>
                     {c.ownerOnly ? (
@@ -286,6 +289,11 @@ const CAP_CSS = `
   .cap-restrict .t span{font-size:.79rem;line-height:1.5;
     color:var(--txt-2,#535e78)}
   .cap-sw.danger.on{background:#c0392b;border-color:#c0392b}
+
+  .cap-tag{font-style:normal;font-size:.66rem;font-weight:700;margin-left:7px;
+    padding:2px 7px;border-radius:99px;background:var(--panel-2,#f0f4fd);
+    color:var(--faint,#818ead);text-transform:uppercase;letter-spacing:.04em;
+    vertical-align:middle}
 
   .cap-note{margin:0;font-size:.85rem;color:var(--txt-2,#535e78)}
   .cap-foot{margin:0;font-size:.78rem;line-height:1.5;color:var(--faint,#818ead);
