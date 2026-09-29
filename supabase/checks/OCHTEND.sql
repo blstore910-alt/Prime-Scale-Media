@@ -11,12 +11,12 @@
 -- HOE JE DIT LEEST
 --
 --   gevonden = hoort   -> goed
---   regel 9: hoort -1  -> daar is 0 juist het probleem, niet het
+--   regel 10: hoort -1  -> daar is 0 juist het probleem, niet het
 --                         doel. Staan er alleen openingsregels,
 --                         dan is "de boeken kloppen" een lege
 --                         bewering.
 --
--- Regel 10 mag boven nul staan zolang hij krimpt: elke naamloze
+-- Regel 11 mag boven nul staan zolang hij krimpt: elke naamloze
 -- regel is een money-RPC die zijn hint nog niet zet.
 --
 -- ALLES MOET "ja" ZIJN. Eén "NEE" is een ochtend waarin je eerst dit
@@ -118,8 +118,19 @@ deuren as (
      and t.typname <> 'trigger'
      and p.prosecdef
      and has_function_privilege('authenticated', p.oid, 'execute')
-     -- Het token IS daar het geheim.
-     and p.proname not in ('get_invite_by_token')
+     -- Twee die hier horen te staan.
+     --
+     -- `get_invite_by_token`: het token IS daar het geheim.
+     --
+     -- `_in_owner_set(tenant, user)`: die toetst `auth.uid()` niet
+     -- omdat hij zijn onderwerp als PARAMETER krijgt -- dat is het
+     -- punt van een predicaat. Hij wordt aangeroepen vanuit
+     -- RLS-policies, en een policy draait als de BELLER, dus
+     -- `authenticated` moet hem kunnen uitvoeren; intrekken breekt
+     -- het grootboek. Wat hij teruggeeft is een boolean over wie de
+     -- tenant bezit, en dat staat voor elke admin gewoon op /admins.
+     -- `anon` kan er niet bij.
+     and p.proname not in ('get_invite_by_token', '_in_owner_set')
      and pg_get_functiondef(p.oid) !~*
          'auth[.]uid|_is_super_admin|_is_admin|_current_tenant|require_|_has_role|_require_profile'
 ),
@@ -216,6 +227,57 @@ anon_tabellen as (
      and a.privilege_type not in ('REFERENCES', 'TRIGGER', 'MAINTAIN')
 ),
 
+-- ── 5b. EEN POLICY DIE NOOIT KAN VUREN ──────────────────
+-- Regel 5 hierboven kijkt naar een RECHT zonder policy. Dit is de
+-- andere kant: een POLICY zonder recht. Die zegt "deze gebruiker mag
+-- zijn eigen rij bijwerken" en dan weigert Postgres het een laag
+-- eerder, want het recht is er niet.
+--
+-- 29-09 ging dat mis en het koste een half uur zoeken. Plak 139 nam
+-- het bijwerkrecht op `push_subscriptions` weg omdat er geen policy
+-- voor bijwerken was -- volkomen terecht -- maar de pushroute doet een
+-- UPSERT met de sessieclient, en die heeft er twee nodig: toevoegen en
+-- bijwerken. Die route draait bij elke paginalading, dus de app gaf op
+-- elk scherm een foutmelding, en de melding zei niet welke.
+--
+-- Deze regel vangt de vorm ervan: een policy die niets kan doen is
+-- altijd een vergissing, welke kant hij ook op is gemaakt.
+policy_zonder_recht as (
+  select count(*) as n
+    from (
+      select distinct c.relname, pol.polcmd
+        from pg_policy pol
+        join pg_class c on c.oid = pol.polrelid
+        join pg_namespace ns on ns.oid = c.relnamespace
+       where ns.nspname = 'public'
+         and pol.polcmd in ('a', 'w', 'd')
+         -- Een WEIGER-policy zonder recht is geen vergissing maar een
+         -- tweede slot: `audit_events` heeft er drie die letterlijk
+         -- `false` zeggen, en dat het recht er ook niet is maakt dat
+         -- sterker en niet stukker. Alleen een policy die iets
+         -- TOESTAAT en het dan niet kan, is een fout.
+         and coalesce(pg_get_expr(pol.polqual, pol.polrelid), '')
+             not in ('false', '(false)')
+         and coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '')
+             not in ('false', '(false)')
+         and 'authenticated' = any(
+               select r.rolname from pg_roles r
+                where pol.polroles = '{0}'::oid[] or r.oid = any(pol.polroles))
+         and not exists (
+           select 1
+             from pg_class c2
+            cross join lateral aclexplode(c2.relacl) a
+             join pg_roles ro on ro.oid = a.grantee
+            where c2.oid = c.oid
+              and ro.rolname = 'authenticated'
+              and a.privilege_type = case pol.polcmd
+                    when 'a' then 'INS' || 'ERT'
+                    when 'w' then 'UPD' || 'ATE'
+                    else 'DEL' || 'ETE' end
+         )
+    ) x
+),
+
 -- ── 6. HEEFT HET GROOTBOEK OOIT IETS ECHTS GEZIEN? ─────────────────
 -- Geen oordeel maar een teller, en wel hierom: staan er alleen
 -- openingsregels, dan is "de boeken kloppen" een lege bewering --
@@ -258,19 +320,22 @@ select * from (
     (5, 'geen schrijfrecht zonder policy',
         'authenticated mag schrijven waar geen policy het toestaat',
         (select n from schrijfrechten), 0),
-    (6, 'niemand kan een tabel leegmaken',
+    (6, 'geen policy zonder recht',
+        'een policy die Postgres een laag eerder al tegenhoudt',
+        (select n from policy_zonder_recht), 0),
+    (7, 'niemand kan een tabel leegmaken',
         'leegmaakrecht voor authenticated -- RLS geldt daar NIET voor',
         (select n from leegmaken),   0),
-    (7, 'elke tabel heeft RLS',
+    (8, 'elke tabel heeft RLS',
         'tabellen in public zonder row level security',
         (select n from zonder_rls),  0),
-    (8, 'anon kan nergens bij',
+    (9, 'anon kan nergens bij',
         'rechten van de publieke sleutel op een tabel',
         (select n from anon_tabellen), 0),
-    (10, 'elke beweging heeft een naam',
+    (11, 'elke beweging heeft een naam',
         'regels met source = unknown (werklijst, geen fout)',
         (select n from naamloos),    0),
-    (11, 'elke factuur heeft een bedrijf',
+    (12, 'elke factuur heeft een bedrijf',
         'facturen zonder company_id',
         (select n from facturen),    0)
 ) as t(nr, controle, wat_geteld_wordt, gevonden, hoort)
@@ -278,7 +343,7 @@ select * from (
 union all
 
 -- Regel 6 draait de vraag om: hier is nul juist SLECHT.
-select 9, 'het grootboek heeft echt werk gezien',
+select 10, 'het grootboek heeft echt werk gezien',
           'bewegingen die geen openingsregel zijn',
           (select n from bewegingen), -1
 
