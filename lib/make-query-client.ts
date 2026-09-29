@@ -54,11 +54,31 @@ export function makeQueryClient() {
         // That is almost certainly how a customer read a PostgREST error
         // "across their own dashboard": not one screen, this one line,
         // once per query key.
+        // ── SAY WHICH READ FAILED ────────────────────────────────
+        //
+        // 29-09: the owner opened the dashboard, got "Couldn't load
+        // some data / We couldn't load part of this page", and there
+        // was nothing in it to act on — not for them, and not for me
+        // either. I could not tell which of the twenty reads on that
+        // screen had failed, so I could not fix it without guessing.
+        //
+        // The whole message is the generic fallback, which means
+        // `userFacingErrorMessage` did not recognise the error. That
+        // is exactly the case where the query key is the only thing
+        // that identifies the fault.
+        //
+        // A query key is a route and a couple of ids — the same
+        // things already in the URL bar. It is not the raw Supabase
+        // message, which is what leaked PostgREST errors at customers
+        // and is still stripped above.
+        const name = String(query.queryKey?.[0] ?? "unknown");
+        console.error("[query failed]", key, error);
         toast.error("Couldn't load some data", {
-          description: userFacingErrorMessage(
-            error,
-            "We couldn't load part of this page. Reload to try again.",
-          ),
+          description:
+            userFacingErrorMessage(
+              error,
+              "We couldn't load part of this page. Reload to try again.",
+            ) + ` (${name})`,
         });
       },
     }),
