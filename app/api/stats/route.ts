@@ -28,10 +28,6 @@ type ExchangeRateRow = {
   eur: number | string | null;
 };
 
-type AdvertiserStatusRow = {
-  profile?: { status?: string | null } | null;
-};
-
 /** null, not 0, when the content-range header gave us nothing. */
 function countOrNull(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -183,10 +179,19 @@ export async function GET() {
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", profile.tenant_id)
       .eq("role", "affiliate"),
-    supabase
-      .from("advertisers")
-      .select("id, profile:user_profiles(status)")
-      .eq("tenant_id", profile.tenant_id),
+    // Gepagineerd, zoals elke andere lees in deze route al is. Deze
+    // ene was het niet, en hij voedt `advertisers.active` -- bij 1001
+    // klanten zou dat getal stoppen met groeien zonder een fout.
+    pageAllRows<{
+      profile: { status: string | null } | { status: string | null }[] | null;
+    }>((from, to) =>
+      supabase
+        .from("advertisers")
+        .select("id, profile:user_profiles(status)")
+        .eq("tenant_id", profile.tenant_id)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
     // Invoice revenue is what has actually been COLLECTED, so it reads PAID
     // invoices only.
     //
@@ -293,8 +298,7 @@ export async function GET() {
   const usdToEurRate = rawUsdToEurRate;
 
   const topups = topupsResult.rows;
-  const advertiserStatuses = (advertisersStatusesResult.data ||
-    []) as AdvertiserStatusRow[];
+  const advertiserStatuses = advertisersStatusesResult.rows;
   const invoiceRevenue = invoiceRevenueResult.rows;
   const referralCommissions = referralCommissionsResult.rows;
 
@@ -367,8 +371,19 @@ export async function GET() {
   );
   const totalProfit = feesProfit + invoicesProfit - referralCommissionsCost;
 
-  const activeAdvertisersCount = advertiserStatuses.reduce((count, advertiser) => {
-    return advertiser.profile?.status === "active" ? count + 1 : count;
+  // BOTH SHAPES, DELIBERATELY. PostgREST returns an embedded
+  // many-to-one as an OBJECT, but supabase-js's generated types here
+  // say array, and the old code was cast to the object shape. One of
+  // those two is wrong at runtime and the cast meant nobody would ever
+  // find out: if it is the array, `?.status` is undefined on every row
+  // and this figure has always been 0.
+  //
+  // Reading both costs one line and cannot be wrong either way. Which
+  // one it actually is, is measured below against the database.
+  const activeAdvertisersCount = advertiserStatuses.reduce((count, a) => {
+    const p = a.profile;
+    const st = Array.isArray(p) ? (p[0]?.status ?? null) : (p?.status ?? null);
+    return st === "active" ? count + 1 : count;
   }, 0);
 
   return NextResponse.json({

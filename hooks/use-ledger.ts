@@ -96,16 +96,41 @@ export function useLedgerCheck(tenantId: string | null | undefined) {
     queryFn: async () => {
       const supabase = createClient();
 
-      const { data: wallets, error: wErr } = await supabase
-        .from("wallets")
-        .select("id, advertiser_id, eur_balance, usd_balance")
-        .eq("tenant_id", tenantId!);
-      if (wErr) throw wErr;
+      // Allebei gepagineerd. Afkappen van `wallet_ledger` faalt luid --
+      // de saldi kloppen dan niet meer en de controle zegt dat ook.
+      // Afkappen van `wallets` is de stille helft: dan zegt het scherm
+      // "elk saldo klopt (N wallets)" over minder wallets dan er zijn,
+      // en dat is een goedkeuring over iets wat niet bekeken is.
+      const wRes = await pageAllRows<{
+        id: string;
+        advertiser_id: string | null;
+        eur_balance: unknown;
+        usd_balance: unknown;
+      }>((from, to) =>
+        supabase
+          .from("wallets")
+          .select("id, advertiser_id, eur_balance, usd_balance")
+          .eq("tenant_id", tenantId!)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (wRes.error) throw new Error(wRes.error);
+      const wallets = wRes.rows;
 
-      const { data: lines, error: lErr } = await supabase
-        .from("wallet_ledger")
-        .select("wallet_id, currency, delta")
-        .eq("tenant_id", tenantId!);
+      const lRes = await pageAllRows<{
+        wallet_id: string;
+        currency: string | null;
+        delta: unknown;
+      }>((from, to) =>
+        supabase
+          .from("wallet_ledger")
+          .select("wallet_id, currency, delta")
+          .eq("tenant_id", tenantId!)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      const lines = lRes.rows;
+      const lErr = lRes.error ? { message: lRes.error } : null;
       if (lErr) {
         if (MISSING.test(lErr.message)) {
           return { off: [], notSwitchedOn: true, wallets: (wallets ?? []).length };

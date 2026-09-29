@@ -81,15 +81,28 @@ export function useStatsDataset<T>(
   period: DashboardPeriod,
   dateRange?: DashboardDateRange,
 ): { data: T | undefined; isLoading: boolean; isError: boolean } {
-  const { data, isLoading, isError } = useStatsBatch(period, dateRange);
+  // isPending, NOT isLoading. This query is gated on `enabled: !!profile`,
+  // and for a disabled query react-query v5 computes isLoading as
+  // `isPending && isFetching` -- which is FALSE. So before the profile
+  // resolves every card was handed isLoading:false, isError:false,
+  // data:undefined, which is the shape of "we looked and there is
+  // nothing". Six cards get away with it today only because each one
+  // independently writes `isError || !data`; the first card written
+  // without that renders 0.00.
+  const { data, isPending, isError } = useStatsBatch(period, dateRange);
   const slice = data?.[name];
 
   return {
     data: slice && slice.ok ? (slice.data as T) : undefined,
-    isLoading,
+    isLoading: isPending,
     // A dataset the batch could not produce is an error for THIS card only —
     // rendering it as an empty state would say "nothing happened this period",
     // which is a different and much worse claim than "we could not read it".
-    isError: isError || (!!slice && !slice.ok),
+    //
+    // ABSENT counts as failed too. The comment above always claimed it
+    // did, but `!!slice && !slice.ok` is false when the slice is not in
+    // the response at all -- so a dataset the batch silently omitted
+    // came through as a clean empty card instead of an error.
+    isError: isError || (!!data && !slice) || (!!slice && !slice.ok),
   };
 }

@@ -76,7 +76,6 @@ const NOT_YET_READ = new Set<string>([
   "hooks/use-affiliate-earnings.ts",
   "hooks/use-affiliate-stats.ts",
   "hooks/use-matched-deposits.ts",
-  "hooks/use-stats-batch.ts",
   "hooks/use-tenant.ts",
   "hooks/use-usd-to-eur.ts",
 ]);
