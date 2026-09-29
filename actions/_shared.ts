@@ -107,6 +107,60 @@ async function resolveAdminContextInner(
     return { ok: false, error: "Account is inactive" };
   }
 
+  // ── READ-ONLY, AND THIS IS THE ONE PLACE IT CAN BE ENFORCED ──────
+  //
+  // The owner, 29-09: "bij permissions ook ad account topups en
+  // requests en wallet topups etc, dat een admin alleen read only
+  // mode is — dus ook vooral admin handelingen en queue handelingen."
+  //
+  // Not a check to be added to forty queue actions one at a time. The
+  // `freeze` flag above already separates a mutation from a read:
+  // every mutation calls resolveAdminContext() and every read calls
+  // resolveAdminContextForRead(), and that distinction is already
+  // enforced by MAINTENANCE_MODE. So read-only rides on exactly the
+  // same rail, and an action nobody remembers to update is covered
+  // anyway. That property is the whole reason to put it here.
+  //
+  // Inverted on purpose: the row GRANTS the restriction. Every other
+  // capability is off-by-default-and-gives; making the queues
+  // opt-in would silently lock out every admin who does their job
+  // today, and that would be found out one unverified top-up too
+  // late.
+  //
+  // An owner can never be read-only. Somebody has to be able to act,
+  // and locking the last one out is not repairable from a screen.
+  if (freeze && chosen.user_id) {
+    const { data: ro, error: roError } = await supabase
+      .from("admin_capabilities")
+      .select("capability")
+      .eq("tenant_id", chosen.tenant_id)
+      .eq("user_id", chosen.user_id)
+      .eq("capability", "admin.readonly")
+      .limit(1);
+
+    // A failed read is not a restriction. Before plak 143 the table
+    // does not exist and this throws; the admin keeps working exactly
+    // as they did yesterday. The direction of that mistake is the one
+    // we can live with — the alternative is the whole desk locked out
+    // by a missing migration.
+    if (!roError && (ro ?? []).length > 0) {
+      const owners = await supabase
+        .from("tenant_owners")
+        .select("user_id")
+        .eq("tenant_id", chosen.tenant_id)
+        .eq("user_id", chosen.user_id)
+        .limit(1);
+      const isOwner = !owners.error && (owners.data ?? []).length > 0;
+      if (!isOwner) {
+        return {
+          ok: false,
+          error:
+            "Your account is set to read-only. You can see everything here, but an owner has to make the change.",
+        };
+      }
+    }
+  }
+
   return {
     ok: true,
     ctx: {

@@ -140,6 +140,36 @@ export default function AdminCapabilities({
         </button>
       </div>
 
+      {/* ── THE ONE THAT TAKES SOMETHING AWAY ──────────────
+          Above the list and in red, because it runs the other way
+          round from everything under it. A switch that reads like all
+          the others and means the opposite is a switch somebody flips
+          expecting to give access and takes it away instead. */}
+      {!ownerNow
+        ? CAPABILITIES.filter((c) => c.restricts).map((c) => {
+            const on = mine.has(c.key);
+            return (
+              <div className={`cap-restrict${on ? " on" : ""}`} key={c.key}>
+                <div className="t">
+                  <b>{c.label}</b>
+                  <span>{c.what}</span>
+                </div>
+                <button
+                  className={`cap-sw danger${on ? " on" : ""}`}
+                  disabled={!canEdit || busy === c.key}
+                  onClick={() => {
+                    setBusy(c.key);
+                    flip.mutate({ capability: c.key, on: !on });
+                  }}
+                  aria-pressed={on}
+                >
+                  <span />
+                </button>
+              </div>
+            );
+          })
+        : null}
+
       {q.isPending ? (
         <p className="cap-note">Reading the permissions…</p>
       ) : q.isError ? (
@@ -149,7 +179,9 @@ export default function AdminCapabilities({
         </p>
       ) : (
         CAPABILITY_GROUPS.map((group) => {
-          const rows = CAPABILITIES.filter((c) => c.group === group);
+          const rows = CAPABILITIES.filter(
+            (c) => c.group === group && !c.restricts,
+          );
           if (!rows.length) return null;
           return (
             <div className="cap-group" key={group}>
@@ -244,6 +276,16 @@ const CAP_CSS = `
   .cap-sw.on{background:var(--primary,#3a6fff);border-color:var(--primary,#3a6fff)}
   .cap-sw.on span{transform:translateX(18px)}
   .cap-sw:disabled{cursor:not-allowed;opacity:.5}
+
+  .cap-restrict{display:flex;align-items:flex-start;gap:14px;padding:14px;
+    border-radius:13px;border:1px solid var(--line,#e3e8f4);
+    background:var(--panel-2,#f0f4fd)}
+  .cap-restrict.on{border-color:#f6c9c9;background:#fdecec}
+  .cap-restrict .t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+  .cap-restrict .t b{font-size:.92rem;font-weight:700}
+  .cap-restrict .t span{font-size:.79rem;line-height:1.5;
+    color:var(--txt-2,#535e78)}
+  .cap-sw.danger.on{background:#c0392b;border-color:#c0392b}
 
   .cap-note{margin:0;font-size:.85rem;color:var(--txt-2,#535e78)}
   .cap-foot{margin:0;font-size:.78rem;line-height:1.5;color:var(--faint,#818ead);

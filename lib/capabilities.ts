@@ -41,6 +41,20 @@ export type Capability = {
   group: "Money" | "Prices and rules" | "Customers" | "The books";
   /** True when it can never be handed over, whatever the owner wants. */
   ownerOnly?: boolean;
+  /**
+   * The one toggle that TAKES something away instead of giving it.
+   *
+   * Everything else here is off by default and grants when switched
+   * on. Read-only is the reverse: an admin can already work the
+   * queues, and this stops them. It has to be that way round — making
+   * the queues opt-in would silently lock out every admin who can do
+   * their job today, which is not what was asked for and would be
+   * found out one verified top-up too late.
+   *
+   * The screen shows it apart from the rest, in red, saying which way
+   * it runs.
+   */
+  restricts?: boolean;
 };
 
 export const CAPABILITIES: Capability[] = [
@@ -68,6 +82,14 @@ export const CAPABILITIES: Capability[] = [
     label: "See the finance check",
     what: "Review every money decision a machine did not settle, and see each customer's refund ceiling. Read-only by design: whoever checks cannot approve.",
     group: "Money",
+  },
+
+  {
+    key: "admin.readonly",
+    label: "Read-only \u2014 can look, cannot touch",
+    what: "Switch this ON and this admin can open every queue and read every figure, and cannot change one thing: no verifying a top-up, no approving an ad-account request or funding, no rejecting, no marking paid. Everything else in this list is off by default and gives; this one is off by default and TAKES AWAY.",
+    group: "Money",
+    restricts: true,
   },
 
   // ── PRICES AND RULES ─────────────────────────────────────────────
