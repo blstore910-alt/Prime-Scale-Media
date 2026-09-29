@@ -794,6 +794,23 @@ export const PSM_APP_CSS = `
   .psmapp .phead p:not(.subcounts){font-size:.85rem;margin-top:2px;
     display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
   .psmapp .phead p.subcounts{font-size:.8rem;margin-top:4px}
+  /* ── EEN KNOP DIE WRAPT HOORT NIET RECHTS TE BLIJVEN HANGEN ───
+     De eigenaar, 29-09, over /affiliates: "dit stukje is ook raar qua
+     design en veel leegruimte."
+
+     De regel .phead is space-between met flex-wrap. Zodra de knop niet meer
+     naast de titel past valt hij op een eigen regel -- en HOUDT daar
+     zijn rechtse uitlijning, dus er staat een lege regel met een
+     knopje in de rechterbovenhoek en niets eromheen. Precies het gat
+     op zijn screenshot.
+
+     Gewrapt hoort hij links te beginnen, onder de tekst waar hij bij
+     hoort, en de regelafstand mag kleiner: 6px in plaats van 10.
+     De column-gap blijft 10 zodat hij naast de titel nog lucht heeft
+     wanneer hij daar wel past. */
+  .psmapp .phead{gap:6px 10px}
+  .psmapp .phead .pacts{margin-left:0}
+  .psmapp .phead-actions>.pacts{flex:1 1 100%;justify-content:flex-start}
   /* Page actions sit side by side instead of one full-width block each. */
   .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
   /* Header buttons keep their icons and drop their words on a phone. The
