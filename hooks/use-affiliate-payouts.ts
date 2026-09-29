@@ -19,6 +19,10 @@ export type AffiliatePayout = {
   id: string;
   /** Requests made together (plak 51); absent before it. */
   group_id?: string | null;
+  /** Carried on the row by plak 158, so a removed affiliate still has
+   *  a name on the payout that was sent to them. */
+  affiliate_code?: string | null;
+  affiliate_name?: string | null;
   /** What the affiliate receives it in. */
   payout_currency?: string | null;
   /** EUR per 1 USD, when we converted. */
@@ -59,9 +63,13 @@ const COLUMNS_51 =
   BASE_COLUMNS +
   ", group_id, payout_currency, fx_rate, fx_fee_pct, fx_fee_amount, payout_amount";
 const COLUMNS_52 = COLUMNS_51 + ", payout_no";
+// Plak 158 carries the affiliate's code and name ON the payout row, so
+// the record survives the affiliate being removed -- and so this screen
+// can name a recipient whose advertiser row is gone.
+const COLUMNS_158 = COLUMNS_52 + ", affiliate_code, affiliate_name";
 // Newest first, then older, then the plain table: each plak adds columns
 // and they are pasted by hand, so the screen must work at every step.
-const COLUMN_SETS = [COLUMNS_52, COLUMNS_51, BASE_COLUMNS];
+const COLUMN_SETS = [COLUMNS_158, COLUMNS_52, COLUMNS_51, BASE_COLUMNS];
 const MISSING_COLUMN = /42703|column .* does not exist/i;
 
 /**

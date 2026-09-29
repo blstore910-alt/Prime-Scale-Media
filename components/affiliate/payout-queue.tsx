@@ -84,6 +84,23 @@ export default function PayoutQueue({
   /** Cache scope: the owner's queue is per tenant. */
   tenantId?: string | null;
 }) {
+  // ── DE ONTVANGER STAAT OP DE RIJ, NIET ALLEEN IN DE LIJST ──────
+  //
+  // `nameOf` zoekt de affiliate op in een lijst die uit referral-links
+  // wordt opgebouwd, en die links CASCADEren weg met de adverteerder.
+  // Een uitbetaling overleeft dat (plak 158), de lijst niet -- dus op
+  // het venster waar een eigenaar een overboeking bevestigt stond
+  // "Affiliate · " met een lege code.
+  //
+  // Plak 158 zet code en naam op de uitbetaling zelf. Die gaan voor;
+  // de lijst is de terugval voor rijen van voor die plak.
+  const recipient = (p: AffiliatePayout) => {
+    const looked = nameOf(p.affiliate_advertiser_id);
+    const name = (p.affiliate_name ?? "").trim() || looked.name;
+    const code = (p.affiliate_code ?? "").trim() || looked.code;
+    return { name, code };
+  };
+
   const queryClient = useQueryClient();
   const payouts = useAffiliatePayouts(true, tenantId);
   const [asking, setAsking] = useState<{ g: AffiliatePayout[]; action: "paid" | "reject" } | null>(
@@ -194,7 +211,7 @@ export default function PayoutQueue({
               <tbody>
                 {waiting.map((g) => {
                   const first = g[0];
-                  const who = nameOf(first.affiliate_advertiser_id);
+                  const who = recipient(first);
                   const per = receives(g);
                   const commissions = g.reduce(
                     (n, p) => n + (Number(p.commission_count) || 0),
@@ -314,7 +331,7 @@ export default function PayoutQueue({
               <tbody>
                 {settled.map((g) => {
                   const first = g[0];
-                  const who = nameOf(first.affiliate_advertiser_id);
+                  const who = recipient(first);
                   return (
                     <tr key={String(first.group_id ?? first.id)}>
                       <td data-label="Who">
@@ -425,7 +442,10 @@ export default function PayoutQueue({
           <>
             <ConfirmFact
               label="Affiliate"
-              value={`${nameOf(asking.g[0].affiliate_advertiser_id).name} · ${nameOf(asking.g[0].affiliate_advertiser_id).code}`}
+              value={(() => {
+                const w = recipient(asking.g[0]);
+                return w.code ? `${w.name} · ${w.code}` : w.name;
+              })()}
             />
             <ConfirmFact label="You transfer" value={moneyList(receives(asking.g))} />
             {asking.g.some(

@@ -76,6 +76,23 @@ export function useLedgerNames(tenantId: string | null | undefined) {
           .eq("tenant_id", tenantId!),
       ]);
 
+      // ── EEN MISLUKTE LEES IS GEEN LEGE KLANTKOLOM ─────────────
+      //
+      // Geen van deze drie keek naar `.error`, en elke afnemer doet
+      // `?? []`. Een geweigerde of stukke lees van `advertisers`,
+      // `user_profiles` of `companies` gaf dus lege kaarten -- en dan
+      // staat er "No customer on this line" op ELKE regel van het
+      // grootboek, en valt de naam van elke post op /finance-check
+      // weg. Dat leest als data die er niet is, terwijl het een lees
+      // is die niet aankwam. RLS geeft geen fout, die geeft nul rijen,
+      // dus dit is de waarschijnlijke vorm van de storing.
+      //
+      // Gooien in plaats van doorgaan: de schermen hebben allebei een
+      // foutstaat en die zegt tenminste wat er aan de hand is.
+      for (const q of [adv, staff, comp]) {
+        if (q.error) throw q.error;
+      }
+
       type Profile = {
         id: string;
         user_id: string | null;
