@@ -136,6 +136,7 @@ const CSS = `
 
 .sc-fnote{margin:0;padding:7px var(--sc-pad) 10px;font-size:.68rem;
   color:var(--faint);line-height:1.45;background:var(--panel-2)}
+.sc-fnote.bad{color:var(--danger);background:var(--danger-soft)}
 
 .sc-det{padding:0 var(--sc-pad) 12px;display:flex;flex-direction:column;gap:8px;
   background:var(--panel-2)}
@@ -555,6 +556,15 @@ export default function SupplierCredit() {
           ANTWOORDDE: dan ontbreekt er geld dat we niet kunnen zien,
           en dat is geen detail van een rij maar een gat in het
           totaal. */}
+      {!q.isPending && !q.isError && suppliers.some((x) => x.status === "error") ? (
+        <p className="sc-fnote bad">
+          {suppliers
+            .filter((x) => x.status === "error")
+            .map((x) => x.supplier)
+            .join(", ")}{" "}
+          did not answer, so there is money here we cannot see.
+        </p>
+      ) : null}
     </div>
   );
 }
