@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createClient } from "@/lib/supabase/client";
+import { pageAllRows } from "@/lib/page-all-rows";
 
 /**
  * THE THREE QUESTIONS THE LEDGER PAGE ACTUALLY HAS TO ANSWER.
@@ -154,7 +155,7 @@ export type MoneyInRow = {
  * conclusion — rather than one verdict that would be wrong every day.
  */
 export function useMoneyIn(tenantId: string | null | undefined) {
-  return useQuery<{ rows: MoneyInRow[]; notSwitchedOn: boolean }>({
+  return useQuery<{ rows: MoneyInRow[]; notSwitchedOn: boolean; truncated: boolean }>({
     queryKey: ["ledger-money-in", tenantId ?? ""],
     enabled: !!tenantId,
     queryFn: async () => {
@@ -164,25 +165,49 @@ export function useMoneyIn(tenantId: string | null | undefined) {
       // could attribute yet. Those are ours until proven otherwise, so
       // this matches the deposit queue's own filter rather than
       // quietly dropping them out of the total.
+      // ── GEPAGINEERD, WANT DE FEED GROEIT ELKE DAG ──────────────
+      //
+      // Deze twee waren onbegrensd, en PostgREST kapt stil op 1000
+      // rijen -- geen fout, geen waarschuwing, alleen een kleiner
+      // getal. De bankfeed staat vandaag op 370 en er komt echt geld
+      // doorheen. Bij 1001 zou "Arrived in the bank" stoppen met
+      // groeien terwijl "Credited to wallets" doorgaat, en dan vindt
+      // dit paneel een overschot dat niet bestaat -- op het scherm dat
+      // er juist is om een lek te vinden.
+      //
+      // lib/page-all-rows.ts bestond al hiervoor; deze lees was er
+      // alleen nooit op aangesloten.
       const [dep, tops] = await Promise.all([
-        supabase
-          .from("wise_incoming_transfers")
-          .select("currency, amount_cents, matched_topup_id")
-          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-          .is("archived_at", null),
-        supabase
-          .from("wallet_topups")
-          .select("currency, amount")
-          .eq("tenant_id", tenantId!)
-          .eq("status", "completed"),
+        pageAllRows<{
+          currency: string | null;
+          amount_cents: unknown;
+          matched_topup_id: string | null;
+        }>((from, to) =>
+          supabase
+            .from("wise_incoming_transfers")
+            .select("currency, amount_cents, matched_topup_id")
+            .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+            .is("archived_at", null)
+            .order("id", { ascending: true })
+            .range(from, to),
+        ),
+        pageAllRows<{ currency: string | null; amount: unknown }>((from, to) =>
+          supabase
+            .from("wallet_topups")
+            .select("currency, amount")
+            .eq("tenant_id", tenantId!)
+            .eq("status", "completed")
+            .order("id", { ascending: true })
+            .range(from, to),
+        ),
       ]);
       if (dep.error) {
-        if (MISSING.test(dep.error.message)) {
-          return { rows: [], notSwitchedOn: true };
+        if (MISSING.test(dep.error)) {
+          return { rows: [], notSwitchedOn: true, truncated: false };
         }
-        throw dep.error;
+        throw new Error(dep.error);
       }
-      if (tops.error) throw tops.error;
+      if (tops.error) throw new Error(tops.error);
 
       const acc = new Map<string, MoneyInRow>();
       const row = (c: string) => {
@@ -203,11 +228,7 @@ export function useMoneyIn(tenantId: string | null | undefined) {
         return r;
       };
 
-      for (const d of (dep.data ?? []) as {
-        currency: string | null;
-        amount_cents: unknown;
-        matched_topup_id: string | null;
-      }[]) {
+      for (const d of dep.rows) {
         const r = row(String(d.currency ?? "EUR"));
         const amt = Math.round(num(d.amount_cents)) / 100;
         r.bankCount += 1;
@@ -217,10 +238,7 @@ export function useMoneyIn(tenantId: string | null | undefined) {
           r.matched = cents(r.matched + amt);
         }
       }
-      for (const t of (tops.data ?? []) as {
-        currency: string | null;
-        amount: unknown;
-      }[]) {
+      for (const t of tops.rows) {
         const r = row(String(t.currency ?? "EUR"));
         r.creditedCount += 1;
         r.credited = cents(r.credited + num(t.amount));
@@ -229,6 +247,10 @@ export function useMoneyIn(tenantId: string | null | undefined) {
       return {
         rows: [...acc.values()].sort((a, b) => b.bank - a.bank),
         notSwitchedOn: false,
+        // pageAllRows heeft een eigen plafond. Raakt hij dat, dan zijn
+        // deze bedragen een ondergrens en moet het paneel dat zeggen in
+        // plaats van een totaal te beloven.
+        truncated: dep.truncated || tops.truncated,
       };
     },
   });
@@ -267,38 +289,63 @@ export type MarginLine = {
  * wrong can be traced in one step instead of argued about.
  */
 export function useMargin(tenantId: string | null | undefined) {
-  return useQuery<{ lines: MarginLine[]; notSwitchedOn: boolean }>({
+  return useQuery<{ lines: MarginLine[]; notSwitchedOn: boolean; truncated: boolean }>({
     queryKey: ["ledger-margin", tenantId ?? ""],
     enabled: !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
 
+      // Alle vier gepagineerd. Dit is de WINSTREGEL: onbegrensd
+      // gelezen stopt hij bij 1000 rijen met groeien en blijft hij een
+      // stellig totaal tonen. Van de vier is `top_ups` degene die als
+      // eerste groeit, en die staat aan de opbrengstkant -- afkappen
+      // maakt de winst dus te LAAG, wat niemand opvalt.
       const [fees, inv, dst, comm] = await Promise.all([
-        supabase
-          .from("top_ups")
-          .select("currency, fee_amount")
-          .eq("tenant_id", tenantId!)
-          .eq("status", "completed"),
-        supabase
-          .from("invoices")
-          .select("currency, total, type")
-          .eq("tenant_id", tenantId!)
-          .eq("status", "paid"),
-        supabase
-          .from("dst_charges")
-          .select("currency, dst_amount")
-          .eq("tenant_id", tenantId!),
-        supabase
-          .from("referral_commissions")
-          .select("currency, amount, status")
-          .eq("tenant_id", tenantId!),
+        pageAllRows<{ currency: string | null; fee_amount: unknown }>(
+          (from, to) =>
+            supabase
+              .from("top_ups")
+              .select("currency, fee_amount")
+              .eq("tenant_id", tenantId!)
+              .eq("status", "completed")
+              .order("id", { ascending: true })
+              .range(from, to),
+        ),
+        pageAllRows<{ currency: string | null; total: unknown; type: unknown }>(
+          (from, to) =>
+            supabase
+              .from("invoices")
+              .select("currency, total, type")
+              .eq("tenant_id", tenantId!)
+              .eq("status", "paid")
+              .order("id", { ascending: true })
+              .range(from, to),
+        ),
+        pageAllRows<{ currency: string | null; dst_amount: unknown }>(
+          (from, to) =>
+            supabase
+              .from("dst_charges")
+              .select("currency, dst_amount")
+              .eq("tenant_id", tenantId!)
+              .order("id", { ascending: true })
+              .range(from, to),
+        ),
+        pageAllRows<{ currency: string | null; amount: unknown; status: unknown }>(
+          (from, to) =>
+            supabase
+              .from("referral_commissions")
+              .select("currency, amount, status")
+              .eq("tenant_id", tenantId!)
+              .order("id", { ascending: true })
+              .range(from, to),
+        ),
       ]);
       for (const q of [fees, inv, dst, comm]) {
         if (q.error) {
-          if (MISSING.test(q.error.message)) {
-            return { lines: [], notSwitchedOn: true };
+          if (MISSING.test(q.error)) {
+            return { lines: [], notSwitchedOn: true, truncated: false };
           }
-          throw q.error;
+          throw new Error(q.error);
         }
       }
 
@@ -345,10 +392,7 @@ export function useMargin(tenantId: string | null | undefined) {
         bucket.set(key, at);
       };
 
-      for (const f of (fees.data ?? []) as {
-        currency: string | null;
-        fee_amount: unknown;
-      }[]) {
+      for (const f of fees.rows) {
         add(
           "Fee on ad-account funding",
           "top_ups.fee_amount, completed",
@@ -381,11 +425,7 @@ export function useMargin(tenantId: string | null | undefined) {
       // considered and excluded is worth more on this page than one
       // that silently is not there: without these two lines the owner
       // has no way to tell "we thought about it" from "we forgot".
-      for (const i of (inv.data ?? []) as {
-        currency: string | null;
-        total: unknown;
-        type: string | null;
-      }[]) {
+      for (const i of inv.rows) {
         const cur = String(i.currency ?? "EUR");
         const amt = num(i.total);
         if (i.type === "wallet_topup") {
@@ -401,10 +441,7 @@ export function useMargin(tenantId: string | null | undefined) {
           );
         }
       }
-      for (const d of (dst.data ?? []) as {
-        currency: string | null;
-        dst_amount: unknown;
-      }[]) {
+      for (const d of dst.rows) {
         add(
           "DST billed on",
           "dst_charges.dst_amount",
@@ -412,11 +449,7 @@ export function useMargin(tenantId: string | null | undefined) {
           num(d.dst_amount),
         );
       }
-      for (const c of (comm.data ?? []) as {
-        currency: string | null;
-        amount: unknown;
-        status: string | null;
-      }[]) {
+      for (const c of comm.rows) {
         add(
           c.status === "paid"
             ? "Affiliate commission paid"
@@ -434,6 +467,8 @@ export function useMargin(tenantId: string | null | undefined) {
           return rank(a) - rank(b) || b.amount - a.amount;
         }),
         notSwitchedOn: false,
+        truncated:
+          fees.truncated || inv.truncated || dst.truncated || comm.truncated,
       };
     },
   });

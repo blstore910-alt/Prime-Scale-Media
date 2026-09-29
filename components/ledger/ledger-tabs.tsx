@@ -44,6 +44,18 @@ export function MoneyInPanel({ tenantId }: { tenantId: string | null }) {
 
   return (
     <>
+      {/* ── EEN ONDERGRENS IS GEEN TOTAAL ────────────────────────
+          pageAllRows loopt tot zijn eigen plafond en zegt het als hij
+          dat raakt. Gebeurt dat, dan zijn de bedragen hieronder een
+          ondergrens en moet dat er STAAN -- een afgekapt totaal ziet er
+          precies zo uit als een compleet totaal, en dat is de fout waar
+          dit hele scherm voor bestaat. */}
+      {q.data?.truncated ? (
+        <p className="lg-warn">
+          <b>Dit is een ondergrens, geen totaal.</b> Er zijn meer rijen dan
+          we in een keer konden lezen, dus alles hieronder telt te laag.
+        </p>
+      ) : null}
       <p className="lg-warn">
         <b>The gap here is not a leak — yet.</b> Most of these deposits carry
         the references of the <b>old</b> system, so they were never going to
@@ -123,6 +135,15 @@ export function MarginPanel({ tenantId }: { tenantId: string | null }) {
 
   return (
     <>
+      {/* Zelfde regel als bij What came in: een afgekapte winst ziet er
+          precies zo uit als de echte, en deze is te LAAG omdat top_ups
+          aan de opbrengstkant staat. */}
+      {q.data?.truncated ? (
+        <p className="lg-warn">
+          <b>Dit is een ondergrens, geen totaal.</b> Er zijn meer rijen dan
+          we in een keer konden lezen, dus wat we overhouden telt te laag.
+        </p>
+      ) : null}
       <p className="lg-warn">
         <b>This is not turnover.</b> A customer&apos;s top-up passes through
         us — theirs coming in, theirs going out — and the ad spend goes
