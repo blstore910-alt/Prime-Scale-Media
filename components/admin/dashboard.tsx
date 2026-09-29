@@ -440,10 +440,20 @@ export default function AdminDashboard() {
     // past it -- and the only way to find them was to open /invoices
     // and pick Overdue from a filter.
     //
-    // `soft`, like the bank deposits: it is a standing check rather
-    // than a queue somebody empties, and it should not shout over the
-    // queues that are somebody's actual shift. The link lands on
-    // /invoices, where the Overdue filter is.
+    // NIET `soft`, anders dan de bankstortingen. De eigenaar, 29-09:
+    // "dit moet toch ook hoger op het scherm, is toch belangrijk."
+    //
+    // Hij heeft gelijk en ik had het fout ingeschat. `soft` betekent
+    // "een staande controle, geen wachtrij die iemand leegmaakt", en
+    // dat klopt voor de 92 bankstortingen: die zijn er morgen ook nog
+    // en er is geen dag waarop ze op nul staan. Een factuur over zijn
+    // vervaldatum is het tegenovergestelde -- dat is geld dat we NIET
+    // hebben gekregen, het aantal hoort te dalen, en iemand moet
+    // erachteraan. Dat is precies een wachtrij.
+    //
+    // Met soft:true zakte hij onder elke wachtrij die op NUL stond:
+    // drie onbetaalde facturen stonden onderaan het scherm, onder
+    // zeven regels die zeiden dat er niets te doen was.
     {
       key: "overdue-invoices",
       href: "/invoices?status=overdue",
@@ -451,7 +461,6 @@ export default function AdminDashboard() {
       ci: "r",
       count: pending.overdueInvoices,
       label: "Invoices past their due date",
-      soft: true,
     },
     // Applications, "advertise too" requests and referrals waiting for
     // approval -- the exact rows of "Waiting for you" on /affiliates.
@@ -595,6 +604,20 @@ export default function AdminDashboard() {
         ) : null}
       </div>
 
+      {/* ── BOVENAAN VOOR DE EIGENAAR, ERONDER VOOR EEN MEDEWERKER ──
+          De eigenaar, 29-09: "voor super admin moet supplier credit
+          helemaal bovenaan, eigen en dan mooie card, en voor admins
+          pas onder de queues."
+
+          Dat is het verschil tussen de twee rollen in een zin. Een
+          medewerker opent dit scherm om te zien WAT er te doen is --
+          de wachtrijen zijn zijn dienst, en het saldo is de vraag of
+          een van die taken vandaag kan. Voor de eigenaar is het
+          omgekeerd: hij werkt de wachtrij niet af, hij wil weten
+          waar het geld staat, en dat is het eerste wat op het scherm
+          hoort. Zelfde component, andere plaats. */}
+      {isSuperAdmin ? <SupplierCredit /> : null}
+
       <h2>Queues</h2>
       <div className="qgrid">
         {/* Queues with work come FIRST. A fixed order is fine on a screen you
@@ -721,7 +744,7 @@ export default function AdminDashboard() {
 
           Admin AND owner, unlike the profit tiles below. It is not
           profit — it is whether a queue can be cleared today. */}
-      <SupplierCredit />
+      {!isSuperAdmin ? <SupplierCredit /> : null}
 
       {/* Real profit + activity metrics with the period toggle, grouped as one
           cohesive section. The wired DashboardStatsCards carries its own

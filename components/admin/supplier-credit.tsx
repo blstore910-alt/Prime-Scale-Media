@@ -39,8 +39,13 @@ const CSS = `
 .sc-head{display:flex;align-items:center;gap:11px;padding:12px 15px;border-bottom:1px solid var(--line)}
 .sc-ic{width:32px;height:32px;border-radius:9px;background:var(--panel-2);color:var(--txt-2);display:grid;place-items:center;flex:0 0 auto}
 .sc-ic svg{width:17px;height:17px}
-.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:1rem;color:var(--ink)}
-.sc-head .sc-sub{color:var(--faint);font-size:.8rem;margin:1px 0 0}
+.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:1rem;color:var(--ink);flex:1 1 auto;min-width:0}
+.sc-sub{color:var(--faint);font-size:.8rem;margin:0;padding:0 15px 11px;border-bottom:1px solid var(--line)}
+.sc-when{padding:0 15px 9px;margin-top:-6px;color:var(--faint);font-size:.68rem;letter-spacing:.01em}
+/* Onze eigen bank, niet krediet bij iemand anders: een streep ervoor
+   en een label, zodat het niet als derde leverancier leest. */
+.sc-row.bank{background:var(--panel-2)}
+.sc-row.bank .sc-name::after{content:"our bank";margin-left:7px;font-family:var(--bd);font-weight:700;font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
 .sc-head .sc-re{margin-left:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 10px;font-size:.8rem;font-weight:700;color:var(--txt-2);cursor:pointer}
 .sc-head .sc-re:hover{background:var(--panel-2)}
 .sc-head .sc-re svg{width:14px;height:14px}
@@ -101,6 +106,24 @@ function money(amount: number, currency: string) {
   );
 }
 
+/** "just now" / "14:52" / "28 Sep 14:52" — short, and never a lie
+ *  about precision it does not have. */
+function whenShort(iso: string): string {
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+  const mins = Math.round((Date.now() - t.getTime()) / 60000);
+  if (mins < 1) return "synced just now";
+  if (mins < 60) return `synced ${mins} min ago`;
+  const sameDay = new Date().toDateString() === t.toDateString();
+  const hhmm = t.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return sameDay
+    ? `synced at ${hhmm}`
+    : `synced ${t.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${hhmm}`;
+}
+
 function StatusTag({ status }: { status: SupplierHolding["status"] }) {
   if (status === "demo") return <span className="sc-tag demo">test data</span>;
   if (status === "off") return <span className="sc-tag off">not connected</span>;
@@ -129,7 +152,7 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
     !!s.error || s.lines.some((l) => informative(l) || l.heldBack !== null);
 
   return (
-    <div className={`sc-row${open ? " open" : ""}`}>
+    <div className={`sc-row${open ? " open" : ""}${s.kind === "bank" ? " bank" : ""}`}>
       <button
         type="button"
         className="sc-top"
@@ -159,6 +182,12 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
         </span>
         {hasDetail ? <ChevronDown className="sc-chev" /> : null}
       </button>
+      {/* Wanneer DEZE leverancier antwoordde. Klein en grijs: het is
+          geen cijfer waar je naar zoekt, het is het antwoord op "is
+          dit van nu?" als je het je afvraagt. Per rij en niet een
+          keer boven het paneel, want de drie worden los opgehaald en
+          een ervan kan stil oud zijn. */}
+      {s.readAt ? <div className="sc-when">{whenShort(s.readAt)}</div> : null}
 
       {open ? (
         <div className="sc-det">
@@ -272,17 +301,20 @@ export default function SupplierCredit() {
   return (
     <div className="sc">
       <style>{CSS}</style>
+      {/* ── KOP OP EEN REGEL ──────────────────────────────────────
+          De eigenaar, 29-09: "minder tekst zodat refresh mooi naast
+          titel kan." De ondertitel was drie regels lang en duwde de
+          knop naar beneden. Titel en knop delen nu een rij; de uitleg
+          staat eronder in een halve zin.
+
+          En de titel heet niet meer naar de leveranciers alleen: Wise
+          staat er sinds vandaag bij, en dat is ONS geld, geen krediet
+          bij iemand anders. */}
       <div className="sc-head">
         <span className="sc-ic">
           <Landmark />
         </span>
-        <div>
-          <h3>Supplier credit</h3>
-          <p className="sc-sub">
-            What we hold at the suppliers right now — this is what a top-up
-            can be funded from.
-          </p>
-        </div>
+        <h3>What we hold</h3>
         <button
           type="button"
           className="sc-re"
@@ -293,6 +325,7 @@ export default function SupplierCredit() {
           {q.isFetching ? "Reading…" : "Refresh"}
         </button>
       </div>
+      <p className="sc-sub">What a top-up can be funded from today.</p>
 
       <div className="sc-body">
         {/* isPending, not isLoading — this query is not gated, but the

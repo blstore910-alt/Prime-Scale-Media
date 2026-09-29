@@ -62,6 +62,14 @@ export type SupplierHolding = {
   /** The supplier as the DESK knows it. Never shown to a customer. */
   supplier: string;
   /**
+   * "bank" is OUR OWN money (Wise), not credit at a supplier. It is
+   * shown in the same panel because it answers the same question --
+   * what can we spend today -- but it is kept OUT of the supplier
+   * total, because credit that can only be spent at one supplier and
+   * money that can go anywhere are not one figure.
+   */
+  kind?: "supplier" | "bank";
+  /**
    * ok    — read it, the lines are real.
    * off   — no credentials set; there is nothing to read, and that is
    *         not a fault.
@@ -76,6 +84,14 @@ export type SupplierHolding = {
    */
   status: "ok" | "off" | "error" | "demo";
   error: string | null;
+  /**
+   * When THIS supplier answered, as an ISO string. Per supplier and not
+   * one timestamp for the panel: the three are fetched independently
+   * and one can be an hour stale from a cache or a retry while the
+   * others are fresh. A single "read at" over three reads is a claim
+   * about all of them that only one of them earned.
+   */
+  readAt?: string | null;
   lines: HoldingLine[];
 };
 

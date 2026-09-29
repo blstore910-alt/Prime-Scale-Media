@@ -619,6 +619,114 @@ export async function findBalanceForCurrency(
   return null;
 }
 
+/**
+ * WAT WIJ ZELF BIJ WISE HEBBEN STAAN, PER VALUTA.
+ *
+ * De eigenaar, 29-09: "ook wise api balance, ons huidige usd en eur
+ * balance." Dat stond tot nu toe alleen op Wise zelf, en het is de
+ * andere helft van dezelfde vraag als het leverancierskrediet: wat
+ * kunnen we vandaag uitgeven.
+ *
+ * `findBalanceForCurrency` hiernaast leest dezelfde lijst maar houdt
+ * alleen het ID over -- het BEDRAG werd weggegooid, want die functie
+ * bestaat om een storting te verrijken, niet om een saldo te tonen.
+ * Daarom een eigen lees in plaats van die ene uitbreiden: de matcher
+ * is de weg waar echt geld langs komt en die verbouw je niet voor een
+ * scherm.
+ *
+ * Wise geeft het bedrag in twee vormen, afhankelijk van welk endpoint
+ * antwoordt: `amount: { value }` op v4 en soms een kaal getal. Allebei
+ * gelezen, en wat geen getal oplevert wordt overgeslagen in plaats van
+ * als nul geteld.
+ */
+export async function fetchWiseBalances(): Promise<{
+  balances: { currency: string; amount: number }[];
+  error: string | null;
+}> {
+  const token = process.env.WISE_API_TOKEN;
+  if (!token) return { balances: [], error: "No Wise token is set." };
+
+  const byCur = new Map<string, number>();
+  let saw = false;
+  try {
+    for (const pid of await fetchWiseProfileIds()) {
+      for (const b of await fetchBalanceAmounts(pid, token)) {
+        saw = true;
+        const cur = b.currency.toUpperCase();
+        if (!cur) continue;
+        byCur.set(cur, (byCur.get(cur) ?? 0) + b.amount);
+      }
+    }
+  } catch (err) {
+    return {
+      balances: [],
+      error: err instanceof Error ? err.message : "Wise did not answer.",
+    };
+  }
+  if (!saw) {
+    // Geen enkel saldo gezien is niet hetzelfde als nul euro hebben:
+    // het betekent meestal dat geen van de profielen antwoordde.
+    return { balances: [], error: "Wise returned no balances." };
+  }
+  return {
+    balances: [...byCur.entries()]
+      .map(([currency, amount]) => ({
+        currency,
+        amount: Math.round(amount * 100) / 100,
+      }))
+      .sort((a, b) => a.currency.localeCompare(b.currency)),
+    error: null,
+  };
+}
+
+/** Dezelfde twee endpoints als fetchBalanceList, maar mét het bedrag. */
+async function fetchBalanceAmounts(
+  pid: string | number,
+  token: string,
+): Promise<{ currency: string; amount: number }[]> {
+  const num = (v: unknown): number | null => {
+    const n = Number(
+      typeof v === "object" && v !== null
+        ? (v as { value?: unknown }).value
+        : v,
+    );
+    return Number.isFinite(n) ? n : null;
+  };
+  const paths = [
+    `${wiseApiBase()}/v4/profiles/${encodeURIComponent(String(pid))}/balances?types=STANDARD`,
+    `${wiseApiBase()}/v3/profiles/${encodeURIComponent(String(pid))}/borderless-accounts`,
+  ];
+  for (const url of paths) {
+    try {
+      const { res } = await wiseFetch(url, token);
+      if (!res.ok) continue;
+      const raw = (await res.json()) as unknown;
+      if (!Array.isArray(raw)) continue;
+      const out = raw
+        .flatMap((entry) => {
+          const e = entry as {
+            balances?: unknown[];
+          };
+          return Array.isArray(e.balances) && e.balances.length > 0
+            ? e.balances
+            : [entry];
+        })
+        .map((b) => {
+          const x = b as { currency?: string; amount?: unknown };
+          return { currency: String(x.currency ?? ""), amount: num(x.amount) };
+        })
+        .filter(
+          (b): b is { currency: string; amount: number } =>
+            !!b.currency && b.amount !== null,
+        );
+      if (out.length) return out;
+    } catch {
+      /* try the next shape */
+    }
+  }
+  return [];
+}
+
 /** The balances one profile holds, across both endpoint versions. */
 async function fetchBalanceList(
   pid: string | number,

@@ -23,6 +23,7 @@
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { NextResponse } from "next/server";
 import { fetchRockadsWallets } from "@/lib/integrations/rockads-api";
+import { fetchWiseBalances } from "@/lib/integrations/wise-api";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { isSupplier1Live } from "@/lib/integrations/autopush";
 import { safeErrorMessage } from "@/lib/pure-error";
@@ -46,7 +47,7 @@ const seamxOn = () =>
 async function rockads(): Promise<SupplierHolding> {
   const base = { supplier: "RockAds" } as const;
   if (!rockadsOn()) {
-    return { ...base, status: "off", error: null, lines: [] };
+    return { ...base, status: "off", error: null, readAt: null, lines: [] };
   }
   try {
     const { wallets, error } = await fetchRockadsWallets();
@@ -55,6 +56,7 @@ async function rockads(): Promise<SupplierHolding> {
     return {
       ...base,
       status: "ok",
+      readAt: new Date().toISOString(),
       // Not an error — the read worked. But a wallet we could not place
       // on a currency line is money missing from the figure, and saying
       // so is the difference between a total and a total-ish.
@@ -64,7 +66,7 @@ async function rockads(): Promise<SupplierHolding> {
       lines,
     };
   } catch (err) {
-    return { ...base, status: "error", error: safeErrorMessage(err), lines: [] };
+    return { ...base, status: "error", error: safeErrorMessage(err), readAt: new Date().toISOString(), lines: [] };
   }
 }
 
@@ -86,23 +88,66 @@ async function seamx(): Promise<SupplierHolding> {
   const base = { supplier: "SeamX" } as const;
   const live = isSupplier1Live();
   if (live && !seamxOn()) {
-    return { ...base, status: "off", error: null, lines: [] };
+    return { ...base, status: "off", error: null, readAt: null, lines: [] };
   }
   try {
     const res = await getSupplier1Adapter().getWalletBalance();
     if (!res.ok) {
-      return { ...base, status: "error", error: res.error, lines: [] };
+      return { ...base, status: "error", error: res.error, readAt: new Date().toISOString(), lines: [] };
     }
     return {
       ...base,
       status: live ? "ok" : "demo",
+      readAt: new Date().toISOString(),
       error: live
         ? null
         : "SUPPLIER1_MODE is not 'live', so these are the mock adapter's figures, not SeamX's.",
       lines: seamxHoldings(res.data),
     };
   } catch (err) {
-    return { ...base, status: "error", error: safeErrorMessage(err), lines: [] };
+    return { ...base, status: "error", error: safeErrorMessage(err), readAt: new Date().toISOString(), lines: [] };
+  }
+}
+
+// ── EN ONZE EIGEN BANK ────────────────────────────────────────────
+//
+// De eigenaar, 29-09: "ook wise api balance, ons huidige usd en eur
+// balance." Wise is geen LEVERANCIER -- het is ons eigen geld -- maar
+// het is dezelfde vraag: wat kunnen we vandaag uitgeven. Daarom staat
+// het in hetzelfde paneel en heet dat paneel niet langer naar de
+// leveranciers alleen.
+//
+// Het staat apart van de twee erboven omdat het iets anders IS: bij
+// RockAds en SeamX hebben we krediet staan dat alleen daar besteed
+// kan worden; bij Wise staat geld dat overal heen kan.
+async function wise(): Promise<SupplierHolding> {
+  const base = { supplier: "Wise", kind: "bank" } as const;
+  if (!process.env.WISE_API_TOKEN) {
+    return { ...base, status: "off", error: null, readAt: null, lines: [] };
+  }
+  try {
+    const { balances, error } = await fetchWiseBalances();
+    if (error) return { ...base, status: "error", error, lines: [] };
+    return {
+      ...base,
+      status: "ok",
+      error: null,
+      readAt: new Date().toISOString(),
+      lines: balances
+        .map((b) => ({
+          currency: b.currency,
+          total: b.amount,
+          available: null,
+          heldBack: null,
+          parts: [],
+        }))
+        .sort((a, b) =>
+          (a.currency === "EUR" ? 0 : a.currency === "USD" ? 1 : 2) -
+          (b.currency === "EUR" ? 0 : b.currency === "USD" ? 1 : 2),
+        ),
+    };
+  } catch (err) {
+    return { ...base, status: "error", error: safeErrorMessage(err), readAt: new Date().toISOString(), lines: [] };
   }
 }
 
@@ -113,19 +158,25 @@ export async function GET() {
   // Neither of these rejects — both resolve to a status — but allSettled
   // guarantees that even a throw inside the guard clauses cannot turn
   // one slow supplier into a 500 for both.
-  const settled = await Promise.allSettled([rockads(), seamx()]);
+  const names = ["RockAds", "SeamX", "Wise"];
+  const settled = await Promise.allSettled([rockads(), seamx(), wise()]);
   const suppliers: SupplierHolding[] = settled.map((s, i) =>
     s.status === "fulfilled"
       ? s.value
       : {
-          supplier: i === 0 ? "RockAds" : "SeamX",
+          supplier: names[i],
           status: "error",
           error: safeErrorMessage(s.reason),
           lines: [],
         },
   );
 
-  const total = totalHoldings(suppliers);
+  // Het totaal gaat over het LEVERANCIERSKREDIET. Wise erbij optellen
+  // zou twee verschillende soorten geld tot een getal maken: krediet
+  // dat alleen bij die leverancier besteed kan worden, en geld op de
+  // bank dat overal heen kan. Een som daarvan beantwoordt geen enkele
+  // vraag die iemand heeft.
+  const total = totalHoldings(suppliers.filter((s) => s.kind !== "bank"));
   return NextResponse.json({
     suppliers,
     total: total.lines,
