@@ -33,7 +33,23 @@ export type AdvertiserNotice =
   | "wallet_adjusted"
   | "wallet_refunded"
   | "request_fee_refunded"
-  | "ad_account_request_approved";
+  | "ad_account_request_approved"
+  // ── SIX DECISIONS THAT TOLD THE CUSTOMER NOTHING ────────────
+  //
+  // Blok 11 closes on one sentence: does the customer hear about
+  // every decision? Measured 28-09, four of them move his money and
+  // said nothing at all.
+  //
+  // A bank deposit confirmed or matched by hand CREDITS the wallet,
+  // and the only top-up ever settled that way (EUR 5, 17-09) carries
+  // `wallet_topup_created` and nothing else -- while every top-up
+  // approved with the ordinary button has a `wallet_topup_completed`.
+  // Same money, same wallet, one of the two roads silent. That one
+  // reuses `wallet_topup_completed`, because to the customer it IS
+  // the same event.
+  | "wallet_topup_undone"
+  | "wallet_precharge_granted"
+  | "wallet_precharge_cancelled";
 
 /**
  * Resolve the person behind an advertiser id and write them one row.

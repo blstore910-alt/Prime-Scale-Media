@@ -1,5 +1,6 @@
 import {
   notifyWalletTopupRejected,
+  notifyWalletTopupUndone,
   notifyWalletTopupVerified,
 } from "@/actions/wallet-topup-notify-actions";
 // ── THROUGH A DOOR THAT CAN BE LOCKED ──────────────────────────────
@@ -79,6 +80,17 @@ export const useUpdateTransaction = (topup: WalletTopupWithAdvertiser) => {
       } else if (payload.action === "undo") {
         const res = await undoWalletTopupAsAdmin(topup.id);
         if (!res.ok) throw new Error(res.error);
+        // The two branches above both tell the customer; this one did
+        // not — and it is the branch that takes credit back OUT of
+        // their wallet. A balance that drops with no word is what a
+        // customer phones about. Best-effort, like the others: the
+        // money has already moved.
+        try {
+          const n = await notifyWalletTopupUndone(topup.id);
+          if (!n.ok) notifyProblem = n.error;
+        } catch (e) {
+          notifyProblem = e instanceof Error ? e.message : "unknown";
+        }
       }
       return { notifyProblem };
     },

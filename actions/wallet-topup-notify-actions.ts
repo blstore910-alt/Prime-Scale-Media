@@ -127,3 +127,51 @@ export async function notifyWalletTopupRejected(
     ? { ok: true, data: null }
     : { ok: false, error: sent.why ?? "unknown" };
 }
+
+/**
+ * A TOP-UP WE HAD ALREADY CREDITED, TAKEN BACK OUT.
+ *
+ * Blok 11's closing test asks whether the customer hears about every
+ * decision. Measured 28-09: the approve and reject branches beside
+ * this one both notify, and Undo — which removes credit from the
+ * wallet again — did not. A balance that drops with no word is the
+ * thing a customer phones about, and the phone call starts from "I
+ * did not do anything".
+ *
+ * Best-effort, like every other notice in this file: the money has
+ * already moved, and failing the action after a successful reversal
+ * would be worse than a customer who was not told.
+ */
+export async function notifyWalletTopupUndone(
+  topupId: string,
+  reason?: string,
+): Promise<ActionResult> {
+  if (typeof topupId !== "string" || !topupId) {
+    return { ok: false, error: "Invalid input" };
+  }
+  const found = await readOwnRow(topupId);
+  if (!found.ok) return { ok: false, error: found.error };
+  const { row, supabase, tenantId } = found;
+
+  if (!row.advertiser_id) {
+    return { ok: false, error: "the top-up has no advertiser on it" };
+  }
+
+  const sent = await notifyAdvertiser(supabase, {
+    advertiserId: row.advertiser_id,
+    tenantId,
+    type: "wallet_topup_undone",
+    payload: {
+      wallet_topup_id: row.id,
+      amount: row.amount ?? null,
+      currency: row.currency ?? null,
+      reason:
+        typeof reason === "string" && reason.trim()
+          ? reason.trim().slice(0, 500)
+          : null,
+    },
+  });
+  return sent.ok
+    ? { ok: true, data: null }
+    : { ok: false, error: sent.why ?? "unknown" };
+}

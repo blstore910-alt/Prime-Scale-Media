@@ -2,9 +2,18 @@
 
 import { safeErrorMessage } from "@/lib/pure-error";
 import { resolveAdminContext } from "./_shared";
+import {
+  notifyAdvertiser,
+  type AdvertiserNotice,
+} from "@/lib/notify-advertiser";
 
 type ActionResult<T = null> =
-  | { ok: true; data: T }
+  // `warning` is for the case where the main write succeeded but a
+  // secondary one did not — here, the money moved but the customer
+  // could not be told. ok:false would be a lie, and silence is how a
+  // half-applied action looks like a clean one, so the caller gets
+  // both facts.
+  | { ok: true; data: T; warning?: string }
   | { ok: false; error: string };
 
 // Admin advances wallet credit to an advertiser before their payment
@@ -45,8 +54,31 @@ export async function createWalletPrecharge(input: {
     p_reason: input.reason ?? null,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
+  if (error) return { ok: false, error: safeErrorMessage(error) };
   const row = Array.isArray(data) ? data[0] : data;
-  return { ok: true, data: { id: row?.id } };
+
+  // ── THE CUSTOMER IS TOLD THAT MONEY APPEARED ──────────────────
+  //
+  // This CREDITS a wallet before the transfer has cleared, and until
+  // today it said nothing — none of the three precharge actions had a
+  // notify at all, and there was not even a precharge type to send.
+  // A balance that goes up without a word is not a pleasant surprise;
+  // it is a figure the customer cannot account for.
+  //
+  // Best-effort, like every notice in this app: the money has already
+  // moved.
+  const warning = await tellCustomer(supabase, auth.ctx.profile.tenant_id, {
+    advertiserId: input.advertiser_id,
+    type: "wallet_precharge_granted",
+    payload: {
+      precharge_id: row?.id ?? null,
+      amount,
+      currency: input.currency,
+    },
+  });
+  return warning
+    ? { ok: true, data: { id: row?.id }, warning }
+    : { ok: true, data: { id: row?.id } };
 }
 
 // Admin advances the credit for a specific PENDING wallet top-up
@@ -180,7 +212,15 @@ export async function cancelWalletPrecharge(
     return { ok: false, error: "Invalid input" };
   }
 
-  const { supabase } = auth.ctx;
+  const { supabase, profile } = auth.ctx;
+  // Whose advance this is, read BEFORE it is cancelled — the RPC does
+  // not hand it back and the row's meaning changes underneath us.
+  const { data: pc } = await supabase
+    .from("wallet_precharges")
+    .select("advertiser_id, amount, currency")
+    .eq("id", prechargeId)
+    .maybeSingle();
+
   const { error } = await supabase.rpc("wallet_precharge_cancel", {
     p_precharge_id: prechargeId,
     p_reason:
@@ -203,4 +243,62 @@ export async function cancelWalletPrecharge(
     return { ok: false, error: safeErrorMessage(error) };
   }
   return { ok: true, data: null };
+
+  // Credit LEAVES the wallet here. Until today that happened in
+  // silence — see tellCustomer below.
+  const row = pc as {
+    advertiser_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+  } | null;
+  const why = (reason ?? "").trim();
+  const warning = await tellCustomer(supabase, profile.tenant_id, {
+    advertiserId: row?.advertiser_id ?? null,
+    type: "wallet_precharge_cancelled",
+    payload: {
+      precharge_id: prechargeId,
+      amount: row?.amount ?? null,
+      currency: row?.currency ?? null,
+      reason: why ? why.slice(0, 500) : null,
+    },
+  });
+  return warning ? { ok: true, data: null, warning } : { ok: true, data: null };
+}
+
+/**
+ * One place for the notice the precharge actions owe the customer.
+ *
+ * Measured 28-09: none of the three — grant, settle, cancel — sent
+ * anything, and two of them move the wallet balance. There was not
+ * even a precharge type in `AdvertiserNotice` to send.
+ *
+ * Returns a warning when it could not be sent, or undefined. It never
+ * throws and never fails the action: the money has already moved, and
+ * reporting a failure over a successful credit is worse than a
+ * customer who was not told.
+ */
+async function tellCustomer(
+  supabase: Parameters<typeof notifyAdvertiser>[0],
+  tenantId: string | null | undefined,
+  args: {
+    advertiserId: string | null | undefined;
+    type: AdvertiserNotice;
+    payload: Record<string, unknown>;
+  },
+): Promise<string | undefined> {
+  try {
+    const sent = await notifyAdvertiser(supabase, {
+      advertiserId: args.advertiserId,
+      tenantId,
+      type: args.type,
+      payload: args.payload,
+    });
+    return sent.ok
+      ? undefined
+      : `Done, but the customer was not told: ${sent.why ?? "unknown"}`;
+  } catch (e) {
+    return `Done, but the customer was not told: ${
+      e instanceof Error ? e.message : "unknown"
+    }`;
+  }
 }

@@ -2,6 +2,9 @@ export type NotificationType =
   | "topup_completed"
   | "wallet_topup_completed"
   | "wallet_topup_rejected"
+  | "wallet_topup_undone"
+  | "wallet_precharge_granted"
+  | "wallet_precharge_cancelled"
   | "topup_created"
   | "ad_account_request_created"
   | "user_profile_created"
@@ -316,6 +319,26 @@ export interface NotificationPayloadByType {
   /** A transfer we could not confirm. The reason is the customer's. */
   wallet_topup_rejected: {
     wallet_topup_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
+  /** Credit we had already given, taken back out again. */
+  wallet_topup_undone: {
+    wallet_topup_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+    reason?: string | null;
+  };
+  /** Money put in the wallet before the transfer cleared. */
+  wallet_precharge_granted: {
+    precharge_id?: string | null;
+    amount?: number | string | null;
+    currency?: string | null;
+  };
+  /** An advance withdrawn again. */
+  wallet_precharge_cancelled: {
+    precharge_id?: string | null;
     amount?: number | string | null;
     currency?: string | null;
     reason?: string | null;

@@ -201,6 +201,29 @@ export const NOTIFICATION_CATALOG: NotificationCatalogEntry[] = [
     audience: "customer",
   },
   {
+    // Money LEAVES the wallet again here, and until today nobody was
+    // told. A balance that drops with no notice is the thing a
+    // customer phones about.
+    type: "wallet_topup_undone",
+    label: "A wallet top-up was reversed",
+    description:
+      "When a top-up we had already credited is taken back out, with the reason.",
+    audience: "customer",
+  },
+  {
+    type: "wallet_precharge_granted",
+    label: "Credit advanced to your wallet",
+    description:
+      "When we put money in your wallet before your transfer has cleared.",
+    audience: "customer",
+  },
+  {
+    type: "wallet_precharge_cancelled",
+    label: "An advance was taken back",
+    description: "When credit we advanced is removed again, with the reason.",
+    audience: "customer",
+  },
+  {
     type: "subscription_invoice",
     label: "Subscription invoice",
     description: "When a new monthly subscription invoice is issued.",
@@ -370,6 +393,9 @@ export const NOTIFICATION_GROUPS: NotificationGroup[] = [
     types: [
       "wallet_topup_completed",
       "wallet_topup_rejected",
+      "wallet_topup_undone",
+      "wallet_precharge_granted",
+      "wallet_precharge_cancelled",
       "topup_completed",
       "withdrawal_approved",
       "withdrawal_rejected",

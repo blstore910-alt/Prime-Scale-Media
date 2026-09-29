@@ -1,5 +1,6 @@
 "use server";
 
+import { notifyWalletTopupVerified } from "@/actions/wallet-topup-notify-actions";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -73,11 +74,56 @@ export async function confirmWiseSuggestion(
     }
   }
 
+  // Which top-up this credits, read BEFORE the RPC runs — afterwards
+  // the suggestion is consumed and the id is gone.
+  const { data: before } = await supabase
+    .from("wise_incoming_transfers")
+    .select("suggested_topup_id")
+    .eq("id", transferId)
+    .maybeSingle();
+  const topupId =
+    (before as { suggested_topup_id?: string | null } | null)
+      ?.suggested_topup_id ?? null;
+
   const { error } = await supabase.rpc("wise_confirm_suggestion", {
     p_transfer_id: transferId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
-  return { ok: true, data: null };
+
+  // ── AND THE CUSTOMER IS TOLD, LIKE ON THE OTHER ROAD ───────────
+  //
+  // This credits a wallet. The ordinary Approve button credits the
+  // same wallet and sends `wallet_topup_completed`; this road sent
+  // nothing at all. Measured 28-09: the only top-up ever settled this
+  // way (EUR 5, 17-09) carries `wallet_topup_created` and no
+  // completion notice, while every top-up approved with the button
+  // has one. Same money, same wallet, one road silent.
+  //
+  // Best-effort, like every notice in this app: the money has already
+  // moved, and failing here would report a failure over a credit that
+  // succeeded.
+  const told = await tellCustomerCredited(topupId);
+  return told
+    ? { ok: true, data: null, warning: told }
+    : { ok: true, data: null };
+}
+
+/**
+ * One place for the notice both crediting roads owe the customer.
+ * Returns a warning string when it could not be sent, or null.
+ */
+async function tellCustomerCredited(
+  topupId: string | null,
+): Promise<string | null> {
+  if (!topupId) return null;
+  try {
+    const n = await notifyWalletTopupVerified(topupId);
+    return n.ok ? null : `Credited, but the customer was not told: ${n.error}`;
+  } catch (e) {
+    return `Credited, but the customer was not told: ${
+      e instanceof Error ? e.message : "unknown"
+    }`;
+  }
 }
 
 /**
@@ -347,7 +393,13 @@ export async function matchWiseToTopup(
     p_transfer_id: transferId,
   });
   if (error) return { ok: false, error: safeErrorMessage(error) };
-  return { ok: true, data: null };
+
+  // The second road that credits a wallet, and it was silent too. The
+  // admin picked the top-up by hand here, so the id is the argument.
+  const told = await tellCustomerCredited(topupId);
+  return told
+    ? { ok: true, data: null, warning: told }
+    : { ok: true, data: null };
 }
 
 /**
