@@ -2,6 +2,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 import { safeErrorMessage } from "@/lib/pure-error";
 import {
   payoutInvoiceLines,
@@ -145,13 +146,11 @@ export async function GET(
     // updateUserProfile allows the two columns to be set separately.
     let allowed = adv?.user_id === user.id;
     if (!allowed) {
-      const { data: tenantRow } = await admin
-        .from("tenants")
-        .select("owner_id")
-        .eq("id", head.tenant_id)
-        .maybeSingle();
-      const isOwner =
-        !!tenantRow?.owner_id && tenantRow.owner_id === user.id;
+      // One owner used to be the only owner, and this PDF carries
+      // the affiliate's IBAN, BIC, tax id and address — a partner
+      // being refused it would be a puzzling place to find out.
+      // See lib/auth/is-tenant-owner.ts.
+      const isOwner = await isTenantOwner(admin, head.tenant_id, user.id);
       if (isOwner) {
         const { data: profiles } = await admin
           .from("user_profiles")

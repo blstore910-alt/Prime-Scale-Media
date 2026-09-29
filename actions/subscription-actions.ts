@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import dayjs from "dayjs";
 import { checkVersion, maintenanceGuard, wroteSomething } from "./_shared";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type ActionResult<T = null> =
   // `warning` is a success that came with something the caller has to
@@ -90,7 +91,7 @@ export async function createSubscriptionAsAdmin(
       .maybeSingle();
     if (
       !ownerRow ||
-      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+      !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
     ) {
       return {
         ok: false,
@@ -320,7 +321,7 @@ export async function setSubscriptionStatus(
       .maybeSingle();
     if (
       !ownerRow ||
-      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+      !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
     ) {
       return {
         ok: false,
@@ -477,7 +478,7 @@ export async function changeSubscriptionAmount(
     .maybeSingle();
   if (
     !tenantRow ||
-    (tenantRow as { owner_id: string | null }).owner_id !== profile.user_id
+    !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
   ) {
     return {
       ok: false,

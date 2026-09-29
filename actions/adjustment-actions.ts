@@ -3,7 +3,23 @@
 import { safeErrorMessage } from "@/lib/pure-error";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
 import { notifyOrWarn } from "@/lib/notify-or-warn";
-import { resolveAdminContext, resolveOwnerContext } from "./_shared";
+import { resolveAdminContext, resolveCapability } from "./_shared";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("wallet.adjust")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 const round2 = (n: number) => Number(Number(n).toFixed(2));
 
@@ -213,7 +229,7 @@ export async function adminAdjustWalletBalances(input: {
   expectedUsd?: number | null;
   expectedEur?: number | null;
 }): Promise<ActionResult<{ usd: number; eur: number }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("wallet.adjust");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

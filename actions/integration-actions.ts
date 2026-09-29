@@ -4,6 +4,7 @@ import { resolveAdminContext } from "./_shared";
 import { getSupplier1Adapter } from "@/lib/integrations/supplier1";
 import { getWiseAdapter } from "@/lib/integrations/wise";
 import { autoPushGate, supplier1Mode } from "@/lib/integrations/autopush";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 // A redacted connectivity summary — never the token, never raw rows.
 export type IntegrationPing =
@@ -31,7 +32,8 @@ async function requireOwner(): Promise<
     .select("owner_id")
     .eq("id", profile.tenant_id)
     .maybeSingle();
-  if (!tenant || tenant.owner_id !== profile.user_id) {
+  // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
+  if (!(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))) {
     return { ok: false, error: "Forbidden (super-admin only)" };
   }
   return { ok: true, ctx };

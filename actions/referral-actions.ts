@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { checkVersion, maintenanceGuard, wroteSomething } from "./_shared";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -120,7 +121,8 @@ export async function setCommissionStatus(
     .select("owner_id")
     .eq("id", profile.tenant_id)
     .maybeSingle();
-  if (!commTenant || commTenant.owner_id !== profile.user_id) {
+  // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
+  if (!(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))) {
     return {
       ok: false,
       error: "Only the tenant owner can change commission status.",
@@ -234,7 +236,7 @@ export async function assignAffiliateToAdvertiser(
       .maybeSingle();
     if (
       !ownerRow ||
-      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+      !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
     ) {
       return {
         ok: false,

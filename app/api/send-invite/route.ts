@@ -7,6 +7,7 @@ import { LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 const ALLOWED_INVITE_ROLES = ["advertiser", "affiliate"] as const;
 type InviteRole = (typeof ALLOWED_INVITE_ROLES)[number];
@@ -133,14 +134,14 @@ export async function POST(request: NextRequest) {
     // action layer treats the split. This closes the leak where a
     // plain admin could preload commission_rate=1.0 on an invite
     // and have it propagate on accept.
-    const callerCommissionAllowed = await (async () => {
-      const { data: tenantRow } = await supabase
-        .from("tenants")
-        .select("owner_id")
-        .eq("id", profile.tenant_id)
-        .maybeSingle();
-      return !!tenantRow?.owner_id && tenantRow.owner_id === profile.user_id;
-    })();
+    // The tenant read that used to sit here is now inside
+    // isTenantOwner, which also consults `tenant_owners` — one owner
+    // used to be the only owner.
+    const callerCommissionAllowed = await isTenantOwner(
+      supabase,
+      profile.tenant_id,
+      profile.user_id,
+    );
 
     let commission_type: string | null = null;
     if (callerCommissionAllowed && body.commission_type != null) {

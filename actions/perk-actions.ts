@@ -1,8 +1,24 @@
 "use server";
 
 import { safeErrorMessage } from "@/lib/pure-error";
-import { type ActionResult, resolveOwnerContext } from "./_shared";
+import { type ActionResult, resolveCapability } from "./_shared";
 import type { PerkKind } from "@/lib/types/perk";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("perks.edit")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 const VALID_KINDS: PerkKind[] = [
   "free_ad_account_requests",
@@ -36,7 +52,7 @@ export async function grantPerk(
   // requireAdmin and so was this, so an employee admin refused by
   // every other pricing control could grant one from their own
   // sidebar and nothing would ever invoice that customer again.
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("perks.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (typeof input.advertiser_id !== "string" || !input.advertiser_id) {
@@ -99,7 +115,7 @@ export async function revokePerk(perkId: string): Promise<ActionResult> {
   // requireAdmin and so was this, so an employee admin refused by
   // every other pricing control could grant one from their own
   // sidebar and nothing would ever invoice that customer again.
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("perks.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   if (typeof perkId !== "string" || !perkId) {
     return { ok: false, error: "Invalid input", code: "invalid" };

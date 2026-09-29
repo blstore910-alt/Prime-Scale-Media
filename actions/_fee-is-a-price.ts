@@ -116,8 +116,28 @@ export async function isTenantOwner(
     .eq("id", tenantId)
     .maybeSingle();
   if (error) return { owner: false, unreadable: true };
-  return {
-    owner: !!data && (data as { owner_id?: string }).owner_id === userId,
-    unreadable: false,
-  };
+  if ((data as { owner_id?: string } | null)?.owner_id === userId) {
+    return { owner: true, unreadable: false };
+  }
+
+  // ── AND THE SECOND OWNER ───────────────────────────
+  //
+  // A fee is a price, and setting one away from the default is the
+  // owner's call. With two owners (plak 143) that has to mean either
+  // of them — otherwise the partner gets "only the super-admin can
+  // set a different one", about himself, which is the exact message
+  // the comment above records somebody already seeing once.
+  //
+  // Same shape as the read above: an error is `unreadable`, not
+  // `not the owner`.
+  const { data: owners, error: ownersError } = await supabase
+    .from("tenant_owners")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .limit(1);
+  // A missing table is plak 143 not pasted yet, which is not a
+  // transient failure and must not read as one.
+  if (ownersError) return { owner: false, unreadable: false };
+  return { owner: (owners ?? []).length > 0, unreadable: false };
 }

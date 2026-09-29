@@ -89,7 +89,8 @@ async function upsertSupplierFee(
     .select("owner_id")
     .eq("id", profile.tenant_id)
     .maybeSingle();
-  if (!tenant || tenant.owner_id !== profile.user_id) {
+  // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
+  if (!(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))) {
     return {
       ok: false,
       error: "Only the super-admin can set the supplier fee",

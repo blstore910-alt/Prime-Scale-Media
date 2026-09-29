@@ -7,6 +7,7 @@ import {
   type WalletTopupAuditEvent,
 } from "@/lib/wallet-recovery-pure";
 import { pageAllRows } from "@/lib/page-all-rows";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type ActionResult<T = null> =
   | { ok: true; data: T }
@@ -39,7 +40,8 @@ async function requireSuperAdminCtx() {
     .select("owner_id")
     .eq("id", profile.tenant_id)
     .maybeSingle();
-  if (!tenant || tenant.owner_id !== profile.user_id) {
+  // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
+  if (!(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))) {
     return { ok: false as const, error: "Forbidden (super-admin only)" };
   }
   return { ok: true as const, supabase, profile };

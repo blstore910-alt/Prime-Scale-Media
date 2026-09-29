@@ -20,6 +20,7 @@ import { enqueueSupplierTopupPush } from "@/lib/integrations/enqueue";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyAdvertiser } from "@/lib/notify-advertiser";
 import { sameSlug } from "@/lib/pure-slug-key";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 // Ad-account top-up types that carry a fee (mirrors the topup form).
 const FEE_APPLICABLE_TYPES = ["top-up", "first-top-up"];
@@ -1429,7 +1430,10 @@ export async function verifyAdTopup(
           .select("owner_id")
           .eq("id", profile.tenant_id)
           .maybeSingle();
-        if (!tenant || tenant.owner_id !== profile.user_id) {
+        // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
+        if (
+          !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
+        ) {
           return {
             ok: false,
             error: belowFloor

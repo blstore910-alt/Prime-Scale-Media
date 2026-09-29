@@ -8,9 +8,25 @@ import { safeErrorMessage } from "@/lib/pure-error";
 import { MAX_PAYOUT_MIN } from "@/lib/pure-payout-min";
 import {
   type ActionResult,
-  resolveOwnerContext,
+  resolveCapability,
   versionMatches,
 } from "./_shared";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("payout.release")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 /** Postgres: column does not exist. Plak 98 adds it. */
 const MISSING_COLUMN = "42703";
@@ -59,7 +75,7 @@ export async function setAffiliatePayoutMinimum(input: {
   /** What the caller last saw, so two owners cannot overwrite blind. */
   ifUpdatedAt?: string | null;
 }): Promise<ActionResult<{ minimum: number | null }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("payout.release");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

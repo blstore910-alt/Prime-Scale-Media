@@ -15,7 +15,27 @@ import {
   type ReconciliationRow,
   type WalletCurrency,
 } from "@/lib/types/bank-ledger";
-import { type ActionResult, resolveAdminContext } from "./_shared";
+import {
+  type ActionResult,
+  resolveAdminContext,
+  resolveCapability,
+} from "./_shared";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("bankledger.write")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 const DESTS: LedgerDestination[] = ["our_bank", "supplier"];
 const CURRENCIES: LedgerCurrency[] = ["USD", "EUR", "GBP", "HKD"];
@@ -48,19 +68,22 @@ function n(v: unknown): number {
 // so a plain admin could otherwise call these directly to read the books or
 // inject fake "received" deposits that hide a rogue admin. Re-fetch the
 // tenant owner and require the caller to be it — mirroring bank-account-actions.
-async function resolveOwnerContext() {
-  const auth = await resolveAdminContext();
-  if (!auth.ok) return auth;
-  const { supabase, profile } = auth.ctx;
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", profile.tenant_id)
-    .maybeSingle();
-  if (!tenant || tenant.owner_id !== profile.user_id) {
-    return { ok: false as const, error: "Only the tenant owner can do this" };
-  }
-  return auth;
+async function resolveOwnerContextLocal() {
+  // ── ONE IMPLEMENTATION, NOT THREE ─────────────────────
+  //
+  // This file carried its own copy of the owner check: fetch
+  // `tenants.owner_id`, compare it to the caller. So when ownership
+  // became a SET rather than a column (plak 143 — the owner has a
+  // business partner), the shared helper learned about
+  // `tenant_owners` and this copy did not. The second owner would
+  // have been refused HERE while passing everywhere else, on the
+  // reconciliation screen of all places.
+  //
+  // A guard that is right in eleven files and wrong in one is worse
+  // than one that is wrong everywhere, because nobody goes looking.
+  // It now delegates, which also brings per-admin capabilities to
+  // this file for free.
+  return resolveCapability("bankledger.write");
 }
 
 // ─────────────────────────────────────────
@@ -76,7 +99,7 @@ export type LedgerPage = {
 export async function listLedgerEntries(
   limit = 100,
 ): Promise<ActionResult<LedgerPage>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveOwnerContextLocal();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
   const want = Math.min(Math.max(limit, 1), 500);
@@ -139,7 +162,7 @@ export async function addLedgerEntry(input: {
   credited_currency?: string;
   credited_amount?: number;
 }): Promise<ActionResult<{ id: string }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveOwnerContextLocal();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -262,7 +285,7 @@ export async function getReconciliation(): Promise<
     truncated: boolean;
   }>
 > {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveOwnerContextLocal();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

@@ -16,8 +16,25 @@ import {
   resolveAdminContext,
   versionMatches,
   wroteSomething,
-  resolveOwnerContext,
+  resolveCapability,
 } from "./_shared";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("adaccounttypes.edit")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 const GROUPS: AdAccountPlatformGroup[] = ["meta", "google", "tiktok"];
 
@@ -229,7 +246,7 @@ export async function ensureInitialAdAccountTypes(): Promise<
       .maybeSingle();
     if (
       !ownerRow ||
-      (ownerRow as { owner_id: string | null }).owner_id !== profile.user_id
+      !(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))
     ) {
       return { ok: false, error: "Forbidden" };
     }
@@ -323,7 +340,7 @@ export async function upsertAdAccountType(input: {
   // calling requireSuperAdmin — a page guard, which a server action never
   // goes through. So an employee admin could invoke this directly and
   // change the default fee applied to every new ad account. The UI said owner-only; nothing behind it agreed.
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("adaccounttypes.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

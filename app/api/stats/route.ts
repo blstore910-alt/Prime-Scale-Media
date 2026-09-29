@@ -5,6 +5,7 @@ import {
   pageAllRows,
   pageAllRowsTolerant,
 } from "@/lib/page-all-rows";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type CurrencyKey = "usd" | "eur";
 
@@ -80,12 +81,10 @@ export async function GET() {
   // reduced employee-admin dashboard never calls this endpoint. Gate it to
   // the owner so a plain admin can't read total_profit / fees / top-ups by
   // hitting the route directly.
-  const { data: statsTenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", profile.tenant_id)
-    .maybeSingle();
-  if (!statsTenant || statsTenant.owner_id !== profile.user_id) {
+  // The tenant read that used to sit here is now inside
+  // isTenantOwner, which also consults `tenant_owners`.
+  // One owner used to be the only owner. See lib/auth/is-tenant-owner.ts.
+  if (!(await isTenantOwner(supabase, profile.tenant_id, profile.user_id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

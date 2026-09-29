@@ -4,7 +4,23 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { sameSlug } from "@/lib/pure-slug-key";
 import type { CommissionSource } from "@/lib/pure-commission-rules";
-import { type ActionResult, resolveOwnerContext } from "./_shared";
+import { type ActionResult, resolveCapability } from "./_shared";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("commission.rules")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 export type CommissionRuleChange = {
   source: CommissionSource;
@@ -41,7 +57,7 @@ export async function saveCommissionRules(input: {
   affiliateAdvertiserId: string | null;
   changes: CommissionRuleChange[];
 }): Promise<ActionResult<{ saved: number; effectiveFrom: string }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("commission.rules");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -216,7 +232,7 @@ export async function saveCommissionRules(input: {
 export async function recalculateCommission(
   commissionId: string,
 ): Promise<ActionResult<{ amount: number; currency: string | null }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveCapability("commission.rules");
   if (!auth.ok) return { ok: false, error: auth.error };
   if (typeof commissionId !== "string" || !commissionId) {
     return { ok: false, error: "Invalid commission." };

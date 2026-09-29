@@ -11,7 +11,24 @@ import {
   resolveAdminContext,
   versionMatches,
   wroteSomething,
+  resolveCapability,
 } from "./_shared";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("bank.accounts")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 const SELECT_COLS =
   "id, tenant_id, ad_account_type_id, currency, label, beneficiary, account_no, swift_bic, bank_name, bank_address, routing_no, notes, is_active, sort_order, updated_by, created_at, updated_at";
@@ -48,22 +65,24 @@ function trimOrNull(v: unknown): string | null | undefined {
 // actions/wallet-recovery-actions.ts: resolveAdminContext first, then
 // fetch tenants.owner_id and require it equals the caller's user_id.
 // ─────────────────────────────────────────
-async function resolveOwnerContext(): Promise<
+async function resolveOwnerContextLocal(): Promise<
   { ok: true; ctx: AdminContext } | { ok: false; error: string }
 > {
-  const auth = await resolveAdminContext();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profile } = auth.ctx;
-
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", profile.tenant_id)
-    .maybeSingle();
-  if (!tenant || tenant.owner_id !== profile.user_id) {
-    return { ok: false, error: "Forbidden (super-admin only)" };
-  }
-  return { ok: true, ctx: auth.ctx };
+  // ── ONE IMPLEMENTATION, NOT THREE ─────────────────────
+  //
+  // This file carried its own copy of the owner check: fetch
+  // `tenants.owner_id`, compare it to the caller. So when
+  // ownership became a SET rather than a column (plak 143, the
+  // owner has a business partner), the shared helper learned
+  // about `tenant_owners` and this copy did not — and the second
+  // owner would have been refused here while passing everywhere
+  // else. A guard that is right in eleven files and wrong in one
+  // is worse than a guard that is wrong everywhere, because
+  // nobody goes looking.
+  //
+  // It now delegates, which also brings per-admin capabilities
+  // to this file for free.
+  return resolveCapability("bank.accounts");
 }
 
 // ─────────────────────────────────────────
@@ -78,7 +97,7 @@ export async function listBankAccounts(): Promise<ActionResult<BankAccount[]>> {
   // door left at admin level, and it returns the whole row: beneficiary,
   // account_no, swift_bic, routing_no, bank_address. Those are the
   // destinations customers wire money to.
-  const auth = await resolveOwnerContext();
+  const auth = await resolveOwnerContextLocal();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -114,7 +133,7 @@ export async function upsertBankAccount(input: {
   sort_order?: number;
   ifUpdatedAt?: string;
 }): Promise<ActionResult<{ id: string }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveOwnerContextLocal();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 
@@ -230,7 +249,7 @@ export async function deleteBankAccount(
   id: string,
   ifUpdatedAt?: string,
 ): Promise<ActionResult<{ id: string }>> {
-  const auth = await resolveOwnerContext();
+  const auth = await resolveOwnerContextLocal();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, profile } = auth.ctx;
 

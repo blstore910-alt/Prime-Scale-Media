@@ -10,7 +10,23 @@ import {
   type PollAudience,
   type PollKind,
 } from "@/lib/pure-poll";
-import { type ActionResult, resolveOwnerContext } from "./_shared";
+import { type ActionResult, resolveCapability } from "./_shared";
+
+/**
+ * OWNER, OR AN ADMIN THE OWNER TRUSTED WITH THIS ONE THING.
+ *
+ * Every call below used `resolveOwnerContext()`, which means "are you
+ * THE owner". It now asks `resolveCapability("polls.manage")`, which
+ * means "are you an owner, or has an owner given you this".
+ *
+ * An owner still passes unconditionally -- `resolveCapability` calls
+ * `resolveOwnerContext` first -- so nothing an owner could do
+ * yesterday has changed. The only difference is that an admin can now
+ * be handed this one area without being handed the rest.
+ *
+ * Default no: an admin with no grant is refused, exactly as before.
+ * See lib/capabilities.ts.
+ */
 
 /**
  * POLLS — the owner asks everybody a question.
@@ -82,7 +98,7 @@ export async function createPoll(input: {
   /** Ask straight away, or keep it as a draft to look at first. */
   openNow?: boolean;
 }): Promise<ActionResult<{ id: string }>> {
-  const owner = await resolveOwnerContext();
+  const owner = await resolveCapability("polls.manage");
   if (!owner.ok) return { ok: false, error: owner.error };
   const tenantId = owner.ctx.profile.tenant_id;
 
@@ -139,7 +155,7 @@ export async function setPollStatus(
   pollId: string,
   status: "draft" | "open" | "closed",
 ): Promise<ActionResult<null>> {
-  const owner = await resolveOwnerContext();
+  const owner = await resolveCapability("polls.manage");
   if (!owner.ok) return { ok: false, error: owner.error };
   const tenantId = owner.ctx.profile.tenant_id;
   if (!["draft", "open", "closed"].includes(status)) {
@@ -182,7 +198,7 @@ export async function setPollStatus(
  * cascade on poll_votes stays for the case where a draft is thrown away.
  */
 export async function deletePoll(pollId: string): Promise<ActionResult<null>> {
-  const owner = await resolveOwnerContext();
+  const owner = await resolveCapability("polls.manage");
   if (!owner.ok) return { ok: false, error: owner.error };
   const tenantId = owner.ctx.profile.tenant_id;
 

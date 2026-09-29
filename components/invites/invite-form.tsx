@@ -107,18 +107,19 @@ export default function InviteForm() {
   const [lastInviteEmail, setLastInviteEmail] = useState("");
   const [lastClientCode, setLastClientCode] = useState("");
   const supabase = createClient();
-  const { profile } = useAppContext();
+  // ── THE CONTEXT ALREADY KNOWS ─────────────────────────
+  //
+  // This worked it out again from `tenant.owner_id`, which holds one
+  // uuid — so the second owner (plak 143: the owner has a business
+  // partner) would open the invite form and find the referrer field
+  // simply not there, with nothing to explain it.
+  //
+  // `isSuperAdmin` on the context folds in `tenant_owners`, read once
+  // server-side in the layout.
+  const { profile, isSuperAdmin } = useAppContext();
   const queryClient = useQueryClient();
   const { tenant } = profile || {};
 
-  // Super-admin = the admin who owns the tenant. Affiliate-linking (the
-  // referrer field) is super-admin only.
-  const isSuperAdmin = Boolean(
-    profile?.role === "admin" &&
-      profile?.user_id &&
-      tenant?.owner_id &&
-      profile.user_id === tenant.owner_id,
-  );
 
   // ── A PLAN LIST THAT DID NOT LOAD IS NOT "NO PLANS" ──────────────
   //

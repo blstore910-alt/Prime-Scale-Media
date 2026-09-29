@@ -10,6 +10,7 @@ import {
   type ActionResult,
   wroteSomething,
 } from "./_shared";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type CallerContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -655,7 +656,7 @@ export async function setAffiliateCommission(
     .eq("id", profile.tenant_id)
     .maybeSingle();
   const isSuperAdmin =
-    !!tenant?.owner_id && tenant.owner_id === profile.user_id;
+    await isTenantOwner(supabase, profile.tenant_id, profile.user_id);
   if (!isSuperAdmin) {
     return {
       ok: false,
@@ -913,7 +914,7 @@ export async function setAdvertiserCommission(
     .eq("id", profile.tenant_id)
     .maybeSingle();
   const isSuperAdmin =
-    !!tenant?.owner_id && tenant.owner_id === profile.user_id;
+    await isTenantOwner(supabase, profile.tenant_id, profile.user_id);
   if (!isSuperAdmin) {
     return {
       ok: false,
