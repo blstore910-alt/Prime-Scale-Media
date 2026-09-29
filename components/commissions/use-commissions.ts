@@ -91,7 +91,13 @@ export default function useCommissions(params: CommissionsQueryParams = {}) {
       let query = supabase
         .from("referral_commissions_with_details")
         .select(
-          "idx, id, created_at, referral_link_id, tenant_id, type, amount, " +
+          // NO `idx`. The Commission type declares one and the view has
+          // no such column — `select("*")` never asked for it, so the
+          // type had been lying quietly for as long as it existed.
+          // Naming the columns turned that lie into a 400, and
+          // /commissions read "No commissions yet" over six real rows.
+          // Found by opening the page, one minute after shipping it.
+          "id, created_at, referral_link_id, tenant_id, type, amount, " +
             "currency, status, topup_id, subscription_id, " +
             "subscription_invoice_id, " +
             "affiliate_advertiser_tenant_client_code, " +
