@@ -50,7 +50,7 @@ export const PSM_APP_CSS = `
 .psmapp .navlink:hover{background:var(--panel-2);color:var(--ink)}
 .psmapp .navlink.on{background:var(--primary-tint);color:var(--primary-600)}
 .psmapp .navlink svg{width:19px;height:19px}
-.psmapp .navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center}
+.psmapp .navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;line-height:1;font-variant-numeric:tabular-nums}
 .psmapp .navlink .n.unknown{background:var(--panel-2);color:var(--faint);border:1px solid var(--line-2);font-weight:800}
 .psmapp .navlink.aff{color:var(--purple)}.psmapp .navlink.aff svg{color:var(--purple)}.psmapp .navlink .n.new{background:var(--purple)}
 .psmapp .side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}

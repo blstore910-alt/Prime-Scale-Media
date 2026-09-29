@@ -246,6 +246,8 @@ export type MarginLine = {
   count: number;
   /** A cost is subtracted; everything else is added. */
   cost?: boolean;
+  /** Money that passed through us. Shown, but added to nothing. */
+  through?: boolean;
 };
 
 /**
@@ -324,6 +326,25 @@ export function useMargin(tenantId: string | null | undefined) {
         bucket.set(key, at);
       };
 
+      // Money that passed through us and is not ours. Shown, named,
+      // and added to nothing.
+      const addThrough = (label: string, currency: string, amount: number) => {
+        if (!amount) return;
+        const cur = currency.toUpperCase();
+        const key = `${label}|${cur}`;
+        const at = bucket.get(key) ?? {
+          label,
+          source: "invoices.total, status paid",
+          currency: cur,
+          amount: 0,
+          count: 0,
+          through: true,
+        };
+        at.amount = cents(at.amount + amount);
+        at.count += 1;
+        bucket.set(key, at);
+      };
+
       for (const f of (fees.data ?? []) as {
         currency: string | null;
         fee_amount: unknown;
@@ -335,17 +356,50 @@ export function useMargin(tenantId: string | null | undefined) {
           num(f.fee_amount),
         );
       }
+      // ── NOT EVERY PAID INVOICE IS INCOME ────────────────────────
+      //
+      // Measured 29-09, and it caught this very panel out. The paid
+      // invoices on the real tenant are:
+      //
+      //   wallet_topup      6  EUR 1,165.00
+      //   ad_account_topup  8  EUR   597.70
+      //   subscription      5  EUR   180.00
+      //
+      // A `wallet_topup` invoice is the customer putting money into
+      // their OWN wallet. Every cent of it is theirs; it is already
+      // counted on the other panel as "credited to wallets", and
+      // adding it here would be counting the same money twice and
+      // calling the second time profit.
+      //
+      // An `ad_account_topup` invoice is the gross ad spend. The
+      // supplier gets almost all of it. What is OURS is the fee inside
+      // it, and that is already the first line of this panel, taken
+      // from top_ups.fee_amount -- so adding the gross would inflate
+      // and double-count at the same time.
+      //
+      // Left in, at zero, deliberately. A figure that has been
+      // considered and excluded is worth more on this page than one
+      // that silently is not there: without these two lines the owner
+      // has no way to tell "we thought about it" from "we forgot".
       for (const i of (inv.data ?? []) as {
         currency: string | null;
         total: unknown;
         type: string | null;
       }[]) {
-        add(
-          i.type === "subscription" ? "Subscriptions paid" : "Other invoices paid",
-          "invoices.total, status paid",
-          String(i.currency ?? "EUR"),
-          num(i.total),
-        );
+        const cur = String(i.currency ?? "EUR");
+        const amt = num(i.total);
+        if (i.type === "wallet_topup") {
+          addThrough("Wallet top-ups (the customer's own money)", cur, amt);
+        } else if (i.type === "ad_account_topup") {
+          addThrough("Ad spend (goes to the supplier)", cur, amt);
+        } else {
+          add(
+            i.type === "subscription" ? "Subscriptions paid" : "Other invoices paid",
+            "invoices.total, status paid",
+            cur,
+            amt,
+          );
+        }
       }
       for (const d of (dst.data ?? []) as {
         currency: string | null;
@@ -375,10 +429,10 @@ export function useMargin(tenantId: string | null | undefined) {
       }
 
       return {
-        lines: [...bucket.values()].sort(
-          (a, b) =>
-            Number(a.cost ?? false) - Number(b.cost ?? false) || b.amount - a.amount,
-        ),
+        lines: [...bucket.values()].sort((a, b) => {
+          const rank = (l: MarginLine) => (l.cost ? 2 : l.through ? 1 : 0);
+          return rank(a) - rank(b) || b.amount - a.amount;
+        }),
         notSwitchedOn: false,
       };
     },

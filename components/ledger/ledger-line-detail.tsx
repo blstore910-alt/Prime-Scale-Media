@@ -78,7 +78,11 @@ export function LedgerLineDetail({
               : "Nobody was recorded. Either the system did this on its own (the nightly billing run), or it happened before the audit actor was wired through on 28-09."
           }
         />
-        <Row k="Reason given" v={line.reason ?? undefined} missing="None was given." />
+        <Row
+          k="Reason given"
+          v={reasonInEnglish(line.reason, line.source)}
+          missing="None was given."
+        />
         <Row k="Recorded as" v={line.source} mono />
         <Row k="Currency" v={line.currency} />
       </dl>
@@ -142,6 +146,24 @@ function Row({
       </dd>
     </div>
   );
+}
+
+/**
+ * The app is in English and one stored note is not.
+ *
+ * Plak 125 wrote the opening lines with a Dutch reason, and it is on
+ * every one of them. It cannot be edited out: the ledger is
+ * append-only, by design and by trigger. So it is translated on the
+ * way to the screen, and any other note is shown exactly as it was
+ * written -- a reason somebody typed is evidence, and evidence is not
+ * paraphrased.
+ */
+function reasonInEnglish(reason: string | null, source: string) {
+  if (!reason) return undefined;
+  if (source === "opening" && reason.startsWith("Stand bij het aanzetten")) {
+    return "The balance this wallet held when the ledger was switched on. Not built up from movements \u2014 it is the starting point.";
+  }
+  return reason;
 }
 
 /** `reference_no` reads badly in a list of facts a person is scanning. */

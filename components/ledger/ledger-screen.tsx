@@ -236,19 +236,22 @@ export default function LedgerScreen() {
           className={`lg-tab${tab === "moves" ? " on" : ""}`}
           onClick={() => setTab("moves")}
         >
-          Every movement
+          <span className="t-long">Every movement</span>
+          <span className="t-short">Movements</span>
         </button>
         <button
           className={`lg-tab${tab === "in" ? " on" : ""}`}
           onClick={() => setTab("in")}
         >
-          What came in
+          <span className="t-long">What came in</span>
+          <span className="t-short">Came in</span>
         </button>
         <button
           className={`lg-tab${tab === "margin" ? " on" : ""}`}
           onClick={() => setTab("margin")}
         >
-          What we keep
+          <span className="t-long">What we keep</span>
+          <span className="t-short">We keep</span>
         </button>
       </div>
 
@@ -326,7 +329,13 @@ export default function LedgerScreen() {
                     <i>
                       {describeSource(l.source)}
                       {by ? ` \u00b7 by ${by}` : ""}
-                      {l.reason ? ` \u00b7 ${l.reason}` : ""}
+                      {/* The opening lines carry a stored Dutch note
+                          that says the same thing as the label above
+                          and then gets cut off mid-word. The note is
+                          still in the detail panel, in full. */}
+                      {l.reason && l.source !== "opening"
+                        ? ` \u00b7 ${l.reason}`
+                        : ""}
                     </i>
                   </span>
                   <span className="bal mono">
@@ -474,13 +483,26 @@ const LEDGER_CSS = `
     padding:9px 0;border-bottom:1px solid var(--line,#e3e8f4);font-size:.86rem}
   .lg-off:last-child{border-bottom:0}
 
-  .lg-tabs{display:flex;gap:6px;background:var(--panel-2,#f0f4fd);padding:4px;
-    border-radius:12px;overflow-x:auto}
-  .lg-tab{flex:1;min-width:max-content;padding:9px 16px;border:0;border-radius:9px;
-    cursor:pointer;font:inherit;font-size:.86rem;font-weight:700;
-    background:transparent;color:var(--txt-2,#535e78);white-space:nowrap}
+  /* THREE TABS FIT. They do not need to scroll.
+     This was overflow-x:auto with min-width:max-content, so on a phone
+     the third tab hung off the edge and the browser drew a grey
+     scrollbar across the page -- under a rounded panel, at full width,
+     the ugliest element on the screen. A grid of three equal columns
+     always fits; the label shrinks instead of the row scrolling. */
+  .lg-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;
+    background:var(--panel-2,#f0f4fd);padding:4px;border-radius:12px}
+  .lg-tab{padding:10px 8px;border:0;border-radius:9px;cursor:pointer;font:inherit;
+    font-size:.86rem;font-weight:700;background:transparent;
+    color:var(--txt-2,#535e78);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;text-align:center}
   .lg-tab.on{background:var(--panel,#fff);color:var(--ink,#12162a);
     box-shadow:0 1px 3px rgba(20,30,80,.12)}
+  .lg-tab .t-short{display:none}
+  @media (max-width:520px){
+    .lg-tab{font-size:.8rem;padding:10px 4px}
+    .lg-tab .t-long{display:none}
+    .lg-tab .t-short{display:inline}
+  }
 
   .lg-chips{display:flex;flex-wrap:wrap;gap:7px}
   .lg-chip{padding:6px 12px;border-radius:99px;cursor:pointer;font:inherit;

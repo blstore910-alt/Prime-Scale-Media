@@ -28,6 +28,7 @@ import {
   Scale,
   ScrollText,
   Settings,
+  ShieldCheck,
   Upload,
   User,
   Users,
@@ -71,6 +72,7 @@ const TITLES: Record<string, string> = {
   "/reconciliation": "Reconciliation",
   "/affiliates": "Affiliates",
   "/ledger": "Ledger",
+  "/finance-check": "Finance check",
   "/polls": "Polls",
   "/commissions": "Referral Commissions",
   "/settings/finance": "Settings",
@@ -190,6 +192,28 @@ export default function AdminShell({
     },
   ];
 
+  // ── THE DESIGNATED FINANCE REVIEWER ───────────────────────────
+  //
+  // The owner sees Finance check in the Owner group below. One admin
+  // can be given it too (plak 142), and that person needs the link as
+  // well — a page you can only reach by typing the URL is a page
+  // nobody uses.
+  //
+  // `finance_reviewer` is simply absent from the profile until the
+  // migration lands, which reads as false. That is the right way
+  // round: no link, and the guard says no too.
+  if (
+    !isSuperAdmin &&
+    (profile as { finance_reviewer?: boolean } | null)?.finance_reviewer === true
+  ) {
+    groups.push({
+      title: "Finance",
+      items: [
+        { title: "Finance check", href: "/finance-check", icon: ShieldCheck },
+      ],
+    });
+  }
+
   if (isSuperAdmin) {
     // Promotions moved here from "More": a waiver or a 100% discount
     // stops a customer being billed, which is pricing, and pricing is
@@ -206,6 +230,11 @@ export default function AdminShell({
         // Every movement behind every wallet balance, and one figure
         // at the top saying whether they add up.
         { title: "Ledger", href: "/ledger", icon: BookOpen },
+        // Every money decision a machine did not settle, with a written
+        // checklist on each one. Owner plus the one designated admin;
+        // the page itself has no button that moves a cent, because
+        // whoever checks must not be the one who decides.
+        { title: "Finance check", href: "/finance-check", icon: ShieldCheck },
         // The page is the affiliate book -- one row per affiliate, their
         // referrals and rules -- so the menu says "Affiliates".
         { title: "Affiliates", href: "/affiliates", icon: Handshake },

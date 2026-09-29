@@ -124,10 +124,12 @@ export function MarginPanel({ tenantId }: { tenantId: string | null }) {
   return (
     <>
       <p className="lg-warn">
-        <b>This is not turnover.</b> A customer&apos;s top-up passes through us
-        — it is theirs coming in and theirs going out. What is ours is the fee
-        on it, the subscription, and the DST we bill on. Everything below names
-        the table it came from.
+        <b>This is not turnover.</b> A customer&apos;s top-up passes through
+        us — theirs coming in, theirs going out — and the ad spend goes
+        on to the supplier. Both are listed in grey and add up to nothing
+        here; what is ours is the <b>fee</b> on that spend, the
+        subscriptions, and the DST. Everything below names the table it came
+        from.
       </p>
       {currencies.map((cur) => (
         <MarginBlock
@@ -154,7 +156,7 @@ function MarginBlock({
   lines: MarginLine[];
 }) {
   const income = lines
-    .filter((l) => !l.cost)
+    .filter((l) => !l.cost && !l.through)
     .reduce((t, l) => Math.round((t + l.amount) * 100) / 100, 0);
   const costs = lines
     .filter((l) => l.cost)
@@ -165,11 +167,15 @@ function MarginBlock({
     <div className="lg-card lg-mg">
       <div className="mg-head">{currency}</div>
       {lines.map((l) => (
-        <div className={`mg-row${l.cost ? " cost" : ""}`} key={l.label}>
+        <div
+          className={`mg-row${l.cost ? " cost" : ""}${l.through ? " through" : ""}`}
+          key={l.label}
+        >
           <span className="l">
             {l.label}
             <i>
               {l.count} × · {l.source}
+              {l.through ? " · not ours, counts for nothing here" : ""}
             </i>
           </span>
           <b>
@@ -215,6 +221,9 @@ export const LEDGER_TABS_CSS = `
   .mg-row b{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800;
     color:#0e8f66}
   .mg-row.cost b{color:#c0392b}
+  .mg-row.through b{color:var(--faint,#818ead);text-decoration:line-through;
+    text-decoration-thickness:1px}
+  .mg-row.through .l{color:var(--txt-2,#535e78)}
   .mg-row.sum{border-top:2px solid var(--line-2,#d3daec);border-bottom:0;
     margin-top:4px;padding-top:12px;font-size:.98rem}
   .mg-row.sum .l{font-weight:800}
