@@ -81,31 +81,44 @@ export default function SupplierDstReserve() {
           </p>
 
           <div className="mt-2.5 flex flex-col gap-1.5">
-            {reserving.map((s) =>
-              s.lines
-                .filter((l) => l.heldBack !== null)
-                .map((l) => (
-                  <div
-                    key={`${s.supplier}-${l.currency}`}
-                    className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
-                  >
-                    <span className="font-medium">{s.supplier}</span>
-                    {s.status === "demo" ? (
-                      <span className="rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
-                        test data
+            {/* GROUPED BY SUPPLIER, not one flat list of lines.
+                Walked on production, 29-09: SeamX holds back in both
+                currencies, so a line per currency printed "SeamX /
+                TEST DATA" twice and the card read as two different
+                suppliers. The name is the heading; the currencies sit
+                under it. */}
+            {reserving.map((s) => (
+              <div key={s.supplier} className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-sm font-medium">{s.supplier}</span>
+                  {s.status === "demo" ? (
+                    <span className="rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                      test data
+                    </span>
+                  ) : null}
+                </div>
+                {s.lines
+                  .filter((l) => l.heldBack !== null)
+                  .map((l) => (
+                    <div
+                      key={l.currency}
+                      className="flex flex-wrap items-baseline gap-x-2 border-l-2 pl-2.5 text-sm"
+                    >
+                      <span className="text-muted-foreground">
+                        {l.currency}
                       </span>
-                    ) : null}
-                    <span className="ml-auto font-semibold tabular-nums">
-                      {formatCurrency(l.heldBack!, l.currency)}
-                    </span>
-                    <span className="w-full text-xs text-muted-foreground">
-                      of {formatCurrency(l.total, l.currency)} on the wallet;{" "}
-                      {formatCurrency(l.available ?? l.total, l.currency)}{" "}
-                      spendable.
-                    </span>
-                  </div>
-                )),
-            )}
+                      <span className="ml-auto font-semibold tabular-nums">
+                        {formatCurrency(l.heldBack!, l.currency)}
+                      </span>
+                      <span className="w-full text-xs text-muted-foreground">
+                        of {formatCurrency(l.total, l.currency)} on the wallet;{" "}
+                        {formatCurrency(l.available ?? l.total, l.currency)}{" "}
+                        spendable.
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            ))}
 
             {broken.map((s) => (
               <p

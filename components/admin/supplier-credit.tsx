@@ -111,8 +111,20 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
   // Only a supplier with something behind the figure can be opened: a
   // chevron on a row that expands to nothing is the click that teaches
   // people to stop clicking.
+  //
+  // AND A BREAKDOWN THAT REPEATS THE HEADER IS EXPANDING TO NOTHING.
+  // Walked on production, 29-09: RockAds holds one euro wallet and one
+  // dollar wallet, and it has NAMED them "EUR" and "USD". So the
+  // click-through read "EUR — 1 wallet / EUR / EUR 5,582.08" — the same
+  // figure, three times, under a chevron that promised detail. A list
+  // of parts is worth a click when there is more than one of them, or
+  // when the one there is says something the currency heading does not.
+  const informative = (l: SupplierHolding["lines"][number]) =>
+    l.parts.length > 1 ||
+    (l.parts.length === 1 &&
+      l.parts[0].label.trim().toUpperCase() !== l.currency);
   const hasDetail =
-    !!s.error || s.lines.some((l) => l.parts.length > 0 || l.heldBack !== null);
+    !!s.error || s.lines.some((l) => informative(l) || l.heldBack !== null);
 
   return (
     <div className={`sc-row${open ? " open" : ""}`}>
@@ -208,7 +220,7 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
                 </div>
               ) : null}
 
-              {l.parts.length ? (
+              {informative(l) ? (
                 <div className="sc-sublist">
                   <div className="sc-cap">
                     {l.currency} — {l.parts.length}{" "}
