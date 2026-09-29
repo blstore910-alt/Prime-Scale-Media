@@ -1612,6 +1612,24 @@ Statement tried: ${p.attempts.join(" | ")}`
           Show fewer
         </button>
       ) : null}
+      {/* ── A LIST THAT STOPS SHOULD SAY SO ──────────────────
+          The read is capped at 500 and the badge on the tab counts
+          server-side, with no cap. So past 500 the badge says one
+          number and this panel can show a smaller one, and nothing on
+          screen explains the difference — the deposits beyond the cap
+          are unreachable from here by any means.
+          Measured 29-09: 91 unarchived, so this line does not show
+          today. It is here for the day it does. */}
+      {rows.length >= 500 ? (
+        <p
+          className="cap"
+          style={{ margin: "10px 0 0", textAlign: "center" }}
+        >
+          This is the newest <b>500</b> deposits and there are more. The
+          count on the tab is the real total; the difference is not
+          reachable from this screen yet.
+        </p>
+      ) : null}
 
       <ConfirmModal
         open={!!archiving}

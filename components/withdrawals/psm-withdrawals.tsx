@@ -128,6 +128,29 @@ type ActionAsk = {
   run: (reason?: string) => void | Promise<unknown>;
 };
 
+/**
+ * A LIST THAT STOPS SHOULD SAY SO.
+ *
+ * The three queues on this screen are read with `.limit(2000)`. That
+ * is far above the real count today (measured 29-09: 7, 2 and 2), so
+ * this line never shows — it is here for the day it does, because a
+ * queue that quietly drops its oldest rows is a queue where a refund
+ * request goes unanswered and nobody can tell why.
+ *
+ * Before the limit there was no limit at all, which is worse:
+ * PostgREST caps a response at 1000 rows by default and does not say
+ * so, so it would have started dropping rows on its own.
+ */
+function CapNotice({ shown, cap }: { shown: number; cap: number }) {
+  if (shown < cap) return null;
+  return (
+    <p className="muted" style={{ margin: "10px 0 0", fontSize: ".82rem" }}>
+      This is the newest <b>{cap}</b> and there are more. Older ones are
+      not reachable from this screen yet — say so and I will add a pager.
+    </p>
+  );
+}
+
 function ActionAskModal({
   ask,
   close,
@@ -588,7 +611,20 @@ function WithdrawalsSection() {
           "*, ad_account:ad_accounts(name, platform), advertiser:advertisers(tenant_client_code, profile:user_profiles(full_name, email))",
         )
         .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
+        // ── BOUNDED, AND IT SAYS SO WHEN IT BITES ──────────
+        //
+        // This had no limit at all. PostgREST caps a response at
+        // 1000 rows by default and says nothing about it, so the
+        // list would have started silently dropping the oldest
+        // without anybody noticing — on a queue that decides
+        // whether money goes back to a customer.
+        //
+        // 2000 is well above the real count (measured 29-09: 7, 2
+        // and 2 rows), so nothing changes today. The footer below
+        // says it when the cap is reached, which is the part that
+        // was missing.
+        .order("created_at", { ascending: false })
+        .limit(2000);
       if (error) throw error;
       return (data ?? []) as AdAccountWithdrawal[];
     },
@@ -1023,6 +1059,7 @@ function WithdrawalsSection() {
                       )}
             </tbody>
           </table>
+          <CapNotice shown={rows.length} cap={2000} />
         </div>
       </div>
 
@@ -1081,7 +1118,8 @@ function RefundsSection() {
           "id, reference, amount, currency, status, reason, decision_reason, payout_details, payout_business_name, payout_address, payout_bank_currency, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
         )
         .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(2000);
       // decision_reason arrives with plak 86, and migrations here are
       // pasted by hand whenever somebody gets to it. Ask for it, and on
       // 42703 ask again without it -- the column stays dark instead of
@@ -1093,7 +1131,8 @@ function RefundsSection() {
             "id, reference, amount, currency, status, reason, payout_details, payout_business_name, payout_address, payout_bank_currency, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
           )
           .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(2000);
         if (retry.error) throw retry.error;
         return (retry.data ?? []) as unknown as RefundRow[];
       }
@@ -1492,6 +1531,7 @@ function RefundsSection() {
                     )}
             </tbody>
           </table>
+          <CapNotice shown={filtered.length} cap={2000} />
         </div>
       </div>
 
@@ -1989,7 +2029,8 @@ function AdjustmentsSection() {
           "id, reference, delta, currency, status, reason, decision_reason, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
         )
         .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(2000);
       // Same as the refunds read above: the column lands with plak 86.
       if (error) {
         const retry = await supabase
@@ -1998,7 +2039,8 @@ function AdjustmentsSection() {
             "id, reference, delta, currency, status, reason, created_at, advertiser:advertisers(id, tenant_client_code, profile:user_profiles(full_name, email))",
           )
           .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(2000);
         if (retry.error) throw retry.error;
         return (retry.data ?? []) as unknown as AdjRow[];
       }
@@ -2343,6 +2385,7 @@ function AdjustmentsSection() {
                     )}
             </tbody>
           </table>
+          <CapNotice shown={filtered.length} cap={2000} />
         </div>
       </div>
 
