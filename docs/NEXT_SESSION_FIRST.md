@@ -1,3 +1,61 @@
+# WAAR HET STAAT — 29-09, einde dag
+
+> Lees dit eerst. Daaronder staat de oudere lijst, die nog geldt.
+
+## De drie dingen die op de EIGENAAR wachten
+
+1. **De zestien testaccounts.** Alles mag weg en alles is nep, maar
+   mijn advies is: **nog niet**. Het is het enige onomkeerbare in het
+   hele plan, en die accounts zijn het enige testmateriaal dat er is —
+   PSM0016 heeft EUR 340 en is de klant waarmee blok 4 t/m 8 zijn
+   gelopen, PSM0008 is de affiliate. De desktoprondes en T1/T2/T6/T7
+   hebben ze nodig. Doen ná de laatste doorloop.
+   Klaar staan: **plak 147** (back-up, verwijdert niets) en **plak
+   150** (uitzetten, met een lege codelijst bovenaan).
+
+2. **26 bankstortingen** die een mens nodig hebben. Van de 80 dragen er
+   **64 een OUD-systeem-klantcode** — die horen bij klanten die nog
+   niet zijn overgezet en matchen hier per definitie nooit. Dat staat
+   nu ook zo op /finance-check, per rij, in plaats van tachtig keer
+   dezelfde vraag. Blijft over: 16 zonder referentie (EUR/USD 12.236)
+   en 10 met een banknummer (EUR/USD 41.636).
+
+3. **Eén beleidsvraag.** `commission_rules` is met opzet
+   eigenaar-alleen leesbaar, maar dezelfde tarieven staan óók op
+   `advertisers`, waar elke admin bij mag. Mag een staf-admin het
+   commissietarief van een affiliate zien? Ja → `commission_rules` kan
+   open. Nee → dan zet ik `advertisers` recht.
+
+## Wat er nog nooit door een mens is gezien
+
+`/ledger` (drie panelen, doorklikbaar per beweging), `/finance-check`
+(de controlelijst, zonder één knop die geld verplaatst) en `/admins` →
+**Permissions** (zeventien schakelaars, met read-only bovenaan in
+rood). Alledrie live, alledrie ongezien. Plus de desktoprondes van zo
+ongeveer elk blok.
+
+## De gereedschappen die er sinds vandaag zijn
+
+- **`npm run ochtend`** — twaalf controles, één tabel, één oordeel per
+  regel. Draai hem na elke plak. Staat nu op nul, op twee regels na die
+  zichzelf oplossen (het grootboek heeft nog geen echte beweging
+  gezien; factuur 131 verdwijnt bij het opruimen).
+- **Elf foutklassen met een test dichtgezet**, zodat ze niet
+  terugkomen: verzonnen tellingen, isLoading op een gegatede query,
+  plakregels, een gedropte functie die nog gebeld wordt, de
+  eigenaarstoets met de hand, de uitgever-lookup, read-only,
+  doorstroomgeld als winst, `maybeSingle()` op iets niet-unieks, en
+  `select("*")` op een relatie met inkoopprijs erin.
+
+## Eén ding dat ik NIET heb kunnen verifiëren
+
+Of `contact@primescalemedia.com` echt alles kan wat een eigenaar kan.
+De vijf databasefuncties, de veertien codeplekken en de veertien
+policies zijn gemeten en staan goed — maar dat hij een eigenaar-knop
+indrukt en het werkt, heb ik niet waargenomen. Dat vraagt zijn login.
+
+---
+
 # WHAT IS LEFT — 28-09
 
 ## GEVRAAGD 28-09, NOG NIET GEBOUWD
