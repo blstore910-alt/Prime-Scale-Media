@@ -174,15 +174,23 @@ export async function GET(
     // the invoice does not name one, read theirs. Nothing is invented:
     // if they have no company row either, it stays N/A as before.
     if (!(invoice as InvoiceRecord).company_id && (invoice as InvoiceRecord).advertiser_id) {
-      const { data: ownCompany, error: ownCompanyError } = await supabase
+      // `limit(1)`, not `maybeSingle()`: advertiser_id is not unique on
+      // this table, and maybeSingle() ERRORS on two rows rather than
+      // returning the first -- which threw to the catch below and
+      // served "Something went wrong while preparing that invoice"
+      // instead of the document. Same table, same fix as
+      // components/invoices/use-create-invoice.ts.
+      const { data: ownCompanies, error: ownCompanyError } = await supabase
         .from("companies")
         .select("*")
         .eq("advertiser_id", (invoice as InvoiceRecord).advertiser_id as string)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .limit(1);
       // A failed read is not "they have no company". Printing "N/A" as
       // the bill-to on a tax document because a connection dropped is
       // not a degradation, it is a wrong invoice.
       if (ownCompanyError) throw ownCompanyError;
+      const ownCompany = (ownCompanies ?? [])[0] ?? null;
       if (ownCompany) {
         (invoice as InvoiceRecord).company = ownCompany as CompanyRecord;
       }

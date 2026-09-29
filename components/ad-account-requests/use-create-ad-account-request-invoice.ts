@@ -25,12 +25,18 @@ export default function useCreateAdAccountRequestInvoice() {
     mutationFn: async (values) => {
       const supabase = createClient();
 
-      const { data: company, error: companyError } = await supabase
+      // `limit(1)`: advertiser_id is not unique on `companies`, and
+      // maybeSingle() errors on a second row rather than returning the
+      // first -- which here throws "Company not found" at an admin
+      // raising an invoice for a customer who plainly has one.
+      const { data: companies, error: companyError } = await supabase
         .from("companies")
         .select("id")
         .eq("advertiser_id", values.advertiser_id)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .limit(1);
       if (companyError) throw companyError;
+      const company = (companies ?? [])[0] ?? null;
       if (!company?.id) {
         throw new Error("Company not found for selected advertiser.");
       }

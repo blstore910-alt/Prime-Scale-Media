@@ -231,13 +231,21 @@ export async function GET(
     //
     // The bank line stays either way: it is how the transfer was made,
     // and it belongs on the document that records it.
-    const { data: supplierCo } = adv?.id
+    // `limit(1)`, not `maybeSingle()`: advertiser_id is not unique on
+    // `companies`, and maybeSingle() errors on two rows instead of
+    // returning one. Here that error is swallowed (no `error` is
+    // destructured), so the document quietly fell through to
+    // `d.holder` -- printing the BANK ACCOUNT HOLDER as the supplier
+    // on a self-billed tax document instead of the registered entity.
+    const { data: supplierCos } = adv?.id
       ? await admin
           .from("companies")
           .select("name, address, state, country, zipcode, vat_no, registration_no")
           .eq("advertiser_id", adv.id)
-          .maybeSingle()
+          .order("created_at", { ascending: true })
+          .limit(1)
       : { data: null };
+    const supplierCo = (supplierCos ?? [])[0] ?? null;
 
     const d = (head.details ?? {}) as Record<string, string>;
     const supplierName =

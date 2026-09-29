@@ -43,6 +43,55 @@ export type AdminContext = {
   profile: AdminProfile;
 };
 
+// ── READ-ONLY, IN ONE PLACE, BECAUSE A SECOND COPY IS HOW IT BROKE ──
+//
+// This was inline in resolveAdminContextInner, and that was enough for
+// every action that uses the shared resolver. It was not enough for
+// `updateUserProfile` in admin-actions.ts, which resolves its own
+// context in a private `resolveCaller()` — so the single most
+// destructive customer action in the app, switching a paying customer
+// off, never consulted the switch at all. A read-only admin could
+// deactivate anyone.
+//
+// Eight action files carry their own resolver like that. Rather than
+// paste the check into each one (which is the same mistake again, just
+// eight times), it lives here and they call it. One implementation, one
+// place to be wrong, one place to fix.
+//
+// Returns the refusal MESSAGE, or null when the caller may write.
+export async function readOnlyRefusal(
+  supabase: SupabaseClient,
+  tenantId: string,
+  userId: string,
+): Promise<string | null> {
+  const { data: ro, error: roError } = await supabase
+    .from("admin_capabilities")
+    .select("capability")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .eq("capability", "admin.readonly")
+    .limit(1);
+
+  // A failed read is not a restriction. Before plak 143 the table does
+  // not exist and this errors; the admin keeps working exactly as they
+  // did yesterday. The direction of that mistake is the one we can live
+  // with — the alternative is the whole desk locked out by a migration
+  // that has not been pasted yet.
+  if (roError || (ro ?? []).length === 0) return null;
+
+  // An owner can never be read-only. Somebody has to be able to act,
+  // and locking the last one out is not repairable from a screen.
+  const owners = await supabase
+    .from("tenant_owners")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .limit(1);
+  if (!owners.error && (owners.data ?? []).length > 0) return null;
+
+  return "Your account is set to read-only. You can see everything here, but an owner has to make the change.";
+}
+
 export async function resolveAdminContext(): Promise<
   { ok: true; ctx: AdminContext } | { ok: false; error: string }
 > {
@@ -130,35 +179,12 @@ async function resolveAdminContextInner(
   // An owner can never be read-only. Somebody has to be able to act,
   // and locking the last one out is not repairable from a screen.
   if (freeze && chosen.user_id) {
-    const { data: ro, error: roError } = await supabase
-      .from("admin_capabilities")
-      .select("capability")
-      .eq("tenant_id", chosen.tenant_id)
-      .eq("user_id", chosen.user_id)
-      .eq("capability", "admin.readonly")
-      .limit(1);
-
-    // A failed read is not a restriction. Before plak 143 the table
-    // does not exist and this throws; the admin keeps working exactly
-    // as they did yesterday. The direction of that mistake is the one
-    // we can live with — the alternative is the whole desk locked out
-    // by a missing migration.
-    if (!roError && (ro ?? []).length > 0) {
-      const owners = await supabase
-        .from("tenant_owners")
-        .select("user_id")
-        .eq("tenant_id", chosen.tenant_id)
-        .eq("user_id", chosen.user_id)
-        .limit(1);
-      const isOwner = !owners.error && (owners.data ?? []).length > 0;
-      if (!isOwner) {
-        return {
-          ok: false,
-          error:
-            "Your account is set to read-only. You can see everything here, but an owner has to make the change.",
-        };
-      }
-    }
+    const refusal = await readOnlyRefusal(
+      supabase,
+      chosen.tenant_id,
+      chosen.user_id,
+    );
+    if (refusal) return { ok: false, error: refusal };
   }
 
   return {

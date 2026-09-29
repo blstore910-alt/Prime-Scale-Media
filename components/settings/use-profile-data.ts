@@ -68,13 +68,17 @@ export function useProfileData() {
 
       if (advertiser) {
         // Advertiser: their own company (advertiser-scoped row).
-        const { data: companyData, error: companyError } = await supabase
+        // `limit(1)`, for the same reason the admin branch below uses
+        // tenantIssuerCompany: advertiser_id is not unique here either,
+        // and maybeSingle() errors on two rows instead of picking one.
+        const { data: companyRows, error: companyError } = await supabase
           .from("companies")
           .select("*")
           .eq("advertiser_id", advertiser.id)
-          .maybeSingle();
+          .order("created_at", { ascending: true })
+          .limit(1);
         if (companyError) throw companyError;
-        company = companyData;
+        company = (companyRows ?? [])[0] ?? null;
       } else if (profile.role === "admin" && profile.tenant_id) {
         // Admin: the tenant-level company row (advertiser_id NULL).
         // Shown on issued invoices and referral commission emails.

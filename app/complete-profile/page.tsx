@@ -163,11 +163,20 @@ export default async function CompleteProfilePage({
   // Same shape as the payout-details form and the advertiser's own
   // company card, both of which refuse to save over a read they did not
   // get. Refusing costs one reload.
-  const { data: company, error: companyError } = await supabase
+  //
+  // `limit(1)`, not `maybeSingle()`. This page is the ESCAPE HATCH the
+  // company gate sends people to, and advertiser_id is not unique --
+  // so a customer who filled the form in twice hit PGRST116 here and
+  // got the dead-end card below, on the one page that was supposed to
+  // let them out. The gate and its escape both failed for the same
+  // reason.
+  const { data: companyRows, error: companyError } = await supabase
     .from("companies")
     .select("*, billings(*)")
     .eq("advertiser_id", advertiser.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const company = (companyRows ?? [])[0] ?? null;
 
   if (companyError) {
     return (

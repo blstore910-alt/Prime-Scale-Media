@@ -8,6 +8,7 @@ import MaintenanceBanner from "@/components/maintenance-banner";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfiles, getSessionUser } from "@/lib/auth/session";
 import { isLockedOut } from "@/lib/auth/locked-out";
+import { safeErrorMessage } from "@/lib/pure-error";
 import { redirect } from "next/navigation";
 import React from "react";
 
@@ -102,11 +103,36 @@ export default async function AppLayout({
 
     if (advertiser) {
       const supabase = await createClient();
-      const { data: company } = await supabase
+      // ── TWO COMPANY ROWS USED TO LOCK THE CUSTOMER OUT ────────
+      //
+      // `companies.advertiser_id` is not unique, and `maybeSingle()`
+      // does not return the first of two -- it ERRORS (PGRST116). The
+      // error was not even destructured here, so it landed as
+      // `company = null`, which makes all three completeness checks
+      // below false: the "finish your company details" gate never
+      // clears, and top-ups and ad-account requests stay blocked. The
+      // customer cannot get past it and nothing says why.
+      //
+      // `.order().limit(1)` is the shape the rest of the app settled
+      // on for this exact table (see components/invoices/
+      // use-create-invoice.ts): oldest row wins, deterministically.
+      const { data: companyRows, error: companyError } = await supabase
         .from("companies")
         .select("*, billings(*)")
         .eq("advertiser_id", advertiser.id)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .limit(1);
+      // A refused or broken read is not "they have no company". It
+      // must not silently become the same gate; log it and let the
+      // checks below fall through on a null, which is what happened
+      // before -- but now it is a decision instead of an accident.
+      if (companyError) {
+        console.error(
+          "[layout] could not read the customer's company:",
+          safeErrorMessage(companyError),
+        );
+      }
+      const company = (companyRows ?? [])[0] ?? null;
 
       const isCompanyComplete = Boolean(
         company &&

@@ -1321,21 +1321,32 @@ export default function AdvertiserApp() {
       // it throws 42703 and PostgREST's message lands on the screen that
       // asked for it. So the concurrency guard stays dark until the
       // migration lands, instead of taking the company card with it.
+      // `limit(1)` on both reads. `companies.advertiser_id` is not
+      // unique and maybeSingle() ERRORS on a second row rather than
+      // returning the first -- which here reads as "no company", and
+      // that is what raises the companyMissing banner and blocks
+      // top-ups and ad-account requests on a customer who filled the
+      // form in twice.
       const withVersion = await supabase
         .from("companies")
         .select(`updated_at, ${COLS}`)
         .eq("advertiser_id", advertiserId)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .limit(1);
       if (!withVersion.error) {
-        return (withVersion.data ?? null) as Record<string, unknown> | null;
+        return ((withVersion.data ?? [])[0] ?? null) as Record<
+          string,
+          unknown
+        > | null;
       }
       const { data, error } = await supabase
         .from("companies")
         .select(COLS)
         .eq("advertiser_id", advertiserId)
-        .maybeSingle();
+        .order("created_at", { ascending: true })
+        .limit(1);
       if (error) throw error;
-      return (data ?? null) as Record<string, unknown> | null;
+      return ((data ?? [])[0] ?? null) as Record<string, unknown> | null;
     },
   });
   // The WHOLE company, not three fields of it. This card showed name, VAT

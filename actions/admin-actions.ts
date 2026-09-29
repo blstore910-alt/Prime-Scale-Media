@@ -6,6 +6,7 @@ import { peopleStatusView } from "@/lib/pure-people-status";
 import {
   checkVersion,
   maintenanceGuard,
+  readOnlyRefusal,
   versionMatches,
   type ActionResult,
   wroteSomething,
@@ -64,11 +65,33 @@ async function resolveCaller(): Promise<
   return { ok: true, ctx: { supabase, profile } };
 }
 
+// ── EVERY CALLER OF THIS IS A MUTATION ────────────────────────────
+//
+// All eight: toggleAdminStatus, updateUserProfile, updateAffiliate,
+// approveAffiliate, rejectAffiliate, setAffiliateCommission,
+// updateAdvertiser, setAdvertiserCommission. Not one of them is a
+// read. So the read-only switch belongs here, and putting it here
+// covers all eight at once.
+//
+// It was NOWHERE, which is the point. This file resolves its own
+// caller instead of using actions/_shared.ts, so the capability added
+// yesterday never ran on any of them -- including `updateUserProfile`,
+// the only live way to switch a paying customer off. A read-only admin
+// could deactivate anyone, and the switch said they could not.
+//
+// `readOnlyRefusal` is the same function the shared resolver calls.
+// Deliberately imported rather than reimplemented: a second copy of
+// this check is exactly how the first one came to be missing here.
 async function assertAdmin() {
   const caller = await resolveCaller();
   if (!caller.ok) return caller;
   if (caller.ctx.profile.role !== "admin") {
     return { ok: false as const, error: "Forbidden", status: 403 };
+  }
+  const { tenant_id, user_id } = caller.ctx.profile;
+  if (tenant_id && user_id) {
+    const refusal = await readOnlyRefusal(caller.ctx.supabase, tenant_id, user_id);
+    if (refusal) return { ok: false as const, error: refusal, status: 403 };
   }
   return caller;
 }

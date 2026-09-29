@@ -46,11 +46,20 @@ export default function SupplierPill({
   // AND IT SAYS WHAT TO DO, because the other two pills do.
   // "Top up at Rockads" is an instruction. "No supplier link" points at
   // the setting that fixes it. "API available" was a property of the
-  // account type -- true, and no use to the person reading it, who
-  // wants to know where they go next. They go nowhere: this one is
-  // funded from inside this app. So the pill says that, in the same
-  // shape as its neighbour, and the tooltip carries the warning that
-  // the label no longer has room for.
+  // account type -- true, and no use to the person reading it.
+  //
+  // The owner, 29-09, on the first attempt ("Fund in this app"):
+  // "fund manually is toch corrector?" Yes, and it is the better word
+  // for the reason that matters: NOTHING here happens on its own. The
+  // API exists, but no top-up is pushed until a person presses it --
+  // and on production SUPPLIER1_MODE is not "live", so today the push
+  // reaches the mock. A label promising the app does it would be
+  // making a promise the app is not currently keeping.
+  //
+  // He also suggested "at supplier", and that one would be wrong HERE:
+  // this is the branch where there is no supplier dashboard at all --
+  // which is exactly what separates it from its neighbour, "Top up at
+  // Rockads". So: manually, and the tooltip says where.
   if (link.apiEnabled) {
     return (
       <span
@@ -58,7 +67,7 @@ export default function SupplierPill({
         title="No supplier dashboard for this type — the top-up is pushed from this app. Nothing is sent on its own: an admin still pushes it and checks it landed."
       >
         <Zap />
-        Fund in this app
+        Fund manually
       </span>
     );
   }

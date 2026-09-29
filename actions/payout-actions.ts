@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { maintenanceGuard } from "./_shared";
+import { maintenanceGuard, resolveAdminContext } from "./_shared";
 
 // ── ASKING TO BE PAID, AND BEING PAID ───────────────────────────────────
 //
@@ -255,14 +255,29 @@ export async function decideAffiliatePayout(
   action: "paid" | "reject",
   opts: { reason?: string; reference?: string } = {},
 ): Promise<ActionResult<{ commissions: number }>> {
-  const mm = maintenanceGuard();
-  if (!mm.ok) return { ok: false, error: mm.error };
+  // ── AN ADMIN ACTION, SO THE ADMIN GATE BELONGS HERE ────────────
+  //
+  // This is the one action in this file that is NOT the affiliate
+  // acting on their own payout -- it is the desk marking money as
+  // SENT, or refusing it. It went through `maintenanceGuard()` and a
+  // bare session client, leaving the whole admin check to the RPC.
+  //
+  // The RPC does check, so nothing leaked. But the read-only
+  // capability lives in the resolver, not in the RPC, and the owner
+  // was explicit about what it has to cover: "dus ook vooral admin
+  // handelingen en queue handelingen." Marking a payout paid is the
+  // queue action with actual money behind it.
+  //
+  // resolveAdminContext carries the maintenance freeze too, so the
+  // guard above is not lost -- it is the same check one level up.
+  const auth = await resolveAdminContext();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth.ctx;
 
   if (action === "reject" && (opts.reason ?? "").trim().length < 3) {
     return { ok: false, error: "Say why, so they know." };
   }
 
-  const supabase = await createClient();
   const { data, error } = await supabase.rpc("affiliate_payout_decide", {
     p_payout_id: payoutId,
     p_action: action,

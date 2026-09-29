@@ -37,13 +37,35 @@ test("read-only is the one capability that takes something away", () => {
 
 test("read-only is checked on the mutating branch, not per action", () => {
   const shared = readFileSync("actions/_shared.ts", "utf8");
+
+  // The lookup lives in `readOnlyRefusal`. It was inline on the freeze
+  // branch, and that was enough until admin-actions.ts turned out to
+  // resolve its own caller and never reach the branch at all — so the
+  // check became a function both resolvers call. See
+  // tests/lib/readonly-reaches-mutations.test.ts for the other half.
   assert.match(
     shared,
-    /admin\.readonly/,
-    "actions/_shared.ts must be where read-only is enforced",
+    /export async function readOnlyRefusal/,
+    "actions/_shared.ts must export readOnlyRefusal — it is the one " +
+      "implementation, and the other resolvers import it",
   );
-  // On the freeze branch — the one that means "this is a write".
-  const idx = shared.indexOf("admin.readonly");
+  assert.match(
+    shared,
+    /["']admin\.readonly["']/,
+    "readOnlyRefusal must look up the admin.readonly capability",
+  );
+
+  // Still only on the branch that means "this is a write": a read must
+  // stay possible for an admin who is set to read-only. That is the
+  // whole point of the capability.
+  const call = shared.indexOf("readOnlyRefusal(");
+  const decl = shared.indexOf("export async function readOnlyRefusal");
+  // The CALL, not the declaration — find the first one that is not it.
+  let idx = call;
+  while (idx !== -1 && idx < decl + 60 && idx > decl - 60) {
+    idx = shared.indexOf("readOnlyRefusal(", idx + 1);
+  }
+  assert.notEqual(idx, -1, "readOnlyRefusal is declared but never called");
   const before = shared.slice(Math.max(0, idx - 2000), idx);
   assert.match(
     before,
