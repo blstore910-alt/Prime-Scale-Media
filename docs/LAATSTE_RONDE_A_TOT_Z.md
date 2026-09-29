@@ -1176,6 +1176,31 @@ zelfverzekerd cijfer boven iets wat niet klopt — en alle drie had ik ze
 zelf die ochtend gemaakt. Het verschil is dat ze nu binnen een minuut
 gevonden werden, omdat iemand de pagina opende.
 
+**En daarna nog eens gelopen, om de reparaties te zien**
+
+- `/commissions` toont de zes commissies weer: 75,00 + 10,00 + 5,00 +
+  5,00 + 0,11 + 4,85 = **EUR 99,96**, precies het bedrag dat het
+  *We keep*-paneel eraf trekt. Twee schermen, hetzelfde getal.
+- `/finance-check` zegt nu **"€44.640,00 · $41.300,06"** in plaats van
+  één opgeteld dollarbedrag — en diezelfde twee cijfers staan
+  onafhankelijk op `/ledger` onder *Came in* bij "Arrived, not yet
+  attributed". Tot op de cent gelijk.
+- `/dst`: op de chip "Invoiced" drukken zet *Lines in view* op 0 en
+  laat *Reserved, not yet invoiced* op **EUR 20,00** staan. Vóór
+  vanochtend las dat EUR 0,00.
+- `/reconciliation` draagt de band over de lege bankkant met de 92
+  wachtende stortingen erin, en USD staat op "Nothing to compare" in
+  plaats van een groen vinkje boven nul tegen nul.
+
+**Wat de loop NIET kon**
+
+De mobiele ronde op 390px. Dat venster is de Chrome van de eigenaar en
+die ga ik niet verkleinen; het paneel is de klantkant en daar ben ik
+niet ingelogd. En `/settings/general` als tweede eigenaar is niet
+geprobeerd: die schrijf is geblokkeerd tot plak 156 draait, en het
+enige wat "proberen" zou opleveren is een mislukking die ik al gemeten
+heb.
+
 ---
 
 ## Logboek
