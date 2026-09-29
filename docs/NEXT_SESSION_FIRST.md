@@ -3277,3 +3277,57 @@ Staan er meerdere open, hecht ze dan ALLEMAAL opnieuw aan in plaats van
 terug te verwijzen. En controleer na "plak done" met `npm run check` of
 hij echt is geland: twee keer nu meldde een plak succes terwijl zijn
 eigen marker ontbrak.
+
+## Blok 11 — de kleinere doodlopers die niet mee zijn gegaan
+
+Uit de vier agentveegjes van 29-09. Alles hieronder is GEMETEN, met
+bestand en regel, en bewust niet meegenomen omdat het geen geld of
+geen besluit raakt.
+
+- **`use-topups` pagerlimieten zonder pager.** /withdrawals leest alle
+  drie de secties zonder `.limit()` en zonder pager
+  (`psm-withdrawals.tsx:536`, `:994`, `:1863`; gemeten 7 / 2 / 2 rijen).
+  `precharge-panel.tsx:79` idem. `wise-review-panel.tsx:527` heeft
+  `.limit(500)` terwijl er 356 deposits zijn en de badge server-side
+  telt -- boven 500 gaat het badge-getal boven wat het paneel kan
+  tonen.
+- **`disabledHint` ontbreekt op vier dialogen**: `verify-topup-dialog
+  :661` (alleen een `title`, onzichtbaar op een telefoon en onbetrouwbaar
+  op een disabled knop -- het voorschrift staat letterlijk in
+  `psm-verify-topups.tsx:740`), `reject-topup-dialog:146`,
+  `wallet-transaction-reject-dialog:92`,
+  `ad-account-request-reject-dialog:142`. Plus "Request refund" en
+  "Request adjustment" (`psm-withdrawals.tsx:1820`, `:2449`), waar
+  `valid` drie eisen stelt die nergens op het formulier staan.
+- **De tekst bij refund/adjustment-afwijzingen is verkeerd.** Ze
+  gebruiken `reasonFor: "withdrawal"` en zeggen "The customer reads
+  it" -- maar een refund/adjustment wordt door een ADMIN aangevraagd,
+  de klant ziet die rij nergens, en er gaat geen melding heen. De
+  reden komt correct in `decision_reason`; alleen de belofte klopt niet.
+- **De dialoog sluit vóór de schrijf** op /withdrawals
+  (`psm-withdrawals.tsx:248`): `onConfirm` doet `close()` en dan
+  `run()`, dus `busy`/`busyLabel` kunnen nooit renderen en de getypte
+  reden is weg bij een mislukking. Vergt een busy-vlag PER RIJ; de
+  huidige is "een willekeurige rij is bezig".
+- **Een knop die niet bestaat**: `verify-topup-dialog:595` rendert
+  "Push to supplier" achter `step.key === "api"`, maar `steps` bevat
+  alleen `funded` en `tell`. Die tak draait nooit, en het is de ENIGE
+  UI-aanroeper van `pushAdTopupToSupplier` -- die action is dus
+  onbereikbaar vanuit de app.
+- **Geen weg terug op /top-ups.** /wallet-topups heeft Undo (RPC
+  bestaat); voor ad-account-topups bestaat er geen equivalent op live.
+  Een per ongeluk geverifieerde is alleen met de hand terug te draaien.
+  De dialoog zegt dat wel, dus het is een bekende beperking.
+- **`top_ups_view` levert `wallet_debited` niet.** Daardoor kan de
+  afwijsdialoog niet zeggen dat er WEL geld terugkomt; hij noemt nu
+  alleen een bedrag als hij het zeker weet. Kolom aan de view
+  toevoegen = een plak.
+- **`payment_pending` telt mee in de badge maar staat niet in het
+  filter** (`use-pending-counts.ts:149` versus `psm-requests.tsx:433`).
+  Zo'n rij is alleen via "All statuses" te vinden. Gemeten: 0 rijen.
+- **Latente feefout bij bulk-top-up.** `verify-topup-dialog:185`
+  rekent bruto als `topup_amount + fee_amount`; de RPC rekent met
+  `amount_received`. Die lopen uiteen zodra `topup_amount` in USD
+  staat, en dat is de admin-aanmaakroute -- 7 van de 12 `ad_accounts`
+  hebben `currency = NULL`, dus die tak is bereikbaar. Alle 9 huidige
+  rijen zijn klant-rijen, dus vandaag latent.
