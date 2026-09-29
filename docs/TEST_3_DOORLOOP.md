@@ -77,6 +77,17 @@ begint de co-pilot.
 
 ---
 
+## De browser
+
+De browser heet **`Baris Laptop`**. Controleer dat aan de app en niet
+aan de lijst met verbonden browsers -- die namen zeggen niets, en
+`onThisComputer` stond op de verkeerde. Navigeer naar `/dashboard` en
+lees wie er "Welcome back" krijgt.
+
+En let op het verschil tussen de verkeerde BROWSER (los op met
+`switch_browser`) en het verkeerde ACCOUNT in de goede browser (dat
+is een in- en uitlog, dus van de eigenaar).
+
 ## De drie lagen
 
 Elke laag mag pas beginnen als de vorige schoon is.

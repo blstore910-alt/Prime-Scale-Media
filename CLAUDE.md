@@ -87,6 +87,43 @@ opened, findings fixed and SQL checks are working notes, not the
 number: three of them at 90% while no journey is closed still means no
 customer can get through the app.
 
+## Non-negotiable — WELKE BROWSER
+
+De browser heet **`Baris Laptop`**. Dat is de enige die de eigenaar
+ziet. Staat de sessie op een andere, dan gebeurt alles wat je doet
+buiten zijn beeld — en wat hij niet ziet, gebeurt niet.
+
+```
+mcp__claude-in-chrome__list_connected_browsers   # welke zijn er
+mcp__claude-in-chrome__switch_browser            # popup: hij klikt Connect
+```
+
+`list_connected_browsers` toont namen als "Browser 1" / "Browser 2"
+en die zeggen NIETS over welke de zijne is — `onThisComputer: true`
+evenmin, dat stond op de verkeerde. Ga niet raden en ga niet op
+`isLocal` af. **Controleer het aan de app**, niet aan de lijst:
+
+```js
+// in de tab, na navigeren naar /dashboard
+/Welcome back,\s*([^
+]+)/.exec(document.body.innerText)?.[1]
+```
+
+Twee dingen die op elkaar lijken en het niet zijn:
+
+1. **De verkeerde BROWSER** — jij stuurt een Chrome aan die hij niet
+   voor zich heeft. Los op met `switch_browser`; hij klikt Connect en
+   geeft hem een naam.
+2. **Het verkeerde ACCOUNT in de goede browser** — de sessie staat op
+   `contact@primescalemedia.com` (Lasse) in plaats van op hemzelf.
+   Dat is een uit- en inlog en dus ZIJN werk. Zeg het in één regel en
+   ga door: Lasse is mede-eigenaar, dus voor beheerwerk verandert er
+   niets behalve de naam op de auditregel.
+
+Een tab die JIJ opent kan in een ander Chrome-profiel landen dan waar
+hij in zit, en komt dan uitgelogd binnen. Dat is geen storing en geen
+reden om eromheen te werken — zeg het meteen.
+
 ## Deploying — branch, then production, then test live
 
 `git push origin feat/redesign-advertiser:main` publishes to

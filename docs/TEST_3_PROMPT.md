@@ -32,6 +32,12 @@ WAT WEL EEN REDEN IS OM TE STOPPEN:
 - beleid dat van mij is (marge, ondergrens, wie wat mag) -> vraag het
 - iets op productie is stuk                  -> meld direct, dat gaat voor
 
+DE BROWSER HEET `Baris Laptop`. Controleer dat aan de APP en niet
+aan de lijst: navigeer naar /dashboard en lees "Welcome back, X".
+Staat daar iemand anders, of kom je uitgelogd binnen, zeg dat in EEN
+regel en werk er niet omheen. `switch_browser` geeft hem een popup
+waarin hij de juiste aanklikt.
+
 TWEE VENSTERS, NOOIT DRIE. Paneel = klantkant. Mijn Chrome =
 beheerkant. Ik zie ze allebei; wat ik niet zie gebeurt niet. Ik typ
 elk wachtwoord, elke Join en elke in- en uitlog. Jij doet al het
