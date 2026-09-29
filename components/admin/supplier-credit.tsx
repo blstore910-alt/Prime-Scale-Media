@@ -25,6 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, FlaskConical, Landmark, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils-pure";
+import { visibleLines } from "@/lib/pure-supplier-holdings";
 import type { SupplierHolding } from "@/lib/pure-supplier-holdings";
 
 type Payload = {
@@ -35,63 +36,75 @@ type Payload = {
 };
 
 const CSS = `
-.sc{border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
-.sc-head{display:flex;align-items:center;gap:11px;padding:12px 15px;border-bottom:1px solid var(--line)}
-.sc-ic{width:32px;height:32px;border-radius:9px;background:var(--panel-2);color:var(--txt-2);display:grid;place-items:center;flex:0 0 auto}
-.sc-ic svg{width:17px;height:17px}
-.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:1rem;color:var(--ink);flex:1 1 auto;min-width:0}
-.sc-sub{color:var(--faint);font-size:.8rem;margin:0;padding:0 15px 11px;border-bottom:1px solid var(--line)}
-.sc-when{padding:0 15px 9px;margin-top:-6px;color:var(--faint);font-size:.68rem;letter-spacing:.01em}
-/* Onze eigen bank, niet krediet bij iemand anders: een streep ervoor
-   en een label, zodat het niet als derde leverancier leest. */
-.sc-row.bank{background:var(--panel-2)}
-.sc-row.bank .sc-name::after{content:"our bank";margin-left:7px;font-family:var(--bd);font-weight:700;font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
-.sc-head .sc-re{margin-left:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 10px;font-size:.8rem;font-weight:700;color:var(--txt-2);cursor:pointer}
-.sc-head .sc-re:hover{background:var(--panel-2)}
-.sc-head .sc-re svg{width:14px;height:14px}
-.sc-head .sc-re[disabled]{opacity:.55;cursor:default}
+/* EEN kaart, EEN marge. De eigenaar, 29-09: "mobiel view erg
+   rommelig ... teksten niet goed lined up met lines." Er waren drie
+   verschillende linkermarges (kop 15px, ondertitel 15px met een eigen
+   rand eronder, synctijd 15px met een negatieve marge erboven) en de
+   synctijd stond op een eigen regel onder elke rij. Alles deelt nu
+   --sc-pad, en de synctijd staat rechts OP de naamregel -- dat scheelt
+   een regel per leverancier en zet hem waar je hem pas zoekt als je
+   je afvraagt of dit van nu is. */
+.sc{--sc-pad:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
+
+.sc-head{display:flex;align-items:center;gap:10px;padding:var(--sc-pad) var(--sc-pad) 0}
+.sc-ic{width:30px;height:30px;border-radius:9px;background:var(--panel-2);color:var(--txt-2);display:grid;place-items:center;flex:0 0 auto}
+.sc-ic svg{width:16px;height:16px}
+.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:1.02rem;color:var(--ink);flex:1 1 auto;min-width:0}
+.sc-re{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 11px;font-size:.78rem;font-weight:700;color:var(--txt-2);cursor:pointer}
+.sc-re:hover{background:var(--panel-2)}
+.sc-re svg{width:13px;height:13px}
+.sc-re[disabled]{opacity:.55;cursor:default}
+/* Uitgelijnd op de TITEL, niet op de kaartrand: het hoort bij de kop,
+   niet bij de cijfers eronder. 30px icoon + 10px gat. */
+.sc-sub{margin:3px 0 0;padding:0 var(--sc-pad) 14px calc(var(--sc-pad) + 40px);color:var(--faint);font-size:.8rem}
 
 .sc-body{display:flex;flex-direction:column}
-.sc-row{border-bottom:1px solid var(--line)}
-.sc-row:last-child{border-bottom:0}
-.sc-top{display:flex;align-items:center;gap:10px;padding:11px 15px;width:100%;background:none;border:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.sc-row{border-top:1px solid var(--line)}
+.sc-row.bank{background:var(--panel-2)}
+
+.sc-top{display:block;width:100%;padding:13px var(--sc-pad);background:none;border:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
 .sc-top:hover{background:var(--panel-2)}
+.sc-row.bank .sc-top:hover{background:var(--line)}
 .sc-top[disabled]{cursor:default}
 .sc-top[disabled]:hover{background:none}
-.sc-name{font-weight:800;font-family:var(--hd);font-size:.94rem;flex:0 0 auto}
-.sc-tag{font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;flex:0 0 auto}
-/* Tokens, niet drie lichte letterlijke kleuren: dit label zat vanmorgen
-   zelf in de lijst van vlakken die in donkere modus licht bleven. */
-.sc-tag.demo{background:var(--warn-soft);color:var(--warn);border:1px solid var(--line-2)}
-.sc-tag.off{background:var(--panel-2);color:var(--faint);border:1px solid var(--line)}
-.sc-tag.bad{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line-2)}
-.sc-figs{margin-left:auto;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;justify-content:flex-end}
-.sc-fig{font-variant-numeric:tabular-nums;font-weight:800;font-size:.95rem;white-space:nowrap}
-.sc-fig .cur{font-size:.72rem;font-weight:700;color:var(--faint);margin-right:5px}
-.sc-none{color:var(--faint);font-size:.85rem;font-weight:600}
+.sc-row.bank .sc-top[disabled]:hover{background:none}
+
+.sc-l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sc-name{font-weight:800;font-family:var(--hd);font-size:.95rem}
+.sc-bank{font-family:var(--bd);font-weight:700;font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.sc-when{margin-left:auto;color:var(--faint);font-size:.68rem;white-space:nowrap}
 .sc-chev{width:15px;height:15px;color:var(--faint);flex:0 0 auto;transition:transform .15s}
 .sc-row.open .sc-chev{transform:rotate(180deg)}
 
-.sc-det{padding:0 15px 12px;display:flex;flex-direction:column;gap:9px}
-.sc-part{display:flex;align-items:baseline;gap:10px;font-size:.85rem}
+/* De cijfers: een rij die netjes afbreekt, elk bedrag een blok zodat
+   code en getal nooit los van elkaar wikkelen. */
+.sc-figs{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:7px}
+.sc-fig{display:inline-flex;align-items:baseline;gap:6px;font-variant-numeric:tabular-nums;font-weight:800;font-size:1.02rem;white-space:nowrap}
+.sc-fig .cur{font-size:.68rem;font-weight:700;color:var(--faint);letter-spacing:.03em}
+.sc-none{color:var(--faint);font-size:.84rem;font-weight:600;margin-top:6px;display:block}
+
+.sc-tag{font-size:.64rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:2px 7px;flex:0 0 auto}
+.sc-tag.demo{background:var(--warn-soft);color:var(--warn);border:1px solid var(--line-2)}
+.sc-tag.off{background:var(--panel-2);color:var(--faint);border:1px solid var(--line)}
+.sc-tag.bad{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line-2)}
+
+.sc-det{padding:0 var(--sc-pad) 14px;display:flex;flex-direction:column;gap:9px}
+.sc-part{display:flex;align-items:baseline;gap:10px;font-size:.84rem}
 .sc-part .lbl{color:var(--txt-2)}
 .sc-part .amt{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700}
-.sc-sublist{border-top:1px dashed var(--line);padding-top:8px}
-.sc-cap{font-size:.74rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
-.sc-note{font-size:.82rem;color:var(--txt-2);background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:flex-start}
+.sc-sublist{border-top:1px dashed var(--line);padding-top:9px}
+.sc-cap{font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
+.sc-note{font-size:.8rem;color:var(--txt-2);background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:flex-start}
 .sc-note svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
 .sc-note.warn{background:var(--warn-soft);border-color:var(--line-2);color:var(--warn)}
 .sc-note.bad{background:var(--danger-soft);border-color:var(--line-2);color:var(--danger)}
+.sc-skel{height:13px;border-radius:6px;background:var(--panel-2);width:110px;display:inline-block}
 
-.sc-foot{display:flex;align-items:center;gap:12px;padding:11px 15px;background:var(--panel-2);border-top:1px solid var(--line);flex-wrap:wrap}
-.sc-foot .lbl{font-weight:800;font-family:var(--hd);font-size:.9rem}
-.sc-foot .hint{color:var(--faint);font-size:.78rem}
-.sc-skel{height:13px;border-radius:6px;background:var(--panel-2);width:84px;display:inline-block}
-
-@media(max-width:560px){
-  .sc-top{flex-wrap:wrap;row-gap:7px}
-  .sc-figs{margin-left:0;width:100%;justify-content:flex-start;gap:16px}
-  .sc-chev{margin-left:auto}
+@media(max-width:420px){
+  .sc{--sc-pad:13px}
+  .sc-sub{padding-left:var(--sc-pad)}
+  .sc-figs{gap:5px 16px}
+  .sc-fig{font-size:.97rem}
 }
 `;
 
@@ -150,6 +163,8 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
       l.parts[0].label.trim().toUpperCase() !== l.currency);
   const hasDetail =
     !!s.error || s.lines.some((l) => informative(l) || l.heldBack !== null);
+  // Nul verbergen zolang er iets anders staat -- zie visibleLines.
+  const shown = visibleLines(s.lines);
 
   return (
     <div className={`sc-row${open ? " open" : ""}${s.kind === "bank" ? " bank" : ""}`}>
@@ -160,34 +175,43 @@ function SupplierRow({ s }: { s: SupplierHolding }) {
         aria-expanded={hasDetail ? open : undefined}
         onClick={() => hasDetail && setOpen((v) => !v)}
       >
-        <span className="sc-name">{s.supplier}</span>
-        <StatusTag status={s.status} />
-        <span className="sc-figs">
-          {s.lines.length ? (
-            s.lines.map((l) => (
-              <span key={l.currency}>{money(l.total, l.currency)}</span>
-            ))
-          ) : (
-            <span className="sc-none">
-              {/* Three different sentences, deliberately. "—" for all of
-                  them would put a supplier that is down and a supplier
-                  that holds nothing in the same visual place. */}
-              {s.status === "off"
-                ? "No credentials set"
-                : s.status === "error"
-                  ? "Could not read"
-                  : "Nothing reported"}
-            </span>
-          )}
+        {/* REGEL EEN: wie, in welke staat, en hoe vers. De synctijd
+            staat rechts OP deze regel in plaats van op een eigen
+            regel eronder -- dat scheelt een regel per leverancier en
+            zet hem waar je hem pas zoekt als je je afvraagt of dit
+            van nu is. */}
+        <span className="sc-l1">
+          <span className="sc-name">{s.supplier}</span>
+          {s.kind === "bank" ? (
+            <span className="sc-bank">our bank</span>
+          ) : null}
+          <StatusTag status={s.status} />
+          {s.readAt ? (
+            <span className="sc-when">{whenShort(s.readAt)}</span>
+          ) : null}
+          {hasDetail ? <ChevronDown className="sc-chev" /> : null}
         </span>
-        {hasDetail ? <ChevronDown className="sc-chev" /> : null}
+
+        {/* REGEL TWEE: de bedragen, en niets anders. */}
+        {shown.length ? (
+          <span className="sc-figs">
+            {shown.map((l) => (
+              <span key={l.currency}>{money(l.total, l.currency)}</span>
+            ))}
+          </span>
+        ) : (
+          <span className="sc-none">
+            {/* Three different sentences, deliberately. "—" for all of
+                them would put a supplier that is down and a supplier
+                that holds nothing in the same visual place. */}
+            {s.status === "off"
+              ? "No credentials set"
+              : s.status === "error"
+                ? "Could not read"
+                : "Nothing reported"}
+          </span>
+        )}
       </button>
-      {/* Wanneer DEZE leverancier antwoordde. Klein en grijs: het is
-          geen cijfer waar je naar zoekt, het is het antwoord op "is
-          dit van nu?" als je het je afvraagt. Per rij en niet een
-          keer boven het paneel, want de drie worden los opgehaald en
-          een ervan kan stil oud zijn. */}
-      {s.readAt ? <div className="sc-when">{whenShort(s.readAt)}</div> : null}
 
       {open ? (
         <div className="sc-det">
@@ -296,7 +320,6 @@ export default function SupplierCredit() {
   });
 
   const suppliers = q.data?.suppliers ?? [];
-  const total = q.data?.total ?? [];
 
   return (
     <div className="sc">
@@ -354,31 +377,21 @@ export default function SupplierCredit() {
         )}
       </div>
 
-      {!q.isPending && !q.isError ? (
-        <div className="sc-foot">
-          <span className="lbl">
-            {/* "Total" is a promise. It is only made when every supplier
-                actually answered; otherwise the same figure is labelled
-                for what it is, which is a floor. */}
-            {q.data?.totalComplete ? "Total" : "At least"}
-          </span>
-          <span className="sc-figs" style={{ marginLeft: "auto" }}>
-            {total.length ? (
-              total.map((t) => (
-                <span key={t.currency}>{money(t.total, t.currency)}</span>
-              ))
-            ) : (
-              <span className="sc-none">Nothing readable</span>
-            )}
-          </span>
-          {!q.data?.totalComplete ? (
-            <span className="hint" style={{ flexBasis: "100%" }}>
-              One supplier did not give a real figure, so this is what we can
-              see — not everything we hold.
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      {/* ── GEEN TOTAALREGEL MEER ──────────────────────────────────
+          De eigenaar, 29-09: "at least mag weg." Terecht. Hij stond er
+          omdat ik een totaal niet wilde beloven als een leverancier
+          niet had geantwoord, dus heette hij dan "At least" met drie
+          regels uitleg eronder.
+
+          Maar het totaal beantwoordde geen vraag die iemand heeft. Je
+          kunt niet EEN bedrag uitgeven over twee leveranciers heen --
+          krediet bij RockAds koopt niets bij SeamX. Wat je wilt weten
+          staat per rij, en dat stond er al. Een som die je niet kunt
+          besteden, met een voorbehoud eronder, is twee keer ruis.
+
+          De staat per leverancier blijft: "test data", "unreadable",
+          "not connected". Daar zit alles in wat het voorbehoud zei, en
+          het staat naast het cijfer waar het over gaat. */}
     </div>
   );
 }

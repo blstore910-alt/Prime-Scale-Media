@@ -5,6 +5,7 @@ import {
   rockadsHoldings,
   seamxHoldings,
   totalHoldings,
+  visibleLines,
   type SupplierHolding,
 } from "../../lib/pure-supplier-holdings.ts";
 
@@ -215,5 +216,36 @@ test("only ok and off make a complete total", () => {
   assert.deepEqual(
     states.map(completeFor),
     [true, true, false, false],
+  );
+});
+
+// ── NUL VERBERGEN, MAAR NOOIT ALLES ────────────────────────────────
+
+test("a zero line is hidden when there is a real one beside it", () => {
+  const out = visibleLines([
+    line("EUR", 10_293.19),
+    line("USD", 4_857.15),
+    line("GBP", 0),
+    line("HKD", 0),
+  ]);
+  assert.deepEqual(out.map((l) => l.currency), ["EUR", "USD"]);
+});
+
+test("all zero keeps all zero — nothing is not the same as nothing read", () => {
+  const out = visibleLines([line("EUR", 0), line("USD", 0)]);
+  assert.equal(out.length, 2);
+});
+
+test("a cent still counts as money", () => {
+  assert.deepEqual(
+    visibleLines([line("EUR", 0.01), line("USD", 0)]).map((l) => l.currency),
+    ["EUR"],
+  );
+});
+
+test("a negative balance is not hidden", () => {
+  assert.deepEqual(
+    visibleLines([line("EUR", -40), line("USD", 0)]).map((l) => l.currency),
+    ["EUR"],
   );
 });

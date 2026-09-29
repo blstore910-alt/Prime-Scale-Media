@@ -240,3 +240,21 @@ export function totalHoldings(
     .sort(sortLines);
   return { lines, complete };
 }
+
+/**
+ * De regels die het tonen waard zijn.
+ *
+ * De eigenaar, 29-09: "alles wat 0 is mag je hiden." Wise geeft elke
+ * rekening terug die bestaat, dus GBP 0,00 en HKD 0,00 stonden naast
+ * de bedragen die er wel toe doen -- op een paneel dat de vraag "wat
+ * kunnen we vandaag uitgeven" beantwoordt.
+ *
+ * MAAR NOOIT ALLES WEG. Staat alles op nul, dan IS nul het antwoord en
+ * hoort het er te staan: een leverancier zonder saldo en een
+ * leverancier die niet antwoordde moeten verschillend lezen, en een
+ * lege lijst zou die twee op een hoop gooien.
+ */
+export function visibleLines(lines: HoldingLine[]): HoldingLine[] {
+  const real = lines.filter((l) => Math.abs(l.total) > 0.004);
+  return real.length ? real : lines;
+}
