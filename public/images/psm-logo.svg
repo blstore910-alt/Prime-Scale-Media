@@ -1,4 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Donker vlak, witte raket. De eigenaar, 30-09: "nee, geen
+       inverse, donkere achtergrond moet die."
+
+       Dit bestand is de ENIGE bron van het merkteken: elke PNG in
+       public/ wordt eruit gerenderd (favicon, startscherm, PWA,
+       pushmelding, zijbalk en de factuur-PDF). Verander je hem hier,
+       dan moeten die vijf opnieuw, anders lopen ze uit elkaar, en
+       dat is precies hoe de oude clipart-raket maanden op de facturen
+       is blijven staan terwijl de app al iets anders liet zien. -->
   <rect width="48" height="48" rx="11" fill="#0b0f24"/>
   <g transform="translate(12 12)" fill="none" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>

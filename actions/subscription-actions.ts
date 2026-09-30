@@ -178,11 +178,49 @@ export async function createSubscriptionAsAdmin(
   // which is exactly why an invited customer has a plan and a
   // referred one does not. So: the same shape, in plak 116, and the
   // result is CHECKED rather than assumed.
+  // ── ELK ABONNEMENT KRIJGT EEN PLAN ───────────────────────────────
+  //
+  // De eigenaar, 30-09: "iedereen die we abbo geven, ook al is
+  // handmatig, moet wel een naam krijgen toch? Anders klopt er niks
+  // van."
+  //
+  // Hij heeft gelijk, en het is niet cosmetisch. Zonder planrij weet de
+  // app niet hoeveel ad-accounts inbegrepen zijn en welke opwaardeerfee
+  // geldt. Gemeten op PSM0020 -- een abonnement van EUR 75 zonder plan:
+  // hij betaalde EUR 50 voor een ad-accountaanvraag die een plan
+  // waarschijnlijk had inbegrepen, en zijn fee kwam ergens anders
+  // vandaan. Zijn kaart zei terecht "No plan set" naast "Active".
+  //
+  // WAAROM OP HET BEDRAG EN NIET OP EEN VASTE STANDAARD. "Zet er dan
+  // gewoon Prime op" zou op PSM0020 EUR 200 beweren boven een
+  // abonnement van EUR 75 -- precies het "dan klopt er niks van" dat
+  // hij wil vermijden. De plannen van deze tenant hebben allemaal een
+  // eigen prijs (NSA 0, Flex 75, Launch 150, Prime 200), dus het
+  // bedrag WIJST het plan aan. EUR 75 is Flex, en dat is ook echt wat
+  // die klant heeft.
+  //
+  // Alleen bij een EXACTE treffer op bedrag en valuta, en alleen als er
+  // precies EEN plan op past. Twee plannen van hetzelfde bedrag is een
+  // keuze die een mens moet maken, en dan blijft het veld leeg met de
+  // waarschuwing hieronder -- raden is hier erger dan niets doen.
+  let planId = input.plan_id ?? null;
+  if (!planId) {
+    const { data: passend } = await supabase
+      .from("plans")
+      .select("id, name")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("currency", input.currency)
+      .eq("monthly_fee", input.amount)
+      .eq("is_active", true)
+      .limit(2);
+    if ((passend ?? []).length === 1) planId = String(passend![0].id);
+  }
+
   let warning: string | undefined;
-  if (input.plan_id) {
+  if (planId) {
     const { data: planned, error: planErr } = await supabase.rpc(
       "advertiser_plan_set",
-      { p_advertiser_id: input.advertiser_id, p_plan_id: input.plan_id },
+      { p_advertiser_id: input.advertiser_id, p_plan_id: planId },
     );
     if (planErr) {
       // 42883: plak 116 is not pasted yet. Say that rather than
@@ -210,7 +248,9 @@ export async function createSubscriptionAsAdmin(
   // Exactly what create_subscription_from_invite does, in the same
   // order.
   if (amount <= 0) {
-    if (!input.plan_id) {
+    // planId en niet input.plan_id: een gratis plan matcht op bedrag 0,
+    // en dan is er wel degelijk een plan gevonden.
+    if (!planId) {
       return {
         ok: false,
         error:

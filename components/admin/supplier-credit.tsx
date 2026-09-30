@@ -260,7 +260,19 @@ function fmt(amount: number, currency: string): string {
    Deze twee staan hier los zodat de skeletontabel dezelfde vorm heeft
    als de echte. Zou de skelet zijn kolommen uit `q.data` halen, dan had
    hij er nul, en dan sprong het paneel alsnog in de breedte. */
-const SUPPLIER_ORDER = ["RockAds", "SeamX", "Wise", "Slash"];
+/* Slash staat hier NIET in. De eigenaar, 30-09: "slash moet ook niet
+   laden in begin, gewoon direct hide."
+
+   Hij werd al verborgen zodra zijn lees mislukte, maar in de
+   skeletonfase weet je dat nog niet en stond hij er dus eerst wél --
+   een rij die een seconde later verdwijnt, en dan verspringt het
+   paneel precies zoals deze skeleton moest voorkomen. We WETEN vandaag
+   dat die lees niet gaat lukken: hun v2-API eist een sleutelsoort die
+   ze niet uitgeven. Dus hij begint er niet aan.
+
+   Komt die sleutel er ooit, dan hoort hij hier weer bij -- en dan zegt
+   de rij eronder vanzelf wat hij houdt. */
+const SUPPLIER_ORDER = ["RockAds", "SeamX", "Wise"];
 const CURRENCIES_WHILE_LOADING = ["EUR", "USD"];
 
 /** "synced just now" / "synced at 14:52" / "synced 28 Sep 14:52" --
@@ -629,14 +641,10 @@ export default function SupplierCredit() {
            niet weten -- het bedrag -- is een grijs vlakje. De hoogte
            klopt daarmee vanzelf, want het is dezelfde tabel. */
         <table className="sc-grid" aria-busy="true">
-          <thead>
-            <tr>
-              <th />
-              {CURRENCIES_WHILE_LOADING.map((c) => (
-                <th key={c}>{c}</th>
-              ))}
-            </tr>
-          </thead>
+          {/* Geen valutakop, net als in de echte tabel eronder -- anders
+              verspringt het paneel alsnog op het moment dat de cijfers
+              landen, en dat was juist de reden dat deze skeleton er
+              kwam. */}
           <tbody>
             {SUPPLIER_ORDER.map((naam) => (
               <tr key={naam}>
