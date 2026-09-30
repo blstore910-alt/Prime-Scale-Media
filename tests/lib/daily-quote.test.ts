@@ -148,7 +148,7 @@ it("geen seed is geen spreuk, ook voor een klant", () => {
 it("niets dat meer eist of het werk wegwuift", () => {
   // De twee valkuilen uit de kop van het bestand, als regel.
   const verboden =
-    /(crush|hustle|grind|scale up|think bigger|opportunity|no excuses|10x)/i;
+    /\b(crush|hustle|grind|scale up|think bigger|opportunity|no excuses|10x)\b/i;
   for (const q of [...ADVERTISER_QUOTES, ...AFFILIATE_QUOTES, ...BOTH_QUOTES]) {
     assert.ok(!verboden.test(q), `te veeleisend of te luchtig: ${q}`);
   }
@@ -157,7 +157,7 @@ it("niets dat meer eist of het werk wegwuift", () => {
 it("en niets over onszelf -- dit is hun dashboard, geen nieuwsbrief", () => {
   for (const q of [...ADVERTISER_QUOTES, ...AFFILIATE_QUOTES, ...BOTH_QUOTES]) {
     assert.ok(
-      !/(we|our|us|Prime Scale)/i.test(q) || /you/i.test(q),
+      !/\b(we|our|us|Prime Scale)\b/i.test(q) || /you/i.test(q),
       `gaat over ons in plaats van over hen: ${q}`,
     );
   }
