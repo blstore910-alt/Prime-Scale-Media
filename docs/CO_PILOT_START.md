@@ -69,10 +69,24 @@ Tussen stap 1 en 2 hoort één ding te gebeuren dat verder niets kost:
 Voor de eerste klant erin gaat, moet dit besloten zijn — het staat nu
 nog open:
 
-- **`SUPPLIER1_MODE`.** Het vullen van een ad-account gaat op productie
-  nu naar de mock. Dat is een bewuste stand, maar met echte klanten
-  erin is het een echte bestelling die nergens aankomt. Dit is de
-  enige openstaande vraag die een klant direct raakt.
+- **`SUPPLIER1_MODE` — en dit stond hier eerst verkeerd.** Ik schreef
+  dat het vullen van een ad-account "naar de mock gaat" en dus een
+  bestelling zou zijn die nergens aankomt. **Dat klopt niet.** Nagemeten
+  op de code en op de data:
+
+  `autoPushGate` eist TWEE vlaggen, `SUPPLIER1_MODE=live` én
+  `SUPPLIER1_AUTOPUSH` aan. Ontbreekt er een, dan wordt er **geen
+  taakregel geschreven** -- niet eens een die later alsnog zou
+  afgaan -- en de reden staat er letterlijk bij: *"pushes stay manual
+  (admin funds the account in the supplier portal)"*. Op de database
+  staan **nul** rijen in `integration_jobs`, ooit. De mock wordt dus
+  niet bereikt en SeamX ook niet.
+
+  Met andere woorden: het vullen van een ad-account is vandaag
+  handwerk, net als elke andere geldstap in deze app. Dat is geen
+  openstaand risico maar de bestaande werkwijze. Het aanzetten van de
+  automatische push is een aparte beslissing, en die hoeft niet voor
+  de eerste klanten.
 - **De Slash-koppeling** staat op "unreadable" tot de user-sleutel er
   is. Dat raakt alleen het overzicht "What we hold", niet een klant.
 - **Wise-automatch** blijft uit. De referenties van het oude systeem

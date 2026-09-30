@@ -88,7 +88,7 @@ het saldo beweegt niet.
 | **inloggen** | paneel én Chrome staan uit | allebei op `/auth/login` sinds ~15:00 |
 | **T3-F in het paneel** | `t3f-3009@robustq.com` | reis 7 heeft een eigen sessie nodig |
 | **T3-R aanmelden** | via `…/auth/sign-up?t=prime-scale-media&ref=PSM0017` | dat maakt de referral die reis 7 afmaakt |
-| **`SUPPLIER1_MODE`** | staat nog op de mock | een ad-account vullen bereikt op productie niets — dit is de enige openstaande vraag die een echte klant direct raakt |
+| ~~**`SUPPLIER1_MODE`**~~ | *vervallen* | Ik had dit fout: de poort eist twee vlaggen en schrijft zonder die **geen taak** — nul rijen in `integration_jobs`, ooit. Een ad-account vullen is handwerk in de leveranciersportal, net als elke andere geldstap. Geen openstaand risico. |
 
 ## 5. Hoe reis 7 daarna dichtgaat
 
