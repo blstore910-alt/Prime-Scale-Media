@@ -3737,6 +3737,23 @@ export default function AdvertiserApp() {
             >
               Details
             </button>
+            {/* ---- EN DE REDEN ERONDER, NIET IN EEN title ----------
+                De knop hierboven staat terecht uit, maar de zin die
+                zegt waarom stond in `title`. Een browser toont een
+                tooltip niet op een DISABLED element, en op een telefoon
+                bestaat hover helemaal niet -- dus op het toestel waar
+                dit scherm voor gemaakt is was die zin onzichtbaar. De
+                kaart zei alleen "Currency: Not set yet", wat het
+                waarom is en niet het wat-nu.
+
+                Dezelfde vorm als de wallet-knoppen verderop, die dit
+                al goed doen (`disabledReason` onder de knop). */}
+            {!a.currency ? (
+              <p className="reqback" style={{ marginTop: 8, flexBasis: "100%" }}>
+                We still have to set this account&apos;s currency, so it
+                cannot be funded yet. Message us and we will do it.
+              </p>
+            ) : null}
           </div>
         )}
       </div>

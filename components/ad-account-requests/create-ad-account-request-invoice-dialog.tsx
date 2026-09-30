@@ -117,7 +117,16 @@ export default function CreateAdAccountRequestInvoiceDialog({
     isPending: ratePending,
   } = useQuery({
     queryKey: ["request-fee-rate", tenantId],
-    enabled: open,
+    // ── EN PAS ALS WE WETEN WELKE TENANT ──────────────────────────
+    //
+    // Stond op `open` alleen, terwijl de filter hieronder
+    // `.eq("tenant_id", tenantId ?? "")` doet. Met een tenantId die nog
+    // niet binnen is vraagt hij de rij op van tenant "", krijgt netjes
+    // niets terug (maybeSingle geeft data null ZONDER error), en dan is
+    // `rateUnreadable` false -- dus de waarschuwing hieronder bleef weg
+    // en de admin zag een zelfverzekerde 58 op een dialoog waarvan de
+    // ene knop een betaalbare factuur maakt.
+    enabled: open && !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -270,7 +279,10 @@ export default function CreateAdAccountRequestInvoiceDialog({
                 ends up a dollar over what the customer was quoted. The
                 figure still fills in -- refusing to show one would be
                 worse -- but it says it is not the live rate. */}
-            {rateUnreadable ? (
+            {/* Ook als de lees GELUKTE maar leeg terugkwam. maybeSingle
+                geeft dan data null zonder error, en dat is geen koers
+                van 0,86 -- het is geen koers. Dezelfde hedge dus. */}
+            {rateUnreadable || (!ratePending && !feeRate) ? (
               <p className="text-xs text-muted-foreground">
                 We couldn&apos;t read today&apos;s exchange rate, so this
                 figure is worked out from a fallback. Check it against what

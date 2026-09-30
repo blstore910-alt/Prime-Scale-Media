@@ -102,6 +102,31 @@ export default function VerifyTopupDialog({
           </div>
         )}
 
+        {/* ── DE VIERDE TOESTAND, DIE HIER GEEN TAK HAD ───────────
+            Laden, fout, inhoud -- en niets voor "de lees kwam leeg
+            terug". Dat is geen randgeval: `.single()` op een id dat er
+            niet (meer) is, een rij die RLS niet teruggeeft, of een
+            query die uitstond. Zonder deze tak stond er een kop, een
+            ondertitel en een leeg vak, en dat is niet te
+            onderscheiden van een kapot scherm -- op de dialoog die
+            geld naar een ad-account vrijgeeft.
+
+            Dezelfde tak die ad-account-request-details-sheet.tsx al
+            heeft; die noemt in zijn eigen commentaar "de review-dialoog
+            ernaast" als voorbeeld. Dit is die dialoog. */}
+        {!isLoading && !isError && !topup && (
+          <div className="p-4 space-y-1">
+            <p className="text-sm font-semibold">
+              We couldn&apos;t read this top-up.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              It may have been removed, or the connection dropped. This is
+              NOT an empty top-up &mdash; close this and reload before you
+              verify anything.
+            </p>
+          </div>
+        )}
+
         {topup && (
           <VerifyTopupInvoice
             topup={topup as ExtendedTopup}

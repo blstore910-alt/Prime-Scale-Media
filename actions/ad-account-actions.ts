@@ -609,7 +609,15 @@ export async function rejectAdAccountRequest(
   reason: string,
   ifUpdatedAt?: string,
 ): Promise<
-  ActionResult<{ refunded: number; currency: string; perkRestored: boolean }>
+  ActionResult<{
+    refunded: number;
+    currency: string;
+    perkRestored: boolean;
+    // Gezet wanneer we NIET hebben kunnen kijken of er nog een
+    // openstaande fee-factuur was. `refunded: 0` betekent dan niet
+    // "er hoefde niets terug" maar "we weten het niet".
+    refundCheckFailed?: string | null;
+  }>
 > {
   if (typeof requestId !== "string" || requestId.length === 0) {
     return { ok: false, error: "Invalid input" };
@@ -737,14 +745,36 @@ export async function rejectAdAccountRequest(
   // correction uses: it lands on the customer's statement with a
   // reason, and it notifies them.
   const returnedByHand: { amount: number; currency: string }[] = [];
+  // ── EEN MISLUKTE LEES IS GEEN "NIETS TERUG TE GEVEN" ─────────────
+  //
+  // Dit blok stond in een try/catch en de lees hieronder gooide zijn
+  // `error` weg. Kwam die lees niet aan, dan bleef `openFees` null, de
+  // lus liep nooit, `returnedByHand` bleef leeg en `totalBack` werd 0 --
+  // want op de gefactureerde route staat `rpcBack` op 0, die fee is
+  // immers nooit van de wallet gegaan.
+  //
+  // De beheerder las dan "No fee was charged for this one, so there is
+  // nothing to refund", de klant kreeg een bericht met bedrag 0, en de
+  // factuur van EUR 50 bleef openstaan met een werkende Pay now. En het
+  // is daarna niet meer te herstellen: ad_account_request_reject_refund
+  // weigert een rij die al afgewezen is.
+  //
+  // Dus wordt de fout nu vastgehouden en meegegeven. De weigering zelf
+  // blijft staan -- dat is het punt van de try -- maar we beweren niet
+  // langer dat er niets terug hoefde.
+  let refundReadFailed: string | null = null;
   try {
-    const { data: openFees } = await supabase
+    const { data: openFees, error: feesError } = await supabase
       .from("invoices")
       .select("id, items, status, total, currency")
       .eq("advertiser_id", (req as { advertiser_id?: string | null }).advertiser_id)
       .eq("type", "ad_account_fee")
       .in("status", ["unpaid", "paid"])
       .limit(500);
+    if (feesError) {
+      refundReadFailed = safeErrorMessage(feesError);
+      throw feesError;
+    }
     for (const inv of openFees ?? []) {
       const items = (inv as { items?: unknown }).items;
       const mine =
@@ -792,10 +822,17 @@ export async function rejectAdAccountRequest(
       const done = await approveWalletAdjustment(String(made.data.id));
       if (done.ok) returnedByHand.push({ amount, currency });
     }
-  } catch {
+  } catch (e) {
     // Best effort, and deliberately after the refusal has landed: a
     // failure here must not undo the rejection. The admin still sees
     // the invoice on /invoices if it survives.
+    //
+    // Maar stil is het niet meer: wat hier misging gaat mee naar boven,
+    // zodat het scherm niet "er viel niets terug te geven" zegt terwijl
+    // het in werkelijkheid niet heeft kunnen kijken.
+    if (!refundReadFailed) {
+      refundReadFailed = e instanceof Error ? e.message : "unknown";
+    }
   }
 
   // ── EUR 50 GOING BACK IS NEWS ─────────────────────────────────────
@@ -845,6 +882,7 @@ export async function rejectAdAccountRequest(
       refunded: totalBack,
       currency: backCur,
       perkRestored: !!paid?.perk_restored,
+      refundCheckFailed: refundReadFailed,
     },
   };
 }

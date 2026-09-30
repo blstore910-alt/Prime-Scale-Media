@@ -322,6 +322,19 @@ export default function PsmRequests() {
       // is getting it back; an admin who does not know that will field the
       // "where is my fee" email without an answer.
       const back = result.data?.refunded ?? 0;
+      // ── EN ALS WE NIET HEBBEN KUNNEN KIJKEN, ZEG DAT ──────────────
+      //
+      // "No fee was charged for this one" is een bewering, en die mag
+      // alleen als we de facturen echt gelezen hebben. Kwam die lees
+      // niet aan, dan is 0 geen nul maar een onbekende -- en de
+      // weigering is al geland, dus door de app is het daarna niet meer
+      // recht te zetten (het RPC weigert een al afgewezen rij).
+      if (result.data?.refundCheckFailed) {
+        toast.warning("Request rejected — but check the fee by hand", {
+          description:
+            "We could not read this customer's fee invoices, so we do not know whether anything still has to go back. Look at /invoices for an open ad-account fee on them.",
+        });
+      } else {
       toast.success("Ad account request rejected.", {
         description:
           back > 0
@@ -336,6 +349,7 @@ export default function PsmRequests() {
               ? "Their free-request credit was given back."
               : "No fee was charged for this one, so there is nothing to refund.",
       });
+      }
       // ---- CLOSE FIRST, REFRESH AFTER -------------------------------
       //
       // This awaited `invalidateQueries` BEFORE closing, and

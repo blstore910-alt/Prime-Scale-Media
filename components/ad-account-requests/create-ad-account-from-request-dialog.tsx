@@ -34,7 +34,22 @@ const META_PLATFORM_OPTIONS = PLATFORMS.filter((platform) =>
 
 const schema = z.object({
   name: z.string().min(1, "Account name is required"),
-  fee: z.coerce.number().min(0).max(100),
+  // ── EEN LEEG VAKJE IS GEEN NUL ────────────────────────────────────
+  //
+  // `z.coerce.number()` maakt van "" een 0, want dat doet Number("")
+  // ook. Daarmee zou het lege veld dat de reset hierboven achterlaat
+  // -- bedoeld als "wij weten dit tarief niet" -- alsnog als 0% worden
+  // opgeslagen, en dat is precies de prijs die nooit bedoeld was:
+  // 0% op elke toekomstige top-up van dat account, voor altijd.
+  //
+  // Dus eerst weigeren op leeg, en pas daarna coerceren.
+  fee: z
+    .union([z.string(), z.number()])
+    .refine((v) => String(v).trim() !== "", {
+      message: "Set the fee — an empty box is not 0%",
+    })
+    .transform((v) => Number(v))
+    .pipe(z.number().min(0).max(100)),
   platform: z.string().min(1, "Platform is required"),
   // Which of the advertiser's business managers this account is for.
   // Optional here because only Meta has one at all; the Meta branch of
@@ -146,7 +161,15 @@ export default function CreateAdAccountFromRequestDialog({
   // agreed with that customer. All five ad accounts on the live tenant
   // came out at 3.00 this way, one of them for a customer on 5%.
   const advertiserId = request?.advertiser_id ?? null;
-  const { data: planPct } = useQuery({
+  // isPending en isError worden hieronder gebruikt: zonder die twee
+  // dekt `planPct === undefined` zowel "nog onderweg" als "de lees
+  // mislukte", en dan wint het type-tarief stilletjes -- precies de
+  // fout die de comment hierboven beschrijft.
+  const {
+    data: planPct,
+    isPending: planPending,
+    isError: planUnreadable,
+  } = useQuery({
     queryKey: ["advertiser-plan-fee", advertiserId],
     enabled: !!advertiserId && open,
     staleTime: 60_000,
@@ -184,6 +207,17 @@ export default function CreateAdAccountFromRequestDialog({
     // One reset, once the types are known. Resetting with the seed and
     // then again with the truth throws away what was typed in between.
     if (typesLoading) return;
+    // ── EN WACHT OOK OP HET PLANTARIEF ────────────────────────────
+    //
+    // Deze gate keek alleen naar de TYPES. Het plantarief komt uit een
+    // tweede query, en zolang die onderweg is, is planPct undefined --
+    // niet te onderscheiden van "die klant heeft geen eigen tarief".
+    // Dan wint het type-default, en dat is exact de fout waarvoor deze
+    // query is toegevoegd (vijf accounts op 3,00, waarvan een voor een
+    // klant op 5%). `enabled` staat op `!!advertiserId && open`, en een
+    // uitgeschakelde query blijft in v5 voor altijd isPending -- vandaar
+    // de eerste voorwaarde.
+    if (advertiserId && open && planPending) return;
     const slug = mapRequestedPlatform(request?.platform || null);
     const t = slug ? bySlugRef.current.get(slug) : undefined;
     if (slug && !t) {
@@ -199,9 +233,32 @@ export default function CreateAdAccountFromRequestDialog({
       planPct,
       typePct: t?.default_fee_pct,
     });
+    if (planUnreadable) {
+      // Een tarief dat we niet KONDEN lezen is geen nul. Zeggen dat we
+      // het niet weten is het enige eerlijke; de sibling-effect
+      // hieronder doet dit al zo.
+      toast.error("We couldn't read this customer's own rate", {
+        description:
+          "Set the fee by hand before saving — 0% is not a default, and it is for ever.",
+      });
+    }
     form.reset({
       name: "",
-      fee: suggested.pct ?? 0,
+      // ── NOOIT 0 ALS WE HET NIET WETEN ──────────────────────────
+      //
+      // `?? 0` maakte van "geen tarief kunnen bepalen" een tarief van
+      // nul procent, en dat is geen leeg veld maar een prijs: PSM
+      // verdient dan 0% op elke toekomstige top-up op dat account,
+      // voor altijd, zonder dat iemand het ziet.
+      //
+      // lib/pure-fee-suggestion.ts verbiedt dit met zoveel woorden
+      // ("nothing is NOT zero ... a form that quietly writes 0 sells
+      // at cost for ever"), en het effect twintig regels lager houdt
+      // zich er al aan. Deze reset was de laatste die het nog deed.
+      //
+      // Leeg laten: het veld is verplicht en getalvormig, dus de admin
+      // moet er zelf iets in zetten voordat hij kan opslaan.
+      fee: suggested.pct ?? ("" as unknown as number),
       platform: slug,
       // The first one they named, pre-chosen. One BM is the common case
       // and it should need no click; the picker below only appears when
@@ -209,7 +266,8 @@ export default function CreateAdAccountFromRequestDialog({
       bm_id: bmIds[0] ?? "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, request?.id, request?.platform, form, typesLoading, planPct, bmKey]);
+  }, [open, request?.id, request?.platform, form, typesLoading, planPct,
+      planPending, planUnreadable, advertiserId, bmKey]);
 
   // Changing the platform re-offers a rate — but through the same rule,
   // so a customer's plan rate survives the change instead of being

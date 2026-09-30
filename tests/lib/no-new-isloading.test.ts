@@ -63,7 +63,6 @@ const NOT_YET_READ = new Set<string>([
   "components/subscriptions/use-subscriptions.ts",
   "components/topups/account-topup-form.tsx",
   "components/topups/topup-details-sheet.tsx",
-  "components/topups/use-get-topup.ts",
   "components/wallet-transactions/money-in-tabs.tsx",
   "components/wallet-transactions/wallet-transaction-details-sheet.tsx",
   "components/wallet/wallet-exchanges-table.tsx",
