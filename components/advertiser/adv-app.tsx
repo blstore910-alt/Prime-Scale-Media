@@ -3054,6 +3054,35 @@ export default function AdvertiserApp() {
   // and shows Active on the same page read an explanation they could see
   // was untrue. The usual real cause is the billing address, which lives
   // on a different form.
+  // ── EN DE KNOP DIE ERBIJ HOORT ───────────────────────────────────
+  //
+  // `requestBlockedReason()` noemt drie oorzaken, en maar twee daarvan
+  // kan de klant zelf wegnemen. Toch stond de zin op de Accounts-kop en
+  // op het tabblad Requests als KALE TEKST, terwijl de lege staat tien
+  // schermregels lager wel een knop tekent. De klant die er nog geen
+  // ad-account heeft krijgt dus de weg gewezen, en de klant die er een
+  // tweede wil -- precies reis 3 -- krijgt alleen de mededeling.
+  //
+  // Dit zegt per oorzaak welke knop erbij hoort, of null wanneer het
+  // antwoord "wacht op ons" is. Dan is een knop juist verkeerd.
+  const requestBlockedAction = (): { label: string; go: () => void } | null => {
+    if (canRequestAccount) return null;
+    if (!companyComplete && !companyUnknown) {
+      return {
+        label: "Add your company details",
+        go: () => {
+          window.location.href = "/complete-profile";
+        },
+      };
+    }
+    // noPlan en awaitingFirstInvoice liggen bij ons, niet bij hen.
+    if (noPlan || awaitingFirstInvoice) return null;
+    if (!planActive && !planUnknown && dueSubInvoice) {
+      return { label: "Go to billing", go: () => go("billing") };
+    }
+    return null;
+  };
+
   const requestBlockedReason = (): string | null => {
     if (canRequestAccount) return null;
     if (!companyComplete && !companyUnknown) {
@@ -6014,6 +6043,18 @@ export default function AdvertiserApp() {
                           {requestBlockedReason()}
                         </span>
                       ) : null}
+                      {(() => {
+                        const act = requestBlockedAction();
+                        return act ? (
+                          <button
+                            className="btn sm"
+                            style={{ marginTop: 8 }}
+                            onClick={act.go}
+                          >
+                            {act.label}
+                          </button>
+                        ) : null;
+                      })()}
                     </>
                   ))}
               </div>
@@ -6289,12 +6330,26 @@ export default function AdvertiserApp() {
                 toggles, both with the same note. The Requests tab was
                 missed. */}
             {!canRequestAccount && requestBlockedReason() ? (
-              <p
-                className="cap"
-                style={{ margin: "0 0 12px", color: "var(--faint)" }}
-              >
-                {requestBlockedReason()}.
-              </p>
+              <div style={{ margin: "0 0 12px" }}>
+                <p
+                  className="cap"
+                  style={{ margin: 0, color: "var(--faint)" }}
+                >
+                  {requestBlockedReason()}.
+                </p>
+                {(() => {
+                  const act = requestBlockedAction();
+                  return act ? (
+                    <button
+                      className="btn sm"
+                      style={{ marginTop: 8 }}
+                      onClick={act.go}
+                    >
+                      {act.label}
+                    </button>
+                  ) : null;
+                })()}
+              </div>
             ) : null}
             {/* ── CARDS, NOT A TABLE SQUEEZED INTO CARDS ───────────
                 This was a three-column table that the phone stylesheet

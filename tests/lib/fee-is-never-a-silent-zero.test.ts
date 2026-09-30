@@ -28,9 +28,12 @@ const BESTANDEN = [
   "components/account/ad-account-form.tsx",
 ];
 
-/** `fee: <iets> ?? 0` en `fee: <iets> || 0`, over regelgrenzen heen. */
+/** `fee: <iets> ?? 0` en `fee: <iets> || 0`, over regelgrenzen heen.
+ *  Geen `s`-flag: het tsconfig-target laat die niet toe -- node draaide
+ *  hem wel en tsc keurde hem af, dus de test liep groen terwijl de build
+ *  viel. `[^,;{}]` dekt een nieuwe regel toch al. */
 const STILLE_NUL =
-  /\bfee\s*:[^,;{}]*?(?:\?\?|\|\|)\s*0\b(?!\s*\.\d)/gs;
+  /\bfee\s*:[^,;{}]*?(?:\?\?|\|\|)\s*0\b(?!\s*\.\d)/g;
 
 test("een fee wordt nooit stilletjes op 0 gezet", () => {
   for (const pad of BESTANDEN) {
