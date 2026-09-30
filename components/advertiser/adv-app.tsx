@@ -6696,6 +6696,24 @@ export default function AdvertiserApp() {
                               );
                               return;
                             }
+                            // ── NIET NAAR EEN SCHERM WAAR NIETS KAN ──
+                            //
+                            // Gelopen op 390px met een verse klant
+                            // (PSM0018, test 3): Billing zegt "Top up
+                            // to pay EUR 200,00", stuurt je naar de
+                            // wallet, en daar staat Top up UIT omdat
+                            // de bedrijfsgegevens ontbreken. Een knop
+                            // die je naar een doodlopend scherm
+                            // stuurt is nog steeds een doodloper.
+                            //
+                            // Is dat wat je tegenhoudt, dan gaat hij
+                            // naar het formulier dat het oplost. Het
+                            // bijschrift eronder zegt dat ook, zodat
+                            // de sprong niet als een fout voelt.
+                            if (!companyComplete && !companyUnknown) {
+                              go("settings");
+                              return;
+                            }
                             go("wallet");
                             return;
                           }
@@ -6719,7 +6737,13 @@ export default function AdvertiserApp() {
                           ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
                           : canExchangeToPay(dueSubInvoice)
                             ? `Exchange to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
-                            : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
+                            : // Zeg wat de knop DOET. "Top up to pay"
+                              // boven een wallet waar je niet mag
+                              // opwaarderen is een belofte die het
+                              // volgende scherm breekt.
+                              !companyComplete && !companyUnknown
+                              ? "Add your company details to pay"
+                              : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
                       </button>
                     ) : invError ? (
                       <button
