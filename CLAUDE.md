@@ -87,6 +87,35 @@ opened, findings fixed and SQL checks are working notes, not the
 number: three of them at 90% while no journey is closed still means no
 customer can get through the app.
 
+## Non-negotiable — NOEM ALTIJD HET E-MAILADRES
+
+De eigenaar, 30-09: "altijd zeggen welke email inloggen."
+
+"Het paneel staat uitgelogd" is geen verzoek maar een mededeling. De
+eigenaar moet dan zelf gaan uitzoeken WIE erin moet, en dat is precies
+het werk dat hij niet hoeft te doen. Elke keer dat een inlog nodig is:
+**het scherm, de rol en het e-mailadres, in één regel.**
+
+Nooit een wachtwoord — dat typt hij. Nooit een gok: het adres komt uit
+de database, niet uit het geheugen.
+
+```sql
+select a.tenant_client_code, p.role, p.full_name, p.email
+  from public.advertisers a
+  join public.user_profiles p on p.id = a.profile_id
+ where a.tenant_client_code = 'PSM00NN';
+```
+
+De vijf testaccounts van test 3, gemeten op 30-09:
+
+| code | rol | naam | inloggen met |
+|---|---|---|---|
+| PSM0017 | affiliate | AF1 TEST | `t3f-3009@robustq.com` |
+| PSM0018 | advertiser | ADV1 TEST | `t3a-3009@robustq.com` |
+| PSM0019 | advertiser (NSA) | ADV3 TEST | `t3n-3009@robustq.com` |
+| PSM0020 | advertiser (referral) | T3R test2 | `kosot10190@deertees.com` |
+| — | eigenaar/admin | Lasse | `contact@primescalemedia.com` |
+
 ## Non-negotiable — ZEG WELKE EFFORT, VOOR ELK BLOK
 
 De eigenaar, 30-09: "kun jij per blok of per prompt of altijd wanneer
