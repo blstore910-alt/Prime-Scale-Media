@@ -139,3 +139,83 @@ against live before the next one is touched — the same way the
 while the repo migration said otherwise.
 
 Related: `docs/ROUTE_MAP.md`, `supabase/checks/user-profiles-update-policy.sql`.
+
+---
+
+## Stand op 30-09 — fase 1 en 2 staan, fase 3 is uitgeschreven
+
+### Wat er ligt
+
+| fase | wat | stand |
+|---|---|---|
+| 1 | `subject_members`, helpers, backfill | **LIVE** — plak 175, 22 van 22 adverteerders als eigenaar |
+| 2 | teamleden mogen lezen | plak 176 — additief, zie hieronder |
+| 3 | uitnodigen, accepteren, inloggen als teamlid | **uitgeschreven, niet gebouwd** — zie onder |
+
+### Twee dingen die anders bleken dan in het ontwerp hierboven
+
+**1. `affiliates` is een overblijfsel.** Eén rij, terwijl er vijf
+affiliate-gebruikers zijn — alle vijf met een adverteerdersrij. Een
+affiliate IS in deze database een adverteerder. Teams voor affiliates
+lopen dus mee via `subject_kind = 'advertiser'`, en er is geen aparte
+affiliate-helft nodig. (De backfill van 17-09 deed `select af.user_id
+from affiliates` en zou zijn gestopt: die kolom bestaat niet.)
+
+**2. Fase 2 herschrijft geen enkele policy.** Het ontwerp hierboven zei:
+herschrijf elke leesregel, een tabel per plak. Plak 176 zet in plaats
+daarvan per tabel een TWEEDE regel ernaast (`<tabel>_team_read`).
+Postgres combineert permissieve regels met OR, dus die kan alleen
+toegang toevoegen en nooit weghalen, en de eigenaarsregel blijft
+onaangeroerd. Daarmee verviel de reden voor een-tabel-per-plak.
+
+### Fase 3 — de vier plekken, precies
+
+**A. `invitations` krijgt twee kolommen** (plak): `team_advertiser_id
+uuid` en `member_role text check (member_role in ('manager','viewer'))`.
+Leeg = een gewone klantuitnodiging, zoals vandaag.
+
+**B. De acceptatie** — `app/api/accept-invite/route.ts` (regel ~200) en
+`app/api/accept-invite/signup/route.ts` (regel ~150) maken een
+`user_profiles`-rij, en daarna maakt `lib/auth/finalize-signup.ts` een
+adverteerder (regel 133/423), een wallet (224) en een referral-link
+(280). Voor een TEAMuitnodiging:
+- wel het profiel, rol `advertiser`, in dezelfde tenant;
+- **niet** de adverteerder, niet de wallet, niet de referral-link —
+  anders is de collega een tweede klant met een lege wallet;
+- wel een `subject_members`-rij naar `team_advertiser_id` met
+  `member_role`.
+
+**C. De sessielader** — `lib/auth/session.ts` regel ~38 embedt
+`advertiser:advertisers(...)` via `profile_id`. Een teamlid heeft geen
+adverteerder met zijn eigen `profile_id`, dus die lijst is leeg en de
+hele klantapp denkt "geen account". De lader moet, als er geen eigen
+adverteerder is, die van het lidmaatschap ophalen — en de EIGEN
+adverteerder altijd eerst, zodat `profile.advertiser[0]` voor een
+gewone klant precies blijft wat het is.
+
+**D. Het scherm** — Settings → Team, alleen voor de eigenaar: leden,
+uitnodigen (e-mail + rol), verwijderen. En voor een `viewer` verdwijnt
+elke knop die iets doet. De server weigert die al vanzelf: elke actie en
+elke geld-RPC zoekt de adverteerder op via `user_id = auth.uid()`, en een
+teamlid heeft zo'n rij niet. Maar een knop die bestaat en altijd faalt
+is een knop die niets doet.
+
+### Waarom fase 3 niet in de sessie van 30-09 zit
+
+Plek C ligt op het pad van **elke** login. Een fout daar betekent dat
+niemand meer binnenkomt — de duurste fout die deze app kan maken. En
+hij is niet te testen zonder een tweede account dat als teamlid
+inlogt, en een account aanmaken is het werk van de eigenaar.
+
+**Nodig van de eigenaar om te beginnen:** één e-mailadres dat als
+test-teamlid kan dienen, en een login daarmee zodra fase 3 staat.
+
+### En de managers — de stap daarna
+
+Een `viewer` raakt geen geld, en heeft dus niets van de geld-RPC's
+nodig. Een `manager` die opwaardeert of een account aanvraagt WEL: elke
+geld-functie zoekt "de adverteerder van de beller" op, en voor een
+manager moet dat de adverteerder van zijn team worden, met een roltoets.
+Dat is een wijziging aan elke geld-RPC op live — precies het risico waar
+dit document bovenaan voor waarschuwde, nu op de functies die geld
+verplaatsen. Eigen ronde, na de viewers.
