@@ -68,6 +68,16 @@ export const EARNINGS_CABINET_CSS = `
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .xh-who b{font-weight:700;color:rgba(255,255,255,.95)}
   @media(max-width:480px){.xh-who{font-size:.78rem;margin-bottom:10px}}
+  /* De eigenaar vroeg de quote voor ADVERTEERDERS EN AFFILIATES --
+     "hun zijn dus ook ondernemers". De adverteerder kreeg hem, deze
+     kant niet: AFFILIATE_QUOTES stond er wel en werd nergens
+     gerenderd. Zelfde maat en zelfde zachtheid als daar, alleen op
+     een donkere achtergrond, dus wit op .44 in plaats van zwart.
+     De naam erboven draagt zijn eigen marge, dus deze schuift die
+     iets omhoog in plaats van er een nieuw gat bij te zetten. */
+  .xh-quote{margin:-6px 0 12px;font-size:.74rem;line-height:1.3;
+    color:rgba(255,255,255,.44);max-width:46ch}
+  @media(max-width:480px){.xh-quote{margin:-4px 0 10px}}
   .xh-eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:800;
     font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:#ffd98a;
     text-shadow:0 2px 14px rgba(255,190,60,.45)}

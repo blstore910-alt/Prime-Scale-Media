@@ -7,6 +7,7 @@ import { jakarta } from "@/lib/fonts";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { csvSafe } from "@/lib/csv-safe";
+import { dailyQuote } from "@/lib/pure-daily-quote";
 
 import useAffiliateStats from "@/hooks/use-affiliate-stats";
 import useAffiliatePayouts from "@/hooks/use-affiliate-payouts";
@@ -189,6 +190,22 @@ export default function AffiliateApp() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const name = (profile?.full_name as string) ?? "Affiliate";
+  // ── DE QUOTE, DIE HIER ONTBRAK ──────────────────────────────────
+  //
+  // De eigenaar vroeg hem voor "advertisers EN affiliates, hun zijn
+  // dus ook ondernemers". De adverteerderskant kreeg hem; deze niet,
+  // terwijl AFFILIATE_QUOTES en BOTH_QUOTES al geschreven waren. Negen
+  // regels die nergens uitkwamen.
+  //
+  // Wie hier OOK adverteert krijgt de regels die over allebei gaan.
+  // Datzelfde `profile?.advertiser?.[0]?.id` bepaalt een paar honderd
+  // regels verderop of de kaart "Advertise with us too" getoond wordt,
+  // dus de twee spreken elkaar niet tegen.
+  const affQuote = dailyQuote(
+    profile?.id ?? null,
+    new Date(),
+    profile?.advertiser?.[0]?.id ? "both" : "affiliate",
+  );
 
   // Real referral book (all-time) + this-month slice for the topbar pill.
   const all = useAffiliateStats();
@@ -992,6 +1009,11 @@ export default function AffiliateApp() {
                     </p>
                   );
                 })()}
+                {/* Iemand die hier OOK adverteert krijgt de regels die
+                    over allebei gaan; wie alleen doorverwijst krijgt de
+                    affiliate-regels. Dezelfde seed als de rest van dit
+                    scherm, zodat hij een dag lang dezelfde blijft. */}
+                {affQuote ? <p className="xh-quote">{affQuote}</p> : null}
                 <p className="xh-eyebrow">
                   <Ic name="i-gift" /> Your total earnings
                 </p>

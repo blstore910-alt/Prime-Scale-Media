@@ -297,10 +297,24 @@ naamloos as (
 ),
 
 -- ── 8. FACTUUR ZONDER TEGENPARTIJ ──────────────────────────────────
--- Een factuur zonder bedrijf kan niet geboekt worden. Factuur 131 is
--- er zo een, betaald en wel.
+-- Een factuur zonder bedrijf kan niet geboekt worden.
+--
+-- 30-09: deze telde ook facturen die NIEMAND kan repareren -- van een
+-- adverteerder die helemaal geen bedrijfsrij heeft (vandaag PSM0010,
+-- factuur van 22-09 van EUR 10). Daarmee stond de regel permanent op
+-- rood, en een controle die nooit groen kan worden wordt genegeerd.
+-- Precies zo verstopte de incassofout zich weken.
+--
+-- Dus telt hij nu wat er te repareren VALT: een factuur zonder
+-- company_id terwijl die adverteerder wel een bedrijf heeft. Sinds
+-- plak 164 vult een trigger op `companies` dat vanzelf, dus er komt
+-- hier alleen nog iets binnen als die trigger stuk is.
 facturen as (
-  select count(*) as n from public.invoices where company_id is null
+  select count(*) as n
+    from public.invoices i
+   where i.company_id is null
+     and exists (select 1 from public.companies c
+                  where c.advertiser_id = i.advertiser_id)
 )
 
 select * from (
