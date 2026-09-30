@@ -29,7 +29,7 @@ import {
   FlaskConical,
   Landmark,
   RefreshCw,
-  Store,
+  Vault,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils-pure";
 import { visibleLines } from "@/lib/pure-supplier-holdings";
@@ -80,13 +80,21 @@ const CSS = `
   letter-spacing:-.01em;color:var(--ink);line-height:1.2}
 .sc-sub{margin:0;color:var(--faint);font-size:.7rem;line-height:1.3;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sc-re{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;
-  border:1px solid var(--line);background:var(--panel);border-radius:8px;
-  padding:5px 9px;font-size:.73rem;font-weight:700;color:var(--txt-2);
-  line-height:1.3;cursor:pointer}
-.sc-re:hover{background:var(--panel-2);border-color:var(--line-2)}
-.sc-re svg{width:13px;height:13px;color:var(--faint)}
-.sc-re[disabled]{opacity:.55;cursor:default}
+/* Geen knop maar een teken. De eigenaar, 30-09: "refresh ook mooier
+   subtieler, nu is standaard button." Een omrande knop naast een
+   titel trekt evenveel aandacht als de titel; dit is een handeling
+   die je zoekt als je hem nodig hebt, niet een die zich aanbiedt.
+   Dus: rond, randloos, grijs, en pas een vlakje bij hover. */
+.sc-re{flex:0 0 auto;display:inline-grid;place-items:center;
+  width:30px;height:30px;border:0;background:none;border-radius:99px;
+  color:var(--faint);cursor:pointer;transition:.13s}
+.sc-re:hover{background:var(--panel-2);color:var(--txt-2)}
+.sc-re svg{width:15px;height:15px}
+.sc-re[disabled]{opacity:.5;cursor:default}
+.sc-re[disabled]:hover{background:none}
+/* Draait terwijl hij leest -- dat vervangt het woord "Reading...". */
+.sc-re[disabled] svg{animation:sc-spin 1s linear infinite}
+@keyframes sc-spin{to{transform:rotate(360deg)}}
 
 /* DE MATRIX. Eerste kolom groeit, valutakolommen zijn even breed en
    rechts uitgelijnd zodat de cijfers onder elkaar staan. */
@@ -122,12 +130,17 @@ const CSS = `
 .sc-grid tbody tr.open{background:var(--panel-2)}
 
 .sc-who{display:flex;align-items:center;gap:6px;min-width:0}
-.sc-mark{width:15px;height:15px;flex:0 0 auto;display:grid;place-items:center;
-  color:var(--win)}
-.sc-mark svg{width:15px;height:15px}
-.sc-mark.warn{color:var(--warn)}
-.sc-mark.bad{color:var(--danger)}
-.sc-mark.idle{color:var(--line-2)}
+/* Een zacht vlakje onder het icoon in plaats van een los lijntje.
+   Vier zwevende outline-icoontjes lezen als rommel; vier gevulde
+   merkjes lezen als een rij. De kleur blijft de staat dragen, nu ook
+   in de vulling -- dus subtieler EN duidelijker tegelijk. */
+.sc-mark{width:22px;height:22px;flex:0 0 auto;display:grid;place-items:center;
+  border-radius:7px;color:var(--win);
+  background:color-mix(in srgb,var(--win) 13%,transparent)}
+.sc-mark svg{width:13px;height:13px}
+.sc-mark.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+.sc-mark.bad{color:var(--danger);background:color-mix(in srgb,var(--danger) 13%,transparent)}
+.sc-mark.idle{color:var(--faint);background:var(--panel-2)}
 .sc-name{font-weight:800;font-family:var(--hd);font-size:.85rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   /* De naam is de identiteit van de rij en mag NOOIT het eerste zijn
@@ -199,7 +212,6 @@ const CSS = `
   .sc-grid th,.sc-grid td{padding:6px 7px}
   /* De synctijd kost breedte en staat in de tooltip van de rij. */
   .sc-when{display:none}
-  .sc-relab{display:none}
   .sc-re{padding:6px 8px}
   .sc-name{font-size:.8rem}
   .sc-amt{font-size:.82rem}
@@ -329,7 +341,12 @@ function SupplierRows({
               }`}
               aria-hidden="true"
             >
-              {s.kind === "bank" ? <Landmark /> : <Store />}
+              {/* Landmark voor een bank, Vault voor een leverancier:
+                  bij hen staat KREDIET dat alleen daar besteed kan
+                  worden -- een kluis met ons geld erin, niet een
+                  winkel. Store leek een winkelpui en dat is precies
+                  wat RockAds niet is. */}
+              {s.kind === "bank" ? <Landmark /> : <Vault />}
             </span>
             <span className="sc-name">{s.supplier}</span>
             <StatusTag status={s.status} />
@@ -537,9 +554,6 @@ export default function SupplierCredit() {
           title="Refresh"
         >
           <RefreshCw />
-          <span className="sc-relab">
-            {q.isFetching ? "Reading…" : "Refresh"}
-          </span>
         </button>
       </div>
 
