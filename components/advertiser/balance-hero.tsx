@@ -27,6 +27,7 @@ export default function BalanceHero({
   disabledReason,
   loading,
   returning,
+  quote,
 }: {
   firstName: string;
   eurText: string;
@@ -51,6 +52,12 @@ export default function BalanceHero({
    * the safe one: "Welcome" is never wrong, "Welcome back" can be.
    */
   returning?: boolean;
+  /**
+   * Een korte regel onder de naam, per persoon per dag. Null laat hem
+   * weg -- zie lib/pure-daily-quote.ts, dat null teruggeeft zodra er
+   * geen seed is. Een spreuk aan niemand gericht is erger dan geen.
+   */
+  quote?: string | null;
 }) {
   return (
     <section className="hero">
@@ -62,6 +69,12 @@ export default function BalanceHero({
 
       <p className="hero-greet">{returning ? "Welcome back" : "Welcome"}</p>
       <h1 className="hero-h">{firstName}</h1>
+      {/* Zeer klein en zacht, en onder de naam. De eigenaar, 30-09:
+          "zeer kleine subtiele quote voor advertisers en affiliates,
+          hun zijn ook ondernemers." Het is geen mededeling en geen
+          aansporing -- het staat er voor wie het ziet en het mag
+          wegvallen voor wie het niet ziet. */}
+      {quote ? <p className="hero-quote">{quote}</p> : null}
 
       <div className="hero-bal">
         <button

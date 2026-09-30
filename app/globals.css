@@ -190,8 +190,14 @@
     /* The owner, 28-09: "het vlaggetje raakt links de rand, de form
        moet iets naar rechts." The field has a rounded corner and the
        flag sat inside the curve on 8px, so at the widest part of the
-       radius it read as touching the border. */
-    padding: 0 0.5rem 0 0.8rem;
+       radius it read as touching the border.
+
+       30-09, tweede keer: "vlaggetje moet ietsjes naar rechts zodat
+       die de line links niet aanraakt." 0.8rem was nog te krap. Een
+       vlag is een BLOK kleur tot aan zijn rand -- anders dan een
+       letter of een pictogram, die zelf al wat lucht meebrengen --
+       dus hij heeft meer nodig dan het oog zou schatten. 1rem. */
+    padding: 0 0.5rem 0 1rem;
     border-right: 0;
     border-top-left-radius: calc(var(--radius) - 2px);
     border-bottom-left-radius: calc(var(--radius) - 2px);

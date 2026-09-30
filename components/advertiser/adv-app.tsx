@@ -2,6 +2,7 @@
 
 import PrivacyControls from "@/components/profile/privacy-controls";
 import { withdrawalStatusLook } from "@/lib/pure-withdrawal-status";
+import { dailyQuote } from "@/lib/pure-daily-quote";
 
 import { copyText } from "@/lib/copy-text";
 import { dmSans, jakarta } from "@/lib/fonts";
@@ -76,6 +77,7 @@ import RequestAdAccountDialog from "@/components/account/request-ad-account-dial
 import useAdAccountRequests from "@/components/ad-account-requests/use-ad-account-requests";
 import { GroupToggle } from "@/components/notifications/notification-toggles";
 import ThemeToggle from "@/components/ui/theme-toggle";
+import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import InvoiceExportButton from "@/components/invoices/invoice-export-button";
 import { AccountDetailsSheet } from "@/components/account/account-details-sheet";
 import PollCard from "@/components/polls/poll-card";
@@ -369,6 +371,18 @@ export default function AdvertiserApp() {
   // "Get paid for the people you bring in / Join the affiliate program"
   // hero instead of their own referral book, and a "Become an affiliate"
   // card in Settings that the flag is read two lines above to prevent.
+  // ── EEN AANVRAAG DIE JE PER ONGELUK DOET ────────────────────────
+  //
+  // De eigenaar, 30-09: "heb dit per ongeluk geklikt, dan weet je dat,
+  // en doe altijd een modal met yes/no."
+  //
+  // Hij drukte op "Join the affiliate program" en de aanvraag ging
+  // meteen de deur uit. Onomkeerbaar vanaf de klant gezien: er staat
+  // daarna "Application received" en alleen wij kunnen hem intrekken.
+  // Elke andere onomkeerbare knop in deze app vraagt het eerst; deze
+  // niet, omdat hij geen geld verplaatst -- maar hij verandert wel wat
+  // je BENT in dit systeem, en dat is genoeg reden om te vragen.
+  const [askAffiliate, setAskAffiliate] = useState(false);
   const {
     isAffiliate,
     isError: affiliateError,
@@ -4167,6 +4181,19 @@ export default function AdvertiserApp() {
                 (accounts?.length ?? 0) > 0 ||
                 (invoices?.length ?? 0) > 0
               }
+              /* Welke set: wat deze persoon IS. Een adverteerder met
+                 een goedgekeurde affiliate-link is allebei en krijgt
+                 daar zijn eigen regels voor -- anders leest hij elke
+                 dag iets dat over zijn halve werk gaat. */
+              quote={dailyQuote(
+                profile?.id ?? null,
+                new Date(),
+                isAffiliate
+                  ? advertiserId
+                    ? "both"
+                    : "affiliate"
+                  : "advertiser",
+              )}
             />
             {/* Number(), not truthiness. subscriptions.amount is moving from
                 a float to numeric, and PostgREST serialises numeric as a
@@ -4571,7 +4598,7 @@ export default function AdvertiserApp() {
                 <button
                   className="btn grad"
                   disabled={applying}
-                  onClick={applyAffiliate}
+                  onClick={() => setAskAffiliate(true)}
                 >
                   <Ic name="i-gift" /> {applying ? "Sending…" : "Join the affiliate program"}
                 </button>
@@ -7823,7 +7850,11 @@ export default function AdvertiserApp() {
                 </p>
               ) : (
                 <>
-                  <button className="btn ghost sm" disabled={applying} onClick={applyAffiliate}>
+                  <button
+                    className="btn ghost sm"
+                    disabled={applying}
+                    onClick={() => setAskAffiliate(true)}
+                  >
                     {applying ? "Sending…" : applicationRefused ? "Apply again" : "Join the affiliate program"}
                   </button>
                   {applicationRefused ? (
@@ -7943,6 +7974,27 @@ export default function AdvertiserApp() {
           ))}
         </nav>
       </div>
+
+      {/* Vraagt het eerst. Geen geld, wel een verandering van wat je
+          in dit systeem BENT -- en die stond een klik ver weg. */}
+      <ConfirmModal
+        open={askAffiliate}
+        onOpenChange={setAskAffiliate}
+        title="Join the affiliate program?"
+        lead="We look at your application and agree your rate with you before anything starts. Nothing changes on your account today."
+        cta="Yes, send it"
+        cancelLabel="Not now"
+        busy={applying}
+        busyLabel="Sending…"
+        onConfirm={() => {
+          setAskAffiliate(false);
+          applyAffiliate();
+        }}
+      >
+        <ConfirmFact label="What happens" value="We receive your application" />
+        <ConfirmFact label="Your rate" value="Agreed with you first" />
+        <ConfirmFact label="Can you undo it" value="Ask us and we withdraw it" />
+      </ConfirmModal>
 
       <WalletTopupDialog
         open={topupOpen}

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  ADVERTISER_QUOTES,
+  AFFILIATE_QUOTES,
+  BOTH_QUOTES,
   DAILY_QUOTES,
   FOUNDER_QUOTES,
   dailyQuote,
@@ -117,4 +120,46 @@ describe("dailyQuote for the founders", () => {
     }
     assert.ok(seen.size >= 8, `only ${seen.size} distinct lines in 14 days`);
   });
+});
+
+describe("quotes voor klanten", () => {
+// ── DE DRIE KLANTSETS ──────────────────────────────────────────────
+
+it("elke rol krijgt zijn eigen set", () => {
+  const seed = "same-person";
+  const adv = dailyQuote(seed, new Date("2026-09-30"), "advertiser")!;
+  const aff = dailyQuote(seed, new Date("2026-09-30"), "affiliate")!;
+  const both = dailyQuote(seed, new Date("2026-09-30"), "both")!;
+  assert.ok(ADVERTISER_QUOTES.includes(adv));
+  assert.ok(AFFILIATE_QUOTES.includes(aff));
+  assert.ok(BOTH_QUOTES.includes(both));
+});
+
+it("zonder doelgroep blijft het de balie -- een bestaande aanroep mag niet van set wisselen", () => {
+  const q = dailyQuote("x", new Date("2026-09-30"))!;
+  assert.ok(DAILY_QUOTES.includes(q));
+});
+
+it("geen seed is geen spreuk, ook voor een klant", () => {
+  assert.equal(dailyQuote(null, new Date(), "advertiser"), null);
+  assert.equal(dailyQuote("", new Date(), "both"), null);
+});
+
+it("niets dat meer eist of het werk wegwuift", () => {
+  // De twee valkuilen uit de kop van het bestand, als regel.
+  const verboden =
+    /(crush|hustle|grind|scale up|think bigger|opportunity|no excuses|10x)/i;
+  for (const q of [...ADVERTISER_QUOTES, ...AFFILIATE_QUOTES, ...BOTH_QUOTES]) {
+    assert.ok(!verboden.test(q), `te veeleisend of te luchtig: ${q}`);
+  }
+});
+
+it("en niets over onszelf -- dit is hun dashboard, geen nieuwsbrief", () => {
+  for (const q of [...ADVERTISER_QUOTES, ...AFFILIATE_QUOTES, ...BOTH_QUOTES]) {
+    assert.ok(
+      !/(we|our|us|Prime Scale)/i.test(q) || /you/i.test(q),
+      `gaat over ons in plaats van over hen: ${q}`,
+    );
+  }
+});
 });

@@ -195,7 +195,14 @@ export const ADV_CSS = `
   .hero-greet{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
     color:rgba(255,255,255,.5);margin:0}
   .hero-h{font-family:var(--hd);font-weight:800;font-size:1.55rem;letter-spacing:-.025em;
-    margin:2px 0 18px;color:#fff}
+    margin:2px 0 0;color:#fff}
+  /* Zeer klein en zacht: het staat er voor wie het ziet. Het marge-
+     gat dat de naam had draagt hij nu, zodat de hero niet hoger wordt
+     als de regel er staat en niet inzakt als hij ontbreekt. */
+  .hero-quote{font-size:.74rem;line-height:1.45;color:rgba(255,255,255,.44);
+    margin:5px 0 0;max-width:30ch}
+  .hero-h + .hero-bal{margin-top:18px}
+  .hero-quote + .hero-bal{margin-top:16px}
   .hero-bal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* Each balance is the button that opens the wallet — the number IS the
      link, so there is nothing extra to aim at. */

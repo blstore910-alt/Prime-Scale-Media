@@ -120,6 +120,62 @@ function dayKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// ── EN VOOR DE KLANT ────────────────────────────────────────────────
+//
+// De eigenaar, 30-09: "kun je hieronder zeer kleine subtiele quote
+// geven voor advertisers en voor affiliates, hun zijn dus ook
+// ondernemers, en of advertiser/affiliate of allebei."
+//
+// Drie sets, want het zijn drie verschillende dagen. Een adverteerder
+// geeft geld uit en wacht op wat het doet; een affiliate verdient aan
+// wie hij binnenbrengt en wacht op andermans beslissing; iemand die
+// allebei is doet die twee tegelijk.
+//
+// Zelfde twee valkuilen vermeden als bij de balie hierboven, en bij
+// een ondernemer zijn ze scherper: niets dat meer eist ("schaal op",
+// "denk groter") en niets dat het werk wegwuift ("elke tegenslag is
+// een kans"). Iemand die zijn eigen geld in advertenties steekt heeft
+// geen aanmoediging nodig maar een rustige zin.
+//
+// En niets over ONS: geen "bedankt dat je klant bent" en geen
+// verkapte verkoop. Dit staat op hun eigen dashboard, niet in een
+// nieuwsbrief.
+
+export const ADVERTISER_QUOTES: string[] = [
+  "A slow week is data, not a verdict.",
+  "The budget you did not spend is still yours.",
+  "Most of building something is the part nobody posts about.",
+  "You are allowed to stop a campaign that is not working.",
+  "Steady beats clever more often than anyone admits.",
+  "Today's number is one day. The line is what matters.",
+  "Knowing what did not work is worth what it cost to find out.",
+  "You do not have to decide everything this morning.",
+  "Small and profitable is a real business.",
+  "The work you did last month is still working today.",
+];
+
+export const AFFILIATE_QUOTES: string[] = [
+  "One good introduction outlasts a hundred posts.",
+  "You brought somebody here who is still here. That is the job.",
+  "A quiet month does not undo the ones before it.",
+  "People come back to whoever was straight with them.",
+  "The referral that takes a year is still a referral.",
+  "You cannot make somebody decide. You can be easy to say yes to.",
+  "Trust compounds. So does the other thing.",
+  "Somebody trusted your word today. Worth noticing.",
+  "The list gets longer if you keep showing up for it.",
+];
+
+export const BOTH_QUOTES: string[] = [
+  "Two ways to earn is two ways to have a good week.",
+  "You run your own thing and bring others along. That is rare.",
+  "Some days the ads work, some days the referrals do. Both count.",
+  "What you learned spending your own money is why people listen.",
+  "You are allowed to let one side be quiet for a while.",
+  "The advertisers you send here trust you because you do it yourself.",
+  "Two slow lines still add up to one moving one.",
+];
+
 /**
  * One line, for this person, on this day.
  *
@@ -139,12 +195,25 @@ function dayKey(d: Date): string {
 export function dailyQuote(
   seed: string | null | undefined,
   now: Date = new Date(),
-  /** "owner" gets the founder set; anything else gets the desk's. */
-  audience: "owner" | "desk" = "desk",
+  /**
+   * Wie er leest. "desk" blijft de standaard, want dat was het eerst
+   * en een aanroep zonder doelgroep hoort niet stil van set te
+   * wisselen.
+   */
+  audience: "owner" | "desk" | "advertiser" | "affiliate" | "both" = "desk",
 ): string | null {
   const s = String(seed ?? "").trim();
   if (!s) return null;
-  const list = audience === "owner" ? FOUNDER_QUOTES : DAILY_QUOTES;
+  const list =
+    audience === "owner"
+      ? FOUNDER_QUOTES
+      : audience === "advertiser"
+        ? ADVERTISER_QUOTES
+        : audience === "affiliate"
+          ? AFFILIATE_QUOTES
+          : audience === "both"
+            ? BOTH_QUOTES
+            : DAILY_QUOTES;
   if (list.length === 0) return null;
   // The audience is in the hash as well, so somebody who is both -- an
   // owner reading their own desk screen -- does not get the same line
