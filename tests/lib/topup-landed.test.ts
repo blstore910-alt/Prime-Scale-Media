@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   landedOnAccount,
@@ -64,5 +65,54 @@ describe("sumLandedByCurrency — a sum across currencies is not a number", () =
       { currency: "EUR", topup_amount: null, topup_usd: 1 },
     ];
     assert.deepEqual(sumLandedByCurrency(rows), { EUR: 50 });
+  });
+});
+
+describe("de rij print het netto in de valuta die het ECHT is", () => {
+  // 30-09, gemeten op productie: bij EUR 200,00 binnen staat
+  // top_ups.topup_amount op 190,00 en fee_amount op 10,00 -- euro's,
+  // geen dollars. De comment in topup-row.tsx beweerde het
+  // tegenovergestelde ("topup_amount / fee_amount are USD, always"),
+  // wat alleen voor de ADMINroute geldt, en de kolom stond hard op
+  // "USD". Dus las een beheerder $190,00 naast een fee van EUR 10,00
+  // op dezelfde regel, op de tabel die hij bekijkt vlak voordat hij
+  // geld op een ad-account zet.
+  //
+  // De regel: in die rij bepaalt landedOnAccount() de valuta, nergens
+  // een letterlijke.
+  // Alleen de twee DUBBELZINNIGE velden. `eur_value`, `eur_topup` en
+  // `amount_usd` dragen hun valuta in de kolomnaam, en die mogen dus
+  // wel een letterlijke hebben -- dat is geen aanname maar een feit
+  // over de kolom.
+  it("zet geen valuta vast op topup_amount of fee_amount", () => {
+    const bron = readFileSync("components/topups/topup-row.tsx", "utf8");
+    const code = bron
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    const hard = [
+      ...code.matchAll(
+        /formatCurrency\(\s*[^)]*?\b(?:topup_amount|fee_amount)\b[^)]*?,\s*"(?:USD|EUR)"\s*,?\s*\)/g,
+      ),
+    ].map((m) => m[0].replace(/\s+/g, " "));
+    assert.deepEqual(
+      hard,
+      [],
+      "topup-row.tsx zet een valuta vast in plaats van hem uit " +
+        "landedOnAccount() te halen. Op een klantrij is topup_amount " +
+        "de BETAALvaluta, niet USD. Gevonden: " + hard.join(" | "),
+    );
+  });
+
+  it("een klantrij in euro's landt in euro's, een adminrij in dollars", () => {
+    // topup_usd gezet = klantrij: topup_amount staat in row.currency.
+    assert.deepEqual(
+      landedOnAccount({ currency: "EUR", topup_amount: 190, topup_usd: 216.45 }),
+      { amount: 190, currency: "EUR" },
+    );
+    // Geen topup_usd = adminrij: topup_amount is al USD.
+    assert.deepEqual(
+      landedOnAccount({ currency: "EUR", topup_amount: 190, topup_usd: null }),
+      { amount: 190, currency: "USD" },
+    );
   });
 });

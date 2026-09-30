@@ -110,23 +110,39 @@ export default function TopupRow({
       </TableCell>
 
       {/* Topup Amount */}
-      {/* topup_amount / topup_usd / fee_amount are USD, always:
-          calculateTopupAmount divides the received amount by the rate and
-          takes the fee off the dollar figure, and the bulk path stores
-          topup_usd with the SAME value as topup_amount. eur_topup is the
-          euro equivalent. Labelling the dollar figure with the payment
-          currency printed the identical number twice under two different
-          symbols — EUR 1,139.53 over $1,139.53. */}
+      {/* ── DIT WAS HARDGECODEERD OP USD ──────────────────────────────
+          De oude comment hier zei "topup_amount / topup_usd /
+          fee_amount are USD, always". Dat geldt voor de ADMIN-route,
+          waar calculateTopupAmount door de koers deelt. Op de
+          KLANTroute niet: gemeten op productie staat bij EUR 200,00
+          binnen `topup_amount` op 190,00 en `fee_amount` op 10,00, en
+          dat zijn euro's.
+
+          Dus printte deze kolom $190,00 naast een fee van EUR 10,00 op
+          dezelfde regel, met eronder nog eens EUR 190,00 uit
+          eur_topup: hetzelfde getal onder twee symbolen, precies wat
+          die comment zei te voorkomen -- alleen andersom.
+
+          landedOnAccount() weet het verschil al (een rij met topup_usd
+          is een klantrij, en dan is topup_amount in row.currency), en
+          de fee-cel acht regels lager gebruikt hem ook. Nu deze dus
+          ook, zodat de twee niet meer uit elkaar kunnen lopen. */}
       <TableCell>
         <div className="flex flex-col">
           <span className=" font-mono font-semibold">
-            {formatCurrency(topup.topup_amount as number, "USD")}
+            {formatCurrency(
+              landedOnAccount(topup).amount ?? 0,
+              landedOnAccount(topup).currency,
+            )}
           </span>
-          {topup.eur_topup != null && (
-            <span className="text-xs font-semibold text-muted-foreground font-mono">
-              {formatCurrency(topup.eur_topup as number, "EUR")}
-            </span>
-          )}
+          {/* De euroregel alleen wanneer hij iets TOEVOEGT. Op een
+              klantrij in euro's is hij hetzelfde getal nog een keer. */}
+          {topup.eur_topup != null &&
+            landedOnAccount(topup).currency !== "EUR" && (
+              <span className="text-xs font-semibold text-muted-foreground font-mono">
+                {formatCurrency(topup.eur_topup as number, "EUR")}
+              </span>
+            )}
         </div>
       </TableCell>
 
