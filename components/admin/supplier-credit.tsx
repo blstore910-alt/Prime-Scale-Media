@@ -583,15 +583,15 @@ export default function SupplierCredit() {
           ANTWOORDDE: dan ontbreekt er geld dat we niet kunnen zien,
           en dat is geen detail van een rij maar een gat in het
           totaal. */}
-      {!q.isPending && !q.isError && suppliers.some((x) => x.status === "error") ? (
-        <p className="sc-fnote bad">
-          {suppliers
-            .filter((x) => x.status === "error")
-            .map((x) => x.supplier)
-            .join(", ")}{" "}
-          did not answer, so there is money here we cannot see.
-        </p>
-      ) : null}
+      {/* GEEN ZIN MEER OVER EEN LEVERANCIER DIE NIET ANTWOORDDE.
+          De eigenaar, 30-09: "we zien toch unreadable, is genoeg."
+
+          Klopt, en de matrix is de reden. In de oude gestapelde vorm
+          stond een mislukte lees ergens halverwege de kaart en kon je
+          hem missen; toen was een regel onderaan terecht. Nu staat
+          "unreadable" in elke valutakolom van die rij, met een rode
+          stip en een pil, recht boven de totaalregel waar hij niet in
+          meetelt. Een zin eronder zegt hetzelfde een vierde keer. */}
     </div>
   );
 }
