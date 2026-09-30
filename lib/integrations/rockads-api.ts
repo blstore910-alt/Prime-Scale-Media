@@ -341,3 +341,129 @@ export async function probeRockads(): Promise<RockadsProbe> {
     said: w.error ?? a.error ?? null,
   };
 }
+
+// ── DE DRIE ROUTES DIE WE NOOIT HEBBEN AANGEROEPEN ──────────────────
+//
+// De eigenaar, 30-09: "kun jij ook in api zien hoeveel we transferen
+// naar rockads hoeveel we topuppen en hoeveel dst en of dat samen
+// allemaal klopt bij rockads dat we daar niks verliezen en 2% etc."
+//
+// Tot nu toe las dit bestand exact twee dingen: het SALDO per wallet en
+// de LIJST ad-accounts. Een saldo is een foto, en met een foto kun je
+// niet nakijken of er onderweg iets is blijven hangen. Daarvoor heb je
+// de mutaties nodig.
+//
+// GEMETEN, NIET GEGOKT. Hun documentatie staat niet publiek, dus de
+// routes zijn aan de API zelf gevraagd, zonder sleutel — 401 betekent
+// "bestaat, log in", 404 "bestaat niet". Een onzin-subpad geeft
+// netjes 404, dus het onderscheid zegt echt iets:
+//
+//     /wallets/{id}/transactions        401  bestaat
+//     /ad-accounts/{id}/transactions    401  bestaat
+//     /ad-accounts/{id}/insights        401  bestaat
+//     /ad-accounts/{id}/zzzz            404  bestaat niet
+//     /transactions  /statements  /deposits  /payments  404
+//
+// WAT ER NIET BIJ KOMT. `/ad-accounts/{id}/deposit` en `/withdraw`
+// geven 404 op GET omdat ze POST-only zijn — ze bestaan dus wél. Ze
+// blijven ongeschreven, om precies de reden die bovenaan dit bestand
+// staat. Alles hieronder is een GET.
+//
+// WAT DIT NOG STEEDS NIET KAN. RockAds weet wat er BIJ HEN binnenkomt,
+// niet wat wij vanaf onze bank hebben verstuurd. Die ene kant van de
+// som staat in `bank_ledger_entries` en die tabel is leeg. Zie
+// docs/RECONCILIATIE_ROCKADS.md.
+
+/** Een mutatie zoals RockAds hem teruggeeft. Losjes getypt met opzet:
+ *  de veldnamen zijn nog niet nagekeken op een echt antwoord, en een
+ *  strak type dat op de verkeerde naam zit geeft stilletjes 0. */
+export type RockadsTxn = {
+  id: string;
+  /** Hun eigen woord ervoor — deposit, transfer, commission, refund… */
+  type: string;
+  amount: number;
+  currency: string;
+  /** Negatief = eraf, positief = erbij, zoals wij het lezen. */
+  direction: "in" | "out" | "unknown";
+  createdAt: string;
+  note: string;
+  /** Het hele veld, zodat een naam die wij missen niet verdwijnt. */
+  raw: Record<string, unknown>;
+};
+
+/** Hun bedragen komen als string of number; en een min-teken kan in
+ *  het BEDRAG zitten of in een apart type-veld. Allebei gelezen. */
+function toTxn(r: Record<string, unknown>): RockadsTxn {
+  const amount = num(r.amount ?? r.value ?? r.sum);
+  const type = String(r.type ?? r.transaction_type ?? r.kind ?? "");
+  const dirField = String(r.direction ?? r.flow ?? "").toLowerCase();
+  const direction: RockadsTxn["direction"] =
+    dirField === "in" || dirField === "credit" || dirField === "incoming"
+      ? "in"
+      : dirField === "out" || dirField === "debit" || dirField === "outgoing"
+        ? "out"
+        : amount > 0
+          ? "in"
+          : amount < 0
+            ? "out"
+            : "unknown";
+  return {
+    id: String(r.id ?? ""),
+    type,
+    amount,
+    currency: String(r.currency_code ?? r.currency ?? "").toUpperCase(),
+    direction,
+    createdAt: String(r.created_at ?? r.date ?? r.createdAt ?? ""),
+    note: String(r.note ?? r.description ?? r.comment ?? ""),
+    raw: r,
+  };
+}
+
+function rowsOf(body: unknown): Record<string, unknown>[] {
+  const b = body as { data?: unknown; items?: unknown } | null;
+  const d = b?.data ?? b?.items ?? null;
+  if (Array.isArray(d)) return d as Record<string, unknown>[];
+  // Sommige API's stoppen de lijst nog een laag dieper.
+  const nested = (d as { data?: unknown } | null)?.data;
+  return Array.isArray(nested) ? (nested as Record<string, unknown>[]) : [];
+}
+
+/** Alles wat er op ÉÉN wallet van hen is gebeurd: onze stortingen erin
+ *  en elke doorzetting naar een ad-account eruit. */
+export async function fetchRockadsWalletTxns(
+  walletId: string,
+): Promise<{ txns: RockadsTxn[]; error: string | null }> {
+  if (!walletId) return { txns: [], error: "No wallet id." };
+  const { body, error } = await get(
+    `/wallets/${encodeURIComponent(walletId)}/transactions`,
+  );
+  if (error) return { txns: [], error };
+  return { txns: rowsOf(body).map(toTxn), error: null };
+}
+
+/** Wat er op één ad-account is bij- en afgeschreven. Hier hoort onze
+ *  netto-topup terug te komen, en hier zit ook hun commissie. */
+export async function fetchRockadsAdAccountTxns(
+  accountId: string,
+): Promise<{ txns: RockadsTxn[]; error: string | null }> {
+  if (!accountId) return { txns: [], error: "No account id." };
+  const { body, error } = await get(
+    `/ad-accounts/${encodeURIComponent(accountId)}/transactions`,
+  );
+  if (error) return { txns: [], error };
+  return { txns: rowsOf(body).map(toTxn), error: null };
+}
+
+/** De BESTEDING op een ad-account. Dat is de grondslag waar de DST over
+ *  gaat — vandaag met de hand per klant per week ingevoerd in
+ *  `dst_charges.base_amount`. */
+export async function fetchRockadsInsights(
+  accountId: string,
+): Promise<{ rows: Record<string, unknown>[]; error: string | null }> {
+  if (!accountId) return { rows: [], error: "No account id." };
+  const { body, error } = await get(
+    `/ad-accounts/${encodeURIComponent(accountId)}/insights`,
+  );
+  if (error) return { rows: [], error };
+  return { rows: rowsOf(body), error: null };
+}
