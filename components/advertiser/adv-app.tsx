@@ -594,6 +594,11 @@ export default function AdvertiserApp() {
     isSuccess: subLoaded,
   } = useQuery<{ billable: SubRow | null; stopped: SubRow | null }>({
     queryKey: ["adv-subscription", advertiserId, tenantId],
+    // De nachtelijke incasso zet dit terug op `active` via de trigger
+    // _on_subscription_invoice_paid, en kan geen enkele cache-sleutel
+    // ongeldig maken -- hij draait op de server. Zonder dit blijft de
+    // pil "Past due" zeggen naast een factuur die "Paid" zegt.
+    refetchOnWindowFocus: true,
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
@@ -2369,6 +2374,29 @@ export default function AdvertiserApp() {
   >({
     queryKey: ["adv-due-sub-invoices", tenantId, advertiserId],
     enabled: !!tenantId && !!advertiserId,
+    // ── DE CRON BETAALT OM 03:00 EN ZEGT HET TEGEN NIEMAND ──────────
+    //
+    // Deze app is EEN component met CSS-geschakelde views, dus er
+    // remount niets als je rondklikt. `payInvoice` maakt zes sleutels
+    // met de hand ongeldig; de nachtelijke incasso kan dat niet -- die
+    // draait op de server. En refetchOnWindowFocus staat uit.
+    //
+    // Gevolg: een tabblad dat 's nachts openstond toont de volgende
+    // ochtend nog het waarschuwingsicoon, "Monthly fee - Due" en een
+    // levende "Pay EUR 200 from wallet", terwijl de factuur al betaald
+    // is. Erop drukken loopt goed af (de RPC geeft de al betaalde rij
+    // terug en het scherm zegt "That invoice was already settled"),
+    // maar tot dat moment zijn vier schermen het met elkaar eens en met
+    // de database oneens.
+    //
+    // Zelfde ritme als adv-pending-topups hierboven, en net als daar
+    // niet in de achtergrond: een tabblad dat niemand ziet hoeft niet
+    // elke minuut te vragen.
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    // Het belangrijkste van de drie voor dit geval: de klant komt 's
+    // ochtends terug op het tabblad dat 's nachts openstond.
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -2739,6 +2767,9 @@ export default function AdvertiserApp() {
     isSuccess: planPaidLoaded,
   } = useQuery({
     queryKey: ["adv-plan-paid", advertiserId, tenantId],
+    // Deze beslist of /accounts opengaat. Een door de cron betaalde
+    // factuur voldoet eraan, maar alleen als hij opnieuw gelezen wordt.
+    refetchOnWindowFocus: true,
     enabled: !!advertiserId && !!tenantId,
     queryFn: async () => {
       const supabase = createClient();
@@ -3001,7 +3032,40 @@ export default function AdvertiserApp() {
   // very much due. Seven days later the cron collects it, or dunning
   // marks them past_due, and the only warning was a toast that had
   // already gone.
-  const planUnknown = planPaidError || subError || invError || dueInvError;
+  // ── EN "NOG NIET GEANTWOORD" IS OOK ONBEKEND ──────────────────────
+  //
+  // Dit stond op de FOUTvlaggen alleen. Elke zusterregel in dit bestand
+  // draagt ook een wacht-term -- `invLoading` hierboven, `dueUnknown`
+  // hieronder, `awaitingFirstInvoice` eist `planPaidLoaded &&
+  // dueInvLoaded && advReadsWillRun`. Deze niet.
+  //
+  // Gevolg: zolang `adv-plan-paid` onderweg is, is `planPaid` vals en
+  // `planUnknown` OOK vals -- en dan geeft requestBlockedReason() een
+  // STELLIGE weigering terug ("Your plan has to be active first"), die
+  // op /accounts en op het tabblad Requests als kale tekst staat, met
+  // een dode knop ernaast. Een bewering over een lees die nog niet
+  // binnen is.
+  //
+  // `advReadsWillRun` bestaat precies hiervoor en werd hier niet
+  // gebruikt: die dekt ook het geval dat de query nog helemaal niet mag
+  // starten, waarin isPending in v5 voor altijd true blijft.
+  //
+  // EN LET OP HET TWEEDE GEVOLG, dat de goede kant op valt: ver
+  // hieronder gaat `planActive || planUnknown` naar effectiveMinTopup,
+  // waar onbekend met opzet de HOOGSTE drempel neemt ("een
+  // onleesbare toestand neemt de bodem, niet de vrijstelling"). Dat was
+  // alleen geregeld voor een MISLUKTE lees; nu ook voor een lees die
+  // nog onderweg is. Dus in dat venster ziet de klant EUR 300 in plaats
+  // van EUR 5 -- en dat is de kant waar de fout een gesprek kost in
+  // plaats van een overboeking die terug moet.
+  const planUnknown =
+    planPaidError ||
+    subError ||
+    invError ||
+    dueInvError ||
+    !advReadsWillRun ||
+    !planPaidLoaded ||
+    !dueInvLoaded;
   // ── DO WE KNOW WHETHER ANYTHING IS DUE? ─────────────────────────────
   //
   // Three branches guarded on `invLoading`, which is the isLoading of
