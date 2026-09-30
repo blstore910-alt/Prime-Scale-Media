@@ -80,7 +80,7 @@ Bij **PSM0018**:
 
 | | voor | na |
 |---|---|---|
-| wallet EUR | 500,00 | **300,00** |
+| wallet EUR | 500,00 | **300,00** (EUR 50 minder als er intussen een ad-account is aangevraagd — het oordeel hangt daarom aan de factuur, niet aan het saldo) |
 | factuur `0018-142` | unpaid | **paid** |
 | abonnement | active | **active** (niet past_due) |
 | `next_payment_date` | 30-09 | **31-10** |

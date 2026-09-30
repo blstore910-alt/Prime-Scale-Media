@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   ADVERTISER_QUOTES,
+  MAX_QUOTE_LEN,
   AFFILIATE_QUOTES,
   BOTH_QUOTES,
   DAILY_QUOTES,
@@ -159,6 +160,29 @@ it("en niets over onszelf -- dit is hun dashboard, geen nieuwsbrief", () => {
     assert.ok(
       !/\b(we|our|us|Prime Scale)\b/i.test(q) || /you/i.test(q),
       `gaat over ons in plaats van over hen: ${q}`,
+    );
+  }
+});
+
+it("elke quote past op EEN regel in de hero", () => {
+  // De eigenaar, 30-09: "liefst zoveel mogelijk 1 quote op 1 line."
+  //
+  // Dit is geen smaakregel. De hero geeft de quote 46ch op .74rem; een
+  // langere zin breekt in tweeen, de hero wordt hoger, het saldo zakt
+  // weg en juist de witruimte eromheen valt op. De vorige lijst liep
+  // tot 67 tekens.
+  //
+  // Waarom een test en geen afspraak: de lijsten groeien met de hand,
+  // en een zin van 52 tekens ziet er in de editor prima uit. Hij valt
+  // pas op een telefoon door de mand, en dan staat hij al live.
+  for (const q of [
+    ...ADVERTISER_QUOTES,
+    ...AFFILIATE_QUOTES,
+    ...BOTH_QUOTES,
+  ]) {
+    assert.ok(
+      q.length <= MAX_QUOTE_LEN,
+      `${q.length} tekens, mag er ${MAX_QUOTE_LEN}: ${q}`,
     );
   }
 });

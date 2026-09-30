@@ -196,13 +196,19 @@ export const ADV_CSS = `
     color:rgba(255,255,255,.5);margin:0}
   .hero-h{font-family:var(--hd);font-weight:800;font-size:1.55rem;letter-spacing:-.025em;
     margin:2px 0 0;color:#fff}
-  /* Zeer klein en zacht: het staat er voor wie het ziet. Het marge-
-     gat dat de naam had draagt hij nu, zodat de hero niet hoger wordt
-     als de regel er staat en niet inzakt als hij ontbreekt. */
-  .hero-quote{font-size:.74rem;line-height:1.45;color:rgba(255,255,255,.44);
-    margin:5px 0 0;max-width:30ch}
+  /* Zeer klein en zacht: het staat er voor wie het ziet.
+     30-09: de eigenaar zag te veel lucht boven, onder en TUSSEN de
+     regels. Die tussenruimte kwam van max-width:30ch -- dat brak elke
+     zin van boven de dertig tekens in tweeen, en twee regels op 1.45
+     leading maken van een terloopse zin een mededeling. De zinnen zijn
+     nu op 46 tekens gezet (MAX_QUOTE_LEN, bewaakt door een test), dus
+     de breedtelimiet mag eraf en de leading omlaag. Geen nowrap met
+     puntjes: een afgekapte quote leest als stuk, en op een heel smal
+     toestel is netjes ombreken beter dan half weggesneden. */
+  .hero-quote{font-size:.74rem;line-height:1.3;color:rgba(255,255,255,.44);
+    margin:2px 0 0;max-width:46ch}
   .hero-h + .hero-bal{margin-top:18px}
-  .hero-quote + .hero-bal{margin-top:16px}
+  .hero-quote + .hero-bal{margin-top:12px}
   .hero-bal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* Each balance is the button that opens the wallet — the number IS the
      link, so there is nothing extra to aim at. */

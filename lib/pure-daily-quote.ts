@@ -141,39 +141,55 @@ function dayKey(d: Date): string {
 // verkapte verkoop. Dit staat op hun eigen dashboard, niet in een
 // nieuwsbrief.
 
+// ── EEN REGEL, EEN REGEL LANG ───────────────────────────────────────
+//
+// De eigenaar, 30-09: "is er niet teveel leegruimte bij de quote? en
+// liefst zoveel mogelijk 1 quote op 1 line."
+//
+// De vorige lijst liep tot 67 tekens en brak op een telefoon in twee
+// regels. Twee regels maken van een terloopse zin een mededeling: de
+// hero wordt hoger, het saldo zakt weg, en de witruimte eromheen valt
+// juist op. Daarom staat er nu een grens op, en die wordt bewaakt door
+// een test in tests/lib/daily-quote.test.ts -- MAX_QUOTE_LEN. Een
+// langere zin is niet "iets minder mooi", hij breekt de bedoeling.
+//
+// 46 is gemeten, niet gekozen: bij .74rem past dat op 360px, het
+// smalste toestel waar dit scherm op gebruikt wordt.
+export const MAX_QUOTE_LEN = 46;
+
 export const ADVERTISER_QUOTES: string[] = [
   "A slow week is data, not a verdict.",
   "The budget you did not spend is still yours.",
-  "Most of building something is the part nobody posts about.",
-  "You are allowed to stop a campaign that is not working.",
-  "Steady beats clever more often than anyone admits.",
-  "Today's number is one day. The line is what matters.",
-  "Knowing what did not work is worth what it cost to find out.",
-  "You do not have to decide everything this morning.",
+  "Most of the building never gets posted.",
+  "You can stop a campaign that is not working.",
+  "Steady beats clever more often than not.",
+  "One day is a number. The line is the story.",
+  "Knowing what failed is worth what it cost.",
+  "You do not have to decide it all today.",
   "Small and profitable is a real business.",
-  "The work you did last month is still working today.",
+  "Last month's work is still working today.",
 ];
 
 export const AFFILIATE_QUOTES: string[] = [
-  "One good introduction outlasts a hundred posts.",
-  "You brought somebody here who is still here. That is the job.",
-  "A quiet month does not undo the ones before it.",
-  "People come back to whoever was straight with them.",
-  "The referral that takes a year is still a referral.",
-  "You cannot make somebody decide. You can be easy to say yes to.",
+  "One introduction outlasts a hundred posts.",
+  "You brought someone here who stayed.",
+  "A quiet month does not undo the ones before.",
+  "People come back to whoever was straight.",
+  "The referral that takes a year still counts.",
+  "You cannot decide for them. Be easy to ask.",
   "Trust compounds. So does the other thing.",
-  "Somebody trusted your word today. Worth noticing.",
-  "The list gets longer if you keep showing up for it.",
+  "Somebody trusted your word today.",
+  "The list grows if you keep showing up.",
 ];
 
 export const BOTH_QUOTES: string[] = [
-  "Two ways to earn is two ways to have a good week.",
-  "You run your own thing and bring others along. That is rare.",
-  "Some days the ads work, some days the referrals do. Both count.",
-  "What you learned spending your own money is why people listen.",
-  "You are allowed to let one side be quiet for a while.",
-  "The advertisers you send here trust you because you do it yourself.",
-  "Two slow lines still add up to one moving one.",
+  "Two ways to earn, two ways to have a week.",
+  "You run your own thing and bring others.",
+  "Some days the ads work, some days referrals.",
+  "You spent your own money learning this.",
+  "You may let one side be quiet for a while.",
+  "They trust you because you do it yourself.",
+  "Two slow lines still add up to one.",
 ];
 
 /**

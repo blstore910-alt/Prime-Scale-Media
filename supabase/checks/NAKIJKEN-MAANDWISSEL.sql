@@ -24,13 +24,23 @@ select
     where i.advertiser_id = k.id and i.type = 'subscription'
       and i.status = 'unpaid')                                    as oudste_open_vervalt,
   case
-    when k.code = 'PSM0018' and coalesce(w.eur_balance, 0) = 300
+    -- Het oordeel hangt aan de FACTUUR, niet aan het saldo. Het saldo
+    -- kan om goede redenen anders zijn -- een ad-accountaanvraag kost
+    -- EUR 50 van dezelfde wallet -- en dan zou een hard bedrag hier
+    -- een geslaagde incasso als fout lezen.
+    when k.code = 'PSM0018'
+         and exists (select 1 from public.invoices i
+                      where i.advertiser_id = k.id
+                        and i.type = 'subscription' and i.status = 'paid')
          and s.status = 'active'
       then 'GOED -- incasso gelukt, abonnement bleef active'
-    when k.code = 'PSM0018' and coalesce(w.eur_balance, 0) = 500
-      then 'NIET GEBEURD -- plak 163 niet gedraaid, of de run is niet gelopen'
     when k.code = 'PSM0018'
-      then 'KIJKEN -- saldo is niet 500 en niet 300'
+         and exists (select 1 from public.invoices i
+                      where i.advertiser_id = k.id
+                        and i.type = 'subscription' and i.status = 'paid')
+      then 'KIJKEN -- factuur betaald maar abonnement staat op ' || coalesce(s.status, '?')
+    when k.code = 'PSM0018'
+      then 'NIET GEBEURD -- geen betaalde abonnementsfactuur; plak 163 niet gedraaid of de run is niet gelopen'
     -- Voor de drie oude testaccounts: pas een oordeel NADAT de run
     -- gelopen heeft. Anders leest de stand van voor de nacht als een
     -- geslaagde uitslag, en dat is precies de fout die dit moet vangen.
