@@ -216,7 +216,8 @@ gelijk geeft.
 | T3-F | payout aanvragen | | | |
 | T3-R | aanmelden via de link van T3-F | | | |
 | T3-R | attributie zichtbaar bij T3-F | | | |
-| eigenaar | de 39 schermen | | | |
+| eigenaar | dashboard (390px) | adverteerders **19**, affiliates **5**, abonnementen billing now **7**, achterstallige facturen **3**, bankgeld **95** | 19 / 5 / 7 (4 actief + 3 past_due) / 3 op deze tenant / 95 | **KLOPT, 5 van 5.** De 7 is plak 160 die werkt: de drie stil uitgevallen abonnementen staan weer op past_due, en het zijn exact de drie achterstallige facturen (125, 136, 138). Mijn eerste telling van 5 achterstallige was fout -- ik vergat de tenant; 2 daarvan staan op psm-e2e. |
+| eigenaar | de overige 38 schermen | | | |
 | medewerker-admin | de 39 min eigenaar-alleen | | | |
 | read-only admin | elke wachtrijknop weigert | | | |
 | — | laag 3: de vijf geldstappen | | | |
