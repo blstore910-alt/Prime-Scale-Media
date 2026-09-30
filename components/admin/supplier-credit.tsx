@@ -77,16 +77,24 @@ const CSS = `
   border:1px solid var(--line);background:var(--panel);border-radius:8px;
   padding:5px 9px;font-size:.73rem;font-weight:700;color:var(--txt-2);
   line-height:1.3;cursor:pointer}
-.sc-re:hover{background:var(--panel-2);border-color:var(--primary)}
-.sc-re svg{width:13px;height:13px}
+.sc-re:hover{background:var(--panel-2);border-color:var(--line-2)}
+.sc-re svg{width:13px;height:13px;color:var(--faint)}
 .sc-re[disabled]{opacity:.55;cursor:default}
 
 /* DE MATRIX. Eerste kolom groeit, valutakolommen zijn even breed en
    rechts uitgelijnd zodat de cijfers onder elkaar staan. */
 .sc-grid{width:100%;border-collapse:collapse;font-size:.83rem}
-.sc-grid th,.sc-grid td{padding:7px var(--sc-pad);text-align:right;
-  border-top:1px solid var(--line);vertical-align:middle}
-.sc-grid th:first-child,.sc-grid td:first-child{text-align:left;width:99%}
+.sc-grid{table-layout:auto}
+.sc-grid th,.sc-grid td{padding:7px 10px;text-align:right;
+  border-top:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.sc-grid th:first-child,.sc-grid td:first-child{text-align:left;
+  padding-left:var(--sc-pad);
+  /* max-width:0 met width:auto is de standaardtruc om EEN kolom te
+     laten inkorten in plaats van de tabel breder te maken. Met
+     width:99% at hij alles op en vielen de cijferkolommen eraf --
+     dat was "de helft niet leesbaar". */
+  width:auto;max-width:0;overflow:hidden}
+.sc-grid th:last-child,.sc-grid td:last-child{padding-right:var(--sc-pad)}
 .sc-grid thead th{padding-top:6px;padding-bottom:6px;font-size:.62rem;
   font-weight:800;letter-spacing:.07em;text-transform:uppercase;
   color:var(--faint);white-space:nowrap}
@@ -95,13 +103,13 @@ const CSS = `
 .sc-grid tbody tr.click:hover{background:var(--panel-2)}
 .sc-grid tbody tr.open{background:var(--primary-tint)}
 
-.sc-who{display:flex;align-items:center;gap:7px}
+.sc-who{display:flex;align-items:center;gap:6px;min-width:0}
 .sc-dot{width:6px;height:6px;border-radius:99px;flex:0 0 auto;background:var(--win)}
 .sc-dot.warn{background:var(--warn)}
 .sc-dot.bad{background:var(--danger)}
 .sc-dot.idle{background:var(--line-2)}
-.sc-name{font-weight:800;font-family:var(--hd);font-size:.87rem;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-name{font-weight:800;font-family:var(--hd);font-size:.85rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .sc-bank{font-family:var(--bd);font-weight:700;font-size:.58rem;
   letter-spacing:.06em;text-transform:uppercase;color:var(--faint);flex:0 0 auto}
 .sc-chev{width:13px;height:13px;color:var(--faint);flex:0 0 auto;
@@ -155,11 +163,19 @@ const CSS = `
 .sc-skel{height:12px;border-radius:5px;background:var(--panel-2);width:100px;
   display:inline-block;margin:10px var(--sc-pad)}
 
-@media(max-width:400px){
+@media(max-width:430px){
+  /* De synctijd kost de meeste breedte en is het minst dringend: op
+     een telefoon staat hij in de tooltip van de rij in plaats van
+     eronder. Daarmee past de naam naast twee valutakolommen zonder
+     dat er iets afvalt. */
   .sc{--sc-pad:11px}
-  .sc-grid{font-size:.79rem}
+  .sc-grid{font-size:.78rem}
+  .sc-grid th,.sc-grid td{padding:6px 7px}
+  .sc-when{display:none}
   .sc-relab{display:none}
   .sc-re{padding:6px 8px}
+  .sc-name{font-size:.8rem}
+  .sc-amt{font-size:.82rem}
 }
 `;
 
@@ -237,6 +253,10 @@ function SupplierRows({
       <tr
         className={`${s.kind === "bank" ? "bank " : ""}${hasDetail ? "click " : ""}${open ? "open" : ""}`}
         onClick={hasDetail ? onToggle : undefined}
+        // Op een telefoon is .sc-when verborgen om breedte te winnen,
+        // dus de synctijd moet ergens anders te vinden zijn. Hier, op
+        // de rij, waar je hem zoekt.
+        title={s.readAt ? whenShort(s.readAt) : undefined}
       >
         <td>
           <span className="sc-who">

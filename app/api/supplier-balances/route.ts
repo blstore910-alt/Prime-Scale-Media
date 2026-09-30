@@ -25,10 +25,7 @@ import { NextResponse } from "next/server";
 import { fetchRockadsWallets } from "@/lib/integrations/rockads-api";
 import { fetchWiseBalances } from "@/lib/integrations/wise-api";
 import { fetchSlashBalances } from "@/lib/integrations/slash-api";
-import {
-  getSupplier1Adapter,
-  readLiveSupplier1Balance,
-} from "@/lib/integrations/supplier1";
+import { readLiveSupplier1Balance } from "@/lib/integrations/supplier1";
 import { safeErrorMessage } from "@/lib/pure-error";
 import {
   grandTotal,
@@ -110,28 +107,22 @@ async function seamx(): Promise<SupplierHolding> {
       };
     }
 
-    // Sleutels staan er niet: dan valt er niets te lezen. De mock
-    // wordt WEL getoond, want weten dat de mock aanstaat is meer
-    // waard dan een leeg vak -- maar gelabeld en buiten elk totaal.
+    // ── GEEN SLEUTELS, GEEN CIJFERS ────────────────────────────
+    //
+    // De eigenaar, 30-09: "seamx mag van test data af."
+    //
+    // Hij had gelijk en ik had het eerder al fout ingeschat. Ik liet
+    // de mockcijfers staan met een labeltje erbij, omdat "weten dat
+    // de mock aanstaat" mij meer waard leek dan een leeg vak. Maar op
+    // een paneel waar iemand op beslist of een top-up gefund kan
+    // worden staan dan USD 5.000 die niet bestaan -- en een label
+    // leest niemand twee weken later nog.
+    //
+    // Geen sleutels is nu gewoon "not connected", net als bij elke
+    // andere leverancier. Dat je hem moet aanzetten blijkt uit de
+    // grijze stip en het woord, niet uit een verzonnen bedrag.
     if (!seamxOn()) {
-      const mock = await getSupplier1Adapter().getWalletBalance();
-      if (!mock.ok) {
-        return {
-          ...base,
-          status: "off",
-          error: null,
-          readAt: null,
-          lines: [],
-        };
-      }
-      return {
-        ...base,
-        status: "demo",
-        error:
-          "No SeamX credentials are set, so these are the mock adapter's figures — not money.",
-        readAt: new Date().toISOString(),
-        lines: seamxHoldings(mock.data),
-      };
+      return { ...base, status: "off", error: null, readAt: null, lines: [] };
     }
 
     // Sleutels staan er wel en SeamX antwoordde niet. Dat is een
