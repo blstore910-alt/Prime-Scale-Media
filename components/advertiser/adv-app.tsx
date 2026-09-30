@@ -5717,9 +5717,49 @@ export default function AdvertiserApp() {
                                     only now. */}
                                 {String(w.status ?? "").toLowerCase() ===
                                 "pending" ? (
-                                  <span className="badge pend">
-                                    Requested
-                                  </span>
+                                  <>
+                                    <span className="badge pend">
+                                      Requested
+                                    </span>
+                                    {/* ── EN WAT DAT BETEKENT ──────────
+                                        Een openstaand verzoek wordt van
+                                        het plafond van dat account
+                                        afgetrokken zolang het open staat
+                                        -- met opzet, want twee verzoeken
+                                        voor het hele saldo zijn elk apart
+                                        geldig en samen niet. Maar niets
+                                        vertelde de klant dat, en er is
+                                        geen knop om een verzoek in te
+                                        trekken: alleen wij kunnen het
+                                        afwijzen. Eén misklik zette dus
+                                        het hele accountsaldo vast achter
+                                        een regel die alleen "Requested"
+                                        zei.
+                                        Of een klant zijn eigen verzoek
+                                        mag intrekken is een besluit van
+                                        de eigenaar; dit zegt in elk geval
+                                        wat er aan de hand is en hoe je
+                                        ons bereikt. */}
+                                    <button
+                                      type="button"
+                                      className="linkish"
+                                      style={{
+                                        display: "block",
+                                        marginTop: 4,
+                                        fontSize: ".74rem",
+                                      }}
+                                      onClick={() =>
+                                        openWhatsapp(
+                                          `Hi PSM, I have a pending withdrawal request of ${
+                                            String(w.currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€"
+                                          }${money2(w.amount)} that I would like to change.`,
+                                        )
+                                      }
+                                    >
+                                      Held until we look at it &mdash; message
+                                      us if this was a mistake
+                                    </button>
+                                  </>
                                 ) : String(w.status ?? "").toLowerCase() ===
                                   "at_supplier" ? (
                                   <span
