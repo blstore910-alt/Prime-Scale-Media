@@ -87,6 +87,42 @@ opened, findings fixed and SQL checks are working notes, not the
 number: three of them at 90% while no journey is closed still means no
 customer can get through the app.
 
+## Non-negotiable — ZEG WELKE EFFORT, VOOR ELK BLOK
+
+De eigenaar, 30-09: "kun jij per blok of per prompt of altijd wanneer
+het moet zeggen welke effort, en hebben we nog hogere effort nodig
+straks?"
+
+**Zeg het in ÉÉN regel aan het begin van een blok werk, en alleen als
+het afwijkt van `high`.** Niet elke prompt — dat is ruis. Wel zodra er
+een blok begint dat duidelijk lichter of zwaarder is dan de rest.
+
+| effort | waarvoor | voorbeeld uit dit project |
+|---|---|---|
+| **low** | mechanisch, het antwoord staat al vast | een label hernoemen, een CSS-waarde, een bekend patroon over zes bestanden uitrollen |
+| **medium** | gewone bouw, de aanpak is duidelijk | een scherm bijbouwen zoals `/exchanges`, een dialoog compacter maken |
+| **high** — DE STANDAARD | geld, SQL, en alles wat tegen de database gehouden moet worden | plakken, RPC's, wachters, een reis verifiëren, elk cijfer op een scherm |
+| **max** | iets is stuk en de oorzaak is onbekend | de Verify-knop die weigerde; het tenant-owner-patroon dat drie plakken lang terugkwam |
+
+**Hebben we straks hoger nodig?** Nee. `high` is hier de bovengrens
+die loont, en `max` is voor een DIAGNOSE, niet voor meer werk per uur.
+Twee keer vandaag was `max` het verschil: een fout die de code niet
+liet zien maar de knop wel.
+
+**En dit is belangrijker dan de knop zelf.** Effort is niet het
+knelpunt van dit project. De drie echte vertragers zijn:
+
+1. **Deploys** — elke push is ~4 minuten Vercel. Bundel het werk per
+   rol en push één keer, niet vijf keer.
+2. **Plakken** — elke plak is een heen-en-weer via de eigenaar. Zet er
+   meer in één bestand.
+3. **Opnieuw meten** — kost tijd en gaat er niet af. Dat is precies
+   wat vandaag drie valse alarmen afving en één echte productiestoring
+   vond.
+
+Een blok puur UI-werk mag dus op `low` of `medium`; alles wat een
+bedrag aanraakt blijft op `high`.
+
 ## Non-negotiable — WELKE BROWSER
 
 De browser heet **`Baris Laptop`**. Dat is de enige die de eigenaar

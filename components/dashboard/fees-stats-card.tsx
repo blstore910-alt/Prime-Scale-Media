@@ -3,7 +3,6 @@
 import { Percent } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid } from "recharts";
 
 import {
   Card,
@@ -12,13 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MiniTrend } from "@/components/dashboard/mini-trend";
+import { moneyLines } from "@/lib/pure-money-lines";
 import {
   DashboardDateRange,
   DashboardPeriod,
@@ -47,17 +42,6 @@ type FeesStatsResponse = {
   };
   series: FeeSeriesPoint[];
 };
-
-const chartConfig = {
-  usd_amount: {
-    label: "USD",
-    color: "var(--chart-2)",
-  },
-  eur_amount: {
-    label: "EUR",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
 
 async function fetchFeesStats(
   period: DashboardPeriod,
@@ -135,8 +119,6 @@ export function FeesStatsCard({
     );
   }
 
-  const hasAmountData = data.totals.count > 0;
-
   return (
     <Card className="@container/card gap-2 py-4">
       <CardHeader className="pb-2">
@@ -152,107 +134,31 @@ export function FeesStatsCard({
           <span>Fees <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
-          <span>{formatCurrency(data.totals.usd.amount, "USD")}</span>
-          <span className="mx-2">/</span>
-          <span>{formatCurrency(data.totals.eur.amount, "EUR")}</span>
+          {/* Alleen de valuta waar die periode iets in gebeurd is. Zie
+                  lib/pure-money-lines.ts: de TELLING beslist of de regel
+                  er staat, niet het bedrag, zodat een echte nul blijft
+                  staan en een ongebruikte valuta verdwijnt. */}
+              {moneyLines(data.totals.usd, data.totals.eur).flatMap((l, i) =>
+                i === 0
+                  ? [
+                      <span key={l.currency}>
+                        {formatCurrency(l.amount, l.currency)}
+                      </span>,
+                    ]
+                  : [
+                      <span key={l.currency + "-sep"} className="mx-2">
+                        /
+                      </span>,
+                      <span key={l.currency}>
+                        {formatCurrency(l.amount, l.currency)}
+                      </span>,
+                    ],
+              )}
         </CardTitle>
       </CardHeader>
 
       <CardContent className="pt-0 px-4">
-        {hasAmountData ? (
-          <div className="relative">
-            <ChartContainer
-              config={chartConfig}
-              className="h-24 w-full aspect-auto rounded-sm bg-muted/20"
-            >
-              <BarChart
-                data={data.series}
-                barCategoryGap={"20%"}
-                margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid
-                  vertical
-                  horizontal={false}
-                  stroke="var(--border)"
-                  strokeOpacity={0.45}
-                />
-                <ChartTooltip
-                  cursor={false}
-                  content={(props) => {
-                    const point = props.payload?.[0]?.payload as
-                      | FeeSeriesPoint
-                      | undefined;
-
-                    if (!point || point.count <= 0) {
-                      return null;
-                    }
-
-                    return (
-                      <ChartTooltipContent
-                        active={props.active}
-                        payload={props.payload}
-                        label={props.label}
-                        hideIndicator
-                        labelFormatter={(_, payload) => {
-                          const currentPoint = payload?.[0]?.payload as
-                            | FeeSeriesPoint
-                            | undefined;
-                          return currentPoint?.label ?? "";
-                        }}
-                        formatter={(value, name, item) => {
-                          const currentPoint = item.payload as FeeSeriesPoint;
-                          const isUsd = name === "usd_amount";
-                          const currency = isUsd ? "USD" : "EUR";
-                          const count = isUsd
-                            ? currentPoint.usd_count
-                            : currentPoint.eur_count;
-
-                          return (
-                            <div className="grid w-full gap-1">
-                              <div className="flex items-center justify-between gap-4 font-semibold">
-                                <span className="text-muted-foreground">
-                                  {currency}
-                                </span>
-                                <span className="font-mono tabular-nums">
-                                  {formatCurrency(Number(value) || 0, currency)}{" "}
-                                  ({formatNumber(count)})
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        }}
-                      />
-                    );
-                  }}
-                />
-                <Bar
-                  dataKey="usd_amount"
-                  // stackId="amount"
-                  fill="var(--color-usd_amount)"
-                  radius={[4, 4, 2, 2]}
-                  maxBarSize={32}
-                />
-                <Bar
-                  dataKey="eur_amount"
-                  // stackId="amount"
-                  fill="var(--color-eur_amount)"
-                  radius={[4, 4, 2, 2]}
-                  maxBarSize={32}
-                />
-              </BarChart>
-            </ChartContainer>
-          </div>
-        ) : (
-          <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
-            {/* A baseline, not a dashed box repeating the 0.00 above it.
-                A quiet month is the normal state on this dashboard, and
-                seven dashed rectangles made it look like seven faults. */}
-            <div className="h-px w-full bg-border" />
-            <span className="text-[11px] leading-none text-muted-foreground/70">
-              No fees collected in the selected period
-            </span>
-          </div>
-        )}
+        <MiniTrend series={data.series} />
       </CardContent>
     </Card>
   );

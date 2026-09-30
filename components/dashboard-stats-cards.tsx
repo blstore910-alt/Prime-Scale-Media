@@ -265,7 +265,7 @@ const STATS_CSS = `
 .psm-stats [data-slot=card-title]{font-family:var(--hd);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
 /* The second currency, quieter than the first: one figure leads, the
    other supports, instead of two shouting the same size. */
-.psm-stats [data-slot=card-title]>span:last-child{font-size:.86em;color:var(--txt-2)}
+.psm-stats [data-slot=card-title]>span:last-child:not(:first-child){font-size:.86em;color:var(--txt-2)}
 @media(min-width:1100px){
   .psm-stats [data-slot=card-title]>span:last-child{font-size:1em;color:inherit}
 }
