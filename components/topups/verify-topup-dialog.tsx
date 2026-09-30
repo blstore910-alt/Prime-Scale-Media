@@ -331,7 +331,9 @@ function VerifyTopupInvoice({
 
   // One read for this account, shared with the queue behind the dialog
   // by react-query's cache.
-  const { supplierFor } = useSupplierLinks([String(topup.account_id ?? "")]);
+  const { supplierFor, supplierUnreadable } = useSupplierLinks([
+    String(topup.account_id ?? ""),
+  ]);
   const supplier = supplierFor(String(topup.account_id ?? ""));
   const accountName = String(
     (topup as unknown as { account_name?: string | null }).account_name ||
@@ -433,7 +435,17 @@ function VerifyTopupInvoice({
                   <style>{`${SUPPLIER_PILL_CSS}
 .vt-pill .suppill{height:28px;padding:0 10px 0 9px}`}</style>
                   <span className="vt-pill">
-                    <SupplierPill link={supplierFor(topup.account_id)} compact />
+                    {supplierUnreadable ? (
+                      /* Geen lege plek waar de leverancier hoort te
+                         staan: dan gaat de admin gokken waar het geld
+                         heen moet. */
+                      <span className="text-xs text-destructive font-medium">
+                        We couldn&apos;t read where this account sits &mdash;
+                        check before you fund it.
+                      </span>
+                    ) : (
+                      <SupplierPill link={supplierFor(topup.account_id)} compact />
+                    )}
                   </span>
                 </>
               )}

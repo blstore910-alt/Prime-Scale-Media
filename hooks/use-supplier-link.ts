@@ -82,7 +82,7 @@ export function useSupplierLinks(accountIds: string[]) {
   // that produce the same set in a different order.
   const ids = Array.from(new Set(accountIds.filter(Boolean))).sort();
 
-  const { data } = useQuery({
+  const { data, isError, isPending } = useQuery({
     queryKey: ["supplier-links", tenantId, ids.join(",")],
     enabled: !!tenantId && ids.length > 0,
     staleTime: 1000 * 60 * 5,
@@ -163,5 +163,17 @@ export function useSupplierLinks(accountIds: string[]) {
   return {
     supplierFor: (accountId: string | null | undefined): SupplierLink | null =>
       (accountId ? data?.get(String(accountId)) : null) ?? null,
+    // ── EN OF WE HET UBERHAUPT KONDEN LEZEN ───────────────────────
+    //
+    // Deze hook gooit met opzet bij een fout ("a read we could not make
+    // is not 'no supplier' ... an error leaves the caller able to say
+    // so") -- maar hij gaf die mogelijkheid niet door. Beide aanroepers
+    // kregen alleen `supplierFor`, en SupplierPill tekent bij een lege
+    // uitkomst niets. Een mislukte lees, een lopende lees en "dit type
+    // heeft geen leverancier" zagen er dus alle drie hetzelfde uit: een
+    // lege plek. En dat is volgens supplier-pill.tsx zelf "what sent the
+    // admin guessing" -- op de dialoog die zegt waar het geld heen moet.
+    supplierUnreadable: isError,
+    supplierPending: isPending,
   };
 }

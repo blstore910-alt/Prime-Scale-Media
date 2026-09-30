@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useAppContext } from "@/context/app-provider";
+import { openWhatsapp } from "@/lib/whatsapp";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
@@ -539,6 +540,32 @@ export default function AccountTopupForm({
                     {selectedAccount
                       ? "This ad account has no currency set yet, so it cannot be funded. Tell us and we will set it — it takes a minute."
                       : "Pick an ad account first."}
+                    {/* ── "TELL US" MOET IETS ZIJN DAT JE KUNT DOEN ──
+                        De zin vroeg de klant contact op te nemen en gaf
+                        geen enkele manier om dat te doen, terwijl de
+                        Send-knop eronder stilletjes uit stond. Elke
+                        andere "message us" in deze app is een
+                        WhatsApp-knop (lib/whatsapp.ts), dus deze ook --
+                        met de naam van het account er alvast in, zodat
+                        wij niet hoeven te vragen welk. */}
+                    {selectedAccount ? (
+                      <button
+                        type="button"
+                        className="underline underline-offset-2 font-semibold ml-1"
+                        onClick={() =>
+                          openWhatsapp(
+                            `Hi PSM, my ad account ${
+                              selectedAccount.name ?? ""
+                            } has no currency set, so I cannot fund it. Could you set it?`.replace(
+                              /\s+/g,
+                              " ",
+                            ),
+                          )
+                        }
+                      >
+                        Message us
+                      </button>
+                    ) : null}
                   </FieldDescription>
                 )}
                 {fieldState.invalid && (
