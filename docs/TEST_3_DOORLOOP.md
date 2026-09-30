@@ -203,9 +203,10 @@ die niets fout deed krijgt op dag drie een bericht dat hij achterloopt.
 Vóór plak 160 viel hij stil uit de boeken, wat erger was maar minder
 zichtbaar.
 
-**Vraag aan de eigenaar:** moet die eerste factuur ook 7 dagen
-krijgen (dan is het één regel in de trigger), of moet de klok pas
-gaan lopen zodra hij zijn bedrijfsgegevens heeft ingevuld?
+**BEANTWOORD, 30-09:** "7 dagen prima, ook voor eerste." De
+uitzondering gaat eruit — **plak 162**, die ook de facturen repareert
+die al met een kortere termijn zijn uitgegeven (vandaag is dat
+factuur 142 van PSM0018).
 
 ---
 
