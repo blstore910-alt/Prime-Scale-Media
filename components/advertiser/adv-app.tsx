@@ -6140,6 +6140,22 @@ export default function AdvertiserApp() {
                       <Ic name="i-plus" /> Request ad account
                     </button>
                   </RequestAdAccountDialog>
+                ) : !companyComplete && !companyUnknown ? (
+                  /* ── DE KNOP WIJST NAAR WAT DIT SCHERM AL ZEGT ────
+                     Gelopen op 390px met PSM0018, test 3. Dit scherm
+                     zegt "Add your company details first -- including
+                     the billing address" en de knop eronder stuurde je
+                     naar BILLING. Daar staat dan weer dat je eerst je
+                     bedrijfsgegevens moet invullen. Twee sprongen om
+                     te komen waar het eerste scherm al naar wees.
+
+                     Derde scherm met dezelfde vorm: het scherm kent de
+                     blokkade en de knop wijst ergens anders heen.
+                     Zodra het bedrijf er staat is betalen wél de
+                     volgende stap en gaat hij weer naar billing. */
+                  <button className="btn" onClick={() => go("settings")}>
+                    <Ic name="i-shield" /> Add your company details
+                  </button>
                 ) : (
                   <button className="btn" onClick={() => go("billing")}>
                     <Ic name="i-shield" /> Go to billing
