@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { groupsForRole } from "@/lib/notification-catalog";
-import { openWhatsapp, whatsappUrl } from "@/lib/whatsapp";
+import { talkToUsLine } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
 import PayoutCard from "@/components/advertiser/payout-card";
@@ -5748,16 +5748,11 @@ export default function AdvertiserApp() {
                                         marginTop: 4,
                                         fontSize: ".74rem",
                                       }}
-                                      onClick={() =>
-                                        openWhatsapp(
-                                          `Hi PSM, I have a pending withdrawal request of ${
-                                            String(w.currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€"
-                                          }${money2(w.amount)} that I would like to change.`,
-                                        )
-                                      }
+                                      onClick={() => setView("help")}
                                     >
                                       Held until we look at it &mdash; message
-                                      us if this was a mistake
+                                      us in your {referralCode || "PSM"} group
+                                      if this was a mistake
                                     </button>
                                   </>
                                 ) : String(w.status ?? "").toLowerCase() ===
@@ -6573,9 +6568,32 @@ export default function AdvertiserApp() {
                     one row, and the phone-width hack that pushed the name
                     down to clear the pill is no longer needed. */}
                 <div className="sub-head">
-                {shownPlanName && (
-                  <div className="plan-name">{shownPlanName}</div>
-                )}
+                {/* ── DE NAAM STAAT ER ALTIJD ─────────────────────────
+                    De eigenaar, 30-09: "ik zie ook geen plan naam in de
+                    card?" en "veel leegte nu boven 75 months."
+
+                    Eén oorzaak voor allebei. `shownPlanName` is leeg
+                    wanneer er geen `advertiser_plans`-rij is, en dan
+                    werd dit hele blok overgeslagen -- de pil bleef
+                    alleen op zijn regel staan en daaronder viel het gat
+                    dat hij zag. Gemeten: PSM0020 heeft een ACTIEF
+                    abonnement van EUR 75 en geen planrij, omdat
+                    `create_subscription_from_invite` de enige schrijver
+                    van die tabel is en een klant die via een
+                    affiliate-link binnenkomt geen uitnodiging heeft.
+                    Zie docs/NEXT_SESSION_FIRST.md.
+
+                    Dus: de regel staat er altijd. Is er een plan, dan
+                    de naam; is er een abonnement zonder plan, dan zegt
+                    de kaart dat -- hetzelfde woord als de beheerkaart
+                    ernaast, want twee schermen die hetzelfde feit
+                    anders noemen kosten een telefoontje. Een lege regel
+                    is geen antwoord, en een verdwenen regel is er nog
+                    minder een. */}
+                <div className="plan-name">
+                  {shownPlanName ??
+                    (subscription ? "No plan set" : "No plan yet")}
+                </div>
                 <span className="pill pill-tr">
                   <Ic name="i-shield" />{" "}
                   {/* A failed read is not "no plan". Telling a paying
@@ -7144,13 +7162,10 @@ export default function AdvertiserApp() {
                             fontSize: ".82rem",
                             textAlign: "center",
                           }}
-                          href={whatsappUrl(
-                            `Hi PSM, I'd like to restart my plan (${referralCode || "my account"}).`,
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          onClick={() => setView("help")}
                         >
-                          Ask us on WhatsApp about restarting your plan
+                          Ask us in your {referralCode || "PSM"} group about
+                          restarting your plan
                         </a>
                       </>
                     ) : (
@@ -7194,22 +7209,15 @@ export default function AdvertiserApp() {
                             ? "Your plan is not running at the moment, so nothing new is being charged. Your included ad accounts come with it, so ask us to start it again when you need them."
                             : "You have no plan yet — that is where your included ad accounts come from."}
                         </p>
-                        <a
-                          className="btn block ghost"
-                          style={{ marginTop: 14 }}
-                          href={whatsappUrl(
-                            stoppedSub
-                              ? `Hi PSM, I'd like to restart my plan (${referralCode || "my account"}).`
-                              : `Hi PSM, I'd like to set up a plan (${referralCode || "my account"}).`,
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <p
+                          className="cap"
+                          style={{ marginTop: 14, display: "flex", gap: 8 }}
                         >
                           <WhatsappIcon />{" "}
                           {stoppedSub
-                            ? "Ask us on WhatsApp to start it again"
-                            : "Ask us on WhatsApp to set up a plan"}
-                        </a>
+                            ? `Ask us in your ${referralCode || "PSM"} group to start it again.`
+                            : `Ask us in your ${referralCode || "PSM"} group to set up a plan.`}
+                        </p>
                       </>
                     )}
                       </>
@@ -8115,21 +8123,28 @@ export default function AdvertiserApp() {
                   </div>
                 </div>
               </div>
+              {/* ── NAAR DE GROEP, NIET NAAR EEN PRIVÉNUMMER ────────
+                  De eigenaar, 30-09: "haal deze button naar mij weg,
+                  zoveel buttons naar mij privé weghalen, anders krijg
+                  ik straks 100 berichten per dag."
+
+                  Deze knop opende een chat met zijn eigen telefoon.
+                  Met elf klanten zijn dat elf losse gesprekken waar
+                  niemand anders kan meelezen of overnemen. Elke klant
+                  heeft al een PSM####-groep en daar hoort het heen.
+
+                  Een ZIN en geen knop, met opzet: een WhatsApp-groep is
+                  alleen met een uitnodigingslink te openen en die staat
+                  nergens -- `advertisers` heeft er geen kolom voor. Die
+                  komt met de bijbehorende plak. Tot dan zegt het scherm
+                  welke groep het is, want een knop die naar de
+                  verkeerde plek gaat is erger dan een aanwijzing die
+                  klopt. */}
               <div className="card">
                 <h2>
                   <Ic name="i-mail" /> Talk to us
                 </h2>
-                <p className="cap">We&apos;re one tap away.</p>
-                <button
-                  className="btn block grad"
-                  onClick={() =>
-                    openWhatsapp(
-                      `Hi PSM, I have a question about my account${referralCode ? ` (${referralCode})` : ""}.`,
-                    )
-                  }
-                >
-                  <WhatsappIcon /> Message us on WhatsApp
-                </button>
+                <p className="cap">{talkToUsLine(referralCode)}</p>
               </div>
             </div>
           </div>

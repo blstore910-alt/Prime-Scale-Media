@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { useAppContext } from "@/context/app-provider";
-import { openWhatsapp } from "@/lib/whatsapp";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
@@ -548,23 +547,15 @@ export default function AccountTopupForm({
                         WhatsApp-knop (lib/whatsapp.ts), dus deze ook --
                         met de naam van het account er alvast in, zodat
                         wij niet hoeven te vragen welk. */}
+                    {/* Een zin, geen knop naar het privénummer van de
+                        eigenaar -- zie lib/whatsapp.ts. De accountnaam
+                        blijft erin staan, want dat is wat wij anders
+                        moeten navragen. */}
                     {selectedAccount ? (
-                      <button
-                        type="button"
-                        className="underline underline-offset-2 font-semibold ml-1"
-                        onClick={() =>
-                          openWhatsapp(
-                            `Hi PSM, my ad account ${
-                              selectedAccount.name ?? ""
-                            } has no currency set, so I cannot fund it. Could you set it?`.replace(
-                              /\s+/g,
-                              " ",
-                            ),
-                          )
-                        }
-                      >
-                        Message us
-                      </button>
+                      <span className="font-semibold ml-1">
+                        Ask us in your WhatsApp group to set the currency on{" "}
+                        {selectedAccount.name ?? "this account"}.
+                      </span>
                     ) : null}
                   </FieldDescription>
                 )}

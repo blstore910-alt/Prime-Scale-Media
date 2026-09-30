@@ -4,7 +4,6 @@ import dayjs from "dayjs";
 
 import { Ic } from "@/components/advertiser/adv-icons";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
-import { whatsappUrl } from "@/lib/whatsapp";
 
 // ── WHERE AN APPLICATION STANDS ─────────────────────────────────────────
 //
@@ -48,14 +47,9 @@ export default function AffiliateApplicationCard({
           <button className="btn" onClick={onApplyAgain} disabled={applying}>
             <Ic name="i-gift" /> {applying ? "Sending…" : "Apply again"}
           </button>
-          <a
-            className="btn ghost wa"
-            href={whatsappUrl("Hi PSM, I'd like to talk about the affiliate program.")}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <WhatsappIcon /> Ask us
-          </a>
+          <span className="btn ghost wa" style={{ cursor: "default" }}>
+            <WhatsappIcon /> Ask us in your group
+          </span>
         </div>
       </div>
     );
@@ -100,14 +94,9 @@ export default function AffiliateApplicationCard({
           </span>
         </li>
       </ol>
-      <a
-        className="btn ghost wa ac-help"
-        href={whatsappUrl("Hi PSM, I applied for the affiliate program — a question:")}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <WhatsappIcon /> Questions? WhatsApp us
-      </a>
+      <p className="ac-help">
+        <WhatsappIcon /> Questions? Ask us in your WhatsApp group.
+      </p>
     </div>
   );
 }

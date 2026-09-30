@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { Ic } from "@/components/advertiser/adv-icons";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
-import { whatsappUrl } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { payoutMinimumFor } from "@/lib/pure-payout-min";
@@ -340,14 +339,12 @@ export default function PayoutCard({
             </p>
           </div>
         </div>
-        <a
-          className="btn ghost wa"
-          href={whatsappUrl("Hi PSM team, I'd like to arrange a payout of my affiliate balance.")}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <WhatsappIcon /> Message us
-        </a>
+        {/* Naar de groep. Zie lib/whatsapp.ts: elke "Message us" ging
+            naar het privénummer van de eigenaar, en met elf klanten
+            zijn dat elf losse gesprekken waar niemand kan overnemen. */}
+        <p className="btn ghost wa" style={{ cursor: "default" }}>
+          <WhatsappIcon /> Ask us in your WhatsApp group
+        </p>
       </div>
     );
   }

@@ -520,12 +520,12 @@ export const ADV_CSS = `
 .sub-card .plan-name{font-family:var(--hd);font-weight:800;font-size:.76rem;
     letter-spacing:.14em;text-transform:uppercase;opacity:.72;margin:0;
     min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sub-card{position:relative;overflow:hidden;border-radius:18px;padding:22px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2),#151d3f);box-shadow:0 22px 46px -26px rgba(20,30,80,.8)}
+  .sub-card{position:relative;overflow:hidden;border-radius:18px;padding:17px 18px 18px;color:#fff;background:linear-gradient(135deg,var(--navy1),var(--navy2),#151d3f);box-shadow:0 22px 46px -26px rgba(20,30,80,.8)}
   .sub-card .ring{position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(91,141,255,.18),transparent 30%,rgba(139,92,246,.18),transparent 60%);animation:spin 24s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .sub-card>*{position:relative}
   .sub-card .pill{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);padding:5px 11px;border-radius:99px}
-  .sub-card .plan{font-family:var(--hd);font-weight:800;font-size:1.7rem;margin:12px 0 2px}
+  .sub-card .plan{font-family:var(--hd);font-weight:800;font-size:1.7rem;margin:4px 0 2px}
   .sub-card .meta{opacity:.85;font-size:.9rem}
   .sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
   .sub-grid .b{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:11px 13px}

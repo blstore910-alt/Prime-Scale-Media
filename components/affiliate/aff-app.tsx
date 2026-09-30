@@ -48,7 +48,6 @@ import PayoutCard from "@/components/advertiser/payout-card";
 import PollCard from "@/components/polls/poll-card";
 import { saveMyPayoutDetails } from "@/actions/payout-details-actions";
 import { AffIcons, Ic } from "./aff-icons";
-import { openWhatsapp } from "@/lib/whatsapp";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AdvertiseTooCard from "./advertise-too-card";
 import PsmAvatar from "@/components/ui/psm-avatar";
@@ -1880,25 +1879,20 @@ export default function AffiliateApp() {
                   <p className="cap" style={{ margin: "2px 0 0" }}>
                     Your name and email are on your account record — they go
                     on your payouts, so we change them with you.{" "}
-                    <button
-                      type="button"
+                    {/* Een ZIN en geen knop. Dit was een knop die een
+                        privéchat met de eigenaar opende; die gaan eruit
+                        (zie lib/whatsapp.ts). Er een uitgeschakelde
+                        knop van maken zou hem vervangen door precies
+                        het ding waar deze doorloop op jaagt -- een knop
+                        die niets doet. */}
+                    <span
                       style={{
-                        background: "none",
-                        border: 0,
-                        padding: 0,
-                        cursor: "pointer",
                         color: "var(--primary-600)",
-                        font: "inherit",
                         fontWeight: 700,
                       }}
-                      onClick={() =>
-                        openWhatsapp(
-                          "Hi PSM, please change the name or email on my affiliate account.",
-                        )
-                      }
                     >
-                      Message us
-                    </button>
+                      Ask us in your WhatsApp group.
+                    </span>
                   </p>
                   {/* THE CURRENCY PICKER THAT NO LONGER DID ANYTHING.
                       "Request payouts in EUR / USD" set a default for a
@@ -2183,15 +2177,20 @@ Where your payouts go. Saved on your account, and filled in
                 <p className="cap">
                   Questions about a referral or a payout? We&apos;re here.
                 </p>
-                <button
-                  className="btn"
-                  style={{ width: "100%", justifyContent: "center" }}
-                  onClick={() =>
-                    openWhatsapp("Hi PSM, I have a question about my affiliate account.")
-                  }
+                {/* Naar de groep. Zie lib/whatsapp.ts -- deze knop
+                    opende een chat met het privénummer van de eigenaar. */}
+                <p
+                  className="cap"
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: 8,
+                  }}
                 >
-                  <WhatsappIcon /> Message us on WhatsApp
-                </button>
+                  <WhatsappIcon /> Message us in your WhatsApp group.
+                </p>
               </div>
             </div>
           </div>
