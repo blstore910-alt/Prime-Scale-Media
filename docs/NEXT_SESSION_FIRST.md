@@ -1,3 +1,32 @@
+# 30-09, EIND VAN DE MIDDAG — EEN VRAAG DIE VAN DE EIGENAAR IS
+
+**Mag een klant zijn eigen opnameverzoek intrekken?**
+
+Vandaag niet. `cancelled` staat wel in het statustype maar wordt door
+niets in deze app geschreven; de enige twee schrijvers zijn de
+goedkeur- en afwijs-RPC. Een openstaand verzoek wordt van het plafond
+van dat ad-account afgetrokken -- met opzet, want twee verzoeken voor
+het hele saldo zijn elk apart geldig en samen niet -- dus een
+vergissing zet het hele saldo vast tot een admin hem afwijst. Er is
+ook geen dubbel-guard op de RPC, dus twee keer indienen is de
+verwachte vergissing.
+
+Ik heb de helft gedaan die geen besluit vraagt: de regel zegt nu wat
+er vastzit en biedt de WhatsApp-weg. De andere helft is beleid:
+
+- **Wel intrekken.** Een RPC `ad_account_withdrawal_cancel` die alleen
+  de eigen, nog openstaande rij op `cancelled` zet. `fundedUsd` telt
+  `cancelled` al niet mee, dus het plafond komt vanzelf terug. Kost
+  een plak en een knop.
+- **Niet intrekken.** Dan blijft het zoals het is, en is de regel die
+  er nu staat het antwoord.
+
+Er is geen technische reden om het een boven het ander te kiezen. Het
+is de vraag of een klant iets mag terugnemen wat al bij ons op het
+bureau ligt.
+
+---
+
 # 30-09, MIDDAG — VIJF DINGEN DIE IK BEWUST HEB LATEN LIGGEN
 
 Allemaal gevonden tijdens test 3, allemaal gemeten, geen van alle op
