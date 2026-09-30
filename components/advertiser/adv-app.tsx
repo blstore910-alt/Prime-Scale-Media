@@ -6152,8 +6152,22 @@ export default function AdvertiserApp() {
                      Derde scherm met dezelfde vorm: het scherm kent de
                      blokkade en de knop wijst ergens anders heen.
                      Zodra het bedrijf er staat is betalen wél de
-                     volgende stap en gaat hij weer naar billing. */
-                  <button className="btn" onClick={() => go("settings")}>
+                     volgende stap en gaat hij weer naar billing.
+
+                     NAAR /complete-profile en niet naar het
+                     Settings-tabblad. Dat tabblad heeft wel een
+                     bedrijfsformulier, maar niet het FACTUURADRES --
+                     opslaan daar geeft "Saved, but not complete yet:
+                     still needed, billing address" met een knop naar
+                     het volledige formulier. Gelopen en gezien. Naar
+                     settings sturen zou dus dezelfde fout zijn die
+                     deze regel repareert, een sprong verderop. */
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      window.location.href = "/complete-profile";
+                    }}
+                  >
                     <Ic name="i-shield" /> Add your company details
                   </button>
                 ) : (
@@ -6727,7 +6741,7 @@ export default function AdvertiserApp() {
                             // bijschrift eronder zegt dat ook, zodat
                             // de sprong niet als een fout voelt.
                             if (!companyComplete && !companyUnknown) {
-                              go("settings");
+                              window.location.href = "/complete-profile";
                               return;
                             }
                             go("wallet");
