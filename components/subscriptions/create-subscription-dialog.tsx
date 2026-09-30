@@ -308,8 +308,23 @@ export default function CreateSubscriptionDialog({
 
           {plans.length > 0 && (
             <Field>
+              {/* ── NIET MEER OPTIONEEL ───────────────────────────────
+                  De eigenaar, 30-09: "als we custom moeten, moeten we
+                  verplicht een plan naam erbij selecteren."
+
+                  "(optional)" was hier precies het gat: niets kiezen,
+                  EUR 75 intypen, en de klant had een abonnement zonder
+                  plan -- dus zonder inbegrepen ad-accounts en zonder
+                  opwaardeerfee. Zo ontstond PSM0020.
+
+                  Een eigen prijs mag nog steeds: kies het plan dat het
+                  dichtst in de buurt komt en pas het bedrag aan. Het
+                  PLAN bepaalt wat er inbegrepen is; het BEDRAG wat er
+                  betaald wordt. Die twee mogen verschillen, maar het
+                  eerste mag niet ontbreken. De server weigert het ook
+                  -- dit veld is de knop, niet de grens. */}
               <FieldLabel htmlFor="subscription-plan-select">
-                Plan (optional)
+                Plan
               </FieldLabel>
               <Select value={planId} onValueChange={applyPlan}>
                 <SelectTrigger
@@ -329,7 +344,9 @@ export default function CreateSubscriptionDialog({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Fills the amount from the plan — you can still edit it.
+                The plan sets their included ad accounts and top-up rate.
+                For a custom price, pick the closest plan and edit the
+                amount below.
               </p>
             </Field>
           )}
@@ -425,6 +442,14 @@ export default function CreateSubscriptionDialog({
             their top-up rate, and nothing is invoiced.
           </p>
         )}
+        {/* Waarom de knop uit staat, IN BEELD. Een uitgeschakelde knop
+            zonder reden is voor wie hem niet kan indrukken precies
+            hetzelfde als een knop die niets doet. */}
+        {plans.length > 0 && !planId ? (
+          <p className="text-xs text-muted-foreground">
+            Pick a plan first — every subscription needs one.
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
             form="subscription-form"
@@ -432,7 +457,11 @@ export default function CreateSubscriptionDialog({
             disabled={
               isPending ||
               isAdvertisersLoading ||
-              isAdvertisersError
+              isAdvertisersError ||
+              // Alleen als er plannen ZIJN. Een tenant zonder catalogus
+              // zou anders nooit meer een abonnement kunnen maken, en
+              // dan stuurt de server de uitleg terug.
+              (plans.length > 0 && !planId)
             }
           >
             {isPending && <Loader2 className="animate-spin" />}

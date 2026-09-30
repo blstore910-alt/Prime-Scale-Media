@@ -216,6 +216,43 @@ export async function createSubscriptionAsAdmin(
     if ((passend ?? []).length === 1) planId = String(passend![0].id);
   }
 
+  // ── EN ANDERS KIES JE ER EEN ────────────────────────────────────
+  //
+  // De eigenaar, 30-09: "en anders, als we dus custom moeten, moeten
+  // we verplicht een plan naam erbij selecteren ofzo."
+  //
+  // Dat is de sluitsteen. Het bedrag wijst het plan aan zodra het
+  // precies past; past het niet, dan kiest een mens. Wat er niet meer
+  // in zit is de derde uitkomst -- een abonnement zonder plan -- en
+  // dat is precies wat PSM0020 was: EUR 75 actief, geen planrij, dus
+  // geen inbegrepen accounts en geen opwaardeerfee, en een klant die
+  // EUR 50 betaalde voor een aanvraag die inbegrepen had kunnen zijn.
+  //
+  // De weigering noemt de bedragen die WEL passen. "Kies een plan"
+  // boven een keuzelijst van vier is een opdracht; "EUR 10 staat niet
+  // in de catalogus, dit zijn de plannen die er zijn" is een antwoord.
+  //
+  // Dit is de GRENS en niet de knop: het scherm mag het veld
+  // verplicht maken, maar een server action die erop vertrouwt is
+  // geen grens.
+  if (!planId) {
+    const { data: keus } = await supabase
+      .from("plans")
+      .select("name, monthly_fee, currency")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true)
+      .order("monthly_fee");
+    const lijst = (keus ?? [])
+      .map((p) => `${p.name} (${p.currency} ${Number(p.monthly_fee).toFixed(2)})`)
+      .join(", ");
+    return {
+      ok: false,
+      error: lijst
+        ? `No plan matches ${input.currency} ${Number(input.amount).toFixed(2)}, so pick one — a subscription without a plan has no included ad accounts and no top-up rate. The plans are: ${lijst}.`
+        : "Pick the plan this customer is on — a subscription without a plan has no included ad accounts and no top-up rate.",
+    };
+  }
+
   let warning: string | undefined;
   if (planId) {
     const { data: planned, error: planErr } = await supabase.rpc(
