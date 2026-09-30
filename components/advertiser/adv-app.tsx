@@ -19,6 +19,7 @@ import CustomerGuideView, {
 } from "@/components/guide/customer-guide";
 import PartnerDirectory from "@/components/partners/partner-directory";
 import LanguageSwitcher from "@/components/i18n/language-switcher";
+import TeamPanel from "@/components/team/team-panel";
 import { useT } from "@/hooks/use-t";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
@@ -300,8 +301,33 @@ export default function AdvertiserApp() {
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [applying, setApplying] = useState(false);
   const [affiliateApplied, setAffiliateApplied] = useState(false);
+  // ── EEN KIJKER DOET NIETS DAT GELD BEWEEGT ──────────────────────
+  //
+  // Multi-user fase 3 (docs/TEAM_ACCOUNTS.md). Een teamlid met de rol
+  // `viewer` kijkt mee bij de adverteerder van een ander. Hij hoort
+  // saldi, accounts en facturen te zien -- en niets te kunnen doen dat
+  // geld beweegt of gegevens van de eigenaar wijzigt.
+  //
+  // De server weigert het sowieso: elke geld-functie zoekt de
+  // adverteerder van de beller op via `user_id = auth.uid()`, en een
+  // teamlid heeft zo'n rij niet. Maar een knop die opent en dan faalt met
+  // "No advertiser for caller" is een knop die niets doet. Dus aan de
+  // voorkant: de ingang zegt meteen WAAROM niet.
+  const teamRole =
+    (profile as { team_role?: string | null } | null)?.team_role ?? null;
+  const isViewer = teamRole === "viewer";
+  const viewerRefusal = (): boolean => {
+    if (!isViewer) return false;
+    toast.info("Read only", {
+      description:
+        "You're viewing this account. Only the account owner can do this.",
+    });
+    return true;
+  };
+
   const [topupCurrency, setTopupCurrency] = useState<"EUR" | "USD">("EUR");
   const openTopup = (cur: "EUR" | "USD") => {
+    if (viewerRefusal()) return;
     setTopupCurrency(cur);
     setTopupOpen(true);
   };
@@ -331,6 +357,7 @@ export default function AdvertiserApp() {
     cur: "EUR" | "USD",
     need?: { amount: number; currency: "EUR" | "USD"; label: string } | null,
   ) => {
+    if (viewerRefusal()) return;
     setExchangeFrom(cur);
     setExchangeNeed(need ?? null);
     setExchangeOpen(true);
@@ -3278,6 +3305,7 @@ export default function AdvertiserApp() {
     go("notif");
   };
   const openAcctTopup = (a: AdAccount) => {
+    if (viewerRefusal()) return;
     setAcctTopup(a);
     setAcctTopupOpen(true);
   };
@@ -3514,6 +3542,7 @@ export default function AdvertiserApp() {
     items?: unknown;
     currency?: string | null;
   }) => {
+    if (viewerRefusal()) return;
     // ── THE MODAL, WHICH WAS THE ONE THAT WAS MISSED ────────────────
     //
     // The card and the amount column were changed to read the invoice's
@@ -4144,6 +4173,34 @@ export default function AdvertiserApp() {
         </div>
 
         <div className="content">
+          {/* ── WIE ALLEEN MEEKIJKT, WEET DAT OP ELK SCHERM ──────────
+              Multi-user fase 3. Een kijker ziet de saldi en facturen van
+              een ander. Zonder deze regel is dat van zijn eigen account
+              niet te onderscheiden -- en dan verbaast het hem dat Top up
+              "Read only" zegt. Nu staat bovenaan elk scherm bij wie hij
+              is, en wat hij wel en niet kan. */}
+          {isViewer ? (
+            <div
+              role="status"
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                padding: "9px 13px",
+                marginBottom: 14,
+                borderRadius: 12,
+                background: "var(--primary-tint)",
+                color: "var(--primary-600)",
+                fontSize: ".84rem",
+                fontWeight: 600,
+              }}
+            >
+              <Ic name="i-user" />
+              <span>
+                Viewing {referralCode ?? "this"}&apos;s account — read only.
+              </span>
+            </div>
+          ) : null}
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
             {/* ── ONE SKELETON, NOT A CASCADE ──────────────────────────
@@ -4178,6 +4235,9 @@ export default function AdvertiserApp() {
               role={profile?.role}
               isAffiliate={isAffiliate}
             />
+            {/* Niet voor een kijker: "voeg je bedrijf toe, doe een top-up"
+                is de takenlijst van de EIGENAAR. Zie viewerRefusal. */}
+            {!isViewer && (
             <OnboardingChecklist
               /* WAIT FOR THE ANSWERS, not just for localStorage. The ticks
                  come from three separate queries — company, wallet,
@@ -4235,12 +4295,13 @@ export default function AdvertiserApp() {
                 // form that writes both companies and billings, and the
                 // billing row is half of what the gate checks.
                 if (v === "complete-profile") {
-                  router.push("/complete-profile");
+                  if (!viewerRefusal()) router.push("/complete-profile");
                   return;
                 }
                 go(v as View);
               }}
             />
+            )}
             {!companyComplete && !companyUnknown && (
               /* The app no longer blocks the door with this form, so it has
                  to say plainly why the buttons are quiet — otherwise "you can
@@ -4271,7 +4332,9 @@ export default function AdvertiserApp() {
                     there, this is the only way anyone reaches it. */}
                 <button
                   className="dlink"
-                  onClick={() => router.push("/complete-profile")}
+                  onClick={() => {
+                    if (!viewerRefusal()) router.push("/complete-profile");
+                  }}
                 >
                   {t("btn.add")} <Ic name="i-arrow" />
                 </button>
@@ -7628,6 +7691,16 @@ export default function AdvertiserApp() {
               <h2>{t("label.language")}</h2>
               <div style={{ marginTop: 10 }}>
                 <LanguageSwitcher />
+              </div>
+            </div>
+            {/* ── HET TEAM ─────────────────────────────────────────────
+                Multi-user fase 3. De eigenaar nodigt hier een collega
+                uit om mee te kijken; een teamlid ziet hier bij wie hij
+                meekijkt. Zie components/team/team-panel.tsx. */}
+            <div className="card" style={{ marginBottom: 14 }}>
+              <h2>Team</h2>
+              <div style={{ marginTop: 10 }}>
+                <TeamPanel teamRole={teamRole} accountCode={referralCode} />
               </div>
             </div>
             <div className="grid2">

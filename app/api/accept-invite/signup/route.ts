@@ -1,5 +1,6 @@
 import { isMaintenanceMode } from "@/actions/_shared";
 import { carryBankGroupToAdvertiser } from "@/lib/auth/carry-bank-group";
+import { joinTeam, readTeamInvite } from "@/lib/auth/team-invite";
 import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -213,6 +214,45 @@ export async function POST(request: NextRequest) {
         { success: false, message: "Failed to update invitation status" },
         { status: 500 },
       );
+    }
+
+    // ── EEN COLLEGA, GEEN NIEUWE KLANT ────────────────────────────
+    //
+    // Dezelfde tak als in app/api/accept-invite/route.ts, met dezelfde
+    // helper, zodat de twee routes niet uit elkaar lopen. Dit is de route
+    // die een nieuw teamlid neemt: een collega heeft doorgaans nog geen
+    // account. Voor elke gewone uitnodiging geeft readTeamInvite null en
+    // loopt alles hieronder zoals het deed.
+    const team = await readTeamInvite(supabase, validInvite.id);
+    if (team) {
+      const joined = await joinTeam(supabase, {
+        team,
+        tenantId: String(tenant_id),
+        userId: data.user.id,
+      });
+      if (!joined.ok) {
+        await supabase
+          .from("invitations")
+          .update({ status: "pending" })
+          .eq("id", validInvite.id)
+          .eq("status", "accepted");
+        return NextResponse.json(
+          { success: false, message: joined.error },
+          { status: 500 },
+        );
+      }
+      const redirectUrl = new URL("/dashboard", request.url);
+      const teamRes = NextResponse.json(
+        { success: true, message: "You have joined the team", redirectUrl },
+        { status: 200 },
+      );
+      teamRes.cookies.set("profile_id", profileData.id, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        path: "/",
+      });
+      return teamRes;
     }
 
     // Idempotent: creates the advertisers + wallets row if a trigger

@@ -3,6 +3,7 @@ import { carryBankGroupToAdvertiser } from "@/lib/auth/carry-bank-group";
 import { parseJsonBody, safeErrorMessage } from "@/lib/http";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { joinTeam, readTeamInvite } from "@/lib/auth/team-invite";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -281,6 +282,49 @@ export async function POST(request: NextRequest) {
   // to the service client and the grant to `authenticated` is revoked
   // (20260920210000). That closes the hole without rewriting a live
   // function body, which is the part that has gone wrong here before.
+  // ── EEN COLLEGA, GEEN NIEUWE KLANT ──────────────────────────────
+  //
+  // Multi-user fase 3 (docs/TEAM_ACCOUNTS.md). Is dit een
+  // teamuitnodiging, dan komt er GEEN adverteerder, GEEN wallet en GEEN
+  // abonnement -- anders is de collega een tweede klant met een lege
+  // wallet. Wel een lidmaatschap bij de adverteerder van zijn team.
+  //
+  // Voor elke gewone uitnodiging geeft readTeamInvite null, en loopt
+  // alles hieronder precies zoals het deed. Ook als plak 179 nog niet
+  // gedraaid is: dan faalt de losse lees en is het geen teamuitnodiging.
+  const team = await readTeamInvite(admin, invite_id);
+  if (team) {
+    const joined = await joinTeam(admin, {
+      team,
+      tenantId: invitation.tenant_id,
+      userId: userData.user.id,
+    });
+    if (!joined.ok) {
+      // Terug naar pending, zodat nog een keer drukken een echte
+      // herkansing is -- dezelfde reden als bij de twee takken hieronder.
+      await admin
+        .from("invitations")
+        .update({ status: "pending" })
+        .eq("id", invite_id)
+        .eq("status", "accepted");
+      return NextResponse.json(
+        { success: false, message: joined.error },
+        { status: 500 },
+      );
+    }
+    const teamRes = NextResponse.json(
+      { success: true, message: "You have joined the team" },
+      { status: 201 },
+    );
+    teamRes.cookies.set("profile_id", profileData.id, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    });
+    return teamRes;
+  }
+
   const { error: bootstrapError } = await admin.rpc(
     "ensure_advertiser_and_wallet",
     { p_profile_id: profileData.id },
