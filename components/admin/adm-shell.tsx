@@ -8,6 +8,7 @@ import { PSM_APP_CSS } from "@/components/advertiser/psm-shell-css";
 import {
   Bell,
   BookOpen,
+  Building2,
   Repeat,
   ChevronDown,
   Coins,
@@ -210,6 +211,9 @@ export default function AdminShell({
     {
       title: "More",
       items: [
+        // De partnergids: de klant ziet de tegels, hier worden ze gezet.
+        // Onder "More" en niet onder "Money" -- het raakt geen euro.
+        { title: "Partners", href: "/partners", icon: Building2 },
         { title: "Manual", href: "/manual", icon: BookOpen },
         { title: "Get Help", href: "/help", icon: HelpCircle },
       ],

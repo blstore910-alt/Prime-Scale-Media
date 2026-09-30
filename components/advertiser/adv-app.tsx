@@ -17,6 +17,7 @@ import { talkToUsLine } from "@/lib/whatsapp";
 import CustomerGuideView, {
   customerGuideHeading,
 } from "@/components/guide/customer-guide";
+import PartnerDirectory from "@/components/partners/partner-directory";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
 import PayoutCard from "@/components/advertiser/payout-card";
@@ -111,6 +112,7 @@ type View =
   | "referrals"
   | "notif"
   | "settings"
+  | "partners"
   | "help";
 const TITLES: Record<View, string> = {
   dash: "Dashboard",
@@ -122,6 +124,10 @@ const TITLES: Record<View, string> = {
   referrals: "Affiliate program",
   notif: "Notifications",
   settings: "Settings",
+  // De eigenaar, 30-09: "PSM partner directory". Een eigen scherm en geen
+  // kaart op het dashboard: een gids is iets dat je opzoekt, niet iets
+  // dat bij elke keer inloggen ruimte hoort te kosten.
+  partners: "Partners",
   help: "Get help",
 };
 
@@ -3632,6 +3638,7 @@ export default function AdvertiserApp() {
   ];
   const NAV2: { v: View; icon: string; label: string }[] = [
     { v: "notif", icon: "i-bell", label: "Notifications" },
+    { v: "partners", icon: "i-building", label: "Partners" },
     { v: "settings", icon: "i-settings", label: "Settings" },
     { v: "help", icon: "i-help", label: "Get help" },
   ];
@@ -8087,6 +8094,22 @@ export default function AdvertiserApp() {
           </div>
 
           {/* HELP */}
+          {/* ── DE PARTNERGIDS ─────────────────────────────────────
+              De eigenaar, 30-09: "PSM partner directory > partners met
+              wow super mooie tiles." De tegels en hun drie toestanden
+              staan in components/partners/partner-directory.tsx; de
+              partners zelf beheert de eigenaar onder Partners in
+              beheer, zonder deploy. */}
+          <div className={`view${view === "partners" ? " on" : ""}`}>
+            <div className="phead">
+              <div>
+                <h1>Partners</h1>
+                <p>Companies we work with.</p>
+              </div>
+            </div>
+            {view === "partners" ? <PartnerDirectory /> : null}
+          </div>
+
           <div className={`view${view === "help" ? " on" : ""}`}>
             <div className="phead">
               <div>
