@@ -373,10 +373,23 @@ export function AccountDetailsSheet({
                         "Meta-EU-PSM" on the CUSTOMER's own screen --
                         which names the supplier family the account came
                         from. A pill with the group is all they get. */}
+                    {/* ── EEN MERKTEKEN, NIET TWEE ──────────────────
+                        De eigenaar, 30-09: "2 meta icons, is dat niet
+                        dubbel? check wat mooiste is."
+
+                        Het was dubbel: hetzelfde glyph stond in de
+                        tegel van 48 pixels hiernaast en nog eens in
+                        deze pil, veertig pixels ernaast. Twee keer
+                        hetzelfde teken naast elkaar leest niet als
+                        nadruk maar als een opmaakfout.
+
+                        De TEGEL blijft, want die is het anker van de
+                        kop en draagt het teken op de maat waarop het
+                        leesbaar is. Het pilletje verliest hem: er
+                        staat "Meta Premium" in, dus het woord doet het
+                        werk al -- en zonder glyph past de pil beter
+                        naast de accountnaam op een telefoon. */}
                     <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white/[0.16] px-2.5 py-1 text-[0.7rem] font-semibold tracking-wide ring-1 ring-white/25 backdrop-blur-sm">
-                      <span className="grid h-3.5 w-3.5 place-items-center [&>svg]:h-3.5 [&>svg]:w-3.5">
-                        <PlatformGlyph slug={data.platform} />
-                      </span>
                       {isAdvertiser
                         ? networkLabel(data.platform)
                         : (PLATFORMS.find((p) => p.value === data.platform)
