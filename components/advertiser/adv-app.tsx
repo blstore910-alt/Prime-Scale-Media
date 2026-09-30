@@ -347,6 +347,12 @@ export default function AdvertiserApp() {
   // De taal van deze klant. Zie docs/NL_EN.md; valt terug op Engels
   // zolang plak 177 niet gedraaid is, zodat de app dan werkt als vandaag.
   const { t } = useT();
+  // Dezelfde functie onder een naam die een lusvariabele niet kan
+  // overschaduwen. In de walletlijst heet een top-uprij toevallig ook
+  // `t` (`t.status`, `t.description`), en daarbinnen roept t("...") dan
+  // de RIJ aan in plaats van de vertaling. tsc vangt dat, maar deze naam
+  // maakt het onmogelijk.
+  const tr = t;
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   // Read on its own, not in the profile select: the column arrives
@@ -3174,7 +3180,7 @@ export default function AdvertiserApp() {
     if (!companyComplete && !companyUnknown) {
       return companyMissing.length && companyMissing.length <= 2
         ? `Still needed first: ${companyMissing.join(" and ")}`
-        : "Add your company details first — including the billing address";
+        : tr("dash.companyFirst");
     }
     // ── SAY WHICH OF THE TWO IT IS ────────────────────────────────
     //
@@ -5166,16 +5172,16 @@ export default function AdvertiserApp() {
                    disable) and the reason is now spoken. */
                 disabledReason={
                   walletError
-                    ? "We couldn't read your wallet just now — reload and try again"
+                    ? tr("wallet.readFailed")
                     : // A THIRD STATE. `!wallet` is also true while the
                       // read is in flight, so opening ?view=wallet said
                       // "No wallet on this account yet" -- twice, once per
                       // card -- to a customer who has one, before flipping
                       // to their balance.
                       walletBusy
-                      ? "Just a moment — loading your wallet"
+                      ? tr("wallet.loading")
                       : !wallet
-                        ? "No wallet on this account yet"
+                        ? tr("wallet.none")
                         : // ── DE REDEN DIE ER HET VAAKST IS, ONTBRAK ──
                           //
                           // De knop wordt uitgeschakeld door
@@ -5198,7 +5204,7 @@ export default function AdvertiserApp() {
                           !companyComplete && !companyUnknown
                           ? companyMissing.length && companyMissing.length <= 2
                             ? `Still needed first: ${companyMissing.join(" and ")}`
-                            : "Add your company details first — including the billing address"
+                            : tr("dash.companyFirst")
                           : undefined
                 }
               />
@@ -5221,16 +5227,16 @@ export default function AdvertiserApp() {
                    disable) and the reason is now spoken. */
                 disabledReason={
                   walletError
-                    ? "We couldn't read your wallet just now — reload and try again"
+                    ? tr("wallet.readFailed")
                     : // A THIRD STATE. `!wallet` is also true while the
                       // read is in flight, so opening ?view=wallet said
                       // "No wallet on this account yet" -- twice, once per
                       // card -- to a customer who has one, before flipping
                       // to their balance.
                       walletBusy
-                      ? "Just a moment — loading your wallet"
+                      ? tr("wallet.loading")
                       : !wallet
-                        ? "No wallet on this account yet"
+                        ? tr("wallet.none")
                         : // ── DE REDEN DIE ER HET VAAKST IS, ONTBRAK ──
                           //
                           // De knop wordt uitgeschakeld door
@@ -5253,7 +5259,7 @@ export default function AdvertiserApp() {
                           !companyComplete && !companyUnknown
                           ? companyMissing.length && companyMissing.length <= 2
                             ? `Still needed first: ${companyMissing.join(" and ")}`
-                            : "Add your company details first — including the billing address"
+                            : tr("dash.companyFirst")
                           : undefined
                 }
               />
@@ -5346,8 +5352,7 @@ export default function AdvertiserApp() {
                               checking the bank by hand. "As soon as we
                               see it land" makes a customer wait instead
                               of chasing. */}
-                          We check the bank and credit it by hand, usually
-                          the same working day.
+                          {tr("wallet.checkedByHand")}
                         </span>
                       </div>
                     </div>
@@ -5372,9 +5377,7 @@ export default function AdvertiserApp() {
                       color: "var(--danger)",
                     }}
                   >
-                    Part of your activity didn&apos;t load, so this list is
-                    incomplete and may not add up to your balance. Give it a
-                    reload — if it keeps happening, tell us.
+                    {tr("wallet.partialLoad")}
                   </p>
                 ) : null}
               </div>
@@ -5382,11 +5385,11 @@ export default function AdvertiserApp() {
                 <table className="tbl wide">
                   <thead>
                     <tr>
-                      <th style={{ paddingLeft: 14 }}>Date</th>
-                      <th>Reference</th>
-                      <th>Description</th>
-                      <th className="r">Amount</th>
-                      <th className="r">Status</th>
+                      <th style={{ paddingLeft: 14 }}>{tr("label.date")}</th>
+                      <th>{tr("label.reference")}</th>
+                      <th>{tr("label.description")}</th>
+                      <th className="r">{tr("label.amount")}</th>
+                      <th className="r">{tr("label.status")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -5483,13 +5486,13 @@ export default function AdvertiserApp() {
                                         className="badge muted"
                                         title={
                                           fromWallet
-                                            ? "Taken from your wallet."
-                                            : "Settled outside your wallet \u2014 your balance did not change for this."
+                                            ? tr("wallet.takenFromWallet")
+                                            : tr("wallet.settledOutside")
                                         }
                                       >
                                         {fromWallet
                                           ? "Paid"
-                                          : "Paid \u00b7 not from wallet"}
+                                          : tr("wallet.paidNotFromWallet")}
                                       </span>
                                     </td>
                                   </>
@@ -5589,7 +5592,7 @@ export default function AdvertiserApp() {
                                 >
                                   {String(t.status ?? "").toLowerCase() ===
                                   "completed"
-                                    ? "On the account"
+                                    ? tr("label.stOnAccount")
                                     : /* FAILED IS NOT ON ITS WAY. The
                                          badge special-cased completed and
                                          rejected and let everything else
@@ -5602,8 +5605,8 @@ export default function AdvertiserApp() {
                                       ["rejected", "failed"].includes(
                                           String(t.status ?? "").toLowerCase(),
                                         )
-                                      ? "Refused"
-                                      : "On its way"}
+                                      ? tr("label.stRefused")
+                                      : tr("label.stOnItsWay")}
                                 </span>
                               </td>
                             </tr>
@@ -5629,8 +5632,8 @@ export default function AdvertiserApp() {
                               </td>
                               <td data-label="What">
                                 {refund
-                                  ? "Ad-account request refunded"
-                                  : "Ad-account request fee"}
+                                  ? tr("wallet.requestRefunded")
+                                  : tr("wallet.requestFee")}
                               </td>
                               <td data-label="Amount" className="r">
                                 {refund ? "+" : "−"}
@@ -5641,7 +5644,7 @@ export default function AdvertiserApp() {
                                 <span
                                   className={`badge ${refund ? "ok" : "muted"}`}
                                 >
-                                  {refund ? "Returned" : "Charged"}
+                                  {refund ? tr("label.stReturned") : tr("label.stCharged")}
                                 </span>
                               </td>
                             </tr>
@@ -5670,11 +5673,11 @@ export default function AdvertiserApp() {
                               >
                                 {String(w.status ?? "").toLowerCase() ===
                                 "pending"
-                                  ? "Return requested from an ad account"
+                                  ? tr("wallet.returnRequested")
                                   : String(w.status ?? "").toLowerCase() ===
                                       "rejected"
-                                    ? "Return refused"
-                                    : "Returned from an ad account"}
+                                    ? tr("wallet.returnRefused")
+                                    : tr("wallet.returnedFromAccount")}
                                 {/* OUR WORDS, WHERE THEY CAN GO BACK TO
                                     THEM. The notification says it once and
                                     is then scrolled past; this row is the
@@ -5773,9 +5776,9 @@ export default function AdvertiserApp() {
                                       }}
                                       onClick={() => setView("help")}
                                     >
-                                      Held until we look at it &mdash; message
-                                      us in your {referralCode || "PSM"} group
-                                      if this was a mistake
+                                      {tr("wallet.heldUntil", {
+                                        group: referralCode || "PSM",
+                                      })}
                                     </button>
                                   </>
                                 ) : String(w.status ?? "").toLowerCase() ===
@@ -5830,10 +5833,10 @@ export default function AdvertiserApp() {
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 {m.kind === "refund"
-                                  ? "Paid back to your bank"
+                                  ? tr("wallet.paidBackToBank")
                                   : up
-                                    ? "Correction in your favour"
-                                    : "Correction"}
+                                    ? tr("wallet.correctionInFavour")
+                                    : tr("wallet.correction")}
                                 {/* WHY IT MOVED. Without this the line is
                                     a figure with no cause, which is only
                                     marginally better than no line. */}
@@ -5860,7 +5863,7 @@ export default function AdvertiserApp() {
                               </td>
                               <td data-label="Status" className="r">
                                 <span className={`badge ${up ? "ok" : "muted"}`}>
-                                  {m.kind === "refund" ? "Paid out" : "Applied"}
+                                  {m.kind === "refund" ? tr("label.stPaidOut") : tr("label.stApplied")}
                                 </span>
                               </td>
                             </tr>
@@ -5952,7 +5955,7 @@ export default function AdvertiserApp() {
                               (t.reference_no ?? "—")}
                           </td>
                           <td data-label="Description" style={{ color: "var(--txt-2)" }}>
-                            {t.description || "Wallet top-up"}
+                            {t.description || tr("wallet.topupDefault")}
                           </td>
                           <td
                             data-label="Amount"
@@ -5986,13 +5989,13 @@ export default function AdvertiserApp() {
                               }`}
                             >
                               {t.status === "completed"
-                                ? "Credited"
+                                ? tr("label.stCredited")
                                 : t.status === "rejected"
-                                  ? "Rejected"
+                                  ? tr("label.stRejected")
                                   : t.status === "failed"
-                                    ? "Failed"
+                                    ? tr("label.stFailed")
                                     : t.status === "pending"
-                                      ? "Pending"
+                                      ? tr("label.stPending")
                                       : (t.status ?? "Unknown")}
                             </span>
                             {/* WHY IT WAS REFUSED, WHERE THEY LOOK FOR IT.
@@ -6088,10 +6091,10 @@ export default function AdvertiserApp() {
                           // gone -- and the totals would not add up to
                           // the figure at the top of the screen.
                           movesError
-                            ? "We couldn't load all of your wallet activity — this isn't an empty list. Give it a reload."
+                            ? tr("wallet.activityLoadFailed")
                             : activityLoading
-                              ? "Looking up your wallet activity…"
-                              : "Nothing has moved yet \u2014 top-ups, exchanges, ad-account funding and anything paid from your wallet show up here."}
+                              ? tr("wallet.activityLoading")
+                              : tr("wallet.activityEmpty")}
                           </span>
                         </td>
                       </tr>
@@ -6107,8 +6110,7 @@ export default function AdvertiserApp() {
                       color: "var(--faint)",
                     }}
                   >
-                    Showing your most recent activity. Older entries are not
-                    listed here — the financial report has the full period.
+                    {tr("wallet.recentOnly")}
                   </p>
                 ) : null}
               </div>
