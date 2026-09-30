@@ -1,4 +1,5 @@
 import { isMaintenanceMode } from "@/actions/_shared";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -79,21 +80,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", profile.tenant_id)
-    .maybeSingle();
+  // De tenant-lees die hier stond is weg: isTenantOwner() doet hem
+  // zelf, en dan ook meteen de tweede -- `tenant_owners`. Een kopie
+  // ernaast laten staan is precies hoe de twee uit elkaar liepen.
 
-  if (tenantError) {
-    return NextResponse.json(
-      { success: false, message: "Failed to load tenant" },
-      { status: 403 },
-    );
-  }
-
-  const ownerId = tenant?.owner_id;
-  if (!ownerId || ownerId !== userData.user.id) {
+  // ── DE OWNERSET, NIET DE KOLOM ──────────────────────────────────
+  //
+  // `tenants.owner_id` is EEN eigenaar; sinds plak 143 is
+  // eigenaarschap een verzameling (`tenant_owners`), want de eigenaar
+  // heeft een compagnon. isTenantOwner() kijkt naar allebei.
+  //
+  // Deze route maakt een ADMIN aan, dus de tweede eigenaar kon geen
+  // collega toevoegen -- en dat is de route waarmee je je eigen team
+  // inricht. Gevonden op 30-09 door de test hiernaast uit te breiden
+  // naar de hernoemde vorm (`ownerId !== ...` in plaats van
+  // `owner_id !== ...`); drie andere plekken hadden dezelfde fout.
+  if (
+    !(await isTenantOwner(
+      supabase,
+      profile.tenant_id,
+      // Allebei: auth-id en profiel-id verschillen voor iemand met
+      // een profiel in meer dan een tenant, en de twee bestaande
+      // guards waren het oneens over welke getoetst moest worden.
+      userData.user.id,
+      profile.id,
+    ))
+  ) {
     return NextResponse.json(
       { success: false, message: "Forbidden" },
       { status: 403 },

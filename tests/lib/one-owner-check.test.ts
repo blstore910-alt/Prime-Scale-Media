@@ -83,7 +83,24 @@ test("nobody compares owner_id by hand any more", () => {
         }
         // A comparison against owner_id is a permission check somebody
         // wrote out by hand.
-        if (/\bowner_id\b[^\n]*[!=]==/.test(line) || /[!=]==[^\n]*\bowner_id\b/.test(line)) {
+        // ── EN OOK DE HERNOEMDE VARIANT ────────────────────────────
+        //
+        // 30-09: deze test stond er al en ving DRIE plekken niet --
+        // admin-actions, invite-actions en referral-actions -- om een
+        // domme reden. Ze zetten de waarde eerst in een camelCase
+        // variabele:
+        //
+        //     const ownerId = tenant?.owner_id;
+        //     if (!ownerId || ownerId !== profile.user_id) { ... }
+        //
+        // De TOEKENNING bevat owner_id maar geen vergelijking, en de
+        // VERGELIJKING bevat geen owner_id. Allebei de helften glipten
+        // er los langs. Dat kostte vandaag reis 7 en reis 8: de tweede
+        // eigenaar kon geen affiliate goedkeuren en geen weigering
+        // indienen, terwijl hij gewoon in tenant_owners staat.
+        //
+        // Een hernoeming mag een beveiligingstest niet uitschakelen.
+        if (/\bowner_id\b[^\n]*[!=]==/.test(line) || /[!=]==[^\n]*\bowner_id\b/.test(line) || /\bownerId\b[^\n]*[!=]==/.test(line) || /[!=]==[^\n]*\bownerId\b/.test(line)) {
           offenders.push(`${rel}:${i + 1}  ${bare.slice(0, 96)}`);
         }
       });

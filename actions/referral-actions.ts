@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { checkVersion, maintenanceGuard, wroteSomething } from "./_shared";
+import {
+  checkVersion,
+  maintenanceGuard,
+  resolveOwnerContext,
+  wroteSomething,
+} from "./_shared";
 import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 
 type ActionResult<T = null> =
@@ -49,22 +54,36 @@ async function requireAdminCtx() {
  * its own comment never got the gate.
  */
 async function resolveOwnerCtx() {
-  const ctx = await requireAdminCtx();
-  if (!ctx.ok) return ctx;
-  const { data: tenant } = await ctx.supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", ctx.profile.tenant_id)
-    .maybeSingle();
-  const ownerId = (tenant as { owner_id?: string | null } | null)?.owner_id;
-  if (!ownerId || ownerId !== ctx.profile.user_id) {
+  // ── EEN IMPLEMENTATIE, NIET TWEE ────────────────────────────────
+  //
+  // Hier stond een eigen kopie: haal `tenants.owner_id` op en
+  // vergelijk met de beller. Toen eigenaarschap een VERZAMELING werd
+  // (plak 143, de eigenaar heeft een compagnon) leerde de gedeelde
+  // helper `tenant_owners` kennen en deze kopie niet.
+  //
+  // Gemeten op 30-09, door de knop in te drukken: Lasse staat in
+  // `tenant_owners` en kreeg hier "Only the account owner can approve
+  // or refuse an affiliate". Plak 165 had die toets diezelfde middag
+  // in ZEVEN SQL-functies rechtgezet -- en dit is dezelfde fout een
+  // laag hoger, in de servercode, waar geen plak bij komt.
+  //
+  // bank-account-actions.ts heeft dit al een keer zo opgelost en zegt
+  // waarom: "een guard die in elf bestanden klopt en in een niet, is
+  // erger dan een guard die overal fout is, want dan gaat niemand
+  // kijken."
+  const base = await resolveOwnerContext();
+  if (!base.ok) {
     return {
       ok: false as const,
-      error:
-        "Only the account owner can approve or refuse an affiliate, because it sets what we pay them.",
+      // De zin die hier stond blijft: hij legt uit WAAROM deze knop
+      // zwaarder beveiligd is dan de rest, en dat is waardevoller dan
+      // de algemene tekst van de helper.
+      error: base.error.includes("owner")
+        ? "Only an account owner can approve or refuse an affiliate, because it sets what we pay them."
+        : base.error,
     };
   }
-  return ctx;
+  return { ok: true as const, supabase: base.ctx.supabase, profile: base.ctx.profile };
 }
 
 // A function plak 42 has not added yet. Only then is the old direct

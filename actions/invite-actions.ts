@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { cookies } from "next/headers";
 import { maintenanceGuard , wroteSomething} from "./_shared";
@@ -12,16 +13,27 @@ type ActionResult<T = null> =
 async function requireOwnerCtx() {
   const base = await requireAdminCtx();
   if (!base.ok) return base;
-  const { data: tenant } = await base.supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", base.profile.tenant_id)
-    .maybeSingle();
-  const ownerId = (tenant as { owner_id?: string | null } | null)?.owner_id;
-  if (!ownerId || ownerId !== base.profile.user_id) {
+  // ── DE OWNERSET, NIET DE KOLOM ──────────────────────────────────
+  //
+  // `tenants.owner_id` is EEN eigenaar; sinds plak 143 is
+  // eigenaarschap een verzameling (`tenant_owners`), want de eigenaar
+  // heeft een compagnon. isTenantOwner() kijkt naar allebei en wordt
+  // al gebruikt in ad-account-, audit-, gdpr-, integration- en
+  // wallet-recovery-actions. Dit bestand deed het nog met de hand.
+  //
+  // Gemeten op 30-09 door de knop in te drukken: Lasse staat in
+  // tenant_owners en werd hier geweigerd.
+  if (
+    !(await isTenantOwner(
+      base.supabase,
+      base.profile.tenant_id,
+      base.profile.user_id,
+      base.profile.id,
+    ))
+  ) {
     return {
       ok: false as const,
-      error: "Only the account owner can cancel an invitation.",
+      error: "Only an account owner can cancel an invitation.",
     };
   }
   return base;

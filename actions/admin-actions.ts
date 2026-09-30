@@ -99,13 +99,24 @@ async function assertAdmin() {
 async function assertSuperAdmin() {
   const admin = await assertAdmin();
   if (!admin.ok) return admin;
-  const { data: tenant } = await admin.ctx.supabase
-    .from("tenants")
-    .select("owner_id")
-    .eq("id", admin.ctx.profile.tenant_id)
-    .maybeSingle();
-  const ownerId = tenant?.owner_id ?? null;
-  if (!ownerId || ownerId !== admin.ctx.profile.user_id) {
+  // ── DE OWNERSET, NIET DE KOLOM ──────────────────────────────────
+  //
+  // `tenants.owner_id` is EEN eigenaar; sinds plak 143 is
+  // eigenaarschap een verzameling (`tenant_owners`), want de eigenaar
+  // heeft een compagnon. isTenantOwner() kijkt naar allebei en wordt
+  // al gebruikt in ad-account-, audit-, gdpr-, integration- en
+  // wallet-recovery-actions. Dit bestand deed het nog met de hand.
+  //
+  // Gemeten op 30-09 door de knop in te drukken: Lasse staat in
+  // tenant_owners en werd hier geweigerd.
+  if (
+    !(await isTenantOwner(
+      admin.ctx.supabase,
+      admin.ctx.profile.tenant_id,
+      admin.ctx.profile.user_id,
+      admin.ctx.profile.id,
+    ))
+  ) {
     return { ok: false as const, error: "Forbidden", status: 403 };
   }
   return admin;
