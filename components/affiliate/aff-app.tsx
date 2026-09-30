@@ -198,13 +198,21 @@ export default function AffiliateApp() {
   // regels die nergens uitkwamen.
   //
   // Wie hier OOK adverteert krijgt de regels die over allebei gaan.
-  // Datzelfde `profile?.advertiser?.[0]?.id` bepaalt een paar honderd
-  // regels verderop of de kaart "Advertise with us too" getoond wordt,
-  // dus de twee spreken elkaar niet tegen.
+  //
+  // NIET op `profile?.advertiser?.[0]?.id` testen: in dit schema heeft
+  // ELKE affiliate een advertisers-rij, dus dat is altijd waar en dan
+  // komt AFFILIATE_QUOTES nooit aan bod. Live gezien op PSM0017, een
+  // affiliate die de kaart "Ask to advertise too" toont en er toch een
+  // BOTH-regel bij kreeg.
+  //
+  // De rol is het echte onderscheid: een adverteerder die ook
+  // doorverwijst houdt rol `advertiser`, een zuivere affiliate is
+  // `affiliate`. Dat is dezelfde splitsing die /users maakt in zijn
+  // twee tellers.
   const affQuote = dailyQuote(
     profile?.id ?? null,
     new Date(),
-    profile?.advertiser?.[0]?.id ? "both" : "affiliate",
+    profile?.role === "advertiser" ? "both" : "affiliate",
   );
 
   // Real referral book (all-time) + this-month slice for the topbar pill.
