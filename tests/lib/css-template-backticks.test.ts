@@ -82,13 +82,26 @@ const COMMENT_FILES = [
 for (const file of COMMENT_FILES) {
   test(`${file}: no backtick inside a CSS comment`, () => {
     const src = fs.readFileSync(file, "utf8");
-    // Only from where the CSS starts. A JSDoc block ABOVE the function
-    // is ordinary JavaScript and quoting a selector there is both
-    // harmless and idiomatic -- the first version of this test failed
-    // on exactly that, which is the useful kind of false positive: it
-    // showed the rule was broader than the bug.
+    // Only the CSS ITSELF -- from where the literal opens to where it
+    // closes, and not a character further.
+    //
+    // This rule has now been too broad twice, and both times the
+    // false positive was the useful kind:
+    //
+    //   1. it flagged a JSDoc block ABOVE the function, which is
+    //      ordinary JavaScript where quoting a selector is idiomatic;
+    //   2. it flagged a JSDoc block BELOW the closing delimiter, in a
+    //      .tsx file where the stylesheet is a const near the top and
+    //      several hundred lines of React follow it.
+    //
+    // Both are harmless -- tsc compiles them -- and a test that fails
+    // on harmless code teaches people to ignore it. Every one of
+    // these files closes its literal with a line that is exactly
+    // "`;", which is what bounds the scan.
     const open = src.search(/(?:[=(]|return)\s*`/);
-    const body = open === -1 ? "" : src.slice(open);
+    const rest = open === -1 ? "" : src.slice(open + 1);
+    const close = rest.search(/^`;\s*$/m);
+    const body = close === -1 ? rest : rest.slice(0, close);
     const offenders: string[] = [];
     for (const m of body.matchAll(/\/\*[\s\S]*?\*\//g)) {
       if (!m[0].includes("`")) continue;
