@@ -163,6 +163,28 @@ const DASH_CSS = `
 .psm-dash .phead .ptxt h1 b{font-weight:800;color:var(--primary-600)}
 .psm-dash .phead .ptxt p{max-width:52ch}
 
+/* -- HET QUOTE IS GEEN ONDERTITEL ---------------------------------
+   De eigenaar, 30-09: "admin quote is niet te lezen, new invite moet
+   hoger ietsjes."
+
+   Het quote stond als pagina-ondertitel, en de admin-shell klemt elke
+   ondertitel onder de 640px op EEN regel met een puntje erachter. Dat
+   is goed voor een schermkop van dertig tekens. Een quote tot 46 tekens
+   met een knop ernaast werd zo "Cut the feature. Nobody has ever..." --
+   het begin van een zin, en dus geen zin.
+
+   Hier mag hij twee regels, en alleen hier: de klem in de shell blijft
+   gelden voor elke andere paginakop.
+
+   De knop stond verticaal GECENTREERD tegen kop plus quote, dus hoe
+   langer het quote, hoe lager de knop. Nu staat hij bovenaan, op de
+   hoogte van de begroeting waar hij bij hoort. */
+.psm-dash .phead{align-items:flex-start}
+.psm-dash .phead .invite{margin-top:2px}
+.psm-dash .phead .ptxt p.quote{display:block;-webkit-line-clamp:unset;
+  overflow:visible;white-space:normal;font-size:.88rem;line-height:1.4;
+  color:var(--txt-2);margin-top:4px}
+
 .psm-dash .denied{display:flex;align-items:flex-start;gap:4px 10px;flex-wrap:wrap;
   border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:12px;
   background:var(--primary-tint);padding:11px 13px;font-size:.86rem;color:var(--ink)}
@@ -567,7 +589,9 @@ export default function AdminDashboard() {
               "Dashboard"
             )}
           </h1>
-          <p>{quote ?? "What needs your action right now."}</p>
+          <p className={quote ? "quote" : undefined}>
+            {quote ?? "What needs your action right now."}
+          </p>
         </div>
         {/* ── OWNER ONLY, LIKE EVERYTHING ELSE ABOUT INVITES ──────
             /invites is requireSuperAdmin and the sidebar entry is
