@@ -309,6 +309,34 @@ naamloos as (
 -- company_id terwijl die adverteerder wel een bedrijf heeft. Sinds
 -- plak 164 vult een trigger op `companies` dat vanzelf, dus er komt
 -- hier alleen nog iets binnen als die trigger stuk is.
+-- ── 9. EEN EIGENAARSTOETS DIE DE TWEEDE EIGENAAR NIET KENT ────────
+-- Eigenaarschap is een VERZAMELING (`tenant_owners`, plak 143). Een
+-- functie die in plaats daarvan `tenants.owner_id` met de hand
+-- vergelijkt, weigert de tweede eigenaar terwijl hij overal elders
+-- langskomt -- een menu vol knoppen die elk "Forbidden" zeggen.
+--
+-- 30-09: dit is DRIE keer half opgeruimd omdat dezelfde toets op drie
+-- manieren geschreven staat --
+--
+--     owner_id = auth.uid()
+--     select owner_id into v_owner ... if v_owner = v_uid
+--     ... if v_owner <> v_uid          <- de ontkende vorm
+--
+-- en elk patroon ving er maar een. Vandaar dat dit op de OPERATOR
+-- niet meer let. `hoort` staat op 11: dat zijn de GDPR-functies, de
+-- inrichtingsfuncties en de vier triggers waar de eigenaarstoets een
+-- UITZONDERING geeft in plaats van een poort. Wordt het er 12, dan is
+-- er een nieuwe bijgeschreven of een oude teruggekomen.
+eigenaarstoets as (
+  select count(*) as n
+    from pg_proc p
+    join pg_namespace n2 on n2.oid = p.pronamespace
+   where n2.nspname = 'public' and p.prokind = 'f'
+     and pg_get_functiondef(p.oid) ~*
+         '(owner_id|v_owner)[[:space:]]*(=|<>|!=|is distinct from|is not distinct from)[[:space:]]*(auth\.uid\(\)|v_uid)'
+     and pg_get_functiondef(p.oid) !~* '_in_owner_set'
+),
+
 facturen as (
   select count(*) as n
     from public.invoices i
@@ -351,7 +379,10 @@ select * from (
         (select n from naamloos),    0),
     (12, 'elke factuur heeft een bedrijf',
         'facturen zonder company_id',
-        (select n from facturen),    0)
+        (select n from facturen),    0),
+    (13, 'de tweede eigenaar mag overal bij',
+        'toetsen op tenants.owner_id die tenant_owners niet kennen',
+        (select n from eigenaarstoets), 11)
 ) as t(nr, controle, wat_geteld_wordt, gevonden, hoort)
 
 union all
