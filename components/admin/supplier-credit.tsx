@@ -75,14 +75,18 @@ const CSS = `
   color:var(--primary-600);display:grid;place-items:center;flex:0 0 auto;
   box-shadow:var(--shadow-sm)}
 .sc-ic svg{width:14px;height:14px}
+/* De titel duwt de knop naar rechts. Toen de ondertitel eruit ging
+   verdween de kolom eromheen, en daarmee het enige element dat de
+   knop op afstand hield -- hij schoof tegen de titel aan. */
 .sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:.94rem;
-  letter-spacing:-.01em;color:var(--ink);line-height:1.2}
+  letter-spacing:-.01em;color:var(--ink);line-height:1.2;
+  flex:1 1 auto;min-width:0}
 /* Geen knop maar een teken. De eigenaar, 30-09: "refresh ook mooier
    subtieler, nu is standaard button." Een omrande knop naast een
    titel trekt evenveel aandacht als de titel; dit is een handeling
    die je zoekt als je hem nodig hebt, niet een die zich aanbiedt.
    Dus: rond, randloos, grijs, en pas een vlakje bij hover. */
-.sc-re{flex:0 0 auto;display:inline-grid;place-items:center;
+.sc-re{flex:0 0 auto;margin-left:auto;display:inline-grid;place-items:center;
   width:30px;height:30px;border:0;background:none;border-radius:99px;
   color:var(--faint);cursor:pointer;transition:.13s}
 .sc-re:hover{background:var(--panel-2);color:var(--txt-2)}
