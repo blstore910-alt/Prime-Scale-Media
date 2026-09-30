@@ -452,8 +452,16 @@ const MetaLogoSimple = () => (
 
 export default function AdAccountRequestForm({
   setOpen,
+  onNeedTopUp,
 }: {
   setOpen: (open: boolean) => void;
+  /**
+   * Wat er moet gebeuren als hier te weinig saldo blijkt te zijn.
+   * Optioneel met opzet: de adverteerder-app brengt de klant naar zijn
+   * wallet, het beheerscherm (accounts-table) heeft daar niets te
+   * zoeken en geeft hem niet mee -- dan blijft het bij de zin.
+   */
+  onNeedTopUp?: () => void;
 }) {
   const { profile } = useAppContext();
   const { mutate, isPending } = useCreateAdAccountRequest();
@@ -1069,10 +1077,20 @@ export default function AdAccountRequestForm({
                     We can&apos;t work out the fee in {selectedCurrency} right
                     now.
                   </div>
+                  {/* ── ALLEEN EEN UITWEG DIE BESTAAT ─────────────
+                      Dit zei onvoorwaardelijk "request a EUR account
+                      instead". Maar de EUR-keuze wordt alleen getekend
+                      voor meta-ads (`eurOffered`), en een effect duwt
+                      de valuta daarbuiten meteen terug naar USD. Een
+                      TikTok- of Google-aanvrager kreeg dus een uitweg
+                      aangewezen die op zijn scherm niet bestaat -- en
+                      dat is erger dan geen uitweg, want hij gaat hem
+                      zoeken. */}
                   <div className="text-muted-foreground text-xs mt-0.5">
-                    The conversion rate could not be read. Ask us to set it, or
-                    request a EUR account instead — nothing is charged until
-                    you submit.
+                    The conversion rate could not be read.{" "}
+                    {eurOffered
+                      ? "Ask us to set it, or request a EUR account instead — nothing is charged until you submit."
+                      : "Ask us to set it — nothing is charged until you submit, so nothing is lost by waiting."}
                   </div>
                 </>
               ) : (
@@ -1090,6 +1108,26 @@ export default function AdAccountRequestForm({
                   {!feeEnough && (
                     <div className="text-destructive text-xs mt-1 font-medium">
                       Not enough balance — top up before requesting.
+                      {/* ── EN DE WEG ERHEEN ────────────────────────
+                          De zin stond hier met een dode Send-knop
+                          eronder en verder niets. Opwaarderen kan
+                          alleen op een ander scherm, en dit is een
+                          modal -- dus de klant moest zelf bedenken dat
+                          hij hier weg moest, en durfde dat niet omdat
+                          hij dacht het formulier kwijt te raken. (Dat
+                          raakt hij niet: use-form-draft bewaart het.) */}
+                      {onNeedTopUp ? (
+                        <button
+                          type="button"
+                          className="underline underline-offset-2 ml-1 font-semibold"
+                          onClick={() => {
+                            setOpen(false);
+                            onNeedTopUp();
+                          }}
+                        >
+                          Top up now
+                        </button>
+                      ) : null}
                     </div>
                   )}
                 </>

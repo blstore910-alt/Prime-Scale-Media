@@ -6024,7 +6024,7 @@ export default function AdvertiserApp() {
                 </button>
                 {(accounts ?? []).length > 0 &&
                   (canRequestAccount ? (
-                    <RequestAdAccountDialog>
+                    <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
                       <button className="btn grad">
                         <Ic name="i-plus" /> Request one
                       </button>
@@ -6220,7 +6220,7 @@ export default function AdvertiserApp() {
                     <Ic name="i-refresh" /> Reload
                   </button>
                 ) : canRequestAccount ? (
-                  <RequestAdAccountDialog>
+                  <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
                     <button className="btn">
                       <Ic name="i-plus" /> Request ad account
                     </button>
@@ -6302,7 +6302,7 @@ export default function AdvertiserApp() {
                   up says the same thing about the same mistake. */}
               <div className="phead-actions">
                 {canRequestAccount ? (
-                  <RequestAdAccountDialog>
+                  <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
                     <button className="btn grad">
                       <Ic name="i-plus" /> New request
                     </button>

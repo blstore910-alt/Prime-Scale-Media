@@ -13,10 +13,19 @@ import AdAccountRequestForm from "./ad-account-request-form";
 
 interface RequestAdAccountDialogProps {
   children?: React.ReactNode;
+  /**
+   * Wat er moet gebeuren als de klant hierbinnen te weinig saldo blijkt
+   * te hebben. Optioneel met opzet: de adverteerder-app kan hem naar
+   * zijn wallet brengen, het beheerscherm (`accounts-table`) heeft daar
+   * niets te zoeken en geeft hem niet mee. Zonder deze prop blijft het
+   * bij de zin, zoals het was.
+   */
+  onNeedTopUp?: () => void;
 }
 
 export default function RequestAdAccountDialog({
   children,
+  onNeedTopUp,
 }: RequestAdAccountDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -48,7 +57,7 @@ export default function RequestAdAccountDialog({
             here as soon as it is ready.
           </DialogDescription>
         </DialogHeader>
-        <AdAccountRequestForm setOpen={setOpen} />
+        <AdAccountRequestForm setOpen={setOpen} onNeedTopUp={onNeedTopUp} />
       </DialogContent>
     </Dialog>
   );
