@@ -1,3 +1,10 @@
+-- ⚠️ VERVANGEN DOOR supabase/checks/PLAK-DIT-175-TEAMS-FASE-1-ALLEEN-DE-FUNDERING.sql
+-- ⚠️ NIET DRAAIEN. Tegen live gehouden op 30-09: `affiliates` heeft geen
+-- user_id, dus de affiliate-backfill hieronder stopt met een fout en draait
+-- het hele blok terug. Ook ontbreken de table-revokes die sinds 27-09
+-- verplicht zijn. Plak 175 is de gecorrigeerde versie. Dit bestand blijft
+-- staan als ontwerpnaslag.
+--
 -- =====================================================================
 -- Team accounts — PHASE 1: the membership table and nothing else
 -- =====================================================================
