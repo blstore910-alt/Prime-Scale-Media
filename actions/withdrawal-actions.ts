@@ -13,6 +13,7 @@ import {
   resolveAdminContext,
   resolveAdminContextForRead,
   resolveUserContext,
+  resolveUserContextForRead,
 } from "./_shared";
 import {
   isAccountLocked,
@@ -927,6 +928,69 @@ export async function readAdAccountLiveBalance(adAccountId: string): Promise<
     return { ok: false, error: "Forbidden" };
   }
 
+  // \u2500\u2500 EERST DE LEVERANCIER WAAR HET ACCOUNT ECHT VANDAAN KOMT \u2500\u2500\u2500\u2500\u2500\u2500
+  //
+  // De eigenaar, 30-09: "stel het is een API ad account, dan dus alleen
+  // wat er live op dat ad acc staat als max refundable."
+  //
+  // Tot vandaag vroeg deze functie het ALTIJD aan supplier1 (SeamX), en
+  // die staat in mock. Daardoor zei het Approve-scherm "the supplier is
+  // in mock mode" boven een RockAds-account -- terwijl RockAds live is
+  // en per ad-account gewoon een saldo teruggeeft. Gemeten op 30-09:
+  // 2 wallets, 98 ad-accounts, 504 mutaties.
+  //
+  // Dus: kijk eerst of dit account aan RockAds hangt. De koppeling gaat
+  // via dezelfde tabel als supplier1, met provider 'rockads' -- daar
+  // staat geen check-constraint op `provider`, dus dat kan zonder
+  // migratie.
+  // limit(1), geen maybeSingle: de unieke sleutel van deze tabel staat
+  // op (tenant_id, provider, external_id) en NIET op ad_account_id, dus
+  // twee rijen voor hetzelfde account zijn niet door de database
+  // uitgesloten. maybeSingle gooit dan, en dat zou het saldo
+  // onleesbaar maken op het scherm waar geld wordt vrijgegeven.
+  const { data: raRows, error: raError } = await supabase
+    .from("supplier_ad_accounts")
+    .select("external_id")
+    .eq("ad_account_id", adAccountId)
+    .eq("provider", "rockads")
+    .limit(1);
+  if (raError) return { ok: false, error: safeErrorMessage(raError) };
+  const ra = (raRows ?? [])[0] ?? null;
+
+  if (ra?.external_id) {
+    if (!process.env.ROCKADS_API_KEY || !process.env.ROCKADS_API_SECRET) {
+      return {
+        ok: true,
+        data: {
+          available: false,
+          reason:
+            "the supplier's API keys are not set on this deployment \u2014 check the balance in the portal",
+        },
+      };
+    }
+    const { fetchRockadsAdAccount } = await import(
+      "@/lib/integrations/rockads-api"
+    );
+    const got = await fetchRockadsAdAccount(String(ra.external_id));
+    if (got.error || !got.account) {
+      return {
+        ok: true,
+        data: {
+          available: false,
+          reason: `we could not read it just now (${got.error ?? "they returned no account"}) \u2014 check the portal`,
+        },
+      };
+    }
+    return {
+      ok: true,
+      data: {
+        available: true,
+        amount: Number(got.account.balance),
+        currency: String(got.account.currency || "USD").toUpperCase(),
+      },
+    };
+  }
+
   const { supplier1Mode } = await import("@/lib/integrations/autopush");
   const mode = supplier1Mode();
   if (mode !== "live") {
@@ -975,6 +1039,118 @@ export async function readAdAccountLiveBalance(adAccountId: string): Promise<
       available: true,
       amount: Number(res.data.balance_cents) / 100,
       currency: String(res.data.currency ?? "USD").toUpperCase(),
+    },
+  };
+}
+
+// ── HET ECHTE SALDO, VOOR DE KLANT ZELF ─────────────────────────────
+//
+// De eigenaar, 30-09: "stel het is een API ad account, dan dus alleen
+// wat er live op dat ad acc staat als max refundable."
+//
+// `readAdAccountLiveBalance` hierboven is admin-gated, en terecht: hij
+// noemt de leverancier in zijn foutmeldingen. De klant heeft hetzelfde
+// GETAL nodig en mag die naam nergens zien -- niet in de UI, niet in
+// een e-mail, niet in de JSON achter de pagina. Dus een eigen ingang
+// met eigen bewoordingen.
+//
+// WAT HIJ TERUGGEEFT IS EEN GETAL OF NIETS. Geen nul bij een mislukte
+// lees: op dit scherm is een 0 de mededeling "je krijgt niets terug",
+// en dat is een ander antwoord dan "we konden het even niet nakijken".
+//
+// EN HIJ IS GEEN BOODSCHAPPER VAN DE LEVERANCIER. Elke reden hieronder
+// is in onze eigen woorden geschreven; de tekst die RockAds of SeamX
+// zelf teruggeeft wordt NIET doorgegeven, want daar staat hun naam in.
+export async function readOwnAdAccountLiveBalance(adAccountId: string): Promise<
+  | { ok: true; data: { available: false; reason: string } }
+  | { ok: true; data: { available: true; amount: number; currency: string } }
+  | { ok: false; error: string }
+> {
+  const res0 = await resolveUserContextForRead();
+  if (!res0.ok) return { ok: false, error: res0.error };
+  const { supabase, profile } = res0.ctx;
+
+  const id = String(adAccountId ?? "").trim();
+  if (!id) return { ok: false, error: "No ad account given." };
+
+  // ── HET ACCOUNT MOET VAN DE BELLER ZIJN ────────────────────────
+  //
+  // Niet alleen van zijn tenant: van HEM. Een tenant heeft meer
+  // adverteerders, en het saldo van een ander is niet zijn zaak. Dus
+  // eerst de adverteerdersrij van de beller, dan het account daaraan
+  // toetsen. RLS geeft geen fout maar nul rijen, dus "niet gevonden"
+  // en "mag niet" komen hier op hetzelfde neer -- en dat is precies
+  // wat we willen antwoorden.
+  // Overal limit(1) en nergens maybeSingle. `advertisers.profile_id`
+  // draagt geen unieke index, en `supplier_ad_accounts` is uniek op
+  // (tenant, provider, external_id) en niet op ad_account_id -- bij twee
+  // rijen gooit maybeSingle, en dan valt het plafond weg op het scherm
+  // waar de klant zijn geld terugvraagt. Zie tests/lib/maybe-single.test.ts.
+  const { data: advRows, error: advError } = await supabase
+    .from("advertisers")
+    .select("id")
+    .eq("profile_id", profile.id)
+    .limit(1);
+  if (advError) return { ok: false, error: safeErrorMessage(advError) };
+  const adv = (advRows ?? [])[0] ?? null;
+  if (!adv?.id) return { ok: false, error: "Forbidden" };
+
+  const { data: acctRows, error: acctError } = await supabase
+    .from("ad_accounts")
+    .select("id, advertiser_id, currency")
+    .eq("id", id)
+    .limit(1);
+  if (acctError) return { ok: false, error: safeErrorMessage(acctError) };
+  const acct = (acctRows ?? [])[0] ?? null;
+  if (!acct || acct.advertiser_id !== adv.id) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const { data: linkRows, error: linkError } = await supabase
+    .from("supplier_ad_accounts")
+    .select("external_id")
+    .eq("ad_account_id", id)
+    .eq("provider", "rockads")
+    .limit(1);
+  if (linkError) return { ok: false, error: safeErrorMessage(linkError) };
+  const link = (linkRows ?? [])[0] ?? null;
+
+  if (!link?.external_id) {
+    return {
+      ok: true,
+      data: {
+        available: false,
+        reason: "this account's balance is not checked automatically",
+      },
+    };
+  }
+
+  if (!process.env.ROCKADS_API_KEY || !process.env.ROCKADS_API_SECRET) {
+    return {
+      ok: true,
+      data: { available: false, reason: "we could not check it just now" },
+    };
+  }
+
+  const { fetchRockadsAdAccount } = await import(
+    "@/lib/integrations/rockads-api"
+  );
+  const got = await fetchRockadsAdAccount(String(link.external_id));
+  if (got.error || !got.account) {
+    // Hun woorden blijven hier. Zie de kop van deze functie.
+    return {
+      ok: true,
+      data: { available: false, reason: "we could not check it just now" },
+    };
+  }
+  return {
+    ok: true,
+    data: {
+      available: true,
+      amount: Number(got.account.balance),
+      currency: String(
+        got.account.currency || acct.currency || "USD",
+      ).toUpperCase(),
     },
   };
 }

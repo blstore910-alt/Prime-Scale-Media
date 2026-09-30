@@ -22,6 +22,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
+import SupplierLinkPanel from "@/components/account/supplier-link-panel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
@@ -616,6 +617,22 @@ export function AccountDetailsSheet({
                       </>
                     );
                   })()}
+                {/* ── WELK ACCOUNT BIJ DE LEVERANCIER DIT IS ────────
+                    Admin-only, en niet alleen omdat het netter staat:
+                    hier staat de leveranciersnaam en het saldo dat wij
+                    bij hen aanhouden. Zonder deze koppeling valt het
+                    terugboekplafond terug op "wat wij gestort hebben"
+                    en moet een mens het echte saldo in hun portaal
+                    nakijken -- zie lib/pure-withdraw-ceiling.ts. */}
+                {!isAdvertiser && data?.id ? (
+                  <>
+                    <Separator />
+                    <SupplierLinkPanel
+                      adAccountId={String(data.id)}
+                      adAccountName={String(data.name ?? "")}
+                    />
+                  </>
+                ) : null}
                 {!isAdvertiser && (
                   <>
                     <Separator />

@@ -11,10 +11,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestAdAccountWithdrawal } from "@/actions/withdrawal-actions";
+import {
+  readAdAccountLiveBalance,
+  readOwnAdAccountLiveBalance,
+  requestAdAccountWithdrawal,
+} from "@/actions/withdrawal-actions";
 import { createClient } from "@/lib/supabase/client";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { pageAllRows } from "@/lib/page-all-rows";
+import { withdrawCeiling } from "@/lib/pure-withdraw-ceiling";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -100,7 +105,7 @@ export default function WithdrawDialog({
   // not struck out, minus every withdrawal that is not rejected or
   // cancelled -- pending ones included, because they are spoken for.
   const {
-    data: ceiling,
+    data: fundedCeiling,
     isError: ceilingError,
     error: ceilingErrorObj,
     refetch: refetchCeiling,
@@ -186,6 +191,67 @@ export default function WithdrawDialog({
       return Math.max(0, Math.round((onAcct - taken) * 100) / 100);
     },
   });
+
+  // ── WAT ER ECHT OP HET ACCOUNT STAAT ──────────────────────────────
+  //
+  // De eigenaar, 30-09: "stel het is een API ad account, dan dus alleen
+  // wat er live op dat ad acc staat als max refundable."
+  //
+  // Het plafond hierboven is "gestort min al teruggevraagd". Dat is
+  // wat WIJ erop gezet hebben, niet wat er nog staat -- de tekst onder
+  // het veld zei dat zelf al met zoveel woorden. Voor een account dat
+  // aan de leverancier gekoppeld is kunnen we het echte saldo lezen, en
+  // dan is DAT de bovengrens.
+  //
+  // DE LAAGSTE VAN DE TWEE WINT, en dat is geen halfslachtigheid maar
+  // twee verschillende fouten die allebei geld kosten:
+  //
+  //   het echte saldo lager  -> er is al besteed. Meer teruggeven dan
+  //                             er staat kan de leverancier niet, en de
+  //                             klant zou een belofte krijgen die
+  //                             afketst bij de admin.
+  //   het echte saldo hoger  -> er staat geld op dat wij er niet op
+  //                             gezet hebben. Dat terugboeken naar de
+  //                             wallet crediteert een bedrag waar in
+  //                             onze boeken niets tegenover staat.
+  //
+  // EN EEN MISLUKTE LEES VERLAAGT NIETS. Kan het saldo niet gelezen
+  // worden, dan geldt gewoon het gestorte plafond en checkt de admin
+  // het met de hand -- precies zoals het vandaag gaat. Een onbekende
+  // mag hier geen nul worden; dat zou de knop dichtzetten voor iedereen
+  // zodra de leverancier even niet antwoordt.
+  const live = useQuery({
+    queryKey: ["withdraw-live-balance", adAccountId, onBehalf],
+    enabled: open && !!adAccountId,
+    staleTime: 15_000,
+    queryFn: async () => {
+      const res = onBehalf
+        ? await readAdAccountLiveBalance(adAccountId!)
+        : await readOwnAdAccountLiveBalance(adAccountId!);
+      // Een fout is hier geen ramp: het gestorte plafond blijft staan.
+      if (!res.ok) return { available: false as const, reason: res.error };
+      return res.data;
+    },
+  });
+
+  const liveAmount =
+    live.data?.available === true &&
+    String(live.data.currency ?? "").toUpperCase() === currency &&
+    Number.isFinite(Number(live.data.amount))
+      ? Math.max(0, Number(live.data.amount))
+      : null;
+
+  // De keuze tussen de twee staat in lib/pure-withdraw-ceiling.ts, met
+  // zijn eigen tests. Dit is geldlogica, en geldlogica in een component
+  // is geldlogica die niemand kan natellen.
+  const plafond = withdrawCeiling(fundedCeiling, liveAmount);
+  const ceiling =
+    fundedCeiling === null || fundedCeiling === undefined
+      ? fundedCeiling
+      : plafond.max;
+  /** De zin onder het veld moet meebewegen met het getal ernaast. */
+  const liveIsBinding = plafond.bron === "live";
+
   const [reason, setReason] = useState("");
   // Second step, in the same dialog rather than a dialog on top of a dialog:
   // stacked modals are awkward on a phone and easy to dismiss by accident,
@@ -501,10 +567,21 @@ export default function WithdrawDialog({
                 approving -- which is the same principle as the supplier
                 push, where the admin verifies rather than the machine
                 assuming. */}
+            {/* ── DE ZIN VOLGT HET GETAL ───────────────────────────
+                Er stonden hier twee beweringen die allebei waar waren
+                zolang het plafond "gestort min teruggevraagd" was:
+                dat het de besteding NIET aftrekt, en dat wij het echte
+                saldo nakijken voor we goedkeuren.
+
+                Zodra het echte saldo gelezen kan worden en LAGER is,
+                klopt de eerste niet meer -- dan is de besteding er wel
+                degelijk af. Een uitleg die niet meebeweegt met het
+                getal ernaast is erger dan geen uitleg: wie hem natelt
+                komt op iets anders uit en vertrouwt geen van beide. */}
             <p className="text-xs text-muted-foreground">
-              That is what we funded, less anything already asked back — it
-              does not subtract what the account has spent, so we check the
-              real balance before approving.
+              {liveIsBinding
+                ? "That is what is on the account right now, so anything already spent is off it."
+                : "That is what we funded, less anything already asked back — it does not subtract what the account has spent, so we check the real balance before approving."}
               {/* No "it comes back in USD" any more. It comes back in
                   the account's own currency, into the matching wallet —
                   that sentence belonged to the assumption this dialog

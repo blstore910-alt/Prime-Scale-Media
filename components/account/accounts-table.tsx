@@ -51,6 +51,10 @@ import AdvertiserAccountCard from "./advertiser-account-card";
 import { AccountDetailsSheet } from "./account-details-sheet";
 import CreateAccountDialog from "./create-account-dialog";
 import { useAppContext } from "@/context/app-provider";
+import {
+  AD_ACCOUNT_CORE_COLUMNS,
+  AD_ACCOUNT_CUSTOMER_COLUMNS,
+} from "@/lib/ad-account-columns";
 import RequestAdAccountDialog from "./request-ad-account-dialog";
 import AdvertiserAdAccountRequestsDialog from "../ad-account-requests/advertiser-ad-account-requests-dialog";
 import UpdateAccountDialog from "./update-account-dialog";
@@ -157,10 +161,22 @@ export default function AccountsTable() {
       const PAGE = 1000;
       const rows: unknown[] = [];
       for (let from = 0; from < 50_000; from += PAGE) {
+        // ── DEZELFDE STER, EN DEZE IS DE ERGSTE ─────────────────
+        //
+        // Deze query heeft GEEN `enabled`, dus hij draait voor elke
+        // rol -- en de adverteerderskaarten worden eruit getekend
+        // (`if (isAdvertiser)` verderop). Het is dus de query achter
+        // het zichtbare lijstje van de klant, en hij vroeg alles op.
+        //
+        // Een admin heeft `notes` en `metadata` wel nodig, dus de ster
+        // blijft voor hem staan en de klant krijgt de lijst. Eén query,
+        // twee kolommensets, gekozen op de rol die hem stelt.
+        const kolommen =
+          profile?.role === "advertiser" ? AD_ACCOUNT_CUSTOMER_COLUMNS : "*";
         const { data, error } = await supabase
           .from("ad_accounts")
           .select(
-            `*,
+            `${kolommen},
             advertiser:advertisers(
               tenant_client_code,
               profile:user_profiles(
@@ -219,13 +235,43 @@ export default function AccountsTable() {
       queryKey: ["advertiser-ad-accounts", advertiserId],
       queryFn: async () => {
         if (!advertiserId) return [];
-        const { data, error } = await supabase
+        // ── GEEN STER OP EEN KLANTSCHERM ─────────────────────────
+        //
+        // Deze query staat op `profile?.role === "advertiser"`, dus
+        // alles wat hij ophaalt belandt in de React Query-cache van een
+        // KLANT. `ad_accounts.notes` is volgens de eigen woorden van
+        // account-details-sheet.tsx de plek voor "een leveranciersnummer
+        // en het tarief dat wij betalen", en `metadata` heeft
+        // leveranciersherkomst gedragen. Het renderen was al gesloten
+        // (`!isAdvertiser`), maar die poort staat bij het TEKENEN en de
+        // query vroeg gewoon alles op -- en de regel van de eigenaar
+        // zegt met zoveel woorden: ook niet in de JSON achter de
+        // pagina.
+        //
+        // Gemeten op 30-09: vandaag lekt er niets -- `supplier_fee_pct`
+        // staat niet meer op deze tabel en `notes` bevat alleen
+        // walkthrough-tekst. Dit is dus een lek dat nog niet gebeurd
+        // is, en dat is het goedkoopste moment.
+        //
+        // De lijst bestond al (lib/ad-account-columns.ts) en het
+        // buurscherm gebruikte hem al; deze query was hem vergeten. Met
+        // de terugval erbij, want de live database loopt voor op de
+        // migraties en een kolom die er niet is laat PostgREST de HELE
+        // lijst weigeren.
+        let res = await supabase
           .from("ad_accounts")
-          .select("*")
+          .select(AD_ACCOUNT_CUSTOMER_COLUMNS)
           .eq("advertiser_id", advertiserId)
           .order("created_at", { ascending: false });
-        if (error) throw error;
-        return (data ?? []) as AdAccount[];
+        if (res.error) {
+          res = await supabase
+            .from("ad_accounts")
+            .select(AD_ACCOUNT_CORE_COLUMNS)
+            .eq("advertiser_id", advertiserId)
+            .order("created_at", { ascending: false });
+        }
+        if (res.error) throw res.error;
+        return (res.data ?? []) as unknown as AdAccount[];
       },
       enabled: Boolean(advertiserId) && profile?.role === "advertiser",
     });
