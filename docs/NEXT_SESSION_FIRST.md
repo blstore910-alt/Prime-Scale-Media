@@ -1,3 +1,66 @@
+# 30-09, MIDDAG — VIJF DINGEN DIE IK BEWUST HEB LATEN LIGGEN
+
+Allemaal gevonden tijdens test 3, allemaal gemeten, geen van alle op
+een van de acht reizen. Ze staan hier zodat ze niet opnieuw ontdekt
+hoeven te worden.
+
+## 1. Zes functies toetsen nog op de oude eigenaar
+
+Plak 165 zet er zeven om. Er blijven er zes staan:
+
+| functie | waarom niet nu |
+|---|---|
+| `referral_link_assign` | inrichting, geen dagelijkse wachtrij |
+| `referral_commission_recalculate` | idem |
+| `set_finance_reviewer` | bevoegdheden uitdelen -- dat is beleid |
+| `_guard_self_reactivation` | **trigger**: de eigenaarstoets is daar een UITZONDERING (jezelf weer aanzetten) |
+| `_notify_referral_pending` | **trigger**: bepaalt wie een bericht krijgt |
+| `_top_ups_insert_fee_floor` | **trigger**: de eigenaar mag onder de fee-bodem |
+
+Die laatste drie verbreden is geen reparatie maar een besluit: je geeft
+de tweede eigenaar er een bevoegdheid bij. Dat is aan de eigenaar.
+
+## 2. `wallet_exchange` mist nog zijn lock
+
+Plak 161 zei het al met zoveel woorden ("volgende plak"). De CHECK op
+`wallets` ligt er nu onder, dus een race kan geen geld meer scheppen --
+de tweede transactie valt om op de constraint. Lelijk voor die ene
+klik, veilig voor het geld. Een `for update` maakt die fout netjes.
+
+Wisselen staat niet op de acht reizen.
+
+## 3. Drie kolommen staan nog op `real`
+
+Gemeten, en het zijn er drie -- niet de vier die een agent noemde:
+
+| kolom | waarvoor |
+|---|---|
+| `ad_accounts.min_topup` | een ondergrens, wordt vergeleken niet berekend |
+| `exchange_rates.gbp` | de GBP-koers |
+| `exchange_rates.hkd` | de HKD-koers |
+
+`top_ups.eur_value`, `eur_topup`, `topup_usd`, `rate` en
+`exchange_rates.eur` zijn allang `numeric`. Die twee koersen worden
+gebruikt om te tonen wat de klant in GBP/HKD overmaakt; het bedrag dat
+op de wallet komt staat op de SLIP en wordt niet uit die koers
+gerekend. Daarom niet dringend -- maar `real` heeft zeven cijfers en
+een koers heeft er meer nodig zodra hij wel gaat rekenen.
+
+## 4. "at least a few words" is vier tekens
+
+De weigerdialoog voor een wallet-topup zegt *"Write a reason first, at
+least a few words."* en geeft de knop vrij bij `test`. De tekst belooft
+meer dan de code afdwingt. Cosmetisch, maar het is precies het soort
+belofte dat later een lege reden oplevert.
+
+## 5. De admin-help wijst naar een knop die niet bestaat
+
+`/help` (beheerkant) zegt *"Go to Wallet -> Add Balance"*. Die knop
+heet op het klantscherm **Top up**. Eén woord, en het kost een
+supportgesprek.
+
+---
+
 # 30-09 — TWEE DINGEN UIT DE WALLET-REIS, GEPARKEERD
 
 Gevonden tijdens test 3, reis 2 (opwaarderen), allebei gemeten op
