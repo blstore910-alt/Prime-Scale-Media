@@ -66,7 +66,21 @@ const CSS = `
    leveranciers heen vergelijken, wat met tegels onder elkaar niet
    ging. Kleiner en beter tegelijk, en dat is de enige soort
    verkleining die de moeite waard is. */
-.sc{--sc-pad:13px;border:1px solid var(--line);border-radius:14px;
+/* ── EEN KNOP VOOR DE LETTERGROOTTE ────────────────────────────────
+   De eigenaar, 30-09: "deze tekst mag allemaal wat groter op mobiel,
+   is nu erg klein, denk alles x1.5 ofzo sowieso al."
+
+   Terecht, en het kwam door de vorige ronde: toen dit paneel van drie
+   stapels tegels een matrix werd, is de winst in HOOGTE gepakt door
+   de letters kleiner te maken -- tot .62rem in de kolomkoppen, en dat
+   is ongeveer 8 pixels op een telefoon. De vorm was de winst; het
+   verkleinen was er bovenop en dat had niet gehoeven.
+
+   Alle zestien maten staan nu op EEN factor in plaats van los. Dat is
+   niet netheid: het verschil tussen "zet het een halve stap groter"
+   en "pas zestien getallen aan zonder er een te vergeten" is precies
+   waarom dit soort verzoeken anders half blijft liggen. */
+.sc{--sc-pad:13px;--sc-fs:1.5;border:1px solid var(--line);border-radius:14px;
   background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
 
 .sc-head{display:flex;align-items:center;gap:9px;padding:10px var(--sc-pad);
@@ -78,7 +92,7 @@ const CSS = `
 /* De titel duwt de knop naar rechts. Toen de ondertitel eruit ging
    verdween de kolom eromheen, en daarmee het enige element dat de
    knop op afstand hield -- hij schoof tegen de titel aan. */
-.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:.94rem;
+.sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:calc(var(--sc-fs)*.94rem);
   letter-spacing:-.01em;color:var(--ink);line-height:1.2;
   flex:1 1 auto;min-width:0}
 /* Geen knop maar een teken. De eigenaar, 30-09: "refresh ook mooier
@@ -99,7 +113,7 @@ const CSS = `
 
 /* DE MATRIX. Eerste kolom groeit, valutakolommen zijn even breed en
    rechts uitgelijnd zodat de cijfers onder elkaar staan. */
-.sc-grid{width:100%;border-collapse:collapse;font-size:.83rem}
+.sc-grid{width:100%;border-collapse:collapse;font-size:calc(var(--sc-fs)*.83rem)}
 .sc-grid{table-layout:auto}
 .sc-grid th,.sc-grid td{padding:7px 10px;text-align:right;
   border-top:1px solid var(--line);vertical-align:middle;white-space:nowrap}
@@ -118,7 +132,7 @@ const CSS = `
 .sc-grid th:first-child,.sc-grid td:first-child{text-align:left;
   padding-left:var(--sc-pad);width:100%;max-width:0;overflow:hidden}
 .sc-grid th:last-child,.sc-grid td:last-child{padding-right:var(--sc-pad)}
-.sc-grid thead th{padding-top:6px;padding-bottom:6px;font-size:.62rem;
+.sc-grid thead th{padding-top:6px;padding-bottom:6px;font-size:calc(var(--sc-fs)*.62rem);
   font-weight:800;letter-spacing:.07em;text-transform:uppercase;
   color:var(--faint);white-space:nowrap}
 /* GEEN eigen vlak voor de bankrijen. De eigenaar, 30-09: "teveel
@@ -142,7 +156,7 @@ const CSS = `
 .sc-mark.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
 .sc-mark.bad{color:var(--danger);background:color-mix(in srgb,var(--danger) 13%,transparent)}
 .sc-mark.idle{color:var(--faint);background:var(--panel-2)}
-.sc-name{font-weight:800;font-family:var(--hd);font-size:.85rem;
+.sc-name{font-weight:800;font-family:var(--hd);font-size:calc(var(--sc-fs)*.85rem);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   /* De naam is de identiteit van de rij en mag NOOIT het eerste zijn
      dat verdwijnt: hij krijgt de ruimte, de rest wijkt. */
@@ -151,11 +165,11 @@ const CSS = `
   transition:transform .15s}
 .sc-chev.ghost{visibility:hidden}
 .sc-grid tbody tr.open .sc-chev{transform:rotate(180deg)}
-.sc-when{display:block;color:var(--faint);font-size:.63rem;
+.sc-when{display:block;color:var(--faint);font-size:calc(var(--sc-fs)*.63rem);
   margin:1px 0 0 13px;white-space:nowrap}
 .sc-amt{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
 .sc-amt.zero{color:var(--faint);font-weight:500}
-.sc-amt.none{color:var(--faint);font-weight:500;font-size:.66rem;
+.sc-amt.none{color:var(--faint);font-weight:500;font-size:calc(var(--sc-fs)*.66rem);
   letter-spacing:.01em}
 /* Telt niet mee in de voet: doorgestreept en grijs, met de reden in
    de tooltip. Zo hoef je geen regel onder de tabel te lezen om te
@@ -169,32 +183,32 @@ const CSS = `
 .sc-grid tfoot td{border-top:1px solid var(--line);background:var(--panel-2);
   font-weight:800;padding-top:8px;padding-bottom:8px}
 .sc-grid tfoot tr:first-child td{border-top:2px solid var(--line-2)}
-.sc-grid tfoot .lab{font-size:.62rem;letter-spacing:.07em;
+.sc-grid tfoot .lab{font-size:calc(var(--sc-fs)*.62rem);letter-spacing:.07em;
   text-transform:uppercase;color:var(--faint);font-weight:800}
 .sc-grid tfoot tr.eur td{border-top:1px dashed var(--line-2);padding-top:7px}
 .sc-grid tfoot tr.eur .lab{color:var(--primary-600)}
-.sc-grid tfoot tr.eur .sc-amt{color:var(--primary-600);font-size:1.05rem;
+.sc-grid tfoot tr.eur .sc-amt{color:var(--primary-600);font-size:calc(var(--sc-fs)*1.05rem);
   letter-spacing:-.015em}
 
-.sc-tag{font-size:.57rem;font-weight:800;letter-spacing:.05em;
+.sc-tag{font-size:calc(var(--sc-fs)*.57rem);font-weight:800;letter-spacing:.05em;
   text-transform:uppercase;border-radius:999px;padding:1px 6px;flex:0 0 auto}
 .sc-tag.demo{background:var(--warn-soft);color:var(--warn);border:1px solid var(--line-2)}
 .sc-tag.off{background:var(--panel-2);color:var(--faint);border:1px solid var(--line)}
 .sc-tag.bad{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line-2)}
 
-.sc-fnote{margin:0;padding:7px var(--sc-pad) 10px;font-size:.68rem;
+.sc-fnote{margin:0;padding:7px var(--sc-pad) 10px;font-size:calc(var(--sc-fs)*.68rem);
   color:var(--faint);line-height:1.45;background:var(--panel-2)}
 .sc-fnote.bad{color:var(--danger);background:var(--danger-soft)}
 
 .sc-det{padding:0 var(--sc-pad) 12px;display:flex;flex-direction:column;gap:8px;
   background:var(--panel-2)}
-.sc-part{display:flex;align-items:baseline;gap:10px;font-size:.8rem}
+.sc-part{display:flex;align-items:baseline;gap:10px;font-size:calc(var(--sc-fs)*.8rem)}
 .sc-part .lbl{color:var(--txt-2)}
 .sc-part .amt{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700}
 .sc-sublist{border-top:1px dashed var(--line);padding-top:8px}
-.sc-cap{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+.sc-cap{font-size:calc(var(--sc-fs)*.62rem);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);margin-bottom:4px}
-.sc-note{font-size:.76rem;color:var(--txt-2);background:var(--panel);
+.sc-note{font-size:calc(var(--sc-fs)*.76rem);color:var(--txt-2);background:var(--panel);
   border:1px solid var(--line);border-radius:9px;padding:7px 9px;
   display:flex;gap:7px;align-items:flex-start}
 .sc-note svg{width:14px;height:14px;flex:0 0 auto;margin-top:1px}
@@ -209,13 +223,13 @@ const CSS = `
      eronder. Daarmee past de naam naast twee valutakolommen zonder
      dat er iets afvalt. */
   .sc{--sc-pad:11px}
-  .sc-grid{font-size:.78rem}
+  .sc-grid{font-size:calc(var(--sc-fs)*.78rem)}
   .sc-grid th,.sc-grid td{padding:6px 7px}
   /* De synctijd kost breedte en staat in de tooltip van de rij. */
   .sc-when{display:none}
   .sc-re{padding:6px 8px}
-  .sc-name{font-size:.8rem}
-  .sc-amt{font-size:.82rem}
+  .sc-name{font-size:calc(var(--sc-fs)*.8rem)}
+  .sc-amt{font-size:calc(var(--sc-fs)*.82rem)}
 }
 `;
 
