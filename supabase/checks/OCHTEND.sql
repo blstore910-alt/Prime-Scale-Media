@@ -327,14 +327,27 @@ naamloos as (
 -- inrichtingsfuncties en de vier triggers waar de eigenaarstoets een
 -- UITZONDERING geeft in plaats van een poort. Wordt het er 12, dan is
 -- er een nieuwe bijgeschreven of een oude teruggekomen.
+-- 30-09, TWEEDE POGING: dit telde op de VORM van de vergelijking en
+-- zag er daardoor 11 van de 30. Er zijn vier schrijfwijzen en elk
+-- patroon ving er een paar -- dat is vier plakken lang doorgegaan.
+--
+-- Nu telt hij op wat een functie AANRAAKT: gebruikt hij `tenants` en
+-- `owner_id`, kent hij de helper niet, en GOOIT hij een exception met
+-- owner/eigenaar/super-admin/Forbidden erin? Dan is het een poort en
+-- hoort hij de ownerset te kennen.
+--
+-- De vijftien functies die owner_id alleen lezen om een ONTVANGER van
+-- een melding te kiezen vallen er zo vanzelf buiten: die gooien niets.
 eigenaarstoets as (
   select count(*) as n
     from pg_proc p
     join pg_namespace n2 on n2.oid = p.pronamespace
    where n2.nspname = 'public' and p.prokind = 'f'
-     and pg_get_functiondef(p.oid) ~*
-         '(owner_id|v_owner)[[:space:]]*(=|<>|!=|is distinct from|is not distinct from)[[:space:]]*(auth\.uid\(\)|v_uid)'
+     and pg_get_functiondef(p.oid) ilike '%owner_id%'
+     and pg_get_functiondef(p.oid) ilike '%tenants%'
      and pg_get_functiondef(p.oid) !~* '_in_owner_set'
+     and pg_get_functiondef(p.oid) ~*
+         'raise exception[^;]{0,200}(owner|eigenaar|super-admin|Forbidden)'
 ),
 
 facturen as (
@@ -381,8 +394,8 @@ select * from (
         'facturen zonder company_id',
         (select n from facturen),    0),
     (13, 'de tweede eigenaar mag overal bij',
-        'toetsen op tenants.owner_id die tenant_owners niet kennen',
-        (select n from eigenaarstoets), 11)
+        'POORTEN op tenants.owner_id die tenant_owners niet kennen',
+        (select n from eigenaarstoets), 0)
 ) as t(nr, controle, wat_geteld_wordt, gevonden, hoort)
 
 union all
