@@ -105,10 +105,14 @@ const CSS = `
 .sc-grid thead th{padding-top:6px;padding-bottom:6px;font-size:.62rem;
   font-weight:800;letter-spacing:.07em;text-transform:uppercase;
   color:var(--faint);white-space:nowrap}
-.sc-grid tbody tr.bank{background:var(--panel-2)}
+/* GEEN eigen vlak voor de bankrijen. De eigenaar, 30-09: "teveel
+   background kleuren hier." Hij telde er vier op elkaar -- wit, een
+   blauwe tint voor de twee banken, grijs voor de totaalregel en nog
+   een blauw voor de euro-regel. Dat een rij onze eigen bank is staat
+   er al in woorden; daar hoeft geen tweede signaal bij. */
 .sc-grid tbody tr.click{cursor:pointer}
 .sc-grid tbody tr.click:hover{background:var(--panel-2)}
-.sc-grid tbody tr.open{background:var(--primary-tint)}
+.sc-grid tbody tr.open{background:var(--panel-2)}
 
 .sc-who{display:flex;align-items:center;gap:6px;min-width:0}
 .sc-dot{width:6px;height:6px;border-radius:99px;flex:0 0 auto;background:var(--win)}
@@ -138,14 +142,18 @@ const CSS = `
 .sc-amt.out{color:var(--faint);font-weight:500;text-decoration:line-through;
   text-decoration-thickness:1px;opacity:.75}
 
-.sc-grid tfoot td{border-top:2px solid var(--line-2);background:var(--panel-2);
+/* EEN voet, EEN vlak. De twee regels erin verschillen door hun
+   TYPE, niet door hun achtergrond: de tweede is het bedrag waar het
+   om gaat, dus die krijgt de kleur en het gewicht. */
+.sc-grid tfoot td{border-top:1px solid var(--line);background:var(--panel-2);
   font-weight:800;padding-top:8px;padding-bottom:8px}
+.sc-grid tfoot tr:first-child td{border-top:2px solid var(--line-2)}
 .sc-grid tfoot .lab{font-size:.62rem;letter-spacing:.07em;
   text-transform:uppercase;color:var(--faint);font-weight:800}
-.sc-grid tfoot tr.eur td{border-top:1px solid var(--line);
-  background:var(--primary-tint)}
+.sc-grid tfoot tr.eur td{border-top:1px dashed var(--line-2);padding-top:7px}
 .sc-grid tfoot tr.eur .lab{color:var(--primary-600)}
-.sc-grid tfoot tr.eur .sc-amt{color:var(--primary-600);font-size:.95rem}
+.sc-grid tfoot tr.eur .sc-amt{color:var(--primary-600);font-size:1.05rem;
+  letter-spacing:-.015em}
 
 .sc-tag{font-size:.57rem;font-weight:800;letter-spacing:.05em;
   text-transform:uppercase;border-radius:999px;padding:1px 6px;flex:0 0 auto}
