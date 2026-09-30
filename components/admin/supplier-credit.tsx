@@ -130,7 +130,8 @@ const CSS = `
   margin:1px 0 0 13px;white-space:nowrap}
 .sc-amt{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
 .sc-amt.zero{color:var(--faint);font-weight:500}
-.sc-amt.none{color:var(--faint);font-weight:500}
+.sc-amt.none{color:var(--faint);font-weight:500;font-size:.66rem;
+  letter-spacing:.01em}
 /* Telt niet mee in de voet: doorgestreept en grijs, met de reden in
    de tooltip. Zo hoef je geen regel onder de tabel te lezen om te
    weten dat deze rij niet meedoet. */
@@ -181,7 +182,8 @@ const CSS = `
   .sc{--sc-pad:11px}
   .sc-grid{font-size:.78rem}
   .sc-grid th,.sc-grid td{padding:6px 7px}
-  .sc-when{display:none}
+  .sc-when{font-size:.6rem}
+  .sc-when-time{display:none}
   .sc-relab{display:none}
   .sc-re{padding:6px 8px}
   .sc-name{font-size:.8rem}
@@ -296,12 +298,29 @@ function SupplierRows({
               aria-hidden="true"
             />
             <span className="sc-name">{s.supplier}</span>
-            {s.kind === "bank" ? <span className="sc-bank">our bank</span> : null}
             <StatusTag status={s.status} />
             <ChevronDown className={`sc-chev${hasDetail ? "" : " ghost"}`} />
           </span>
-          {s.readAt ? (
-            <span className="sc-when">{whenShort(s.readAt)}</span>
+          {/* "our bank" ONDER de naam, niet ernaast. De eigenaar,
+              30-09: "our bank vind ik niet mooi geplaatst ofzo."
+              Naast de naam vocht het om dezelfde horizontale ruimte
+              -- en dat is precies de ruimte waarin de naam al moest
+              inkorten. Eronder, op de regel waar de synctijd staat,
+              kost het niets.
+
+              De synctijd verdwijnt op een telefoon (hij zit in de
+              tooltip van de rij); "our bank" blijft, want dat is geen
+              tijdstempel maar wat de rij IS. */}
+          {s.kind === "bank" || s.readAt ? (
+            <span className="sc-when">
+              {s.kind === "bank" ? <b className="sc-bank">our bank</b> : null}
+              {s.readAt ? (
+                <span className="sc-when-time">
+                  {s.kind === "bank" ? " · " : null}
+                  {whenShort(s.readAt)}
+                </span>
+              ) : null}
+            </span>
           ) : null}
         </td>
         {currencies.map((c) => {
