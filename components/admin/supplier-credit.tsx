@@ -23,7 +23,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { AlertTriangle, ChevronDown, FlaskConical, Landmark, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  FlaskConical,
+  Landmark,
+  RefreshCw,
+  Store,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils-pure";
 import { visibleLines } from "@/lib/pure-supplier-holdings";
 import type { SupplierHolding } from "@/lib/pure-supplier-holdings";
@@ -115,17 +122,17 @@ const CSS = `
 .sc-grid tbody tr.open{background:var(--panel-2)}
 
 .sc-who{display:flex;align-items:center;gap:6px;min-width:0}
-.sc-dot{width:6px;height:6px;border-radius:99px;flex:0 0 auto;background:var(--win)}
-.sc-dot.warn{background:var(--warn)}
-.sc-dot.bad{background:var(--danger)}
-.sc-dot.idle{background:var(--line-2)}
+.sc-mark{width:15px;height:15px;flex:0 0 auto;display:grid;place-items:center;
+  color:var(--win)}
+.sc-mark svg{width:15px;height:15px}
+.sc-mark.warn{color:var(--warn)}
+.sc-mark.bad{color:var(--danger)}
+.sc-mark.idle{color:var(--line-2)}
 .sc-name{font-weight:800;font-family:var(--hd);font-size:.85rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   /* De naam is de identiteit van de rij en mag NOOIT het eerste zijn
      dat verdwijnt: hij krijgt de ruimte, de rest wijkt. */
   flex:1 1 auto;min-width:0}
-.sc-bank{font-family:var(--bd);font-weight:700;font-size:.58rem;
-  letter-spacing:.06em;text-transform:uppercase;color:var(--faint);flex:0 0 auto}
 .sc-chev{width:13px;height:13px;color:var(--faint);flex:0 0 auto;
   transition:transform .15s}
 .sc-chev.ghost{visibility:hidden}
@@ -190,8 +197,8 @@ const CSS = `
   .sc{--sc-pad:11px}
   .sc-grid{font-size:.78rem}
   .sc-grid th,.sc-grid td{padding:6px 7px}
-  .sc-when{font-size:.6rem}
-  .sc-when-time{display:none}
+  /* De synctijd kost breedte en staat in de tooltip van de rij. */
+  .sc-when{display:none}
   .sc-relab{display:none}
   .sc-re{padding:6px 8px}
   .sc-name{font-size:.8rem}
@@ -287,14 +294,31 @@ function SupplierRows({
         // Op een telefoon is .sc-when verborgen om breedte te winnen,
         // dus de synctijd moet ergens anders te vinden zijn. Hier, op
         // de rij, waar je hem zoekt.
-        title={s.readAt ? whenShort(s.readAt) : undefined}
+        title={[
+          s.kind === "bank" ? "Our own bank account" : "Credit at a supplier",
+          s.readAt ? whenShort(s.readAt) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       >
         <td>
           <span className="sc-who">
-            {/* Een stip, geen woord: vier rijen scannen op kleur gaat
-                sneller dan vier keer een status lezen. */}
+  
+            {/* ── EEN ICOON IN PLAATS VAN EEN STIP ──────────────────
+                De eigenaar, 30-09: "in plaats van our bank misschien
+                een icon in plaats van zo'n rond bolletje? dus in
+                plaats van 4 bolletjes 4 icons?"
+
+                Beter dan wat er stond, om een reden die hij niet
+                hoefde te noemen: de stip droeg alleen de STAAT, en de
+                soort stond er als woorden naast ("our bank"). Nu
+                draagt één teken allebei -- de VORM zegt wat het is,
+                een winkel voor een leverancier en een bankgebouw voor
+                onze eigen rekening, en de KLEUR zegt hoe het ervoor
+                staat. Daarmee kan het label "our bank" weg, en dat
+                was precies de tekst die om ruimte vocht met de naam. */}
             <span
-              className={`sc-dot${
+              className={`sc-mark${
                 s.status === "error"
                   ? " bad"
                   : s.status === "demo"
@@ -304,7 +328,9 @@ function SupplierRows({
                       : ""
               }`}
               aria-hidden="true"
-            />
+            >
+              {s.kind === "bank" ? <Landmark /> : <Store />}
+            </span>
             <span className="sc-name">{s.supplier}</span>
             <StatusTag status={s.status} />
             <ChevronDown className={`sc-chev${hasDetail ? "" : " ghost"}`} />
@@ -319,15 +345,9 @@ function SupplierRows({
               De synctijd verdwijnt op een telefoon (hij zit in de
               tooltip van de rij); "our bank" blijft, want dat is geen
               tijdstempel maar wat de rij IS. */}
-          {s.kind === "bank" || s.readAt ? (
+          {s.readAt ? (
             <span className="sc-when">
-              {s.kind === "bank" ? <b className="sc-bank">our bank</b> : null}
-              {s.readAt ? (
-                <span className="sc-when-time">
-                  {s.kind === "bank" ? " · " : null}
-                  {whenShort(s.readAt)}
-                </span>
-              ) : null}
+              {s.readAt ? whenShort(s.readAt) : null}
             </span>
           ) : null}
         </td>
