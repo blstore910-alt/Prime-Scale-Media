@@ -8128,6 +8128,9 @@ export default function AdvertiserApp() {
         open={acctTopupOpen}
         setOpen={setAcctTopupOpen}
         account={acctTopup}
+        /* Een lege wallet op dit scherm is geen mededeling maar een
+           afslag: de klant hoort van hier naar zijn wallet te kunnen. */
+        onNeedTopUp={() => go("wallet")}
       />
       <AccountDetailsSheet
         open={detailsOpen}

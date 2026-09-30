@@ -72,9 +72,16 @@ const normalizeAccountCurrency = (
 export default function AccountTopupForm({
   account,
   onSuccess,
+  onNeedTopUp,
 }: {
   account?: AdAccount | null;
   onSuccess: () => void;
+  /**
+   * Wat er moet gebeuren als de wallet leeg blijkt. Optioneel: alleen
+   * de klantkant kan iemand naar zijn eigen wallet brengen; het
+   * beheerscherm geeft hem niet mee en houdt de kale zin.
+   */
+  onNeedTopUp?: () => void;
 }) {
   const { profile } = useAppContext();
   const [selectedAccount, setSelectedAccount] = useState<AccountRecord | null>(
@@ -408,11 +415,16 @@ export default function AccountTopupForm({
     },
   });
 
+  const walletIsEmpty = hasWallet && selectedBalance <= 0;
   const amountDescription = hasWallet
     ? selectedBalance > 0
       ? `Fee included. You can spend up to ${formatCurrency(selectedBalance, selectedCurrency)}.`
       : // A bare "Max: EUR 0.00" under an empty box is a dead end: it
         // states a limit without saying what to do about it.
+        //
+        // 30-09: en dit was nog steeds een dood einde, alleen met meer
+        // woorden. "Top it up" noemt een handeling die op dit scherm
+        // niet kan; de knop ernaast (onNeedTopUp) doet hem wel.
         `Your ${selectedCurrency} wallet is empty — top it up before funding an ad account.`
     : "Wallet balance is unavailable.";
 
@@ -569,6 +581,20 @@ export default function AccountTopupForm({
                 step={0.01}
               description={amountDescription}
             />
+            {/* ── EEN LEGE WALLET IS EEN AFSLAG, GEEN MEDEDELING ──
+                De zin onder het bedragveld zegt "top it up before
+                funding an ad account", en opwaarderen kan alleen op
+                een ander scherm. Zonder deze knop moest de klant de
+                dialoog zelf wegklikken en de wallet gaan zoeken. */}
+            {walletIsEmpty && onNeedTopUp ? (
+              <button
+                type="button"
+                className="underline underline-offset-2 text-xs font-semibold mt-1 self-start"
+                onClick={onNeedTopUp}
+              >
+                Top up your {selectedCurrency} wallet
+              </button>
+            ) : null}
             {/* The amounts people actually move, one tap. A pill above
                 the wallet balance is greyed rather than hidden: a row
                 that changes length as the balance moves is harder to

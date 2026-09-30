@@ -12,10 +12,13 @@ export default function CreateTopupDialog({
   open,
   setOpen,
   account,
+  onNeedTopUp,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   account?: AdAccount | null;
+  /** Zie AccountTopupForm: alleen de klantkant geeft dit mee. */
+  onNeedTopUp?: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -46,6 +49,14 @@ export default function CreateTopupDialog({
           <AccountTopupForm
             account={account}
             onSuccess={() => setOpen(false)}
+            onNeedTopUp={
+              onNeedTopUp
+                ? () => {
+                    setOpen(false);
+                    onNeedTopUp();
+                  }
+                : undefined
+            }
           />
         )}
       </DialogContent>
