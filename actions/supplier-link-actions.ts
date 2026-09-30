@@ -92,18 +92,53 @@ export async function listSupplierAdAccounts(): Promise<
     // Wat al vastligt, zodat de lijst het kan tonen. Op DEZE tenant --
     // een koppeling van een andere tenant gaat ons niet aan en de naam
     // van hun klant al helemaal niet.
+    // ── TWEE LEESJES, GEEN EMBED ──────────────────────────────────
+    //
+    // Hier stond `ad_account:ad_accounts(name)`, en dat gaf op
+    // productie letterlijk: "Could not find a relationship between
+    // 'supplier_ad_accounts' and 'ad_accounts' in the schema cache".
+    //
+    // Terecht. PostgREST kan alleen joinen langs een FOREIGN KEY, en
+    // die staat er niet: `supplier_ad_accounts` draagt alleen zijn
+    // pkey, de tenant-fkey en UNIQUE(tenant_id, provider,
+    // external_id). `ad_account_id` is een kale uuid-kolom.
+    //
+    // Dat is met twee leesjes op te lossen en dus niet met een plak.
+    // Een foreign key toevoegen zou netter zijn, maar het is een
+    // wijziging aan een levende tabel voor een naam in een keuzelijst
+    // -- dat is de verhouding niet.
     const { data: links, error: linkError } = await supabase
       .from("supplier_ad_accounts")
-      .select("external_id, ad_account:ad_accounts(name)")
+      .select("external_id, ad_account_id")
       .eq("tenant_id", profile.tenant_id)
       .eq("provider", "rockads");
     if (linkError) return { ok: false, error: safeErrorMessage(linkError) };
 
+    const ids = (links ?? [])
+      .map((l) => l.ad_account_id)
+      .filter((x): x is string => !!x);
+
+    const namen = new Map<string, string>();
+    if (ids.length) {
+      const { data: accts, error: acctError } = await supabase
+        .from("ad_accounts")
+        .select("id, name")
+        .in("id", ids);
+      // Geen namen is geen ramp: de lijst werkt zonder, en zegt dan
+      // "another ad account" in plaats van een naam. Een mislukte
+      // naamlees mag de hele keuzelijst niet wegnemen.
+      if (!acctError) {
+        for (const a of accts ?? []) namen.set(String(a.id), String(a.name));
+      }
+    }
+
     const byExternal = new Map<string, string>();
     for (const l of links ?? []) {
-      const naam = (l as { ad_account?: { name?: string } | null }).ad_account
-        ?.name;
-      if (l.external_id) byExternal.set(String(l.external_id), naam ?? "—");
+      if (!l.external_id) continue;
+      byExternal.set(
+        String(l.external_id),
+        namen.get(String(l.ad_account_id)) ?? "another ad account",
+      );
     }
 
     return {
@@ -179,9 +214,11 @@ export async function linkAdAccountToSupplier(input: {
   // eerste; de tweede is een gewone update op ad_account_id. Allebei
   // hier expliciet, met een zin die zegt WAT er al vastligt -- een
   // constraint-fout uit Postgres zegt dat niet.
+  // Zonder embed, om dezelfde reden als hierboven: er is geen foreign
+  // key van deze tabel naar ad_accounts, dus PostgREST weigert de join.
   const { data: bezet, error: bezetError } = await supabase
     .from("supplier_ad_accounts")
-    .select("ad_account_id, ad_account:ad_accounts(name)")
+    .select("ad_account_id")
     .eq("tenant_id", profile.tenant_id)
     .eq("provider", "rockads")
     .eq("external_id", externalId)
@@ -198,9 +235,13 @@ export async function linkAdAccountToSupplier(input: {
     bezetRij.ad_account_id &&
     bezetRij.ad_account_id !== adAccountId
   ) {
-    const naam =
-      (bezetRij as { ad_account?: { name?: string } | null }).ad_account
-        ?.name ?? "another ad account";
+    // De naam apart ophalen -- zie hierboven waarom er geen embed is.
+    const { data: andere } = await supabase
+      .from("ad_accounts")
+      .select("name")
+      .eq("id", bezetRij.ad_account_id)
+      .limit(1);
+    const naam = (andere ?? [])[0]?.name ?? "another ad account";
     return {
       ok: false,
       error: `That supplier account is already linked to ${naam}. Unlink it there first.`,
