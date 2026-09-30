@@ -18,6 +18,8 @@ import CustomerGuideView, {
   customerGuideHeading,
 } from "@/components/guide/customer-guide";
 import PartnerDirectory from "@/components/partners/partner-directory";
+import LanguageSwitcher from "@/components/i18n/language-switcher";
+import { useT } from "@/hooks/use-t";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
 import PayoutCard from "@/components/advertiser/payout-card";
@@ -340,6 +342,10 @@ export default function AdvertiserApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // De taal van deze klant. Zie docs/NL_EN.md; valt terug op Engels
+  // zolang plak 177 niet gedraaid is, zodat de app dan werkt als vandaag.
+  const { t } = useT();
 
   const advertiserId = profile?.advertiser?.[0]?.id ?? null;
   // Read on its own, not in the profile select: the column arrives
@@ -3629,25 +3635,25 @@ export default function AdvertiserApp() {
   }, [ask, asking]);
 
   const NAV: { v: View; icon: string; label: string; aff?: boolean }[] = [
-    { v: "dash", icon: "i-home", label: "Dashboard" },
-    { v: "wallet", icon: "i-wallet", label: "Wallet" },
-    { v: "accounts", icon: "i-ad", label: "Ad accounts" },
-    { v: "requests", icon: "i-rocket", label: "Requests" },
-    { v: "billing", icon: "i-receipt", label: "Billing" },
-    { v: "report", icon: "i-chart", label: "Financial report" },
+    { v: "dash", icon: "i-home", label: t("tab.dashboard") },
+    { v: "wallet", icon: "i-wallet", label: t("tab.wallet") },
+    { v: "accounts", icon: "i-ad", label: t("tab.accounts") },
+    { v: "requests", icon: "i-rocket", label: t("tab.requests") },
+    { v: "billing", icon: "i-receipt", label: t("tab.billing") },
+    { v: "report", icon: "i-chart", label: t("tab.report") },
   ];
   const NAV2: { v: View; icon: string; label: string }[] = [
-    { v: "notif", icon: "i-bell", label: "Notifications" },
-    { v: "partners", icon: "i-building", label: "Partners" },
-    { v: "settings", icon: "i-settings", label: "Settings" },
-    { v: "help", icon: "i-help", label: "Get help" },
+    { v: "notif", icon: "i-bell", label: t("tab.notifications") },
+    { v: "partners", icon: "i-building", label: t("tab.partners") },
+    { v: "settings", icon: "i-settings", label: t("tab.settings") },
+    { v: "help", icon: "i-help", label: t("tab.help") },
   ];
   const BOTTOM: { v: View; icon: string; label: string }[] = [
-    { v: "wallet", icon: "i-wallet", label: "Wallet" },
-    { v: "accounts", icon: "i-ad", label: "Accounts" },
-    { v: "dash", icon: "i-home", label: "Home" },
-    { v: "billing", icon: "i-receipt", label: "Billing" },
-    { v: "settings", icon: "i-settings", label: "Settings" },
+    { v: "wallet", icon: "i-wallet", label: t("tab.wallet") },
+    { v: "accounts", icon: "i-ad", label: t("tab.accountsShort") },
+    { v: "dash", icon: "i-home", label: t("tab.home") },
+    { v: "billing", icon: "i-receipt", label: t("tab.billing") },
+    { v: "settings", icon: "i-settings", label: t("tab.settings") },
   ];
 
   const AccountCard = ({ a }: { a: AdAccount }) => {
@@ -7604,7 +7610,18 @@ export default function AdvertiserApp() {
           <div className={`view${view === "settings" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Settings</h1>
+                <h1>{t("tab.settings")}</h1>
+              </div>
+            </div>
+            {/* ── DE TAAL, BOVENAAN ─────────────────────────────────
+                De eigenaar, 30-09: "veel NSA-klanten zijn Nederlands."
+                Bovenaan en niet onderaan: wie de app in een taal ziet
+                die hij niet leest, moet de weg terug vinden zonder te
+                hoeven scrollen door zinnen die hij niet begrijpt. */}
+            <div className="card" style={{ marginBottom: 14 }}>
+              <h2>{t("label.language")}</h2>
+              <div style={{ marginTop: 10 }}>
+                <LanguageSwitcher />
               </div>
             </div>
             <div className="grid2">
