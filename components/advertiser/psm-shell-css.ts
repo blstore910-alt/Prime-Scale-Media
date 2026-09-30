@@ -808,9 +808,28 @@ export const PSM_APP_CSS = `
      hoort, en de regelafstand mag kleiner: 6px in plaats van 10.
      De column-gap blijft 10 zodat hij naast de titel nog lucht heeft
      wanneer hij daar wel past. */
+  /* ── EN NU TOCH WEER RECHTSBOVEN, MET REDEN ───────────────────
+     De eigenaar, 30-09: "new subscription knop moet rechts aligned
+     boven."
+
+     Dat lijkt het omgekeerde van wat hij op 29-09 vroeg, en dat is
+     het niet -- de klacht toen ging over een knop die AL gewrapt was
+     en dan rechtsboven bleef hangen met een lege regel eromheen. De
+     regel die dat oploste ging te ver: hij gaf .pacts onder de
+     640px ALTIJD de volle breedte, dus de knop viel naar beneden ook
+     wanneer hij naast de titel paste. Op /subscriptions bij ~490px
+     past hij ruim, en toch stond hij eronder.
+
+     Nu: flex:0 0 auto en rechts uitgelijnd, zoals boven de 640px.
+     Hij blijft dus op de titelregel zolang hij past, en dat is
+     vrijwel altijd -- onder de 380px valt het woordlabel toch al weg
+     en blijft er een "+" over. Past hij echt niet, dan wrapt hij en
+     staat hij rechts, wat nu precies is wat er gevraagd wordt. Het
+     gat van 29-09 kan niet terugkomen, want dat ontstond alleen
+     doordat hij wrapte terwijl er ruimte was. */
   .psmapp .phead{gap:6px 10px}
-  .psmapp .phead .pacts{margin-left:0}
-  .psmapp .phead-actions>.pacts{flex:1 1 100%;justify-content:flex-start}
+  .psmapp .phead .pacts{margin-left:auto}
+  .psmapp .phead-actions>.pacts{flex:0 0 auto;justify-content:flex-end}
   /* Page actions sit side by side instead of one full-width block each. */
   .psmapp .phead .btn{padding:9px 12px;font-size:.84rem}
   /* Header buttons keep their icons and drop their words on a phone. The
