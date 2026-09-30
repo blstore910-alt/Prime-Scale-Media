@@ -985,7 +985,21 @@ function WithdrawalsSection() {
                                             currency: w.currency,
                                           }
                                         : undefined,
-                                      run: () => approve.mutate(w.id),
+                                      // mutateAsync, net als Reject hierboven.
+                                      // Met `mutate` krijgt de modal een
+                                      // void terug en valt hij in de oude
+                                      // tak: hij sluit METEEN, nog voor de
+                                      // schrijfactie antwoord geeft. En dit
+                                      // is juist de modal die het live
+                                      // platformsaldo toont en de vink "ik
+                                      // heb het saldo zelf gecontroleerd"
+                                      // draagt -- de menselijke handtekening
+                                      // onder een bedrag dat naar een wallet
+                                      // gaat. Die werd weggehaald voordat er
+                                      // iets bekend was, en bij een fout bleef
+                                      // alleen een toast over, zonder het
+                                      // saldo dat de admin net had gelezen.
+                                      run: () => approve.mutateAsync(w.id),
                                     })
                                   }
                                 >

@@ -143,6 +143,31 @@ async function fundedUsd(
         "We could not read this account's withdrawals just now — try again in a moment.",
     };
   }
+  // ── EEN AFGEKAPTE LIJST IS GEEN COMPLETE LIJST ────────────────────
+  //
+  // De kop van deze functie zegt het zelf: "missing WITHDRAWALS
+  // inflates the balance, which fails open". En daarna werd
+  // `truncated` nergens gelezen. pageAllRows zet die vlag na MAX_PAGES
+  // juist omdat een stil afgekapte lijst er precies zo uitziet als een
+  // volledige -- dat is de hele fout die dat bestand bestaat om te
+  // voorkomen, en zijn eigen docblock noemt twee eerdere keren.
+  //
+  // De klantkant (withdraw-dialog.tsx) weigert al op deze vlag, en
+  // use-account-spend zegt waarom: "a floor presented as a total is
+  // the same lie." Deze kant, die het plafond berekent waartegen een
+  // GOEDKEURING wordt afgemeten voordat er een wallet wordt bijgeboekt,
+  // deed het niet.
+  //
+  // Ontbrekende TOP-UPS tellen te laag en zijn dus veilig; ontbrekende
+  // OPNAMES tellen te hoog. Toch weigeren we op allebei: een plafond
+  // dat we niet zeker weten is geen plafond.
+  if (topups.truncated || withdrawals.truncated) {
+    return {
+      ok: false,
+      error:
+        "This account has more movements than we can read in one go, so we cannot work out what is left on it safely. Tell us and we will do it by hand.",
+    };
+  }
 
   // ── SUM THE ROWS THAT ARE IN THIS ACCOUNT'S OWN CURRENCY ──────────
   //
