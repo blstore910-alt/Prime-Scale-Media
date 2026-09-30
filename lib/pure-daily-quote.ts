@@ -153,8 +153,11 @@ function dayKey(d: Date): string {
 // een test in tests/lib/daily-quote.test.ts -- MAX_QUOTE_LEN. Een
 // langere zin is niet "iets minder mooi", hij breekt de bedoeling.
 //
-// 46 is gemeten, niet gekozen: bij .74rem past dat op 360px, het
-// smalste toestel waar dit scherm op gebruikt wordt.
+// 46 is gemeten, niet gekozen. Op productie nagemeten met het echte
+// font (DM Sans 11.84px) via canvas measureText: de breedste zin van
+// de 26 is 254px, en er is 328px beschikbaar op een 360px-toestel --
+// het smalste waar dit scherm op gebruikt wordt. Dus 74px over, en
+// geen van de 26 breekt op 360 of op 390.
 export const MAX_QUOTE_LEN = 46;
 
 export const ADVERTISER_QUOTES: string[] = [
